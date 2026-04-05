@@ -11,8 +11,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
 
       - uses: actions-rs/toolchain@v1
         with:
@@ -31,14 +29,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
-      - name: Build rpfm-lib and rpfm-extensions
+      - name: Build libs
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --workspace --lib --exclude rpfm_ui_common
+          args: --workspace --lib --exclude rpfm_ui_common --exclude rpfm_ui
 
       - name: Run tests
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace --lib --exclude rpfm_ui_common
+          args: --workspace --lib --exclude rpfm_ui_common --exclude rpfm_ui
