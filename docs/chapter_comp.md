@@ -6,26 +6,21 @@ Just in case someone wants to collaborate with code (who knows, maybe there is s
 
 You need to download and install:
 - [***Windows SDK***](https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk).
-- ***Visual Studio Community 2019*** (from [here](https://download.visualstudio.microsoft.com/download/pr/e84651e1-d13a-4bd2-a658-f47a1011ffd1/e17f0d85d70dc9f1e437a78a90dcfc527befe3dc11644e02435bdfe8fd51da27/vs_Community.exe), because microsoft kinda hides the link). 2022 is not supported, use 2019.
-- ***MSVC*** (from the Visual Studio 2019 installer).
-    - Once this is installed, create the VCTOOLSREDISTDIR user env variable, and point it to "C:\Program Files\Microsoft Visual Studio\2019\Community\VC\Redist\MSVC\xx.xx.xxxxx" or wherever MSVC got installed.
-- ***Rust 1.64 with the MSVC toolchain*** (or superior).
+- ***Visual Studio Community 2022*** (or superior).
+- ***MSVC*** (from the Visual Studio installer).
+    - Once this is installed, create the VCTOOLSREDISTDIR user env variable, and point it to "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Redist\MSVC\xx.xx.xxxxx" or wherever MSVC got installed.
+- ***Rust 1.81 with the MSVC toolchain*** (or superior).
 - ***Craft*** (from KDE).
 
 Once you have Craft installed, you need to install RPFM's dependencies:
 
 ```bash
-craft -i qtimageformats
+craft -i libs/qt6/qimageformats
 craft -i kimageformats
 craft -i kwidgetsaddons
 craft -i ktexteditor
 craft -i kiconthemes
 craft -i breeze-icons
-```
-
-NOTE: You may need to specify you want the QT5 version of those libs. Like this:
-```bash
-craft -i libs/qt5/qtimageformats
 ```
 
 Now you can open craft, move to RPFM's source code folder and call from that terminal:
@@ -53,9 +48,9 @@ cargo run --bin rpfm_ui --features "example_feature,example_feature_2"
 
 You need to install the following packages on your distro:
 - ***CMake***.
-- ***Rust 1.64*** (or superior).
-- ***Qt 5.14*** (or superior).
-- ***KDE Framework (KF5) 5.61 (or superior)***.
+- ***Rust 1.81*** (or superior).
+- ***Qt 6***.
+- ***KDE Frameworks 6*** (KCompletion, KIconThemes, KTextEditor, KXmlGui, KWidgetsAddons).
 - ***xz***.
 - ***p7zip***.
 
