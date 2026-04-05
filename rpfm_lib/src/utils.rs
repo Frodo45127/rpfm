@@ -657,7 +657,8 @@ pub fn sanitize_path(path: &Path) -> PathBuf {
 /// # use rpfm_lib::utils::sanitize_filename;
 /// assert_eq!(sanitize_filename("my:file?.txt"), "my_file_.txt");
 /// assert_eq!(sanitize_filename("   .hidden   "), "hidden");
-/// assert_eq!(sanitize_filename("<<<"), "unnamed_file");
+/// assert_eq!(sanitize_filename("<<<"), "___");
+/// assert_eq!(sanitize_filename("..."), "unnamed_file");
 /// ```
 pub fn sanitize_filename(filename: &str) -> String {
     let mut sanitized = filename.to_string();
