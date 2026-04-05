@@ -879,7 +879,7 @@ impl ToolTranslator {
         // Then we duplicate it taking into account the completion tokens.
         let max_tokens = Some((prompt.len() / 4) as u32 * 2u32);
         let request = CreateCompletionRequest {
-            model: Model::Gpt3_5TurboInstruct,
+            model: Model::Gpt3_5Turbo,
             prompt: Some(PromptInput::String(prompt)),
             max_tokens,
             temperature: Some(0.2),

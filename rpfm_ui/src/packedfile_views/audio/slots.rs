@@ -14,7 +14,7 @@ use qt_core::QBox;
 use qt_core::SlotNoArgs;
 
 use getset::Getters;
-use rodio::{Decoder, Sink};
+use rodio::{Decoder, Player};
 
 use std::io::Cursor;
 use std::sync::Arc;
@@ -49,7 +49,7 @@ impl AudioSlots {
 
                 // We replace the sink because "stop" means "stop forever with no way to restart it".
                 // This also drops any previous sink, avoiding repeated sounds.
-                *view.sink().write().unwrap() = Sink::connect_new(view.stream().mixer());
+                *view.sink().write().unwrap() = Player::connect_new(view.stream().mixer());
 
                 let cursor = Cursor::new(view.data().read().unwrap().to_vec());
                 if let Ok(decoder) = Decoder::new(cursor) {

@@ -18,7 +18,7 @@ use qt_core::QPtr;
 
 use anyhow::Result;
 use getset::Getters;
-use rodio::{OutputStreamBuilder, Sink};
+use rodio::{DeviceSinkBuilder, MixerDeviceSink, Player};
 
 use std::sync::{Arc, RwLock};
 
@@ -46,8 +46,8 @@ pub struct FileAudioView {
     stop_button: QPtr<QToolButton>,
 
     data: Arc<RwLock<Vec<u8>>>,
-    sink: Arc<RwLock<Sink>>,
-    stream: rodio::OutputStream,
+    sink: Arc<RwLock<Player>>,
+    stream: MixerDeviceSink,
 }
 
 //-------------------------------------------------------------------------------//
@@ -76,8 +76,8 @@ impl FileAudioView {
 
         let data = Arc::new(RwLock::new(data.data().to_vec()));
 
-        let stream = OutputStreamBuilder::open_default_stream()?;
-        let sink = Sink::connect_new(stream.mixer());
+        let stream = DeviceSinkBuilder::open_default_sink()?;
+        let sink = Player::connect_new(stream.mixer());
 
         let view = Arc::new(Self {
             play_button,
