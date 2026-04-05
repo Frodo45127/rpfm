@@ -105,8 +105,8 @@ steamlocate = "2.0.0-beta.0"
 nalgebra = { version = "^0", features = ["serde-serialize"] }
 
 # SQLite support
-rusqlite = { version = "^0.38", optional = true, features = ["blob", "bundled"] }
-r2d2_sqlite = { version = "^0.32", optional = true }
+rusqlite = { version = "^0.39", optional = true, features = ["blob", "bundled"] }
+r2d2_sqlite = { version = "^0.33", optional = true }
 r2d2 = { version = "^0.8", optional = true }
 
 # F16 support until it gets into std.
