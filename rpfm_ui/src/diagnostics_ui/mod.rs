@@ -12,7 +12,6 @@
 Module with all the code related to the `DiagnosticsUI`.
 !*/
 
-use qt_widgets::QAction;
 use qt_widgets::q_abstract_item_view::ScrollHint;
 use qt_widgets::{QCheckBox, QVBoxLayout};
 use qt_widgets::QDockWidget;
@@ -24,13 +23,15 @@ use qt_widgets::QTableView;
 use qt_widgets::QToolButton;
 use qt_widgets::QWidget;
 
+use qt_gui::QAction;
 use qt_gui::QBrush;
 use qt_gui::QColor;
 use qt_gui::QListOfQStandardItem;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
 
-use qt_core::{CaseSensitivity, DockWidgetArea, Orientation, SortOrder, ToolButtonStyle};
+use qt_core::CaseSensitivity;
+use qt_core::{DockWidgetArea, Orientation, SortOrder, ToolButtonStyle};
 use qt_core::QBox;
 use qt_core::QFlags;
 use qt_core::q_item_selection_model::SelectionFlag;
@@ -578,7 +579,7 @@ impl DiagnosticsUI {
         diagnostics_ui.diagnostics_table_view.hide_column(2);
         diagnostics_ui.diagnostics_table_view.hide_column(6);
         diagnostics_ui.diagnostics_table_view.hide_column(7);
-        diagnostics_ui.diagnostics_table_view.sort_by_column_2a(4, SortOrder::AscendingOrder);
+        diagnostics_ui.diagnostics_table_view.sort_by_column(4, SortOrder::AscendingOrder);
 
         diagnostics_ui.diagnostics_table_view.horizontal_header().set_stretch_last_section(true);
         diagnostics_ui.diagnostics_table_view.horizontal_header().set_section_resize_mode_2a(0, ResizeMode::Fixed);
@@ -607,7 +608,7 @@ impl DiagnosticsUI {
                             let mut reports = Vec::with_capacity(diagnostic.results().len());
 
                             for result in diagnostic.results() {
-                                let qlist = QListOfQStandardItem::new();
+                                let qlist = QListOfQStandardItem::new_0a();
 
                                 // Create an empty row.
                                 let level = Self::new_item();
@@ -656,7 +657,7 @@ impl DiagnosticsUI {
                             let mut reports = Vec::with_capacity(diagnostic.results().len());
 
                             for result in diagnostic.results() {
-                                let qlist = QListOfQStandardItem::new();
+                                let qlist = QListOfQStandardItem::new_0a();
 
                                 // Create an empty row.
                                 let level = Self::new_item();
@@ -705,7 +706,7 @@ impl DiagnosticsUI {
                             let mut reports = Vec::with_capacity(diagnostic.results().len());
 
                             for result in diagnostic.results() {
-                                let qlist = QListOfQStandardItem::new();
+                                let qlist = QListOfQStandardItem::new_0a();
 
                                 // Create an empty row.
                                 let level = Self::new_item();
@@ -765,7 +766,7 @@ impl DiagnosticsUI {
                             let mut reports = Vec::with_capacity(diagnostic.results().len());
 
                             for result in diagnostic.results() {
-                                let qlist = QListOfQStandardItem::new();
+                                let qlist = QListOfQStandardItem::new_0a();
 
                                 // Create an empty row.
                                 let level = Self::new_item();
@@ -825,7 +826,7 @@ impl DiagnosticsUI {
                             let mut reports = Vec::with_capacity(diagnostic.results().len());
 
                             for result in diagnostic.results() {
-                                let qlist = QListOfQStandardItem::new();
+                                let qlist = QListOfQStandardItem::new_0a();
 
                                 // Create an empty row.
                                 let level = Self::new_item();
@@ -879,7 +880,7 @@ impl DiagnosticsUI {
                             let mut reports = Vec::with_capacity(diagnostic.results().len());
 
                             for result in diagnostic.results() {
-                                let qlist = QListOfQStandardItem::new();
+                                let qlist = QListOfQStandardItem::new_0a();
 
                                 // Create an empty row.
                                 let level = Self::new_item();
@@ -928,7 +929,7 @@ impl DiagnosticsUI {
                             let mut reports = Vec::with_capacity(diagnostic.results().len());
 
                             for result in diagnostic.results() {
-                                let qlist = QListOfQStandardItem::new();
+                                let qlist = QListOfQStandardItem::new_0a();
 
                                 // Create an empty row.
                                 let level = Self::new_item();
@@ -1917,7 +1918,7 @@ impl DiagnosticsUI {
         let filter_model: QPtr<QSortFilterProxyModel> = self.diagnostics_table_view.model().static_downcast();
         let selection_model = self.diagnostics_table_view.selection_model();
         let selected_indexes = selection_model.selected_indexes();
-        let mut selection = (0..selected_indexes.count_0a())
+        let mut selection = (0..selected_indexes.count())
             .map(|index| filter_model.map_to_source(selected_indexes.at(index)))
             .collect::<Vec<_>>();
 

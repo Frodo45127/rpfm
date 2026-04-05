@@ -14,3 +14,6 @@
 	path = 3rdparty/src/qt_rendering_widget
 	url = https://github.com/mr-phazer/QtRenderingWidget
     update = "none"
+[submodule "3rdparty/src/ritual"]
+	path = 3rdparty/src/ritual
+	url = https://github.com/Frodo45127/ritual

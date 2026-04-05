@@ -35,7 +35,7 @@ install/
 
 ### Linux
 
-- Qt 5, KDE Frameworks 5 (KCompletion, KIconThemes, KTextEditor, KXmlGui, KWidgetsAddons)
+- Qt 6, KDE Frameworks 6 (KCompletion, KIconThemes, KTextEditor, KXmlGui, KWidgetsAddons)
 - Breeze icons
 - libgit2, xz, p7zip
 - zstd (for tar.zst archive creation)
@@ -44,7 +44,7 @@ install/
 ### Windows
 
 - MSVC toolchain (Visual Studio Build Tools)
-- Qt 5 + KDE Frameworks 5 via [Craft](https://community.kde.org/Craft)
+- Qt 6 + KDE Frameworks 6 via [Craft](https://community.kde.org/Craft)
 - 7-Zip (for archive creation)
 
 ### macOS

@@ -374,7 +374,7 @@ impl SearchView {
             table_search.matches.clear();
 
             let mut flags = if table_search.regex {
-                QFlags::from(MatchFlag::MatchRegExp)
+                QFlags::from(MatchFlag::MatchRegularExpression)
             } else {
                 QFlags::from(MatchFlag::MatchContains)
             };
@@ -413,7 +413,7 @@ impl SearchView {
             };
 
             let mut flags = if table_search.regex {
-                QFlags::from(MatchFlag::MatchRegExp)
+                QFlags::from(MatchFlag::MatchRegularExpression)
             } else {
                 QFlags::from(MatchFlag::MatchContains)
             };
@@ -666,7 +666,7 @@ impl SearchData {
             match parse_str_as_bool(&self.pattern.to_std_string()) {
                 Ok(boolean) => {
                     let check_state = if boolean { CheckState::Checked } else { CheckState::Unchecked };
-                    let items = QListOfQStandardItem::new();
+                    let items = QListOfQStandardItem::new_0a();
                     for row in 0..model.row_count_0a() {
                         let item = model.item_2a(row, column);
                         if item.check_state() == check_state {
@@ -684,7 +684,7 @@ impl SearchData {
             model.find_items_3a(self.pattern.as_ref().unwrap(), flags, column)
         };
 
-        for index in 0..matches_unprocessed.count_0a() {
+        for index in 0..matches_unprocessed.count() {
             let model_index = matches_unprocessed.value_1a(index).index();
             let filter_model_index = filter.map_from_source(&model_index);
             self.matches.push((

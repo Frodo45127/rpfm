@@ -22,11 +22,12 @@ use qt_widgets::QWidget;
 
 use qt_gui::QStandardItemModel;
 
-use qt_core::CaseSensitivity;
 use qt_core::ContextMenuPolicy;
 use qt_core::QBox;
 use qt_core::QPtr;
-use qt_core::QRegExp;
+use qt_core::QRegularExpression;
+use qt_core::QFlags;
+use qt_core::q_regular_expression;
 use qt_core::QSortFilterProxyModel;
 use qt_core::QTimer;
 use qt_core::q_item_selection_model::SelectionFlag;
@@ -198,12 +199,13 @@ impl PackedFileESFView {
     pub unsafe fn filter_files(view: &Arc<Self>) {
 
         // Set the pattern to search.
-        let pattern = QRegExp::new_1a(&view.filter_line_edit.text());
+        let pattern = QRegularExpression::new_1a(&view.filter_line_edit.text());
 
         // Check if the filter should be "Case Sensitive".
         let case_sensitive = view.filter_case_sensitive_button.is_checked();
-        if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::CaseSensitive); }
-        else { pattern.set_case_sensitivity(CaseSensitivity::CaseInsensitive); }
+        if !case_sensitive {
+            pattern.set_pattern_options(QFlags::from(q_regular_expression::PatternOption::CaseInsensitiveOption));
+        }
 
         // Filter whatever it's in that column by the text we got.
         trigger_treeview_filter_safe(&view.tree_filter, &pattern.as_ptr());

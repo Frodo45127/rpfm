@@ -8,7 +8,6 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-use qt_widgets::QAction;
 use qt_widgets::QButtonGroup;
 use qt_widgets::QFileDialog;
 use qt_widgets::q_file_dialog::FileMode;
@@ -18,6 +17,8 @@ use qt_widgets::QToolButton;
 use qt_widgets::q_abstract_item_view::{SelectionBehavior, SelectionMode};
 use qt_widgets::QGridLayout;
 use qt_widgets::QTableView;
+
+use qt_gui::QAction;
 
 use qt_core::CheckState;
 use qt_core::QEventLoop;
@@ -646,7 +647,7 @@ impl ToolTranslator {
         self.translated_value_textedit().set_enabled(false);
 
         let event_loop = QEventLoop::new_0a();
-        event_loop.process_events_0a();
+        event_loop.process_events();
 
         // If we have items in the table, try to figure the next one. If we don't have the current one visible,
         // default to the first/last item, depending on the direction we're moving.
@@ -947,7 +948,7 @@ impl ToolTranslator {
         if file_dialog.exec() == 1 {
 
             let mut paths = vec![];
-            for index in 0..file_dialog.selected_files().count_0a() {
+            for index in 0..file_dialog.selected_files().count() {
                 paths.push(PathBuf::from(file_dialog.selected_files().at(index).to_std_string()));
             }
 

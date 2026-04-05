@@ -13,8 +13,6 @@ Module with all the code for managing the view for Tables.
 !*/
 
 use qt_widgets::q_abstract_item_view::ScrollHint;
-use qt_widgets::QActionGroup;
-use qt_widgets::QAction;
 use qt_widgets::QCheckBox;
 use qt_widgets::QComboBox;
 use qt_widgets::QDialog;
@@ -34,6 +32,8 @@ use qt_widgets::QScrollArea;
 use qt_widgets::QSpinBox;
 use qt_widgets::QWidget;
 
+use qt_gui::QActionGroup;
+use qt_gui::QAction;
 use qt_gui::QGuiApplication;
 use qt_gui::QIcon;
 use qt_gui::QListOfQStandardItem;
@@ -54,7 +54,7 @@ use qt_core::QPtr;
 use qt_core::QSignalBlocker;
 use qt_core::QSignalMapper;
 use qt_core::QSortFilterProxyModel;
-use qt_core::QStringList;
+use qt_core::QListOfQString;
 use qt_core::QString;
 use qt_core::QTimer;
 use qt_core::QVariant;
@@ -1141,7 +1141,7 @@ impl TableView {
         let indexes = self.table_filter.map_selection_to_source(&self.table_view.selection_model().selection()).indexes();
 
         // If we have something selected, enable these actions.
-        if indexes.count_0a() > 0 {
+        if indexes.count() > 0 {
             self.context_menu_copy.set_enabled(true);
             self.context_menu_copy_as_lua_table.set_enabled(true);
 
@@ -1158,7 +1158,7 @@ impl TableView {
             } else if *self.packed_file_type == FileType::DB {
 
                 // Go to Definition and Go To File only should be enabled if we actually are in a field where they'll work.
-                let columns = (0..indexes.count_0a()).map(|x| indexes.at(x).column()).collect::<HashSet<_>>();
+                let columns = (0..indexes.count()).map(|x| indexes.at(x).column()).collect::<HashSet<_>>();
                 let table_definition = self.table_definition();
                 let schema_patches = table_definition.patches();
                 let fields_processed = table_definition.fields_processed();
@@ -1198,7 +1198,7 @@ impl TableView {
                 self.context_menu_smart_delete.set_enabled(true);
 
                 // If we have something selected, enable these actions.
-                if indexes.count_0a() > 0 {
+                if indexes.count() > 0 {
                     self.context_menu_clone_and_append.set_enabled(true);
                     self.context_menu_clone_and_insert.set_enabled(true);
                     self.context_menu_delete_rows.set_enabled(true);
@@ -1413,7 +1413,7 @@ impl TableView {
                 if item.data_1a(ITEM_HAS_SOURCE_VALUE).to_bool() {
                     let original_data = item.data_1a(ITEM_SOURCE_VALUE);
                     let current_data = item.data_1a(2);
-                    if original_data != current_data.as_ref() {
+                    if original_data.to_string().to_std_string() != current_data.to_string().to_std_string() {
                         item.set_data_2a(&original_data, 2);
                         items_reverted += 1;
                     }
@@ -1948,7 +1948,7 @@ impl TableView {
                         // because that means we have no row for that position, and we need one.
                         if real_row == -1 {
                             let row = get_new_row(&self.table_definition());
-                            for index in 0..row.count_0a() {
+                            for index in 0..row.count() {
                                 row.value_1a(index).set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
                             }
                             self.table_model.append_row_q_list_of_q_standard_item(&row);
@@ -2062,7 +2062,7 @@ impl TableView {
                     // First, we re-create the rows and re-insert them.
                     for (index, row_pack) in &rows {
                         for (offset, row) in row_pack.iter().enumerate() {
-                            let qlist = QListOfQStandardItem::new();
+                            let qlist = QListOfQStandardItem::new_0a();
                             row.iter().for_each(|x| qlist.append_q_standard_item(&ptr_from_atomic(x).as_mut_raw_ptr()));
                             model.insert_row_int_q_list_of_q_standard_item(*index + offset as i32, &qlist);
                         }
@@ -2309,7 +2309,7 @@ impl TableView {
         // Get the indexes ready for battle.
         let selection = self.table_view.selection_model().selection();
         let indexes = self.table_filter.map_selection_to_source(&selection).indexes();
-        let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
+        let mut indexes_sorted = (0..indexes.count()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
         sort_indexes_by_model(&mut indexes_sorted);
         dedup_indexes_per_row(&mut indexes_sorted);
         let mut row_numbers = vec![];
@@ -2320,7 +2320,7 @@ impl TableView {
                 row_numbers.push(index.row());
 
                 let columns = self.table_model.column_count_0a();
-                let qlist = QListOfQStandardItem::new();
+                let qlist = QListOfQStandardItem::new_0a();
                 for column in 0..columns {
                     let original_item = self.table_model.item_2a(index.row(), column);
                     let item = (*original_item).clone();
@@ -2334,7 +2334,7 @@ impl TableView {
             rows
         } else {
             let row = get_new_row(&self.table_definition());
-            for index in 0..row.count_0a() {
+            for index in 0..row.count() {
                 row.value_1a(index).set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
             }
             vec![row]
@@ -2377,7 +2377,7 @@ impl TableView {
         // Get the indexes ready for battle.
         let selection = self.table_view.selection_model().selection();
         let indexes = self.table_filter.map_selection_to_source(&selection).indexes();
-        let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
+        let mut indexes_sorted = (0..indexes.count()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
         sort_indexes_by_model(&mut indexes_sorted);
         dedup_indexes_per_row(&mut indexes_sorted);
         let mut row_numbers = vec![];
@@ -2385,7 +2385,7 @@ impl TableView {
         // If nothing is selected, we just append one new row at the end. This only happens when adding empty rows, so...
         if indexes_sorted.is_empty() {
             let row = get_new_row(&self.table_definition());
-            for index in 0..row.count_0a() {
+            for index in 0..row.count() {
                 row.value_1a(index).set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
             }
             self.table_model.append_row_q_list_of_q_standard_item(&row);
@@ -2401,7 +2401,7 @@ impl TableView {
             // If we want to clone, we copy the currently selected row. If not, we just create a new one.
             let row = if clone {
                 let columns = self.table_model.column_count_0a();
-                let qlist = QListOfQStandardItem::new();
+                let qlist = QListOfQStandardItem::new_0a();
                 for column in 0..columns {
                     let original_item = self.table_model.item_2a(index.row(), column);
                     let item = (*original_item).clone();
@@ -2412,7 +2412,7 @@ impl TableView {
                 qlist
             } else {
                 let row = get_new_row(&self.table_definition());
-                for index in 0..row.count_0a() {
+                for index in 0..row.count() {
                     row.value_1a(index).set_data_2a(&QVariant::from_bool(true), ITEM_IS_ADDED);
                 }
                 row
@@ -3407,7 +3407,7 @@ impl TableView {
 
         let mut error_message = String::new();
         let indexes = self.table_view.selection_model().selection().indexes();
-        if indexes.count_0a() > 0 {
+        if indexes.count() > 0 {
             let ref_info = match *self.packed_file_type {
 
                 // For DB, we just get the reference data, the first selected cell's data, and use that to search the source file.
@@ -3523,7 +3523,7 @@ impl TableView {
 
         let mut error_message = String::new();
         let indexes = self.table_view.selection_model().selection().indexes();
-        if indexes.count_0a() > 0 {
+        if indexes.count() > 0 {
             let paths = match *self.packed_file_type {
 
                 // We just get the path for the first cell selected.
@@ -3653,7 +3653,7 @@ impl TableView {
         // This is only for DB Tables, and we need to have something selected.
         let indexes = self.table_view.selection_model().selection().indexes();
         let mut error_message = String::new();
-        if indexes.count_0a() > 0 {
+        if indexes.count() > 0 {
             if let FileType::DB = *self.packed_file_type {
 
                 // Save the currently open locs, to ensure the backend has the most up-to-date data.

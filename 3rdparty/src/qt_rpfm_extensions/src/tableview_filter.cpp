@@ -76,13 +76,13 @@ bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMod
     }
 
     // First, split the matches in groups.
-    QMap<int, QVector<int>> matches_per_group = QMap<int, QVector<int>>();
+    QMap<int, QList<int>> matches_per_group = QMap<int, QList<int>>();
 
     // Initialize the groups so it doesn't explode later.
     for (int i = 0; i < match_groups_per_column.count(); ++i) {
         int group = match_groups_per_column.at(i);
         if (!matches_per_group.contains(group)) {
-            auto vec = QVector<int>();
+            auto vec = QList<int>();
             vec.append(i);
             matches_per_group.insert(group, vec);
         } else {
@@ -94,7 +94,7 @@ bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMod
     // - For a group to be valid, all matches on it must be valid (if one of them is not valid, the entire group is invalid).
     // - For a row to be valid, one of the group needs to be valid (we keep trying until we find a valid one).
     // This means we have to check one group at a time, and if one of them is valid, the full row is valid.
-    for (const QVector<int>& group: qAsConst(matches_per_group)) {
+    for (const QList<int>& group: std::as_const(matches_per_group)) {
         bool is_group_valid = true;
 
         // For each column, check if it's on the current group.
@@ -113,7 +113,7 @@ bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMod
             bool show_blank_cells_in_column = show_blank_cells.at(match) == 1 ? true: false;
             bool show_edited_cells_in_column = show_edited_cells.at(match) == 1 ? true: false;
 
-            QVector<int>* variants = new QVector<int>();
+            QList<int>* variants = new QList<int>();
             if (variant_to_search.at(match) == 0) {
                 variants->append(2);
             } else if (variant_to_search.at(match) == 1) {

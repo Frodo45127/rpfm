@@ -3,7 +3,7 @@
 
 #include "qt_subclasses_global.h"
 #ifdef _WIN32
-#include <KF5/KWidgetsAddons/KMessageWidget>
+#include <KF6/KWidgetsAddons/KMessageWidget>
 #else
 #include <KMessageWidget>
 #endif

@@ -14,12 +14,12 @@ Module with all the code for managing the Variant Editor subtool of the Unit Edi
 This tool is a dialog where you can configure the variant used by a specific unit.
 !*/
 
-use qt_widgets::QAction;
 use qt_widgets::QLabel;
 use qt_widgets::QLineEdit;
 use qt_widgets::QListView;
 use qt_widgets::QMenu;
 
+use qt_gui::QAction;
 use qt_gui::QPixmap;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
@@ -942,7 +942,7 @@ impl SubToolVariantUnitEditor {
     /// Function to delete a faction from the faction list.
     pub unsafe fn delete_faction(&self) -> Result<()> {
         let source_faction = self.faction_list_view.selection_model().selection();
-        if source_faction.count_0a() != 1 {
+        if source_faction.count() != 1 {
             return Err(ToolsError::GenericError("No faction selected".to_string()).into());
         }
 
@@ -957,7 +957,7 @@ impl SubToolVariantUnitEditor {
     /// Function to delete a colour variant from the colour variant list.
     pub unsafe fn delete_colour_variant(&self) -> Result<()> {
         let source_variant = self.unit_variants_colours_list_view.selection_model().selection();
-        if source_variant.count_0a() != 1 {
+        if source_variant.count() != 1 {
             return Err(ToolsError::GenericError("No colour variant selected".to_string()).into());
         }
 

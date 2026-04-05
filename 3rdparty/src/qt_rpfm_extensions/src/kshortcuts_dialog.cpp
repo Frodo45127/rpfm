@@ -266,7 +266,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
 }
 
 extern "C" QAction* shortcut_action(QList<QObject*> const &shortcuts, QString const action_group, QString const action_name) {
-    foreach (QObject* collection, shortcuts) {
+    for (QObject* collection : shortcuts) {
         KActionCollection* actions = dynamic_cast<KActionCollection*>(collection);
 
         if (actions->componentName() == action_group) {

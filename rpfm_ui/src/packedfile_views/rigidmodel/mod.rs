@@ -442,7 +442,7 @@ impl RigidModelView {
         self.mesh_block_groupbox().set_enabled(false);
 
         let event_loop = QEventLoop::new_0a();
-        event_loop.process_events_0a();
+        event_loop.process_events();
 
         // If we have items in the table, try to figure the next one. If we don't have the current one visible,
         // default to the first/last item, depending on the direction we're moving.

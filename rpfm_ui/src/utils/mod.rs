@@ -12,13 +12,14 @@
 Module with all the utility functions, to make our programming lives easier.
 !*/
 
-use qt_widgets::QAction;
 use qt_widgets::QApplication;
 use qt_widgets::QMenu;
 use qt_widgets::{QMessageBox, q_message_box::{Icon, StandardButton}};
 use qt_widgets::QWidget;
 use qt_widgets::QMainWindow;
 
+use qt_gui::QAction;
+use qt_gui::QGuiApplication;
 use qt_gui::QIcon;
 
 use qt_core::QCoreApplication;
@@ -137,7 +138,8 @@ pub unsafe fn show_debug_dialog<T: AsRef<str>>(parent: impl cpp_core::CastInto<P
 
     // Center it on screen.
     window.resize_2a(1000, 600);
-    let pos_x = QApplication::desktop().screen_geometry().center().as_ref() - window.rect().center().as_ref();
+    let pos_x = QGuiApplication::primary_screen().geometry().center();
+    pos_x.sub_assign(window.rect().center().as_ref());
     window.move_1a(&pos_x);
 
     // And show it.
@@ -221,10 +223,10 @@ pub unsafe fn show_undecoded_table_report_dialog(parent: Ptr<QWidget>, table_nam
 pub unsafe fn add_action_to_menu(menu: &QPtr<QMenu>, shortcuts: Ref<QListOfQObject>, action_group: &str, action_name: &str, action_translation_key: &str, associated_widget: Option<QPtr<QWidget>>) -> QPtr<QAction> {
     let action = shortcut_action_safe(shortcuts.as_ptr(), QString::from_std_str(action_group).into_ptr(), QString::from_std_str(action_name).into_ptr());
     action.set_text(&qtr(action_translation_key));
-    menu.add_action(action.as_ptr());
+    menu.add_action_q_action(action.as_ptr());
 
     if let Some(associated_widget) = associated_widget {
-        associated_widget.add_action(action.as_ptr());
+        associated_widget.add_action_q_action(action.as_ptr());
     }
 
     action
@@ -234,7 +236,7 @@ pub unsafe fn add_action_to_widget(shortcuts: Ref<QListOfQObject>, action_group:
     let action = shortcut_action_safe(shortcuts.as_ptr(), QString::from_std_str(action_group).into_ptr(), QString::from_std_str(action_name).into_ptr());
 
     if let Some(associated_widget) = associated_widget {
-        associated_widget.add_action(action.as_ptr());
+        associated_widget.add_action_q_action(action.as_ptr());
     }
 
     action

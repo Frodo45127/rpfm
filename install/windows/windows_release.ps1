@@ -38,7 +38,7 @@ mkdir imageformats
 Copy-Item C:\CraftRoot\plugins\imageformats\*.dll I:\deploy\rpfm-release-assets\imageformats\
 Copy-Item $RPFM_PATH\3rdparty\builds\qdds.dll I:\deploy\rpfm-release-assets\imageformats\
 
-# TODO: Check if we have to copy the kf5 folder.
+# TODO: Check if we have to copy the kf6 folder.
 
 mkdir platforms
 Copy-Item C:\CraftRoot\plugins\platforms\qwindows.dll I:\deploy\rpfm-release-assets\platforms\
@@ -59,34 +59,35 @@ Copy-Item C:\CraftRoot\bin\icuuc??.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\intl-8.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\jpeg62.dll I:\deploy\rpfm-release-assets\
 
-Copy-Item C:\CraftRoot\bin\KF5Archive.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\KF5Codecs.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\KF5Completion.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\KF5ConfigCore.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\KF5ConfigGui.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\KF5ConfigWidgets.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\KF5CoreAddons.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\KF5Crash.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\KF5DBusAddons.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\KF5GuiAddons.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\KF5I18n.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\KF5IconThemes.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\KF5ItemViews.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\KF5JobWidgets.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\KF5KIOCore.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\KF5KIOGui.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\KF5KIOWidgets.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\KF5Parts.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\KF5Service.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\KF5Solid.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\KF5SonnetCore.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\KF5SonnetUi.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\KF5SyntaxHighlighting.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\KF5TextEditor.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\KF5TextWidgets.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\KF5WidgetsAddons.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\KF5WindowSystem.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\KF5XmlGui.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6Archive.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6Codecs.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6Completion.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6ConfigCore.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6ConfigGui.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6ConfigWidgets.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6CoreAddons.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6Crash.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6DBusAddons.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6GuiAddons.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6I18n.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6IconThemes.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6ItemViews.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6JobWidgets.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6KIOCore.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6KIOGui.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6KIOWidgets.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6Parts.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6Service.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6Solid.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6SonnetCore.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6SonnetUi.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6SyntaxHighlighting.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6TextEditor.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6TextWidgets.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6WidgetsAddons.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6WindowSystem.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6XmlGui.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6ColorScheme.dll I:\deploy\rpfm-release-assets\
 
 Copy-Item C:\CraftRoot\bin\libbzip2.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\libcrypto*.dll I:\deploy\rpfm-release-assets\
@@ -103,16 +104,16 @@ Copy-Item C:\CraftRoot\bin\msvcp140_2.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\pcre2-8.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\pcre2-16.dll I:\deploy\rpfm-release-assets\
 
-Copy-Item C:\CraftRoot\bin\Qt5Core.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\Qt5DBus.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\Qt5Gui.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\Qt5Network.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\Qt5PrintSupport.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\Qt5Qml.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\Qt5Svg.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\Qt5TextToSpeech.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\Qt5Widgets.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\Qt5Xml.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\Qt6Core.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\Qt6DBus.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\Qt6Gui.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\Qt6Network.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\Qt6PrintSupport.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\Qt6Qml.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\Qt6Svg.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\Qt6TextToSpeech.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\Qt6Widgets.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\Qt6Xml.dll I:\deploy\rpfm-release-assets\
 
 Copy-Item C:\CraftRoot\bin\vcruntime140.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\vcruntime140_1.dll I:\deploy\rpfm-release-assets\
@@ -140,8 +141,8 @@ Copy-Item $RPFM_PATH/rpfm_ui/ui_templates/* I:\deploy\rpfm-release-assets\ui\
 # mkdir assets
 # Copy-Item -R $RPFM_PATH/assets/* I:\deploy\rpfm-release-assets\assets\
 
-# Execute windeployqt to add missing translations and the vcredist if needed.
-windeployqt rpfm_ui.exe
+# Execute windeployqt6 to add missing translations and the vcredist if needed.
+windeployqt6 rpfm_ui.exe
 
 # Remove extra files that are not really needed for execution.
 Remove-Item -fo I:\deploy\rpfm-release-assets\vc_redist.x64.exe

@@ -147,7 +147,7 @@ impl<T: Send + Sync + Debug + for<'a> serde::Deserialize<'a>> CentralCommand<T> 
                         panic!("{THREADS_COMMUNICATION_ERROR}{response:?}")
                     }
                 }
-                unsafe { event_loop.process_events_0a(); }
+                unsafe { event_loop.process_events(); }
             }
         }
 
@@ -233,7 +233,7 @@ pub fn wait_for_reconnect(timeout_ms: u64) -> bool {
         if start.elapsed() > timeout {
             return false;
         }
-        unsafe { event_loop.process_events_0a(); }
+        unsafe { event_loop.process_events(); }
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
     true

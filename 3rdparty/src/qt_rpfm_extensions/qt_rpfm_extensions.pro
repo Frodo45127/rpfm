@@ -5,10 +5,14 @@
 #-------------------------------------------------
 
 QT       += widgets
-QT       += KIconThemes
-QT       += KTextEditor
-QT       += KWidgetsAddons
-QT       += KCompletion
+
+# KF6 frameworks (no longer have qmake integration, use include/lib paths directly).
+# We add each KF6 module subdir so transitive includes (e.g. KTextEditor -> KParts -> KCoreAddons) resolve.
+KF6_MODULES = KIconThemes KTextEditor KWidgetsAddons KCompletion KXmlGui \
+              KParts KCoreAddons KSyntaxHighlighting KConfig KConfigCore KConfigGui \
+              KConfigWidgets KColorScheme KCodecs KI18n
+for(mod, KF6_MODULES): INCLUDEPATH += /usr/include/KF6/$$mod
+LIBS += -lKF6Completion -lKF6IconThemes -lKF6TextEditor -lKF6XmlGui -lKF6WidgetsAddons
 
 TARGET = qt_rpfm_extensions
 TEMPLATE = lib
@@ -105,10 +109,10 @@ windows {
     INCLUDEPATH += C:/CraftRoot/include
 
     # Fix for the broken KSyntaxHighlighting include on linux, by AaronBPaden.
-    INCLUDEPATH += C:/CraftRoot/include/KF5/KSyntaxHighlighting
+    INCLUDEPATH += C:/CraftRoot/include/KF6/KSyntaxHighlighting
 
     # Same fix for the build machine.
-    INCLUDEPATH += D:/Craft/include/KF5/KSyntaxHighlighting
+    INCLUDEPATH += D:/Craft/include/KF6/KSyntaxHighlighting
 }
 
 unix {
@@ -120,7 +124,7 @@ unix {
     QMAKE_CXXFLAGS = -Wl,-rpath='${ORIGIN}'
 
     # Fix for the broken KSyntaxHighlighting include on linux, by AaronBPaden.
-    INCLUDEPATH += /usr/include/KF5/KSyntaxHighlighting
+    INCLUDEPATH += /usr/include/KF6/KSyntaxHighlighting
 }
 
 # This means we generate all the artifacts in target and drop the final lib in libs.

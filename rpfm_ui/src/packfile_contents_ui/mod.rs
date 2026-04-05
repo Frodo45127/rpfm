@@ -12,8 +12,6 @@
 Module with all the code related to the main `PackFileContentsUI`.
 !*/
 
-use qt_widgets::QAction;
-use qt_widgets::QActionGroup;
 use qt_widgets::QCheckBox;
 use qt_widgets::QDialog;
 use qt_widgets::{q_dialog_button_box::StandardButton, QDialogButtonBox};
@@ -27,14 +25,17 @@ use qt_widgets::QToolButton;
 use qt_widgets::QTreeView;
 use qt_widgets::QWidget;
 
+use qt_gui::QAction;
+use qt_gui::QActionGroup;
 use qt_gui::QStandardItemModel;
 
 use qt_core::QBox;
-use qt_core::CaseSensitivity;
 use qt_core::DockWidgetArea;
 use qt_core::QObject;
 use qt_core::QPtr;
-use qt_core::QRegExp;
+use qt_core::QRegularExpression;
+use qt_core::QFlags;
+use qt_core::q_regular_expression;
 use qt_core::QSortFilterProxyModel;
 use qt_core::QString;
 use qt_core::QTimer;
@@ -544,12 +545,13 @@ impl PackFileContentsUI {
     pub unsafe fn filter_files(pack_file_contents_ui: &Rc<Self>) {
 
         // Set the pattern to search.
-        let pattern = QRegExp::new_1a(&pack_file_contents_ui.filter_line_edit.text());
+        let pattern = QRegularExpression::new_1a(&pack_file_contents_ui.filter_line_edit.text());
 
         // Check if the filter should be "Case Sensitive".
         let case_sensitive = pack_file_contents_ui.filter_case_sensitive_button.is_checked();
-        if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::CaseSensitive); }
-        else { pattern.set_case_sensitivity(CaseSensitivity::CaseInsensitive); }
+        if !case_sensitive {
+            pattern.set_pattern_options(QFlags::from(q_regular_expression::PatternOption::CaseInsensitiveOption));
+        }
 
         // Filter whatever it's in that column by the text we got.
         trigger_treeview_filter_safe(&pack_file_contents_ui.packfile_contents_tree_model_filter, &pattern.as_ptr());
@@ -732,7 +734,7 @@ impl PackFileContentsUI {
 
         // First, try to get it from the current tree selection.
         let selection = self.packfile_contents_tree_view.selection_model().selection().indexes();
-        if selection.count_0a() > 0 {
+        if selection.count() > 0 {
             let index = selection.at(0);
             let filter: qt_core::QPtr<qt_core::QSortFilterProxyModel> = self.packfile_contents_tree_view.model().static_downcast();
             let source_index = filter.map_to_source(index);
@@ -772,7 +774,7 @@ impl PackFileContentsUI {
         let indexes_visual = tree_view.selection_model().selection().indexes();
         let mut result: BTreeMap<String, Vec<ContainerPath>> = BTreeMap::new();
 
-        for i in 0..indexes_visual.count_0a() {
+        for i in 0..indexes_visual.count() {
             let source_index = filter.map_to_source(indexes_visual.at(i));
             let item = model.item_from_index(&source_index);
             if item.is_null() {

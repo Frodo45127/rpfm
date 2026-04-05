@@ -20,7 +20,7 @@ use qt_widgets::{QMessageBox, q_message_box};
 use qt_widgets::QPushButton;
 use qt_widgets::QTextEdit;
 use qt_widgets::SlotOfQPoint;
-use qt_widgets::SlotOfQStringList;
+use qt_widgets::SlotOfQListOfQString;
 
 use qt_gui::QCursor;
 use qt_gui::QDesktopServices;
@@ -191,7 +191,7 @@ pub struct AppUISlots {
     pub tab_bar_packed_file_import_from_dependencies: QBox<SlotNoArgs>,
     pub tab_bar_packed_file_toggle_quick_notes: QBox<SlotNoArgs>,
 
-    pub open_pack_drop: QBox<SlotOfQStringList>,
+    pub open_pack_drop: QBox<SlotOfQListOfQString>,
 
     //-----------------------------------------------//
     // `StatusBar` slots.
@@ -314,7 +314,7 @@ impl AppUISlots {
                         // Now the fun thing. We have to get all the selected files, and then open them one by one.
                         // For that we use the same logic as for the "Load All CA PackFiles" feature.
                         let mut paths = vec![];
-                        for index in 0..file_dialog.selected_files().count_0a() {
+                        for index in 0..file_dialog.selected_files().count() {
                             paths.push(PathBuf::from(file_dialog.selected_files().at(index).to_std_string()));
                         }
 
@@ -349,7 +349,7 @@ impl AppUISlots {
 
                 if file_dialog.exec() == 1 {
                     let mut paths = vec![];
-                    for index in 0..file_dialog.selected_files().count_0a() {
+                    for index in 0..file_dialog.selected_files().count() {
                         paths.push(PathBuf::from(file_dialog.selected_files().at(index).to_std_string()));
                     }
 
@@ -1637,7 +1637,7 @@ impl AppUISlots {
             }
         ));
 
-        let open_pack_drop = SlotOfQStringList::new(&app_ui.main_window, clone!(
+        let open_pack_drop = SlotOfQListOfQString::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui,
             dependencies_ui,
@@ -1652,7 +1652,7 @@ impl AppUISlots {
                 // Now the fun thing. We have to get all the selected files, and then open them one by one.
                 // For that we use the same logic as for the "Load All CA PackFiles" feature.
                 let mut paths = vec![];
-                for index in 0..paths_q.count_0a() {
+                for index in 0..paths_q.count() {
                     paths.push(PathBuf::from(paths_q.at(index).to_std_string()));
                 }
 

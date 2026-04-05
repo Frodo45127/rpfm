@@ -57,7 +57,7 @@ impl RigidModelSlots {
             ui => move |after, _| {
                 info!("Triggering 'load_data_to_detailed_view' for Rigid Model view.");
 
-                if after.count_0a() == 1 {
+                if after.count() == 1 {
                     let base_index = after.at(0);
                     let indexes = base_index.indexes();
                     let filter_index = indexes.at(0);

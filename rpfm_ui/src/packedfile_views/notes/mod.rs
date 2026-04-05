@@ -8,7 +8,6 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-use qt_widgets::QAction;
 use qt_widgets::QDialogButtonBox;
 use qt_widgets::q_dialog_button_box::StandardButton;
 use qt_widgets::QDialog;
@@ -21,6 +20,7 @@ use qt_widgets::QPushButton;
 use qt_widgets::QTextEdit;
 use qt_widgets::QWidget;
 
+use qt_gui::QAction;
 use qt_gui::QDesktopServices;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
@@ -284,7 +284,7 @@ impl NotesView {
 
     unsafe fn context_menu_update(&self) {
         let indexes = self.filter.map_selection_to_source(&self.list.selection_model().selection()).indexes();
-        let enabled = indexes.count_0a() == 1;
+        let enabled = indexes.count() == 1;
 
         self.context_menu_edit.set_enabled(enabled);
         self.context_menu_delete.set_enabled(enabled);

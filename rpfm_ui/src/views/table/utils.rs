@@ -100,7 +100,7 @@ pub unsafe fn get_visible_selection_sorted(indexes: &CppBox<QListOfQModelIndex>,
 /// This function returns the VISIBLE SELECTION of a view, unsorted. This means all filtered out rows and hidden columns are not returned, even if selected.
 pub unsafe fn get_visible_selection_unsorted(indexes: &CppBox<QListOfQModelIndex>, view: &QPtr<QTableView>) -> Vec<Ref<QModelIndex>> {
     let hidden_columns = (0..view.model().column_count_0a()).filter(|index| view.is_column_hidden(*index)).collect::<Vec<i32>>();
-    (0..indexes.count_0a()).filter_map(|x| {
+    (0..indexes.count()).filter_map(|x| {
         let filter_index = indexes.at(x);
         if !filter_index.is_valid() {
             None
@@ -222,7 +222,7 @@ pub unsafe fn delete_rows(model: &QPtr<QStandardItemModel>, rows: &[i32]) -> Vec
 
 /// This function returns a new default row.
 pub unsafe fn get_new_row(table_definition: &Definition) -> CppBox<QListOfQStandardItem> {
-    let qlist = QListOfQStandardItem::new();
+    let qlist = QListOfQStandardItem::new_0a();
     let patches = Some(table_definition.patches());
     for field in table_definition.fields_processed() {
         let item = get_default_item_from_field(&field, patches);
@@ -470,8 +470,8 @@ pub unsafe fn load_data(
 
         // Get each row in a mass loop.
         let qlists = data.par_iter().map(|entry| {
-            let qlist = QListOfQStandardItem::new();
-            qlist.reserve(entry.len() as i32);
+            let qlist = QListOfQStandardItem::new_0a();
+            qlist.reserve(entry.len() as i64);
 
             let keys_joined = key_pos.iter()
                 .map(|x| entry[*x].data_to_string())
@@ -480,7 +480,7 @@ pub unsafe fn load_data(
             for (column, field) in entry.iter().enumerate() {
                 let item = get_item_from_decoded_data(field, &keys, column);
 
-                if data_source != DataSource::PackFile || (is_translator && qlist.count_0a() < 4) {
+                if data_source != DataSource::PackFile || (is_translator && qlist.count() < 4) {
                     item.set_editable(false);
 
                     // Checkable items do not get properly disabled with the set_editable function.
@@ -843,7 +843,7 @@ pub unsafe fn build_columns(
                                 size = 100;
                             }
 
-                            table_view.set_column_width(index as i32, size);
+                            table_view.set_column_width(index as i32, size as i32);
                         }
                         FieldType::StringU8 |
                         FieldType::StringU16 |
@@ -870,7 +870,7 @@ pub unsafe fn build_columns(
                 }
                 TableType::Loc(ref table) => {
                     match field.field_type() {
-                        FieldType::Boolean => table_view.set_column_width(index as i32, model.horizontal_header_item(index as i32).text().length() * 6 + 30),
+                        FieldType::Boolean => table_view.set_column_width(index as i32, (model.horizontal_header_item(index as i32).text().length() * 6 + 30) as i32),
                         FieldType::StringU16 => {
                             let size = table.data()
                                 .par_iter()
@@ -885,7 +885,7 @@ pub unsafe fn build_columns(
                 #[cfg(feature = "enable_tools")]
                 TableType::TranslatorTable(ref table) => {
                     match field.field_type() {
-                        FieldType::Boolean => table_view.set_column_width(index as i32, model.horizontal_header_item(index as i32).text().length() * 6 + 30),
+                        FieldType::Boolean => table_view.set_column_width(index as i32, (model.horizontal_header_item(index as i32).text().length() * 6 + 30) as i32),
                         FieldType::StringU8 => {
                             let mut size = table.data()
                                 .par_iter()
@@ -1191,8 +1191,8 @@ pub unsafe fn setup_item_delegates(
 
         // Combos are a bit special, as they may or may not replace other delegates. If we disable them, use the normal delegates.
         if !settings_bool("disable_combos_on_tables") && references.is_some() || !field.enum_values().is_empty() {
-            let values = QStringList::new();
-            let lookups = QStringList::new();
+            let values = QListOfQString::new_0a();
+            let lookups = QListOfQString::new_0a();
             if let Some(data) = references {
                 let mut data = data.data().iter().collect::<Vec<(&String, &String)>>();
                 data.sort_by_key(|x| x.0);

@@ -14,9 +14,9 @@
 //! - File mode (Ctrl+P): lists all files from open packs, filterable by typing.
 //! - Command mode (Ctrl+Shift+P): lists all available actions, filterable by typing.
 
-use qt_widgets::QAction;
 use qt_widgets::QMenu;
 
+use qt_gui::QAction;
 use qt_gui::QStandardItem;
 
 use qt_core::QString;
@@ -124,10 +124,10 @@ pub unsafe fn show_command_palette(
     // Collect actions from the main menu bar.
     let menu_bar = app_ui.main_window().menu_bar();
     let menu_bar_actions = menu_bar.actions();
-    for i in 0..menu_bar_actions.count_0a() {
+    for i in 0..menu_bar_actions.count() {
         let menu_action = menu_bar_actions.value_1a(i);
         if menu_action.is_null() { continue; }
-        let menu = menu_action.menu();
+        let menu = QMenu::menu_in_action(menu_action);
         if menu.is_null() { continue; }
         let category = menu.title().to_std_string().replace("&", "");
         collect_actions_from_menu(&QPtr::from_raw(menu.as_mut_raw_ptr()), &category, &mut actions, &palette_ptr);
@@ -223,11 +223,11 @@ unsafe fn collect_actions_from_menu(
     palette_ptr: &QPtr<qt_widgets::QWidget>,
 ) {
     let menu_actions = menu.actions();
-    for i in 0..menu_actions.count_0a() {
+    for i in 0..menu_actions.count() {
         let action = menu_actions.value_1a(i);
         if action.is_null() || action.is_separator() { continue; }
 
-        let submenu = action.menu();
+        let submenu = QMenu::menu_in_action(&action);
         if !submenu.is_null() {
             let submenu_title = submenu.title().to_std_string().replace("&", "");
             let sub_category = if submenu_title.is_empty() {

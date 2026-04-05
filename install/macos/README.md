@@ -5,7 +5,7 @@ There is no automated macOS build or packaging script yet. This document describ
 ## Prerequisites
 
 - Rust toolchain (stable, >= 1.81)
-- Qt 5 and KDE Frameworks 5 (via Homebrew: `brew install qt@5 kf5-completion kf5-iconthemes kf5-ktexteditor kf5-kxmlgui kf5-kwidgetsaddons`)
+- Qt 6 and KDE Frameworks 6 (via Homebrew: `brew install qt@6 kf6-kcompletion kf6-kiconthemes kf6-ktexteditor kf6-kxmlgui kf6-kwidgetsaddons`)
 - CMake (`brew install cmake`)
 - GNU Make (`brew install make`, provides `gmake`)
 
@@ -24,6 +24,6 @@ The custom Qt extensions library (`3rdparty/src/qt_rpfm_extensions`) is compiled
 
 - macOS applications are typically distributed as `.app` bundles inside `.dmg` disk images
 - An `.app` bundle requires a specific directory structure (`Contents/MacOS/`, `Contents/Resources/`, `Contents/Frameworks/`, `Info.plist`)
-- Qt dependencies would need to be bundled using `macdeployqt`
+- Qt dependencies would need to be bundled using `macdeployqt6`
 - Code signing and notarization are required for distribution outside the App Store
 - No CI runner is currently configured for macOS builds

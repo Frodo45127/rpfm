@@ -1,7 +1,7 @@
 #include "treeview_filter.h"
 #include <QSortFilterProxyModel>
 #include <QItemSelection>
-#include <QRegExp>
+#include <QRegularExpression>
 #include <QStandardItem>
 #include <QStandardItemModel>
 
@@ -12,9 +12,9 @@ extern "C" QSortFilterProxyModel* new_treeview_filter(QObject *parent) {
 }
 
 // Function to trigger the filter we want, instead of the default one, from Rust.
-extern "C" void trigger_treeview_filter(QSortFilterProxyModel* filter, QRegExp* pattern) {
+extern "C" void trigger_treeview_filter(QSortFilterProxyModel* filter, QRegularExpression* pattern) {
     QTreeViewSortFilterProxyModel* filter2 = static_cast<QTreeViewSortFilterProxyModel*>(filter);
-    filter2->setFilterRegExp(*pattern);
+    filter2->setFilterRegularExpression(*pattern);
 }
 
 // Constructor of QTreeViewSortFilterProxyModel.
@@ -35,11 +35,11 @@ bool QTreeViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMode
             QString extraData2 = currntIndex.data(42).toString();
 
             if (!extraData1.isEmpty()) {
-                result |= extraData1.contains(filterRegExp());
+                result |= extraData1.contains(filterRegularExpression());
             }
 
             if (!extraData2.isEmpty()) {
-                result |= extraData2.contains(filterRegExp());
+                result |= extraData2.contains(filterRegularExpression());
             }
 
             // Keep the parent if a children is shown.
@@ -60,11 +60,11 @@ bool QTreeViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMode
         QString extraData2 = currntIndex.data(42).toString();
 
         if (!extraData1.isEmpty()) {
-            result |= extraData1.contains(filterRegExp());
+            result |= extraData1.contains(filterRegularExpression());
         }
 
         if (!extraData2.isEmpty()) {
-            result |= extraData2.contains(filterRegExp());
+            result |= extraData2.contains(filterRegularExpression());
         }
     }
 

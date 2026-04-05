@@ -55,7 +55,7 @@ impl ToolTranslatorSlots {
             ui => move |after, _| {
                 info!("Triggering 'load_data_to_detailed_view' for Translator.");
 
-                if after.count_0a() == 1 {
+                if after.count() == 1 {
                     let base_index = after.at(0);
                     let indexes = base_index.indexes();
                     let filter_index = indexes.at(0);
@@ -89,7 +89,7 @@ impl ToolTranslatorSlots {
 
                 ui.translated_value_textedit().set_enabled(false);
                 let event_loop = QEventLoop::new_0a();
-                event_loop.process_events_0a();
+                event_loop.process_events();
 
                 let source_text = ui.original_value_textedit().to_plain_text().to_std_string();
                 let language = ui.map_language_to_deepl();
@@ -108,7 +108,7 @@ impl ToolTranslatorSlots {
 
                 ui.translated_value_textedit().set_enabled(false);
                 let event_loop = QEventLoop::new_0a();
-                event_loop.process_events_0a();
+                event_loop.process_events();
 
                 let source_text = ui.original_value_textedit().to_plain_text().to_std_string();
                 let language = ui.map_language_to_natural();
@@ -128,7 +128,7 @@ impl ToolTranslatorSlots {
 
                 ui.translated_value_textedit().set_enabled(false);
                 let event_loop = QEventLoop::new_0a();
-                event_loop.process_events_0a();
+                event_loop.process_events();
 
                 let source_text = ui.original_value_textedit().to_plain_text().to_std_string();
                 let language = ui.map_language_to_google();

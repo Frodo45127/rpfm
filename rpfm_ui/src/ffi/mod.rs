@@ -13,7 +13,6 @@ Module containing the ffi functions used for custom widgets.
 !*/
 
 use qt_widgets::QAbstractSpinBox;
-use qt_widgets::QAction;
 #[cfg(feature = "enable_tools")] use qt_widgets::QDialog;
 use qt_widgets::QLabel;
 use qt_widgets::QLayout;
@@ -24,11 +23,13 @@ use qt_widgets::QTableView;
 use qt_widgets::QTreeView;
 use qt_widgets::QWidget;
 
+use qt_gui::QAction;
 #[cfg(feature = "enable_tools")] use qt_gui::QColor;
 use qt_gui::QIcon;
 use qt_gui::QPixmap;
 use qt_gui::QStandardItemModel;
 
+use qt_core::CaseSensitivity;
 use qt_core::QBox;
 use qt_core::QBuffer;
 use qt_core::QByteArray;
@@ -38,16 +39,15 @@ use qt_core::QListOfQObject;
 use qt_core::QModelIndex;
 use qt_core::QObject;
 use qt_core::QPoint;
-use qt_core::QRegExp;
+use qt_core::QRegularExpression;
 use qt_core::Signal;
 use qt_core::QSortFilterProxyModel;
 use qt_core::QString;
-use qt_core::QStringList;
+use qt_core::QListOfQString;
 use qt_core::QPtr;
 use qt_core::QTimer;
 use qt_core::QListOfInt;
 use qt_core::QVariant;
-use qt_core::CaseSensitivity;
 
 #[cfg(feature = "enable_tools")] use cpp_core::CppBox;
 use cpp_core::Ptr;
@@ -84,8 +84,8 @@ pub fn new_unit_variant_item_delegate_safe(table_view: &Ptr<QObject>, column: i3
 }
 
 // This function replaces the default editor widget for reference columns with a combobox, so you can select the reference data.
-extern "C" { fn new_combobox_item_delegate(table_view: *mut QObject, column: i32, list: *const QStringList, lookup_list: *const QStringList, is_editable: bool, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool, enable_diff_markers: bool); }
-pub fn new_combobox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, list: Ptr<QStringList>, lookup_list: Ptr<QStringList>, is_editable: bool, timer: &Ptr<QTimer>, has_filter: bool) {
+extern "C" { fn new_combobox_item_delegate(table_view: *mut QObject, column: i32, list: *const QListOfQString, lookup_list: *const QListOfQString, is_editable: bool, timer: *mut QTimer, is_dark_theme_enabled: bool, has_filter: bool, is_right_side_mark_enabled: bool, enable_diff_markers: bool); }
+pub fn new_combobox_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, list: Ptr<QListOfQString>, lookup_list: Ptr<QListOfQString>, is_editable: bool, timer: &Ptr<QTimer>, has_filter: bool) {
     let is_dark_theme_enabled = settings_bool("use_dark_theme");
     let is_right_side_mark_enabled = settings_bool("use_right_size_markers");
     let enable_diff_markers = settings_bool("enable_diff_markers");
@@ -158,8 +158,8 @@ pub fn new_treeview_filter_safe(parent: QPtr<QObject>) ->  QBox<QSortFilterProxy
 }
 
 // This function triggers the special filter used for the PackFile Contents `TreeView`. It has to be triggered here to work properly.
-extern "C" { fn trigger_treeview_filter(filter: *const QSortFilterProxyModel, pattern: *mut QRegExp); }
-pub fn trigger_treeview_filter_safe(filter: &QSortFilterProxyModel, pattern: &Ptr<QRegExp>) {
+extern "C" { fn trigger_treeview_filter(filter: *const QSortFilterProxyModel, pattern: *mut QRegularExpression); }
+pub fn trigger_treeview_filter_safe(filter: &QSortFilterProxyModel, pattern: &Ptr<QRegularExpression>) {
     unsafe { trigger_treeview_filter(filter, pattern.as_mut_raw_ptr()); }
 }
 
@@ -170,36 +170,36 @@ pub fn new_tableview_filter_safe(parent: QPtr<QObject>) ->  QBox<QSortFilterProx
 }
 
 // This function triggers the special filter used for the TableViews It has to be triggered here to work properly.
-extern "C" { fn trigger_tableview_filter(filter: *const QSortFilterProxyModel, columns: *const QListOfInt, patterns: *const QStringList, use_nott: *const QListOfInt, regex: *const QListOfInt, case_sensitive: *const QListOfInt, show_blank_cells: *const QListOfInt, match_groups: *const QListOfInt, variant_to_search: *const QListOfInt, show_edited_cells: *const QListOfInt, flagged_row_roles: *const QListOfInt); }
+extern "C" { fn trigger_tableview_filter(filter: *const QSortFilterProxyModel, columns: *const QListOfInt, patterns: *const QListOfQString, use_nott: *const QListOfInt, regex: *const QListOfInt, case_sensitive: *const QListOfInt, show_blank_cells: *const QListOfInt, match_groups: *const QListOfInt, variant_to_search: *const QListOfInt, show_edited_cells: *const QListOfInt, flagged_row_roles: *const QListOfInt); }
 pub unsafe fn trigger_tableview_filter_safe(filter: &QSortFilterProxyModel, columns: &[i32], patterns: Vec<Ptr<QString>>, use_nott: &[bool], regex: &[bool], case_sensitive: &[CaseSensitivity], show_blank_cells: &[bool], match_groups: &[i32], variant_to_search: &[i32], show_edited_cells: &[bool], flagged_row_roles: &[i32]) {
-    let columns_qlist = QListOfInt::new();
+    let columns_qlist = QListOfInt::new_0a();
     columns.iter().for_each(|x| columns_qlist.append_int(x));
 
-    let patterns_qlist = QStringList::new();
+    let patterns_qlist = QListOfQString::new_0a();
     patterns.iter().for_each(|x| patterns_qlist.append_q_string(x.as_ref().unwrap()));
 
-    let use_nott_qlist = QListOfInt::new();
+    let use_nott_qlist = QListOfInt::new_0a();
     use_nott.iter().for_each(|x| use_nott_qlist.append_int(if *x { &1i32 } else { &0i32 }));
 
-    let regex_qlist = QListOfInt::new();
+    let regex_qlist = QListOfInt::new_0a();
     regex.iter().for_each(|x| regex_qlist.append_int(if *x { &1i32 } else { &0i32 }));
 
-    let case_sensitive_qlist = QListOfInt::new();
+    let case_sensitive_qlist = QListOfInt::new_0a();
     case_sensitive.iter().for_each(|x| case_sensitive_qlist.append_int(&x.to_int()));
 
-    let show_blank_cells_qlist = QListOfInt::new();
+    let show_blank_cells_qlist = QListOfInt::new_0a();
     show_blank_cells.iter().for_each(|x| show_blank_cells_qlist.append_int(if *x { &1i32 } else { &0i32 }));
 
-    let match_groups_qlist = QListOfInt::new();
+    let match_groups_qlist = QListOfInt::new_0a();
     match_groups.iter().for_each(|x| match_groups_qlist.append_int(x));
 
-    let variant_to_search_qlist = QListOfInt::new();
+    let variant_to_search_qlist = QListOfInt::new_0a();
     variant_to_search.iter().for_each(|x| variant_to_search_qlist.append_int(x));
 
-    let show_edited_cells_qlist = QListOfInt::new();
+    let show_edited_cells_qlist = QListOfInt::new_0a();
     show_edited_cells.iter().for_each(|x| show_edited_cells_qlist.append_int(if *x { &1i32 } else { &0i32 }));
 
-    let flagged_row_roles_qlist = QListOfInt::new();
+    let flagged_row_roles_qlist = QListOfInt::new_0a();
     flagged_row_roles.iter().for_each(|x| flagged_row_roles_qlist.append_int(x));
 
     trigger_tableview_filter(filter, columns_qlist.into_ptr().as_raw_ptr(), patterns_qlist.into_ptr().as_raw_ptr(), use_nott_qlist.into_ptr().as_raw_ptr(), regex_qlist.into_ptr().as_raw_ptr(), case_sensitive_qlist.into_ptr().as_raw_ptr(), show_blank_cells_qlist.into_ptr().as_raw_ptr(), match_groups_qlist.into_ptr().as_raw_ptr(), variant_to_search_qlist.into_ptr().as_raw_ptr(), show_edited_cells_qlist.into_ptr().as_raw_ptr(), flagged_row_roles_qlist.into_ptr().as_raw_ptr());
@@ -233,7 +233,7 @@ pub fn new_q_main_window_custom_safe(are_you_sure: extern "C" fn(*mut QMainWindo
     unsafe { QBox::from_raw(new_q_main_window_custom(are_you_sure, is_dark_theme_enabled)) }
 }
 
-pub fn main_window_drop_pack_signal(widget: QPtr<QWidget>) -> Signal<(*const ::qt_core::QStringList,)> {
+pub fn main_window_drop_pack_signal(widget: QPtr<QWidget>) -> Signal<(*const ::qt_core::QListOfQString,)> {
     unsafe {
         Signal::new(
             ::cpp_core::Ref::from_raw(widget.as_raw_ptr()).expect("attempted to construct a null Ref"),
@@ -589,7 +589,7 @@ pub extern fn assets_request_callback(missing_files: *mut QListOfQString, out: *
         let out = out.as_mut().unwrap();
 
         let mut paths = vec![];
-        for i in 0..missing_files.count_0a() {
+        for i in 0..missing_files.count() {
             let mut path = missing_files.at(i).to_std_string().replace("\\", "/");
 
             // Fix for receiving paths with padding.
@@ -742,7 +742,7 @@ pub extern "C" fn generate_tooltip_message(view: *mut QTableView, global_pos_x: 
         let global_pos = QPoint::new_2a(global_pos_x, global_pos_y);
         if view.under_mouse() {
 
-            let filter_index = view.index_at(&view.viewport().map_from_global(&global_pos));
+            let filter_index = view.index_at(&view.viewport().map_from_global_q_point(&global_pos));
             if filter_index.is_valid() {
 
                 let filter = view.model().static_downcast::<QSortFilterProxyModel>();

@@ -108,7 +108,7 @@ impl UnitVariantSlots {
             view => move |after, before| {
 
                 // Save the previous data if needed.
-                if before.count_0a() == 1 {
+                if before.count() == 1 {
                     let filter_indexes = before.at(0).indexes();
                     let filter_index = filter_indexes.at(0);
                     let index = view.main_list_filter().map_to_source(filter_index);
@@ -116,7 +116,7 @@ impl UnitVariantSlots {
                 }
 
                 // Load the new data.
-                if after.count_0a() == 1 {
+                if after.count() == 1 {
                     let filter_indexes = after.at(0).indexes();
                     let filter_index = filter_indexes.at(0);
                     let index = view.main_list_filter().map_to_source(filter_index);
@@ -135,7 +135,7 @@ impl UnitVariantSlots {
             view => move |after, before| {
 
                 // Save the previous data if needed.
-                if before.count_0a() == 1 {
+                if before.count() == 1 {
                     let filter_indexes = before.at(0).indexes();
                     let filter_index = filter_indexes.at(0);
                     let index = view.variants_list_filter().map_to_source(filter_index);
@@ -143,7 +143,7 @@ impl UnitVariantSlots {
                 }
 
                 // Load the new data.
-                if after.count_0a() == 1 {
+                if after.count() == 1 {
                     let filter_indexes = after.at(0).indexes();
                     let filter_index = filter_indexes.at(0);
                     let index = view.variants_list_filter().map_to_source(filter_index);
@@ -164,7 +164,7 @@ impl UnitVariantSlots {
         }));
         let main_list_context_menu_enabler = SlotOfQItemSelectionQItemSelection::new(view.main_list_view(), clone!(
             view => move |after, _| {
-                let enabled = after.count_0a() == 1;
+                let enabled = after.count() == 1;
                 view.main_list_clone.set_enabled(enabled);
                 view.main_list_delete.set_enabled(enabled);
             }
@@ -176,7 +176,7 @@ impl UnitVariantSlots {
         }));
         let variants_list_context_menu_enabler = SlotOfQItemSelectionQItemSelection::new(view.main_list_view(), clone!(
             view => move |after, _| {
-                let enabled = after.count_0a() == 1;
+                let enabled = after.count() == 1;
                 view.variants_list_clone.set_enabled(enabled);
                 view.variants_list_delete.set_enabled(enabled);
             }

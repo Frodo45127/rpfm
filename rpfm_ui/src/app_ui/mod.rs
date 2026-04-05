@@ -14,8 +14,6 @@ Module with all the code related to the main `AppUI`.
 This module contains all the code needed to initialize the main Window and its menus.
 !*/
 
-use qt_widgets::QAction;
-use qt_widgets::QActionGroup;
 use qt_widgets::QApplication;
 use qt_widgets::QCheckBox;
 use qt_widgets::QComboBox;
@@ -39,6 +37,9 @@ use qt_widgets::QTreeView;
 use qt_widgets::QToolButton;
 use qt_widgets::QWidget;
 
+use qt_gui::QAction;
+use qt_gui::QActionGroup;
+use qt_gui::QGuiApplication;
 use qt_gui::QIcon;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
@@ -49,7 +50,7 @@ use qt_core::QBox;
 use qt_core::QEventLoop;
 use qt_core::QListOfQObject;
 use qt_core::QPtr;
-use qt_core::QRegExp;
+use qt_core::QRegularExpression;
 use qt_core::{SlotNoArgs, SlotOfBool};
 use qt_core::QSortFilterProxyModel;
 use qt_core::SortOrder;
@@ -312,7 +313,7 @@ impl AppUI {
         let layout = create_grid_layout(widget.static_upcast());
         main_window.set_central_widget(&widget);
         main_window.resize_2a(1300, 800);
-        QApplication::set_window_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/rpfm.png", ASSETS_PATH.to_string_lossy()))));
+        QGuiApplication::set_window_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/rpfm.png", ASSETS_PATH.to_string_lossy()))));
 
         // Get the menu and status bars.
         let menu_bar = main_window.menu_bar();
@@ -356,7 +357,7 @@ impl AppUI {
         let tab_bar_packed_file_context_menu = QMenu::from_q_widget(&tab_bar_packed_file);
 
         // Initialize shortcuts for the entire program.
-        let shortcuts = QListOfQObject::new();
+        let shortcuts = QListOfQObject::new_0a();
         shortcut_collection_init_safe(&main_window.static_upcast::<qt_widgets::QWidget>().as_ptr(), shortcuts.as_ptr());
 
         // Create the Contextual Menu Actions.
@@ -1193,7 +1194,6 @@ impl AppUI {
             );
             file_dialog.set_accept_mode(qt_widgets::q_file_dialog::AcceptMode::AcceptSave);
             file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
-            file_dialog.set_confirm_overwrite(true);
             file_dialog.set_default_suffix(&QString::from_std_str("pack"));
             file_dialog.select_file(&QString::from_std_str(path.file_name().unwrap_or_else(|| OsStr::new("mod.pack")).to_string_lossy()));
 
@@ -1768,7 +1768,7 @@ impl AppUI {
                         }
 
                         // Only if the submenu has items, we show it to the big menu.
-                        if game_submenu.actions().count_0a() > 0 {
+                        if game_submenu.actions().count() > 0 {
                             game_submenu.menu_action().set_visible(true);
                         }
                     }
@@ -2496,7 +2496,7 @@ impl AppUI {
         // This forces the UI to process the events related to making the file view's visible before returning,
         // so stuff that opens a file and scrolls its view actually works.
         let event_loop = QEventLoop::new_0a();
-        event_loop.process_events_0a();
+        event_loop.process_events();
     }
 
     /// This function is used to open views that cannot be open with the normal open_file_view function.
@@ -2853,7 +2853,7 @@ impl AppUI {
         table_filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
         table_filter_line_edit.set_focus_0a();
         table_filter_line_edit.text_changed().connect(&SlotNoArgs::new(&dialog, move || {
-            table_filter.set_filter_reg_exp_q_reg_exp(&QRegExp::new_1a(&table_filter_line_edit.text()));
+            table_filter.set_filter_regular_expression_q_regular_expression(&QRegularExpression::new_1a(&table_filter_line_edit.text()));
         }));
 
         // Portrait Settings section.
@@ -2910,7 +2910,6 @@ impl AppUI {
             FileType::Text => name_line_edit.set_text(&QString::from_std_str(format!("{pack_name}.txt"))),
             FileType::PortraitSettings => {
                 let local_art_set_ids = send_ipc_command(Command::LocalArtSetIds(pack_key.clone()), response_extractor!(Response::HashSetString));
-
                 let dependencies_art_set_ids = send_ipc_command(Command::DependenciesArtSetIds, response_extractor!(Response::HashSetString));
 
                 for art_set_id in dependencies_art_set_ids.iter().sorted_unstable() {
@@ -3206,7 +3205,7 @@ impl AppUI {
         let tile_maps_to_add_model_ptr = tile_maps_to_add_model.as_ptr();
         let tile_maps_add_selected_slot = SlotNoArgs::new(&dialog, move || {
             let selected = tile_maps_available_ptr.selection_model().selected_indexes();
-            let mut indexes = (0..selected.count_0a()).map(|row| tile_maps_available_filter_ptr.map_to_source(selected.at(row))).collect::<Vec<_>>();
+            let mut indexes = (0..selected.count()).map(|row| tile_maps_available_filter_ptr.map_to_source(selected.at(row))).collect::<Vec<_>>();
             indexes.sort_by_key(|index| index.row());
             indexes.reverse();
 
@@ -3222,7 +3221,7 @@ impl AppUI {
 
         let tile_maps_remove_selected_slot = SlotNoArgs::new(&dialog, move || {
             let selected = tile_maps_to_add_ptr.selection_model().selected_indexes();
-            let mut indexes = (0..selected.count_0a()).map(|row| tile_maps_to_add_filter_ptr.map_to_source(selected.at(row))).collect::<Vec<_>>();
+            let mut indexes = (0..selected.count()).map(|row| tile_maps_to_add_filter_ptr.map_to_source(selected.at(row))).collect::<Vec<_>>();
             indexes.sort_by_key(|index| index.row());
             indexes.reverse();
 
@@ -3250,7 +3249,7 @@ impl AppUI {
         let tiles_to_add_model_ptr = tiles_to_add_model.as_ptr();
         let tiles_add_selected_slot = SlotNoArgs::new(&dialog, move || {
             let selected = tiles_available_ptr.selection_model().selected_indexes();
-            let mut indexes = (0..selected.count_0a()).map(|row| tiles_available_filter_ptr.map_to_source(selected.at(row))).collect::<Vec<_>>();
+            let mut indexes = (0..selected.count()).map(|row| tiles_available_filter_ptr.map_to_source(selected.at(row))).collect::<Vec<_>>();
             indexes.sort_by_key(|index| index.row());
             indexes.reverse();
 
@@ -3266,7 +3265,7 @@ impl AppUI {
 
         let tiles_remove_selected_slot = SlotNoArgs::new(&dialog, move || {
             let selected = tiles_to_add_ptr.selection_model().selected_indexes();
-            let mut indexes = (0..selected.count_0a()).map(|row| tiles_to_add_filter_ptr.map_to_source(selected.at(row))).collect::<Vec<_>>();
+            let mut indexes = (0..selected.count()).map(|row| tiles_to_add_filter_ptr.map_to_source(selected.at(row))).collect::<Vec<_>>();
             indexes.sort_by_key(|index| index.row());
             indexes.reverse();
 

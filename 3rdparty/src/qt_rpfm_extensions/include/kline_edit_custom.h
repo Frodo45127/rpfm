@@ -3,7 +3,7 @@
 
 #include "qt_subclasses_global.h"
 #ifdef _WIN32
-#include <KF5/KCompletion/KLineEdit>
+#include <KF6/KCompletion/KLineEdit>
 #else
 #include <KLineEdit>
 #endif

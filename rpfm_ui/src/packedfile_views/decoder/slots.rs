@@ -18,7 +18,7 @@ use qt_gui::QCursor;
 
 use qt_core::QBox;
 use qt_core::QModelIndex;
-use qt_core::{SlotOfBool, SlotOfInt, SlotOfQItemSelectionQItemSelection, SlotNoArgs, SlotOfQModelIndexQModelIndexQVectorOfInt};
+use qt_core::{SlotOfBool, SlotOfInt, SlotOfQItemSelectionQItemSelection, SlotNoArgs, SlotOfQModelIndexQModelIndexQListOfInt};
 
 use cpp_core::Ref;
 
@@ -70,7 +70,7 @@ pub struct PackedFileDecoderViewSlots {
     pub use_this_optional_string_u16: QBox<SlotNoArgs>,
     pub use_this_sequence_u32: QBox<SlotNoArgs>,
 
-    pub table_change_field_type: QBox<SlotOfQModelIndexQModelIndexQVectorOfInt>,
+    pub table_change_field_type: QBox<SlotOfQModelIndexQModelIndexQListOfInt>,
 
     pub table_view_context_menu_move_up: QBox<SlotOfBool>,
     pub table_view_context_menu_move_down: QBox<SlotOfBool>,
@@ -210,7 +210,7 @@ impl PackedFileDecoderViewSlots {
         //-----------------------------------------//
 
         // Slot for when we change the Type of the selected field in the table.
-        let table_change_field_type = SlotOfQModelIndexQModelIndexQVectorOfInt::new(&view.table_view, clone!(
+        let table_change_field_type = SlotOfQModelIndexQModelIndexQListOfInt::new(&view.table_view, clone!(
             view => move |initial_model_index,final_model_index,_| {
                 if initial_model_index.column() == 2 && final_model_index.column() == 2 {
                     let _ = view.update_rows_decoded(None, None);
@@ -224,7 +224,7 @@ impl PackedFileDecoderViewSlots {
 
                 let selection = view.table_view.selection_model().selection();
                 let indexes = selection.indexes();
-                let mut rows = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
+                let mut rows = (0..indexes.count()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
 
                 rows.sort_by_key(|x| x.row());
                 rows.dedup_by_key(|x| x.row());
@@ -257,7 +257,7 @@ impl PackedFileDecoderViewSlots {
 
                 let selection = view.table_view.selection_model().selection();
                 let indexes = selection.indexes();
-                let mut rows = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
+                let mut rows = (0..indexes.count()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
 
                 rows.sort_by_key(|x| x.row());
                 rows.dedup_by_key(|x| x.row());
@@ -297,7 +297,7 @@ impl PackedFileDecoderViewSlots {
 
                 let selection = view.table_view.selection_model().selection();
                 let indexes = selection.indexes();
-                let mut rows = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
+                let mut rows = (0..indexes.count()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
 
                 rows.sort_by_key(|x| x.row());
                 rows.dedup_by_key(|x| x.row());
@@ -330,7 +330,7 @@ impl PackedFileDecoderViewSlots {
 
                 let selection = view.table_view.selection_model().selection();
                 let indexes = selection.indexes();
-                let mut rows = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
+                let mut rows = (0..indexes.count()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
 
                 rows.sort_by_key(|x| x.row());
                 rows.dedup_by_key(|x| x.row());
@@ -370,7 +370,7 @@ impl PackedFileDecoderViewSlots {
 
                 let selection = view.table_view.selection_model().selection();
                 let indexes = selection.indexes();
-                let mut rows = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
+                let mut rows = (0..indexes.count()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
 
                 rows.sort_by_key(|x| x.row());
                 rows.dedup_by_key(|x| x.row());
@@ -452,7 +452,7 @@ impl PackedFileDecoderViewSlots {
 
                 let selection = view.table_view_old_versions.selection_model().selection();
                 let indexes = selection.indexes();
-                if indexes.count_0a() == 1 {
+                if indexes.count() == 1 {
                     let model_index = indexes.at(0);
                     let version = view.table_model_old_versions.item_from_index(model_index).text().to_std_string().parse::<i32>().unwrap();
                     if view.packed_file_info_version_decoded_spinbox().is_enabled() {
@@ -480,7 +480,7 @@ impl PackedFileDecoderViewSlots {
 
                 let selection = view.table_view_old_versions.selection_model().selection();
                 let indexes = selection.indexes();
-                if indexes.count_0a() == 1 {
+                if indexes.count() == 1 {
                     let model_index = indexes.at(0);
                     let version = view.table_model_old_versions.item_from_index(model_index).text().to_std_string().parse::<i32>().unwrap();
 

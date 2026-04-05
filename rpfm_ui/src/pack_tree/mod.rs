@@ -507,7 +507,7 @@ impl PackTree for QPtr<QTreeView> {
         let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
 
         let indexes_visual = tree_view.selection_model().selection().indexes();
-        let indexes_visual = (0..indexes_visual.count_0a()).map(|x| indexes_visual.at(x)).collect::<Vec<Ref<QModelIndex>>>();
+        let indexes_visual = (0..indexes_visual.count()).map(|x| indexes_visual.at(x)).collect::<Vec<Ref<QModelIndex>>>();
         let indexes_real = indexes_visual.iter().map(|x| filter.map_to_source(*x)).collect::<Vec<CppBox<QModelIndex>>>();
         indexes_real.iter().map(|x| model.item_from_index(x)).collect()
     }
@@ -517,7 +517,7 @@ impl PackTree for QPtr<QTreeView> {
         let model: QPtr<QStandardItemModel> = if let Some(ref filter) = filter { filter.source_model().static_downcast() } else { self.model().static_downcast()};
 
         let indexes_visual = self.selection_model().selection().indexes();
-        let mut indexes_visual = (0..indexes_visual.count_0a()).rev().map(|x| indexes_visual.take_at(x)).collect::<Vec<CppBox<QModelIndex>>>();
+        let mut indexes_visual = (0..indexes_visual.count()).rev().map(|x| indexes_visual.take_at(x)).collect::<Vec<CppBox<QModelIndex>>>();
         indexes_visual.reverse();
         let indexes_real = if let Some(filter) = filter {
             indexes_visual.iter().map(|x| filter.map_to_source(x.as_ref())).collect::<Vec<CppBox<QModelIndex>>>()
@@ -697,7 +697,7 @@ impl PackTree for QPtr<QTreeView> {
         let filter: Option<QPtr<QSortFilterProxyModel>> = if has_filter { Some(self.model().static_downcast()) } else { None };
 
         let indexes_visual = self.selection_model().selection().indexes();
-        let mut indexes_visual = (0..indexes_visual.count_0a()).rev().map(|x| indexes_visual.take_at(x)).collect::<Vec<CppBox<QModelIndex>>>();
+        let mut indexes_visual = (0..indexes_visual.count()).rev().map(|x| indexes_visual.take_at(x)).collect::<Vec<CppBox<QModelIndex>>>();
         indexes_visual.reverse();
         let mut indexes_real = if let Some(filter) = filter {
             indexes_visual.iter().map(|x| filter.map_to_source(x.as_ref())).collect::<Vec<CppBox<QModelIndex>>>()
@@ -793,7 +793,7 @@ impl PackTree for QPtr<QTreeView> {
         let selection = tree_view.selection_model().selection().indexes();
         let mut first_pack_key: Option<String> = None;
         let mut multi_pack = false;
-        for i in 0..selection.count_0a() {
+        for i in 0..selection.count() {
             let source_index = filter.map_to_source(selection.at(i));
             if let Some(key) = tree_view.get_pack_key_from_index(source_index) {
                 match &first_pack_key {
@@ -862,7 +862,7 @@ impl PackTree for QPtr<QTreeView> {
 
         let mut paths: Vec<_> = vec![];
         let indexes = filter.map_selection_to_source(&selection_model.selection()).indexes();
-        for index_num in 0..indexes.count_0a() {
+        for index_num in 0..indexes.count() {
             paths.push(Self::get_path_from_index(indexes.at(index_num), &model));
         }
         paths

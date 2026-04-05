@@ -114,7 +114,7 @@ impl UIState {
                     // Keep doing it until the lock is freed an we can re-lock it here.
                     TryLockError::WouldBlock => {
                         let event_loop = unsafe { QEventLoop::new_0a() };
-                        unsafe { event_loop.process_events_0a(); };
+                        unsafe { event_loop.process_events(); };
                     }
                 }
             }

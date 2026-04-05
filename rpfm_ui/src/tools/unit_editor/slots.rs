@@ -60,7 +60,7 @@ impl ToolUnitEditorSlots {
             ui => move |after, before| {
 
                 // Save the previous data if needed.
-                if before.count_0a() == 1 {
+                if before.count() == 1 {
                     let filter_index = before.take_at(0).indexes().take_at(0);
                     let index = ui.unit_list_filter().map_to_source(filter_index.as_ref());
                     ui.save_from_detailed_view(index.as_ref());
@@ -69,7 +69,7 @@ impl ToolUnitEditorSlots {
                 }
 
                 // Load the new data.
-                if after.count_0a() == 1 {
+                if after.count() == 1 {
                     let filter_index = after.take_at(0).indexes().take_at(0);
                     let index = ui.unit_list_filter().map_to_source(filter_index.as_ref());
                     ui.load_to_detailed_view(index.as_ref());

@@ -5,7 +5,7 @@
 #include <QVBoxLayout>
 #include <QScreen>
 #include <QStandardItem>
-#include <QRegExp>
+#include <QRegularExpression>
 #include <QStyledItemDelegate>
 #include <QPainter>
 #include <QTextDocument>
@@ -258,15 +258,15 @@ void CommandPalettePopup::updateFilter(const QString& text) {
 
     // Build a fuzzy regex: split on whitespace, each word becomes ".*<escaped_word>",
     // so "db unit" matches anything containing "db" followed later by "unit".
-    QStringList words = filterText.split(QRegExp("\\s+"), Qt::SkipEmptyParts);
+    QStringList words = filterText.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
     QString pattern;
     for (const QString& word : words) {
         if (!pattern.isEmpty()) {
             pattern += ".*";
         }
-        pattern += QRegExp::escape(word);
+        pattern += QRegularExpression::escape(word);
     }
-    filterProxy->setFilterRegExp(QRegExp(pattern, Qt::CaseInsensitive));
+    filterProxy->setFilterRegularExpression(QRegularExpression(pattern, QRegularExpression::CaseInsensitiveOption));
 
     // Resize height based on filtered content.
     int rowCount = filterProxy->rowCount();

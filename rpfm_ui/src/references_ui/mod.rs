@@ -142,7 +142,7 @@ impl ReferencesUI {
                     blocker.unblock();
                 }
 
-                let qlist_boi = QListOfQStandardItem::new();
+                let qlist_boi = QListOfQStandardItem::new_0a();
 
                 // Create an empty row.
                 let data_source_item = QStandardItem::new();
@@ -184,7 +184,7 @@ impl ReferencesUI {
 
             // Hide the column number column for tables.
             self.references_table_view.hide_column(3);
-            self.references_table_view.sort_by_column_2a(1, SortOrder::AscendingOrder);
+            self.references_table_view.sort_by_column(1, SortOrder::AscendingOrder);
 
             self.references_table_view.horizontal_header().set_stretch_last_section(true);
             self.references_table_view.horizontal_header().resize_sections(ResizeMode::ResizeToContents);

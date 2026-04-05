@@ -37,10 +37,10 @@ void TreeViewDraggable::dragMoveEvent(QDragMoveEvent *event) {
     if (!event->isAccepted())
         return;
 
-    QModelIndex index = indexAt(event->pos());
+    QModelIndex index = indexAt(event->position().toPoint());
     if (!index.isValid())
         event->ignore();
-    else if (visualRect(index).adjusted(-1, -1, 1, 1).contains(event->pos(), false))
+    else if (visualRect(index).adjusted(-1, -1, 1, 1).contains(event->position().toPoint(), false))
         event->accept();
     else
         event->ignore(); //Show 'forbidden' cursor.
@@ -51,7 +51,7 @@ void TreeViewDraggable::dragLeaveEvent(QDragLeaveEvent *event) {
 }
 
 void TreeViewDraggable::dropEvent(QDropEvent *event) {
-    QModelIndex index = indexAt(event->pos());
+    QModelIndex index = indexAt(event->position().toPoint());
     if (!index.isValid()) {
         return;
     }

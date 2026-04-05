@@ -12,7 +12,6 @@
 Module with all the code related to the main `DependenciesUI`.
 !*/
 
-use qt_widgets::QAction;
 use qt_widgets::QDockWidget;
 use qt_widgets::QFileDialog;
 use qt_widgets::QLineEdit;
@@ -21,13 +20,16 @@ use qt_widgets::QToolButton;
 use qt_widgets::QTreeView;
 use qt_widgets::QWidget;
 
+use qt_gui::QAction;
 use qt_gui::QStandardItemModel;
 
-use qt_core::{CaseSensitivity, DockWidgetArea};
+use qt_core::DockWidgetArea;
 use qt_core::QBox;
+use qt_core::QFlags;
 use qt_core::QObject;
 use qt_core::QPtr;
-use qt_core::QRegExp;
+use qt_core::QRegularExpression;
+use qt_core::q_regular_expression;
 use qt_core::QSortFilterProxyModel;
 use qt_core::QTimer;
 use qt_core::QString;
@@ -193,12 +195,13 @@ impl DependenciesUI {
     pub unsafe fn filter_files(&self) {
 
         // Set the pattern to search.
-        let pattern = QRegExp::new_1a(&self.filter_line_edit.text());
+        let pattern = QRegularExpression::new_1a(&self.filter_line_edit.text());
 
         // Check if the filter should be "Case Sensitive".
         let case_sensitive = self.filter_case_sensitive_button.is_checked();
-        if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::CaseSensitive); }
-        else { pattern.set_case_sensitivity(CaseSensitivity::CaseInsensitive); }
+        if !case_sensitive {
+            pattern.set_pattern_options(QFlags::from(q_regular_expression::PatternOption::CaseInsensitiveOption));
+        }
 
         // Filter whatever it's in that column by the text we got.
         trigger_treeview_filter_safe(&self.dependencies_tree_model_filter, &pattern.as_ptr());

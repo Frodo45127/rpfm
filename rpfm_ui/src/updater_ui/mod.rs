@@ -446,7 +446,7 @@ impl UpdaterUI {
                     }
                 }
 
-                event_loop.process_events_0a();
+                event_loop.process_events();
             }
         }
 

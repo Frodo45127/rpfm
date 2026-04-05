@@ -3,9 +3,9 @@
 
 #include "qt_subclasses_global.h"
 #ifdef _WIN32
-#include <KF5/KTextEditor/ktexteditor/Document>
-#include <KF5/KTextEditor/ktexteditor/Editor>
-#include <KF5/KTextEditor/ktexteditor/View>
+#include <KF6/KTextEditor/KTextEditor/Document>
+#include <KF6/KTextEditor/KTextEditor/Editor>
+#include <KF6/KTextEditor/KTextEditor/View>
 #else
 #include <KTextEditor/Document>
 #include <KTextEditor/Editor>

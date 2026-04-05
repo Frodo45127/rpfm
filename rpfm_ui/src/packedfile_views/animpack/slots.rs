@@ -83,7 +83,7 @@ impl PackedFileAnimPackViewSlots {
 
                 // Get the file to get from the TreeView.
                 let selection_file_to_move = view.pack_tree_view.selection_model().selection();
-                if selection_file_to_move.count_0a() == 1 {
+                if selection_file_to_move.count() == 1 {
                     let item_types = view.pack_tree_view.get_item_types_from_selection_filtered();
 
                     // Save the files in question to the background, to ensure we have all their data updated.
@@ -129,7 +129,7 @@ impl PackedFileAnimPackViewSlots {
 
                 // Get the file to get from the TreeView.
                 let selection_file_to_move = view.anim_pack_tree_view.selection_model().selection();
-                if selection_file_to_move.count_0a() == 1 {
+                if selection_file_to_move.count() == 1 {
                     let item_types = view.anim_pack_tree_view.get_item_types_from_selection_filtered();
 
                     // Ask the Background Thread to copy the files, and send him the path.
@@ -173,7 +173,7 @@ impl PackedFileAnimPackViewSlots {
 
                 // Get the file to delete from the TreeView.
                 let selection_file_to_move = view.anim_pack_tree_view.selection_model().selection();
-                if selection_file_to_move.count_0a() == 1 {
+                if selection_file_to_move.count() == 1 {
                     let item_types = view.anim_pack_tree_view.get_item_types_from_selection_filtered();
 
                     // Ask the backend to delete them.

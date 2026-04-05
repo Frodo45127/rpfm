@@ -15,7 +15,6 @@ use qt_widgets::q_header_view::ResizeMode;
 use qt_widgets::QFrame;
 use qt_widgets::QLabel;
 use qt_widgets::QLineEdit;
-use qt_widgets::QAction;
 use qt_widgets::QMenu;
 use qt_widgets::QGridLayout;
 use qt_widgets::QGroupBox;
@@ -25,6 +24,7 @@ use qt_widgets::QPushButton;
 use qt_widgets::QTextEdit;
 use qt_widgets::QSpinBox;
 
+use qt_gui::QAction;
 use qt_gui::QBrush;
 use qt_gui::QFontMetrics;
 use qt_gui::QListOfQStandardItem;
@@ -45,7 +45,7 @@ use qt_core::Orientation;
 use qt_core::QObject;
 use qt_core::CheckState;
 use qt_core::QTimer;
-use qt_core::QStringList;
+use qt_core::QListOfQString;
 use qt_core::QModelIndex;
 use qt_core::QPtr;
 
@@ -381,7 +381,7 @@ impl PackedFileDecoderView {
         table_view_old_versions.set_edit_triggers(QFlags::from(EditTrigger::NoEditTriggers));
         table_view_old_versions.set_selection_mode(SelectionMode::SingleSelection);
         table_view_old_versions.set_sorting_enabled(true);
-        table_view_old_versions.sort_by_column_2a(0, SortOrder::AscendingOrder);
+        table_view_old_versions.sort_by_column(0, SortOrder::AscendingOrder);
         table_view_old_versions.vertical_header().set_visible(false);
         table_view_old_versions.set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
 
@@ -690,7 +690,7 @@ impl PackedFileDecoderView {
 
             // If the table is empty, we just load a fake row, so the column headers are created properly.
             if field_list.is_empty() {
-                let qlist = QListOfQStandardItem::new();
+                let qlist = QListOfQStandardItem::new_0a();
                 (0..16).for_each(|_| qlist.append_q_standard_item(&QStandardItem::new().into_ptr().as_mut_raw_ptr()));
                 self.table_model.append_row_q_list_of_q_standard_item(&qlist);
                 configure_table_view(&self.table_view);
@@ -866,7 +866,7 @@ impl PackedFileDecoderView {
         let field_type = field.field_type().to_string();
 
         // Create a new list of StandardItem.
-        let qlist = QListOfQStandardItem::new();
+        let qlist = QListOfQStandardItem::new_0a();
 
         // Create the items of the new row.
         let field_name = QStandardItem::from_q_string(&QString::from_std_str(field.name()));
@@ -1662,7 +1662,7 @@ unsafe fn configure_table_view(table_view: &QBox<QTreeView>) {
     table_view.header().resize_sections(ResizeMode::ResizeToContents);
 
     // The second field should be a combobox.
-    let list = QStringList::new();
+    let list = QListOfQString::new_0a();
     list.append_q_string(&QString::from_std_str("Boolean"));
     list.append_q_string(&QString::from_std_str("F32"));
     list.append_q_string(&QString::from_std_str("F64"));
@@ -1678,7 +1678,7 @@ unsafe fn configure_table_view(table_view: &QBox<QTreeView>) {
     list.append_q_string(&QString::from_std_str("OptionalStringU8"));
     list.append_q_string(&QString::from_std_str("OptionalStringU16"));
     list.append_q_string(&QString::from_std_str("SequenceU32"));
-    new_combobox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), 2, list.into_ptr(), QStringList::new().into_ptr(), false, &QTimer::new_0a().into_ptr(), false);
+    new_combobox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), 2, list.into_ptr(), QListOfQString::new_0a().into_ptr(), false, &QTimer::new_0a().into_ptr(), false);
 
     // Fields that need special code.
     new_spinbox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), 11, 16, &QTimer::new_0a().into_ptr(), false);

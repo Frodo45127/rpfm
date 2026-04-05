@@ -643,7 +643,6 @@ impl TableViewSlots {
                     );
 
                     file_dialog.set_accept_mode(AcceptMode::AcceptSave);
-                    file_dialog.set_confirm_overwrite(true);
                     file_dialog.set_name_filter(&QString::from_std_str("TSV Files (*.tsv)"));
                     file_dialog.set_default_suffix(&QString::from_std_str("tsv"));
 
@@ -731,7 +730,7 @@ impl TableViewSlots {
             view => move || {
 
             let selection = view.table_view.selection_model().selection();
-            if selection.count_0a() == 1 {
+            if selection.count() == 1 {
                 let filter_index = selection.take_at(0).indexes().take_at(0);
                 let index = view.table_filter.map_to_source(filter_index.as_ref());
                 if index.is_valid() && !view.table_model.item_from_index(&index).is_checkable() {

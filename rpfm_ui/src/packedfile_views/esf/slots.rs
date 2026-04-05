@@ -108,14 +108,14 @@ impl PackedFileESFViewSlots {
             view => move |after, before| {
 
                 // Save the previous data if needed.
-                if before.count_0a() == 1 {
+                if before.count() == 1 {
                     let filter_index = before.take_at(0).indexes().take_at(0);
                     let index = view.tree_filter.map_to_source(filter_index.as_ref());
                     view.detailed_view.write().unwrap().save_from_detailed_view(&view.tree_view, index.as_ref());
                 }
 
                 // Load the new data.
-                if after.count_0a() == 1 {
+                if after.count() == 1 {
                     let filter_index = after.take_at(0).indexes().take_at(0);
                     let index = view.tree_filter.map_to_source(filter_index.as_ref());
                     view.detailed_view.write().unwrap().load_to_detailed_view(

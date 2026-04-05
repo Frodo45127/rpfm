@@ -37,9 +37,10 @@ use qt_core::QPtr;
 use qt_core::QFlags;
 use qt_core::QModelIndex;
 use qt_core::q_item_selection_model::SelectionFlag;
-use qt_core::{CaseSensitivity, DockWidgetArea, Orientation, SortOrder};
+use qt_core::{DockWidgetArea, Orientation, SortOrder};
 use qt_core::QObject;
-use qt_core::QRegExp;
+use qt_core::QRegularExpression;
+use qt_core::q_regular_expression;
 use qt_core::QSignalBlocker;
 use qt_core::QSortFilterProxyModel;
 use qt_core::QString;
@@ -917,7 +918,7 @@ impl GlobalSearchUI {
                             let m_index = parent.child_2a(model_index.row(), 0).data_1a(RIGID_MODEL_MESH_MINDEX).to_u_int_0a();
 
                             let lod_to_select = view.lod_tree_model().index_2a(l_index as i32, 0);
-                            let mesh_to_select = lod_to_select.child(m_index as i32, 0);
+                            let mesh_to_select = view.lod_tree_model().index_3a(m_index as i32, 0, &lod_to_select);
 
                             view.change_selected_row(Some(mesh_to_select), None, app_ui, pack_file_contents_ui);
 
@@ -1018,7 +1019,7 @@ impl GlobalSearchUI {
                 .filter(|match_afb| !match_afb.matches().is_empty())
                 .map(|match_afb| {
                     let path = match_afb.path();
-                    let qlist_daddy = QListOfQStandardItem::new();
+                    let qlist_daddy = QListOfQStandardItem::new_0a();
                     let file = Self::new_item();
                     file.set_text(&QString::from_std_str(path));
                     TREEVIEW_ICONS.set_standard_item_icon(&file, Some(&file_type));
@@ -1037,7 +1038,7 @@ impl GlobalSearchUI {
                     for match_row in match_afb.matches() {
 
                         // Create a new list of StandardItem.
-                        let qlist_boi = QListOfQStandardItem::new();
+                        let qlist_boi = QListOfQStandardItem::new_0a();
 
                         // Create an empty row.
                         let text = Self::new_item();
@@ -1164,7 +1165,7 @@ impl GlobalSearchUI {
                 .filter(|match_atlas| !match_atlas.matches().is_empty())
                 .map(|match_atlas| {
                     let path = match_atlas.path();
-                    let qlist_daddy = QListOfQStandardItem::new();
+                    let qlist_daddy = QListOfQStandardItem::new_0a();
                     let file = Self::new_item();
                     file.set_text(&QString::from_std_str(path));
                     TREEVIEW_ICONS.set_standard_item_icon(&file, Some(&file_type));
@@ -1183,7 +1184,7 @@ impl GlobalSearchUI {
                     for match_row in match_atlas.matches() {
 
                         // Create a new list of StandardItem.
-                        let qlist_boi = QListOfQStandardItem::new();
+                        let qlist_boi = QListOfQStandardItem::new_0a();
 
                         let text = Self::new_item();
                         let column_name = Self::new_item();
@@ -1250,7 +1251,7 @@ impl GlobalSearchUI {
                 .filter(|match_ps| !match_ps.matches().is_empty())
                 .map(|match_ps| {
                     let path = match_ps.path();
-                    let qlist_daddy = QListOfQStandardItem::new();
+                    let qlist_daddy = QListOfQStandardItem::new_0a();
                     let file = Self::new_item();
                     file.set_text(&QString::from_std_str(path));
                     TREEVIEW_ICONS.set_standard_item_icon(&file, Some(&file_type));
@@ -1269,7 +1270,7 @@ impl GlobalSearchUI {
                     for match_row in match_ps.matches() {
 
                         // Create a new list of StandardItem.
-                        let qlist_boi = QListOfQStandardItem::new();
+                        let qlist_boi = QListOfQStandardItem::new_0a();
 
                         // Create an empty row.
                         let text = Self::new_item();
@@ -1326,7 +1327,7 @@ impl GlobalSearchUI {
                         };
 
                         // Fix for translations ending in :.
-                        let chara = QChar::from_uchar(b':');
+                        let chara = QChar::from_ucs2(b':' as u16);
                         if string.ends_with_q_char(&chara) {
                             string.remove_q_char(&chara);
                         }
@@ -1387,7 +1388,7 @@ impl GlobalSearchUI {
                 .filter(|match_rm| !match_rm.matches().is_empty())
                 .map(|match_rm| {
                     let path = match_rm.path();
-                    let qlist_daddy = QListOfQStandardItem::new();
+                    let qlist_daddy = QListOfQStandardItem::new_0a();
                     let file = Self::new_item();
 
                     file.set_text(&QString::from_std_str(path));
@@ -1405,7 +1406,7 @@ impl GlobalSearchUI {
                     file.set_data_2a(&QVariant::from_int(source_type), MATCH_SOURCE_TYPE);
 
                     for match_row in match_rm.matches() {
-                        let qlist_boi = QListOfQStandardItem::new();
+                        let qlist_boi = QListOfQStandardItem::new_0a();
 
                         // Create an empty row.
                         let text = Self::new_item();
@@ -1467,7 +1468,7 @@ impl GlobalSearchUI {
                         };
 
                         // Fix for translations ending in :.
-                        let chara = QChar::from_uchar(b':');
+                        let chara = QChar::from_ucs2(b':' as u16);
                         if string.ends_with_q_char(&chara) {
                             string.remove_q_char(&chara);
                         }
@@ -1528,7 +1529,7 @@ impl GlobalSearchUI {
                 .filter(|match_table| !match_table.matches().is_empty())
                 .map(|match_table| {
                     let path = match_table.path();
-                    let qlist_daddy = QListOfQStandardItem::new();
+                    let qlist_daddy = QListOfQStandardItem::new_0a();
                     let file = Self::new_item();
 
                     file.set_text(&QString::from_std_str(path));
@@ -1548,7 +1549,7 @@ impl GlobalSearchUI {
                     for match_row in match_table.matches() {
 
                         // Create a new list of StandardItem.
-                        let qlist_boi = QListOfQStandardItem::new();
+                        let qlist_boi = QListOfQStandardItem::new_0a();
 
                         // Create an empty row.
                         let text = Self::new_item();
@@ -1616,7 +1617,7 @@ impl GlobalSearchUI {
                 .filter(|match_text| !match_text.matches().is_empty())
                 .map(|match_text| {
                     let path = match_text.path();
-                    let qlist_daddy = QListOfQStandardItem::new();
+                    let qlist_daddy = QListOfQStandardItem::new_0a();
                     let file = Self::new_item();
 
                     file.set_text(&QString::from_std_str(path));
@@ -1636,7 +1637,7 @@ impl GlobalSearchUI {
                     for match_row in match_text.matches() {
 
                         // Create a new list of StandardItem.
-                        let qlist_boi = QListOfQStandardItem::new();
+                        let qlist_boi = QListOfQStandardItem::new_0a();
 
                         // Create an empty row.
                         let text = Self::new_item();
@@ -1700,7 +1701,7 @@ impl GlobalSearchUI {
                 .filter(|match_uv| !match_uv.matches().is_empty())
                 .map(|match_uv| {
                     let path = match_uv.path();
-                    let qlist_daddy = QListOfQStandardItem::new();
+                    let qlist_daddy = QListOfQStandardItem::new_0a();
                     let file = Self::new_item();
                     file.set_text(&QString::from_std_str(path));
                     TREEVIEW_ICONS.set_standard_item_icon(&file, Some(&file_type));
@@ -1719,7 +1720,7 @@ impl GlobalSearchUI {
                     for match_row in match_uv.matches() {
 
                         // Create a new list of StandardItem.
-                        let qlist_boi = QListOfQStandardItem::new();
+                        let qlist_boi = QListOfQStandardItem::new_0a();
 
                         // Create an empty row.
                         let text = Self::new_item();
@@ -1761,7 +1762,7 @@ impl GlobalSearchUI {
                         };
 
                         // Fix for translations ending in :.
-                        let chara = QChar::from_uchar(b':');
+                        let chara = QChar::from_ucs2(b':' as u16);
                         if string.ends_with_q_char(&chara) {
                             string.remove_q_char(&chara);
                         }
@@ -1822,7 +1823,7 @@ impl GlobalSearchUI {
                 .filter(|match_unk| !match_unk.matches().is_empty())
                 .map(|match_unk| {
                     let path = match_unk.path();
-                    let qlist_daddy = QListOfQStandardItem::new();
+                    let qlist_daddy = QListOfQStandardItem::new_0a();
                     let file = Self::new_item();
 
                     file.set_text(&QString::from_std_str(path));
@@ -1842,7 +1843,7 @@ impl GlobalSearchUI {
                     for match_row in match_unk.matches() {
 
                         // Create a new list of StandardItem.
-                        let qlist_boi = QListOfQStandardItem::new();
+                        let qlist_boi = QListOfQStandardItem::new_0a();
 
                         // Create an empty row.
                         let pos_formatted = Self::new_item();
@@ -1897,7 +1898,7 @@ impl GlobalSearchUI {
             let rows = matches.matches()
                 .par_iter()
                 .map(|match_schema| {
-                    let qlist = QListOfQStandardItem::new();
+                    let qlist = QListOfQStandardItem::new_0a();
                     let table_name = Self::new_item();
                     let version = Self::new_item();
                     let column_name = Self::new_item();
@@ -1936,11 +1937,12 @@ impl GlobalSearchUI {
         case_sensitive_button: &QPtr<QToolButton>,
     ) {
 
-        let pattern = QRegExp::new_1a(&line_edit.text());
+        let pattern = QRegularExpression::new_1a(&line_edit.text());
 
         let case_sensitive = case_sensitive_button.is_checked();
-        if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::CaseSensitive); }
-        else { pattern.set_case_sensitivity(CaseSensitivity::CaseInsensitive); }
+        if !case_sensitive {
+            pattern.set_pattern_options(QFlags::from(q_regular_expression::PatternOption::CaseInsensitiveOption));
+        }
 
         let model_filter: QPtr<QSortFilterProxyModel> = view.model().static_downcast();
         model_filter.set_filter_key_column(column_combobox.current_index());
@@ -2793,7 +2795,7 @@ impl GlobalSearchUI {
         self.matches_table_and_text_tree_view.hide_column(3);
         self.matches_table_and_text_tree_view.hide_column(4);
         self.matches_table_and_text_tree_view.hide_column(5);
-        self.matches_table_and_text_tree_view.sort_by_column_2a(0, SortOrder::AscendingOrder);
+        self.matches_table_and_text_tree_view.sort_by_column(0, SortOrder::AscendingOrder);
         self.matches_table_and_text_tree_view.set_column_width(0, 300);
         self.matches_table_and_text_tree_view.set_column_width(1, 200);
         self.matches_table_and_text_tree_view.set_column_width(2, 20);
@@ -2811,7 +2813,7 @@ impl GlobalSearchUI {
 
         // Hide the column number column for tables.
         self.matches_schema_tree_view.hide_column(3);
-        self.matches_schema_tree_view.sort_by_column_2a(0, SortOrder::AscendingOrder);
+        self.matches_schema_tree_view.sort_by_column(0, SortOrder::AscendingOrder);
         self.matches_schema_tree_view.set_column_width(0, 300);
         self.matches_schema_tree_view.set_column_width(1, 20);
         self.matches_schema_tree_view.set_column_width(2, 300);

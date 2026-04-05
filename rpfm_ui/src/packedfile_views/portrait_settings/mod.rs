@@ -10,7 +10,6 @@
 
 //! Module with the code to manage a Portrait Settings View.
 
-use qt_widgets::QAction;
 use qt_widgets::QCheckBox;
 use qt_widgets::QDialog;
 use qt_widgets::QDialogButtonBox;
@@ -25,6 +24,7 @@ use qt_widgets::QMenu;
 use qt_widgets::QSpinBox;
 use qt_widgets::QWidget;
 
+use qt_gui::QAction;
 use qt_gui::QPixmap;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;

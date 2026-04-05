@@ -1202,16 +1202,16 @@ impl SettingsUI {
         // Get the colours high.
         let q_settings = QSettings::new();
 
-        q_settings.set_value(&QString::from_std_str("colour_light_table_added"), &QVariant::from_q_string(&self.ui_table_colour_light_table_added_button.palette().color_1a(ColorRole::Background).name_1a(NameFormat::HexArgb)));
-        q_settings.set_value(&QString::from_std_str("colour_light_table_modified"), &QVariant::from_q_string(&self.ui_table_colour_light_table_modified_button.palette().color_1a(ColorRole::Background).name_1a(NameFormat::HexArgb)));
-        q_settings.set_value(&QString::from_std_str("colour_light_diagnostic_error"), &QVariant::from_q_string(&self.ui_table_colour_light_diagnostic_error_button.palette().color_1a(ColorRole::Background).name_1a(NameFormat::HexArgb)));
-        q_settings.set_value(&QString::from_std_str("colour_light_diagnostic_warning"), &QVariant::from_q_string(&self.ui_table_colour_light_diagnostic_warning_button.palette().color_1a(ColorRole::Background).name_1a(NameFormat::HexArgb)));
-        q_settings.set_value(&QString::from_std_str("colour_light_diagnostic_info"), &QVariant::from_q_string(&self.ui_table_colour_light_diagnostic_info_button.palette().color_1a(ColorRole::Background).name_1a(NameFormat::HexArgb)));
-        q_settings.set_value(&QString::from_std_str("colour_dark_table_added"), &QVariant::from_q_string(&self.ui_table_colour_dark_table_added_button.palette().color_1a(ColorRole::Background).name_1a(NameFormat::HexArgb)));
-        q_settings.set_value(&QString::from_std_str("colour_dark_table_modified"), &QVariant::from_q_string(&self.ui_table_colour_dark_table_modified_button.palette().color_1a(ColorRole::Background).name_1a(NameFormat::HexArgb)));
-        q_settings.set_value(&QString::from_std_str("colour_dark_diagnostic_error"), &QVariant::from_q_string(&self.ui_table_colour_dark_diagnostic_error_button.palette().color_1a(ColorRole::Background).name_1a(NameFormat::HexArgb)));
-        q_settings.set_value(&QString::from_std_str("colour_dark_diagnostic_warning"), &QVariant::from_q_string(&self.ui_table_colour_dark_diagnostic_warning_button.palette().color_1a(ColorRole::Background).name_1a(NameFormat::HexArgb)));
-        q_settings.set_value(&QString::from_std_str("colour_dark_diagnostic_info"), &QVariant::from_q_string(&self.ui_table_colour_dark_diagnostic_info_button.palette().color_1a(ColorRole::Background).name_1a(NameFormat::HexArgb)));
+        q_settings.set_value(&QString::from_std_str("colour_light_table_added"), &QVariant::from_q_string(&self.ui_table_colour_light_table_added_button.palette().color_1a(ColorRole::Window).name_1a(NameFormat::HexArgb)));
+        q_settings.set_value(&QString::from_std_str("colour_light_table_modified"), &QVariant::from_q_string(&self.ui_table_colour_light_table_modified_button.palette().color_1a(ColorRole::Window).name_1a(NameFormat::HexArgb)));
+        q_settings.set_value(&QString::from_std_str("colour_light_diagnostic_error"), &QVariant::from_q_string(&self.ui_table_colour_light_diagnostic_error_button.palette().color_1a(ColorRole::Window).name_1a(NameFormat::HexArgb)));
+        q_settings.set_value(&QString::from_std_str("colour_light_diagnostic_warning"), &QVariant::from_q_string(&self.ui_table_colour_light_diagnostic_warning_button.palette().color_1a(ColorRole::Window).name_1a(NameFormat::HexArgb)));
+        q_settings.set_value(&QString::from_std_str("colour_light_diagnostic_info"), &QVariant::from_q_string(&self.ui_table_colour_light_diagnostic_info_button.palette().color_1a(ColorRole::Window).name_1a(NameFormat::HexArgb)));
+        q_settings.set_value(&QString::from_std_str("colour_dark_table_added"), &QVariant::from_q_string(&self.ui_table_colour_dark_table_added_button.palette().color_1a(ColorRole::Window).name_1a(NameFormat::HexArgb)));
+        q_settings.set_value(&QString::from_std_str("colour_dark_table_modified"), &QVariant::from_q_string(&self.ui_table_colour_dark_table_modified_button.palette().color_1a(ColorRole::Window).name_1a(NameFormat::HexArgb)));
+        q_settings.set_value(&QString::from_std_str("colour_dark_diagnostic_error"), &QVariant::from_q_string(&self.ui_table_colour_dark_diagnostic_error_button.palette().color_1a(ColorRole::Window).name_1a(NameFormat::HexArgb)));
+        q_settings.set_value(&QString::from_std_str("colour_dark_diagnostic_warning"), &QVariant::from_q_string(&self.ui_table_colour_dark_diagnostic_warning_button.palette().color_1a(ColorRole::Window).name_1a(NameFormat::HexArgb)));
+        q_settings.set_value(&QString::from_std_str("colour_dark_diagnostic_info"), &QVariant::from_q_string(&self.ui_table_colour_dark_diagnostic_info_button.palette().color_1a(ColorRole::Window).name_1a(NameFormat::HexArgb)));
 
         // Save the settings.
         q_settings.sync();

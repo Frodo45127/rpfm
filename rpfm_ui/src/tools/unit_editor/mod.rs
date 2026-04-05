@@ -264,7 +264,7 @@ impl ToolUnitEditor {
 
         // Hide all label-widget combos by default, because we only need to show the ones valid for our tables.
         let widgets = detailed_view_tab_widget.find_children_q_object();
-        for index in 0..widgets.count_0a() {
+        for index in 0..widgets.count() {
             let widget_obj = widgets.at(index);
             let widget: QPtr<QObject> = QPtr::from_raw(*widget_obj);
 
@@ -941,7 +941,7 @@ impl ToolUnitEditor {
     /// Function to load the `Copy Unit` dialog.
     pub unsafe fn load_copy_unit_dialog(&self) -> Result<()> {
         let source_unit = self.unit_list_view.selection_model().selection();
-        if source_unit.count_0a() != 1 {
+        if source_unit.count() != 1 {
             return Err(ToolsError::GenericError("No unit selected".to_string()).into());
         }
 

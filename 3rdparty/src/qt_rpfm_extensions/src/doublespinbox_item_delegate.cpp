@@ -69,7 +69,7 @@ void QDoubleSpinBoxItemDelegate::updateEditorGeometry(QWidget *editor, const QSt
 }
 
 QString QDoubleSpinBoxItemDelegate::displayText(const QVariant &value, const QLocale &locale) const {
-    switch(value.type()){
+    switch(value.typeId()){
         case QMetaType::Float:
             {
                 QString str = QString::number(value.toFloat(), 'f', 4);

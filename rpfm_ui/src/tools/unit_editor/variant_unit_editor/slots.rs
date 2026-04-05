@@ -85,7 +85,7 @@ impl SubToolVariantUnitEditorSlots {
             ui => move |after, before| {
 
                 // Save the previous data if needed.
-                if before.count_0a() == 1 {
+                if before.count() == 1 {
                     let filter_index = before.at(0).indexes().take_at(0);
                     let index = ui.faction_list_filter().map_to_source(filter_index.as_ref());
                     ui.save_from_detailed_view(index.as_ref());
@@ -93,7 +93,7 @@ impl SubToolVariantUnitEditorSlots {
                 }
 
                 // Load the new data.
-                if after.count_0a() == 1 {
+                if after.count() == 1 {
                     let filter_index = after.at(0).indexes().take_at(0);
                     let index = ui.faction_list_filter().map_to_source(filter_index.as_ref());
                     ui.load_to_detailed_view(index.as_ref());
@@ -106,7 +106,7 @@ impl SubToolVariantUnitEditorSlots {
             ui => move |after, before| {
 
                 // Save the previous data if needed.
-                if before.count_0a() == 1 {
+                if before.count() == 1 {
                     let filter_index = before.at(0).indexes().take_at(0);
                     let index = ui.unit_variants_colours_list_filter().map_to_source(filter_index.as_ref());
                     ui.save_unit_variants_colours_from_detailed_view(index.as_ref());
@@ -114,7 +114,7 @@ impl SubToolVariantUnitEditorSlots {
                 }
 
                 // Load the new data.
-                if after.count_0a() == 1 {
+                if after.count() == 1 {
                     let filter_index = after.at(0).indexes().take_at(0);
                     let index = ui.unit_variants_colours_list_filter().map_to_source(filter_index.as_ref());
                     ui.load_unit_variants_colours_to_detailed_view(index.as_ref());
@@ -130,7 +130,7 @@ impl SubToolVariantUnitEditorSlots {
 
         let faction_list_context_menu_enabler = SlotOfQItemSelectionQItemSelection::new(ui.tool.main_widget(), clone!(
             ui => move |after, _| {
-                let enabled = after.count_0a() == 1;
+                let enabled = after.count() == 1;
                 ui.faction_list_clone_faction.set_enabled(enabled);
 
                 if enabled && after.at(0).indexes().take_at(0).data_0a().to_string().to_std_string() == "*" {
@@ -172,7 +172,7 @@ impl SubToolVariantUnitEditorSlots {
 
         let unit_variants_colours_list_context_menu_enabler = SlotOfQItemSelectionQItemSelection::new(ui.tool.main_widget(), clone!(
             ui => move |after, _| {
-                let enabled = after.count_0a() == 1;
+                let enabled = after.count() == 1;
                 ui.unit_variants_colours_list_clone_colour_variant.set_enabled(enabled);
                 ui.unit_variants_colours_list_delete_colour_variant.set_enabled(enabled);
             }

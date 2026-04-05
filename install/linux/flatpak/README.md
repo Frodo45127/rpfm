@@ -7,8 +7,8 @@
 
 2.  **Install the KDE SDK, Platform, and Rust extension**:
     ```bash
-    flatpak install flathub org.kde.Platform//5.15-25.08
-    flatpak install flathub org.kde.Sdk//5.15-25.08
+    flatpak install flathub org.kde.Platform//6.10
+    flatpak install flathub org.kde.Sdk//6.10
     flatpak install flathub org.freedesktop.Sdk.Extension.rust-stable//25.08
     ```
 

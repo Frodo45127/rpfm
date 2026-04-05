@@ -3,10 +3,11 @@
 
 #include "qt_subclasses_global.h"
 #include <QSortFilterProxyModel>
+#include <QRegularExpression>
 #include <QStandardItem>
 
 extern "C" QSortFilterProxyModel* new_treeview_filter(QObject *parent = nullptr);
-extern "C" void trigger_treeview_filter(QSortFilterProxyModel *filter = nullptr, QRegExp* pattern = nullptr);
+extern "C" void trigger_treeview_filter(QSortFilterProxyModel *filter = nullptr, QRegularExpression* pattern = nullptr);
 
 class QTreeViewSortFilterProxyModel : public QSortFilterProxyModel
 {

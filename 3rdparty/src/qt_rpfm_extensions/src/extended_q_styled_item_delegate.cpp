@@ -104,9 +104,9 @@ void QExtendedStyledItemDelegate::paint(QPainter *painter, const QStyleOptionVie
                 QColor colorBrush;
 
                 if (dark_theme) {
-                    colorBrush.setRgbF(82, 82, 0, 0.1);
+                    colorBrush.setRgbF(0.3f, 0.3f, 0.0f, 0.1f);
                 } else {
-                    colorBrush.setRgbF(255, 255, 0, 0.1);
+                    colorBrush.setRgbF(1.0f, 1.0f, 0.0f, 0.1f);
                 }
 
                 QBrush qBrush(colorBrush);

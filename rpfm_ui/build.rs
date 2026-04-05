@@ -192,11 +192,11 @@ fn common_config() {
     // This is to make RPFM able to see the extra libs we need while building.
     println!("cargo:rustc-link-search=native=./3rdparty/builds");
     println!("cargo:rustc-link-lib=dylib=qt_rpfm_extensions");
-    println!("cargo:rustc-link-lib=dylib=KF5Completion");
-    println!("cargo:rustc-link-lib=dylib=KF5IconThemes");
-    println!("cargo:rustc-link-lib=dylib=KF5TextEditor");
-    println!("cargo:rustc-link-lib=dylib=KF5XmlGui");
-    println!("cargo:rustc-link-lib=dylib=KF5WidgetsAddons");
+    println!("cargo:rustc-link-lib=dylib=KF6Completion");
+    println!("cargo:rustc-link-lib=dylib=KF6IconThemes");
+    println!("cargo:rustc-link-lib=dylib=KF6TextEditor");
+    println!("cargo:rustc-link-lib=dylib=KF6XmlGui");
+    println!("cargo:rustc-link-lib=dylib=KF6WidgetsAddons");
 
     // Force cargo to rerun this script if any of these files is changed.
     println!("cargo:rerun-if-changed=./3rdparty/builds/*");
@@ -204,7 +204,7 @@ fn common_config() {
     println!("cargo:rerun-if-changed=./rpfm_ui/build.rs");
 
     // This creates the makefile for the custom widget lib.
-    let mut qmake = Command::new("qmake");
+    let mut qmake = Command::new("qmake6");
     if cfg!(debug_assertions) {
         qmake.arg("CONFIG+=debug");
     } else {

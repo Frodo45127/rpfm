@@ -17,7 +17,7 @@ use qt_widgets::QListView;
 use qt_widgets::SlotOfQPoint;
 use qt_widgets::QTreeView;
 
-use qt_gui::QCursor;
+use qt_gui::{QCursor, SlotOfQAction};
 use qt_gui::QGuiApplication;
 
 use qt_core::QBox;
@@ -84,7 +84,7 @@ pub struct PackFileContentsSlots {
     pub contextual_menu_add_file: QBox<SlotOfBool>,
     pub contextual_menu_add_folder: QBox<SlotOfBool>,
     pub contextual_menu_copy_to_pack_about_to_show: QBox<SlotNoArgs>,
-    pub contextual_menu_copy_to_pack: QBox<qt_widgets::SlotOfQAction>,
+    pub contextual_menu_copy_to_pack: QBox<SlotOfQAction>,
     pub contextual_menu_delete: QBox<SlotOfBool>,
     pub contextual_menu_extract: QBox<SlotOfBool>,
     pub contextual_menu_rename: QBox<SlotOfBool>,
@@ -184,7 +184,7 @@ impl PackFileContentsSlots {
                     return;
                 }
 
-                let dest_index_visual = dest_parent.child(dest_row, 0);
+                let dest_index_visual = pack_file_contents_ui.packfile_contents_tree_model_filter().index_3a(dest_row, 0, dest_parent);
                 let dest_index_logical = pack_file_contents_ui.packfile_contents_tree_model_filter().map_to_source(&dest_index_visual);
                 let mut new_base_path = <QPtr<QTreeView> as PackTree>::get_path_from_index(dest_index_logical.as_ref(), &pack_file_contents_ui.packfile_contents_tree_model().static_upcast());
                 if !new_base_path.ends_with('/') {
@@ -824,7 +824,7 @@ impl PackFileContentsSlots {
                     &qtr("context_menu_add_folders"),
                 );
 
-                file_dialog.set_file_mode(FileMode::DirectoryOnly);
+                file_dialog.set_file_mode(FileMode::Directory);
 
                 // Wonky workaround to allow multiple folder selection.
                 if settings_bool("enable_multifolder_filepicker") {
@@ -1010,7 +1010,7 @@ impl PackFileContentsSlots {
         ));
 
         // What happens when a pack is selected from the "Copy To Pack" submenu.
-        let contextual_menu_copy_to_pack = qt_widgets::SlotOfQAction::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+        let contextual_menu_copy_to_pack = SlotOfQAction::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |action| {
                 info!("Triggering `Copy To Pack` By Slot");
@@ -1994,7 +1994,6 @@ impl PackFileContentsSlots {
                     );
                     file_dialog.set_accept_mode(qt_widgets::q_file_dialog::AcceptMode::AcceptSave);
                     file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
-                    file_dialog.set_confirm_overwrite(true);
                     file_dialog.set_default_suffix(&QString::from_std_str("pack"));
 
                     if file_dialog.exec() == 1 {

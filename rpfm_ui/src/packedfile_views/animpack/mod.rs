@@ -12,19 +12,20 @@
 Module with all the code for managing the view for AnimPack PackedFiles.
 !*/
 
-use qt_widgets::QAction;
 use qt_widgets::QGridLayout;
 use qt_widgets::QLabel;
 use qt_widgets::QLineEdit;
 use qt_widgets::QToolButton;
 use qt_widgets::QTreeView;
 
+use qt_gui::QAction;
 use qt_gui::QStandardItemModel;
 
-use qt_core::CaseSensitivity;
 use qt_core::QBox;
 use qt_core::QPtr;
-use qt_core::QRegExp;
+use qt_core::QRegularExpression;
+use qt_core::QFlags;
+use qt_core::q_regular_expression;
 use qt_core::QSortFilterProxyModel;
 
 use anyhow::Result;
@@ -224,12 +225,13 @@ impl PackedFileAnimPackView {
         let filter_autoexpand_matches_button = if is_anim_pack { &ui.anim_pack_filter_autoexpand_matches_button } else { &ui.pack_filter_autoexpand_matches_button };
 
         // Set the pattern to search.
-        let pattern = QRegExp::new_1a(&filter_line_edit.text());
+        let pattern = QRegularExpression::new_1a(&filter_line_edit.text());
 
         // Check if the filter should be "Case Sensitive".
         let case_sensitive = filter_case_sensitive_button.is_checked();
-        if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::CaseSensitive); }
-        else { pattern.set_case_sensitivity(CaseSensitivity::CaseInsensitive); }
+        if !case_sensitive {
+            pattern.set_pattern_options(QFlags::from(q_regular_expression::PatternOption::CaseInsensitiveOption));
+        }
 
         // Filter whatever it's in that column by the text we got.
         trigger_treeview_filter_safe(tree_model_filter, &pattern.as_ptr());

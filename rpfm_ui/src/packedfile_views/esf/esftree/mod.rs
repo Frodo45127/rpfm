@@ -118,7 +118,7 @@ impl ESFTree for QPtr<QTreeView> {
                     }
 
                     // Delay adding the big parent as much as we can, as otherwise the signals triggered when adding a PackedFile can slow this down to a crawl.
-                    let qlist = QListOfQStandardItem::new();
+                    let qlist = QListOfQStandardItem::new_0a();
                     qlist.append_q_standard_item(&big_parent.into_ptr().as_mut_raw_ptr());
                     qlist.append_q_standard_item(&state_item.into_ptr().as_mut_raw_ptr());
 
@@ -186,7 +186,7 @@ unsafe fn load_node_to_view(parent: &CppBox<QStandardItem>, child: &NodeType, bl
                 node_group_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&node_group.iter().map(|x| x.clone_without_children()).collect::<Vec<NodeType>>()).unwrap())), CHILD_NODES);
                 node_group_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&node_group_name)), RECORD_NODE_NAME);
 
-                let qlist = QListOfQStandardItem::new();
+                let qlist = QListOfQStandardItem::new_0a();
                 qlist.append_q_standard_item(&node_group_item.into_ptr().as_mut_raw_ptr());
                 qlist.append_q_standard_item(&node_group_state_item.into_ptr().as_mut_raw_ptr());
 
@@ -214,7 +214,7 @@ unsafe fn load_node_to_view(parent: &CppBox<QStandardItem>, child: &NodeType, bl
             child_item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(node.name())), RECORD_NODE_NAME);
         }
 
-        let qlist = QListOfQStandardItem::new();
+        let qlist = QListOfQStandardItem::new_0a();
         qlist.append_q_standard_item(&child_item.into_ptr().as_mut_raw_ptr());
         qlist.append_q_standard_item(&state_item.into_ptr().as_mut_raw_ptr());
 

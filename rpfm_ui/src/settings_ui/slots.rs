@@ -314,7 +314,7 @@ impl SettingsUISlots {
 
 /// This function updates the colour of a colour button if needed.
 unsafe fn change_colour(button: &QBox<QPushButton>) {
-    let color = QColorDialog::get_color_1a(button.palette().color_1a(ColorRole::Background));
+    let color = QColorDialog::get_color_1a(button.palette().color_1a(ColorRole::Window));
     if color.is_valid() {
         let palette = QPalette::from_q_color(&color);
         button.set_palette(&palette);
