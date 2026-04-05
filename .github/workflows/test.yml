@@ -31,14 +31,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
-      - name: Build libs
+      - name: Build libs and server
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --workspace --lib --exclude rpfm_ui_common --exclude rpfm_ui
+          args: -p rpfm_lib -p rpfm_extensions -p rpfm_ipc -p rpfm_log -p rpfm_server
 
       - name: Run tests
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace --lib --exclude rpfm_ui_common --exclude rpfm_ui
+          args: -p rpfm_lib -p rpfm_extensions -p rpfm_ipc -p rpfm_log -p rpfm_server
