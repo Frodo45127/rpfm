@@ -487,6 +487,14 @@ impl SettingsUI {
         general_grid.add_widget_5a(&extra_network_check_updates_on_start_label, 5, 0, 1, 1);
         general_grid.add_widget_5a(&extra_network_check_updates_on_start_checkbox, 5, 1, 1, 1);
 
+        // On Linux, program updates are managed by the package manager or Flatpak.
+        if cfg!(target_os = "linux") {
+            extra_network_update_channel_label.set_visible(false);
+            extra_network_update_channel_combobox.set_visible(false);
+            extra_network_check_updates_on_start_label.set_visible(false);
+            extra_network_check_updates_on_start_checkbox.set_visible(false);
+        }
+
         general_grid.add_widget_5a(&extra_network_check_schema_updates_on_start_label, 6, 0, 1, 1);
         general_grid.add_widget_5a(&extra_network_check_schema_updates_on_start_checkbox, 6, 1, 1, 1);
 

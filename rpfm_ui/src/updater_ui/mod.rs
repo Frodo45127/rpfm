@@ -84,7 +84,7 @@ impl UpdaterUI {
         let mut receiver_lua_autogen_updates = None;
         let mut receiver_old_ak_updates = None;
 
-        if settings_bool("check_updates_on_start") {
+        if !cfg!(target_os = "linux") && settings_bool("check_updates_on_start") {
             receiver_updates = Some(CENTRAL_COMMAND.read().unwrap().send(Command::CheckUpdates));
         }
 
@@ -237,33 +237,47 @@ impl UpdaterUI {
         update_twautogen_button.set_enabled(false);
         update_old_ak_button.set_enabled(false);
 
+        // On Linux, program updates are managed by the package manager or Flatpak.
+        if cfg!(target_os = "linux") {
+            update_program_label.set_visible(false);
+            update_program_button.set_visible(false);
+        }
+
         // Show the dialog before checking for updates.
         main_widget.static_downcast::<QDialog>().set_window_title(&qtr("updater_title"));
         main_widget.static_downcast::<QDialog>().show();
 
-        let receiver_program = CENTRAL_COMMAND.read().unwrap().send(Command::CheckUpdates);
+        let receiver_program = if !cfg!(target_os = "linux") {
+            Some(CENTRAL_COMMAND.read().unwrap().send(Command::CheckUpdates))
+        } else {
+            None
+        };
         let receiver_schemas = CENTRAL_COMMAND.read().unwrap().send(Command::CheckSchemaUpdates);
         let receiver_twautogen = CENTRAL_COMMAND.read().unwrap().send(Command::CheckLuaAutogenUpdates);
         let receiver_old_ak = CENTRAL_COMMAND.read().unwrap().send(Command::CheckEmpireAndNapoleonAKUpdates);
 
         // Apply prechecks immediately for any that were already resolved.
-        let mut pending_program = match precheck_program {
-            Some(response) => {
-                match response {
-                    APIResponse::NewStableUpdate(last_release) |
-                    APIResponse::NewBetaUpdate(last_release) |
-                    APIResponse::NewUpdateHotfix(last_release) => {
-                        update_program_button.set_text(&qtre("updater_update_program_available", &[&last_release]));
-                        update_program_button.set_enabled(true);
+        let mut pending_program = if cfg!(target_os = "linux") {
+            false
+        } else {
+            match precheck_program {
+                Some(response) => {
+                    match response {
+                        APIResponse::NewStableUpdate(last_release) |
+                        APIResponse::NewBetaUpdate(last_release) |
+                        APIResponse::NewUpdateHotfix(last_release) => {
+                            update_program_button.set_text(&qtre("updater_update_program_available", &[&last_release]));
+                            update_program_button.set_enabled(true);
+                        }
+                        APIResponse::NoUpdate |
+                        APIResponse::UnknownVersion => {
+                            update_program_button.set_text(&qtr("updater_update_program_no_updates"));
+                        }
                     }
-                    APIResponse::NoUpdate |
-                    APIResponse::UnknownVersion => {
-                        update_program_button.set_text(&qtr("updater_update_program_no_updates"));
-                    }
+                    false
                 }
-                false
+                None => true,
             }
-            None => true,
         };
 
         let mut pending_schema = match precheck_schema {
@@ -326,32 +340,34 @@ impl UpdaterUI {
 
             while pending_program || pending_schema || pending_twautogen || pending_old_ak {
                 if pending_program {
-                    match receiver_program.try_recv() {
-                        Ok(response) => {
-                            pending_program = false;
-                            match response {
-                                Response::APIResponse(response) => {
-                                    match response {
-                                        APIResponse::NewStableUpdate(last_release) |
-                                        APIResponse::NewBetaUpdate(last_release) |
-                                        APIResponse::NewUpdateHotfix(last_release) => {
-                                            update_program_button.set_text(&qtre("updater_update_program_available", &[&last_release]));
-                                            update_program_button.set_enabled(true);
-                                        }
-                                        APIResponse::NoUpdate |
-                                        APIResponse::UnknownVersion => {
-                                            update_program_button.set_text(&qtr("updater_update_program_no_updates"));
+                    if let Some(ref receiver_program) = receiver_program {
+                        match receiver_program.try_recv() {
+                            Ok(response) => {
+                                pending_program = false;
+                                match response {
+                                    Response::APIResponse(response) => {
+                                        match response {
+                                            APIResponse::NewStableUpdate(last_release) |
+                                            APIResponse::NewBetaUpdate(last_release) |
+                                            APIResponse::NewUpdateHotfix(last_release) => {
+                                                update_program_button.set_text(&qtre("updater_update_program_available", &[&last_release]));
+                                                update_program_button.set_enabled(true);
+                                            }
+                                            APIResponse::NoUpdate |
+                                            APIResponse::UnknownVersion => {
+                                                update_program_button.set_text(&qtr("updater_update_program_no_updates"));
+                                            }
                                         }
                                     }
+                                    Response::Error(_) => {
+                                        update_program_button.set_text(&qtr("updater_update_program_no_updates"));
+                                    }
+                                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                                 }
-                                Response::Error(_) => {
-                                    update_program_button.set_text(&qtr("updater_update_program_no_updates"));
-                                }
-                                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                             }
-                        }
-                        Err(error) => if error.is_disconnected() {
-                            panic!("{THREADS_COMMUNICATION_ERROR}");
+                            Err(error) => if error.is_disconnected() {
+                                panic!("{THREADS_COMMUNICATION_ERROR}");
+                            }
                         }
                     }
                 }
