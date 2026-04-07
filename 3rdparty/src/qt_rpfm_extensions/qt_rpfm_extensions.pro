@@ -11,7 +11,11 @@ QT       += widgets
 KF6_MODULES = KIconThemes KTextEditor KWidgetsAddons KCompletion KXmlGui \
               KParts KCoreAddons KSyntaxHighlighting KConfig KConfigCore KConfigGui \
               KConfigWidgets KColorScheme KCodecs KI18n
-for(mod, KF6_MODULES): INCLUDEPATH += /usr/include/KF6/$$mod
+windows {
+    for(mod, KF6_MODULES): INCLUDEPATH += C:/CraftRoot/include/KF6/$$mod
+} else {
+    for(mod, KF6_MODULES): INCLUDEPATH += /usr/include/KF6/$$mod
+}
 LIBS += -lKF6Completion -lKF6IconThemes -lKF6TextEditor -lKF6XmlGui -lKF6WidgetsAddons
 
 TARGET = qt_rpfm_extensions
