@@ -186,3 +186,7 @@ rpfm.flatpak
 
 # Release artifacts.
 rpfm-v*
+
+# Random stuff I have for testing.
+rpfm_gpui
+zed-main
