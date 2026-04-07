@@ -5,17 +5,15 @@ Just in case someone wants to collaborate with code (who knows, maybe there is s
 ## Windows
 
 You need to download and install:
-- [***Windows SDK***](https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk).
-- ***Visual Studio Community 2022*** (or superior).
-- ***MSVC*** (from the Visual Studio installer).
-    - Once this is installed, create the VCTOOLSREDISTDIR user env variable, and point it to "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Redist\MSVC\xx.xx.xxxxx" or wherever MSVC got installed.
+- [***Windows SDK***](https://developer.microsoft.com/en-US/windows/downloads/windows-sdk).
+- ***Visual Studio Community 2022*** (with the ***MSVC*** C++ build tools workload).
 - ***Rust 1.81 with the MSVC toolchain*** (or superior).
 - ***Craft*** (from KDE).
 
 Once you have Craft installed, you need to install RPFM's dependencies:
 
 ```bash
-craft -i libs/qt6/qimageformats
+craft -i libs/qt6/qtimageformats
 craft -i kimageformats
 craft -i kwidgetsaddons
 craft -i ktexteditor
@@ -23,7 +21,28 @@ craft -i kiconthemes
 craft -i breeze-icons
 ```
 
-Now you can open craft, move to RPFM's source code folder and call from that terminal:
+### KDE Designer Plugins
+
+By default, Craft builds KDE Frameworks with `-DBUILD_DESIGNERPLUGIN=OFF`. RPFM uses `.ui` templates with KDE widgets (KLineEdit, KComboBox, KMessageWidget, etc.) that are loaded at runtime via `QUiLoader`. Without the designer plugins, `QUiLoader` cannot instantiate these KDE widget types and RPFM will crash on startup.
+
+To fix this, edit the Craft blueprint at `CraftRoot/etc/blueprints/locations/craft-blueprints-kde/kde/frameworks/frameworks.py` and change `BUILD_DESIGNERPLUGIN=OFF` to `BUILD_DESIGNERPLUGIN=ON`:
+
+```python
+self.subinfo.options.configure.args += ["-DBUILD_DESIGNERPLUGIN=ON", "-DBUILD_PYTHON_BINDINGS=OFF"]
+```
+
+Then rebuild the relevant KDE frameworks:
+
+```bash
+craft --fetch --unpack --configure --compile --install --qmerge kcompletion
+craft --fetch --unpack --configure --compile --install --qmerge kwidgetsaddons
+```
+
+You should see `kcompletion6widgets.dll` and `kwidgetsaddons6widgets.dll` installed in `CraftRoot/plugins/designer/`.
+
+### Building
+
+Now you can open Craft's terminal, move to RPFM's source code folder and call:
 
 ```bash
 # To build the executable without optimisations.
