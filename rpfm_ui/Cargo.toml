@@ -64,7 +64,7 @@ qt_widgets.workspace = true
 qt_ui_tools.workspace = true
 
 # Support for formatting math operations.
-meval = "^0.2"
+evalexpr = "^13"
 
 # Float equality support.
 float_eq.workspace = true

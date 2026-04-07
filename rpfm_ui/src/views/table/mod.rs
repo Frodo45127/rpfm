@@ -1485,7 +1485,7 @@ impl TableView {
                         .replace("{z}", &row.to_string()).replace("{Z}", &row.to_string());
 
                     let text = if is_math_operation {
-                         if let Ok(result) = meval::eval_str(&new_value) {
+                         if let Ok(result) = evalexpr::eval_number(&new_value) {
 
                             // If we got a current value and it's different, it's a valid cell.
                             match current_value.parse::<f64>() {
@@ -1500,7 +1500,7 @@ impl TableView {
                             }
                         }
 
-                        // If meval fails, it's not a valid operation for this cell
+                        // If evalexpr fails, it's not a valid operation for this cell
                         else { continue; }
                     } else { new_value.to_owned() };
 
