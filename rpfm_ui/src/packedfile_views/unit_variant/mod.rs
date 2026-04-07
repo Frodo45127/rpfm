@@ -316,7 +316,7 @@ impl UnitVariantView {
         for entry in data.categories() {
             let item = QStandardItem::new();
 
-            item.set_data_2a(&QVariant::from_ulonglong(*entry.id()), 2);
+            item.set_data_2a(&QVariant::from_u64(*entry.id()), 2);
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(entry.name())), NAME);
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&entry)?)), DATA);
 
@@ -430,7 +430,7 @@ impl UnitVariantView {
 
         let item = QStandardItem::new();
 
-        item.set_data_2a(&QVariant::from_ulonglong(*data.id()), 2);
+        item.set_data_2a(&QVariant::from_u64(*data.id()), 2);
         item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(data.name())), NAME);
         item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&data).unwrap())), DATA);
         self.main_list_model.append_row_q_standard_item(item.into_ptr());
@@ -456,7 +456,7 @@ impl UnitVariantView {
 
         let item = QStandardItem::new();
 
-        item.set_data_2a(&QVariant::from_ulonglong(*data.id()), 2);
+        item.set_data_2a(&QVariant::from_u64(*data.id()), 2);
         item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(data.name())), NAME);
         item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&data).unwrap())), DATA);
         self.main_list_model.append_row_q_standard_item(item.into_ptr());

@@ -1195,7 +1195,7 @@ impl GlobalSearchUI {
 
                         text.set_text(&QString::from_std_str(Self::format_search_match(match_row.text(), *match_row.start(), *match_row.end())));
                         column_name.set_text(&QString::from_std_str(match_row.column_name()));
-                        row.set_data_2a(&QVariant::from_longlong(match_row.row_number() + 1), 2);
+                        row.set_data_2a(&QVariant::from_i64(match_row.row_number() + 1), 2);
                         column_number.set_data_2a(&QVariant::from_uint(*match_row.column_number()), 2);
                         start.set_data_2a(&QVariant::from_uint(*match_row.start() as u32), 2);
                         end.set_data_2a(&QVariant::from_uint(*match_row.end() as u32), 2);
@@ -1561,7 +1561,7 @@ impl GlobalSearchUI {
 
                         text.set_text(&QString::from_std_str(Self::format_search_match(match_row.text(), *match_row.start(), *match_row.end())));
                         column_name.set_text(&QString::from_std_str(match_row.column_name()));
-                        row.set_data_2a(&QVariant::from_longlong(match_row.row_number() + 1), 2);
+                        row.set_data_2a(&QVariant::from_i64(match_row.row_number() + 1), 2);
                         column_number.set_data_2a(&QVariant::from_uint(*match_row.column_number()), 2);
                         start.set_data_2a(&QVariant::from_uint(*match_row.start() as u32), 2);
                         end.set_data_2a(&QVariant::from_uint(*match_row.end() as u32), 2);
@@ -1646,7 +1646,7 @@ impl GlobalSearchUI {
                         let end = Self::new_item();
 
                         text.set_text(&QString::from_std_str(Self::format_search_match(match_row.text(), *match_row.start(), *match_row.end())));
-                        row.set_data_2a(&QVariant::from_ulonglong(match_row.row() + 1), 2);
+                        row.set_data_2a(&QVariant::from_u64(match_row.row() + 1), 2);
                         start.set_data_2a(&QVariant::from_uint(*match_row.start() as u32), 2);
                         end.set_data_2a(&QVariant::from_uint(*match_row.end() as u32), 2);
 
@@ -1851,8 +1851,8 @@ impl GlobalSearchUI {
                         let len = Self::new_item();
 
                         pos_formatted.set_text(&QString::from_std_str(format!("0x{:0>8X}", *match_row.pos())));
-                        pos.set_data_2a(&QVariant::from_ulonglong(*match_row.pos() as u64), 2);
-                        len.set_data_2a(&QVariant::from_ulonglong(*match_row.len() as u64), 2);
+                        pos.set_data_2a(&QVariant::from_u64(*match_row.pos() as u64), 2);
+                        len.set_data_2a(&QVariant::from_u64(*match_row.len() as u64), 2);
 
                         // Add an empty row to the list.
                         qlist_boi.append_q_standard_item(&pos_formatted.into_ptr().as_mut_raw_ptr());

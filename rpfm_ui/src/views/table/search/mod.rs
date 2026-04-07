@@ -500,7 +500,7 @@ impl SearchView {
                 FieldType::F32 => item.set_data_2a(&QVariant::from_float(replaced_text.parse::<f32>().unwrap()), 2),
                 FieldType::I16 => item.set_data_2a(&QVariant::from_int(replaced_text.parse::<i16>().unwrap().into()), 2),
                 FieldType::I32 => item.set_data_2a(&QVariant::from_int(replaced_text.parse::<i32>().unwrap()), 2),
-                FieldType::I64 => item.set_data_2a(&QVariant::from_longlong(replaced_text.parse::<i64>().unwrap()), 2),
+                FieldType::I64 => item.set_data_2a(&QVariant::from_i64(replaced_text.parse::<i64>().unwrap()), 2),
                 _ => item.set_text(&QString::from_std_str(&replaced_text)),
             }
 
@@ -587,7 +587,7 @@ impl SearchView {
                     FieldType::F32 => item.set_data_2a(&QVariant::from_float(replaced_text.parse::<f32>().unwrap()), 2),
                     FieldType::I16 => item.set_data_2a(&QVariant::from_int(replaced_text.parse::<i16>().unwrap().into()), 2),
                     FieldType::I32 => item.set_data_2a(&QVariant::from_int(replaced_text.parse::<i32>().unwrap()), 2),
-                    FieldType::I64 => item.set_data_2a(&QVariant::from_longlong(replaced_text.parse::<i64>().unwrap()), 2),
+                    FieldType::I64 => item.set_data_2a(&QVariant::from_i64(replaced_text.parse::<i64>().unwrap()), 2),
                     _ => item.set_text(&QString::from_std_str(replaced_text)),
                 }
             }

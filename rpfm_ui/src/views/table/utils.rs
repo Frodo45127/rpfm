@@ -332,8 +332,8 @@ pub unsafe fn get_default_item_from_field(field: &Field, patches: Option<&Defini
             item.set_tool_tip(&QString::from_std_str(tre("original_data", &[&data.to_string()])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
-            item.set_data_2a(&QVariant::from_longlong(data), ITEM_SOURCE_VALUE);
-            item.set_data_2a(&QVariant::from_longlong(data), 2);
+            item.set_data_2a(&QVariant::from_i64(data), ITEM_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_i64(data), 2);
             item
         },
         FieldType::ColourRGB => {
@@ -693,7 +693,7 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData, keys: &[i32], colum
         DecodedData::I64(ref data) |
         DecodedData::OptionalI64(ref data) => {
             let item = QStandardItem::new();
-            let qdata = QVariant::from_longlong(*data);
+            let qdata = QVariant::from_i64(*data);
             item.set_data_2a(ref_from_atomic(&QVARIANT_TRUE), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(ref_from_atomic(&QVARIANT_FALSE), ITEM_IS_SEQUENCE);
             item.set_data_2a(&qdata, ITEM_SOURCE_VALUE);

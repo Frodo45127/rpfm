@@ -2732,7 +2732,7 @@ impl TableView {
                         else { continue };
 
                         if current_value != new_value.to_string() {
-                            self.table_model.set_data_3a(real_cell, &QVariant::from_longlong(new_value), 2);
+                            self.table_model.set_data_3a(real_cell, &QVariant::from_i64(new_value), 2);
                             changed_cells += 1;
                             self.process_edition(self.table_model.item_from_index(real_cell));
                         }
