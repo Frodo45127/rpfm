@@ -252,26 +252,26 @@ impl DiagnosticsUI {
         diagnostics_dock_widget.set_object_name(&QString::from_std_str("diagnostics_dock"));
 
         diagnostics_button_info.set_style_sheet(&QString::from_std_str(format!("
-        QPushButton {{
+        QToolButton {{
             background-color: {}
         }}
-        QPushButton::checked {{
+        QToolButton:checked {{
             background-color: {}
         }}", get_color_info(), get_color_info_pressed())));
 
         diagnostics_button_warning.set_style_sheet(&QString::from_std_str(format!("
-        QPushButton {{
+        QToolButton {{
             background-color: {}
         }}
-        QPushButton::checked {{
+        QToolButton:checked {{
             background-color: {}
         }}", get_color_warning(), get_color_warning_pressed())));
 
         diagnostics_button_error.set_style_sheet(&QString::from_std_str(format!("
-        QPushButton {{
+        QToolButton {{
             background-color: {}
         }}
-        QPushButton::checked {{
+        QToolButton:checked {{
             background-color: {}
         }}", get_color_error(), get_color_error_pressed())));
 

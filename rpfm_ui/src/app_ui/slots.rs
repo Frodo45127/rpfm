@@ -167,6 +167,7 @@ pub struct AppUISlots {
     pub debug_update_current_schema_from_asskit: QBox<SlotOfBool>,
     pub debug_import_schema_patch: QBox<SlotNoArgs>,
     pub debug_reload_style_sheet: QBox<SlotNoArgs>,
+    pub theme_changed: QBox<SlotNoArgs>,
 
     //-----------------------------------------------//
     // `FileView` slots.
@@ -584,7 +585,6 @@ impl AppUISlots {
                 let secondary_path_old = settings_path_buf(SECONDARY_PATH);
                 let game_path_old = settings_path_buf(game_key);
                 let ak_path_old = settings_path_buf(&format!("{game_key}_assembly_kit"));
-                let dark_theme_old = settings_bool("use_dark_theme");
                 let font_name_old = settings_string("font_name");
                 let font_size_old = settings_i32("font_size");
 
@@ -606,12 +606,6 @@ impl AppUISlots {
                             // re-select the current `GameSelected` to force it to reload the game's files.
                             if game_path_old != game_path_new || ak_path_old != ak_path_new || secondary_path_old != secondary_path_new {
                                 AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, &dependencies_ui, true, true);
-                            }
-
-                            // If we detect a change in theme, reload it.
-                            let dark_theme_new = settings_bool("use_dark_theme");
-                            if dark_theme_old != dark_theme_new {
-                                crate::utils::reload_theme(&app_ui);
                             }
 
                             // If we detect a change in the saved font, trigger a font change.
@@ -1200,6 +1194,13 @@ impl AppUISlots {
             }
         ));
 
+        let theme_changed = SlotNoArgs::new(&app_ui.main_window, clone!(
+            app_ui => move || {
+                info!("System theme changed, refreshing theme-dependent widgets");
+                reload_theme(&app_ui);
+            }
+        ));
+
         //-----------------------------------------------//
         // `FileView` logic.
         //-----------------------------------------------//
@@ -1742,6 +1743,7 @@ impl AppUISlots {
             debug_update_current_schema_from_asskit,
             debug_import_schema_patch,
             debug_reload_style_sheet,
+            theme_changed,
 
             //-----------------------------------------------//
             // `FileView` slots.

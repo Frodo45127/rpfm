@@ -4,7 +4,6 @@
 #include <QAbstractItemView>
 #include <QColorDialog>
 #include <QPainter>
-#include <QSettings>
 #include <QApplication>
 
 // Function to be called from any other language. This assing to the provided column of the provided TableView a QColourItemDelegate.
@@ -18,25 +17,8 @@ QColourPickerItemDelegate::QColourPickerItemDelegate(QObject *parent, QTimer* ti
     QExtendedStyledItemDelegate(parent, timer, is_dark_theme_enabled, has_filter, right_side_mark, enable_diff_markers) {
     skipTextPainting = true;
     diag_timer = timer;
-    dark_theme = is_dark_theme_enabled;
     use_filter = has_filter;
     use_right_side_mark = right_side_mark;
-
-    QSettings* q_settings = new QSettings("FrodoWazEre", "rpfm");
-
-    if (dark_theme) {
-        colour_table_added = QColor(q_settings->value("colour_dark_table_added").toString());
-        colour_table_modified = QColor(q_settings->value("colour_dark_table_modified").toString());
-        colour_diagnostic_error = QColor(q_settings->value("colour_dark_diagnostic_error").toString());
-        colour_diagnostic_warning = QColor(q_settings->value("colour_dark_diagnostic_warning").toString());
-        colour_diagnostic_info = QColor(q_settings->value("colour_dark_diagnostic_info").toString());
-    } else {
-        colour_table_added = QColor(q_settings->value("colour_light_table_added").toString());
-        colour_table_modified = QColor(q_settings->value("colour_light_table_modified").toString());
-        colour_diagnostic_error = QColor(q_settings->value("colour_light_diagnostic_error").toString());
-        colour_diagnostic_warning = QColor(q_settings->value("colour_light_diagnostic_warning").toString());
-        colour_diagnostic_info = QColor(q_settings->value("colour_light_diagnostic_info").toString());
-    }
 }
 
 // Function called when the spinbox it's created. Here we configure the limits and decimals of the spinbox.

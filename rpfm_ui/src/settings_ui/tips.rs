@@ -22,8 +22,6 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     //-----------------------------------------------//
     // `UI` tips.
     //-----------------------------------------------//
-    let ui_global_use_dark_theme_tip = qtr("tt_ui_global_use_dark_theme_tip");
-
     let ui_table_adjust_columns_to_content_tip = qtr("tt_ui_table_adjust_columns_to_content_tip");
     let ui_table_disable_combos_tip = qtr("tt_ui_table_disable_combos_tip");
     let ui_table_extend_last_column_tip = qtr("tt_ui_table_extend_last_column_tip");
@@ -39,8 +37,6 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     let enable_pack_contents_drag_and_drop = qtr("settings_enable_pack_contents_drag_and_drop");
     let hide_unused_columns = qtr("settings_hide_unused_columns");
 
-    settings_ui.ui_global_use_dark_theme_label.set_tool_tip(&ui_global_use_dark_theme_tip);
-    settings_ui.ui_global_use_dark_theme_checkbox.set_tool_tip(&ui_global_use_dark_theme_tip);
     settings_ui.ui_table_adjust_columns_to_content_label.set_tool_tip(&ui_table_adjust_columns_to_content_tip);
     settings_ui.ui_table_adjust_columns_to_content_checkbox.set_tool_tip(&ui_table_adjust_columns_to_content_tip);
     settings_ui.ui_table_disable_combos_label.set_tool_tip(&ui_table_disable_combos_tip);

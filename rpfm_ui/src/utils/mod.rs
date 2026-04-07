@@ -15,12 +15,14 @@ Module with all the utility functions, to make our programming lives easier.
 use qt_widgets::QApplication;
 use qt_widgets::QMenu;
 use qt_widgets::{QMessageBox, q_message_box::{Icon, StandardButton}};
-use qt_widgets::QWidget;
 use qt_widgets::QMainWindow;
+use qt_widgets::QToolButton;
+use qt_widgets::QWidget;
 
 use qt_gui::QAction;
 use qt_gui::QGuiApplication;
 use qt_gui::QIcon;
+use qt_gui::q_palette::ColorRole;
 
 use qt_core::QCoreApplication;
 use qt_core::QFlags;
@@ -32,13 +34,10 @@ use cpp_core::CppBox;
 use cpp_core::Ptr;
 use cpp_core::Ref;
 
-use anyhow::Result;
 use regex::Regex;
 
 use std::convert::AsRef;
 use std::fmt::Display;
-use std::fs::File;
-use std::io::Read;
 
 use rpfm_log::*;
 
@@ -48,11 +47,9 @@ use rpfm_ui_common::utils::*;
 use crate::LOCALE;
 use crate::LOCALE_FALLBACK;
 use crate::app_ui::AppUI;
-use crate::settings_ui::backend::settings_bool;
-use crate::{DARK_PALETTE, LIGHT_PALETTE, LIGHT_STYLE_SHEET};
 use crate::ffi::*;
 use crate::STATUS_BAR;
-use crate::pack_tree::{get_color_correct, get_color_wrong, get_color_clean};
+use crate::pack_tree::*;
 
 // Colors used all over the program for theming and stuff.
 pub const MEDIUM_DARKER_GREY: &str = "#262626";          // Medium-Darker Grey.
@@ -293,101 +290,77 @@ pub fn get_feature_flags() -> String {
     feature_flags
 }
 
-/// This function creates the stylesheet used for the dark theme in windows.
-pub fn dark_stylesheet() -> Result<String> {
-
-    // IF the extra file is missing, create it as a copy of the normal one.
-    if !ASSETS_PATH.join("dark-theme-custom.qss").is_file() {
-        std::fs::copy(ASSETS_PATH.join("dark-theme.qss"), ASSETS_PATH.join("dark-theme-custom.qss"))?;
-    }
-
-    let mut file = if cfg!(debug_assertions) {
-        File::open(ASSETS_PATH.join("dark-theme.qss"))?
-    } else {
-        File::open(ASSETS_PATH.join("dark-theme-custom.qss"))?
-    };
-
-    let mut string = String::new();
-    file.read_to_string(&mut string)?;
-    Ok(string.replace("{assets_path}", &ASSETS_PATH.to_string_lossy().replace('\\', "/")))
+/// Detects whether the current system theme is dark by checking the application palette.
+///
+/// Returns `true` if the system is using a dark color scheme (Window background lightness < 128).
+/// This replaces the old `use_dark_theme` setting — the system now controls light/dark mode natively.
+pub unsafe fn is_dark_theme() -> bool {
+    let palette = QGuiApplication::palette();
+    let window_color = palette.color_1a(ColorRole::Window);
+    window_color.lightness() < 128
 }
 
-pub fn dark_stylesheet_is_customized() -> Result<bool> {
-    let mut file_orig = File::open(ASSETS_PATH.join("dark-theme.qss"))?;
-    let mut file_cust = File::open(ASSETS_PATH.join("dark-theme-custom.qss"))?;
-
-    let mut string_orig = String::new();
-    let mut string_cust = String::new();
-    file_orig.read_to_string(&mut string_orig)?;
-    file_cust.read_to_string(&mut string_cust)?;
-
-    Ok(string_orig != string_cust)
-}
-
-/// This function is used to load/reload a theme live.
+/// This function refreshes theme-dependent UI elements to match the current native theme.
+///
+/// It does NOT override the native palette or stylesheet — Qt/KDE handles those.
+/// It only updates elements that need manual intervention: icons with light/dark variants,
+/// diagnostic filter button colors, and forces a full repaint.
 pub unsafe fn reload_theme(app_ui: &AppUI) {
     let app = QCoreApplication::instance();
     let qapp = app.static_downcast::<QApplication>();
-    let use_dark_theme = settings_bool("use_dark_theme");
 
-    // Initialize the globals before applying anything.
-    let light_style_sheet = ref_from_atomic(&*LIGHT_STYLE_SHEET);
-    let light_palette = ref_from_atomic(&*LIGHT_PALETTE);
-    let dark_palette = ref_from_atomic(&*DARK_PALETTE);
+    // Clear any leftover custom stylesheet so native theming takes full effect.
+    qapp.set_style_sheet(&QString::from_std_str(""));
 
-    // On Windows, we use the dark theme switch to control the Style, StyleSheet and Palette.
-    if cfg!(target_os = "windows") {
-        if use_dark_theme {
-            QApplication::set_style_q_string(&QString::from_std_str("fusion"));
-            QApplication::set_palette_1a(dark_palette);
-            if let Ok(ref mut dark_style_sheet) = dark_stylesheet() {
+    // Re-apply the current native palette to force all widgets to refresh.
+    let native_palette = QGuiApplication::palette();
+    QApplication::set_palette_1a(&native_palette);
 
-                let scroll = "\nQMenu { menu-scrollable: 1 }";
-                if !dark_style_sheet.ends_with(scroll) {
-                    dark_style_sheet.push_str(scroll);
-                }
-
-                qapp.set_style_sheet(&QString::from_std_str(dark_style_sheet));
-            }
-
-            app_ui.github_button().set_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/github.svg", ASSETS_PATH.to_string_lossy()))));
-        } else {
-            QApplication::set_style_q_string(&QString::from_std_str("windowsvista"));
-            QApplication::set_palette_1a(light_palette);
-
-            let scroll = QString::from_std_str("\nQMenu { menu-scrollable: 1 }");
-            if !light_style_sheet.ends_with_q_string(&scroll) {
-                light_style_sheet.append_q_string(&scroll);
-            }
-
-            qapp.set_style_sheet(light_style_sheet);
-
-            app_ui.github_button().set_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/github-dark.svg", ASSETS_PATH.to_string_lossy()))));
-        }
-    }
-
-    // On MacOS, we use the dark theme switch to control the StyleSheet and Palette.
-    else if cfg!(target_os = "macos") {
-        if use_dark_theme {
-            QApplication::set_palette_1a(dark_palette);
-            if let Ok(dark_stylesheet) = dark_stylesheet() {
-                qapp.set_style_sheet(&QString::from_std_str(dark_stylesheet));
-            }
-        } else {
-            QApplication::set_palette_1a(light_palette);
-            qapp.set_style_sheet(light_style_sheet);
-        }
-    }
-
-    // Linux and company.
-    else if use_dark_theme {
-        qt_widgets::QApplication::set_palette_1a(dark_palette);
-        if let Ok(dark_stylesheet) = dark_stylesheet() {
-            qapp.set_style_sheet(&QString::from_std_str(dark_stylesheet));
-        }
+    // Select the appropriate GitHub icon based on the native theme.
+    if is_dark_theme() {
+        app_ui.github_button().set_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/github.svg", ASSETS_PATH.to_string_lossy()))));
     } else {
-        qt_widgets::QApplication::set_palette_1a(light_palette);
-        qapp.set_style_sheet(light_style_sheet);
+        app_ui.github_button().set_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/github-dark.svg", ASSETS_PATH.to_string_lossy()))));
+    }
+
+    // Re-apply diagnostic filter button colors for the current theme.
+    reload_diagnostic_button_styles(app_ui);
+
+    // Force the menu bar to fully recalculate its style. The KDE style caches palette
+    // colors internally, so just calling update()/repaint() is not enough — we need to
+    // unpolish (clear cache) then polish (recompute) via the style engine.
+    let menu_bar = app_ui.main_window().menu_bar();
+    let style = menu_bar.style();
+    style.unpolish_q_widget(menu_bar.static_upcast::<QWidget>());
+    style.polish_q_widget(menu_bar.static_upcast::<QWidget>());
+    menu_bar.update();
+
+    // Force the main window and all children to repaint.
+    app_ui.main_window().repaint();
+}
+
+/// Re-applies theme-aware stylesheets to the diagnostic filter buttons.
+///
+/// These buttons use per-widget stylesheets for their colored backgrounds, so they
+/// need to be re-applied whenever the theme changes.
+unsafe fn reload_diagnostic_button_styles(app_ui: &AppUI) {
+    let button_style = |unpressed: &str, pressed: &str| -> String {
+        format!(
+            "QToolButton {{ background-color: {} }} QToolButton:checked {{ background-color: {} }}",
+            unpressed, pressed
+        )
+    };
+
+    // Find the diagnostic buttons by object name. They may not exist if the dock was never created.
+    let main_widget = app_ui.main_window().static_upcast::<QWidget>();
+    if let Ok(info_btn) = find_widget::<QToolButton>(&main_widget, "info_button") {
+        info_btn.set_style_sheet(&QString::from_std_str(button_style(&get_color_info(), &get_color_info_pressed())));
+    }
+    if let Ok(warn_btn) = find_widget::<QToolButton>(&main_widget, "warning_button") {
+        warn_btn.set_style_sheet(&QString::from_std_str(button_style(&get_color_warning(), &get_color_warning_pressed())));
+    }
+    if let Ok(err_btn) = find_widget::<QToolButton>(&main_widget, "error_button") {
+        err_btn.set_style_sheet(&QString::from_std_str(button_style(&get_color_error(), &get_color_error_pressed())));
     }
 }
 

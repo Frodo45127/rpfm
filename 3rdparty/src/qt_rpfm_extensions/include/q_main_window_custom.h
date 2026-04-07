@@ -32,6 +32,7 @@ protected:
 
 signals:
     void openPack(QStringList const &);
+    void themeChanged();
 
 };
 

@@ -172,7 +172,6 @@ impl Settings {
     */
         // UI Settings.
         settings.initialize_bool("start_maximized", false);
-        settings.initialize_bool("use_dark_theme", false);
         settings.initialize_bool("hide_background_icon", true);
         settings.initialize_bool("allow_editing_of_ca_packfiles", false);
         settings.initialize_bool("check_updates_on_start", true);

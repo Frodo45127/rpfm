@@ -79,14 +79,20 @@ void QMainWindowCustom::moveEvent(QMoveEvent* event) {
 }
 
 void QMainWindowCustom::changeEvent(QEvent* event) {
-    bool enabled = isEnabled();
     if (event->type() == QEvent::EnabledChange) {
-        if (enabled) {
+        if (isEnabled()) {
             busyIndicator->hide();
         } else {
             busyIndicator->show();
         }
     }
+
+    // Notify Rust side so it can update theme-dependent widgets
+    if (event->type() == QEvent::PaletteChange) {
+        emit themeChanged();
+    }
+
+    QMainWindow::changeEvent(event);
 }
 
 void QMainWindowCustom::dragEnterEvent(QDragEnterEvent *event) {

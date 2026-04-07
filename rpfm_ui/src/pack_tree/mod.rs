@@ -2091,7 +2091,7 @@ fn sort_folders_before_files_alphabetically_paths(a_path: &str, b_path: &str) ->
 }
 
 pub unsafe fn get_color_correct() -> String {
-    if settings_bool("use_dark_theme") {
+    if is_dark_theme() {
         GREEN_DARK.to_owned()
     } else {
         GREEN_BRIGHT.to_owned()
@@ -2099,7 +2099,7 @@ pub unsafe fn get_color_correct() -> String {
 }
 
 pub unsafe fn get_color_wrong() -> String {
-    if settings_bool("use_dark_theme") {
+    if is_dark_theme() {
         RED_DARK.to_owned()
     } else {
         RED_BRIGHT.to_owned()
@@ -2107,7 +2107,7 @@ pub unsafe fn get_color_wrong() -> String {
 }
 
 pub unsafe fn get_color_clean() -> String {
-    if settings_bool("use_dark_theme") {
+    if is_dark_theme() {
         MEDIUM_DARKER_GREY.to_owned()
     } else {
         TRANSPARENT_BRIGHT.to_owned()
@@ -2115,7 +2115,7 @@ pub unsafe fn get_color_clean() -> String {
 }
 
 pub unsafe fn get_color_info() -> String {
-    if settings_bool("use_dark_theme") {
+    if is_dark_theme() {
         INFO_UNPRESSED_DARK.to_owned()
     } else {
         INFO_UNPRESSED_LIGHT.to_owned()
@@ -2123,7 +2123,7 @@ pub unsafe fn get_color_info() -> String {
 }
 
 pub unsafe fn get_color_warning() -> String {
-    if settings_bool("use_dark_theme") {
+    if is_dark_theme() {
         WARNING_UNPRESSED_DARK.to_owned()
     } else {
         WARNING_UNPRESSED_LIGHT.to_owned()
@@ -2131,7 +2131,7 @@ pub unsafe fn get_color_warning() -> String {
 }
 
 pub unsafe fn get_color_error() -> String {
-    if settings_bool("use_dark_theme") {
+    if is_dark_theme() {
         ERROR_UNPRESSED_DARK.to_owned()
     } else {
         ERROR_UNPRESSED_LIGHT.to_owned()
@@ -2139,7 +2139,7 @@ pub unsafe fn get_color_error() -> String {
 }
 
 pub unsafe fn get_color_info_pressed() -> String {
-    if settings_bool("use_dark_theme") {
+    if is_dark_theme() {
         INFO_PRESSED_DARK.to_owned()
     } else {
         INFO_PRESSED_LIGHT.to_owned()
@@ -2147,7 +2147,7 @@ pub unsafe fn get_color_info_pressed() -> String {
 }
 
 pub unsafe fn get_color_warning_pressed() -> String {
-    if settings_bool("use_dark_theme") {
+    if is_dark_theme() {
         WARNING_PRESSED_DARK.to_owned()
     } else {
         WARNING_PRESSED_LIGHT.to_owned()
@@ -2155,7 +2155,7 @@ pub unsafe fn get_color_warning_pressed() -> String {
 }
 
 pub unsafe fn get_color_error_pressed() -> String {
-    if settings_bool("use_dark_theme") {
+    if is_dark_theme() {
         ERROR_PRESSED_DARK.to_owned()
     } else {
         ERROR_PRESSED_LIGHT.to_owned()

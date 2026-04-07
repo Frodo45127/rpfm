@@ -22,8 +22,9 @@ public:
 signals:
 
 protected:
-    QColor colour_tree_added;
-    QColor colour_tree_modified;
+    mutable QColor colour_tree_added;
+    mutable QColor colour_tree_modified;
+    mutable qint64 cached_tree_palette_key = 0;
 };
 
 #endif // TREE_ITEM_DELEGATE_H

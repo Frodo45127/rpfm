@@ -35,10 +35,8 @@
 use qt_widgets::QApplication;
 use qt_widgets::QStatusBar;
 
-use qt_gui::QColor;
 use qt_gui::QFont;
 use qt_gui::QGuiApplication;
-use qt_gui::{QPalette, q_palette::{ColorGroup, ColorRole}};
 use qt_gui::QFontDatabase;
 use qt_gui::q_font_database::SystemFont;
 
@@ -127,51 +125,6 @@ static TREEVIEW_ICONS: LazyLock<Icons> = LazyLock::new(|| unsafe { Icons::new() 
 /// Icons for the `Game Selected` in the TitleBar.
 static GAME_SELECTED_ICONS: LazyLock<GameSelectedIcons> = LazyLock::new(|| unsafe { GameSelectedIcons::new() });
 
-/// Light stylesheet.
-static LIGHT_STYLE_SHEET: LazyLock<AtomicPtr<QString>> = LazyLock::new(|| unsafe {
-    let app = QCoreApplication::instance();
-    let qapp = app.static_downcast::<QApplication>();
-    atomic_from_cpp_box(qapp.style_sheet())
-});
-
-/// Bright and dark palettes of colours for Windows.
-/// The dark one is taken from here, with some modifications: https://gist.github.com/QuantumCD/6245215
-static LIGHT_PALETTE: LazyLock<AtomicPtr<QPalette>> = LazyLock::new(|| unsafe { atomic_from_cpp_box(QPalette::new()) });
-static DARK_PALETTE: LazyLock<AtomicPtr<QPalette>> = LazyLock::new(|| unsafe {{
-    let palette = QPalette::new();
-
-    // Base config.
-    palette.set_color_2a(ColorRole::Window, &QColor::from_3_int(51, 51, 51));
-    palette.set_color_2a(ColorRole::WindowText, &QColor::from_3_int(187, 187, 187));
-    palette.set_color_2a(ColorRole::Base, &QColor::from_3_int(34, 34, 34));
-    palette.set_color_2a(ColorRole::AlternateBase, &QColor::from_3_int(51, 51, 51));
-    palette.set_color_2a(ColorRole::ToolTipBase, &QColor::from_3_int(187, 187, 187));
-    palette.set_color_2a(ColorRole::ToolTipText, &QColor::from_3_int(187, 187, 187));
-    palette.set_color_2a(ColorRole::Text, &QColor::from_3_int(187, 187, 187));
-    palette.set_color_2a(ColorRole::Button, &QColor::from_3_int(51, 51, 51));
-    palette.set_color_2a(ColorRole::ButtonText, &QColor::from_3_int(187, 187, 187));
-    palette.set_color_2a(ColorRole::BrightText, &QColor::from_3_int(255, 0, 0));
-    palette.set_color_2a(ColorRole::Link, &QColor::from_3_int(42, 130, 218));
-    palette.set_color_2a(ColorRole::Highlight, &QColor::from_3_int(42, 130, 218));
-    palette.set_color_2a(ColorRole::HighlightedText, &QColor::from_3_int(204, 204, 204));
-
-    // Disabled config.
-    palette.set_color_3a(ColorGroup::Disabled, ColorRole::Window, &QColor::from_3_int(34, 34, 34));
-    palette.set_color_3a(ColorGroup::Disabled, ColorRole::WindowText, &QColor::from_3_int(85, 85, 85));
-    palette.set_color_3a(ColorGroup::Disabled, ColorRole::Base, &QColor::from_3_int(34, 34, 34));
-    palette.set_color_3a(ColorGroup::Disabled, ColorRole::AlternateBase, &QColor::from_3_int(34, 34, 34));
-    palette.set_color_3a(ColorGroup::Disabled, ColorRole::ToolTipBase, &QColor::from_3_int(85, 85, 85));
-    palette.set_color_3a(ColorGroup::Disabled, ColorRole::ToolTipText, &QColor::from_3_int(85, 85, 85));
-    palette.set_color_3a(ColorGroup::Disabled, ColorRole::Text, &QColor::from_3_int(85, 85, 85));
-    palette.set_color_3a(ColorGroup::Disabled, ColorRole::Button, &QColor::from_3_int(34, 34, 34));
-    palette.set_color_3a(ColorGroup::Disabled, ColorRole::ButtonText, &QColor::from_3_int(85, 85, 85));
-    palette.set_color_3a(ColorGroup::Disabled, ColorRole::BrightText, &QColor::from_3_int(170, 0, 0));
-    palette.set_color_3a(ColorGroup::Disabled, ColorRole::Link, &QColor::from_3_int(42, 130, 218));
-    palette.set_color_3a(ColorGroup::Disabled, ColorRole::Highlight, &QColor::from_3_int(42, 130, 218));
-    palette.set_color_3a(ColorGroup::Disabled, ColorRole::HighlightedText, &QColor::from_3_int(85, 85, 85));
-
-    atomic_from_cpp_box(palette)
-}});
 
 /// Global variable to hold the sender/receivers used to comunicate between threads.
 static CENTRAL_COMMAND: LazyLock<Arc<RwLock<CentralCommand<Response>>>> = LazyLock::new(|| Arc::new(RwLock::new(CentralCommand::default())));

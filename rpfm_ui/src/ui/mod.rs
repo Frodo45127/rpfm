@@ -15,9 +15,9 @@ This module contains the code to manage the main UI and store all his slots.
 !*/
 
 use qt_widgets::QApplication;
-use qt_widgets::QMessageBox;
-use qt_widgets::q_message_box::Icon;
-use qt_widgets::q_message_box::StandardButton;
+#[cfg(feature = "only_for_the_brave")] use qt_widgets::QMessageBox;
+#[cfg(feature = "only_for_the_brave")] use qt_widgets::q_message_box::Icon;
+#[cfg(feature = "only_for_the_brave")] use qt_widgets::q_message_box::StandardButton;
 
 use qt_gui::QFont;
 use qt_gui::QIcon;
@@ -44,7 +44,7 @@ use rpfm_ui_common::ASSETS_PATH;
 use rpfm_ui_common::PROGRAM_PATH;
 use rpfm_ui_common::utils::{atomic_from_cpp_box, ref_from_atomic};
 
-use crate::VERSION;
+#[cfg(feature = "only_for_the_brave")] use crate::VERSION;
 use crate::app_ui;
 use crate::app_ui::AppUI;
 use crate::app_ui::slots::{AppUITempSlots, AppUISlots};
@@ -276,33 +276,6 @@ impl UI {
 
                 // Set it so it doesn't popup again for this version.
                 set_settings_bool(&first_boot_setting, true);
-            }
-        }
-
-        // Check for changes in dark theme custom.
-        //
-        // Only in windows, because on linux the program is installed as root, and the copy command will fail.
-        if cfg!(target_os = "windows") {
-            let first_boot_setting = "firstBootCheckDarkTheme".to_owned() + VERSION;
-            let dark_stylesheet_customized = dark_stylesheet_is_customized().unwrap_or(true);
-            if !settings_bool(&first_boot_setting) && dark_stylesheet_customized {
-
-                let title = qtr("title_changes_detected_in_dark_theme_config");
-                let message = qtr("message_changes_detected_in_dark_theme_config");
-                let message_box = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
-                    Icon::Warning,
-                    &title,
-                    &message,
-                    StandardButton::Yes | StandardButton::No,
-                    app_ui.main_window(),
-                );
-
-                if message_box.exec() == 16384 {
-                    std::fs::copy(ASSETS_PATH.join("dark-theme.qss"), ASSETS_PATH.join("dark-theme-custom.qss"))?;
-                }
-
-                // Set it so it doesn't popup again for this version.
-                let _ = settings_set_bool(&first_boot_setting, true);
             }
         }
 

@@ -762,7 +762,7 @@ pub unsafe fn build_columns(
     let mut columns_to_hide = vec![];
     let hide_unused_columns = false; //setting_bool("hide_unused_columns");
 
-    let description_icon = if settings_bool("use_dark_theme") {
+    let description_icon = if is_dark_theme() {
         QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/description_icon_dark.png", ASSETS_PATH.to_string_lossy())))
     }  else {
         QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/description_icon_light.png", ASSETS_PATH.to_string_lossy())))

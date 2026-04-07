@@ -24,21 +24,39 @@ QExtendedStyledItemDelegate::QExtendedStyledItemDelegate(QObject *parent, QTimer
     use_filter = has_filter;
     use_right_side_mark = right_side_mark;
     use_diff_markers = enable_diff_markers;
+    cached_palette_key = 0;
 
-    QSettings* q_settings = new QSettings("FrodoWazEre", "rpfm");
+    // Load initial colors (will also be refreshed at paint time if theme changes).
+    refreshThemeColorsIfNeeded();
+}
+
+void QExtendedStyledItemDelegate::refreshThemeColorsIfNeeded() const {
+    // Use the palette's cacheKey to detect changes. Only re-read colors when it changes.
+    qint64 current_key = QGuiApplication::palette().cacheKey();
+    if (current_key == cached_palette_key) {
+        return;
+    }
+
+    cached_palette_key = current_key;
+
+    // Detect dark theme from the palette's window color lightness.
+    QColor windowColor = QGuiApplication::palette().color(QPalette::Window);
+    dark_theme = windowColor.lightness() < 128;
+
+    QSettings q_settings("FrodoWazEre", "rpfm");
 
     if (dark_theme) {
-        colour_table_added = QColor(q_settings->value("colour_dark_table_added").toString());
-        colour_table_modified = QColor(q_settings->value("colour_dark_table_modified").toString());
-        colour_diagnostic_error = QColor(q_settings->value("colour_dark_diagnostic_error").toString());
-        colour_diagnostic_warning = QColor(q_settings->value("colour_dark_diagnostic_warning").toString());
-        colour_diagnostic_info = QColor(q_settings->value("colour_dark_diagnostic_info").toString());
+        colour_table_added = QColor(q_settings.value("colour_dark_table_added").toString());
+        colour_table_modified = QColor(q_settings.value("colour_dark_table_modified").toString());
+        colour_diagnostic_error = QColor(q_settings.value("colour_dark_diagnostic_error").toString());
+        colour_diagnostic_warning = QColor(q_settings.value("colour_dark_diagnostic_warning").toString());
+        colour_diagnostic_info = QColor(q_settings.value("colour_dark_diagnostic_info").toString());
     } else {
-        colour_table_added = QColor(q_settings->value("colour_light_table_added").toString());
-        colour_table_modified = QColor(q_settings->value("colour_light_table_modified").toString());
-        colour_diagnostic_error = QColor(q_settings->value("colour_light_diagnostic_error").toString());
-        colour_diagnostic_warning = QColor(q_settings->value("colour_light_diagnostic_warning").toString());
-        colour_diagnostic_info = QColor(q_settings->value("colour_light_diagnostic_info").toString());
+        colour_table_added = QColor(q_settings.value("colour_light_table_added").toString());
+        colour_table_modified = QColor(q_settings.value("colour_light_table_modified").toString());
+        colour_diagnostic_error = QColor(q_settings.value("colour_light_diagnostic_error").toString());
+        colour_diagnostic_warning = QColor(q_settings.value("colour_light_diagnostic_warning").toString());
+        colour_diagnostic_info = QColor(q_settings.value("colour_light_diagnostic_info").toString());
     }
 }
 
@@ -55,6 +73,8 @@ QWidget* QExtendedStyledItemDelegate::createEditor(QWidget *parent, const QStyle
 
 // Function for the delegate to showup properly.
 void QExtendedStyledItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const {
+    refreshThemeColorsIfNeeded();
+
     if (!skipTextPainting) {
         QStyledItemDelegate::paint( painter, option, index );
     }

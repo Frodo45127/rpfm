@@ -109,7 +109,6 @@ pub struct SettingsUI {
     extra_packfile_use_lazy_loading_label: QBox<QLabel>,
     extra_packfile_disable_uuid_regeneration_on_db_tables_label: QBox<QLabel>,
     extra_packfile_disable_file_previews_label: QBox<QLabel>,
-    ui_global_use_dark_theme_label: QBox<QLabel>,
     ui_window_start_maximized_label: QBox<QLabel>,
     general_packfile_treeview_expand_treeview_when_adding_items_label: QBox<QLabel>,
     include_base_folder_on_add_from_folder_label: QBox<QLabel>,
@@ -131,7 +130,6 @@ pub struct SettingsUI {
     extra_packfile_use_lazy_loading_checkbox: QBox<QCheckBox>,
     extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox: QBox<QCheckBox>,
     extra_packfile_disable_file_previews_checkbox: QBox<QCheckBox>,
-    ui_global_use_dark_theme_checkbox: QBox<QCheckBox>,
     ui_window_start_maximized_checkbox: QBox<QCheckBox>,
     ui_window_hide_background_icon_checkbox: QBox<QCheckBox>,
     general_packfile_treeview_resize_to_fit_checkbox: QBox<QCheckBox>,
@@ -436,9 +434,6 @@ impl SettingsUI {
         let extra_packfile_disable_file_previews_label = QLabel::from_q_string_q_widget(&qtr("settings_disable_file_previews"), &general_frame);
         let extra_packfile_disable_file_previews_checkbox = QCheckBox::from_q_widget(&general_frame);
 
-        let ui_global_use_dark_theme_label = QLabel::from_q_string_q_widget(&qtr("settings_ui_dark_theme"), &general_frame);
-        let ui_global_use_dark_theme_checkbox = QCheckBox::from_q_widget(&general_frame);
-
         let ui_window_start_maximized_label = QLabel::from_q_string_q_widget(&qtr("settings_ui_window_start_maximized_label"), &general_frame);
         let ui_window_start_maximized_checkbox = QCheckBox::from_q_widget(&general_frame);
 
@@ -510,11 +505,8 @@ impl SettingsUI {
         general_grid.add_widget_5a(&extra_packfile_disable_file_previews_label, 12, 0, 1, 1);
         general_grid.add_widget_5a(&extra_packfile_disable_file_previews_checkbox, 12, 1, 1, 1);
 
-        general_grid.add_widget_5a(&ui_global_use_dark_theme_label, 14, 0, 1, 1);
-        general_grid.add_widget_5a(&ui_global_use_dark_theme_checkbox, 14, 1, 1, 1);
-
-        general_grid.add_widget_5a(&ui_window_start_maximized_label, 15, 0, 1, 1);
-        general_grid.add_widget_5a(&ui_window_start_maximized_checkbox, 15, 1, 1, 1);
+        general_grid.add_widget_5a(&ui_window_start_maximized_label, 14, 0, 1, 1);
+        general_grid.add_widget_5a(&ui_window_start_maximized_checkbox, 14, 1, 1, 1);
 
         general_grid.add_widget_5a(&ui_window_hide_background_icon_label, 16, 0, 1, 1);
         general_grid.add_widget_5a(&ui_window_hide_background_icon_checkbox, 16, 1, 1, 1);
@@ -864,7 +856,6 @@ impl SettingsUI {
             extra_packfile_use_lazy_loading_label,
             extra_packfile_disable_uuid_regeneration_on_db_tables_label,
             extra_packfile_disable_file_previews_label,
-            ui_global_use_dark_theme_label,
             ui_window_start_maximized_label,
             general_packfile_treeview_expand_treeview_when_adding_items_label,
             include_base_folder_on_add_from_folder_label,
@@ -886,7 +877,6 @@ impl SettingsUI {
             extra_packfile_use_lazy_loading_checkbox,
             extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox,
             extra_packfile_disable_file_previews_checkbox,
-            ui_global_use_dark_theme_checkbox,
             ui_window_start_maximized_checkbox,
             ui_window_hide_background_icon_checkbox,
             general_packfile_treeview_resize_to_fit_checkbox,
@@ -1033,7 +1023,6 @@ impl SettingsUI {
         // Load the General Stuff.
         self.extra_packfile_autosave_amount_spinbox.set_value(settings_i32("autosave_amount"));
         self.extra_packfile_autosave_interval_spinbox.set_value(settings_i32("autosave_interval"));
-        self.ui_global_use_dark_theme_checkbox.set_checked(settings_bool("use_dark_theme"));
         self.ui_window_start_maximized_checkbox.set_checked(settings_bool("start_maximized"));
         self.ui_window_hide_background_icon_checkbox.set_checked(settings_bool("hide_background_icon"));
         self.extra_network_check_updates_on_start_checkbox.set_checked(settings_bool("check_updates_on_start"));
@@ -1157,7 +1146,6 @@ impl SettingsUI {
         // Get the General settings_
         let _ = settings_set_i32("autosave_amount", self.extra_packfile_autosave_amount_spinbox.value());
         let _ = settings_set_i32("autosave_interval", self.extra_packfile_autosave_interval_spinbox.value());
-        let _ = settings_set_bool("use_dark_theme", self.ui_global_use_dark_theme_checkbox.is_checked());
         let _ = settings_set_bool("start_maximized", self.ui_window_start_maximized_checkbox.is_checked());
         let _ = settings_set_bool("hide_background_icon", self.ui_window_hide_background_icon_checkbox.is_checked());
         let _ = settings_set_bool("check_updates_on_start", self.extra_network_check_updates_on_start_checkbox.is_checked());
