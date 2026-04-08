@@ -131,7 +131,6 @@ pub struct SettingsUI {
     extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox: QBox<QCheckBox>,
     extra_packfile_disable_file_previews_checkbox: QBox<QCheckBox>,
     ui_window_start_maximized_checkbox: QBox<QCheckBox>,
-    ui_window_hide_background_icon_checkbox: QBox<QCheckBox>,
     general_packfile_treeview_resize_to_fit_checkbox: QBox<QCheckBox>,
     general_packfile_treeview_expand_treeview_when_adding_items_checkbox: QBox<QCheckBox>,
     include_base_folder_on_add_from_folder_checkbox: QBox<QCheckBox>,
@@ -436,9 +435,6 @@ impl SettingsUI {
         let ui_window_start_maximized_label = QLabel::from_q_string_q_widget(&qtr("settings_ui_window_start_maximized_label"), &general_frame);
         let ui_window_start_maximized_checkbox = QCheckBox::from_q_widget(&general_frame);
 
-        let ui_window_hide_background_icon_label = QLabel::from_q_string_q_widget(&qtr("settings_ui_window_hide_background_icon"), &general_frame);
-        let ui_window_hide_background_icon_checkbox = QCheckBox::from_q_widget(&general_frame);
-
         let general_packfile_treeview_resize_to_fit_label = QLabel::from_q_string_q_widget(&qtr("settings_packfile_treeview_resize_to_fit"), &general_frame);
         let general_packfile_treeview_resize_to_fit_checkbox = QCheckBox::from_q_widget(&general_frame);
         general_packfile_treeview_resize_to_fit_label.set_visible(false);
@@ -506,9 +502,6 @@ impl SettingsUI {
 
         general_grid.add_widget_5a(&ui_window_start_maximized_label, 14, 0, 1, 1);
         general_grid.add_widget_5a(&ui_window_start_maximized_checkbox, 14, 1, 1, 1);
-
-        general_grid.add_widget_5a(&ui_window_hide_background_icon_label, 16, 0, 1, 1);
-        general_grid.add_widget_5a(&ui_window_hide_background_icon_checkbox, 16, 1, 1, 1);
 
         //general_grid.add_widget_5a(&general_packfile_treeview_resize_to_fit_label, 14, 0, 1, 1);
         //general_grid.add_widget_5a(&general_packfile_treeview_resize_to_fit_checkbox, 14, 1, 1, 1);
@@ -877,7 +870,6 @@ impl SettingsUI {
             extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox,
             extra_packfile_disable_file_previews_checkbox,
             ui_window_start_maximized_checkbox,
-            ui_window_hide_background_icon_checkbox,
             general_packfile_treeview_resize_to_fit_checkbox,
             general_packfile_treeview_expand_treeview_when_adding_items_checkbox,
             include_base_folder_on_add_from_folder_checkbox,
@@ -1023,7 +1015,6 @@ impl SettingsUI {
         self.extra_packfile_autosave_amount_spinbox.set_value(settings_i32("autosave_amount"));
         self.extra_packfile_autosave_interval_spinbox.set_value(settings_i32("autosave_interval"));
         self.ui_window_start_maximized_checkbox.set_checked(settings_bool("start_maximized"));
-        self.ui_window_hide_background_icon_checkbox.set_checked(settings_bool("hide_background_icon"));
         self.extra_network_check_updates_on_start_checkbox.set_checked(settings_bool("check_updates_on_start"));
         self.extra_network_check_schema_updates_on_start_checkbox.set_checked(settings_bool("check_schema_updates_on_start"));
         self.extra_network_check_lua_autogen_updates_on_start_checkbox.set_checked(settings_bool("check_lua_autogen_updates_on_start"));
@@ -1146,7 +1137,6 @@ impl SettingsUI {
         let _ = settings_set_i32("autosave_amount", self.extra_packfile_autosave_amount_spinbox.value());
         let _ = settings_set_i32("autosave_interval", self.extra_packfile_autosave_interval_spinbox.value());
         let _ = settings_set_bool("start_maximized", self.ui_window_start_maximized_checkbox.is_checked());
-        let _ = settings_set_bool("hide_background_icon", self.ui_window_hide_background_icon_checkbox.is_checked());
         let _ = settings_set_bool("check_updates_on_start", self.extra_network_check_updates_on_start_checkbox.is_checked());
         let _ = settings_set_bool("check_schema_updates_on_start", self.extra_network_check_schema_updates_on_start_checkbox.is_checked());
         let _ = settings_set_bool("check_lua_autogen_updates_on_start", self.extra_network_check_lua_autogen_updates_on_start_checkbox.is_checked());

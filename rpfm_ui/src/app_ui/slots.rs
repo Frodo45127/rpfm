@@ -1206,12 +1206,15 @@ impl AppUISlots {
             app_ui,
             pack_file_contents_ui => move |index| {
                 AppUI::file_view_hide(&app_ui, &pack_file_contents_ui, &[index]);
+                app_ui.toggle_welcome_visibility();
             }
         ));
 
         let packed_file_update = SlotOfInt::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui => move |index| {
+                app_ui.toggle_welcome_visibility();
+
                 if index == -1 || NEW_FILE_VIEW_CREATED.load(std::sync::atomic::Ordering::SeqCst) {
                     NEW_FILE_VIEW_CREATED.store(false, std::sync::atomic::Ordering::SeqCst);
                     return;
@@ -1788,5 +1791,6 @@ impl AppUITempSlots {
     ) {
         AppUI::build_pack_submenus(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui);
         AppUI::build_open_mymod_submenus(app_ui, pack_file_contents_ui, diagnostics_ui, global_search_ui, dependencies_ui);
+        crate::welcome_page_ui::WelcomePageUI::build_recent_files(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui);
     }
 }

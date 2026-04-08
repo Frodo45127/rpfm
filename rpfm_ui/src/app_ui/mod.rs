@@ -150,6 +150,7 @@ pub struct AppUI {
     //-------------------------------------------------------------------------------//
     main_window: QBox<QMainWindow>,
     tab_bar_packed_file: QBox<QTabWidget>,
+    welcome_page_ui: crate::welcome_page_ui::WelcomePageUI,
     shortcuts: CppBox<QListOfQObject>,
     message_widget: QPtr<QWidget>,
 
@@ -327,6 +328,12 @@ impl AppUI {
         layout.add_widget_5a(&tab_bar_packed_file, 0, 0, 1, 1);
         layout.add_widget_5a(&message_widget, 1, 0, 1, 1);
         layout.set_row_stretch(0, 10);
+
+        // Welcome widget, shown when no tabs are open.
+        let welcome_page_ui = crate::welcome_page_ui::WelcomePageUI::new(&widget);
+        layout.add_widget_5a(welcome_page_ui.welcome_widget(), 0, 0, 1, 1);
+        tab_bar_packed_file.hide();
+        welcome_page_ui.welcome_widget().show();
 
         let github_button = QPushButton::from_q_widget(&status_bar);
         github_button.set_flat(true);
@@ -620,6 +627,7 @@ impl AppUI {
             //-------------------------------------------------------------------------------//
             main_window,
             tab_bar_packed_file,
+            welcome_page_ui,
             shortcuts,
             message_widget,
 
@@ -762,6 +770,11 @@ impl AppUI {
             focused_widget: Rc::new(RwLock::new(None)),
             disabled_counter: Rc::new(RwLock::new(0)),
         }
+    }
+
+    /// This function toggles visibility between the welcome widget and the tab widget.
+    pub unsafe fn toggle_welcome_visibility(&self) {
+        self.welcome_page_ui.toggle_visibility(&self.tab_bar_packed_file);
     }
 
     /// Function to toggle the main window on and off, while keeping the stupid focus from breaking.

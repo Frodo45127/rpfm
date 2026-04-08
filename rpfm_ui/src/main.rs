@@ -105,6 +105,7 @@ mod ui_state;
 mod updater_ui;
 mod utils;
 mod views;
+mod welcome_page_ui;
 
 // Statics, so we don't need to pass them everywhere to use them.
 /// List of supported games and their configuration. Their key is what we know as `folder_name`, used to identify the game and

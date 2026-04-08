@@ -468,7 +468,6 @@ settings_ui_table_tight_table_mode_label = Enable 'Tight Mode' on Tables:
 settings_ui_table_remember_column_visual_order_label = Remember Column's Visual Order:
 settings_ui_table_remember_table_state_permanently_label = Remember Table State Across PackFiles:
 settings_ui_window_start_maximized_label = Start Maximized:
-settings_ui_window_hide_background_icon = Hide Background Game Selected Icon:
 
 settings_select_file = Select File
 settings_select_folder = Select Folder
@@ -1859,3 +1858,13 @@ session_dialog_load_error = Failed to load sessions: {"{"}{"}"}
 session_dialog_reconnect_error = Failed to reconnect to session. Connection timed out.
 session_status_bar_switching = Switching to session #{"{"}{"}"}...
 session_status_bar_switched = Switched to session #{"{"}{"}"}.
+
+## Welcome Page
+welcome_quick_actions = <b>Quick Actions</b>
+welcome_recent_files = <b>Recent Files</b>
+welcome_no_recent_files = No recent files
+welcome_new_pack = New Pack
+welcome_open_pack = Open Pack
+welcome_new_mymod = New MyMod
+welcome_settings = Settings
+welcome_manual = Manual

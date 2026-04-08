@@ -315,7 +315,7 @@ impl GameSelectedIcons {
 
     /// This function sets the main window icon according to the currently selected game.
     pub unsafe fn set_game_selected_icon(app_ui: &Rc<AppUI>) {
-        let (icon, big_icon) = match GAME_SELECTED.read().unwrap().key() {
+        let (icon, _big_icon) = match GAME_SELECTED.read().unwrap().key() {
             KEY_PHARAOH_DYNASTIES => &GAME_SELECTED_ICONS.pharaoh_dynasties,
             KEY_PHARAOH => &GAME_SELECTED_ICONS.pharaoh,
             KEY_WARHAMMER_3 => &GAME_SELECTED_ICONS.warhammer_3,
@@ -334,28 +334,6 @@ impl GameSelectedIcons {
         };
         app_ui.main_window().set_window_icon(ref_from_atomic(icon));
 
-        // Fix due to windows paths.
-        let big_icon = if cfg!(target_os = "windows") {  big_icon.replace('\\', "/") } else { big_icon.to_owned() };
-
-        if !settings_bool("hide_background_icon") {
-            if app_ui.tab_bar_packed_file().count() == 0 {
-
-                // WTF of the day: without the border line, this doesn't work on windows. Who knows why...?
-                let border =  if cfg!(target_os = "windows") { "border: 0px solid #754EF9;" } else { "" };
-                app_ui.tab_bar_packed_file().set_style_sheet(&QString::from_std_str(format!("
-                    QTabWidget::pane {{
-                        background-image: url('{big_icon}');
-                        background-repeat: no-repeat;
-                        background-position: center;
-                        {border}
-                    }}
-                ")));
-            }
-            else {
-
-                // This is laggy after a while.
-                app_ui.tab_bar_packed_file().set_style_sheet(&QString::from_std_str("QTabWidget::pane {background-image: url();}"));
-            }
-        }
+        app_ui.toggle_welcome_visibility();
     }
 }

@@ -1573,7 +1573,6 @@ settings_ui_table_tight_table_mode_label = Включить компактный
 settings_ui_table_remember_column_visual_order_label = Запоминать порядок столбцов (только вид):
 settings_ui_table_remember_table_state_permanently_label = Запоминать состояние { -db(case: "genitive", number: "many", capitalization: "lower") } между { -packfile(case: "prepositional", number: "many", capitalization: "lower") }:
 settings_ui_window_start_maximized_label = Запускать во весь экран:
-settings_ui_window_hide_background_icon = Спрятать иконку игры на заднем плане:
 
 settings_select_file = Выбрать файл
 settings_select_folder = Выбрать папку

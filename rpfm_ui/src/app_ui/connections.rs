@@ -139,6 +139,18 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
 
     main_window_drop_pack_signal(app_ui.main_window.static_upcast()).connect(&slots.open_pack_drop);
     main_window_theme_changed_signal(app_ui.main_window.static_upcast()).connect(&slots.theme_changed);
+
+    //-----------------------------------------------//
+    // `Welcome` widget connections.
+    //-----------------------------------------------//
+    app_ui.welcome_page_ui().new_pack_button().clicked().connect(&slots.packfile_new_packfile);
+    app_ui.welcome_page_ui().open_pack_button().clicked().connect(&slots.packfile_open_packfiles);
+    app_ui.welcome_page_ui().new_mymod_button().clicked().connect(&slots.mymod_new);
+    app_ui.welcome_page_ui().settings_button().clicked().connect(&slots.packfile_settings);
+    app_ui.welcome_page_ui().github_button().released().connect(&slots.github_link);
+    app_ui.welcome_page_ui().manual_button().released().connect(&slots.manual_link);
+    app_ui.welcome_page_ui().discord_button().released().connect(&slots.discord_link);
+    app_ui.welcome_page_ui().patreon_button().released().connect(&slots.patreon_link);
     //-----------------------------------------------//
     // `StatusBar` connections.
     //-----------------------------------------------//
