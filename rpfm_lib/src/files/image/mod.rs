@@ -53,12 +53,12 @@
 //! }
 //! ```
 
-use dds::{ColorFormat, CompressionQuality, Decoder, Encoder, Format, header::Header, ImageView, ImageViewMut};
+use dds::{ColorFormat, Decoder, ImageViewMut};
 use getset::*;
-use image::{ImageFormat, ImageReader};
+use image::{ImageFormat, ImageReader, RgbaImage};
 use serde_derive::{Serialize, Deserialize};
 
-use std::io::{BufWriter, Cursor};
+use std::io::Cursor;
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
@@ -73,6 +73,8 @@ pub const EXTENSIONS: [&str; 6] = [
     ".png",
     ".gif"
 ];
+
+#[cfg(test)] mod image_test;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -153,7 +155,7 @@ impl Decodeable for Image {
                         converted_data = Some(cdata);
                     }
 
-                    // If it fails, use the dds crate to re-convert it to a format we can read.
+                    // If it fails, use the dds crate to decode the raw pixel data and convert directly to PNG.
                     Err(_) => {
 
                         // Decode the data from the file into a single dds texture.
@@ -161,32 +163,14 @@ impl Decodeable for Image {
                         let size = decoder.main_size();
                         let mut dds_data = vec![0_u8; size.pixels() as usize * 4];
 
-                        // This can through None if the format is wrong.
+                        // This can return None if the format is wrong.
                         if let Some(view) = ImageViewMut::new(&mut dds_data, size, ColorFormat::RGBA_U8) {
                             decoder.read_surface(view)?;
 
-                            // Then re-encode it into a dds file compatible with Image.
-                            let format = Format::BC3_UNORM;
-                            let header = Header::new_image(size.width, size.height, format).with_mipmaps();
-
-                            let mut ddata = vec![];
-                            let writer = BufWriter::new(&mut ddata);
-                            let mut encoder = Encoder::new(writer, format, &header)?;
-                            encoder.encoding.quality = CompressionQuality::Fast;
-                            encoder.mipmaps.generate = true;
-
-                            // Same with this: can fail if format is wrong.
-                            if let Some(view) = ImageView::new(&dds_data, size, ColorFormat::RGBA_U8) {
-                                encoder.write_surface(view)?;
-                                encoder.finish()?;
-
-                                // Then try again to turn it into a png.
-                                let image = ImageReader::new(Cursor::new(&ddata))
-                                    .with_guessed_format()?
-                                    .decode()?;
-
+                            // Convert the raw RGBA buffer directly to PNG.
+                            if let Some(rgba_image) = RgbaImage::from_raw(size.width, size.height, dds_data) {
                                 let mut cdata = vec![];
-                                image.write_to(&mut Cursor::new(&mut cdata), ImageFormat::Png)?;
+                                rgba_image.write_to(&mut Cursor::new(&mut cdata), ImageFormat::Png)?;
                                 converted_data = Some(cdata);
                             } else {
                                 return Err(RLibError::DecodingDDSColourFormatUnsupported)
