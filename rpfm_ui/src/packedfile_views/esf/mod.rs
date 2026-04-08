@@ -15,6 +15,7 @@ Module with all the code for managing the ESF Views.
 use qt_widgets::q_abstract_item_view::SelectionMode;
 use qt_widgets::QLineEdit;
 use qt_widgets::QGridLayout;
+use qt_widgets::QScrollArea;
 use qt_widgets::QSplitter;
 use qt_widgets::QTreeView;
 use qt_widgets::QToolButton;
@@ -137,11 +138,15 @@ impl PackedFileESFView {
         filter_autoexpand_matches_button.set_checkable(true);
         filter_case_sensitive_button.set_checkable(true);
 
-        let node_data_panel = QWidget::new_1a(&splitter);
+        let scroll_area = QScrollArea::new_1a(&splitter);
+        scroll_area.set_widget_resizable(true);
+        scroll_area.set_minimum_width(250);
+
+        let node_data_panel = QWidget::new_0a();
         let node_data_layout = create_grid_layout(node_data_panel.static_upcast());
         node_data_layout.set_row_stretch(1000, 100);
         node_data_layout.set_column_stretch(1, 100);
-        node_data_panel.set_minimum_width(250);
+        scroll_area.set_widget(&node_data_panel);
 
         let layout: QPtr<QGridLayout> = file_view.main_widget().layout().static_downcast();
         layout.add_widget_5a(&splitter, 0, 0, 1, 1);
