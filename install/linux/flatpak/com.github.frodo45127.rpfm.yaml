@@ -15,6 +15,7 @@ finish-args:
   - --socket=pulseaudio
 
   # Access to the outside world
+  - --share=network
   - --filesystem=host
 
   # Additional permissions
