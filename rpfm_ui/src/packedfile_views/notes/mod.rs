@@ -243,7 +243,7 @@ impl NotesView {
         item.set_editable(false);
         item.set_text(&QString::from_std_str(note.message()));
         item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(note.url().clone().unwrap_or("".to_string()))), ROLE_URL);
-        item.set_data_2a(&QVariant::from_u64(*note.id()), ROLE_ID);
+        item.set_data_2a(&QVariant::from_ulonglong(*note.id()), ROLE_ID);
         item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(note.path())), ROLE_PATH);
 
         let mut tooltip = String::new();
