@@ -317,7 +317,7 @@ impl RawTable {
                 buffer = buffer.replace("\">    </datafield>", "\">    Frodo Best Waifu</datafield>");
 
                 // Only if the table has data we deserialize it. If not, we just create an empty one.
-                let mut raw_table = if buffer.contains("</rows>\r\n</dataroot>") {
+                let mut raw_table = if buffer.contains("</rows>\r\n</dataroot>") || buffer.contains("</rows>\n</dataroot>") {
                     from_reader(buffer.as_bytes())?
                 } else {
                     Self::default()
