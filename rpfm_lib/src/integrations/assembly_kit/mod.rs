@@ -139,6 +139,9 @@ const BLACKLISTED_TABLES: [&str; 4] = ["translated_texts.xml", "TWaD_form_descri
 /// This file contains foreign key relationships not embedded in the table definitions.
 const EXTRA_RELATIONSHIPS_TABLE_NAME: &str = "TWaD_relationships";
 
+#[cfg(test)] mod test_table_data;
+#[cfg(test)] mod test_table_definition;
+
 //---------------------------------------------------------------------------//
 // Functions to process the Raw DB Tables from the Assembly Kit.
 //---------------------------------------------------------------------------//

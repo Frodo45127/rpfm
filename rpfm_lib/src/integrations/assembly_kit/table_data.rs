@@ -172,13 +172,14 @@ pub struct RawTableRow {
 #[serde(rename = "datafield")]
 pub struct RawTableField {
     /// Name of the field (column name).
+    #[serde(rename = "@field_name")]
     pub field_name: String,
 
     /// String representation of the field value.
     ///
     /// All values are stored as strings in XML and must be parsed to their
     /// actual types during conversion.
-    #[serde(rename = "$value")]
+    #[serde(rename = "#text")]
     pub field_data: String,
 
     /// State flag marking localisable (translatable) fields.
@@ -187,6 +188,7 @@ pub struct RawTableField {
     /// which indicates the field is localisable (contains translatable text).
     /// Such fields are filtered out during non-localisable field extraction to ensure
     /// translation fields are handled separately from regular data fields.
+    #[serde(rename = "@state")]
     pub state: Option<String>,
 }
 

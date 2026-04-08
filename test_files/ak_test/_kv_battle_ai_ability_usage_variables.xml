@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dataroot xmlns:od="urn:schemas-microsoft-com:officedata" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="_kv_battle_ai_ability_usage_variables.xsd" export_time="Thu Oct 31 09:59:57 2019" revision="16" export_branch="C:/Users/scott.backhouse/AppData/Roaming/TWDaemon/1741/dave" export_user="bob">
+<edit_uuid>ddb51ae7-d4be-4c36-9fb6-1490a85582a5</edit_uuid>
+<_kv_battle_ai_ability_usage_variables record_uuid="{48a304bd-58a7-41cd-8bbd-ac1552af7b78}" record_timestamp="1572515997138" record_key="battle_currency_saving_max_added_amount">
+<description>TING_TODO</description>
+<key>battle_currency_saving_max_added_amount</key>
+<value>1</value>
+</_kv_battle_ai_ability_usage_variables>
+<_kv_battle_ai_ability_usage_variables record_uuid="{451c17db-71d2-4a3d-977d-cc8ddc63cd7c}" record_timestamp="1572515997138" record_key="battle_currency_saving_threshold">
+<description>TING_TODO</description>
+<key>battle_currency_saving_threshold</key>
+<value>1</value>
+</_kv_battle_ai_ability_usage_variables>
+<_kv_battle_ai_ability_usage_variables record_uuid="{3b36c50c-5d00-4341-9071-0810151ab3fb}" record_timestamp="1454944714904" record_key="mana_saving_max_added_amount">
+<description>UNARY: when we want to save mana, what is the max for the pool of magic to increase to (i.e. 0.4 we wait for another 0%-40% to be added)</description>
+<key>mana_saving_max_added_amount</key>
+<value>0.15</value>
+</_kv_battle_ai_ability_usage_variables>
+<_kv_battle_ai_ability_usage_variables record_uuid="{e3f6f70e-2a7a-40c4-a575-38d6cfbfc503}" record_timestamp="1444988898897" record_key="mana_saving_threshold">
+<description>UNARY: when do we add a threshold for using the next man costing abilities</description>
+<key>mana_saving_threshold</key>
+<value>0.1</value>
+</_kv_battle_ai_ability_usage_variables>
+<_kv_battle_ai_ability_usage_variables record_uuid="{354d3512-f91b-4013-89d9-82b37869a8ef}" record_timestamp="1452511616760" record_key="min_score_for_activation">
+<description>What score do we need at a minimum for the AI to use abilities</description>
+<key>min_score_for_activation</key>
+<value>0.5</value>
+</_kv_battle_ai_ability_usage_variables>
+</dataroot>

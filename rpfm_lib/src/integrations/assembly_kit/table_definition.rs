@@ -229,19 +229,20 @@ pub struct RawDefinitionV0 {
 #[serde(rename = "xsd_element")]
 pub struct Element {
     /// The name of this element (field/column name).
+    #[serde(rename = "@name")]
     pub name: Option<String>,
 
     /// Microsoft Jet database type identifier.
     ///
     /// Common values: "Text" (string), "Long" (i32), "Boolean", "Single" (f32), "Double" (f64).
-    #[serde(rename = "od_jetType")]
+    #[serde(rename = "@od_jetType")]
     pub jet_type: Option<String>,
 
     /// Minimum number of occurrences for this element.
     ///
     /// - `0`: Field is optional
     /// - `1` or higher: Field is required
-    #[serde(rename = "minOccurs")]
+    #[serde(rename = "@minOccurs")]
     pub min_occurs: Option<i32>,
 
     /// Annotation containing metadata like index definitions.
@@ -302,6 +303,7 @@ pub struct Sequence {
 #[serde(rename = "xsd_restriction")]
 pub struct Restriction {
     /// The base XSD type being restricted (e.g., "xsd:string", "xsd:int").
+    #[serde(rename = "@base")]
     pub base: String,
 
     /// Maximum length constraint for string types.
@@ -317,6 +319,7 @@ pub struct Restriction {
 #[serde(rename = "xsd_maxLength")]
 pub struct MaxLength {
     /// The maximum number of characters allowed.
+    #[serde(rename = "@value")]
     pub value: i32
 }
 
@@ -372,25 +375,25 @@ pub struct Index {
     ///
     /// Index names are used to match relationships across tables. Identical names
     /// in different tables indicate a foreign key relationship.
-    #[serde(rename = "index-name")]
+    #[serde(rename = "@index-name")]
     pub name: String,
 
     /// The column(s) this index applies to.
     ///
     /// Multiple columns are separated by semicolons (e.g., "col1;col2").
-    #[serde(rename = "index-key")]
+    #[serde(rename = "@index-key")]
     pub key: String,
 
     /// Whether this is a primary key index ("true"/"false").
-    #[serde(rename = "primary")]
+    #[serde(rename = "@primary")]
     pub primary: String,
 
     /// Whether this index enforces uniqueness ("true"/"false").
-    #[serde(rename = "unique")]
+    #[serde(rename = "@unique")]
     pub unique: String,
 
     /// Whether this is a clustered index ("true"/"false").
-    #[serde(rename = "clustered")]
+    #[serde(rename = "@clustered")]
     pub clustered: String,
 }
 
