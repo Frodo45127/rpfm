@@ -25,7 +25,6 @@ use qt_core::QFlags;
 use qt_core::QPtr;
 use qt_core::QString;
 use qt_core::QObject;
-use qt_core::WidgetAttribute;
 
 use cpp_core::CastInto;
 use cpp_core::CppBox;
@@ -106,7 +105,6 @@ pub unsafe fn show_dialog<T: Display, U: Display>(parent: impl cpp_core::CastInt
         parent,
     );
 
-    message_box.set_attribute_1a(WidgetAttribute::WADeleteOnClose);
     message_box.exec();
 }
 

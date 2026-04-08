@@ -248,7 +248,6 @@ impl SettingsUI {
         settings_ui.load()?;
         if settings_ui.dialog.exec() == 1 {
             settings_ui.save()?;
-            settings_ui.dialog.delete_later();
             Ok(true)
         } else {
             Ok(false)

@@ -38,7 +38,6 @@ use qt_core::QSignalBlocker;
 use qt_core::QString;
 use qt_core::QUrl;
 use qt_core::QVariant;
-use qt_core::WidgetAttribute;
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -924,7 +923,6 @@ impl AppUISlots {
                         &app_ui.main_window,
                     );
 
-                    wait_dialog.set_attribute_1a(WidgetAttribute::WADeleteOnClose);
                     wait_dialog.set_modal(true);
                     wait_dialog.set_standard_buttons(QFlags::from(0));
                     wait_dialog.show();
