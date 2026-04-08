@@ -356,7 +356,7 @@ impl GitIntegration {
             if stash_id.is_ok() {
                 let _ = repo.stash_pop(0, None);
             }
-            Err(RLibError::GitErrorNoUpdatesAvailable(self.url.to_owned()))
+            Ok(())
         }
 
         // If we can do a fast-forward, we do it. This is the preferred option.
