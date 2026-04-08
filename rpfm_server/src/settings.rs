@@ -90,7 +90,24 @@ impl Settings {
 
     pub fn init(as_new: bool) -> Result<Self> {
         let mut settings = if !as_new {
-            Settings::read().unwrap_or_default()
+            match Settings::read() {
+                Ok(settings) => settings,
+                Err(error) => {
+
+                    // On read failure, try to backup the old settings file before overwriting it with defaults.
+                    // This protects against sporadic read failures that would otherwise silently reset all settings.
+                    if let Ok(config) = config_path() {
+                        let settings_path = config.join(SETTINGS_FILE_NAME);
+                        if settings_path.exists() {
+                            let backup_path = config.join(format!("{SETTINGS_FILE_NAME}.bak"));
+                            let _ = std::fs::copy(&settings_path, &backup_path);
+                        }
+                    }
+
+                    rpfm_log::warn!("Failed to read settings file, using defaults. Error: {error}");
+                    Settings::default()
+                }
+            }
         } else {
             Settings::default()
         };
