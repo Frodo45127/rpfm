@@ -14,6 +14,12 @@ If you're looking for the changes included in the latest beta (against the lates
 - Implemented support for opening and editing multiple packs simultaneously.
 - Updated simplified chinese translation, thanks to SZY.
 - Implemented support for Copy/Cut/Paste/Duplicate files.
+- Implemented support for filtering tables using status flags.
+- Implemented frozen columns on tables.
+- Build Startpos dialog now remembers the last campaign you selected in a per-pack basis.
+- Implemented command palette with actions and file search.
+- Implemented light/dark theme autodetection.
+- Implemented welcome page.
 
 ### Changed
 - Decoupled UI from Backend into RPFM UI and RPFM Server.
@@ -21,15 +27,23 @@ If you're looking for the changes included in the latest beta (against the lates
 - Reduced size of dependencies cache on disk by about 20%.
 - Update checks are now no longer blocking the backend until they're done.
 - Migrated docs to autodeploy through an action, removing their artifacts from the repo.
+- Moved a lot of actions around in menus to more natural places.
+- Migrated UI to Qt6.
 
 ### Removed
 - Removed cli tool. If you use it, consider migrating to the new RPFM Server.
+- Removed `Add from PackFile` feature.
+- Removed `Dark Theme` setting.
 
 ### Fixed
 - Fixed RPFM erroring out when trying to read incomplete portrait settings files.
 - Fixed rare hang when diagnosing big packs.
 - Fixed crash reports being broken since the client/server split.
 - Fixed a bug in the Translator where it would incorrectly mark for retranslations lines that had been deleted then readded to the mod.
+- Fixed RPFM asking for updates under linux, where the system is the one that should update it.
+- Fixed ESF Editor not being scrolleable.
+- Fixed no updates on git repo being reported as error.
+- Fixed some particular dds files not being readable.
 
 ## [4.7.4]
 ### Added
