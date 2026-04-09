@@ -60,6 +60,7 @@ Copy-Item C:\CraftRoot\bin\intl-8.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\jpeg62.dll I:\deploy\rpfm-release-assets\
 
 Copy-Item C:\CraftRoot\bin\KF6Archive.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6BreezeIcons.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\KF6Codecs.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\KF6Completion.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\KF6ConfigCore.dll I:\deploy\rpfm-release-assets\
@@ -70,12 +71,14 @@ Copy-Item C:\CraftRoot\bin\KF6Crash.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\KF6DBusAddons.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\KF6GuiAddons.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\KF6I18n.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6IconWidgets.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\KF6IconThemes.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\KF6ItemViews.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\KF6JobWidgets.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\KF6KIOCore.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\KF6KIOGui.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\KF6KIOWidgets.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\KF6Notifications.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\KF6Parts.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\KF6Service.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\KF6Solid.dll I:\deploy\rpfm-release-assets\
@@ -118,6 +121,10 @@ Copy-Item C:\CraftRoot\bin\Qt6Xml.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\vcruntime140.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\vcruntime140_1.dll I:\deploy\rpfm-release-assets\
 
+Copy-Item C:\CraftRoot\bin\b2-1.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\bz2.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\brotlicommon.dll I:\deploy\rpfm-release-assets\
+Copy-Item C:\CraftRoot\bin\brotlidec.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\tiff.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\zlib1.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\zstd.dll I:\deploy\rpfm-release-assets\
