@@ -309,19 +309,34 @@ pub unsafe fn reload_theme(app_ui: &AppUI) {
     let app = QCoreApplication::instance();
     let qapp = app.static_downcast::<QApplication>();
 
-    // Clear any leftover custom stylesheet so native theming takes full effect.
-    qapp.set_style_sheet(&QString::from_std_str(""));
+    // On dark themes, QDockWidget titlebar close/float buttons use QStyle standard pixmaps
+    // that are dark-colored and invisible on dark backgrounds. Override them with breeze
+    // theme icons that get palette-recolored by KIconEngine.
+    #[cfg(target_os = "windows")] {
+        if is_dark_theme() {
+            qapp.set_style_sheet(&QString::from_std_str(
+                "QDockWidget {\
+                    titlebar-close-icon: url(:/icons/breeze/actions/22/window-close.svg);\
+                    titlebar-normal-icon: url(:/icons/breeze/actions/22/window-restore.svg);\
+                }"
+            ));
+        } else {
+            qapp.set_style_sheet(&QString::from_std_str(""));
+        }
+    }
 
     // Re-apply the current native palette to force all widgets to refresh.
     let native_palette = QGuiApplication::palette();
     QApplication::set_palette_1a(&native_palette);
 
     // Select the appropriate GitHub icon based on the native theme.
-    if is_dark_theme() {
-        app_ui.github_button().set_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/github.svg", ASSETS_PATH.to_string_lossy()))));
+    let github_icon = if is_dark_theme() {
+        QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/github.svg", ASSETS_PATH.to_string_lossy())))
     } else {
-        app_ui.github_button().set_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/github-dark.svg", ASSETS_PATH.to_string_lossy()))));
-    }
+        QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/github-dark.svg", ASSETS_PATH.to_string_lossy())))
+    };
+    app_ui.github_button().set_icon(&github_icon);
+    app_ui.welcome_page_ui().github_button().set_icon(&github_icon);
 
     // Re-apply diagnostic filter button colors for the current theme.
     reload_diagnostic_button_styles(app_ui);

@@ -202,7 +202,11 @@ impl WelcomePageUI {
 
         let github_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("GitHub"), &links_widget);
         github_button.set_flat(true);
-        github_button.set_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/github.svg", ASSETS_PATH.to_string_lossy()))));
+        if is_dark_theme() {
+            github_button.set_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/github.svg", ASSETS_PATH.to_string_lossy()))));
+        } else {
+            github_button.set_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/github-dark.svg", ASSETS_PATH.to_string_lossy()))));
+        }
         links_layout.add_widget_5a(&github_button, 0, 1, 1, 1);
 
         let manual_button = QPushButton::from_q_string_q_widget(&qtr("welcome_manual"), &links_widget);

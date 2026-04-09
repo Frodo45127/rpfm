@@ -14,16 +14,14 @@ Build script for the RPFM UI.
 Here it goes all linking/cross-language compilation/platform-specific stuff that's needed in order to compile the RPFM UI.
 !*/
 
-#[cfg(target_os = "windows")] use std::fs::{copy, DirBuilder};
+#[cfg(target_os = "windows")]#[cfg(feature = "support_model_renderer")] use std::fs::copy;
 use std::io::{stderr, stdout, Write};
 use std::process::{Command, exit};
 
 /// Windows Build Script.
 #[cfg(target_os = "windows")]
 fn main() {
-
     common_config();
-    let target_path = format!("./../target/{}/", if cfg!(debug_assertions) { "debug" } else { "release"});
 
     // Model renderer, only on windows.
     #[cfg(feature = "support_model_renderer")] {
@@ -126,12 +124,6 @@ fn main() {
     res.set("LegalCopyright","Copyright (c) - Ismael Gutiérrez González");
     res.set("ProductName","Rusted PackFile Manager");
     if let Err(error) = res.compile() { println!("Error: {}", error); }
-
-    // Copy the icon theme so it can be accessed by debug builds.
-    DirBuilder::new().recursive(true).create(target_path.clone() + "data/icons/breeze/").unwrap();
-    DirBuilder::new().recursive(true).create(target_path.clone() + "data/icons/breeze-dark/").unwrap();
-    copy("./../icons/breeze-icons.rcc", target_path.clone() + "data/icons/breeze/breeze-icons.rcc").unwrap();
-    copy("./../icons/breeze-icons-dark.rcc", target_path.clone() + "data/icons/breeze-dark/breeze-icons-dark.rcc").unwrap();
 }
 
 /// Linux Build Script.
@@ -192,6 +184,7 @@ fn common_config() {
     // This is to make RPFM able to see the extra libs we need while building.
     println!("cargo:rustc-link-search=native=./3rdparty/builds");
     println!("cargo:rustc-link-lib=dylib=qt_rpfm_extensions");
+    println!("cargo:rustc-link-lib=dylib=KF6BreezeIcons");
     println!("cargo:rustc-link-lib=dylib=KF6Completion");
     println!("cargo:rustc-link-lib=dylib=KF6IconThemes");
     println!("cargo:rustc-link-lib=dylib=KF6TextEditor");

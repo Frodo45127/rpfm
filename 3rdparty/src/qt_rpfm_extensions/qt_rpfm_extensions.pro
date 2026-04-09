@@ -8,7 +8,7 @@ QT       += widgets
 
 # KF6 frameworks (no longer have qmake integration, use include/lib paths directly).
 # We add each KF6 module subdir so transitive includes (e.g. KTextEditor -> KParts -> KCoreAddons) resolve.
-KF6_MODULES = KIconThemes KTextEditor KWidgetsAddons KCompletion KXmlGui \
+KF6_MODULES = BreezeIcons KIconThemes KTextEditor KWidgetsAddons KCompletion KXmlGui \
               KParts KCoreAddons KSyntaxHighlighting KConfig KConfigCore KConfigGui \
               KConfigWidgets KColorScheme KCodecs KI18n
 windows {
@@ -16,7 +16,7 @@ windows {
 } else {
     for(mod, KF6_MODULES): INCLUDEPATH += /usr/include/KF6/$$mod
 }
-LIBS += -lKF6Completion -lKF6IconThemes -lKF6TextEditor -lKF6XmlGui -lKF6WidgetsAddons
+LIBS += -lKF6BreezeIcons -lKF6Completion -lKF6IconThemes -lKF6TextEditor -lKF6XmlGui -lKF6WidgetsAddons
 
 TARGET = qt_rpfm_extensions
 TEMPLATE = lib

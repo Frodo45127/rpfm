@@ -338,7 +338,11 @@ impl AppUI {
         let github_button = QPushButton::from_q_widget(&status_bar);
         github_button.set_flat(true);
         github_button.set_tool_tip(&qtr("github_link"));
-        github_button.set_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/github.svg", ASSETS_PATH.to_string_lossy()))));
+        if is_dark_theme() {
+            github_button.set_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/github.svg", ASSETS_PATH.to_string_lossy()))));
+        } else {
+            github_button.set_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/github-dark.svg", ASSETS_PATH.to_string_lossy()))));
+        }
         status_bar.add_permanent_widget_1a(&github_button);
 
         let manual_button = QPushButton::from_q_widget(&status_bar);

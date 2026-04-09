@@ -216,6 +216,12 @@ fn main() {
     *CENTRAL_COMMAND.write().unwrap() = ct;
     tokio_runtime.spawn(websocket_loop(receiver));
 
+    // Set up KIconTheme before QApplication so the KIconEnginePlugin is discovered
+    // and breeze icons are palette-recolored for dark themes on Windows.
+    #[cfg(target_os = "windows")] {
+        ffi::init_icon_theme_safe();
+    }
+
     // Create the application and start the loop.
     QApplication::init(|_app| {
         let ui = unsafe { UI::new() };

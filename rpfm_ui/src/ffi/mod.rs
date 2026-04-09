@@ -226,6 +226,13 @@ pub fn new_packed_file_model_safe() -> QBox<QStandardItemModel> {
     unsafe { QBox::from_raw(new_packed_file_model()) }
 }
 
+// Must be called before QApplication is created. Sets up KIconTheme so the
+// KIconEnginePlugin is discovered and breeze icons are palette-recolored for dark themes.
+#[cfg(target_os = "windows")] extern "C" { fn init_icon_theme(); }
+#[cfg(target_os = "windows")] pub fn init_icon_theme_safe() {
+    unsafe { init_icon_theme() }
+}
+
 // This function allow us to create a custom window.
 extern "C" { fn new_q_main_window_custom(are_you_sure: extern "C" fn(*mut QMainWindow, bool, bool) -> bool, is_dark_theme_enabled: bool) -> *mut QMainWindow; }
 pub fn new_q_main_window_custom_safe(are_you_sure: extern "C" fn(*mut QMainWindow, bool, bool) -> bool) -> QBox<QMainWindow> {

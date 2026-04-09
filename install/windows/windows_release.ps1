@@ -21,17 +21,12 @@ Set-Location deploy
 mkdir rpfm-release-assets
 Set-Location rpfm-release-assets
 
-# Copy Breeze icons into the release.
-mkdir -p data/icons
-Copy-Item "C:\CraftRoot\bin\data\icons\breeze" "I:\deploy\rpfm-release-assets\data\icons\" -recurse
-Copy-Item "C:\CraftRoot\bin\data\icons\breeze-dark" "I:\deploy\rpfm-release-assets\data\icons\" -recurse
-
 # Here we copy all the dlls required by RPFM. Otherwise we'll have to manually update them on every freaking release, and for 2 months that's been a royal PITA.
 mkdir designer
 Copy-Item C:\CraftRoot\plugins\designer\*.dll I:\deploy\rpfm-release-assets\designer\
 
 mkdir iconengines
-Copy-Item C:\CraftRoot\plugins\iconengines\KIconEnginePlugin.dll I:\deploy\rpfm-release-assets\iconengines\
+Copy-Item C:\CraftRoot\plugins\kiconthemes6\iconengines\KIconEnginePlugin.dll I:\deploy\rpfm-release-assets\iconengines\
 Copy-Item C:\CraftRoot\plugins\iconengines\qsvgicon.dll I:\deploy\rpfm-release-assets\iconengines\
 
 mkdir imageformats
@@ -44,9 +39,8 @@ mkdir platforms
 Copy-Item C:\CraftRoot\plugins\platforms\qwindows.dll I:\deploy\rpfm-release-assets\platforms\
 
 mkdir styles
-Copy-Item C:\CraftRoot\plugins\styles\qwindowsvistastyle.dll I:\deploy\rpfm-release-assets\styles\
+Copy-Item C:\CraftRoot\plugins\styles\qmodernwindowsstyle.dll I:\deploy\rpfm-release-assets\styles\
 
-Copy-Item C:\CraftRoot\bin\d3dcompiler_47.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\dbus-1-3.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\editorconfig.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\freetype.dll I:\deploy\rpfm-release-assets\
@@ -92,10 +86,7 @@ Copy-Item C:\CraftRoot\bin\KF6WindowSystem.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\KF6XmlGui.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\KF6ColorScheme.dll I:\deploy\rpfm-release-assets\
 
-Copy-Item C:\CraftRoot\bin\libbzip2.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\libcrypto*.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\libEGL.dll I:\deploy\rpfm-release-assets\
-Copy-Item C:\CraftRoot\bin\libGLESV2.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\liblzma.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\libpng16.dll I:\deploy\rpfm-release-assets\
 Copy-Item C:\CraftRoot\bin\libssl*.dll I:\deploy\rpfm-release-assets\
@@ -139,7 +130,6 @@ mkdir ui
 Copy-Item $RPFM_PATH/LICENSE I:\deploy\rpfm-release-assets
 Copy-Item $RPFM_PATH/Changelog.md I:\deploy\rpfm-release-assets
 Copy-Item $RPFM_PATH/Changelog.md I:\deploy\rpfm-release-assets\Changelog.txt
-Copy-Item $RPFM_PATH/dark-theme.qss I:\deploy\rpfm-release-assets
 Copy-Item $RPFM_PATH/icons/* I:\deploy\rpfm-release-assets\icons\
 Copy-Item $RPFM_PATH/locale/* I:\deploy\rpfm-release-assets\locale\
 Copy-Item $RPFM_PATH/rpfm_ui/ui_templates/* I:\deploy\rpfm-release-assets\ui\
@@ -153,8 +143,6 @@ windeployqt6 rpfm_ui.exe
 
 # Remove extra files that are not really needed for execution.
 Remove-Item -fo I:\deploy\rpfm-release-assets\vc_redist.x64.exe
-Remove-Item -fo I:\deploy\rpfm-release-assets\icons\breeze-icons.rcc
-Remove-Item -fo I:\deploy\rpfm-release-assets\icons\breeze-icons-dark.rcc
 
 Set-Location I:\deploy
 7z a rpfm-v$RPFM_VERSION-x86_64-pc-windows-msvc.zip .\rpfm-release-assets\**
