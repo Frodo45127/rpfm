@@ -182,13 +182,23 @@ impl WelcomePageUI {
         // Push to top.
         right_layout.set_row_stretch(2, 1);
 
+        // ---- Command palette tip ----
+        let tip_label = QLabel::from_q_string_q_widget(
+            &qtr("welcome_command_palette_tip"),
+            &center_widget,
+        );
+        tip_label.set_alignment(QFlags::from(AlignmentFlag::AlignCenter));
+        tip_label.set_word_wrap(true);
+        tip_label.set_enabled(false);
+        center_layout.add_widget_5a(&tip_label, 3, 0, 1, 1);
+
         // ---- Links row at the bottom ----
         let links_widget = QWidget::new_1a(&center_widget);
         let links_layout = create_grid_layout(links_widget.static_upcast());
         links_layout.set_spacing(8);
         links_layout.set_column_stretch(0, 1);
         links_layout.set_column_stretch(5, 1);
-        center_layout.add_widget_5a(&links_widget, 3, 0, 1, 1);
+        center_layout.add_widget_5a(&links_widget, 4, 0, 1, 1);
 
         let github_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("GitHub"), &links_widget);
         github_button.set_flat(true);
