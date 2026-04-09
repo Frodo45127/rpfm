@@ -1,6 +1,6 @@
 ![rpfm](https://github.com/Frodo45127/rpfm/assets/15714929/3a820a6a-f7c9-4b15-8c2d-44605e751f5d)
 # Rusted PackFile Manager
-***Rusted PackFile Manager*** (RPFM) is a... reimplementation in Rust and ***~~GTK3~~ Qt5*** of ***PackFile Manager*** (PFM), one of the best modding tools for Total War Games. Not only it can edit Packs, but also has integrated editors for DB Tables, Loc files, scripts,... and a bunch of different file formats.
+***Rusted PackFile Manager*** (RPFM) is a... reimplementation in Rust and ***~~GTK3~~ ~~Qt5~~ Qt6*** of ***PackFile Manager*** (PFM), one of the best modding tools for Total War Games. Not only it can edit Packs, but also has integrated editors for DB Tables, Loc files, scripts,... and a bunch of different file formats.
 
 **Downloads here:** [https://github.com/Frodo45127/rpfm/releases][Downloads]
 
@@ -12,7 +12,7 @@
 * ***Windows***: Just download it, extract it somewhere and execute it.
 * ***Linux***:
     - ***Arch Linux and derivates***: it's in the AUR as **rpfm-bin**.
-    - ***Other distros***: Make sure you have Qt5 5.14 or higher, xz, and 7zip installed. DDS files also require you to have the Qt5 Imageformats DDS library installed.
+    - ***Other distros***: Make sure you have Qt6, xz, and 7zip installed. Or install the flatpak package.
 * ***MacOS***: You'll know it when I manage to compile it for Mac.
 
 # Requirements (to build)
