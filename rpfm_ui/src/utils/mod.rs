@@ -24,7 +24,7 @@ use qt_gui::QGuiApplication;
 use qt_gui::QIcon;
 use qt_gui::q_palette::ColorRole;
 
-use qt_core::QCoreApplication;
+#[cfg(target_os = "windows")] use qt_core::QCoreApplication;
 use qt_core::QFlags;
 use qt_core::QListOfQObject;
 use qt_core::QPtr;
@@ -306,13 +306,13 @@ pub unsafe fn is_dark_theme() -> bool {
 /// It only updates elements that need manual intervention: icons with light/dark variants,
 /// diagnostic filter button colors, and forces a full repaint.
 pub unsafe fn reload_theme(app_ui: &AppUI) {
-    let app = QCoreApplication::instance();
-    let qapp = app.static_downcast::<QApplication>();
 
     // On dark themes, QDockWidget titlebar close/float buttons use QStyle standard pixmaps
     // that are dark-colored and invisible on dark backgrounds. Override them with breeze
     // theme icons that get palette-recolored by KIconEngine.
     #[cfg(target_os = "windows")] {
+        let app = QCoreApplication::instance();
+        let qapp = app.static_downcast::<QApplication>();
         if is_dark_theme() {
             qapp.set_style_sheet(&QString::from_std_str(
                 "QDockWidget {\
