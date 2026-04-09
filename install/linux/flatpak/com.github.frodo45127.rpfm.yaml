@@ -46,6 +46,12 @@ modules:
         directory = "cargo/vendor"
         EOF
 
+      # Clean stale C++ build artifacts so the extensions lib is rebuilt
+      # against the runtime's Qt version instead of using a host-built one.
+      - rm -f 3rdparty/builds/libqt_rpfm_extensions.a
+      - rm -rf 3rdparty/src/qt_rpfm_extensions/Makefile
+      - rm -rf target/qt_rpfm_extensions
+
       # Build the binaries
       - cargo build --release --offline -p rpfm_server
       - cargo build --release --offline -p rpfm_ui

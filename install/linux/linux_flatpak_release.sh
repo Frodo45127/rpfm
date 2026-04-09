@@ -7,12 +7,11 @@
 #
 # Prerequisites:
 #   - flatpak and flatpak-builder installed
-#   - KDE Platform/SDK and Rust extension installed:
-#       flatpak install flathub org.kde.Platform//5.15-25.08
-#       flatpak install flathub org.kde.Sdk//5.15-25.08
-#       flatpak install flathub org.freedesktop.Sdk.Extension.rust-stable//25.08
 #   - flatpak-cargo-generator.py available on PATH (or pip install tomlkit aiohttp)
 #     https://github.com/flatpak/flatpak-builder-tools/tree/master/cargo
+#
+# The required runtimes (KDE Platform/SDK, Rust extension) are automatically
+# installed if missing, based on the versions declared in the manifest.
 #
 # Usage: Run from the repository root.
 #   ./install/linux/linux_flatpak_release.sh
@@ -41,6 +40,54 @@ for arg in "$@"; do
 done
 
 cd "$REPO_ROOT"
+
+# Read the runtime version from the manifest so we have a single source of truth.
+RUNTIME_VERSION=$(grep 'runtime-version:' "$MANIFEST" | head -1 | sed "s/.*runtime-version: *['\"]\\{0,1\\}\\([^'\"]*\\)['\"]\\{0,1\\}/\\1/")
+echo "Runtime version from manifest: ${RUNTIME_VERSION}"
+
+# Ensure the Flathub remote is available.
+if ! flatpak remote-list | grep -q flathub; then
+    echo "Adding Flathub remote..."
+    flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+fi
+
+# Install required runtimes if not already present.
+install_if_missing() {
+    local ref="$1"
+    if ! flatpak info "$ref" &>/dev/null; then
+        echo "Installing ${ref}..."
+        flatpak install -y --noninteractive flathub "$ref"
+    else
+        echo "Found ${ref}"
+    fi
+}
+
+# The Rust SDK extension is versioned against the Freedesktop SDK, not the KDE
+# runtime. Extract the base Freedesktop version from the installed KDE SDK metadata.
+get_freedesktop_version() {
+    # First ensure the KDE SDK is present so we can inspect it.
+    install_if_missing "org.kde.Sdk//${RUNTIME_VERSION}" >&2
+
+    local fd_ver
+    fd_ver=$(flatpak info -m "org.kde.Sdk//${RUNTIME_VERSION}" 2>/dev/null \
+        | grep -A5 '\[Extension org.freedesktop.Platform.GL\]' \
+        | grep '^versions=' | head -1 \
+        | sed 's/versions=//;s/;.*//')
+
+    if [ -z "$fd_ver" ]; then
+        echo "Warning: could not detect Freedesktop SDK version, falling back to 25.08" >&2
+        fd_ver="25.08"
+    fi
+    echo "$fd_ver"
+}
+
+echo "Checking required runtimes..."
+install_if_missing "org.kde.Platform//${RUNTIME_VERSION}"
+install_if_missing "org.kde.Sdk//${RUNTIME_VERSION}"
+
+FREEDESKTOP_VERSION=$(get_freedesktop_version)
+echo "Freedesktop SDK version: ${FREEDESKTOP_VERSION}"
+install_if_missing "org.freedesktop.Sdk.Extension.rust-stable//${FREEDESKTOP_VERSION}"
 
 # Regenerate cargo-sources.json if needed.
 if [ "$SKIP_CARGO_SOURCES" = false ]; then
