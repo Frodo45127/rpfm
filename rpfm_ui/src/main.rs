@@ -62,6 +62,7 @@ use rpfm_ui_common::ORG_NAME;
 use rpfm_ui_common::utils::*;
 
 use crate::communications::{CentralCommand, Response, websocket_loop};
+use crate::settings_ui::backend::settings_string;
 use crate::ui::*;
 use crate::ui_state::UIState;
 
@@ -114,7 +115,7 @@ static SUPPORTED_GAMES: LazyLock<SupportedGames> = LazyLock::new(SupportedGames:
 
 /// The current GameSelected. If invalid, it uses WH3 as default.
 static GAME_SELECTED: LazyLock<Arc<RwLock<&'static GameInfo>>> = LazyLock::new(|| Arc::new(RwLock::new(
-    match SUPPORTED_GAMES.game(&settings_ui::backend::settings_string("default_game")) {
+    match SUPPORTED_GAMES.game(&settings_string("default_game")) {
         Some(game) => game,
         None => SUPPORTED_GAMES.game(KEY_WARHAMMER_3).unwrap(),
     }
@@ -172,7 +173,7 @@ static LOCALE_FALLBACK: LazyLock<Locale> = LazyLock::new(|| {
 /// Variable to keep the locale data used by the UI loaded and available.
 static LOCALE: LazyLock<Locale> = LazyLock::new(|| {
     // Default to English. Language will be loaded from server settings later.
-    Locale::initialize("English_en", &ASSETS_PATH.to_string_lossy()).unwrap_or_else(|_| LOCALE_FALLBACK.clone())
+    Locale::initialize(&settings_string("language"), &ASSETS_PATH.to_string_lossy()).unwrap_or_else(|_| LOCALE_FALLBACK.clone())
 });
 
 /// Main function.
