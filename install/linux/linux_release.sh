@@ -53,9 +53,6 @@ mkdir -p "$BUILD_DIR/usr/share/licenses/rpfm"
 cp target/release/rpfm_server "$BUILD_DIR/usr/bin/rpfm_server"
 cp target/release/rpfm_ui "$BUILD_DIR/usr/bin/rpfm_ui"
 
-# Theme.
-cp dark-theme.qss "$BUILD_DIR/usr/share/rpfm/dark-theme.qss"
-
 # Icons.
 cp -R icons/* "$BUILD_DIR/usr/share/rpfm/icons/"
 
