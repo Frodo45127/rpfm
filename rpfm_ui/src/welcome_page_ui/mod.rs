@@ -34,6 +34,7 @@ use rpfm_ui_common::clone;
 use rpfm_ui_common::utils::create_grid_layout;
 
 use crate::app_ui::AppUI;
+use crate::communications::CURRENT_SESSION_ID;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::dependencies_ui::DependenciesUI;
 use crate::GAME_SELECTED;
@@ -53,6 +54,7 @@ use crate::utils::*;
 pub struct WelcomePageUI {
     welcome_widget: QBox<QWidget>,
     logo_label: QBox<QLabel>,
+    title_label: QBox<QLabel>,
     recent_files_widget: QBox<QWidget>,
     new_pack_button: QBox<QPushButton>,
     open_pack_button: QBox<QPushButton>,
@@ -227,6 +229,7 @@ impl WelcomePageUI {
         Self {
             welcome_widget,
             logo_label,
+            title_label,
             recent_files_widget,
             new_pack_button,
             open_pack_button,
@@ -320,6 +323,22 @@ impl WelcomePageUI {
         self.logo_label.set_pixmap(&result);
     }
 
+    /// This function updates the title label to include server connection status.
+    pub unsafe fn update_server_status(&self) {
+        let session_id = CURRENT_SESSION_ID.read().unwrap().clone();
+
+        let status_text = match session_id {
+            Some(id) => tre("welcome_server_status_connected", &[&id.to_string()]),
+            None => tr("welcome_server_status_disconnected"),
+        };
+
+        self.title_label.set_text(&QString::from_std_str(format!(
+            "<h2>Rusted PackFile Manager</h2><p style='color: gray;'>v{} — {}</p>",
+            env!("CARGO_PKG_VERSION"),
+            status_text,
+        )));
+    }
+
     /// This function rebuilds the recent files list in the welcome widget.
     pub unsafe fn build_recent_files(
         app_ui: &Rc<AppUI>,
@@ -394,6 +413,7 @@ impl WelcomePageUI {
         if tab_bar.count() == 0 {
             tab_bar.hide();
             self.build_logo();
+            self.update_server_status();
             self.welcome_widget.show();
         } else {
             self.welcome_widget.hide();

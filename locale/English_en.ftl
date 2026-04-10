@@ -1869,3 +1869,5 @@ welcome_new_mymod = New MyMod
 welcome_settings = Settings
 welcome_manual = Manual
 welcome_command_palette_tip = Tip: Press Ctrl+Shift+P to open the Command Palette, or Ctrl+P to quickly jump to a file.
+welcome_server_status_connected = Server: Connected, Session: #{"{"}{"}"}
+welcome_server_status_disconnected = Server: Disconnected

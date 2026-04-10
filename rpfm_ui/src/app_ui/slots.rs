@@ -179,6 +179,7 @@ pub struct AppUISlots {
     // `Generic` slots.
     //-----------------------------------------------//
     pub pack_file_backup_autosave: QBox<SlotNoArgs>,
+    pub server_status_update: QBox<SlotNoArgs>,
 
     pub tab_bar_packed_file_context_menu_show: QBox<SlotOfQPoint>,
     pub tab_bar_packed_file_close: QBox<SlotNoArgs>,
@@ -1476,6 +1477,14 @@ impl AppUISlots {
             }
         ));
 
+        // Server status update slot.
+        let server_status_update = SlotNoArgs::new(&app_ui.main_window, clone!(
+            app_ui => move || {
+            if app_ui.welcome_page_ui().welcome_widget().is_visible() {
+                app_ui.welcome_page_ui().update_server_status();
+            }
+        }));
+
         // When we want to show the context menu.
         let tab_bar_packed_file_context_menu_show = SlotOfQPoint::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
@@ -1757,6 +1766,7 @@ impl AppUISlots {
             // `Generic` slots.
             //-----------------------------------------------//
             pack_file_backup_autosave,
+            server_status_update,
 
             tab_bar_packed_file_context_menu_show,
             tab_bar_packed_file_close,
