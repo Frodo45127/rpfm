@@ -114,6 +114,10 @@ pub struct PackFileContentsSlots {
     pub contextual_menu_tables_update_table: QBox<SlotOfBool>,
     pub contextual_menu_generate_missing_loc_data: QBox<SlotOfBool>,
 
+    pub context_menu_save_pack: QBox<SlotOfBool>,
+    pub context_menu_save_pack_as: QBox<SlotOfBool>,
+    pub context_menu_close_pack: QBox<SlotOfBool>,
+
     pub context_menu_install: QBox<SlotOfBool>,
     pub context_menu_uninstall: QBox<SlotOfBool>,
     pub context_menu_change_packfile_type: QBox<SlotOfBool>,
@@ -634,6 +638,9 @@ impl PackFileContentsSlots {
 
                 // Pack-level actions: only visible when exactly one pack root is selected.
                 if contents == 4 {
+                    pack_file_contents_ui.context_menu_save_pack.set_visible(true);
+                    pack_file_contents_ui.context_menu_save_pack_as.set_visible(true);
+                    pack_file_contents_ui.context_menu_close_pack.set_visible(true);
                     pack_file_contents_ui.context_menu_install.set_visible(true);
                     pack_file_contents_ui.context_menu_uninstall.set_visible(true);
                     pack_file_contents_ui.context_menu_packfile_type_menu.menu_action().set_visible(true);
@@ -685,6 +692,9 @@ impl PackFileContentsSlots {
                     pack_file_contents_ui.context_menu_index_is_encrypted.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_ENCRYPTED_INDEX));
                     pack_file_contents_ui.context_menu_header_is_extended.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_EXTENDED_HEADER));
                 } else {
+                    pack_file_contents_ui.context_menu_save_pack.set_visible(false);
+                    pack_file_contents_ui.context_menu_save_pack_as.set_visible(false);
+                    pack_file_contents_ui.context_menu_close_pack.set_visible(false);
                     pack_file_contents_ui.context_menu_install.set_visible(false);
                     pack_file_contents_ui.context_menu_uninstall.set_visible(false);
                     pack_file_contents_ui.context_menu_packfile_type_menu.menu_action().set_visible(false);
@@ -1702,6 +1712,45 @@ impl PackFileContentsSlots {
         // Pack-level context menu slots.
         //-----------------------------------------------------------------------//
 
+        let context_menu_save_pack = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+                info!("Triggering `Save Pack` By Context Menu Slot");
+
+                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first();
+                if let Err(error) = AppUI::save_packfile_by_key(&app_ui, &pack_file_contents_ui, pack_key, false, false) {
+                    show_dialog(app_ui.main_window(), error, false);
+                }
+            }
+        ));
+
+        let context_menu_save_pack_as = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+                info!("Triggering `Save Pack As` By Context Menu Slot");
+
+                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first();
+                if let Err(error) = AppUI::save_packfile_by_key(&app_ui, &pack_file_contents_ui, pack_key, true, false) {
+                    show_dialog(app_ui.main_window(), error, false);
+                }
+            }
+        ));
+
+        let context_menu_close_pack = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui => move |_| {
+                info!("Triggering `Close Pack` By Context Menu Slot");
+
+                let pack_key = match pack_file_contents_ui.pack_key_from_selection_or_first() {
+                    Some(key) => key,
+                    None => return show_dialog(app_ui.main_window(), "No pack is open.", false),
+                };
+
+                AppUI::close_pack(&app_ui, &pack_file_contents_ui, &global_search_ui, &pack_key);
+            }
+        ));
+
         let context_menu_install = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
@@ -2197,6 +2246,10 @@ impl PackFileContentsSlots {
             contextual_menu_tables_merge_tables,
             contextual_menu_tables_update_table,
             contextual_menu_generate_missing_loc_data,
+
+            context_menu_save_pack,
+            context_menu_save_pack_as,
+            context_menu_close_pack,
 
             context_menu_install,
             context_menu_uninstall,

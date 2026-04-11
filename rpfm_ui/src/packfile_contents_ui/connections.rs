@@ -80,6 +80,10 @@ pub unsafe fn set_connections(ui: &PackFileContentsUI, slots: &PackFileContentsS
     ui.context_menu_update_table.triggered().connect(&slots.contextual_menu_tables_update_table);
     ui.context_menu_generate_missing_loc_data.triggered().connect(&slots.contextual_menu_generate_missing_loc_data);
 
+    ui.context_menu_save_pack.triggered().connect(&slots.context_menu_save_pack);
+    ui.context_menu_save_pack_as.triggered().connect(&slots.context_menu_save_pack_as);
+    ui.context_menu_close_pack.triggered().connect(&slots.context_menu_close_pack);
+
     ui.context_menu_install.triggered().connect(&slots.context_menu_install);
     ui.context_menu_uninstall.triggered().connect(&slots.context_menu_uninstall);
     ui.context_menu_packfile_type_boot.triggered().connect(&slots.context_menu_change_packfile_type);

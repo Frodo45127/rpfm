@@ -1273,6 +1273,52 @@ impl AppUI {
         result
     }
 
+    /// This function closes a pack identified by `pack_key`, removing it from the backend,
+    /// the tree view, any open file tabs, and the global search sources.
+    pub unsafe fn close_pack(
+        app_ui: &Rc<Self>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        pack_key: &str,
+    ) {
+        let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ClosePack(pack_key.to_string()));
+        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::RemovePack(pack_key.to_string()), DataSource::PackFile, pack_key);
+        global_search_ui.update_pack_sources(pack_file_contents_ui);
+
+        // Close any open file views belonging to this pack.
+        let mut tabs_to_close = vec![];
+        {
+            let open_packedfiles = UI_STATE.get_open_packedfiles();
+            for file_view in open_packedfiles.iter() {
+                if file_view.pack_key_copy() == pack_key {
+                    let widget = file_view.main_widget();
+                    let index = app_ui.tab_bar_packed_file.index_of(widget);
+                    if index != -1 {
+                        tabs_to_close.push(index);
+                    }
+                }
+            }
+        }
+
+        tabs_to_close.sort_unstable();
+        tabs_to_close.reverse();
+
+        for index in tabs_to_close {
+            app_ui.tab_bar_packed_file.remove_tab(index);
+        }
+
+        // Also remove them from the open file views list.
+        UI_STATE.set_open_packedfiles().retain(|v| v.pack_key_copy() != pack_key);
+
+        // If no packs remain, disable pack-dependent actions.
+        let remaining = send_ipc_command(Command::ListOpenPacks, response_extractor!(Response::VecStringContainerInfo));
+        if remaining.is_empty() {
+            Self::enable_packfile_actions(app_ui, false);
+        }
+
+        GameSelectedIcons::set_game_selected_icon(app_ui);
+    }
+
     /// This function enables/disables the actions on the main window, depending on the current state of the Application.
     ///
     /// You have to pass `enable = true` if you are trying to enable actions, and `false` to disable them.
@@ -1591,42 +1637,7 @@ impl AppUI {
                 pack_file_contents_ui,
                 global_search_ui,
                 pack_key => move |_| {
-                    let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ClosePack(pack_key.clone()));
-                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::RemovePack(pack_key.clone()), DataSource::PackFile, &pack_key);
-                    global_search_ui.update_pack_sources(&pack_file_contents_ui);
-
-                    // Close any open file views belonging to this pack.
-                    let mut tabs_to_close = vec![];
-                    {
-                        let open_packedfiles = UI_STATE.get_open_packedfiles();
-                        for file_view in open_packedfiles.iter() {
-                            if file_view.pack_key_copy() == pack_key {
-                                let widget = file_view.main_widget();
-                                let index = app_ui.tab_bar_packed_file.index_of(widget);
-                                if index != -1 {
-                                    tabs_to_close.push(index);
-                                }
-                            }
-                        }
-                    }
-
-                    tabs_to_close.sort_unstable();
-                    tabs_to_close.reverse();
-
-                    for index in tabs_to_close {
-                        app_ui.tab_bar_packed_file.remove_tab(index);
-                    }
-
-                    // Also remove them from the open file views list.
-                    UI_STATE.set_open_packedfiles().retain(|v| v.pack_key_copy() != pack_key);
-
-                    // If no packs remain, disable pack-dependent actions.
-                    let remaining = send_ipc_command(Command::ListOpenPacks, response_extractor!(Response::VecStringContainerInfo));
-                    if remaining.is_empty() {
-                        Self::enable_packfile_actions(&app_ui, false);
-                    }
-
-                    GameSelectedIcons::set_game_selected_icon(&app_ui);
+                    Self::close_pack(&app_ui, &pack_file_contents_ui, &global_search_ui, &pack_key);
                 }
             ));
             close_action.triggered().connect(&slot_close);

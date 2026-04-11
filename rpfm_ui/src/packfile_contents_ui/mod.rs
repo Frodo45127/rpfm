@@ -131,6 +131,10 @@ pub struct PackFileContentsUI {
     //-------------------------------------------------------------------------------//
     // Pack-level actions (shown when pack root is right-clicked).
     //-------------------------------------------------------------------------------//
+    context_menu_save_pack: QPtr<QAction>,
+    context_menu_save_pack_as: QPtr<QAction>,
+    context_menu_close_pack: QPtr<QAction>,
+
     context_menu_install: QPtr<QAction>,
     context_menu_uninstall: QPtr<QAction>,
 
@@ -279,6 +283,12 @@ impl PackFileContentsUI {
         //-------------------------------------------------------------------------------//
         // Pack-level actions (shown when pack root is right-clicked).
         //-------------------------------------------------------------------------------//
+
+        packfile_contents_tree_view_context_menu.add_separator();
+
+        let context_menu_save_pack = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("context_menu_save_pack"));
+        let context_menu_save_pack_as = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("context_menu_save_pack_as"));
+        let context_menu_close_pack = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("context_menu_close_pack"));
 
         packfile_contents_tree_view_context_menu.add_separator();
 
@@ -451,6 +461,10 @@ impl PackFileContentsUI {
             //-------------------------------------------------------------------------------//
             // Pack-level actions.
             //-------------------------------------------------------------------------------//
+            context_menu_save_pack,
+            context_menu_save_pack_as,
+            context_menu_close_pack,
+
             context_menu_install,
             context_menu_uninstall,
 
