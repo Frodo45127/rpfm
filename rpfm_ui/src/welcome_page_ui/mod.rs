@@ -27,6 +27,8 @@ use getset::Getters;
 use std::path::PathBuf;
 use std::rc::Rc;
 
+use rpfm_ipc::settings_keys::*;
+
 use rpfm_lib::games::supported_games::*;
 
 use rpfm_ui_common::ASSETS_PATH;
@@ -361,7 +363,7 @@ impl WelcomePageUI {
             }
         }
 
-        let recent_file_paths = settings_vec_string("recentFileList");
+        let recent_file_paths = settings_vec_string(RECENT_FILE_LIST);
         if recent_file_paths.is_empty() {
             let no_recent_label = QLabel::from_q_string_q_widget(
                 &qtr("welcome_no_recent_files"),
@@ -396,7 +398,7 @@ impl WelcomePageUI {
                                 return show_dialog(app_ui.main_window(), error, false);
                             }
 
-                            if settings_bool("diagnostics_trigger_on_open") {
+                            if settings_bool(DIAGNOSTICS_TRIGGER_ON_OPEN) {
                                 app_ui.menu_bar_packfile().set_enabled(false);
                                 DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                             }

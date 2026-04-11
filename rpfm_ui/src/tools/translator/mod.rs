@@ -46,6 +46,8 @@ use std::sync::{Arc, RwLock};
 
 use rpfm_extensions::translator::*;
 
+use rpfm_ipc::settings_keys::*;
+
 use rpfm_lib::files::{Container, ContainerPath, FileType, pack::Pack, RFileDecoded, table::DecodedData};
 use rpfm_lib::games::{*, supported_games::*};
 use rpfm_lib::integrations::git::GitResponse;
@@ -437,7 +439,7 @@ impl ToolTranslator {
         import_from_translated_pack.set_tool_tip(&qtr("translator_import_from_translated_pack"));
 
         // Only allow AI translation if we have a key in settings. Ignore keys in env.
-        if settings_string("ai_openai_api_key").is_empty() {
+        if settings_string(AI_OPENAI_API_KEY).is_empty() {
             chatgpt_radio_button.set_enabled(false);
             context_text_edit.set_enabled(false);
             translate_with_chatgpt.set_enabled(false);
@@ -445,7 +447,7 @@ impl ToolTranslator {
             chatgpt_radio_button.set_checked(true);
         }
 
-        if settings_string("deepl_api_key").is_empty() {
+        if settings_string(DEEPL_API_KEY).is_empty() {
             deepl_radio_button.set_enabled(false);
             translate_with_deepl.set_enabled(false);
         } else {
@@ -858,7 +860,7 @@ impl ToolTranslator {
 
         // Get the API key from the settings. If no API key is provided, it will use the OPENAI_API_KEY env variable.
         let api_key = {
-            let key = settings_string("ai_openai_api_key");
+            let key = settings_string(AI_OPENAI_API_KEY);
             if key.is_empty() {
                 None
             } else {
@@ -900,7 +902,7 @@ impl ToolTranslator {
 
     #[tokio::main]
     async fn ask_deepl(string: &str, language: Lang) -> Result<String> {
-        let api_key = settings_string("deepl_api_key");
+        let api_key = settings_string(DEEPL_API_KEY);
         if api_key.is_empty() {
             return Err(anyhow!("Missing DeepL API Key."))
         };

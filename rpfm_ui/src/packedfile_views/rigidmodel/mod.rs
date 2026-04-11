@@ -240,7 +240,7 @@ impl RigidModelView {
             textures_table,
 
             #[cfg(feature = "support_model_renderer")] renderer: {
-                if settings_bool("enable_renderer") {
+                if settings_bool(ENABLE_RENDERER) {
                     match create_q_rendering_widget(&mut file_view.main_widget().as_ptr()) {
                         Ok(renderer) => {
 

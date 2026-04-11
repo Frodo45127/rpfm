@@ -17,16 +17,44 @@ use qt_core::QVariant;
 
 use anyhow::Result;
 
+use std::cell::RefCell;
 use std::{collections::HashMap, path::{Path, PathBuf}};
 
 use rpfm_extensions::optimizer::OptimizerOptions;
 
 use rpfm_ipc::messages::{Command, Response};
+use rpfm_ipc::settings_keys::*;
 
 use rpfm_lib::schema::{Definition, Schema};
 
 use crate::app_ui::AppUI;
 use crate::communications::{send_ipc_command, send_ipc_command_result};
+
+//-------------------------------------------------------------------------------//
+//                          Settings cache
+//-------------------------------------------------------------------------------//
+
+thread_local! {
+    static SETTINGS_CACHE: RefCell<Option<SettingsSnapshot>> = RefCell::new(None);
+}
+
+/// Ensures the cache is populated, fetching from the server if needed, then calls `f` with it.
+fn with_cache<T>(f: impl FnOnce(&SettingsSnapshot) -> T) -> T {
+    SETTINGS_CACHE.with(|cache| {
+        let mut borrow = cache.borrow_mut();
+        if borrow.is_none() {
+            *borrow = Some(send_ipc_command(Command::SettingsGetAll, response_extractor!(Response::SettingsAll)));
+        }
+        f(borrow.as_ref().unwrap())
+    })
+}
+
+/// Invalidates the local settings cache, forcing a re-fetch on next read.
+pub fn invalidate_settings_cache() {
+    SETTINGS_CACHE.with(|cache| {
+        *cache.borrow_mut() = None;
+    });
+}
 
 //-------------------------------------------------------------------------------//
 //                         Setting-related functions
@@ -42,97 +70,137 @@ pub unsafe fn init_app_exclusive_settings(app_ui: &AppUI) {
 
     // Colours.
     let q_settings = qt_core::QSettings::new();
-    set_setting_if_new_string(&q_settings, "colour_light_table_added", "#87ca00");
-    set_setting_if_new_string(&q_settings, "colour_light_table_modified", "#e67e22");
-    set_setting_if_new_string(&q_settings, "colour_light_diagnostic_error", "#ff0000");
-    set_setting_if_new_string(&q_settings, "colour_light_diagnostic_warning", "#bebe00");
-    set_setting_if_new_string(&q_settings, "colour_light_diagnostic_info", "#55aaff");
-    set_setting_if_new_string(&q_settings, "colour_dark_table_added", "#00ff00");
-    set_setting_if_new_string(&q_settings, "colour_dark_table_modified", "#e67e22");
-    set_setting_if_new_string(&q_settings, "colour_dark_diagnostic_error", "#ff0000");
-    set_setting_if_new_string(&q_settings, "colour_dark_diagnostic_warning", "#cece67");
-    set_setting_if_new_string(&q_settings, "colour_dark_diagnostic_info", "#55aaff");
+    set_setting_if_new_string(&q_settings, COLOUR_LIGHT_TABLE_ADDED, "#87ca00");
+    set_setting_if_new_string(&q_settings, COLOUR_LIGHT_TABLE_MODIFIED, "#e67e22");
+    set_setting_if_new_string(&q_settings, COLOUR_LIGHT_DIAGNOSTIC_ERROR, "#ff0000");
+    set_setting_if_new_string(&q_settings, COLOUR_LIGHT_DIAGNOSTIC_WARNING, "#bebe00");
+    set_setting_if_new_string(&q_settings, COLOUR_LIGHT_DIAGNOSTIC_INFO, "#55aaff");
+    set_setting_if_new_string(&q_settings, COLOUR_DARK_TABLE_ADDED, "#00ff00");
+    set_setting_if_new_string(&q_settings, COLOUR_DARK_TABLE_MODIFIED, "#e67e22");
+    set_setting_if_new_string(&q_settings, COLOUR_DARK_DIAGNOSTIC_ERROR, "#ff0000");
+    set_setting_if_new_string(&q_settings, COLOUR_DARK_DIAGNOSTIC_WARNING, "#cece67");
+    set_setting_if_new_string(&q_settings, COLOUR_DARK_DIAGNOSTIC_INFO, "#55aaff");
     q_settings.sync();
 
     // These settings need to use QSettings because they're read in the C++ side.
-    settings_set_raw_data("originalGeometry", &app_ui.main_window().save_geometry().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
-    settings_set_raw_data("originalWindowState", &app_ui.main_window().save_state_0a().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
+    settings_set_raw_data(ORIGINAL_GEOMETRY, &app_ui.main_window().save_geometry().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
+    settings_set_raw_data(ORIGINAL_WINDOW_STATE, &app_ui.main_window().save_state_0a().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
 
     // This one needs to be checked here, due to how the ui works.
-    app_ui.menu_bar_debug().menu_action().set_visible(settings_bool("enable_debug_menu"));
+    app_ui.menu_bar_debug().menu_action().set_visible(settings_bool(ENABLE_DEBUG_MENU));
 }
 
-/// Get a boolean setting from the server.
+/// Get all settings from the cache (fetching from server on first call).
+pub fn settings_get_all() -> SettingsSnapshot {
+    with_cache(|s| s.clone())
+}
+
+/// Get a boolean setting from the cache.
 pub fn settings_bool(key: &str) -> bool {
-    send_ipc_command(Command::SettingsGetBool(key.to_string()), response_extractor!(Response::Bool))
+    with_cache(|s| s.bool.get(key).copied().unwrap_or_default())
 }
 
-/// Get an i32 setting from the server.
+/// Get an i32 setting from the cache.
 pub fn settings_i32(key: &str) -> i32 {
-    send_ipc_command(Command::SettingsGetI32(key.to_string()), response_extractor!(Response::I32))
+    with_cache(|s| s.i32.get(key).copied().unwrap_or_default())
 }
 
-/// Get an f32 setting from the server.
+/// Get an f32 setting from the cache.
 #[allow(dead_code)]
 pub fn settings_f32(key: &str) -> f32 {
-    send_ipc_command(Command::SettingsGetF32(key.to_string()), response_extractor!(Response::F32))
+    with_cache(|s| s.f32.get(key).copied().unwrap_or_default())
 }
 
-/// Get a string setting from the server.
+/// Get a string setting from the cache.
 pub fn settings_string(key: &str) -> String {
-    send_ipc_command(Command::SettingsGetString(key.to_string()), response_extractor!(Response::String))
+    with_cache(|s| s.string.get(key).cloned().unwrap_or_default())
 }
 
-/// Get a PathBuf setting from the server.
+/// Get a PathBuf setting from the cache.
 pub fn settings_path_buf(key: &str) -> PathBuf {
-    send_ipc_command(Command::SettingsGetPathBuf(key.to_string()), response_extractor!(Response::PathBuf))
+    with_cache(|s| PathBuf::from(s.string.get(key).cloned().unwrap_or_default()))
 }
 
-/// Get a Vec<String> setting from the server.
+/// Get a Vec<String> setting from the cache.
 pub fn settings_vec_string(key: &str) -> Vec<String> {
-    send_ipc_command(Command::SettingsGetVecString(key.to_string()), response_extractor!(Response::VecString))
+    with_cache(|s| s.vec_string.get(key).cloned().unwrap_or_default())
 }
 
-/// Get a Vec<u8> setting from the server.
+/// Get a Vec<u8> setting from the cache.
 pub fn settings_raw_data(key: &str) -> Vec<u8> {
-    send_ipc_command(Command::SettingsGetVecRaw(key.to_string()), response_extractor!(Response::VecU8))
+    with_cache(|s| s.raw_data.get(key).cloned().unwrap_or_default())
 }
 
-/// Set a boolean setting on the server.
+/// Set a boolean setting on the server and update the local cache.
 pub fn settings_set_bool(key: &str, value: bool) {
-    send_ipc_command(Command::SettingsSetBool(key.to_string(), value), response_extractor!())
+    send_ipc_command(Command::SettingsSetBool(key.to_string(), value), response_extractor!());
+    SETTINGS_CACHE.with(|cache| {
+        if let Some(ref mut s) = *cache.borrow_mut() {
+            s.bool.insert(key.to_owned(), value);
+        }
+    });
 }
 
-/// Set an i32 setting on the server.
+/// Set an i32 setting on the server and update the local cache.
 pub fn settings_set_i32(key: &str, value: i32) {
-    send_ipc_command(Command::SettingsSetI32(key.to_string(), value), response_extractor!())
+    send_ipc_command(Command::SettingsSetI32(key.to_string(), value), response_extractor!());
+    SETTINGS_CACHE.with(|cache| {
+        if let Some(ref mut s) = *cache.borrow_mut() {
+            s.i32.insert(key.to_owned(), value);
+        }
+    });
 }
 
-/// Set an f32 setting on the server.
+/// Set an f32 setting on the server and update the local cache.
 #[allow(dead_code)]
 pub fn settings_set_f32(key: &str, value: f32) {
-    send_ipc_command(Command::SettingsSetF32(key.to_string(), value), response_extractor!())
+    send_ipc_command(Command::SettingsSetF32(key.to_string(), value), response_extractor!());
+    SETTINGS_CACHE.with(|cache| {
+        if let Some(ref mut s) = *cache.borrow_mut() {
+            s.f32.insert(key.to_owned(), value);
+        }
+    });
 }
 
-/// Set a string setting on the server.
+/// Set a string setting on the server and update the local cache.
 pub fn settings_set_string(key: &str, value: &str) {
-    send_ipc_command(Command::SettingsSetString(key.to_string(), value.to_string()), response_extractor!())
+    send_ipc_command(Command::SettingsSetString(key.to_string(), value.to_string()), response_extractor!());
+    SETTINGS_CACHE.with(|cache| {
+        if let Some(ref mut s) = *cache.borrow_mut() {
+            s.string.insert(key.to_owned(), value.to_owned());
+        }
+    });
 }
 
-/// Set a PathBuf setting on the server.
+/// Set a PathBuf setting on the server and update the local cache.
 #[allow(dead_code)]
 pub fn settings_set_path_buf(key: &str, value: &PathBuf) {
-    send_ipc_command(Command::SettingsSetPathBuf(key.to_string(), value.clone()), response_extractor!())
+    send_ipc_command(Command::SettingsSetPathBuf(key.to_string(), value.clone()), response_extractor!());
+    SETTINGS_CACHE.with(|cache| {
+        if let Some(ref mut s) = *cache.borrow_mut() {
+            s.string.insert(key.to_owned(), value.to_string_lossy().to_string());
+        }
+    });
 }
 
-/// Set a Vec<String> setting on the server.
+/// Set a Vec<String> setting on the server and update the local cache.
 pub fn settings_set_vec_string(key: &str, value: &[String]) {
-    send_ipc_command(Command::SettingsSetVecString(key.to_string(), value.to_vec()), response_extractor!())
+    send_ipc_command(Command::SettingsSetVecString(key.to_string(), value.to_vec()), response_extractor!());
+    SETTINGS_CACHE.with(|cache| {
+        if let Some(ref mut s) = *cache.borrow_mut() {
+            s.vec_string.insert(key.to_owned(), value.to_vec());
+        }
+    });
 }
 
-/// Set a Vec<u8> setting on the server.
+/// Set a Vec<u8> setting on the server and update the local cache.
 pub fn settings_set_raw_data(key: &str, value: &[u8]) {
-    send_ipc_command(Command::SettingsSetVecRaw(key.to_string(), value.to_vec()), response_extractor!())
+    send_ipc_command(Command::SettingsSetVecRaw(key.to_string(), value.to_vec()), response_extractor!());
+    SETTINGS_CACHE.with(|cache| {
+        if let Some(ref mut s) = *cache.borrow_mut() {
+            s.raw_data.insert(key.to_owned(), value.to_vec());
+        }
+    });
 }
 
 pub fn config_path() -> Result<PathBuf> {

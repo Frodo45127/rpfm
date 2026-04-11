@@ -29,6 +29,7 @@ use getset::{Getters, MutGetters};
 
 use std::sync::Arc;
 
+use rpfm_ipc::settings_keys::*;
 use rpfm_ui_common::utils::*;
 
 use crate::settings_ui::backend::settings_bool;
@@ -124,7 +125,7 @@ impl FilterView {
             column_combobox.set_model(&filter_column_list);
             group_combobox.set_model(&filter_match_group_list);
 
-            let fields = view.table_definition().fields_processed_sorted(settings_bool("tables_use_old_column_order"));
+            let fields = view.table_definition().fields_processed_sorted(settings_bool(TABLES_USE_OLD_COLUMN_ORDER));
             for field in &fields {
                 let name = clean_column_names(field.name());
                 column_combobox.add_item_q_string(&QString::from_std_str(name));

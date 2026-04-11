@@ -33,6 +33,7 @@ use std::rc::Rc;
 use std::sync::{Arc, atomic::Ordering, RwLock};
 
 use rpfm_ipc::helpers::DataSource;
+use rpfm_ipc::settings_keys::*;
 
 use rpfm_lib::files::{ContainerPath, RFileDecoded};
 use rpfm_log::*;
@@ -148,7 +149,7 @@ impl TableViewSlots {
                         }
                     }
 
-                    if settings_bool("diagnostics_trigger_on_table_edit") && diagnostics_ui.diagnostics_dock_widget().is_visible() {
+                    if settings_bool(DIAGNOSTICS_TRIGGER_ON_TABLE_EDIT) && diagnostics_ui.diagnostics_dock_widget().is_visible() {
                         for path in &paths_to_check {
                             let path_types = vec![ContainerPath::File(path.to_owned())];
                             DiagnosticsUI::check_on_path(&app_ui, &diagnostics_ui, path_types);
@@ -215,7 +216,7 @@ impl TableViewSlots {
                             let field = &fields_processed[item.column() as usize];
 
                             // Update the lookup data while the model is blocked.
-                            if settings_bool("enable_lookups") {
+                            if settings_bool(ENABLE_LOOKUPS) {
                                 let dependency_data = view.dependency_data.read().unwrap();
                                 if let Some(column_data) = dependency_data.get(&item.column()) {
                                     match column_data.data().get(&item.text().to_std_string()) {
@@ -258,7 +259,7 @@ impl TableViewSlots {
                             }
 
                             // If the edited column has icons we need to fetch the new icon from the backend and apply it.
-                            if settings_bool("enable_icons") && field.is_filename(patches) {
+                            if settings_bool(ENABLE_ICONS) && field.is_filename(patches) {
                                 let mut icons = BTreeMap::new();
                                 let data = vec![vec![get_field_from_view(&view.table_model.static_upcast(), field, item.row(), item.column())]];
 
@@ -322,7 +323,7 @@ impl TableViewSlots {
                     }
                 }
 
-                if settings_bool("table_resize_on_edit") {
+                if settings_bool(TABLE_RESIZE_ON_EDIT) {
                     view.table_view.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
                 }
 
@@ -668,7 +669,7 @@ impl TableViewSlots {
         // When we want to resize the columns depending on their contents...
         let resize_columns = SlotNoArgs::new(&view.table_view, clone!(view => move || {
             view.table_view.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
-            if settings_bool("extend_last_column_on_tables") {
+            if settings_bool(EXTEND_LAST_COLUMN_ON_TABLES) {
                 view.table_view.horizontal_header().set_stretch_last_section(false);
                 view.table_view.horizontal_header().set_stretch_last_section(true);
             }
@@ -818,7 +819,7 @@ impl TableViewSlots {
         let mut hide_show_columns = vec![];
         let mut freeze_columns = vec![];
 
-        let fields = view.table_definition().fields_processed_sorted(settings_bool("tables_use_old_column_order"));
+        let fields = view.table_definition().fields_processed_sorted(settings_bool(TABLES_USE_OLD_COLUMN_ORDER));
         let fields_processed = view.table_definition().fields_processed();
         for field in &fields {
             if let Some(index) = fields_processed.iter().position(|x| x == field) {
@@ -863,7 +864,7 @@ impl TableViewSlots {
 
                 // Build the reverse mapping: logical column index -> sidebar checkbox index.
                 // The sidebar checkboxes are in sorted field order, not logical column order.
-                let fields = view.table_definition().fields_processed_sorted(settings_bool("tables_use_old_column_order"));
+                let fields = view.table_definition().fields_processed_sorted(settings_bool(TABLES_USE_OLD_COLUMN_ORDER));
                 let fields_processed = view.table_definition().fields_processed();
                 let sidebar_index = fields.iter().enumerate().find_map(|(sidebar_pos, field)| {
                     fields_processed.iter().position(|x| x == field).and_then(|col_idx| {

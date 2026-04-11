@@ -78,6 +78,7 @@ use rpfm_lib::notes::Note;
 use rpfm_lib::schema::{Definition, DefinitionPatch, Field, Schema};
 
 use crate::helpers::*;
+use crate::settings_keys::SettingsSnapshot;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -1414,11 +1415,5 @@ pub enum Response {
     WSModelRFileInfo(Text, RFileInfo),
 
     /// All settings in one response (for batch loading).
-    /// Contains: (bool settings, i32 settings, f32 settings, string settings)
-    SettingsAll(
-        HashMap<String, bool>,
-        HashMap<String, i32>,
-        HashMap<String, f32>,
-        HashMap<String, String>,
-    ),
+    SettingsAll(SettingsSnapshot),
 }

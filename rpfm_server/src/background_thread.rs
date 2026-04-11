@@ -35,8 +35,9 @@ use rpfm_extensions::gltf::{gltf_from_rigid, save_gltf_to_disk};
 use rpfm_extensions::optimizer::OptimizableContainer;
 use rpfm_extensions::translator::PackTranslation;
 
-use rpfm_ipc::{MYMOD_BASE_PATH, SECONDARY_PATH, helpers::*};
+use rpfm_ipc::helpers::*;
 use rpfm_ipc::messages::OperationalMode;
+use rpfm_ipc::settings_keys::*;
 
 use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::files::{animpack::AnimPack, Container, ContainerPath, db::DB, DecodeableExtraData, EncodeableExtraData, FileType, loc::Loc, pack::*, portrait_settings::PortraitSettings, RFile, RFileDecoded, table::{DecodedData, Table}, text::*};
@@ -3089,12 +3090,14 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 CentralCommand::send_back(&sender, Response::VecU8(settings.raw_data(&key)));
             }
             Command::SettingsGetAll => {
-                CentralCommand::send_back(&sender, Response::SettingsAll(
-                    settings.bool.clone(),
-                    settings.i32.clone(),
-                    settings.f32.clone(),
-                    settings.string.clone(),
-                ));
+                CentralCommand::send_back(&sender, Response::SettingsAll(SettingsSnapshot {
+                    bool: settings.bool.clone(),
+                    i32: settings.i32.clone(),
+                    f32: settings.f32.clone(),
+                    string: settings.string.clone(),
+                    raw_data: settings.raw_data.clone(),
+                    vec_string: settings.vec_string.clone(),
+                }));
             }
             Command::SettingsSetBool(key, value) => {
                 match settings.set_bool(&key, value) {

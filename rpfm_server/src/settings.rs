@@ -20,7 +20,7 @@ use std::path::{Path, PathBuf};
 
 use rpfm_extensions::optimizer::OptimizerOptions;
 
-use rpfm_ipc::{MYMOD_BASE_PATH, SECONDARY_PATH};
+use rpfm_ipc::settings_keys::*;
 
 use rpfm_lib::error::RLibError;
 use rpfm_lib::games::{GameInfo, LUA_AUTOGEN_FOLDER, supported_games::*};
@@ -169,14 +169,14 @@ impl Settings {
         }
 
         // Hidden setting.
-        settings.initialize_bool("import_from_qt", false);
+        settings.initialize_bool(IMPORT_FROM_QT, false);
 
         // General Settings.
-        settings.initialize_string("default_game", KEY_WARHAMMER_3);
-        settings.initialize_string("language", "English_en");
-        //settings.initialize_string("update_channel", STABLE);
-        settings.initialize_i32("autosave_amount", 10);
-        settings.initialize_i32("autosave_interval", 5);
+        settings.initialize_string(DEFAULT_GAME, KEY_WARHAMMER_3);
+        settings.initialize_string(LANGUAGE, "English_en");
+        //settings.initialize_string(UPDATE_CHANNEL, STABLE);
+        settings.initialize_i32(AUTOSAVE_AMOUNT, 10);
+        settings.initialize_i32(AUTOSAVE_INTERVAL, 5);
 
         /*
         let font = QApplication::font();
@@ -188,57 +188,54 @@ impl Settings {
         settings.initialize_i32("original_font_size", font_size);
     */
         // UI Settings.
-        settings.initialize_bool("start_maximized", false);
-        settings.initialize_bool("allow_editing_of_ca_packfiles", false);
-        settings.initialize_bool("check_updates_on_start", true);
-        settings.initialize_bool("check_schema_updates_on_start", true);
-        settings.initialize_bool("check_lua_autogen_updates_on_start", true);
-        settings.initialize_bool("check_old_ak_updates_on_start", true);
-        settings.initialize_bool("use_lazy_loading", true);
-        settings.initialize_bool("optimize_not_renamed_packedfiles", false);
-        settings.initialize_bool("disable_uuid_regeneration_on_db_tables", true);
-        settings.initialize_bool("packfile_treeview_resize_to_fit", false);
-        settings.initialize_bool("expand_treeview_when_adding_items", true);
-        settings.initialize_bool("use_right_size_markers", false);
-        settings.initialize_bool("disable_file_previews", false);
-        settings.initialize_bool("include_base_folder_on_add_from_folder", true);
-        settings.initialize_bool("delete_empty_folders_on_delete", true);
-        settings.initialize_bool("autosave_folder_size_warning_triggered", false);
-        settings.initialize_bool("ignore_game_files_in_ak", false);
-        settings.initialize_bool("enable_multifolder_filepicker", false);
-        settings.initialize_bool("enable_pack_contents_drag_and_drop", true);
+        settings.initialize_bool(START_MAXIMIZED, false);
+        settings.initialize_bool(ALLOW_EDITING_OF_CA_PACKFILES, false);
+        settings.initialize_bool(CHECK_UPDATES_ON_START, true);
+        settings.initialize_bool(CHECK_SCHEMA_UPDATES_ON_START, true);
+        settings.initialize_bool(CHECK_LUA_AUTOGEN_UPDATES_ON_START, true);
+        settings.initialize_bool(CHECK_OLD_AK_UPDATES_ON_START, true);
+        settings.initialize_bool(USE_LAZY_LOADING, true);
+        settings.initialize_bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES, true);
+        settings.initialize_bool(PACKFILE_TREEVIEW_RESIZE_TO_FIT, false);
+        settings.initialize_bool(EXPAND_TREEVIEW_WHEN_ADDING_ITEMS, true);
+        settings.initialize_bool(USE_RIGHT_SIZE_MARKERS, false);
+        settings.initialize_bool(DISABLE_FILE_PREVIEWS, false);
+        settings.initialize_bool(INCLUDE_BASE_FOLDER_ON_ADD_FROM_FOLDER, true);
+        settings.initialize_bool(DELETE_EMPTY_FOLDERS_ON_DELETE, true);
+        settings.initialize_bool(AUTOSAVE_FOLDER_SIZE_WARNING_TRIGGERED, false);
+        settings.initialize_bool(IGNORE_GAME_FILES_IN_AK, false);
+        settings.initialize_bool(ENABLE_MULTIFOLDER_FILEPICKER, false);
+        settings.initialize_bool(ENABLE_PACK_CONTENTS_DRAG_AND_DROP, true);
 
         // Table Settings.
-        settings.initialize_bool("adjust_columns_to_content", true);
-        settings.initialize_bool("extend_last_column_on_tables", true);
-        settings.initialize_bool("disable_combos_on_tables", false);
-        settings.initialize_bool("tight_table_mode", false);
-        settings.initialize_bool("table_resize_on_edit", false);
-        settings.initialize_bool("tables_use_old_column_order", true);
-        settings.initialize_bool("tables_use_old_column_order_for_tsv", true);
-        settings.initialize_bool("enable_lookups", true);
-        settings.initialize_bool("enable_icons", true);
-        settings.initialize_bool("enable_diff_markers", true);
-        settings.initialize_bool("hide_unused_columns", true);
+        settings.initialize_bool(ADJUST_COLUMNS_TO_CONTENT, true);
+        settings.initialize_bool(EXTEND_LAST_COLUMN_ON_TABLES, true);
+        settings.initialize_bool(DISABLE_COMBOS_ON_TABLES, false);
+        settings.initialize_bool(TIGHT_TABLE_MODE, false);
+        settings.initialize_bool(TABLE_RESIZE_ON_EDIT, false);
+        settings.initialize_bool(TABLES_USE_OLD_COLUMN_ORDER, true);
+        settings.initialize_bool(TABLES_USE_OLD_COLUMN_ORDER_FOR_TSV, true);
+        settings.initialize_bool(ENABLE_LOOKUPS, true);
+        settings.initialize_bool(ENABLE_ICONS, true);
+        settings.initialize_bool(ENABLE_DIFF_MARKERS, true);
+        settings.initialize_bool(HIDE_UNUSED_COLUMNS, true);
 
         // Debug Settings.
-        settings.initialize_bool("check_for_missing_table_definitions", false);
-        settings.initialize_bool("enable_debug_menu", false);
-        settings.initialize_bool("spoof_ca_authoring_tool", false);
-        settings.initialize_bool("enable_rigidmodel_editor", true);
-        settings.initialize_bool("enable_unit_editor", false);
-        settings.initialize_bool("enable_esf_editor", false);
-        settings.initialize_bool("use_debug_view_unit_variant", false);
-        settings.initialize_bool("enable_renderer", true);
+        settings.initialize_bool(CHECK_FOR_MISSING_TABLE_DEFINITIONS, false);
+        settings.initialize_bool(ENABLE_DEBUG_MENU, false);
+        settings.initialize_bool(ENABLE_UNIT_EDITOR, false);
+        settings.initialize_bool(ENABLE_ESF_EDITOR, false);
+        settings.initialize_bool(USE_DEBUG_VIEW_UNIT_VARIANT, false);
+        settings.initialize_bool(ENABLE_RENDERER, true);
 
-        // Diagnostics Settings
-        settings.initialize_bool("diagnostics_trigger_on_open", true);
-        settings.initialize_bool("diagnostics_trigger_on_table_edit", true);
+        // Diagnostics Settings.
+        settings.initialize_bool(DIAGNOSTICS_TRIGGER_ON_OPEN, true);
+        settings.initialize_bool(DIAGNOSTICS_TRIGGER_ON_TABLE_EDIT, true);
 
-        settings.initialize_string("ai_openai_api_key", "");
-        settings.initialize_string("deepl_api_key", "");
+        settings.initialize_string(AI_OPENAI_API_KEY, "");
+        settings.initialize_string(DEEPL_API_KEY, "");
 
-        settings.initialize_vec_string("recentFileList", &[]);
+        settings.initialize_vec_string(RECENT_FILE_LIST, &[]);
 
         // Colours.
     /*    let q_settings = qt_core::QSettings::new();
@@ -256,21 +253,21 @@ impl Settings {
 
         // Optimizer settings.
         let opt = OptimizerOptions::default();
-        settings.initialize_bool("pack_remove_itm_files", *opt.pack_remove_itm_files());
-        settings.initialize_bool("db_import_datacores_into_twad_key_deletes", *opt.db_import_datacores_into_twad_key_deletes());
-        settings.initialize_bool("db_optimize_datacored_tables", *opt.db_optimize_datacored_tables());
-        settings.initialize_bool("table_remove_duplicated_entries", *opt.table_remove_duplicated_entries());
-        settings.initialize_bool("table_remove_itm_entries", *opt.table_remove_itm_entries());
-        settings.initialize_bool("table_remove_itnr_entries", *opt.table_remove_itnr_entries());
-        settings.initialize_bool("table_remove_empty_file", *opt.table_remove_empty_file());
-        settings.initialize_bool("text_remove_unused_xml_map_folders", *opt.text_remove_unused_xml_map_folders());
-        settings.initialize_bool("text_remove_unused_xml_prefab_folder", *opt.text_remove_unused_xml_prefab_folder());
-        settings.initialize_bool("text_remove_agf_files", *opt.text_remove_agf_files());
-        settings.initialize_bool("text_remove_model_statistics_files", *opt.text_remove_model_statistics_files());
-        settings.initialize_bool("pts_remove_unused_art_sets", *opt.pts_remove_unused_art_sets());
-        settings.initialize_bool("pts_remove_unused_variants", *opt.pts_remove_unused_variants());
-        settings.initialize_bool("pts_remove_empty_masks", *opt.pts_remove_empty_masks());
-        settings.initialize_bool("pts_remove_empty_file", *opt.pts_remove_empty_file());
+        settings.initialize_bool(PACK_REMOVE_ITM_FILES, *opt.pack_remove_itm_files());
+        settings.initialize_bool(DB_IMPORT_DATACORES_INTO_TWAD_KEY_DELETES, *opt.db_import_datacores_into_twad_key_deletes());
+        settings.initialize_bool(DB_OPTIMIZE_DATACORED_TABLES, *opt.db_optimize_datacored_tables());
+        settings.initialize_bool(TABLE_REMOVE_DUPLICATED_ENTRIES, *opt.table_remove_duplicated_entries());
+        settings.initialize_bool(TABLE_REMOVE_ITM_ENTRIES, *opt.table_remove_itm_entries());
+        settings.initialize_bool(TABLE_REMOVE_ITNR_ENTRIES, *opt.table_remove_itnr_entries());
+        settings.initialize_bool(TABLE_REMOVE_EMPTY_FILE, *opt.table_remove_empty_file());
+        settings.initialize_bool(TEXT_REMOVE_UNUSED_XML_MAP_FOLDERS, *opt.text_remove_unused_xml_map_folders());
+        settings.initialize_bool(TEXT_REMOVE_UNUSED_XML_PREFAB_FOLDER, *opt.text_remove_unused_xml_prefab_folder());
+        settings.initialize_bool(TEXT_REMOVE_AGF_FILES, *opt.text_remove_agf_files());
+        settings.initialize_bool(TEXT_REMOVE_MODEL_STATISTICS_FILES, *opt.text_remove_model_statistics_files());
+        settings.initialize_bool(PTS_REMOVE_UNUSED_ART_SETS, *opt.pts_remove_unused_art_sets());
+        settings.initialize_bool(PTS_REMOVE_UNUSED_VARIANTS, *opt.pts_remove_unused_variants());
+        settings.initialize_bool(PTS_REMOVE_EMPTY_MASKS, *opt.pts_remove_empty_masks());
+        settings.initialize_bool(PTS_REMOVE_EMPTY_FILE, *opt.pts_remove_empty_file());
 
         settings.set_block_write(false);
 
@@ -410,21 +407,21 @@ impl Settings {
     pub fn optimizer_options(&self) -> OptimizerOptions {
         let mut options = OptimizerOptions::default();
 
-        options.set_pack_remove_itm_files(self.bool("pack_remove_itm_files"));
-        options.set_db_import_datacores_into_twad_key_deletes(self.bool("db_import_datacores_into_twad_key_deletes"));
-        options.set_db_optimize_datacored_tables(self.bool("db_optimize_datacored_tables"));
-        options.set_table_remove_duplicated_entries(self.bool("table_remove_duplicated_entries"));
-        options.set_table_remove_itm_entries(self.bool("table_remove_itm_entries"));
-        options.set_table_remove_itnr_entries(self.bool("table_remove_itnr_entries"));
-        options.set_table_remove_empty_file(self.bool("table_remove_empty_file"));
-        options.set_text_remove_unused_xml_map_folders(self.bool("text_remove_unused_xml_map_folders"));
-        options.set_text_remove_unused_xml_prefab_folder(self.bool("text_remove_unused_xml_prefab_folder"));
-        options.set_text_remove_agf_files(self.bool("text_remove_agf_files"));
-        options.set_text_remove_model_statistics_files(self.bool("text_remove_model_statistics_files"));
-        options.set_pts_remove_unused_art_sets(self.bool("pts_remove_unused_art_sets"));
-        options.set_pts_remove_unused_variants(self.bool("pts_remove_unused_variants"));
-        options.set_pts_remove_empty_masks(self.bool("pts_remove_empty_masks"));
-        options.set_pts_remove_empty_file(self.bool("pts_remove_empty_file"));
+        options.set_pack_remove_itm_files(self.bool(PACK_REMOVE_ITM_FILES));
+        options.set_db_import_datacores_into_twad_key_deletes(self.bool(DB_IMPORT_DATACORES_INTO_TWAD_KEY_DELETES));
+        options.set_db_optimize_datacored_tables(self.bool(DB_OPTIMIZE_DATACORED_TABLES));
+        options.set_table_remove_duplicated_entries(self.bool(TABLE_REMOVE_DUPLICATED_ENTRIES));
+        options.set_table_remove_itm_entries(self.bool(TABLE_REMOVE_ITM_ENTRIES));
+        options.set_table_remove_itnr_entries(self.bool(TABLE_REMOVE_ITNR_ENTRIES));
+        options.set_table_remove_empty_file(self.bool(TABLE_REMOVE_EMPTY_FILE));
+        options.set_text_remove_unused_xml_map_folders(self.bool(TEXT_REMOVE_UNUSED_XML_MAP_FOLDERS));
+        options.set_text_remove_unused_xml_prefab_folder(self.bool(TEXT_REMOVE_UNUSED_XML_PREFAB_FOLDER));
+        options.set_text_remove_agf_files(self.bool(TEXT_REMOVE_AGF_FILES));
+        options.set_text_remove_model_statistics_files(self.bool(TEXT_REMOVE_MODEL_STATISTICS_FILES));
+        options.set_pts_remove_unused_art_sets(self.bool(PTS_REMOVE_UNUSED_ART_SETS));
+        options.set_pts_remove_unused_variants(self.bool(PTS_REMOVE_UNUSED_VARIANTS));
+        options.set_pts_remove_empty_masks(self.bool(PTS_REMOVE_EMPTY_MASKS));
+        options.set_pts_remove_empty_file(self.bool(PTS_REMOVE_EMPTY_FILE));
 
         options
     }

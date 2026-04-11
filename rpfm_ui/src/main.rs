@@ -50,6 +50,7 @@ use std::path::PathBuf;
 use std::process::Command as SystemCommand;
 use std::sync::{Arc, atomic::{AtomicBool, AtomicPtr}, LazyLock, RwLock};
 
+use rpfm_ipc::settings_keys::*;
 use rpfm_lib::games::{GameInfo, supported_games::{SupportedGames, KEY_WARHAMMER_3}};
 use rpfm_log::*;
 
@@ -115,7 +116,7 @@ static SUPPORTED_GAMES: LazyLock<SupportedGames> = LazyLock::new(SupportedGames:
 
 /// The current GameSelected. If invalid, it uses WH3 as default.
 static GAME_SELECTED: LazyLock<Arc<RwLock<&'static GameInfo>>> = LazyLock::new(|| Arc::new(RwLock::new(
-    match SUPPORTED_GAMES.game(&settings_string("default_game")) {
+    match SUPPORTED_GAMES.game(&settings_string(DEFAULT_GAME)) {
         Some(game) => game,
         None => SUPPORTED_GAMES.game(KEY_WARHAMMER_3).unwrap(),
     }
@@ -173,7 +174,7 @@ static LOCALE_FALLBACK: LazyLock<Locale> = LazyLock::new(|| {
 /// Variable to keep the locale data used by the UI loaded and available.
 static LOCALE: LazyLock<Locale> = LazyLock::new(|| {
     // Default to English. Language will be loaded from server settings later.
-    Locale::initialize(&settings_string("language"), &ASSETS_PATH.to_string_lossy()).unwrap_or_else(|_| LOCALE_FALLBACK.clone())
+    Locale::initialize(&settings_string(LANGUAGE), &ASSETS_PATH.to_string_lossy()).unwrap_or_else(|_| LOCALE_FALLBACK.clone())
 });
 
 /// Main function.

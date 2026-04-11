@@ -442,11 +442,18 @@ shortcut_section_action = Section/Action
 ### Settings
 
 settings_title = Settings
+settings_search_placeholder = Search settings...
+settings_action_clear = Clear
+settings_action_add = Add
+settings_hint_restart = * Won't fully apply until the program restarts.
+settings_hint_game_switch = ** Won't fully apply until you switch the game selected.
 
 settings_game_paths_title = Game Paths
+settings_game_paths_description = Set the installation folder for each Total War game and its Assembly Kit. These paths are usually autodetected and are used to locate game files, generate dependency caches, and enable game-specific features. The Assembly Kit path is optional and only needed for certain features.
 settings_extra_paths_title = Extra Paths
+settings_extra_paths_description = Set the folder where MyMod files are stored, and an optional secondary folder for additional PackFile sources.
 settings_paths_mymod = MyMod's Folder
-settings_paths_mymod_ph = This is the folder where you want to store all "MyMod" related files.
+settings_paths_mymod_ph = This is the folder where you want to store all MyMod related files.
 
 settings_paths_zip = 7Zip Exe's Path
 settings_paths_zip_ph = This is the full path to 7Zip's executable.
@@ -459,39 +466,38 @@ settings_asskit_line_ph = This is the folder where you have the Assembly kit for
 settings_ui_title = UI Settings
 settings_table_title = Table Settings
 
-settings_ui_language = Language (Requires restart):
-settings_ui_dark_theme = Use Dark Theme:
-settings_ui_table_adjust_columns_to_content = Adjust Columns to Content:
-settings_ui_table_disable_combos = Disable ComboBoxes on Tables:
-settings_ui_table_extend_last_column_label = Extend Last Column on Tables:
-settings_ui_table_tight_table_mode_label = Enable 'Tight Mode' on Tables:
-settings_ui_table_remember_column_visual_order_label = Remember Column's Visual Order:
-settings_ui_table_remember_table_state_permanently_label = Remember Table State Across PackFiles:
-settings_ui_window_start_maximized_label = Start Maximized:
+settings_ui_language = Language*
+settings_ui_table_adjust_columns_to_content = Adjust Columns to Content
+settings_ui_table_disable_combos = Disable ComboBoxes on Tables**
+settings_ui_table_extend_last_column_label = Extend Last Column on Tables
+settings_ui_table_tight_table_mode_label = Enable 'Tight Mode' on Tables**
+settings_ui_table_remember_column_visual_order_label = Remember Column's Visual Order
+settings_ui_table_remember_table_state_permanently_label = Remember Table State Across PackFiles
+settings_ui_window_start_maximized_label = Start Maximized
 
 settings_select_file = Select File
 settings_select_folder = Select Folder
 
 settings_extra_title = Extra Settings
-settings_default_game = Default Game:
-settings_check_updates_on_start = Check Updates on Start:
-settings_check_schema_updates_on_start = Check Schema Updates on Start:
-settings_check_template_updates_on_start = Check Template Updates on Start:
-settings_allow_editing_of_ca_packfiles = Allow Editing of CA PackFiles:
-settings_optimize_not_renamed_packedfiles = Optimize Non-Renamed PackedFiles:
-settings_use_lazy_loading = Use Lazy-Loading for PackFiles:
-settings_disable_uuid_regeneration_tables = Disable UUID Regeneration on DB Tables:
-settings_packfile_treeview_resize_to_fit = Resize TreeView to content's size:
-settings_table_resize_on_edit = Resize tables on edits to content's size:
+settings_default_game = Default Game
+settings_check_updates_on_start = Check Updates on Start
+settings_check_schema_updates_on_start = Check Schema Updates on Start
+settings_check_template_updates_on_start = Check Template Updates on Start
+settings_allow_editing_of_ca_packfiles = Allow Editing of CA PackFiles
+settings_optimize_not_renamed_packedfiles = Optimize Non-Renamed PackedFiles
+settings_use_lazy_loading = Use Lazy-Loading for PackFiles
+settings_disable_uuid_regeneration_tables = Disable UUID Regeneration on DB Tables
+settings_packfile_treeview_resize_to_fit = Resize TreeView to content's size
+settings_table_resize_on_edit = Resize tables on edits to content's size
 
 settings_debug_title = Debug Settings
 settings_debug_missing_table = Check for Missing Table Definitions
-settings_debug_enable_debug_menu = Enable Debug Menu
+settings_debug_enable_debug_menu = Enable Debug Menu*
 
 settings_diagnostics_title = Diagnostics Settings
-settings_diagnostics_show_panel_on_boot = Enable Diagnostics Tool:
-settings_diagnostics_trigger_on_open = Trigger Diagnostics Check on Open PackFile:
-settings_diagnostics_trigger_on_edit = Trigger Diagnostics Check on Table Editing:
+settings_diagnostics_show_panel_on_boot = Enable Diagnostics Tool
+settings_diagnostics_trigger_on_open = Trigger Diagnostics Check on Open PackFile
+settings_diagnostics_trigger_on_edit = Trigger Diagnostics Check on Table Editing
 
 settings_text_title = Text Editor Settings
 
@@ -524,7 +530,7 @@ tt_extra_packfile_use_lazy_loading_tip = If you enable this, PackFiles will load
     If you mainly mod in Warhammer 2's /data folder LEAVE THIS DISABLED, as a bug in the Assembly Kit causes PackFiles to become broken/be deleted when you have this enabled.
 tt_extra_disable_uuid_regeneration_on_db_tables_label_tip = Check this if you plan to put your binary tables under Git/Svn/any kind of version control software.
 
-tt_debug_check_for_missing_table_definitions_tip = If you enable this, RPFM will try to decode EVERY TABLE in the current PackFile when opening it or when changing the Game Selected, and it'll output all the tables without an schema to a \"missing_table_definitions.txt\" file.
+tt_debug_check_for_missing_table_definitions_tip = If you enable this, RPFM will try to decode EVERY TABLE in the current PackFile when opening it or when changing the Game Selected, and it'll output all the tables without an schema to a "missing_table_definitions.txt" file.
     DEBUG FEATURE, VERY SLOW. DON'T ENABLE IT UNLESS YOU REALLY WANT TO USE IT.
 
 tt_diagnostics_enable_diagnostics_tool_tip = Enable this to make the diagnostics panel appear on start.
@@ -699,12 +705,12 @@ integer_2 = Unknown integer 2:
 settings_update_channel = Update Channel
 update_success_main_program = <h4>RPFM updated correctly!</h4> <p>To check what changed in this update, check this link: <a href='file:///{"{"}{"}"}'>Changelog.md</a>. If you're updating to a beta, the relevant changes are on the "Unreleased" section.</p> <p>Please, restart the program for the changes to apply.</p>
 
-settings_autosave_interval = Autosave Interval (min)
+settings_autosave_interval = Autosave Interval (min 0)
 autosaving = Autosaving…
 autosaved = Autosaved
 error_autosave_non_editable = This PackFile cannot be autosaved.
 
-settings_ui_table_use_old_column_order_label = Use Old Column Order (Keys first):
+settings_ui_table_use_old_column_order_label = Show Key Columns First on Tables
 
 context_menu_paste_as_new_row = Paste as New Row
 
@@ -731,7 +737,7 @@ mymod_open_mymod_folder = Open MyMod Folder
 open_from_autosave = Open From Autosave
 
 all = All
-settings_expand_treeview_when_adding_items = Expand new TreeView items when added:
+settings_expand_treeview_when_adding_items = Expand new TreeView items when added
 settings_expand_treeview_when_adding_items_tip = Set this to true if you want folders to be expanded when added to the TreeView. Set it to false to not expand them.
 
 label_outdated_table = Outdated table
@@ -1101,11 +1107,8 @@ field_with_path_not_found_explanation = The data in the reported cell is suppose
     in what path the file is expected to be.
 
 label_field_with_path_not_found = Path/File in field not found
-settings_enable_rigidmodel_editor = Enable RigidModel Editor:
-tt_settings_debug_enable_rigidmodel_editor = This setting allows you to disable the new RigidModel editor (still in beta) should you face any issues with it,
-    so you can still use RPFM without it.
 
-settings_use_right_side_markers = Use Right-Side Markers:
+settings_use_right_side_markers = Use Right-Side Markers**
 tt_ui_table_use_right_side_markers_tip = Choose a side in the marker war. Join the Rights now!
 
 settings_tab_paths = Paths
@@ -1119,6 +1122,17 @@ settings_ui_table_colour_diagnostic_info_label = Info
 
 settings_ui_table_colour_light_label = Light theme
 settings_ui_table_colour_dark_label = Dark theme
+
+settings_colour_added = Marker Colour for Added Cells (Light/Dark Theme):
+settings_colour_modified = Marker Colour for Modified Cells (Light/Dark Theme):
+settings_colour_error = Marker Colour for Error Cells (Light/Dark Theme):
+settings_colour_warning = Marker Colour for Warning Cells (Light/Dark Theme):
+settings_colour_info = Marker Colour for Info Cells (Light/Dark Theme):
+tt_settings_colour_added = Background colour used to highlight newly added rows in tables. Left button is for the light theme, right is for the dark theme.
+tt_settings_colour_modified = Background colour used to highlight modified rows in tables. Left button is for the light theme, right is for the dark theme.
+tt_settings_colour_error = Background colour used to highlight cells with diagnostic errors. Left button is for the light theme, right is for the dark theme.
+tt_settings_colour_warning = Background colour used to highlight cells with diagnostic warnings. Left button is for the light theme, right is for the dark theme.
+tt_settings_colour_info = Background colour used to highlight cells with diagnostic info. Left button is for the light theme, right is for the dark theme.
 
 label_incorrect_game_path = Incorrect Game Path:
 incorrect_game_path_explanation = RPFM detected that the Game Path you set in the settings is incorrect.
@@ -1159,10 +1173,10 @@ packed_file_name = PackedFile Name
 tools_unit_editor = Unit Editor
 unit_editor_title = Unit Editor
 
-settings_enable_esf_editor = Enable ESF/CCD/SAVE Editor (EXPERIMENTAL):
-tt_settings_debug_enable_esf_editor = This setting allows you to enable the new ESF editor (experimental), but beware of issues.
+settings_enable_esf_editor = Enable ESF/CCD/SAVE Editor
+tt_settings_debug_enable_esf_editor = This setting allows you to enable the new ESF editor, but beware of issues.
 
-settings_enable_unit_editor = Enable Unit Editor (EXPERIMENTAL):
+settings_enable_unit_editor = Enable Unit Editor (EXPERIMENTAL)
 tt_settings_debug_enable_unit_editor = This setting allows you to enable the new Unit editor (experimental), but beware of issues.
 
 tools_unit_editor_main_tab_title = Unit Basic Info
@@ -1266,7 +1280,7 @@ tt_settings_debug_clear_dependencies_cache_folder = Use this to clear the depend
 settings_debug_clear_dependencies_cache_folder = Clear dependencies cache folder
 context_menu_generate_missing_loc_data = Generate Loc Data
 about_check_lua_autogen_updates = Check TW Autogen Updates
-settings_check_lua_autogen_updates_on_start = Check TW Autogen Updates on Start:
+settings_check_lua_autogen_updates_on_start = Check TW Autogen Updates on Start
 tt_about_check_lua_autogen_updates = Checks if there is any update available for the TW Autogen data. This helps in developing MyMods with lua scripts.
 update_lua_autogen_checker = Update TW Autogen Checker
 new_mymod_instructions = <p>Things to take into account before creating a new mod:</p>
@@ -1376,7 +1390,7 @@ new_portrait_settings_copy_to_column = Copy values to this entry
 
 live_export_success = Script and UI folders exported correctly.
 include_base_folder_on_add_from_folder = Include Parent Folder when Adding a Folder
-settings_include_base_folder_on_add_from_folder = When using Add From Folder, it adds the selected folder instead of it's parent contents to the Pack.
+settings_include_base_folder_on_add_from_folder = With this enabled, when using "Add From Folder" the selected folder will be added, with all its contents inside it. If this is disabled, only the contents will be added.
 delete_empty_folders_on_delete = Delete empty folders after moving/deleting its contents
 settings_delete_empty_folders_on_delete = If this is enabled, after certain operations that left empty folders, said folders will be automatically removed.
 schema_patch_submitted_with_empty_explanation = Patch not submitted because the explanation was empty.
@@ -1406,7 +1420,7 @@ autosave_folder_size_warning = <p>Your autosave folder has surpassed 25GB of aut
 
 portrait_settings_file_name = Filename
 table_filter_use_regex = Use Regex
-settings_enable_lookups = Enable Lookups
+settings_enable_lookups = Enable Lookups**
 
 context_menu_profiles_apply = Apply Profile
 context_menu_profiles_delete = Delete Profile
@@ -1437,7 +1451,7 @@ old_ak_new_update = <h4>New Old AK update available</h4> <p>Do you want to updat
 update_no_local_old_ak = <p>No local Old AK (Empire/Napoleon) data found. Do you want to download the latest one?</p>
 old_ak_update_success = <h4>Old AK Data updated.</h4><p>You can continue using RPFM now, but remember to regenerate the dependencies cache for Empire and Napoleon, so the Old AK data is added to it.</p>
 portrait_settings_file_icon_label = Icons
-settings_enable_icons = Enable Icons
+settings_enable_icons = Enable Icons**
 
 context_menu_patch_column = Patch Column
 new_column_patch_dialog = Column Patcher
@@ -1570,7 +1584,7 @@ updater_update_twautogen_updated = Lua Autogen updated!
 updater_update_old_ak_error = Error updating Old AK.
 updater_update_old_ak_updated = Old AK updated!
 
-settings_check_old_ak_updates_on_start = Check Old AK (Empire & Napoleon) Updates:
+settings_check_old_ak_updates_on_start = Check Old AK (Empire & Napoleon) Updates
 
 updater_update_program_updating = Updating, pls wait...
 updater_update_schemas_updating = Updating, pls wait...
@@ -1615,7 +1629,7 @@ process_hlp_data = Process HLP data
 ignore_game_files_in_ak = Ignore Game Files in Assembly Kit
 settings_ignore_game_files_in_ak = When generating the dependencies cache, ignore files from the Assembly Kit that are present in the game files. Reduces RAM usage and makes RPFM load faster, but you loose read/import access to about 900 files.
 
-settings_ui_table_use_old_column_order_for_tsv_label = Use Old Column Order For TSV Exports (Keys first):
+settings_ui_table_use_old_column_order_for_tsv_label = Put Key Columns First on TSV-Exported Tables
 
 special_stuff_update_anim_ids = Update Anim Ids
 update_anim_ids = Update Anim Ids
@@ -1652,9 +1666,9 @@ reload_renderer = Reload 3D Renderer
 settings_enable_renderer = Enable 3D Renderer
 context_menu_revert_value = Revert Values to Vanilla
 
-settings_enable_diff_markers = Enable Diff Markers
+settings_enable_diff_markers = Enable Diff Markers**
 
-enable_pack_contents_drag_and_drop = Enable Pack Content's Drag & Drop:
+enable_pack_contents_drag_and_drop = Enable Pack Content's Drag & Drop
 settings_enable_pack_contents_drag_and_drop = This allows you to toggle the Drag & Drop behaviour of the Pack Contents treeview.
 
 hide_unused_columns = Hide Unused Columns:
@@ -1740,6 +1754,30 @@ context = Context
 settings_ai_title = AI Settings
 settings_ai_openai_api_key = OpenAI API Key:
 tt_ai_openai_api_key_tip = OpenAI API Key. You must get one from OpenAI's website.
+tt_settings_ui_language_tip = Select the display language for RPFM's interface.
+tt_settings_default_game_tip = Select the default Total War game to use when RPFM starts.
+tt_settings_update_channel_tip = Choose between Stable (recommended) and Beta update channels.
+tt_settings_autosave_interval_tip = Time in seconds between automatic saves of open PackFiles. Set to 0 to disable.
+tt_settings_check_lua_autogen_updates_on_start_tip = If enabled, RPFM will check for Lua autogen updates at startup. These are used to help develop lua scripts.
+tt_settings_check_old_ak_updates_on_start_tip = If enabled, RPFM will check for old Assembly Kit updates at startup. These are used to improve error checking and reference resolving on Empire and Napoleon.
+tt_settings_table_resize_on_edit_tip = If enabled, columns will be automatically resized when you edit a cell.
+tt_settings_tables_use_old_column_order_tip = If enabled, DB Tables will move have their key columns at the start of the table by default.
+tt_settings_tables_use_old_column_order_for_tsv_tip = If enabled, TSV-exported tables will have their key columns at the start of the TSV file.
+tt_settings_enable_lookups_tip = If enabled, referenced columns in tables will show the looked-up value (often the loc that key uses, or some related value) alongside the key.
+tt_settings_enable_icons_tip = If enabled, icons will be shown on cells that point to an image/icon.
+tt_settings_enable_diff_markers_tip = If enabled, cells that differ from their vanilla/parent values will be visually marked.
+tt_settings_enable_debug_menu_tip = Enable the Debug menu in the menu bar for advanced troubleshooting options.
+tt_settings_enable_esf_editor_tip = Enable the experimental ESF editor for editing the following file types:
+    - Campaign save games (`.save`, `.save_multiplayer`)
+    - Campaign startup positions (startpos)
+    - Character save files (`.twc`)
+    - Composite Scene files (`.csc`)
+    - Campaign Effect Object files (`.ccd`)
+    - General ESF data (`.esf`)
+
+tt_settings_use_debug_view_unit_variant_tip = Use a debug view for the Unit Variant editor instead of the visual one.
+tt_settings_enable_renderer_tip = Enable the experimental 3D model renderer for previewing RigidModel files.
+tt_settings_add_rpfm_to_runcher_tools_tip = Register RPFM as an external tool in Runcher's configuration.
 
 translator_translate_with_chatgpt = Translate with ChatGPT
 translator_translate_with_google = Translate with Google Translate
@@ -1754,7 +1792,7 @@ behavior_deepl = Auto-translate with DeepL (needs API Key, best quality)
 translator_translate_with_deepl = Translate with Deepl
 
 settings_deepl_api_key = DeepL API Key:
-tt_deepl_api_key_tip = DeepL API Key. You must get it from DeepL. It's free.
+tt_deepl_api_key_tip = DeepL API Key for the translation tool. You must get one from DeepL's website. It's free.
 is_numeric = Is Numeric Value
 
 label_file_duplicated = File duplicated
@@ -1845,7 +1883,7 @@ rigid_model_editor_texture_list_title = Texture List
 
 rigid_model_editor_export_to_gltf = Export to GLTF
 extract_gltf = Export GLTF File
-settings_use_debug_view_unit_variant = Use Debug View for Unit Variants:
+settings_use_debug_view_unit_variant = Use Debug View for Unit Variants
 
 ## Session Selection Dialog
 

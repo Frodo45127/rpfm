@@ -32,7 +32,7 @@ use getset::Getters;
 
 use std::rc::Rc;
 
-use rpfm_ipc::MYMOD_BASE_PATH;
+use rpfm_ipc::settings_keys::*;
 
 use rpfm_ui_common::utils::{find_widget, load_template};
 

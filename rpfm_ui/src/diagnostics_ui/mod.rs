@@ -55,6 +55,7 @@ use std::rc::Rc;
 use rpfm_extensions::diagnostics::{*, anim_fragment_battle::*, config::*, dependency::*, pack::*, portrait_settings::*, table::*, text::*};
 
 use rpfm_ipc::helpers::DataSource;
+use rpfm_ipc::settings_keys::*;
 
 use rpfm_lib::files::{ContainerPath, portrait_settings::Variant};
 use rpfm_log::info;
@@ -280,7 +281,7 @@ impl DiagnosticsUI {
         diagnostics_table_filter.set_source_model(&diagnostics_table_model);
         diagnostics_table_view.set_model(&diagnostics_table_filter);
 
-        if settings_bool("tight_table_mode") {
+        if settings_bool(TIGHT_TABLE_MODE) {
             diagnostics_table_view.vertical_header().set_minimum_section_size(22);
             diagnostics_table_view.vertical_header().set_maximum_section_size(22);
             diagnostics_table_view.vertical_header().set_default_section_size(22);

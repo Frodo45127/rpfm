@@ -18,8 +18,8 @@ use qt_core::{SlotOfBool, SlotOfQString, SlotNoArgs, SlotOfQModelIndex};
 use std::rc::Rc;
 use std::sync::Arc;
 
+use rpfm_ipc::settings_keys::*;
 use rpfm_lib::files::ContainerPath;
-
 use rpfm_ui_common::clone;
 
 use crate::app_ui::AppUI;
@@ -182,7 +182,7 @@ impl PackedFileAnimPackViewSlots {
                         Ok(()) => {
 
                             // If it works, remove them from the view.
-                            view.anim_pack_tree_view.update_treeview(true, TreeViewOperation::Delete(item_types, settings_bool("delete_empty_folders_on_delete")), DataSource::PackFile, &pack_key);
+                            view.anim_pack_tree_view.update_treeview(true, TreeViewOperation::Delete(item_types, settings_bool(DELETE_EMPTY_FOLDERS_ON_DELETE)), DataSource::PackFile, &pack_key);
 
                             // Mark the AnimPack in the PackFile as modified.
                             view.pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::File(view.path().read().unwrap().to_owned()); 1]), DataSource::PackFile, &pack_key);

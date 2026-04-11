@@ -43,6 +43,7 @@ use getset::Getters;
 use std::rc::Rc;
 
 use rpfm_ipc::helpers::DataSource;
+use rpfm_ipc::settings_keys::*;
 
 use rpfm_ui_common::utils::*;
 
@@ -107,7 +108,7 @@ impl ReferencesUI {
         references_table_filter.set_source_model(&references_table_model);
         references_table_view.set_model(&references_table_filter);
 
-        if settings_bool("tight_table_mode") {
+        if settings_bool(TIGHT_TABLE_MODE) {
             references_table_view.vertical_header().set_minimum_section_size(22);
             references_table_view.vertical_header().set_maximum_section_size(22);
             references_table_view.vertical_header().set_default_section_size(22);

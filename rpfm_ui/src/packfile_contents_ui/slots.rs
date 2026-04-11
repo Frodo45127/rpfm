@@ -33,7 +33,8 @@ use std::fs::{copy, remove_dir_all, remove_file, DirBuilder};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use rpfm_ipc::{MYMOD_BASE_PATH, helpers::DataSource};
+use rpfm_ipc::helpers::DataSource;
+use rpfm_ipc::settings_keys::*;
 
 use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::files::{ContainerPath, FileType, pack::*};
@@ -827,7 +828,7 @@ impl PackFileContentsSlots {
                 file_dialog.set_file_mode(FileMode::Directory);
 
                 // Wonky workaround to allow multiple folder selection.
-                if settings_bool("enable_multifolder_filepicker") {
+                if settings_bool(ENABLE_MULTIFOLDER_FILEPICKER) {
                     file_dialog.set_options(QFlags::from(FileDialogOption::DontUseNativeDialog.to_int() | file_dialog.options().to_int()));
 
                     if let Ok(list_view) = file_dialog.find_child::<QListView>("listView") {
@@ -1069,7 +1070,7 @@ impl PackFileContentsSlots {
 
                     selected_items.extend_from_slice(&items);
                     let items = ContainerPath::dedup(&selected_items);
-                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(items.to_vec(), settings_bool("delete_empty_folders_on_delete")), DataSource::PackFile, &pack_key);
+                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(items.to_vec(), settings_bool(DELETE_EMPTY_FOLDERS_ON_DELETE)), DataSource::PackFile, &pack_key);
                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(items.to_vec()), DataSource::PackFile, &pack_key);
                     UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
 
@@ -1962,7 +1963,7 @@ impl PackFileContentsSlots {
                                 let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, false);
                             }
 
-                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(paths_to_delete.to_vec(), settings_bool("delete_empty_folders_on_delete")), DataSource::PackFile, &pack_key);
+                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(paths_to_delete.to_vec(), settings_bool(DELETE_EMPTY_FOLDERS_ON_DELETE)), DataSource::PackFile, &pack_key);
 
                             for path in &paths_to_delete {
                                 let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path.path_raw(), DataSource::PackFile, false);

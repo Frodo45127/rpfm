@@ -72,8 +72,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{atomic::Ordering, RwLock};
 
-use rpfm_ipc::MYMOD_BASE_PATH;
-use rpfm_ipc::SECONDARY_PATH;
+use rpfm_ipc::settings_keys::*;
 use rpfm_ipc::helpers::{ContainerInfo, DataSource, NewFile};
 
 use rpfm_lib::files::{animpack, ContainerPath, FileType, loc, text, pack::*, portrait_settings, text::TextFormat};
@@ -598,7 +597,7 @@ impl AppUI {
         let tools_faction_painter = menu_bar_tools.add_action_q_string(&qtr("tools_faction_painter"));
         let tools_unit_editor = menu_bar_tools.add_action_q_string(&qtr("tools_unit_editor"));
         let tools_translator = menu_bar_tools.add_action_q_string(&qtr("tools_translator"));
-        if !settings_bool("enable_unit_editor") {
+        if !settings_bool(ENABLE_UNIT_EDITOR) {
             tools_unit_editor.set_enabled(false);
         }
 
@@ -1057,7 +1056,7 @@ impl AppUI {
         // Track all opened files in the recent file list.
         for pack_file_path in pack_file_paths {
             if let Some(path_str) = pack_file_path.to_str() {
-                let mut paths = settings_vec_string("recentFileList");
+                let mut paths = settings_vec_string(RECENT_FILE_LIST);
                 if let Some(pos) = paths.iter().position(|x| x == path_str) {
                     paths.remove(pos);
                 }
@@ -1065,11 +1064,11 @@ impl AppUI {
                 while paths.len() > 10 {
                     paths.pop();
                 }
-                let _ = settings_set_vec_string("recentFileList", &paths);
+                let _ = settings_set_vec_string(RECENT_FILE_LIST, &paths);
             }
         }
 
-        let timer = settings_i32("autosave_interval");
+        let timer = settings_i32(AUTOSAVE_INTERVAL);
         if timer > 0 {
             app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
             app_ui.timer_backup_autosave.start_0a();
@@ -1365,7 +1364,7 @@ impl AppUI {
         //---------------------------------------------------------------------------------------//
 
         // Recent PackFiles.
-        let recent_file_paths = settings_vec_string("recentFileList");
+        let recent_file_paths = settings_vec_string(RECENT_FILE_LIST);
         if !recent_file_paths.is_empty() {
 
             for path_str in recent_file_paths {
@@ -1389,7 +1388,7 @@ impl AppUI {
                                 return show_dialog(&app_ui.main_window, error, false);
                             }
 
-                            if settings_bool("diagnostics_trigger_on_open") {
+                            if settings_bool(DIAGNOSTICS_TRIGGER_ON_OPEN) {
 
                                 // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                                 app_ui.menu_bar_packfile.set_enabled(false);
@@ -1430,7 +1429,7 @@ impl AppUI {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
 
-                        if settings_bool("diagnostics_trigger_on_open") {
+                        if settings_bool(DIAGNOSTICS_TRIGGER_ON_OPEN) {
 
                             // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                             app_ui.menu_bar_packfile.set_enabled(false);
@@ -1470,7 +1469,7 @@ impl AppUI {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
 
-                        if settings_bool("diagnostics_trigger_on_open") {
+                        if settings_bool(DIAGNOSTICS_TRIGGER_ON_OPEN) {
 
                             // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                             app_ui.menu_bar_packfile.set_enabled(false);
@@ -1510,7 +1509,7 @@ impl AppUI {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
 
-                        if settings_bool("diagnostics_trigger_on_open") {
+                        if settings_bool(DIAGNOSTICS_TRIGGER_ON_OPEN) {
 
                             // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                             app_ui.menu_bar_packfile.set_enabled(false);
@@ -1558,7 +1557,7 @@ impl AppUI {
                                                 return show_dialog(&app_ui.main_window, error, false);
                                             }
 
-                                            if settings_bool("diagnostics_trigger_on_open") {
+                                            if settings_bool(DIAGNOSTICS_TRIGGER_ON_OPEN) {
 
                                                 // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                                                 app_ui.menu_bar_packfile.set_enabled(false);
@@ -1773,7 +1772,7 @@ impl AppUI {
                                                 return show_dialog(&app_ui.main_window, error, false);
                                             }
 
-                                            if settings_bool("diagnostics_trigger_on_open") {
+                                            if settings_bool(DIAGNOSTICS_TRIGGER_ON_OPEN) {
 
                                                 // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
                                                 app_ui.menu_bar_mymod.set_enabled(false);
@@ -2347,7 +2346,7 @@ impl AppUI {
                         }
 
                         Response::UnitVariantRFileInfo(mut data, file_info) => {
-                            if settings_bool("use_debug_view_unit_variant") {
+                            if settings_bool(USE_DEBUG_VIEW_UNIT_VARIANT) {
                                 match UnitVariantDebugView::new_view(&mut tab, data.clone()) {
                                     Ok(_) => {
 
@@ -3411,21 +3410,21 @@ impl AppUI {
         pts_remove_empty_file_label.set_text(&qtr("optimizer_pts_remove_empty_file"));
 
         {
-            pack_remove_itm_files_checkbox.set_checked(settings_bool("pack_remove_itm_files"));
-            db_import_datacores_into_twad_key_deletes_checkbox.set_checked(settings_bool("db_import_datacores_into_twad_key_deletes"));
-            db_optimize_datacored_tables_checkbox.set_checked(settings_bool("db_optimize_datacored_tables"));
-            table_remove_duplicated_entries_checkbox.set_checked(settings_bool("table_remove_duplicated_entries"));
-            table_remove_itm_entries_checkbox.set_checked(settings_bool("table_remove_itm_entries"));
-            table_remove_itnr_entries_checkbox.set_checked(settings_bool("table_remove_itnr_entries"));
-            table_remove_empty_file_checkbox.set_checked(settings_bool("table_remove_empty_file"));
-            text_remove_unused_xml_map_folders_checkbox.set_checked(settings_bool("text_remove_unused_xml_map_folders"));
-            text_remove_unused_xml_prefab_folder_checkbox.set_checked(settings_bool("text_remove_unused_xml_prefab_folder"));
-            text_remove_agf_files_checkbox.set_checked(settings_bool("text_remove_agf_files"));
-            text_remove_model_statistics_files_checkbox.set_checked(settings_bool("text_remove_model_statistics_files"));
-            pts_remove_unused_art_sets_checkbox.set_checked(settings_bool("pts_remove_unused_art_sets"));
-            pts_remove_unused_variants_checkbox.set_checked(settings_bool("pts_remove_unused_variants"));
-            pts_remove_empty_masks_checkbox.set_checked(settings_bool("pts_remove_empty_masks"));
-            pts_remove_empty_file_checkbox.set_checked(settings_bool("pts_remove_empty_file"));
+            pack_remove_itm_files_checkbox.set_checked(settings_bool(PACK_REMOVE_ITM_FILES));
+            db_import_datacores_into_twad_key_deletes_checkbox.set_checked(settings_bool(DB_IMPORT_DATACORES_INTO_TWAD_KEY_DELETES));
+            db_optimize_datacored_tables_checkbox.set_checked(settings_bool(DB_OPTIMIZE_DATACORED_TABLES));
+            table_remove_duplicated_entries_checkbox.set_checked(settings_bool(TABLE_REMOVE_DUPLICATED_ENTRIES));
+            table_remove_itm_entries_checkbox.set_checked(settings_bool(TABLE_REMOVE_ITM_ENTRIES));
+            table_remove_itnr_entries_checkbox.set_checked(settings_bool(TABLE_REMOVE_ITNR_ENTRIES));
+            table_remove_empty_file_checkbox.set_checked(settings_bool(TABLE_REMOVE_EMPTY_FILE));
+            text_remove_unused_xml_map_folders_checkbox.set_checked(settings_bool(TEXT_REMOVE_UNUSED_XML_MAP_FOLDERS));
+            text_remove_unused_xml_prefab_folder_checkbox.set_checked(settings_bool(TEXT_REMOVE_UNUSED_XML_PREFAB_FOLDER));
+            text_remove_agf_files_checkbox.set_checked(settings_bool(TEXT_REMOVE_AGF_FILES));
+            text_remove_model_statistics_files_checkbox.set_checked(settings_bool(TEXT_REMOVE_MODEL_STATISTICS_FILES));
+            pts_remove_unused_art_sets_checkbox.set_checked(settings_bool(PTS_REMOVE_UNUSED_ART_SETS));
+            pts_remove_unused_variants_checkbox.set_checked(settings_bool(PTS_REMOVE_UNUSED_VARIANTS));
+            pts_remove_empty_masks_checkbox.set_checked(settings_bool(PTS_REMOVE_EMPTY_MASKS));
+            pts_remove_empty_file_checkbox.set_checked(settings_bool(PTS_REMOVE_EMPTY_FILE));
         }
 
         db_optimize_datacored_tables_checkbox.set_visible(false);
@@ -3434,21 +3433,21 @@ impl AppUI {
         button_box.button(StandardButton::Ok).released().connect(dialog.slot_accept());
 
         if dialog.exec() == 1 {
-            settings_set_bool("pack_remove_itm_files", pack_remove_itm_files_checkbox.is_checked());
-            settings_set_bool("db_import_datacores_into_twad_key_deletes", db_import_datacores_into_twad_key_deletes_checkbox.is_checked());
-            settings_set_bool("db_optimize_datacored_tables", db_optimize_datacored_tables_checkbox.is_checked());
-            settings_set_bool("table_remove_duplicated_entries", table_remove_duplicated_entries_checkbox.is_checked());
-            settings_set_bool("table_remove_itm_entries", table_remove_itm_entries_checkbox.is_checked());
-            settings_set_bool("table_remove_itnr_entries", table_remove_itnr_entries_checkbox.is_checked());
-            settings_set_bool("table_remove_empty_file", table_remove_empty_file_checkbox.is_checked());
-            settings_set_bool("text_remove_unused_xml_map_folders", text_remove_unused_xml_map_folders_checkbox.is_checked());
-            settings_set_bool("text_remove_unused_xml_prefab_folder", text_remove_unused_xml_prefab_folder_checkbox.is_checked());
-            settings_set_bool("text_remove_agf_files", text_remove_agf_files_checkbox.is_checked());
-            settings_set_bool("text_remove_model_statistics_files", text_remove_model_statistics_files_checkbox.is_checked());
-            settings_set_bool("pts_remove_unused_art_sets", pts_remove_unused_art_sets_checkbox.is_checked());
-            settings_set_bool("pts_remove_unused_variants", pts_remove_unused_variants_checkbox.is_checked());
-            settings_set_bool("pts_remove_empty_masks", pts_remove_empty_masks_checkbox.is_checked());
-            settings_set_bool("pts_remove_empty_file", pts_remove_empty_file_checkbox.is_checked());
+            settings_set_bool(PACK_REMOVE_ITM_FILES, pack_remove_itm_files_checkbox.is_checked());
+            settings_set_bool(DB_IMPORT_DATACORES_INTO_TWAD_KEY_DELETES, db_import_datacores_into_twad_key_deletes_checkbox.is_checked());
+            settings_set_bool(DB_OPTIMIZE_DATACORED_TABLES, db_optimize_datacored_tables_checkbox.is_checked());
+            settings_set_bool(TABLE_REMOVE_DUPLICATED_ENTRIES, table_remove_duplicated_entries_checkbox.is_checked());
+            settings_set_bool(TABLE_REMOVE_ITM_ENTRIES, table_remove_itm_entries_checkbox.is_checked());
+            settings_set_bool(TABLE_REMOVE_ITNR_ENTRIES, table_remove_itnr_entries_checkbox.is_checked());
+            settings_set_bool(TABLE_REMOVE_EMPTY_FILE, table_remove_empty_file_checkbox.is_checked());
+            settings_set_bool(TEXT_REMOVE_UNUSED_XML_MAP_FOLDERS, text_remove_unused_xml_map_folders_checkbox.is_checked());
+            settings_set_bool(TEXT_REMOVE_UNUSED_XML_PREFAB_FOLDER, text_remove_unused_xml_prefab_folder_checkbox.is_checked());
+            settings_set_bool(TEXT_REMOVE_AGF_FILES, text_remove_agf_files_checkbox.is_checked());
+            settings_set_bool(TEXT_REMOVE_MODEL_STATISTICS_FILES, text_remove_model_statistics_files_checkbox.is_checked());
+            settings_set_bool(PTS_REMOVE_UNUSED_ART_SETS, pts_remove_unused_art_sets_checkbox.is_checked());
+            settings_set_bool(PTS_REMOVE_UNUSED_VARIANTS, pts_remove_unused_variants_checkbox.is_checked());
+            settings_set_bool(PTS_REMOVE_EMPTY_MASKS, pts_remove_empty_masks_checkbox.is_checked());
+            settings_set_bool(PTS_REMOVE_EMPTY_FILE, pts_remove_empty_file_checkbox.is_checked());
 
             AppUI::purge_them_all(app_ui, pack_file_contents_ui, true)?;
             GlobalSearchUI::clear(global_search_ui);
@@ -3463,21 +3462,21 @@ impl AppUI {
             pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(response_2), DataSource::PackFile, &pack_key);
             Ok(Some(()))
         } else {
-            settings_set_bool("pack_remove_itm_files", pack_remove_itm_files_checkbox.is_checked());
-            settings_set_bool("db_import_datacores_into_twad_key_deletes", db_import_datacores_into_twad_key_deletes_checkbox.is_checked());
-            settings_set_bool("db_optimize_datacored_tables", db_optimize_datacored_tables_checkbox.is_checked());
-            settings_set_bool("table_remove_duplicated_entries", table_remove_duplicated_entries_checkbox.is_checked());
-            settings_set_bool("table_remove_itm_entries", table_remove_itm_entries_checkbox.is_checked());
-            settings_set_bool("table_remove_itnr_entries", table_remove_itnr_entries_checkbox.is_checked());
-            settings_set_bool("table_remove_empty_file", table_remove_empty_file_checkbox.is_checked());
-            settings_set_bool("text_remove_unused_xml_map_folders", text_remove_unused_xml_map_folders_checkbox.is_checked());
-            settings_set_bool("text_remove_unused_xml_prefab_folder", text_remove_unused_xml_prefab_folder_checkbox.is_checked());
-            settings_set_bool("text_remove_agf_files", text_remove_agf_files_checkbox.is_checked());
-            settings_set_bool("text_remove_model_statistics_files", text_remove_model_statistics_files_checkbox.is_checked());
-            settings_set_bool("pts_remove_unused_art_sets", pts_remove_unused_art_sets_checkbox.is_checked());
-            settings_set_bool("pts_remove_unused_variants", pts_remove_unused_variants_checkbox.is_checked());
-            settings_set_bool("pts_remove_empty_masks", pts_remove_empty_masks_checkbox.is_checked());
-            settings_set_bool("pts_remove_empty_file", pts_remove_empty_file_checkbox.is_checked());
+            settings_set_bool(PACK_REMOVE_ITM_FILES, pack_remove_itm_files_checkbox.is_checked());
+            settings_set_bool(DB_IMPORT_DATACORES_INTO_TWAD_KEY_DELETES, db_import_datacores_into_twad_key_deletes_checkbox.is_checked());
+            settings_set_bool(DB_OPTIMIZE_DATACORED_TABLES, db_optimize_datacored_tables_checkbox.is_checked());
+            settings_set_bool(TABLE_REMOVE_DUPLICATED_ENTRIES, table_remove_duplicated_entries_checkbox.is_checked());
+            settings_set_bool(TABLE_REMOVE_ITM_ENTRIES, table_remove_itm_entries_checkbox.is_checked());
+            settings_set_bool(TABLE_REMOVE_ITNR_ENTRIES, table_remove_itnr_entries_checkbox.is_checked());
+            settings_set_bool(TABLE_REMOVE_EMPTY_FILE, table_remove_empty_file_checkbox.is_checked());
+            settings_set_bool(TEXT_REMOVE_UNUSED_XML_MAP_FOLDERS, text_remove_unused_xml_map_folders_checkbox.is_checked());
+            settings_set_bool(TEXT_REMOVE_UNUSED_XML_PREFAB_FOLDER, text_remove_unused_xml_prefab_folder_checkbox.is_checked());
+            settings_set_bool(TEXT_REMOVE_AGF_FILES, text_remove_agf_files_checkbox.is_checked());
+            settings_set_bool(TEXT_REMOVE_MODEL_STATISTICS_FILES, text_remove_model_statistics_files_checkbox.is_checked());
+            settings_set_bool(PTS_REMOVE_UNUSED_ART_SETS, pts_remove_unused_art_sets_checkbox.is_checked());
+            settings_set_bool(PTS_REMOVE_UNUSED_VARIANTS, pts_remove_unused_variants_checkbox.is_checked());
+            settings_set_bool(PTS_REMOVE_EMPTY_MASKS, pts_remove_empty_masks_checkbox.is_checked());
+            settings_set_bool(PTS_REMOVE_EMPTY_FILE, pts_remove_empty_file_checkbox.is_checked());
 
             Ok(None)
         }
@@ -3727,7 +3726,7 @@ impl AppUI {
         }
 
         // If we have the setting enabled, ask the backend to generate the missing definition list.
-        if settings_bool("check_for_missing_table_definitions") {
+        if settings_bool(CHECK_FOR_MISSING_TABLE_DEFINITIONS) {
             let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
             let _ = CENTRAL_COMMAND.read().unwrap().send(Command::GetMissingDefinitions(pack_key));
         }
@@ -3745,7 +3744,7 @@ impl AppUI {
         let pack_key = send_ipc_command_async(Command::NewPack, response_extractor!(Response::String));
 
         // Reset the autosave timer.
-        let timer = settings_i32("autosave_interval");
+        let timer = settings_i32(AUTOSAVE_INTERVAL);
         if timer > 0 {
             app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
             app_ui.timer_backup_autosave.start_0a();

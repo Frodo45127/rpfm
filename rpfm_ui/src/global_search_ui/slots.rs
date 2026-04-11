@@ -18,6 +18,7 @@ use qt_core::{SlotOfBool, SlotOfQModelIndex, SlotNoArgs, SlotOfQString};
 use getset::*;
 
 use rpfm_log::*;
+use rpfm_ipc::settings_keys::*;
 
 use rpfm_ui_common::clone;
 
@@ -275,7 +276,7 @@ impl GlobalSearchSlots {
                 if global_search_ui.search_source_game.is_checked() { value |= 2; }
                 if global_search_ui.search_source_asskit.is_checked() { value |= 4; }
 
-                let _ = settings_set_i32("global_search_sources_status", value);
+                let _ = settings_set_i32(GLOBAL_SEARCH_SOURCES_STATUS, value);
         }));
 
         // And here... we return all the slots.

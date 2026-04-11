@@ -17,7 +17,8 @@ extern "C" void toggle_animated(QWidget *spoiler) {
 }
 
 Spoiler::Spoiler(const QString & title, const int animationDuration, QWidget *parent) : QWidget(parent), animationDuration(animationDuration) {
-    toggleButton.setStyleSheet("QToolButton { border: none; font-weight: bold; }");
+    // Collapsed style: dimmed text. Expanded style: normal text.
+    toggleButton.setStyleSheet("QToolButton { border: none; font-weight: bold; opacity: 0.5; color: gray; }");
     toggleButton.setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     toggleButton.setArrowType(Qt::ArrowType::RightArrow);
     toggleButton.setText(title);
@@ -49,6 +50,13 @@ Spoiler::Spoiler(const QString & title, const int animationDuration, QWidget *pa
         toggleButton.setArrowType(checked ? Qt::ArrowType::DownArrow : Qt::ArrowType::RightArrow);
         toggleAnimation.setDirection(checked ? QAbstractAnimation::Forward : QAbstractAnimation::Backward);
         toggleAnimation.start();
+
+        // Dim the button text when collapsed, normal when expanded.
+        if (checked) {
+            toggleButton.setStyleSheet("QToolButton { border: none; font-weight: bold; }");
+        } else {
+            toggleButton.setStyleSheet("QToolButton { border: none; font-weight: bold; color: gray; }");
+        }
     });
 }
 

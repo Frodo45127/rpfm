@@ -48,6 +48,8 @@ use std::sync::{atomic::AtomicPtr, RwLock};
 
 use rpfm_extensions::dependencies::TableReferences;
 
+use rpfm_ipc::settings_keys::*;
+
 use rpfm_lib::binary::WriteBytes;
 use rpfm_lib::files::{ContainerPath, RFileDecoded, rigidmodel::materials::TextureType, table::Table};
 use rpfm_lib::schema::{Definition, DefinitionPatch, Field, FieldType};
@@ -451,8 +453,8 @@ pub unsafe fn load_data(
         let fields_processed = definition.fields_processed();
         let patches = Some(definition.patches());
         let keys = fields_processed.iter().enumerate().filter_map(|(x, y)| if y.is_key(patches) { Some(x as i32) } else { None }).collect::<Vec<i32>>();
-        let enable_lookups = settings_bool("enable_lookups");
-        let enable_icons = settings_bool("enable_icons");
+        let enable_lookups = settings_bool(ENABLE_LOOKUPS);
+        let enable_icons = settings_bool(ENABLE_ICONS);
 
         let icons: BTreeMap<i32, (String, HashMap<String, AtomicPtr<QIcon>>)> = if enable_icons {
             let mut map = BTreeMap::new();
@@ -756,7 +758,7 @@ pub unsafe fn build_columns(
     // TODO: Temp fix. This has to go and tooltips should be requested from the backend.
     let schema = schema().ok();
     let tooltips = get_column_tooltips(&schema, &fields_processed, loc_fields, patches, table_name);
-    let adjust_columns = settings_bool("adjust_columns_to_content");
+    let adjust_columns = settings_bool(ADJUST_COLUMNS_TO_CONTENT);
     let header = table_view.horizontal_header();
 
     let mut columns_to_hide = vec![];
@@ -917,7 +919,7 @@ pub unsafe fn build_columns(
     }
 
     // Now the order. If we have a sort order from the schema, we use that one.
-    if !settings_bool("tables_use_old_column_order") && do_we_have_ca_order {
+    if !settings_bool(TABLES_USE_OLD_COLUMN_ORDER) && do_we_have_ca_order {
         let mut fields = fields_processed.iter()
             .enumerate()
             .map(|(x, y)| (x, y.ca_order()))
@@ -1184,13 +1186,13 @@ pub unsafe fn setup_item_delegates(
         table_objects.push(frozen_view.static_upcast::<QObject>().as_ptr());
     }
 
-    let enable_lookups = settings_bool("enable_lookups");
+    let enable_lookups = settings_bool(ENABLE_LOOKUPS);
 
     for (column, field) in definition.fields_processed().iter().enumerate() {
         let references = table_references.get(&(column as i32));
 
         // Combos are a bit special, as they may or may not replace other delegates. If we disable them, use the normal delegates.
-        if !settings_bool("disable_combos_on_tables") && references.is_some() || !field.enum_values().is_empty() {
+        if !settings_bool(DISABLE_COMBOS_ON_TABLES) && references.is_some() || !field.enum_values().is_empty() {
             let values = QListOfQString::new_0a();
             let lookups = QListOfQString::new_0a();
             if let Some(data) = references {

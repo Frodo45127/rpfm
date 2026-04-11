@@ -30,9 +30,8 @@ use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::process::Command as SystemCommand;
 
-use rpfm_ipc::MYMOD_BASE_PATH;
-use rpfm_ipc::SECONDARY_PATH;
 use rpfm_ipc::messages::Command;
+use rpfm_ipc::settings_keys::*;
 
 use rpfm_ui_common::clone;
 
@@ -64,16 +63,7 @@ pub struct SettingsUISlots {
     pub clear_layout: QBox<SlotNoArgs>,
     pub add_rpfm_to_runcher_tools: QBox<SlotNoArgs>,
 
-    pub select_colour_light_table_added: QBox<SlotNoArgs>,
-    pub select_colour_light_table_modified: QBox<SlotNoArgs>,
-    pub select_colour_light_diagnostic_error: QBox<SlotNoArgs>,
-    pub select_colour_light_diagnostic_warning: QBox<SlotNoArgs>,
-    pub select_colour_light_diagnostic_info: QBox<SlotNoArgs>,
-    pub select_colour_dark_table_added: QBox<SlotNoArgs>,
-    pub select_colour_dark_table_modified: QBox<SlotNoArgs>,
-    pub select_colour_dark_diagnostic_error: QBox<SlotNoArgs>,
-    pub select_colour_dark_diagnostic_warning: QBox<SlotNoArgs>,
-    pub select_colour_dark_diagnostic_info: QBox<SlotNoArgs>,
+    pub select_colour: BTreeMap<String, QBox<SlotNoArgs>>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -97,14 +87,15 @@ impl SettingsUISlots {
 
                 // Fonts are a bit special. Init picks them up from the running app, not from a fixed value,
                 // so we need to manually overwrite them here before init_settings gets triggered.
-                let original_font_name = settings_string("original_font_name");
-                let original_font_size = settings_i32("original_font_size");
+                let original_font_name = settings_string(ORIGINAL_FONT_NAME);
+                let original_font_size = settings_i32(ORIGINAL_FONT_SIZE);
 
                 CENTRAL_COMMAND.read().unwrap().send(Command::ClearSettings);
+                invalidate_settings_cache();
                 init_app_exclusive_settings(&app_ui);
 
-                let _ = settings_set_string("font_name", &original_font_name);
-                let _ = settings_set_i32("font_size", original_font_size);
+                let _ = settings_set_string(FONT_NAME, &original_font_name);
+                let _ = settings_set_i32(FONT_SIZE, original_font_size);
 
                 if let Err(error) = ui.load() {
                     return show_dialog(&ui.dialog, error, false);
@@ -113,9 +104,10 @@ impl SettingsUISlots {
                 // Once the original settings are reloaded, wipe them out from the backend again and put the old ones in.
                 // That way, if the user cancels, we still have the old settings.
                 CENTRAL_COMMAND.read().unwrap().send(Command::RestoreBackupSettings);
+                invalidate_settings_cache();
 
                 // Set this value to indicate future operations that a reset has taken place.
-                let _ = settings_set_bool("factoryReset", true);
+                let _ = settings_set_bool(FACTORY_RESET, true);
             }
         ));
 
@@ -221,8 +213,8 @@ impl SettingsUISlots {
 
         let clear_layout = SlotNoArgs::new(&ui.dialog, clone!(
             app_ui => move || {
-                app_ui.main_window().restore_geometry(&QByteArray::from_slice(&settings_raw_data("originalGeometry")));
-                app_ui.main_window().restore_state_1a(&QByteArray::from_slice(&settings_raw_data("originalWindowState")));
+                app_ui.main_window().restore_geometry(&QByteArray::from_slice(&settings_raw_data(ORIGINAL_GEOMETRY)));
+                app_ui.main_window().restore_state_1a(&QByteArray::from_slice(&settings_raw_data(ORIGINAL_WINDOW_STATE)));
         }));
 
         let add_rpfm_to_runcher_tools = SlotNoArgs::new(&ui.dialog, clone!(
@@ -233,58 +225,18 @@ impl SettingsUISlots {
                 }
         }));
 
-        let select_colour_light_table_added = SlotNoArgs::new(&ui.dialog, clone!(
-            ui => move || {
-                change_colour(&ui.ui_table_colour_light_table_added_button);
-        }));
+        let mut select_colour = BTreeMap::new();
+        for (key, _button) in ui.colour_buttons().iter() {
+            let key_clone = key.clone();
+            select_colour.insert(key.clone(), SlotNoArgs::new(&ui.dialog, clone!(
+                ui => move || {
+                    if let Some(btn) = ui.colour_buttons().get(&key_clone) {
+                        change_colour(btn);
+                    }
+            })));
+        }
 
-        let select_colour_light_table_modified = SlotNoArgs::new(&ui.dialog, clone!(
-            ui => move || {
-                change_colour(&ui.ui_table_colour_light_table_modified_button);
-        }));
-
-        let select_colour_light_diagnostic_error = SlotNoArgs::new(&ui.dialog, clone!(
-            ui => move || {
-                change_colour(&ui.ui_table_colour_light_diagnostic_error_button);
-        }));
-
-        let select_colour_light_diagnostic_warning = SlotNoArgs::new(&ui.dialog, clone!(
-            ui => move || {
-                change_colour(&ui.ui_table_colour_light_diagnostic_warning_button);
-        }));
-
-        let select_colour_light_diagnostic_info = SlotNoArgs::new(&ui.dialog, clone!(
-            ui => move || {
-                change_colour(&ui.ui_table_colour_light_diagnostic_info_button);
-        }));
-
-        let select_colour_dark_table_added = SlotNoArgs::new(&ui.dialog, clone!(
-            ui => move || {
-                change_colour(&ui.ui_table_colour_dark_table_added_button);
-        }));
-
-        let select_colour_dark_table_modified = SlotNoArgs::new(&ui.dialog, clone!(
-            ui => move || {
-                change_colour(&ui.ui_table_colour_dark_table_modified_button);
-        }));
-
-        let select_colour_dark_diagnostic_error = SlotNoArgs::new(&ui.dialog, clone!(
-            ui => move || {
-                change_colour(&ui.ui_table_colour_dark_diagnostic_error_button);
-        }));
-
-        let select_colour_dark_diagnostic_warning = SlotNoArgs::new(&ui.dialog, clone!(
-            ui => move || {
-                change_colour(&ui.ui_table_colour_dark_diagnostic_warning_button);
-        }));
-
-        let select_colour_dark_diagnostic_info = SlotNoArgs::new(&ui.dialog, clone!(
-            ui => move || {
-                change_colour(&ui.ui_table_colour_dark_diagnostic_info_button);
-        }));
-
-        // And here... we return all the slots.
-		Self {
+        Self {
             restore_default,
             select_mymod_path,
             select_secondary_path,
@@ -298,17 +250,8 @@ impl SettingsUISlots {
             clear_schemas,
             clear_layout,
             add_rpfm_to_runcher_tools,
-            select_colour_light_table_added,
-            select_colour_light_table_modified,
-            select_colour_light_diagnostic_error,
-            select_colour_light_diagnostic_warning,
-            select_colour_light_diagnostic_info,
-            select_colour_dark_table_added,
-            select_colour_dark_table_modified,
-            select_colour_dark_diagnostic_error,
-            select_colour_dark_diagnostic_warning,
-            select_colour_dark_diagnostic_info,
-		}
+            select_colour,
+        }
 	}
 }
 

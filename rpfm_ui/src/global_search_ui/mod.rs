@@ -69,6 +69,7 @@ use rpfm_extensions::search::{GlobalSearch, MatchHolder,
 };
 
 use rpfm_ipc::helpers::DataSource;
+use rpfm_ipc::settings_keys::*;
 
 use rpfm_lib::files::FileType;
 use rpfm_lib::utils::closest_valid_char_byte;
@@ -245,7 +246,7 @@ impl GlobalSearchUI {
 
         // Remember the last status of the source checkboxes using a bitmask.
         // bit0 = parent, bit1 = game, bit2 = asskit
-        let sources_status = settings_i32("global_search_sources_status");
+        let sources_status = settings_i32(GLOBAL_SEARCH_SOURCES_STATUS);
         search_source_parent.set_checked(sources_status & 1 != 0);
         search_source_game.set_checked(sources_status & 2 != 0);
         search_source_asskit.set_checked(sources_status & 4 != 0);

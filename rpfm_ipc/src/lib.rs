@@ -58,9 +58,4 @@
 
 pub mod helpers;
 pub mod messages;
-
-/// Settings key for the base path where MyMods are stored.
-pub const MYMOD_BASE_PATH: &str = "mymods_base_path";
-
-/// Settings key for the secondary path (used for additional content paths).
-pub const SECONDARY_PATH: &str = "secondary_path";
+pub mod settings_keys;

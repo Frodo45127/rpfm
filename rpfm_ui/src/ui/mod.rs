@@ -36,6 +36,7 @@ use std::fs::{read_dir, remove_dir_all};
 use std::sync::atomic::AtomicPtr;
 
 use rpfm_ipc::helpers::DataSource;
+use rpfm_ipc::settings_keys::*;
 
 use rpfm_lib::games::supported_games::*;
 use rpfm_log::*;
@@ -148,19 +149,19 @@ impl UI {
         init_app_exclusive_settings(&app_ui);
 
         // Apply last ui state.
-        app_ui.main_window().restore_geometry(&QByteArray::from_slice(&settings_raw_data("geometry")));
-        app_ui.main_window().restore_state_1a(&QByteArray::from_slice(&settings_raw_data("windowState")));
+        app_ui.main_window().restore_geometry(&QByteArray::from_slice(&settings_raw_data(GEOMETRY)));
+        app_ui.main_window().restore_state_1a(&QByteArray::from_slice(&settings_raw_data(WINDOW_STATE)));
 
         // Apply the font.
-        let font_name = settings_string("font_name");
-        let font_size = settings_i32("font_size");
+        let font_name = settings_string(FONT_NAME);
+        let font_size = settings_i32(FONT_SIZE);
         let font = QFont::from_q_string_int(&QString::from_std_str(font_name), font_size);
         QApplication::set_font_1a(&font);
 
         UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
 
         // If we want the window to start maximized...
-        if settings_bool("start_maximized") {
+        if settings_bool(START_MAXIMIZED) {
             app_ui.main_window().set_window_state(QFlags::from(WindowState::WindowMaximized));
         }
 
@@ -172,7 +173,7 @@ impl UI {
 
         // Do not trigger the automatic game changed signal here, as that will trigger an expensive and useless dependency rebuild.
         info!("Setting initial Game Selected…");
-        match &*settings_string("default_game") {
+        match &*settings_string(DEFAULT_GAME) {
             KEY_PHARAOH_DYNASTIES => app_ui.game_selected_pharaoh_dynasties().set_checked(true),
             KEY_PHARAOH => app_ui.game_selected_pharaoh().set_checked(true),
             KEY_WARHAMMER_3 => app_ui.game_selected_warhammer_3().set_checked(true),
@@ -194,7 +195,7 @@ impl UI {
         }
 
         AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, &dependencies_ui, true, false);
-        info!("Initial Game Selected set to {}.", settings_string("default_game"));
+        info!("Initial Game Selected set to {}.", settings_string(DEFAULT_GAME));
 
         // We get all the Arguments provided when starting RPFM, just in case we passed it a path,
         // in which case, we automatically try to open it.
@@ -236,7 +237,7 @@ impl UI {
                         }
                     }
 
-                    if settings_bool("diagnostics_trigger_on_open") {
+                    if settings_bool(DIAGNOSTICS_TRIGGER_ON_OPEN) {
                         DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                     }
                 }

@@ -36,6 +36,7 @@ use std::path::Path;
 use std::rc::Rc;
 
 use rpfm_ipc::helpers::{ContainerInfo, DataSource, RFileInfo};
+use rpfm_ipc::settings_keys::*;
 
 use rpfm_lib::files::{ContainerPath, FileType, pack::PFHFlags};
 use rpfm_lib::utils::*;
@@ -1446,7 +1447,7 @@ impl PackTree for QPtr<QTreeView> {
                         }
                     }
 
-                    if settings_bool("expand_treeview_when_adding_items") {
+                    if settings_bool(EXPAND_TREEVIEW_WHEN_ADDING_ITEMS) {
                         self.expand_treeview_to_item(path, source, pack_key);
                     }
                 }
@@ -1678,7 +1679,7 @@ impl PackTree for QPtr<QTreeView> {
                 }
 
                 // Remove the now empty folders.
-                self.update_treeview(has_filter, TreeViewOperation::Delete(base_folders, settings_bool("delete_empty_folders_on_delete")), source, pack_key);
+                self.update_treeview(has_filter, TreeViewOperation::Delete(base_folders, settings_bool(DELETE_EMPTY_FOLDERS_ON_DELETE)), source, pack_key);
             },
 
             // If you want to mark an item so it can't lose his modified state...

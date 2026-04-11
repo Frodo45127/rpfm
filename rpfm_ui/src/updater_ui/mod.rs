@@ -23,6 +23,7 @@ use std::fmt::Display;
 use std::rc::Rc;
 
 use rpfm_ipc::helpers::APIResponse;
+use rpfm_ipc::settings_keys::*;
 
 use rpfm_lib::integrations::git::GitResponse;
 
@@ -84,19 +85,19 @@ impl UpdaterUI {
         let mut receiver_lua_autogen_updates = None;
         let mut receiver_old_ak_updates = None;
 
-        if !cfg!(target_os = "linux") && settings_bool("check_updates_on_start") {
+        if !cfg!(target_os = "linux") && settings_bool(CHECK_UPDATES_ON_START) {
             receiver_updates = Some(CENTRAL_COMMAND.read().unwrap().send(Command::CheckUpdates));
         }
 
-        if settings_bool("check_schema_updates_on_start") {
+        if settings_bool(CHECK_SCHEMA_UPDATES_ON_START) {
             receiver_schema_updates = Some(CENTRAL_COMMAND.read().unwrap().send(Command::CheckSchemaUpdates));
         }
 
-        if settings_bool("check_lua_autogen_updates_on_start") {
+        if settings_bool(CHECK_LUA_AUTOGEN_UPDATES_ON_START) {
             receiver_lua_autogen_updates = Some(CENTRAL_COMMAND.read().unwrap().send(Command::CheckLuaAutogenUpdates));
         }
 
-        if settings_bool("check_old_ak_updates_on_start") {
+        if settings_bool(CHECK_OLD_AK_UPDATES_ON_START) {
             receiver_old_ak_updates = Some(CENTRAL_COMMAND.read().unwrap().send(Command::CheckEmpireAndNapoleonAKUpdates));
         }
 
@@ -219,7 +220,7 @@ impl UpdaterUI {
         let changelog_path = PROGRAM_PATH.join(CHANGELOG_FILE);
 
         info_groupbox.set_title(&qtr("updater_info_title"));
-        info_label.set_text(&qtre("updater_info", &[&changelog_path.to_string_lossy(), &settings_string("update_channel")]));
+        info_label.set_text(&qtre("updater_info", &[&changelog_path.to_string_lossy(), &settings_string(UPDATE_CHANNEL)]));
         info_label.set_open_external_links(true);
 
         update_program_label.set_text(&qtr("updater_update_program"));
@@ -509,7 +510,7 @@ impl Display for UpdateChannel {
 
 /// This function returns the currently selected update channel.
 pub fn update_channel() -> UpdateChannel {
-    match &*settings_string("update_channel") {
+    match &*settings_string(UPDATE_CHANNEL) {
         BETA => UpdateChannel::Beta,
         _ => UpdateChannel::Stable,
     }

@@ -43,8 +43,7 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use rpfm_ipc::MYMOD_BASE_PATH;
-use rpfm_ipc::SECONDARY_PATH;
+use rpfm_ipc::settings_keys::*;
 use rpfm_ipc::helpers::{ContainerInfo, DataSource};
 
 use rpfm_lib::files::{ContainerPath, table::Table};
@@ -324,7 +323,7 @@ impl AppUISlots {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
 
-                        if settings_bool("diagnostics_trigger_on_open") {
+                        if settings_bool(DIAGNOSTICS_TRIGGER_ON_OPEN) {
                             DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                         }
                     }
@@ -358,7 +357,7 @@ impl AppUISlots {
                         return show_dialog(&app_ui.main_window, error, false);
                     }
 
-                    if settings_bool("diagnostics_trigger_on_open") {
+                    if settings_bool(DIAGNOSTICS_TRIGGER_ON_OPEN) {
                         DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                     }
                 }
@@ -416,7 +415,7 @@ impl AppUISlots {
                 info!("Triggering `Load all CA PackFiles` By Slot");
 
                 // Reset the autosave timer.
-                let timer = settings_i32("autosave_interval");
+                let timer = settings_i32(AUTOSAVE_INTERVAL);
                 if timer > 0 {
                     app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
                     app_ui.timer_backup_autosave.start_0a();
@@ -585,8 +584,8 @@ impl AppUISlots {
                 let secondary_path_old = settings_path_buf(SECONDARY_PATH);
                 let game_path_old = settings_path_buf(game_key);
                 let ak_path_old = settings_path_buf(&format!("{game_key}_assembly_kit"));
-                let font_name_old = settings_string("font_name");
-                let font_size_old = settings_i32("font_size");
+                let font_name_old = settings_string(FONT_NAME);
+                let font_size_old = settings_i32(FONT_SIZE);
 
                 match SettingsUI::new(&app_ui) {
                     Ok(saved) => {
@@ -609,18 +608,18 @@ impl AppUISlots {
                             }
 
                             // If we detect a change in the saved font, trigger a font change.
-                            let font_name = settings_string("font_name");
-                            let font_size = settings_i32("font_size");
+                            let font_name = settings_string(FONT_NAME);
+                            let font_size = settings_i32(FONT_SIZE);
                             if font_name_old != font_name || font_size_old != font_size {
                                 let font = QFont::from_q_string_int(&QString::from_std_str(&font_name), font_size);
                                 QApplication::set_font_1a(&font);
                             }
 
                             // If we detect a factory reset, reset the window's geometry and state.
-                            let factory_reset = settings_bool("factoryReset");
+                            let factory_reset = settings_bool(FACTORY_RESET);
                             if factory_reset {
-                                app_ui.main_window().restore_geometry(&QByteArray::from_slice(&settings_raw_data("originalGeometry")));
-                                app_ui.main_window().restore_state_1a(&QByteArray::from_slice(&settings_raw_data("originalWindowState")));
+                                app_ui.main_window().restore_geometry(&QByteArray::from_slice(&settings_raw_data(ORIGINAL_GEOMETRY)));
+                                app_ui.main_window().restore_state_1a(&QByteArray::from_slice(&settings_raw_data(ORIGINAL_WINDOW_STATE)));
                             }
                         }
                     }
@@ -628,7 +627,7 @@ impl AppUISlots {
                 }
 
                 // Make sure we don't drag the factory reset setting, no matter if the user saved or not.
-                let _ = settings_set_bool("factoryReset", false);
+                let _ = settings_set_bool(FACTORY_RESET, false);
             }
         ));
 
@@ -714,7 +713,7 @@ impl AppUISlots {
                                     GlobalSearchUI::clear(&global_search_ui);
 
                                     // Reset the autosave timer.
-                                    let timer = settings_i32("autosave_interval");
+                                    let timer = settings_i32(AUTOSAVE_INTERVAL);
                                     if timer > 0 {
                                         app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
                                         app_ui.timer_backup_autosave.start_0a();
@@ -1254,7 +1253,7 @@ impl AppUISlots {
                                 for (column, field) in fields_processed.iter().enumerate() {
 
                                     // Update lookups pointing to other tables/locs. We don't need to update self-referencing lookups, as those update on edit.
-                                    if settings_bool("enable_lookups") && field.lookup(patches).is_some() {
+                                    if settings_bool(ENABLE_LOOKUPS) && field.lookup(patches).is_some() {
                                         if let Some(column_data) = data.get(&(column as i32)) {
                                             let column_data = column_data.data();
                                             if !column_data.is_empty() {
@@ -1271,7 +1270,7 @@ impl AppUISlots {
                                     }
 
                                     // Update icons.
-                                    if settings_bool("enable_icons") && field.is_filename(patches) {
+                                    if settings_bool(ENABLE_ICONS) && field.is_filename(patches) {
                                         let mut icons = BTreeMap::new();
                                         if let Ok(ref table_data) = table_data {
 
@@ -1448,15 +1447,15 @@ impl AppUISlots {
                 // Before autosaving, check the space used by autosaves and throw a warning if we pass 25GB
                 if let Ok(autosave_path) = backup_autosave_path() {
                     if let Ok(folder_size) = fs_extra::dir::get_size(autosave_path) {
-                        if folder_size > 26843545600 && !settings_bool("autosave_folder_size_warning_triggered") {
-                            let _ = settings_set_bool("autosave_folder_size_warning_triggered", true);
+                        if folder_size > 26843545600 && !settings_bool(AUTOSAVE_FOLDER_SIZE_WARNING_TRIGGERED) {
+                            let _ = settings_set_bool(AUTOSAVE_FOLDER_SIZE_WARNING_TRIGGERED, true);
 
                             show_dialog(app_ui.main_window(), tr("autosave_folder_size_warning"), false);
                         }
 
                         // Make the warning available again once we get under 25GB.
                         else if folder_size <= 26843545600 {
-                            let _ = settings_set_bool("autosave_folder_size_warning_triggered", false);
+                            let _ = settings_set_bool(AUTOSAVE_FOLDER_SIZE_WARNING_TRIGGERED, false);
                         }
                     }
                 }
@@ -1469,7 +1468,7 @@ impl AppUISlots {
                 }
 
                 // Reset the timer.
-                let timer = settings_i32("autosave_interval");
+                let timer = settings_i32(AUTOSAVE_INTERVAL);
                 if timer > 0 {
                     app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
                     app_ui.timer_backup_autosave.start_0a();
@@ -1672,7 +1671,7 @@ impl AppUISlots {
                     return show_dialog(&app_ui.main_window, error, false);
                 }
 
-                if settings_bool("diagnostics_trigger_on_open") {
+                if settings_bool(DIAGNOSTICS_TRIGGER_ON_OPEN) {
                     DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                 }
             }
