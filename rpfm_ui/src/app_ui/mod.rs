@@ -1212,7 +1212,7 @@ impl AppUI {
             // Create the FileDialog to save the PackFile and configure it.
             let file_dialog = QFileDialog::from_q_widget_q_string(
                 &app_ui.main_window,
-                &qtr("save_packfile"),
+                &qtr("save_pack_as_menu"),
             );
             file_dialog.set_accept_mode(qt_widgets::q_file_dialog::AcceptMode::AcceptSave);
             file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
