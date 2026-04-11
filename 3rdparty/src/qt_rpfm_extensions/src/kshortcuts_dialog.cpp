@@ -220,6 +220,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(portrait_settings_actions, "add", "Add", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+A"), "edit-table-insert-row-below");
     new_action(portrait_settings_actions, "clone", "Clone", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+D"), "insert-table-row");
     new_action(portrait_settings_actions, "delete", "Delete", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+Del"), "edit-table-delete-row");
+    new_action(portrait_settings_actions, "delete_filtered_out", "Delete Filtered Out Rows", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+Shift+Del"), "edit-table-delete-row");
     portrait_settings_actions->readSettings();
 
     KActionCollection* unit_variant_actions = new KActionCollection(parent, "unit_variant");

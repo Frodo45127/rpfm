@@ -43,6 +43,7 @@ pub unsafe fn set_connections(ui: &Arc<PortraitSettingsView>, slots: &PortraitSe
     ui.main_list_add().triggered().connect(slots.main_list_add());
     ui.main_list_clone().triggered().connect(slots.main_list_clone());
     ui.main_list_delete().triggered().connect(slots.main_list_delete());
+    ui.main_list_delete_filtered().triggered().connect(slots.main_list_delete_filtered());
 
     ui.variants_list_add().triggered().connect(slots.variants_list_add());
     ui.variants_list_clone().triggered().connect(slots.variants_list_clone());

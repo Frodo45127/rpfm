@@ -57,6 +57,7 @@ pub struct PortraitSettingsSlots {
     main_list_add: QBox<SlotNoArgs>,
     main_list_clone: QBox<SlotNoArgs>,
     main_list_delete: QBox<SlotNoArgs>,
+    main_list_delete_filtered: QBox<SlotNoArgs>,
     variants_list_add: QBox<SlotNoArgs>,
     variants_list_clone: QBox<SlotNoArgs>,
     variants_list_delete: QBox<SlotNoArgs>,
@@ -219,6 +220,13 @@ impl PortraitSettingsSlots {
             view => move || {
             view.remove_entry(view.main_list_view.selection_model().selected_indexes().at(0))
         }));
+        let main_list_delete_filtered = SlotNoArgs::new(view.main_list_view(), clone!(
+            app_ui,
+            view => move || {
+            if AppUI::are_you_sure_edition(&app_ui, "are_you_sure_delete_filtered_out_rows") {
+                view.remove_filtered_out_entries();
+            }
+        }));
 
         let variants_list_add = SlotNoArgs::new(view.main_list_view(), clone!(
             view => move || {
@@ -285,6 +293,7 @@ impl PortraitSettingsSlots {
             main_list_add,
             main_list_clone,
             main_list_delete,
+            main_list_delete_filtered,
             variants_list_add,
             variants_list_clone,
             variants_list_delete,

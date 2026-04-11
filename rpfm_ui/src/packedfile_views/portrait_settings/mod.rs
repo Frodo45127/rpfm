@@ -169,6 +169,7 @@ pub struct PortraitSettingsView {
     main_list_add: QPtr<QAction>,
     main_list_clone: QPtr<QAction>,
     main_list_delete: QPtr<QAction>,
+    main_list_delete_filtered: QPtr<QAction>,
 
     variants_list_add: QPtr<QAction>,
     variants_list_clone: QPtr<QAction>,
@@ -370,6 +371,7 @@ impl PortraitSettingsView {
         let main_list_add = add_action_to_menu(&main_list_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "portrait_settings", "add", "context_menu_add", Some(main_list_view.static_upcast::<qt_widgets::QWidget>()));
         let main_list_clone = add_action_to_menu(&main_list_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "portrait_settings", "clone", "context_menu_clone", Some(main_list_view.static_upcast::<qt_widgets::QWidget>()));
         let main_list_delete = add_action_to_menu(&main_list_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "portrait_settings", "delete", "context_menu_delete", Some(main_list_view.static_upcast::<qt_widgets::QWidget>()));
+        let main_list_delete_filtered = add_action_to_menu(&main_list_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "portrait_settings", "delete_filtered_out", "context_menu_delete_filtered_out_rows", Some(main_list_view.static_upcast::<qt_widgets::QWidget>()));
         main_list_clone.set_enabled(false);
         main_list_delete.set_enabled(false);
 
@@ -469,6 +471,7 @@ impl PortraitSettingsView {
             main_list_add,
             main_list_clone,
             main_list_delete,
+            main_list_delete_filtered,
 
             variants_list_add,
             variants_list_clone,
@@ -979,6 +982,23 @@ impl PortraitSettingsView {
     /// Function to remove an entry from the list.
     pub unsafe fn remove_entry(&self, index: Ref<QModelIndex>) {
         self.main_list_model.remove_row_1a(self.main_list_filter.map_to_source(index).row());
+        self.detailed_view_widget.set_enabled(false);
+    }
+
+    /// Function to remove all entries that are currently filtered out.
+    pub unsafe fn remove_filtered_out_entries(&self) {
+        let mut rows_to_delete = vec![];
+        for row in 0..self.main_list_model.row_count_0a() {
+            if !self.main_list_filter.map_from_source(&self.main_list_model.index_2a(row, 0)).is_valid() {
+                rows_to_delete.push(row);
+            }
+        }
+
+        rows_to_delete.reverse();
+        for row in rows_to_delete {
+            self.main_list_model.remove_row_1a(row);
+        }
+
         self.detailed_view_widget.set_enabled(false);
     }
 
