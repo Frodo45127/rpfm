@@ -1910,7 +1910,7 @@ impl McpServer {
         send_and_respond!(self, "settings_get_vec_raw", Command::SettingsGetVecRaw(params.0.value))
     }
 
-    #[tool(description = "Get all settings at once (bool, i32, f32, and string maps).")]
+    #[tool(description = "Get all settings at once (bool, i32, f32, string, raw_data, and vec_string maps).")]
     pub async fn settings_get_all(&self) -> Result<CallToolResult, McpError> {
         send_and_respond!(self, "settings_get_all", Command::SettingsGetAll)
     }
