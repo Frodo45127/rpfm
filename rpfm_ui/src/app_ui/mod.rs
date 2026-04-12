@@ -123,6 +123,9 @@ const PACK_MAP_VIEW_RELEASE: &str = "ui/pack_map_dialog.ui";
 const BUILD_STARPOS_VIEW_DEBUG: &str = "rpfm_ui/ui_templates/build_starpos_view.ui";
 const BUILD_STARPOS_VIEW_RELEASE: &str = "ui/build_starpos_view.ui";
 
+const BUILD_CEO_VIEW_DEBUG: &str = "rpfm_ui/ui_templates/build_ceo_view.ui";
+const BUILD_CEO_VIEW_RELEASE: &str = "ui/build_ceo_view.ui";
+
 const UPDATE_ANIM_IDS_VIEW_DEBUG: &str = "rpfm_ui/ui_templates/update_anim_ids_dialog.ui";
 const UPDATE_ANIM_IDS_VIEW_RELEASE: &str = "ui/update_anim_ids_dialog.ui";
 
@@ -3985,6 +3988,50 @@ impl AppUI {
         } else {
             Ok(())
         }
+    }
+
+    /// This function builds CEO data into the open pack.
+    pub unsafe fn build_ceo(app_ui: &Rc<Self>, pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Result<()> {
+        let template_path = if cfg!(debug_assertions) { BUILD_CEO_VIEW_DEBUG } else { BUILD_CEO_VIEW_RELEASE };
+        let main_widget = load_template(app_ui.main_window(), template_path)?;
+        let dialog = main_widget.static_downcast::<QDialog>();
+
+        let instructions_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "instructions_label")?;
+        let button_box: QPtr<QDialogButtonBox> = find_widget(&main_widget.static_upcast(), "button_box")?;
+        let generate_button = button_box.add_button_q_string_button_role(&qtr("build_ceo"), ButtonRole::ActionRole);
+
+        dialog.set_window_title(&qtr("build_ceo"));
+        instructions_label.set_text(&qtr("build_ceo_instructions"));
+
+        let game = GAME_SELECTED.read().unwrap();
+        let akit_path = settings_path_buf(&(game.key().to_owned() + "_assembly_kit"))
+            .to_string_lossy().to_string();
+        let bob_exe = PathBuf::from(&akit_path).join("binaries").join("bob.modder.x64.exe");
+        drop(game);
+
+        if akit_path.is_empty() || !bob_exe.exists() {
+            generate_button.set_enabled(false);
+        }
+
+        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+
+        // Wire Generate button to accept the dialog, then BOB runs after exec() returns.
+        let dialog_ptr = dialog.as_ptr();
+        let start_build = SlotNoArgs::new(&dialog, move || {
+            dialog_ptr.accept();
+        });
+        generate_button.released().connect(&start_build);
+
+        if dialog.exec() == 1 {
+            send_ipc_command_result_async(
+                Command::BuildCeo(pack_key, akit_path, bob_exe.to_string_lossy().to_string()),
+                response_extractor!()
+            )?;
+
+            show_dialog(app_ui.main_window(), "ceo_data.ccd generated successfully!", true);
+        }
+
+        Ok(())
     }
 
     /// This function is used to mass-update anim ids after an update.

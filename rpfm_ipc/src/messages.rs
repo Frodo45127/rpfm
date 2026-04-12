@@ -1005,6 +1005,9 @@ pub enum Command {
     /// - [`Response::Error`] on failure.
     BuildStarposPost(String, String, bool),
 
+
+    BuildCeo(String, String, String),
+
     /// Clean up starpos temporary files for a specific pack.
     /// First field is the pack key, then campaign ID, process HLP/SPD data.
     ///

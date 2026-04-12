@@ -3036,6 +3036,66 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 }
             },
 
+            Command::BuildCeo(_pack_key, akit_path, bob_exe_path) => {
+                use std::process::Command as SysCommand;
+                use std::time::{Duration, Instant};
+
+                let bob_exe = PathBuf::from(&bob_exe_path);
+                let bob_dir = match bob_exe.parent() {
+                    Some(d) => d.to_path_buf(),
+                    None => { CentralCommand::send_back(&sender, Response::Error("Invalid BOB path".into())); continue 'background_loop; }
+                };
+                let ceo_ccd = PathBuf::from(&akit_path).join(r"working_data\campaigns\ceo_data.ccd");
+
+                // Write BOB config targeting ceo_data.ccd
+                const BOB_CONFIG_XML: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
+                <bob_configuration><processors><processor>Campaign</processor></processors>
+                <directories/><global_rules/><retail>0</retail><silent>1</silent>
+                <get_latest>0</get_latest><connect_db>0</connect_db>
+                <merge_for_checkin_mode>2</merge_for_checkin_mode>
+                <selected_files><entry>&lt;working&gt;/campaigns/ceo_data.ccd</entry></selected_files>
+                </bob_configuration>"#;
+                let cfg_path = bob_dir.join(r"BOB\default_configuration.xml");
+                if let Some(p) = cfg_path.parent() { let _ = std::fs::create_dir_all(p); }
+                if std::fs::write(&cfg_path, BOB_CONFIG_XML).is_err() {
+                    CentralCommand::send_back(&sender, Response::Error("Failed to write BOB config".into()));
+                    continue 'background_loop;
+                }
+
+                // Backup existing ceo_data.ccd
+                if ceo_ccd.exists() {
+                    let bak = ceo_ccd.with_extension("ccd.bak1");
+                    let _ = std::fs::rename(&ceo_ccd, &bak);
+                }
+
+                // Launch BOB
+                let output = match SysCommand::new(&bob_exe).current_dir(&bob_dir).output() {
+                    Ok(o) => o,
+                    Err(e) => {
+                        CentralCommand::send_back(&sender, Response::Error(format!("Failed to launch BOB: {e}")));
+                        continue 'background_loop;
+                    }
+                };
+
+                // Poll for ceo_data.ccd (180s timeout)
+                let deadline = Instant::now() + Duration::from_secs(180);
+                let found = loop {
+                    if ceo_ccd.exists() { break true; }
+                    if Instant::now() >= deadline { break false; }
+                    std::thread::sleep(Duration::from_millis(500));
+                };
+
+                if found {
+                    CentralCommand::send_back(&sender, Response::Success);
+                } else {
+                    CentralCommand::send_back(&sender, Response::Error(format!(
+                        "ceo_data.ccd not generated within 180s. BOB exit: {:?}\nstdout: {}",
+                        output.status.code(),
+                        String::from_utf8_lossy(&output.stdout)
+                    )));
+                }
+            }
+
             Command::UpdateAnimIds(pack_key, starting_id, offset) => {
                 match packs.get_mut(&pack_key) {
                     Some(pack) => {

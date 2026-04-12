@@ -129,6 +129,7 @@ pub struct PackFileContentsSlots {
     pub context_menu_pack_map: QBox<SlotOfBool>,
     pub context_menu_rescue_packfile: QBox<SlotOfBool>,
     pub context_menu_build_starpos: QBox<SlotOfBool>,
+    pub context_menu_build_ceo: QBox<SlotOfBool>,
     pub context_menu_update_anim_ids: QBox<SlotOfBool>,
 
     pub context_menu_mymod_import: QBox<SlotOfBool>,
@@ -648,6 +649,7 @@ impl PackFileContentsSlots {
                     pack_file_contents_ui.context_menu_optimize_packfile.set_visible(true);
                     pack_file_contents_ui.context_menu_rescue_packfile.set_visible(true);
                     pack_file_contents_ui.context_menu_build_starpos.set_visible(true);
+                    pack_file_contents_ui.context_menu_build_ceo.set_visible(true);   
 
                     // Game-specific actions.
                     let game_key = GAME_SELECTED.read().unwrap().key().to_owned();
@@ -702,6 +704,7 @@ impl PackFileContentsSlots {
                     pack_file_contents_ui.context_menu_optimize_packfile.set_visible(false);
                     pack_file_contents_ui.context_menu_rescue_packfile.set_visible(false);
                     pack_file_contents_ui.context_menu_build_starpos.set_visible(false);
+                    pack_file_contents_ui.context_menu_build_ceo.set_visible(false);   
                     pack_file_contents_ui.context_menu_patch_siege_ai.set_visible(false);
                     pack_file_contents_ui.context_menu_live_export.set_visible(false);
                     pack_file_contents_ui.context_menu_pack_map.set_visible(false);
@@ -2085,6 +2088,19 @@ impl PackFileContentsSlots {
             }
         ));
 
+        let context_menu_build_ceo = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+                app_ui.toggle_main_window(false);
+
+                if let Err(error) = AppUI::build_ceo(&app_ui, &pack_file_contents_ui) {
+                    show_dialog(app_ui.main_window(), error, false);
+                }
+
+                app_ui.toggle_main_window(true);
+            }
+        ));
+
         let context_menu_update_anim_ids = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
@@ -2262,6 +2278,7 @@ impl PackFileContentsSlots {
             context_menu_pack_map,
             context_menu_rescue_packfile,
             context_menu_build_starpos,
+            context_menu_build_ceo,
             context_menu_update_anim_ids,
 
             context_menu_mymod_import,
