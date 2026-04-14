@@ -1005,9 +1005,6 @@ pub enum Command {
     /// - [`Response::Error`] on failure.
     BuildStarposPost(String, String, bool),
 
-
-    BuildCeo(String, String, String),
-
     /// Clean up starpos temporary files for a specific pack.
     /// First field is the pack key, then campaign ID, process HLP/SPD data.
     ///
@@ -1029,6 +1026,18 @@ pub enum Command {
     /// - [`Response::Success`] if exists or not needed.
     /// - [`Response::Error`] if missing.
     BuildStarposCheckVictoryConditions(String),
+
+
+    BuildCeo(String, String, String),
+
+    /// Import ceo_data.ccd into the open pack after BOB has run.
+    /// Field is the pack key.
+    ///
+    /// Response:
+    /// - [`Response::VecContainerPath`] on success.
+    /// - [`Response::Error`] on failure.
+    BuildCeoPost(String, String),  // pack_key, akit_path
+
 
     //-----------------------------------------------------------------------//
     // Animation Commands

@@ -3998,7 +3998,9 @@ impl AppUI {
 
         let instructions_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "instructions_label")?;
         let button_box: QPtr<QDialogButtonBox> = find_widget(&main_widget.static_upcast(), "button_box")?;
-        let generate_button = button_box.add_button_q_string_button_role(&qtr("build_ceo"), ButtonRole::ActionRole);
+        let build_ceo_button = button_box.add_button_q_string_button_role(&qtr("build_ceo"), ButtonRole::ActionRole);
+        let ceo_done_button = button_box.add_button_q_string_button_role(&qtr("build_ceo_done"), ButtonRole::YesRole);
+        ceo_done_button.set_enabled(false);
 
         dialog.set_window_title(&qtr("build_ceo"));
         instructions_label.set_text(&qtr("build_ceo_instructions"));
@@ -4010,28 +4012,55 @@ impl AppUI {
         drop(game);
 
         if akit_path.is_empty() || !bob_exe.exists() {
-            generate_button.set_enabled(false);
+            build_ceo_button.set_enabled(false);
         }
 
         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
 
-        // Wire Generate button to accept the dialog, then BOB runs after exec() returns.
+        // Actions — mirror build_starpos exactly:
+        // build_ceo_button runs BOB, then enables ceo_done_button.
+        // ceo_done_button closes the dialog (exec returns 1).
+        // Import happens after exec() returns, outside any slot.
         let dialog_ptr = dialog.as_ptr();
+        let build_ceo_button_ptr = build_ceo_button.as_ptr();
+        let ceo_done_button_ptr = ceo_done_button.as_ptr();
+        let pack_key_closure = pack_key.clone();
+        let akit_path_closure = akit_path.clone();
+        let bob_exe_str = bob_exe.to_string_lossy().to_string();
+
         let start_build = SlotNoArgs::new(&dialog, move || {
-            dialog_ptr.accept();
-        });
-        generate_button.released().connect(&start_build);
-
-        if dialog.exec() == 1 {
-            send_ipc_command_result_async(
-                Command::BuildCeo(pack_key, akit_path, bob_exe.to_string_lossy().to_string()),
+            build_ceo_button_ptr.set_enabled(false);
+            match send_ipc_command_result_async(
+                Command::BuildCeo(pack_key_closure.clone(), akit_path_closure.clone(), bob_exe_str.clone()),
                 response_extractor!()
+            ) {
+                Ok(_) => ceo_done_button_ptr.set_enabled(true),
+                Err(error) => {
+                    build_ceo_button_ptr.set_enabled(true);
+                    show_dialog(dialog_ptr, error, false);
+                }
+            }
+        });
+
+        build_ceo_button.released().connect(&start_build);
+        ceo_done_button.released().connect(dialog_ptr.slot_accept());
+
+        // After dialog closes via ceo_done_button, import ceo_data.ccd into the pack.
+        if dialog.exec() == 1 {
+            let paths = send_ipc_command_result_async(
+                Command::BuildCeoPost(pack_key.clone(), akit_path.clone()),
+                response_extractor!(Response::VecContainerPath)
             )?;
-
-            show_dialog(app_ui.main_window(), "ceo_data.ccd generated successfully!", true);
+            if !paths.is_empty() {
+                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(paths), DataSource::PackFile, &pack_key);
+                UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
+            }
+            Ok(())
+        } else if ceo_done_button.is_enabled() {
+            Ok(())
+        } else {
+            Ok(())
         }
-
-        Ok(())
     }
 
     /// This function is used to mass-update anim ids after an update.

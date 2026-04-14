@@ -1635,7 +1635,10 @@ build_ceo_instructions = <p>Instructions:</p>
         <li>If you have edited CEO XML files, make sure they are already in place in <b>raw_data/db/</b> before clicking Build CEO.</li>
         <li>Hit the <b>Build CEO</b> button. BOB will run silently in the background and generate <b>ceo_data.ccd</b> in your Assembly Kit's <b>working_data/campaigns/</b> folder.</li>
         <li>Once it finishes, the <b>Import CCD</b> button will unlock. Hit it to import <b>ceo_data.ccd</b> into your Pack under <b>db/</b>.</li>
-    </ul>build_ceo_import = Import CCD
+    </ul>
+    
+build_ceo_import = Import CCD
+build_ceo_done = BOB Done - Import CCD
 
 
 campaign_id = Campaign ID:

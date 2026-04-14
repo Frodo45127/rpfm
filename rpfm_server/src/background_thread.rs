@@ -3096,6 +3096,41 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 }
             }
 
+            Command::BuildCeoPost(pack_key, akit_path) => {
+                let ceo_ccd_path = PathBuf::from(&akit_path)
+                    .join(r"working_data\campaigns\ceo_data.ccd");
+
+                if !ceo_ccd_path.exists() {
+                    CentralCommand::send_back(&sender, Response::Error(
+                        "ceo_data.ccd not found. Make sure BOB ran successfully.".into()
+                    ));
+                    continue 'background_loop;
+                }
+
+                let raw_bytes = match std::fs::read(&ceo_ccd_path) {
+                    Ok(b) => b,
+                    Err(e) => {
+                        CentralCommand::send_back(&sender, Response::Error(
+                            format!("Failed to read ceo_data.ccd: {e}")
+                        ));
+                        continue 'background_loop;
+                    }
+                };
+
+                match packs.get_mut(&pack_key) {
+                    Some(pack) => {
+                        let mut rfile = RFile::new_from_vec(&raw_bytes, FileType::Unknown, 0, "campaigns/ceo_data.ccd");
+                        let _ = rfile.guess_file_type();
+                        match pack.insert(rfile) {
+                            Ok(Some(path)) => CentralCommand::send_back(&sender, Response::VecContainerPath(vec![path])),
+                            Ok(None) => CentralCommand::send_back(&sender, Response::VecContainerPath(vec![])),
+                            Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
+                        }
+                    }
+                    None => CentralCommand::send_back(&sender, Response::Error(format!("Pack not found: {pack_key}"))),
+                }
+            }
+
             Command::UpdateAnimIds(pack_key, starting_id, offset) => {
                 match packs.get_mut(&pack_key) {
                     Some(pack) => {
