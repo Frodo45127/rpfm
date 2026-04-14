@@ -2817,8 +2817,9 @@ impl TableView {
             self.post_process_edition(app_ui, pack_file_contents_ui);
         }
 
-        // Trick to properly update the view.
+        // Trick to properly update the view, including the frozen columns overlay.
         self.table_view.viewport().repaint();
+        update_frozen_view_geometry_safe(&self.table_view_ptr());
 
         self.start_delayed_updates_timer();
     }
@@ -2957,6 +2958,7 @@ impl TableView {
         self.filter_table();
 
         self.table_view.viewport().repaint();
+        update_frozen_view_geometry_safe(&self.table_view_ptr());
     }
 
     pub unsafe fn update_row_diff_marker(&self, definition: &Definition, row: i32) {
@@ -3770,6 +3772,7 @@ impl TableView {
         }
         blocker.unblock();
         table_view.viewport().repaint();
+        update_frozen_view_geometry_safe(&table_view);
     }
 }
 

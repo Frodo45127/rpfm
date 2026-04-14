@@ -37,6 +37,14 @@ extern "C" QTableView* get_frozen_view(QTableView* tableView) {
     return nullptr;
 }
 
+// Function to force a geometry update on the frozen view overlay.
+extern "C" void update_frozen_view_geometry(QTableView* tableView) {
+    QTableViewFrozen* tableViewFrozen = dynamic_cast<QTableViewFrozen*>(tableView);
+    if (tableViewFrozen) {
+        tableViewFrozen->updateFrozenTableGeometry();
+    }
+}
+
 //-----------------------------------------------------------
 // Private calls.
 //-----------------------------------------------------------
@@ -278,24 +286,33 @@ void QTableViewFrozen::updateFrozenTableGeometry() {
         }
     }
 
-    int vHeaderWidth = verticalHeader()->isVisible() ? verticalHeader()->width() : 0;
+    // Always get the vertical header width, even when hidden (for frozen mode).
+    int vHeaderWidth = verticalHeader()->width();
+    if (vHeaderWidth <= 0) {
+        vHeaderWidth = verticalHeader()->sizeHint().width();
+    }
     int fw = frameWidth();
 
-    QMargins margins = viewportMargins();
-    margins.setLeft(vHeaderWidth + fw + frozenWidth);
-    setViewportMargins(margins);
-
     if (frozenColumns.isEmpty()) {
+        verticalHeader()->show();
         tableViewFrozen->verticalHeader()->hide();
         tableViewFrozen->hide();
+
+        QMargins margins = viewportMargins();
+        margins.setLeft(vHeaderWidth + fw);
+        setViewportMargins(margins);
     } else {
-        // Show the frozen view's own vertical header to display row numbers,
-        // since the frozen view covers the main view's vertical header area.
+        // Hide the main view's vertical header and show the frozen view's own instead,
+        // to prevent the main header from rendering behind the frozen overlay.
+        verticalHeader()->hide();
         tableViewFrozen->verticalHeader()->show();
         tableViewFrozen->verticalHeader()->setDefaultSectionSize(verticalHeader()->defaultSectionSize());
 
-        // The frozen view covers from the vertical header area through the frozen columns.
-        // Its width includes the vertical header + frozen column data.
+        QMargins margins = viewportMargins();
+        margins.setLeft(fw + vHeaderWidth + frozenWidth);
+        setViewportMargins(margins);
+
+        // The frozen view covers the frozen columns area on the left.
         tableViewFrozen->setGeometry(
             fw,
             fw,
@@ -304,6 +321,9 @@ void QTableViewFrozen::updateFrozenTableGeometry() {
         );
         tableViewFrozen->raise();
         tableViewFrozen->show();
+
+        // Ensure the frozen view never scrolls horizontally — it must stay pinned at 0.
+        tableViewFrozen->horizontalScrollBar()->setValue(0);
     }
 }
 

@@ -346,6 +346,12 @@ pub unsafe fn get_frozen_view_safe(table: &QPtr<QTableView>) -> QPtr<QTableView>
     QPtr::from_raw(get_frozen_view(table.as_mut_raw_ptr()))
 }
 
+// This function forces a geometry update on the frozen view overlay.
+extern "C" { fn update_frozen_view_geometry(table: *mut QTableView); }
+pub unsafe fn update_frozen_view_geometry_safe(table: &QPtr<QTableView>) {
+    update_frozen_view_geometry(table.as_mut_raw_ptr());
+}
+
 //---------------------------------------------------------------------------//
 // Command Palette stuff.
 //---------------------------------------------------------------------------//

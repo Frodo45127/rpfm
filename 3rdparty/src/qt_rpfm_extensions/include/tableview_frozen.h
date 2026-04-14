@@ -8,6 +8,7 @@
 extern "C" QTableView* new_tableview_frozen(QWidget* parent = nullptr, void (*generate_tooltip_message)(QTableView* view, int globalPosX, int globalPosY) = nullptr);
 extern "C" void toggle_freezer(QTableView* tableView = nullptr, int column = 0);
 extern "C" QTableView* get_frozen_view(QTableView* tableView = nullptr);
+extern "C" void update_frozen_view_geometry(QTableView* tableView = nullptr);
 
 class QTableViewFrozen : public QTableView {
      Q_OBJECT
@@ -18,6 +19,7 @@ public:
 
     void setModel(QAbstractItemModel * model) override;
     void setUpdatesEnabled(bool enable);
+    void updateFrozenTableGeometry();
     QTableView *tableViewFrozen;
 
 protected:
@@ -30,7 +32,6 @@ private:
     QPoint _lastPosition;
     bool sortSyncInProgress;
     void (*generateTooltipMessage)(QTableView* view, int globalPosX, int globalPosY);
-    void updateFrozenTableGeometry();
 
 public slots:
     void toggleFreezer(int column = 0);
