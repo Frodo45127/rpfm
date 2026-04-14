@@ -1464,11 +1464,11 @@ impl PackTree for QPtr<QTreeView> {
                     let count = path.split('/').count();
                     let is_file = matches!(path_type, ContainerPath::File(_));
 
-                    // If path is empty, it's the Pack. In this case we just rebuild the TreeView.
+                    // If path is empty, it's the Pack. In this case we just remove all children of the pack.
                     if path.is_empty() {
-                        let mut build_data = BuildData::new();
-                        build_data.editable = true;
-                        self.update_treeview(true, TreeViewOperation::Build(build_data), source, pack_key);
+                        while pack.row_count() > 0 {
+                            pack.remove_row(0);
+                        }
                     }
 
                     // Otherwise, it's either a file or a folder.
