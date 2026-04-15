@@ -3110,8 +3110,11 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
 
                 let mut export_errors: Vec<String> = Vec::new();
 
+                // Group table paths by their target XML file so multiple
+                // db tables (e.g. data__, data__01) are combined into one XML.
+                let mut xml_groups: std::collections::BTreeMap<String, Vec<String>> = std::collections::BTreeMap::new();
                 for table_path in &ceo_table_paths {
-                    // "db/ceos_tables/data__" -> folder="ceos_tables" -> xml="ceos.xml" -> tag="ceos"
+                    // "db/ceos_tables/data__" -> folder="ceos_tables" -> xml="ceos.xml"
                     let parts: Vec<&str> = table_path.split('/').collect();
                     if parts.len() < 2 { continue; }
                     let folder = parts[1];
@@ -3120,27 +3123,14 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                     } else {
                         folder.to_owned() + ".xml"
                     };
-                    let xml_path = raw_db.join(&xml_name);
-                    let table_tag = if folder.ends_with("_tables") { &folder[..folder.len() - 7] } else { folder };
+                    xml_groups.entry(xml_name).or_default().push(table_path.clone());
+                }
 
-                    let rfile = match pack_ref.files_mut().get_mut(table_path) {
-                        Some(f) => f,
-                        None => continue,
-                    };
-
-                    let _ = rfile.load();
-                    let _ = rfile.decode(&decode_extra, true, false);
-
-                    let db_table = match rfile.decoded() {
-                        Ok(RFileDecoded::DB(db)) => db.clone(),
-                        _ => { export_errors.push(format!("Could not decode {table_path}")); continue; }
-                    };
-
-                    // Write in AKit format matching what BOB expects:
-                    // - Proper <dataroot> with namespace attributes
-                    // - <edit_uuid> element
-                    // - Fields sorted alphabetically (as CA's export does)
+                for (xml_name, table_paths) in &xml_groups {
+                    let xml_path = raw_db.join(xml_name);
+                    let table_tag = xml_name.trim_end_matches(".xml");
                     let xsd_name = xml_name.replace(".xml", ".xsd");
+
                     let mut xml = format!(
                         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n\
                          <dataroot xmlns:od=\"urn:schemas-microsoft-com:officedata\" \
@@ -3150,43 +3140,58 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                          <edit_uuid>00000000-0000-0000-0000-000000000000</edit_uuid>\r\n"
                     );
 
-                    let fields: Vec<_> = db_table.definition().fields_processed().to_vec();
+                    for table_path in table_paths {
+                        let rfile = match pack_ref.files_mut().get_mut(table_path.as_str()) {
+                            Some(f) => f,
+                            None => continue,
+                        };
 
-                    for row in db_table.data().iter() {
-                        // Collect field name+value pairs then sort alphabetically
-                        let mut field_pairs: Vec<(String, String)> = Vec::new();
-                        for (field_def, value) in fields.iter().zip(row.iter()) {
-                            let fname = field_def.name().to_owned();
-                            let val_str = match value {
-                                DecodedData::Boolean(b) => if *b { "1".to_owned() } else { "0".to_owned() },
-                                DecodedData::I16(v) => v.to_string(),
-                                DecodedData::I32(v) => v.to_string(),
-                                DecodedData::I64(v) => v.to_string(),
-                                DecodedData::OptionalI16(v) => v.to_string(),
-                                DecodedData::OptionalI32(v) => v.to_string(),
-                                DecodedData::OptionalI64(v) => v.to_string(),
-                                DecodedData::F32(v) => v.to_string(),
-                                DecodedData::F64(v) => v.to_string(),
-                                DecodedData::StringU8(s) | DecodedData::StringU16(s) |
-                                DecodedData::OptionalStringU8(s) | DecodedData::OptionalStringU16(s) => s.clone(),
-                                DecodedData::ColourRGB(s) => s.clone(),
-                                _ => String::new(),
-                            };
-                            let escaped = val_str
-                                .replace('&', "&amp;")
-                                .replace('<', "&lt;")
-                                .replace('>', "&gt;")
-                                .replace('"', "&quot;");
-                            field_pairs.push((fname, escaped));
-                        }
-                        field_pairs.sort_by(|a, b| a.0.cmp(&b.0));
+                        let _ = rfile.load();
+                        let _ = rfile.decode(&decode_extra, true, false);
 
-                        xml.push_str(&format!("<{table_tag}>\r\n"));
-                        for (fname, val) in &field_pairs {
-                            xml.push_str(&format!("<{fname}>{val}</{fname}>\r\n"));
+                        let db_table = match rfile.decoded() {
+                            Ok(RFileDecoded::DB(db)) => db.clone(),
+                            _ => { export_errors.push(format!("Could not decode {table_path}")); continue; }
+                        };
+
+                        let fields: Vec<_> = db_table.definition().fields_processed().to_vec();
+
+                        for row in db_table.data().iter() {
+                            let mut field_pairs: Vec<(String, String)> = Vec::new();
+                            for (field_def, value) in fields.iter().zip(row.iter()) {
+                                let fname = field_def.name().to_owned();
+                                let val_str = match value {
+                                    DecodedData::Boolean(b) => if *b { "1".to_owned() } else { "0".to_owned() },
+                                    DecodedData::I16(v) => v.to_string(),
+                                    DecodedData::I32(v) => v.to_string(),
+                                    DecodedData::I64(v) => v.to_string(),
+                                    DecodedData::OptionalI16(v) => v.to_string(),
+                                    DecodedData::OptionalI32(v) => v.to_string(),
+                                    DecodedData::OptionalI64(v) => v.to_string(),
+                                    DecodedData::F32(v) => v.to_string(),
+                                    DecodedData::F64(v) => v.to_string(),
+                                    DecodedData::StringU8(s) | DecodedData::StringU16(s) |
+                                    DecodedData::OptionalStringU8(s) | DecodedData::OptionalStringU16(s) => s.clone(),
+                                    DecodedData::ColourRGB(s) => s.clone(),
+                                    _ => String::new(),
+                                };
+                                let escaped = val_str
+                                    .replace('&', "&amp;")
+                                    .replace('<', "&lt;")
+                                    .replace('>', "&gt;")
+                                    .replace('"', "&quot;");
+                                field_pairs.push((fname, escaped));
+                            }
+                            field_pairs.sort_by(|a, b| a.0.cmp(&b.0));
+
+                            xml.push_str(&format!("<{table_tag}>\r\n"));
+                            for (fname, val) in &field_pairs {
+                                xml.push_str(&format!("<{fname}>{val}</{fname}>\r\n"));
+                            }
+                            xml.push_str(&format!("</{table_tag}>\r\n"));
                         }
-                        xml.push_str(&format!("</{table_tag}>\r\n"));
                     }
+
                     xml.push_str("</dataroot>\r\n");
 
                     if let Err(e) = std::fs::write(&xml_path, xml.as_bytes()) {
@@ -3202,12 +3207,12 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
 
                 // ── Step 4: Write BOB config and launch ───────────────────────
                 const BOB_CONFIG_XML: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
-<bob_configuration><processors><processor>Campaign</processor></processors>
-<directories/><global_rules/><retail>0</retail><silent>1</silent>
-<get_latest>0</get_latest><connect_db>0</connect_db>
-<merge_for_checkin_mode>2</merge_for_checkin_mode>
-<selected_files><entry>&lt;working&gt;/campaigns/ceo_data.ccd</entry></selected_files>
-</bob_configuration>"#;
+                <bob_configuration><processors><processor>Campaign</processor></processors>
+                <directories/><global_rules/><retail>0</retail><silent>1</silent>
+                <get_latest>0</get_latest><connect_db>0</connect_db>
+                <merge_for_checkin_mode>2</merge_for_checkin_mode>
+                <selected_files><entry>&lt;working&gt;/campaigns/ceo_data.ccd</entry></selected_files>
+                </bob_configuration>"#;
                 let cfg_path = bob_dir.join(r"BOB\default_configuration.xml");
                 if let Some(p) = cfg_path.parent() { let _ = std::fs::create_dir_all(p); }
                 if std::fs::write(&cfg_path, BOB_CONFIG_XML).is_err() {
