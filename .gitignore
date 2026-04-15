@@ -69,9 +69,7 @@
 /test_files/test_compression_recompressed_zstd.bmd
 /test_files/fastbin/test_encode.hlsl_compiled
 /test_files/test_encode.dat
-/test_files/test_encode_group_formations_3k.bin
-/test_files/test_encode_group_formations_rom2.bin
-/test_files/test_encode_group_formations_sho2.bin
+/test_files/test_encode_group_formations_*
 /test_files/test_encode_sound_events_emp
 /test_files/test_encode_sound_events_nap
 /test_files/test_encode_sound_events_sho2

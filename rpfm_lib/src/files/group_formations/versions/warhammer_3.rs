@@ -16,7 +16,7 @@ use super::versions::v2;
 
 impl GroupFormations {
 
-    pub(crate) fn decode_rom_2<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
+    pub(crate) fn decode_wh3<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
 
         //GroupFormation
         for _ in 0..data.read_u32()? {
@@ -24,6 +24,7 @@ impl GroupFormations {
             formation.name = data.read_sized_string_u8()?;
             formation.ai_priority = data.read_f32()?;
             formation.ai_purpose = AIPurpose::V2(v2::AIPurposeFlags::from_bits_truncate(data.read_u32()?));
+            formation.uk_2 = data.read_u32()?;
 
             // MinUnitCategoryPercentage
             for _ in 0..data.read_u32()? {
@@ -66,6 +67,8 @@ impl GroupFormations {
                             entity_pref.priority = data.read_f32()?;
                             entity_pref.entity = Entity::V2(v2::EntityType::try_from(data.read_u32()?)?);
                             entity_pref.entity_weight = EntityWeight::try_from(data.read_u32()?)?;
+                            entity_pref.uk_1 = data.read_u32()?;
+                            entity_pref.entity_class = data.read_sized_string_u8()?;
                             container.entity_preferences.push(entity_pref);
                         }
 
@@ -90,6 +93,8 @@ impl GroupFormations {
                             entity_pref.priority = data.read_f32()?;
                             entity_pref.entity = Entity::V2(v2::EntityType::try_from(data.read_u32()?)?);
                             entity_pref.entity_weight = EntityWeight::try_from(data.read_u32()?)?;
+                            entity_pref.uk_1 = data.read_u32()?;
+                            entity_pref.entity_class = data.read_sized_string_u8()?;
                             container.entity_preferences.push(entity_pref);
                         }
 
@@ -116,7 +121,7 @@ impl GroupFormations {
         Ok(())
     }
 
-    pub(crate) fn encode_rom_2<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
+    pub(crate) fn encode_wh3<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
         buffer.write_u32(self.formations.len() as u32)?;
         for formation in self.formations() {
             buffer.write_sized_string_u8(formation.name())?;
@@ -125,6 +130,8 @@ impl GroupFormations {
             if let AIPurpose::V2(data) = &formation.ai_purpose {
                 buffer.write_u32(data.bits())?;
             }
+
+            buffer.write_u32(formation.uk_2)?;
 
             buffer.write_u32(formation.min_unit_category_percentage.len() as u32)?;
             for mucp in formation.min_unit_category_percentage() {
@@ -165,6 +172,8 @@ impl GroupFormations {
                                 buffer.write_u32((*data).into())?;
                             }
                             buffer.write_u32(ep.entity_weight.into())?;
+                            buffer.write_u32(ep.uk_1)?;
+                            buffer.write_sized_string_u8(&ep.entity_class)?;
                         }
                     },
 
@@ -187,6 +196,8 @@ impl GroupFormations {
                                 buffer.write_u32((*data).into())?;
                             }
                             buffer.write_u32(ep.entity_weight.into())?;
+                            buffer.write_u32(ep.uk_1)?;
+                            buffer.write_sized_string_u8(&ep.entity_class)?;
                         }
                     },
 

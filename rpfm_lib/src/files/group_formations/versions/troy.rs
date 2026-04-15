@@ -16,7 +16,7 @@ use super::versions::v2;
 
 impl GroupFormations {
 
-    pub(crate) fn decode_rom_2<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
+    pub(crate) fn decode_troy<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
 
         //GroupFormation
         for _ in 0..data.read_u32()? {
@@ -24,12 +24,15 @@ impl GroupFormations {
             formation.name = data.read_sized_string_u8()?;
             formation.ai_priority = data.read_f32()?;
             formation.ai_purpose = AIPurpose::V2(v2::AIPurposeFlags::from_bits_truncate(data.read_u32()?));
+            formation.uk_2 = data.read_u32()?;
 
-            // MinUnitCategoryPercentage
+            // MinUnitCategoryPercentage is one of these
             for _ in 0..data.read_u32()? {
                 let mut min_unit_category_percentage = MinUnitCategoryPercentage::default();
+
                 min_unit_category_percentage.category = UnitCategory::try_from(data.read_u32()?)?;
                 min_unit_category_percentage.percentage = data.read_u32()?;
+
                 formation.min_unit_category_percentage.push(min_unit_category_percentage);
             }
 
@@ -37,15 +40,16 @@ impl GroupFormations {
                 formation.ai_supported_subcultures.push(data.read_sized_string_u8()?);
             }
 
-            for _ in 0..data.read_u32()? {
-                formation.ai_supported_factions.push(data.read_sized_string_u8()?);
-            }
+            // for _ in 0..data.read_u32()? {
+            //     formation.ai_supported_factions.push(data.read_sized_string_u8()?);
+            // }
 
             // GroupFormationBlock
             for _ in 0..data.read_u32()? {
                 let mut block = GroupFormationBlock::default();
                 block.block_id = data.read_u32()?;
 
+                // Possible enum: 0 absolute, 1 relative, 3 spanning
                 let block_type = data.read_u32()?;
                 match block_type {
 
@@ -61,11 +65,14 @@ impl GroupFormations {
                         container.minimum_entity_threshold = data.read_i32()?;
                         container.maximum_entity_threshold = data.read_i32()?;
 
+                        // EntityPreference
                         for _ in 0..data.read_u32()? {
                             let mut entity_pref = EntityPreference::default();
                             entity_pref.priority = data.read_f32()?;
                             entity_pref.entity = Entity::V2(v2::EntityType::try_from(data.read_u32()?)?);
                             entity_pref.entity_weight = EntityWeight::try_from(data.read_u32()?)?;
+                            entity_pref.uk_1 = data.read_u32()?;
+                            entity_pref.entity_class = data.read_sized_string_u8()?;
                             container.entity_preferences.push(entity_pref);
                         }
 
@@ -85,11 +92,14 @@ impl GroupFormations {
                         container.minimum_entity_threshold = data.read_i32()?;
                         container.maximum_entity_threshold = data.read_i32()?;
 
+                        // EntityPreference
                         for _ in 0..data.read_u32()? {
                             let mut entity_pref = EntityPreference::default();
                             entity_pref.priority = data.read_f32()?;
                             entity_pref.entity = Entity::V2(v2::EntityType::try_from(data.read_u32()?)?);
                             entity_pref.entity_weight = EntityWeight::try_from(data.read_u32()?)?;
+                            entity_pref.uk_1 = data.read_u32()?;
+                            entity_pref.entity_class = data.read_sized_string_u8()?;
                             container.entity_preferences.push(entity_pref);
                         }
 
@@ -116,16 +126,17 @@ impl GroupFormations {
         Ok(())
     }
 
-    pub(crate) fn encode_rom_2<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
+    pub(crate) fn encode_troy<W: WriteBytes>(&mut self, buffer: &mut W) -> Result<()> {
         buffer.write_u32(self.formations.len() as u32)?;
         for formation in self.formations() {
             buffer.write_sized_string_u8(formation.name())?;
-            buffer.write_f32(formation.ai_priority)?;
 
+            buffer.write_f32(formation.ai_priority)?;
             if let AIPurpose::V2(data) = &formation.ai_purpose {
                 buffer.write_u32(data.bits())?;
             }
 
+            buffer.write_u32(formation.uk_2)?;
             buffer.write_u32(formation.min_unit_category_percentage.len() as u32)?;
             for mucp in formation.min_unit_category_percentage() {
                 buffer.write_u32(mucp.category.into())?;
@@ -133,14 +144,14 @@ impl GroupFormations {
             }
 
             buffer.write_u32(formation.ai_supported_subcultures.len() as u32)?;
-            for s in formation.ai_supported_subcultures() {
-                buffer.write_sized_string_u8(s)?;
+            for ai_supported_subculture in formation.ai_supported_subcultures() {
+                buffer.write_sized_string_u8(ai_supported_subculture)?;
             }
 
-            buffer.write_u32(formation.ai_supported_factions.len() as u32)?;
-            for s in formation.ai_supported_factions() {
-                buffer.write_sized_string_u8(s)?;
-            }
+            // buffer.write_u32(formation.ai_supported_factions.len() as u32)?;
+            // for ai_supported_faction in formation.ai_supported_factions() {
+            //     buffer.write_sized_string_u8(ai_supported_faction)?;
+            // }
 
             buffer.write_u32(formation.group_formation_blocks.len() as u32)?;
             for block in formation.group_formation_blocks() {
@@ -149,6 +160,7 @@ impl GroupFormations {
                 match block.block {
                     Block::ContainerAbsolute(ref b) => {
                         buffer.write_u32(0)?;
+
                         buffer.write_f32(b.block_priority)?;
                         buffer.write_u32(b.entity_arrangement.into())?;
                         buffer.write_f32(b.inter_entity_spacing)?;
@@ -165,11 +177,14 @@ impl GroupFormations {
                                 buffer.write_u32((*data).into())?;
                             }
                             buffer.write_u32(ep.entity_weight.into())?;
+                            buffer.write_u32(ep.uk_1)?;
+                            buffer.write_sized_string_u8(&ep.entity_class)?;
                         }
                     },
 
                     Block::ContainerRelative(ref b) => {
                         buffer.write_u32(1)?;
+
                         buffer.write_f32(b.block_priority)?;
                         buffer.write_u32(b.relative_block_id)?;
                         buffer.write_u32(b.entity_arrangement.into())?;
@@ -187,13 +202,16 @@ impl GroupFormations {
                                 buffer.write_u32((*data).into())?;
                             }
                             buffer.write_u32(ep.entity_weight.into())?;
+
+                            buffer.write_u32(ep.uk_1)?;
+                            buffer.write_sized_string_u8(&ep.entity_class)?;
                         }
                     },
 
-                    Block::Spanning(ref b) => {
+                    Block::Spanning(ref block) => {
                         buffer.write_u32(3)?;
-                        buffer.write_u32(b.spanned_block_ids.len() as u32)?;
-                        for id in b.spanned_block_ids() {
+                        buffer.write_u32(block.spanned_block_ids.len() as u32)?;
+                        for id in block.spanned_block_ids() {
                             buffer.write_u32(*id)?;
                         }
                     },

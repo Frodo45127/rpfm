@@ -291,6 +291,10 @@ pub enum RLibError {
     #[error("Unsupported vertex format {0} for material {1}.")]
     DecodingRigidModelUnsupportedVertexFormatForMaterial(u16, u16),
 
+    /// Group Formations unknown enum value.
+    #[error("Unknown group formations {0} value: {1}.")]
+    DecodingGroupFormationsUnknownEnumValue(String, u32),
+
     // Table Decoding Errors
 
     /// Combined colour field decoding failed.

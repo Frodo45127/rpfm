@@ -10,6 +10,14 @@
 
 use super::*;
 
-//mod three_kingdoms;
+/// Shared data types for v1 (Shogun 2) group formations.
+pub mod v1;
+
+/// Shared data types for v2 (Rome 2 and later) group formations.
+pub mod v2;
+
+/// Per-game decode/encode implementations.
+pub mod troy;
+pub mod warhammer_3;
 pub mod rome_2;
 pub mod shogun_2;

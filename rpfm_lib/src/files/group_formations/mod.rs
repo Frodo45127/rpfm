@@ -60,7 +60,6 @@
 //! }
 //! ```
 
-use bitflags::bitflags;
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
@@ -75,7 +74,7 @@ use super::DecodeableExtraData;
 /// Fixed path to the Group Formations file.
 pub const PATH: &str = "groupformations.bin";
 
-mod versions;
+pub mod versions;
 
 #[cfg(test)] mod test_group_formations;
 
@@ -108,7 +107,7 @@ pub struct GroupFormation {
     ai_priority: f32,
 
     /// Bitflags indicating when this formation should be used (attack, defend, naval, etc.).
-    ai_purpose: AIPurposeCommon,
+    ai_purpose: AIPurpose,
 
     /// Unknown field, present in Three Kingdoms.
     uk_2: u32,
@@ -137,7 +136,7 @@ pub struct GroupFormation {
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct MinUnitCategoryPercentage {
     /// The unit category (cavalry, infantry melee, infantry ranged, etc.).
-    category: UnitCategoryCommon,
+    category: UnitCategory,
 
     /// Minimum percentage (0-100) of the army that must belong to this category.
     percentage: u32,
@@ -185,7 +184,7 @@ pub struct ContainerAbsolute {
     block_priority: f32,
 
     /// How units should be arranged (line, column, crescent, etc.).
-    entity_arrangement: EntityArrangementCommon,
+    entity_arrangement: EntityArrangement,
 
     /// Spacing between units in this block.
     inter_entity_spacing: f32,
@@ -223,7 +222,7 @@ pub struct ContainerRelative {
     relative_block_id: u32,
 
     /// How units should be arranged (line, column, crescent, etc.).
-    entity_arrangement: EntityArrangementCommon,
+    entity_arrangement: EntityArrangement,
 
     /// Spacing between units in this block.
     inter_entity_spacing: f32,
@@ -261,10 +260,10 @@ pub struct EntityPreference {
     ///
     /// Note: This is called EntityClass in Rome 2 and EntityDescription in Shogun 2,
     /// but represents the same concept.
-    entity: EntityCommon,
+    entity: Entity,
 
     /// Weight class of the unit (light, medium, heavy, etc.). Introduced in Rome 2.
-    entity_weight: EntityWeightCommon,
+    entity_weight: EntityWeight,
 
     /// Unknown fields present in Three Kingdoms.
     uk_1: u32,
@@ -287,66 +286,66 @@ pub struct Spanning {
     spanned_block_ids: Vec<u32>,
 }
 
-/// Game-specific AI purpose flags indicating when a formation should be used.
+/// AI purpose flags indicating when a formation should be used.
 ///
-/// Different games have different sets of available purposes. These are bitflags,
-/// so a formation can have multiple purposes (e.g., both attack and naval).
+/// - V1: Shogun 2 flag layout (different bit assignments from Rome 2+).
+/// - V2: Rome 2 and later flag layout.
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
-pub enum AIPurposeCommon {
-    /// Rome 2 (and later) AI purpose flags.
-    Rome2(versions::rome_2::AIPurpose),
-
-    /// Shogun 2 AI purpose flags.
-    Shogun2(versions::shogun_2::AIPurpose),
+pub enum AIPurpose {
+    V1(versions::v1::AIPurposeFlags),
+    V2(versions::v2::AIPurposeFlags),
 }
 
-/// Game-specific entity arrangement patterns.
+/// How units should be arranged within a formation block (line, column, crescent, etc.).
 ///
-/// Defines how units should be laid out within a formation block (line, column, crescent, etc.).
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
-pub enum EntityArrangementCommon {
-    /// Rome 2 entity arrangement.
-    Rome2(versions::rome_2::EntityArrangement),
-
-    /// Shogun 2 entity arrangement.
-    Shogun2(versions::shogun_2::EntityArrangement),
+/// Identical across all game versions.
+#[derive(Default, Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
+#[repr(u32)]
+pub enum EntityArrangement {
+    #[default] Line = 0,
+    Column = 1,
+    CrescentFront = 2,
+    CrescentBack = 3,
 }
 
-/// Game-specific unit category classifications.
+/// Unit category classifications (cavalry, infantry melee, infantry ranged, naval, etc.).
 ///
-/// Categorizes units by their role (cavalry, infantry melee, infantry ranged, naval, etc.).
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
-pub enum UnitCategoryCommon {
-    /// Rome 2 unit category.
-    Rome2(versions::rome_2::UnitCategory),
-
-    /// Shogun 2 unit category.
-    Shogun2(versions::shogun_2::UnitCategory),
+/// Identical across all game versions.
+#[derive(Default, Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
+#[repr(u32)]
+pub enum UnitCategory {
+    #[default] Cavalry = 0,
+    InvantryMelee = 13,
+    InfantryRanged = 14,
+    NavalHeavy = 15,
+    NavalMedium = 16,
+    NavalLight = 17,
 }
 
-/// Game-specific entity type classifications.
+/// Entity type classifications.
 ///
-/// More specific than unit categories, identifying exact unit types
-/// (e.g., infantry spearman, cavalry lancer, artillery field).
+/// - V1: Shogun 2 entity types (65+ specific unit classes like CavalryHeavy, InfantryLine, etc.).
+/// - V2: Rome 2 and later entity types (18 abstract classes like InfMel, CavShk, etc.).
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
-pub enum EntityCommon {
-    /// Rome 2 entity type.
-    Rome2(versions::rome_2::Entity),
-
-    /// Shogun 2 entity type.
-    Shogun2(versions::shogun_2::Entity),
+pub enum Entity {
+    V1(versions::v1::EntityType),
+    V2(versions::v2::EntityType),
 }
 
-/// Game-specific entity weight classifications.
+/// Entity weight classifications (light, medium, heavy, etc.).
 ///
-/// Categorizes units by their weight class (very light, light, medium, heavy, very heavy, super heavy).
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
-pub enum EntityWeightCommon {
-    /// Rome 2 entity weight.
-    Rome2(versions::rome_2::EntityWeight),
-
-    /// Attila entity weight (uses same format as Rome 2).
-    Attila(versions::rome_2::EntityWeight),
+/// Introduced in Rome 2. Identical across all post-Shogun 2 game versions.
+/// Shogun 2 does not use entity weights.
+#[derive(Default, Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
+#[repr(u32)]
+pub enum EntityWeight {
+    VeryLight = 0,
+    Light = 1,
+    Medium = 2,
+    Heavy = 3,
+    VeyHeavy = 4,
+    SuperHeavy = 5,
+    #[default] Any = 6,
 }
 
 //---------------------------------------------------------------------------//
@@ -359,33 +358,77 @@ impl Default for Block {
     }
 }
 
-impl Default for AIPurposeCommon {
+impl Default for AIPurpose {
     fn default() -> Self {
-        Self::Shogun2(versions::shogun_2::AIPurpose::default())
+        Self::V1(versions::v1::AIPurposeFlags::default())
     }
 }
 
-impl Default for EntityArrangementCommon {
+impl Default for Entity {
     fn default() -> Self {
-        Self::Shogun2(versions::shogun_2::EntityArrangement::default())
+        Self::V2(versions::v2::EntityType::default())
     }
 }
 
-impl Default for UnitCategoryCommon {
-    fn default() -> Self {
-        Self::Shogun2(versions::shogun_2::UnitCategory::default())
+impl TryFrom<u32> for EntityArrangement {
+    type Error = RLibError;
+    fn try_from(value: u32) -> Result<Self> {
+        match value {
+            _ if value == Self::Line as u32 => Ok(Self::Line),
+            _ if value == Self::Column as u32 => Ok(Self::Column),
+            _ if value == Self::CrescentFront as u32 => Ok(Self::CrescentFront),
+            _ if value == Self::CrescentBack as u32 => Ok(Self::CrescentBack),
+            _ => Err(RLibError::DecodingGroupFormationsUnknownEnumValue("EntityArrangement".to_string(), value)),
+        }
     }
 }
 
-impl Default for EntityCommon {
-    fn default() -> Self {
-        Self::Shogun2(versions::shogun_2::Entity::default())
+impl From<EntityArrangement> for u32 {
+    fn from(value: EntityArrangement) -> u32 {
+        value as u32
     }
 }
 
-impl Default for EntityWeightCommon {
-    fn default() -> Self {
-        Self::Rome2(versions::rome_2::EntityWeight::default())
+impl TryFrom<u32> for UnitCategory {
+    type Error = RLibError;
+    fn try_from(value: u32) -> Result<Self> {
+        match value {
+            _ if value == Self::Cavalry as u32 => Ok(Self::Cavalry),
+            _ if value == Self::InvantryMelee as u32 => Ok(Self::InvantryMelee),
+            _ if value == Self::InfantryRanged as u32 => Ok(Self::InfantryRanged),
+            _ if value == Self::NavalHeavy as u32 => Ok(Self::NavalHeavy),
+            _ if value == Self::NavalMedium as u32 => Ok(Self::NavalMedium),
+            _ if value == Self::NavalLight as u32 => Ok(Self::NavalLight),
+            _ => Err(RLibError::DecodingGroupFormationsUnknownEnumValue("UnitCategory".to_string(), value)),
+        }
+    }
+}
+
+impl From<UnitCategory> for u32 {
+    fn from(value: UnitCategory) -> u32 {
+        value as u32
+    }
+}
+
+impl TryFrom<u32> for EntityWeight {
+    type Error = RLibError;
+    fn try_from(value: u32) -> Result<Self> {
+        match value {
+            _ if value == Self::VeryLight as u32 => Ok(Self::VeryLight),
+            _ if value == Self::Light as u32 => Ok(Self::Light),
+            _ if value == Self::Medium as u32 => Ok(Self::Medium),
+            _ if value == Self::Heavy as u32 => Ok(Self::Heavy),
+            _ if value == Self::VeyHeavy as u32 => Ok(Self::VeyHeavy),
+            _ if value == Self::SuperHeavy as u32 => Ok(Self::SuperHeavy),
+            _ if value == Self::Any as u32 => Ok(Self::Any),
+            _ => Err(RLibError::DecodingGroupFormationsUnknownEnumValue("EntityWeight".to_string(), value)),
+        }
+    }
+}
+
+impl From<EntityWeight> for u32 {
+    fn from(value: EntityWeight) -> u32 {
+        value as u32
     }
 }
 
@@ -399,13 +442,15 @@ impl Decodeable for GroupFormations {
         let data_len = data.len()?;
 
         match game_info.key() {
-            //KEY_WARHAMMER_3 |
-            //KEY_TROY |
-            //KEY_THREE_KINGDOMS => decoded.decode_3k(data)?,
+            KEY_PHARAOH_DYNASTIES |
+            KEY_PHARAOH |
+            KEY_TROY => decoded.decode_troy(data)?,
+            KEY_THREE_KINGDOMS |
+            KEY_WARHAMMER_3 => decoded.decode_wh3(data)?,
             //KEY_WARHAMMER_2 |
             //KEY_WARHAMMER |
-            //KEY_THRONES_OF_BRITANNIA |
-            //KEY_ATTILA |
+            KEY_THRONES_OF_BRITANNIA |
+            KEY_ATTILA |
             KEY_ROME_2 => decoded.decode_rom_2(data)?,
             KEY_SHOGUN_2 => decoded.decode_sho_2(data)?,
             //KEY_NAPOLEON |
@@ -426,13 +471,15 @@ impl Encodeable for GroupFormations {
         let game_info = extra_data.game_info.ok_or_else(|| RLibError::DecodingMissingExtraDataField("game_info".to_owned()))?;
 
         match game_info.key() {
-            //KEY_WARHAMMER_3 |
-            //KEY_TROY |
-            //KEY_THREE_KINGDOMS => self.encode_3k(buffer)?,
+            KEY_PHARAOH_DYNASTIES |
+            KEY_PHARAOH |
+            KEY_TROY => self.encode_troy(buffer)?,
+            KEY_THREE_KINGDOMS |
+            KEY_WARHAMMER_3 => self.encode_wh3(buffer)?,
             //KEY_WARHAMMER_2 |
             //KEY_WARHAMMER |
-            //KEY_THRONES_OF_BRITANNIA |
-            //KEY_ATTILA |
+            KEY_THRONES_OF_BRITANNIA |
+            KEY_ATTILA |
             KEY_ROME_2 => self.encode_rom_2(buffer)?,
             KEY_SHOGUN_2 => self.encode_sho_2(buffer)?,
             //KEY_NAPOLEON |
