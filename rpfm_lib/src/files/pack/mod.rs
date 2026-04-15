@@ -1103,34 +1103,67 @@ impl Pack {
             if let Ok(RFileDecoded::DB(table)) = rfile.decoded() {
                 let definition = table.definition();
                 let loc_fields = definition.localised_fields();
-                if !loc_fields.is_empty() {
-                    let table_data = table.data();
-                    let table_name = table.table_name_without_tables();
+                let table_data = table.data();
+                let table_name = table.table_name_without_tables();
+                let fields_processed = definition.fields_processed();
 
+                let has_loc_fields = !loc_fields.is_empty();
+                let is_building_culture_variants = table_name == "building_culture_variants";
+
+                if has_loc_fields || is_building_culture_variants {
                     // Get the keys, which may be concatenated. We get them IN THE ORDER THEY ARE IN THE BINARY FILE.
                     let localised_order = definition.localised_key_order();
                     let mut new_rows_new = vec![];
                     let mut new_rows_overwritten = vec![];
 
                     for row in table_data.iter() {
-                        for loc_field in loc_fields {
-                            let key = localised_order.iter().map(|pos| row[*pos as usize].data_to_string()).join("");
 
-                            // Key can be empty due to incomplete schema. Ignore those.
-                            if !key.is_empty() {
-                                let loc_key = format!("{}_{}_{}", table_name, loc_field.name(), key);
+                        // Generate locs for the table's own localised fields.
+                        if has_loc_fields {
+                            for loc_field in loc_fields {
+                                let key = localised_order.iter().map(|pos| row[*pos as usize].data_to_string()).join("");
 
-                                if let Some(value) = existing_locs.get(&loc_key) {
-                                    let mut new_row = missing_trads_file_overwritten.new_row();
-                                    new_row[0] = DecodedData::StringU16(loc_key);
-                                    new_row[1] = DecodedData::StringU16(value.to_owned());
-                                    new_rows_overwritten.push(new_row);
+                                // Key can be empty due to incomplete schema. Ignore those.
+                                if !key.is_empty() {
+                                    let loc_key = format!("{}_{}_{}", table_name, loc_field.name(), key);
 
-                                } else if !loc_keys_from_memory.contains(&*loc_key) {
-                                    let mut new_row = missing_trads_file_new.new_row();
-                                    new_row[0] = DecodedData::StringU16(loc_key);
-                                    new_row[1] = DecodedData::StringU16("PLACEHOLDER".to_owned());
-                                    new_rows_new.push(new_row);
+                                    if let Some(value) = existing_locs.get(&loc_key) {
+                                        let mut new_row = missing_trads_file_overwritten.new_row();
+                                        new_row[0] = DecodedData::StringU16(loc_key);
+                                        new_row[1] = DecodedData::StringU16(value.to_owned());
+                                        new_rows_overwritten.push(new_row);
+
+                                    } else if !loc_keys_from_memory.contains(&*loc_key) {
+                                        let mut new_row = missing_trads_file_new.new_row();
+                                        new_row[0] = DecodedData::StringU16(loc_key);
+                                        new_row[1] = DecodedData::StringU16("PLACEHOLDER".to_owned());
+                                        new_rows_new.push(new_row);
+                                    }
+                                }
+                            }
+                        }
+
+                        // Special case: building_culture_variants has a short_description column that references
+                        // building_short_description_texts, a table that only exists in the Assembly Kit. We need to
+                        // generate loc entries for it using the referenced table name as the loc key prefix.
+                        if is_building_culture_variants {
+                            if let Some(short_desc_index) = fields_processed.iter().position(|x| x.name() == "short_description") {
+                                let key = row[short_desc_index].data_to_string();
+                                if !key.is_empty() {
+                                    let loc_key = format!("building_short_description_texts_short_description_{}", key);
+
+                                    if let Some(value) = existing_locs.get(&loc_key) {
+                                        let mut new_row = missing_trads_file_overwritten.new_row();
+                                        new_row[0] = DecodedData::StringU16(loc_key);
+                                        new_row[1] = DecodedData::StringU16(value.to_owned());
+                                        new_rows_overwritten.push(new_row);
+
+                                    } else if !loc_keys_from_memory.contains(&*loc_key) {
+                                        let mut new_row = missing_trads_file_new.new_row();
+                                        new_row[0] = DecodedData::StringU16(loc_key);
+                                        new_row[1] = DecodedData::StringU16("PLACEHOLDER".to_owned());
+                                        new_rows_new.push(new_row);
+                                    }
                                 }
                             }
                         }
