@@ -43,3 +43,25 @@ Check the building instructions [here][CompInst]
 [Manual]: https://frodo45127.github.io/rpfm/
 [Downloads]: https://github.com/Frodo45127/rpfm/releases
 [CompInst]: https://frodo45127.github.io/rpfm/chapter_comp.html
+
+--
+
+# Branch for CEOs inside RPFM:
+
+### Currently we have:
+   * process CEOs through BOB 
+   * Import CEOs into RPFM
+   * Make changes in RPFM
+   * backup of original ceo XML and ccd
+
+### Need to work on:
+   * Create new files using CTRL + Q (New Quick File)
+   * CEO files should be saved elsewhere (instead of db/ something like ceo_db/) otherwise the game crashes 
+   * CEO files should be fine tuned to only what is needed (right now it is any file that starts with ceo_...)
+   * Missing some necessary files like effects and other relational files
+   * Generate Loc should include ceo_nodes
+
+
+### Further Features
+   * Tools should include a CEO Creator, like my python script (create a character, and auto put into the packfile)
+    
