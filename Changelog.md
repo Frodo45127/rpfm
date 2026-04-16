@@ -20,6 +20,8 @@ If you're looking for the changes included in the latest beta (against the lates
 - Implemented command palette with actions and file search.
 - Implemented light/dark theme autodetection.
 - Implemented welcome page.
+- Implemented `Delete Filtered Out Rows` action for portrait settings list.
+- Implmeneted support for editing GroupFormation files for all games after Rome 2 except Warhammer 1 and 2 (thanks Alex Zhao for the research).
 
 ### Changed
 - Decoupled UI from Backend into RPFM UI and RPFM Server.
@@ -29,6 +31,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Migrated docs to autodeploy through an action, removing their artifacts from the repo.
 - Moved a lot of actions around in menus to more natural places.
 - Migrated UI to Qt6.
+- Refactored settings dialog.
 
 ### Removed
 - Removed cli tool. If you use it, consider migrating to the new RPFM Server.
@@ -44,6 +47,8 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed ESF Editor not being scrolleable.
 - Fixed no updates on git repo being reported as error.
 - Fixed some particular dds files not being readable.
+- Fixed save as dialog not having a translated title.
+- Fixed `Generate Missing Locs` not generating short descriptions for building culture variants.
 
 ## [4.7.4]
 ### Added
