@@ -31,6 +31,8 @@ pub unsafe fn set_tips(app_ui: &Rc<AppUI>) {
     // `MyMod` menu tips.
     //-----------------------------------------------//
     app_ui.mymod_new.set_status_tip(&qtr("tt_mymod_new"));
+    app_ui.mymod_import_all.set_status_tip(&qtr("tt_mymod_import_all"));
+    app_ui.mymod_export_all.set_status_tip(&qtr("tt_mymod_export_all"));
 
     //-----------------------------------------------//
     // `Game Selected` menu tips.

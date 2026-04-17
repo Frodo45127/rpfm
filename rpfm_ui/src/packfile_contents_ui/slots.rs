@@ -784,7 +784,7 @@ impl PackFileContentsSlots {
                                 };
 
                                 app_ui.toggle_main_window(false);
-                                PackFileContentsUI::add_files(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None);
+                                PackFileContentsUI::add_files(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None, None);
                                 app_ui.toggle_main_window(true);
                             }
                         }
@@ -815,7 +815,7 @@ impl PackFileContentsSlots {
                             }
 
                             app_ui.toggle_main_window(false);
-                            PackFileContentsUI::add_files(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None);
+                            PackFileContentsUI::add_files(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None, None);
                             app_ui.toggle_main_window(true);
                         }
                     }
@@ -918,7 +918,7 @@ impl PackFileContentsSlots {
                                             let filtered_path = path.strip_prefix(&assets_folder).unwrap();
                                             paths_packedfile.push(ContainerPath::File(filtered_path.to_string_lossy().to_string()));
                                         }
-                                        PackFileContentsUI::add_files(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None);
+                                        PackFileContentsUI::add_files(&app_ui, &pack_file_contents_ui, &paths, &paths_packedfile, None, None);
                                     }
 
                                     // Otherwise, they are added like normal files.
@@ -926,7 +926,7 @@ impl PackFileContentsSlots {
                                         let destination_paths = (0..folder_paths.len()).map(|_| ContainerPath::Folder(selection.to_string())).collect::<Vec<_>>();
 
                                         app_ui.toggle_main_window(false);
-                                        PackFileContentsUI::add_files(&app_ui, &pack_file_contents_ui, &folder_paths, &destination_paths, None);
+                                        PackFileContentsUI::add_files(&app_ui, &pack_file_contents_ui, &folder_paths, &destination_paths, None, None);
                                         app_ui.toggle_main_window(true);
                                     }
                                 }
@@ -973,7 +973,7 @@ impl PackFileContentsSlots {
                                 let destination_paths = (0..folder_paths.len()).map(|_| ContainerPath::Folder(selection.to_string())).collect::<Vec<_>>();
 
                                 app_ui.toggle_main_window(false);
-                                PackFileContentsUI::add_files(&app_ui, &pack_file_contents_ui, &folder_paths, &destination_paths, None);
+                                PackFileContentsUI::add_files(&app_ui, &pack_file_contents_ui, &folder_paths, &destination_paths, None, None);
                                 app_ui.toggle_main_window(true);
                             }
                         }
@@ -1115,7 +1115,7 @@ impl PackFileContentsSlots {
             app_ui,
             pack_file_contents_ui => move |_| {
                 info!("Triggering `Extract` By Slot");
-                PackFileContentsUI::extract_packed_files(&app_ui, &pack_file_contents_ui, None, true);
+                PackFileContentsUI::extract_packed_files(&app_ui, &pack_file_contents_ui, None, true, None);
             }
         ));
 
@@ -2109,7 +2109,7 @@ impl PackFileContentsSlots {
         let context_menu_mymod_export = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-                AppUI::export_mymod(&app_ui, &pack_file_contents_ui, Some(vec![ContainerPath::Folder("".to_owned())]));
+                AppUI::export_mymod(&app_ui, &pack_file_contents_ui, Some(vec![ContainerPath::Folder("".to_owned())]), None);
             }
         ));
 

@@ -35,6 +35,8 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(mymod_menu_actions, "delete_mymod", "Delete Open MyMod", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "draw-eraser-delete-objects");
     new_action(mymod_menu_actions, "import_mymod", "Import MyMod", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+Alt+I"), "document-import");
     new_action(mymod_menu_actions, "export_mymod", "Export MyMod", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+Alt+E"), "document-export");
+    new_action(mymod_menu_actions, "import_all_mymod", "Import All Open MyMods", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+Alt+Shift+I"), "document-import");
+    new_action(mymod_menu_actions, "export_all_mymod", "Export All Open MyMods", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+Alt+Shift+E"), "document-export");
     mymod_menu_actions->readSettings();
 
     // View Menu actions.

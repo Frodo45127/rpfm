@@ -201,6 +201,8 @@ pub struct AppUI {
     //-------------------------------------------------------------------------------//
     mymod_open_mymod_folder: QPtr<QAction>,
     mymod_new: QPtr<QAction>,
+    mymod_import_all: QPtr<QAction>,
+    mymod_export_all: QPtr<QAction>,
 
     mymod_open_pharaoh_dynasties: QPtr<QMenu>,
     mymod_open_pharaoh: QPtr<QMenu>,
@@ -466,6 +468,8 @@ impl AppUI {
         //-----------------------------------------------//
         let mymod_open_mymod_folder = add_action_to_menu(&menu_bar_mymod, shortcuts.as_ref(), "mymod_menu", "open_mymod_folder", "mymod_open_mymod_folder", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let mymod_new = add_action_to_menu(&menu_bar_mymod, shortcuts.as_ref(), "mymod_menu", "new_mymod", "mymod_new", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
+        let mymod_import_all = add_action_to_menu(&menu_bar_mymod, shortcuts.as_ref(), "mymod_menu", "import_all_mymod", "mymod_import_all", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
+        let mymod_export_all = add_action_to_menu(&menu_bar_mymod, shortcuts.as_ref(), "mymod_menu", "export_all_mymod", "mymod_export_all", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
 
         menu_bar_mymod.add_separator();
 
@@ -486,6 +490,8 @@ impl AppUI {
         menu_bar_mymod.insert_separator(&mymod_new);
 
         mymod_new.set_enabled(false);
+        mymod_import_all.set_enabled(false);
+        mymod_export_all.set_enabled(false);
 
         mymod_open_pharaoh_dynasties.menu_action().set_visible(false);
         mymod_open_pharaoh.menu_action().set_visible(false);
@@ -686,6 +692,8 @@ impl AppUI {
             //-------------------------------------------------------------------------------//
             mymod_open_mymod_folder,
             mymod_new,
+            mymod_import_all,
+            mymod_export_all,
 
             mymod_open_pharaoh_dynasties,
             mymod_open_pharaoh,
@@ -1338,6 +1346,8 @@ impl AppUI {
 
             // This one too, though we had to deal with it specially later on.
             app_ui.mymod_new.set_enabled(false);
+            app_ui.mymod_import_all.set_enabled(false);
+            app_ui.mymod_export_all.set_enabled(false);
         }
 
         // Otherwise...
@@ -1353,8 +1363,10 @@ impl AppUI {
 
             // If there is a "MyMod" path set in the settings...
             let path = settings_path_buf(MYMOD_BASE_PATH);
-            if path.is_dir() { app_ui.mymod_new.set_enabled(true); }
-            else { app_ui.mymod_new.set_enabled(false); }
+            let mymod_path_ok = path.is_dir();
+            app_ui.mymod_new.set_enabled(mymod_path_ok);
+            app_ui.mymod_import_all.set_enabled(enable && mymod_path_ok);
+            app_ui.mymod_export_all.set_enabled(enable && mymod_path_ok);
         }
 
         // If we are disabling...
@@ -3840,8 +3852,7 @@ impl AppUI {
                         paths_packedfile.push(ContainerPath::File(filtered_path.to_string_lossy().to_string()));
                     }
 
-                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    let settings = send_ipc_command(Command::GetPackSettings(pack_key), response_extractor!(Response::PackSettings));
+                    let settings = send_ipc_command(Command::GetPackSettings(pack_key.to_string()), response_extractor!(Response::PackSettings));
 
                     let files_to_ignore = settings.setting_text("import_files_to_ignore").map(|files_to_ignore| {
                         if files_to_ignore.is_empty() { vec![] } else {
@@ -3852,7 +3863,7 @@ impl AppUI {
                         }
                     });
 
-                    PackFileContentsUI::add_files(app_ui, pack_file_contents_ui, &paths, &paths_packedfile, files_to_ignore);
+                    PackFileContentsUI::add_files(app_ui, pack_file_contents_ui, &paths, &paths_packedfile, files_to_ignore, Some(pack_key));
                 }
 
                 // If there is no MyMod path configured, report it.
@@ -3868,9 +3879,70 @@ impl AppUI {
     pub unsafe fn export_mymod(
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        paths_to_extract: Option<Vec<ContainerPath>>
+        paths_to_extract: Option<Vec<ContainerPath>>,
+        target_pack_key: Option<&str>,
     ) {
-        PackFileContentsUI::extract_packed_files(app_ui, pack_file_contents_ui, paths_to_extract, true)
+        PackFileContentsUI::extract_packed_files(app_ui, pack_file_contents_ui, paths_to_extract, true, target_pack_key)
+    }
+
+    /// This function runs MyMod imports for every open MyMod pack.
+    pub unsafe fn import_all_mymod(
+        app_ui: &Rc<Self>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+    ) {
+        let mymod_keys = AppUI::open_mymod_pack_keys(pack_file_contents_ui);
+        if mymod_keys.is_empty() {
+            return show_dialog(&app_ui.main_window, "There are no open MyMod packs to import.", false);
+        }
+
+        for pack_key in &mymod_keys {
+            AppUI::import_mymod(app_ui, pack_file_contents_ui, pack_key);
+        }
+    }
+
+    /// This function runs MyMod exports for every open MyMod pack.
+    pub unsafe fn export_all_mymod(
+        app_ui: &Rc<Self>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+    ) {
+        let mymod_keys = AppUI::open_mymod_pack_keys(pack_file_contents_ui);
+        if mymod_keys.is_empty() {
+            return show_dialog(&app_ui.main_window, "There are no open MyMod packs to export.", false);
+        }
+
+        for pack_key in &mymod_keys {
+            AppUI::export_mymod(app_ui, pack_file_contents_ui, Some(vec![ContainerPath::Folder("".to_owned())]), Some(pack_key));
+        }
+    }
+
+    /// Collect the pack keys of every open pack that is in MyMod operational mode.
+    pub unsafe fn open_mymod_pack_keys(pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Vec<String> {
+        let model = pack_file_contents_ui.packfile_contents_tree_model();
+        let mut keys = Vec::new();
+        for row in 0..model.row_count_0a() {
+            let item = model.item_1a(row);
+            let root_type = item.data_1a(rpfm_ui_common::ROOT_NODE_TYPE).to_int_0a();
+            if root_type != rpfm_ui_common::ROOT_NODE_TYPE_EDITABLE_PACKFILE && root_type != rpfm_ui_common::ROOT_NODE_TYPE_MYMOD_PACKFILE {
+                continue;
+            }
+
+            let variant = item.data_1a(rpfm_ui_common::ITEM_PACK_KEY);
+            if !variant.is_valid() || variant.is_null() {
+                continue;
+            }
+
+            let key = variant.to_string().to_std_string();
+            if key.is_empty() {
+                continue;
+            }
+
+            let mode = send_ipc_command(Command::GetPackOperationalMode(key.clone()), response_extractor!(Response::OperationalMode));
+            if matches!(mode, OperationalMode::MyMod(..)) {
+                keys.push(key);
+            }
+        }
+
+        keys
     }
 
     /// This function is used to build a snowman.

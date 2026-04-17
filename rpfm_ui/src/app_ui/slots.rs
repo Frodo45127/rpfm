@@ -120,6 +120,8 @@ pub struct AppUISlots {
     pub mymod_open_menu: QBox<SlotNoArgs>,
     pub mymod_open_mymod_folder: QBox<SlotOfBool>,
     pub mymod_new: QBox<SlotOfBool>,
+    pub mymod_import_all: QBox<SlotOfBool>,
+    pub mymod_export_all: QBox<SlotOfBool>,
 
     //-----------------------------------------------//
     // `View` menu slots.
@@ -786,6 +788,24 @@ impl AppUISlots {
                     }
                     Err(error) => show_dialog(app_ui.main_window(), error, false),
                 }
+            }
+        ));
+
+        // This slot is used for the "Import All Open MyMods" action.
+        let mymod_import_all = SlotOfBool::new(&app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+                info!("Triggering `Import All MyMods` By Slot");
+                AppUI::import_all_mymod(&app_ui, &pack_file_contents_ui);
+            }
+        ));
+
+        // This slot is used for the "Export All Open MyMods" action.
+        let mymod_export_all = SlotOfBool::new(&app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+                info!("Triggering `Export All MyMods` By Slot");
+                AppUI::export_all_mymod(&app_ui, &pack_file_contents_ui);
             }
         ));
 
@@ -1708,6 +1728,8 @@ impl AppUISlots {
             mymod_open_menu,
             mymod_open_mymod_folder,
             mymod_new,
+            mymod_import_all,
+            mymod_export_all,
 
             //-----------------------------------------------//
             // `View` menu slots.

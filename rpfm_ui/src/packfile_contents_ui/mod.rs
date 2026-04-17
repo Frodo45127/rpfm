@@ -516,13 +516,17 @@ impl PackFileContentsUI {
         paths: &[PathBuf],
         paths_in_container: &[ContainerPath],
         paths_to_ignore: Option<Vec<PathBuf>>,
+        target_pack_key: Option<&str>,
     ) {
         let window_was_disabled = !app_ui.main_window().is_enabled();
         if !window_was_disabled {
             app_ui.toggle_main_window(false);
         }
 
-        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+        let pack_key = match target_pack_key {
+            Some(key) => key.to_owned(),
+            None => pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default(),
+        };
         match send_ipc_command_result(Command::AddPackedFiles(pack_key.clone(), paths.to_vec(), paths_in_container.to_vec(), paths_to_ignore), response_extractor!(Response::VecContainerPathOptionString, paths, error)) {
             Ok((paths, error)) => {
                 if !paths.is_empty() {
@@ -662,6 +666,7 @@ impl PackFileContentsUI {
         pack_file_contents_ui: &Rc<Self>,
         paths_to_extract: Option<Vec<ContainerPath>>,
         extract_tables_as_tsv: bool,
+        target_pack_key: Option<&str>,
     ) {
 
         // Get the currently selected paths (and visible) paths, or the ones received from the function.
@@ -670,9 +675,12 @@ impl PackFileContentsUI {
             None => <QPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(pack_file_contents_ui),
         };
 
-        // Query the selected pack's operational mode for extraction path logic.
-        let selected_pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-        let pack_mode = send_ipc_command(Command::GetPackOperationalMode(selected_pack_key), response_extractor!(Response::OperationalMode));
+        // Resolve the pack key to operate on: explicit target, or the selected/first editable pack.
+        let selected_pack_key = match target_pack_key {
+            Some(key) => key.to_owned(),
+            None => pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default(),
+        };
+        let pack_mode = send_ipc_command(Command::GetPackOperationalMode(selected_pack_key.clone()), response_extractor!(Response::OperationalMode));
 
         let extraction_path = match pack_mode {
 
@@ -724,9 +732,8 @@ impl PackFileContentsUI {
         else {
             let mut paths_by_source = BTreeMap::new();
             paths_by_source.insert(DataSource::PackFile, items_to_extract);
-            let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
             app_ui.toggle_main_window(false);
-            match send_ipc_command_result_async(Command::ExtractPackedFiles(pack_key, paths_by_source, extraction_path, extract_tables_as_tsv), response_extractor!(Response::StringVecPathBuf, result, _paths)) {
+            match send_ipc_command_result_async(Command::ExtractPackedFiles(selected_pack_key, paths_by_source, extraction_path, extract_tables_as_tsv), response_extractor!(Response::StringVecPathBuf, result, _paths)) {
                 Ok((result, _)) => show_message_info(app_ui.message_widget(), result),
                 Err(error) => show_dialog(app_ui.main_window(), error, false),
             }
