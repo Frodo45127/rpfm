@@ -79,3 +79,9 @@ Most public functions touching Qt are `unsafe` because the underlying Qt binding
 ## License
 
 This project is licensed under the MIT License — see the [LICENSE](../LICENSE) file for details.
+
+## Support
+
+[![become_a_patron_button](https://user-images.githubusercontent.com/15714929/40394531-2130b9ce-5e24-11e8-91a2-bbf8e6e75d21.png)][Patreon]
+
+[Patreon]: https://www.patreon.com/RPFM

@@ -717,7 +717,7 @@ integer_1 = Unknown integer 1:
 integer_2 = Unknown integer 2:
 
 settings_update_channel = Update Channel
-update_success_main_program = <h4>RPFM updated correctly!</h4> <p>To check what changed in this update, check this link: <a href='file:///{"{"}{"}"}'>Changelog.md</a>. If you're updating to a beta, the relevant changes are on the "Unreleased" section.</p> <p>Please, restart the program for the changes to apply.</p>
+update_success_main_program = <h4>RPFM updated correctly!</h4> <p>To check what changed in this update, check this link: <a href='file:///{"{"}{"}"}'>CHANGELOG.md</a>. If you're updating to a beta, the relevant changes are on the "Unreleased" section.</p> <p>Please, restart the program for the changes to apply.</p>
 
 settings_autosave_interval = Autosave Interval (min 0)
 autosaving = Autosaving…
@@ -1555,7 +1555,7 @@ updater_info = <p>This is the central update manager for Rusted Packfile Manager
     <ul>
         <li>
             <b>Program Updates</b>: Updates to the program itself. After updating it, you can click it again to restart into the updated program. Some notes on these updates:<ul>
-                <li>To see the changes, after updating you can <a href='file:///{"{"}{"}"}'>click here</a> or you can open the Changelog.md file in RPFM's folder.</li>
+                <li>To see the changes, after updating you can <a href='file:///{"{"}{"}"}'>click here</a> or you can open the CHANGELOG.md file in RPFM's folder.</li>
                 <li>Note that there are two update channels: beta and stable. <b>You're currently on the {"{"}{"}"} channel</b>. You can change the channel in the settings.</li>
                 <li>If you select "Stable" channel and you're in a beta, the latest Stable will be always shown as an available update, EVEN IF IT'S OLDER THAN YOUR BETA. This is to allow rollbacks. So if you want to use betas, make sure to select the "Beta" channel.</li>
             </ul>

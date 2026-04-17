@@ -1,26 +1,116 @@
 # rpfm_ipc
 
-`rpfm_ipc` is a crate that defines the Inter-Process Communication (IPC) protocol used between the RPFM frontend (`rpfm_ui`) and the backend server (`rpfm_server`). It provides the data structures for commands and responses, ensuring type-safe communication between the two processes.
+The IPC protocol shared between `rpfm_ui` and `rpfm_server`.
 
-## Protocol Structure
+This crate defines the type-safe message contract that the Qt6 frontend and the backend server use to talk to each other. Both sides depend on it; nothing here runs on its own.
 
-The communication protocol is built around three main components:
+> For user-facing project info (installation, building instructions, FAQ, contributing), see the [workspace README](../README.md) and the [manual][manual].
+>
+> This README targets developers consuming or working on the crate.
 
--   `Message<T>`: A generic wrapper for all messages sent between the frontend and the server. It contains a unique `id` to correlate requests with their corresponding responses, and a `data` field payload.
+[manual]: https://frodo45127.github.io/rpfm/
 
-    ```rust
-    pub struct Message<T: Debug> {
-        pub id: u64,
-        pub data: T,
-    }
-    ```
+## Protocol
 
--   `Command`: An enum that defines all the possible commands the frontend can send to the server. Each variant represents a specific action to be performed, such as opening a PackFile, saving a file, or running a diagnostic check.
+The frontend and the server speak JSON over a local WebSocket. Each payload is wrapped in a `Message<T>`:
 
--   `Response`: An enum that defines all the possible responses the server can send back to the frontend. Each variant corresponds to the result of a specific command, carrying data on success or an error message on failure.
+```rust
+pub struct Message<T: Debug> {
+    pub id: u64,
+    pub data: T,
+}
+```
+
+The `id` correlates a response to the request that produced it, which lets the UI keep many requests in flight simultaneously without blocking. Outgoing messages carry `Command`; incoming ones carry `Response`.
+
+## Modules
+
+- `messages` — Core protocol: `Message<T>` wrapper, `Command` enum, `Response` enum, plus shared enums like `OperationalMode`.
+- `helpers` — Marshalling types: `ContainerInfo`, `RFileInfo`, `VideoInfo`, `DependenciesInfo`, `DataSource`, `NewFile`, `APIResponse`, `SessionInfo`.
+- `settings_keys` — Typed string-key constants for every setting RPFM persists, plus `SettingsSnapshot` for batch transfers.
+
+## Commands
+
+`Command` is a large enum (~150 variants) covering everything the UI can ask the server to do. Variants are grouped roughly into:
+
+- **Pack lifecycle.** New, open, save, save-as, close, type changes, compression, optimization, "load all CA packs", SiegeAI patching.
+- **PackedFile operations.** Create, add, decode, extract, rename, delete, copy/cut/paste, duplicate, AnimPack-specific operations.
+- **Dependencies.** Get table lists, resolve table versions, merge files, update dependency cache.
+- **Search & navigation.** Global search and replace, find-references, go-to-definition, loc-key lookups.
+- **Schema.** Load, save, query definitions, apply patches.
+- **Settings.** Per-type get/set (`bool`, `i32`, `f32`, `String`, `PathBuf`, `Vec<String>`) plus a batch `SettingsGetAll` that returns a `SettingsSnapshot`.
+- **Updates.** Check/apply updates for the program, schemas, Lua autogen, old AK files, translations.
+- **MyMod.** Operational-mode get/set, install/uninstall, import/export.
+- **Sessions.** Client disconnect, autosave, backup, exit.
+- **Advanced.** Cascade edition, map packing, startpos build pre/post/cleanup, animation ID updates, diagnostics, TSV import/export, external-program integration.
+
+## Responses
+
+`Response` is a similarly broad enum (~80 variants). Names encode the payload type so the UI can pattern-match without runtime checks:
+
+- Simple — `Success`, `Error(String)`, `Bool(bool)`, `I32(i32)`, `String(String)`, `PathBuf(PathBuf)`.
+- File-typed — `DBRFileInfo`, `LocRFileInfo`, `TextRFileInfo`, `AnimFragmentBattleRFileInfo`, …
+- Aggregate — `GlobalSearchVecRFileInfo`, `VecContainerPathVecRFileInfo`, `HashMapDataSourceHashMapStringRFile`.
+- Settings — `SettingsAll(SettingsSnapshot)`.
+- Session — `SessionConnected(u64)` is sent unsolicited right after a WebSocket handshake so the client learns its session ID.
+
+## settings_keys
+
+`settings_keys` exposes every setting the server reads or writes as a `pub const &str`. Both sides import these constants instead of stringly-typing keys, so a typo becomes a compile error. Categories include:
+
+- Paths (`MYMOD_BASE_PATH`, `SECONDARY_PATH`, …).
+- General (default game, language, autosave cadence, font, recent files).
+- Editor behaviour (`LAZY_LOADING`, `DISABLE_UUID_REGENERATION`, `EXPAND_TREEVIEW_WHEN_ADDING_ITEMS`, …).
+- Tables (`TIGHT_TABLE_MODE`, `ENABLE_LOOKUPS`, `ENABLE_ICONS`, `HIDE_UNUSED_COLUMNS`, …).
+- Diagnostics (`ENABLE_DEBUG_MENU`, `DIAGNOSTICS_TRIGGER_*`, …).
+- Telemetry (`ENABLE_USAGE_TELEMETRY`, `ENABLE_CRASH_REPORTS`).
+- AI/external services (`AI_OPENAI_API_KEY`, `DEEPL_API_KEY`).
+- Optimizer toggles (one constant per step).
+- Theme colour keys for light and dark variants.
+
+`SettingsSnapshot` bundles the whole settings store into per-type maps so the UI can pull everything in one round trip on startup, then keep a local cache.
+
+## Helper types
+
+Types in `helpers` are the "view models" the server hands back when it doesn't want to ship a full decoded file:
+
+- `ContainerInfo` — Pack name, path, version, type, compression, timestamp.
+- `RFileInfo` — File path, container name, timestamp, file type.
+- `VideoInfo` — Format, codec, dimensions, frame count, framerate.
+- `DependenciesInfo` — Paths grouped by source.
+- `DataSource` — `PackFile`, `GameFiles`, `ParentFiles`, `AssKitFiles`, `ExternalFile`.
+- `NewFile` — Construction parameters for new files (AnimPack, DB, Loc, PortraitSettings, Text, VMD, WSModel).
+- `APIResponse` — Update-check outcome.
+- `SessionInfo` — Per-session snapshot used by the `/sessions` endpoint and the session picker.
 
 ## Usage
 
-This crate is not intended to be used as a standalone application. It is a dependency of `rpfm_server` and `rpfm_ui`, providing the shared language they need to communicate.
+This crate is meant to be consumed by `rpfm_ui` and `rpfm_server` only. Direct use elsewhere should be limited to building tools that talk to a running `rpfm_server` over WebSocket.
 
-When the frontend needs to perform an action, it serializes a `Message<Command>` into JSON and sends it over a WebSocket connection to the server. The server then deserializes the message, executes the command, and sends back a `Message<Response>` containing the result. The unique `id` in the message wrapper allows the frontend to match the response to the correct original request.
+```rust
+use rpfm_ipc::messages::{Command, Message};
+
+let request = Message {
+    id: 1,
+    data: Command::OpenPackFiles(vec![path]),
+};
+// serialize to JSON, send over the WebSocket, await the matching response by id...
+```
+
+## Related crates
+
+- **rpfm_server** — Implements the server side of this protocol.
+- **rpfm_ui** — Implements the client side.
+- **rpfm_lib** — Provides the file types referenced in `Command`/`Response` payloads.
+- **rpfm_extensions** — Provides the higher-level workflows the protocol exposes.
+- **rpfm_telemetry** — Owns the telemetry settings keys re-exported here.
+
+## License
+
+This project is licensed under the MIT License — see the [LICENSE](../LICENSE) file for details.
+
+## Support
+
+[![become_a_patron_button](https://user-images.githubusercontent.com/15714929/40394531-2130b9ce-5e24-11e8-91a2-bbf8e6e75d21.png)][Patreon]
+
+[Patreon]: https://www.patreon.com/RPFM

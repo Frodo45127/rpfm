@@ -1,97 +1,145 @@
 # rpfm_server
 
-`rpfm_server` is the backend server for RPFM (Rusted PackFile Manager). It provides a WebSocket and MCP (Model Context Protocol) interface for the frontend to interact with the filesystem and perform PackFile operations.
+The backend that does the actual PackFile, schema and filesystem work for ***Rusted PackFile Manager***.
 
-## Compilation
+`rpfm_server` is a long-running local process that exposes RPFM's capabilities over WebSocket and over the [Model Context Protocol][mcp]. The Qt6 frontend (`rpfm_ui`) talks to it over the WebSocket; AI tools (or other MCP clients) talk to it over `/mcp`. Multiple clients can be connected at the same time, each in its own session with its own set of open packs.
 
-To compile the server, you can use the following commands:
+> For user-facing project info (installation, building instructions, FAQ, contributing), see the [workspace README](../README.md) and the [manual][manual].
+>
+> This README targets developers working on the server itself.
 
-**For a debug build:**
+[manual]: https://frodo45127.github.io/rpfm/
+[mcp]: https://modelcontextprotocol.io/
+
+## Architecture
+
+```
+┌──────────────────────────┐    WebSocket    ┌──────────────────────────┐
+│        rpfm_ui           │ ◀────────────▶  │      rpfm_server         │
+│  (Qt6 desktop app)       │                 │      (this crate)        │
+└──────────────────────────┘                 └─────────────┬────────────┘
+                                                           │
+┌──────────────────────────┐    HTTP+SSE                   │
+│  MCP clients (AI tools)  │ ◀──────────────▶  /mcp ◀──────┘
+└──────────────────────────┘
+```
+
+- Built on `axum` (HTTP + WebSocket) and `tokio`. Listens on `127.0.0.1:45127` by default.
+- Each client connection is wrapped in a **session**. A session owns a dedicated background thread that processes commands serially against its in-memory state (open packs, dependency cache, schema, settings).
+- Heavy work (file I/O, schema decode, diagnostics, search, optimizer) is delegated to `rpfm_lib` and `rpfm_extensions`.
+- Telemetry, panic capture and logging are wired through `rpfm_telemetry`.
+
+## Module layout
+
+Top-level modules in `src/`:
+
+- `main.rs` — Entry point. Sets up telemetry, builds the `SessionManager`, mounts the `axum` router, binds to the listening address.
+- `session.rs` — `SessionManager`, `Session`, session lifecycle (creation, reconnection, timeout cleanup). `DEFAULT_SESSION_TIMEOUT_SECS = 300`.
+- `server_websocket.rs` — `/ws` upgrade handler. Multiplexes IPC `Message<Command>` / `Message<Response>` traffic over the WebSocket; sends `SessionConnected` immediately after the handshake; flushes telemetry on graceful disconnect (`Server Action Telemetry`).
+- `server_mcp.rs` — `/mcp` endpoint. Implements the MCP server (tools, prompts, resources) on top of `rmcp`, and forwards work into the session's background thread.
+- `background_thread.rs` — Central dispatcher. The `background_loop` async function pulls `(sender, Command)` pairs off a channel and runs the matching logic.
+- `comms.rs` — `CentralCommand<T>`, the generic mpsc-based request/response abstraction used to talk to the background thread.
+- `settings.rs` — JSON-backed settings store with batch-write optimisation.
+- `updater.rs` — Self-update checks against GitHub releases.
+
+## Endpoints
+
+All on `127.0.0.1:45127`:
+
+| Endpoint    | Method | Purpose                                                                                       |
+|-------------|--------|-----------------------------------------------------------------------------------------------|
+| `/ws`       | GET    | WebSocket. Carries the `rpfm_ipc` command/response protocol. Accepts `?session_id=…` for reconnection. |
+| `/sessions` | GET    | JSON `Vec<SessionInfo>` of every live session. Used by the session picker in the UI.          |
+| `/mcp`      | *      | MCP `StreamableHttpService`. Each client gets its own dedicated session and `McpServer`.      |
+
+### `/sessions` response
+
+`Vec<SessionInfo>` (defined in `rpfm_ipc::helpers`) — each entry exposes:
+
+- `session_id` — Unique identifier.
+- `connection_count` — Number of active WebSocket connections.
+- `timeout_remaining_secs` — Seconds until cleanup (only set while disconnected).
+- `is_shutting_down` — Marked-for-shutdown flag.
+- `pack_names` — Names of every pack open in that session.
+
+## Sessions
+
+Lifecycle:
+
+1. **Connect.** A client opens `/ws` without `session_id`. The server allocates a new `SessionId`, spawns a background thread, and immediately sends `Response::SessionConnected(id)` so the client can stash the ID for later reconnection.
+2. **Reconnect.** A client opens `/ws?session_id=<id>`. If the session still exists and isn't shutting down, the new socket adopts it with all in-memory state preserved (open packs, loaded dependencies, settings cache).
+3. **Disconnect.** When the WebSocket drops without a `Command::ClientDisconnecting`, the session enters a 5-minute grace period. Reconnecting cancels the timeout; otherwise the session and its background thread are torn down.
+4. **Graceful disconnect.** `Command::ClientDisconnecting` removes the session immediately and flushes telemetry.
+5. **Empty manager → process exit.** When the last session goes away the process exits, so no orphaned server lingers in the background.
+
 ```bash
-cargo build -p rpfm_server
-```
+# Connect:
+ws://127.0.0.1:45127/ws
 
-**For a release build:**
-```bash
-cargo build --release --bin rpfm_server
-```
-
-## Usage
-
-The server is usually spawned automatically by the `rpfm_ui` frontend. However, you can also run it manually.
-
-When started, the server will listen on `127.0.0.1:45127` by default. It exposes three endpoints:
-
--   `/ws`: A WebSocket endpoint for general commands and responses. The frontend connects to this to send commands and receive results. It supports session management, allowing a client to disconnect and reconnect to the same session.
--   `/sessions`: A REST endpoint that returns a JSON array of all active sessions. Used by the UI to display available sessions for reconnection.
--   `/mcp`: An HTTP endpoint for the Model Context Protocol, used for more specialized, streamable operations.
-
-To run the server, execute the compiled binary:
-
-```bash
-./target/release/rpfm_server
-```
-
-The server will log its output to the standard error stream.
-
-## Session Management
-
-The server uses a session-based architecture where each client connection is associated with a session. Sessions maintain state (open PackFile, settings, etc.) and can persist across disconnections.
-
-### Session Lifecycle
-
-1. **New Connection**: When a client connects to `/ws` without a `session_id` parameter, a new session is created with a unique ID.
-2. **Session Connected Message**: Immediately after connection, the server sends a `SessionConnected` response containing the session ID:
-   ```json
-   { "id": 0, "data": { "SessionConnected": 12345 } }
-   ```
-   The client should store this ID for potential reconnection.
-3. **Disconnection**: When a client disconnects unexpectedly, the session enters a timeout period (default: 5 minutes) during which it can be reconnected.
-4. **Graceful Disconnect**: If a client sends the `ClientDisconnecting` command before closing the connection, the session is removed immediately.
-5. **Timeout Cleanup**: Sessions that are not reconnected within the timeout period are automatically cleaned up.
-6. **Server Shutdown**: When all sessions are removed (either by graceful disconnect or timeout), the server shuts down automatically.
-
-### Reconnecting to a Session
-
-To reconnect to an existing session, append the `session_id` query parameter to the WebSocket URL:
-
-```
+# Reconnect:
 ws://127.0.0.1:45127/ws?session_id=12345
-```
 
-If the session exists and is still valid, the client will be reconnected to it with all state preserved (open PackFile, loaded dependencies, etc.).
-
-### Listing Available Sessions
-
-The `/sessions` REST endpoint returns information about all active sessions:
-
-```bash
+# List sessions:
 curl http://127.0.0.1:45127/sessions
 ```
 
-Response:
-```json
-[
-  {
-    "session_id": 12345,
-    "connection_count": 0,
-    "timeout_remaining_secs": 180,
-    "is_shutting_down": false,
-    "pack_name": "my_mod.pack"
-  },
-  {
-    "session_id": 12346,
-    "connection_count": 1,
-    "timeout_remaining_secs": null,
-    "is_shutting_down": false,
-    "pack_name": null
-  }
-]
+## Per-pack state
+
+State that used to live on the UI side now lives per-pack on the server. The most visible example is `OperationalMode` (Normal vs. MyMod-bound): `Command::SetPackOperationalMode(pack_key, mode)` and `Command::GetPackOperationalMode(pack_key)` set and read it, and the matching MCP tools mirror the same shape.
+
+This means a session with N open packs holds N independent operational modes, and the UI no longer has to keep that state in sync with which pack is currently focused.
+
+## MCP support
+
+`/mcp` exposes RPFM as an MCP server, so AI tools and other MCP clients can drive it the same way the UI does. The implementation lives entirely in `server_mcp.rs` and routes everything through the same per-session background thread the WebSocket uses, so MCP and UI clients see consistent state.
+
+The server advertises a large surface — over 150 tools covering pack lifecycle, file operations, tables, search, diagnostics, schema, animations, media, operational mode, and so on, plus a handful of resources (game lists, enum dumps, examples, reference docs) and prompts (common workflows like "open and inspect a pack", "edit a DB table", "manage dependencies"). Look in `server_mcp.rs` for the authoritative list.
+
+## Telemetry
+
+The server uses `rpfm_telemetry` for logging, crash reporting and action counters:
+
+- `Logger::init` is called at startup; the `ClientInitGuard` is held in `main.rs` for the process lifetime.
+- Every dispatched command is recorded via `record_action(command_name(cmd))` in `background_loop`.
+- On graceful disconnect, the WebSocket handler calls `flush("Server Action Telemetry")`. This label is what tells server-side counters apart from `rpfm_ui`'s `"UI Action Telemetry"` events in Sentry.
+
+Both of `rpfm_telemetry`'s opt-out toggles (`enable_usage_telemetry`, `enable_crash_reports`) are read from settings and applied at runtime.
+
+## Building & running
+
+The server is normally spawned automatically by `rpfm_ui` (debug builds run `cargo build -p rpfm_server` first; release builds launch the bundled binary). To build or run it directly:
+
+```bash
+# Debug build:
+cargo build -p rpfm_server
+
+# Release build:
+cargo build --release -p rpfm_server
+
+# Run it:
+./target/release/rpfm_server
 ```
 
-Fields:
-- `session_id`: Unique identifier for the session.
-- `connection_count`: Number of active WebSocket connections to this session.
-- `timeout_remaining_secs`: Seconds until the session is cleaned up (only present if the session has no active connections).
-- `is_shutting_down`: Whether the session has been marked for shutdown.
-- `pack_name`: Name of the PackFile currently open in this session, or `null` if no pack is open.
+Logs go to stderr.
+
+## Cargo features
+
+This crate has no feature flags. It enables `integration_git`, `integration_assembly_kit` and `support_error_bitcode` on `rpfm_lib`.
+
+## Related crates
+
+- **rpfm_ipc** — Wire protocol shared with `rpfm_ui` and any other client.
+- **rpfm_lib** — Core file-format library doing the actual decode/encode.
+- **rpfm_extensions** — Higher-level workflows (dependencies, diagnostics, search, optimizer, translator, glTF).
+- **rpfm_telemetry** — Logging, crash reports, action counters.
+- **rpfm_ui** — Qt6 desktop client.
+
+## License
+
+This project is licensed under the MIT License — see the [LICENSE](../LICENSE) file for details.
+
+## Support
+
+[![become_a_patron_button](https://user-images.githubusercontent.com/15714929/40394531-2130b9ce-5e24-11e8-91a2-bbf8e6e75d21.png)][Patreon]
+
+[Patreon]: https://www.patreon.com/RPFM

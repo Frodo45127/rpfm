@@ -1,67 +1,57 @@
 # rpfm_extensions
 
-High-level extensions for Total War modding built on top of `rpfm_lib`.
+High-level modding features built on top of `rpfm_lib`.
 
-This crate provides advanced features that build upon the core file handling capabilities of `rpfm_lib`. While `rpfm_lib` focuses on low-level file format parsing and encoding, this crate implements higher-level modding workflows and analysis tools.
+While `rpfm_lib` handles low-level file format parsing, `rpfm_extensions` implements the higher-level workflows RPFM exposes to users: dependency resolution, diagnostics, global search, pack optimization, mod translation and 3D model export. It's the "smart" layer that knows about cross-file relationships, vanilla data, and modding conventions.
 
-## Features
+> For user-facing project info (installation, building instructions, FAQ, contributing), see the [workspace README](../README.md) and the [manual][manual].
+>
+> This README targets developers consuming or working on the crate.
 
-### Dependencies Management
+[manual]: https://frodo45127.github.io/rpfm/
 
-Comprehensive system for managing dependencies between packs and vanilla game files:
+## Module layout
 
-- Load and cache vanilla game data for reference lookups
-- Manage parent mod dependencies with automatic recursive loading
-- Build reference data for DB table foreign key relationships
-- Assembly Kit integration for tables not present in game files
-- Startpos generation for campaign mods
+Top-level modules in `src/`:
 
-### Diagnostics
+- `dependencies/` — `Dependencies` cache. Loads vanilla game files, parent mods and Assembly Kit data, then exposes lookups for foreign-key resolution, reference building, ITM/ITNR detection, and startpos generation.
+- `diagnostics/` — Pack validation engine. Runs a battery of checks (table, pack, portrait settings, animation fragments, text, dependency, config) and returns structured `DiagnosticType` results consumers can render or auto-fix.
+- `search/` — `GlobalSearch` over one or more packs, with optional regex, case sensitivity, replace, and source filters (current pack, parent mods, vanilla, Assembly Kit).
+- `optimizer/` — `OptimizableContainer` trait + `OptimizerOptions`. Strips ITM/ITNR rows, datacore-imports vanilla deletes, removes empty files, drops unused portrait-settings entries, and cleans up modding-tool byproducts.
+- `translator/` — `PackTranslation`. Extracts translatable strings, tracks source-text drift, auto-translates from vanilla loc data, and generates the override Loc files Runcher applies at launch.
+- `gltf/` — RigidModel → glTF 2.0 export with per-LOD scenes.
 
-Pack validation and error checking system:
+## Diagnostics
 
-- DB/Loc table validation (invalid references, empty keys, duplicates)
-- Pack-level checks (conflicting files, missing dependencies)
-- Portrait settings validation
-- Animation fragment validation
-- Configurable diagnostic levels (Info, Warning, Error)
+`Diagnostics::check(...)` produces a `Vec<DiagnosticType>`. The available check categories live in `src/diagnostics/`:
 
-### Global Search
+| Module                   | Covers                                                                                          |
+|--------------------------|-------------------------------------------------------------------------------------------------|
+| `table.rs`               | DB & Loc tables: outdated definitions, invalid references, empty rows/keys, duplicates, datacoring, naming, escape sequences, orphan loc keys. |
+| `pack.rs`                | Pack-level: invalid pack/file names, missing loc data, ITM files, overwrites, duplicates.       |
+| `portrait_settings.rs`   | Portrait Settings: invalid art sets and variants, missing texture files.                        |
+| `anim_fragment_battle.rs`| AnimFragmentBattle: missing locomotion graphs, file paths, metadata, sound files.               |
+| `text.rs`                | Text: invalid loc-key references inside scripts.                                                |
+| `dependency.rs`          | Pack dependency declarations.                                                                   |
+| `config.rs`              | Setup health: missing/outdated cache, load failures, incorrect game path.                       |
 
-Search and replace functionality across entire packs:
+## Optimizer
 
-- Pattern and regex-based searching
-- Case-sensitive and case-insensitive modes
-- Search across multiple file types (DB, Loc, Text, Atlas, etc.)
-- Search in vanilla/parent dependencies
-- Batch replace operations
+`OptimizableContainer::optimize` is implemented for `Pack`. `OptimizerOptions` toggles each step independently; the defaults are conservative. Steps include:
 
-### Pack Optimizer
+- DB/Loc: drop duplicates, ITM and ITNR rows, drop empty tables.
+- Datacore: import vanilla deletes into the `twad_key_deletes` table; optionally optimize datacored tables themselves.
+- Portrait Settings: drop variants/art sets unused by referenced tables, drop empty masks, drop empty files.
+- Text: drop XML byproducts in `map/` and `prefabs/`, `.agf` and `.model_statistics` files left over from the modeling pipeline.
+- Pack: remove files identical to vanilla/parent (ITM at the file level).
 
-Tools to reduce pack size and improve compatibility:
+## Translator
 
-- Remove files identical to vanilla (ITM - Identical To Master)
-- Remove duplicate and ITM table rows
-- Clean up unused Portrait Settings entries
-- Remove unnecessary XML and auxiliary files
-- Datacore management for `twad_key_deletes` tables
+`PackTranslation` is the entry point. Translations are persisted as JSON in RPFM's config directory and uploaded to the [Total War Translation Hub](https://github.com/Frodo45127/total_war_translation_hub) so Runcher can apply them at launch without modifying the original packs. Generated translated Loc files use the `!!!!!!translated_locs.loc` naming convention from Warhammer onward.
 
-### Translation Support
+## glTF export
 
-Mod localization assistance:
-
-- Extract translatable strings from packs
-- Track translation status and detect source text changes
-- Auto-translate from vanilla localisation data
-- Generate translated Loc files for distribution
-
-### glTF Export
-
-3D model export capabilities:
-
-- Convert RigidModel files to glTF 2.0 format
-- Export mesh data, materials, and textures
-- Support for multiple LOD levels as separate scenes
+`gltf::gltf_from_rigid` converts a `RigidModel` to glTF 2.0, exporting mesh data, materials and textures. Each LOD becomes its own scene.
 
 ## Usage
 
@@ -72,28 +62,30 @@ Add to your `Cargo.toml`:
 rpfm_extensions = "4.7"
 ```
 
-### Example: Running Diagnostics
+### Running diagnostics
 
 ```rust
+use std::collections::BTreeMap;
 use rpfm_extensions::diagnostics::Diagnostics;
 
+let mut packs: BTreeMap<String, Pack> = ...;
 let mut diagnostics = Diagnostics::default();
 diagnostics.check(
-    &mut pack,
+    &mut packs,
     &mut dependencies,
     &schema,
     &game_info,
     game_path,
-    &[],  // Check all paths
-    false,
+    &[],   // empty = check all paths
+    false, // skip Assembly-Kit-only references
 );
 
 for result in diagnostics.results() {
-    println!("{}: {:?}", result.path(), result);
+    println!("{:?}", result);
 }
 ```
 
-### Example: Global Search
+### Global search
 
 ```rust
 use rpfm_extensions::search::{GlobalSearch, SearchSource};
@@ -101,23 +93,23 @@ use rpfm_extensions::search::{GlobalSearch, SearchSource};
 let mut search = GlobalSearch::default();
 search.set_pattern("swordsmen".to_string());
 search.set_case_sensitive(false);
-search.set_source(SearchSource::Pack);
+*search.sources_mut() = vec![SearchSource::Pack("my_mod.pack".to_string())];
 
-search.search(&mut pack, &schema, &dependencies);
+search.search(&game_info, &schema, &mut packs, &mut dependencies, &[]);
 
 for matches in search.matches().db() {
     println!("Found in {}", matches.path());
 }
 ```
 
-### Example: Pack Optimization
+### Pack optimization
 
 ```rust
 use rpfm_extensions::optimizer::{OptimizableContainer, OptimizerOptions};
 
 let options = OptimizerOptions::default();
 let (deleted, optimized) = pack.optimize(
-    None,  // Optimize all paths
+    None, // None = all paths
     &mut dependencies,
     &schema,
     &game_info,
@@ -127,12 +119,17 @@ let (deleted, optimized) = pack.optimize(
 println!("Deleted {} files, optimized {} files", deleted.len(), optimized.len());
 ```
 
-## Related Crates
+## Cargo features
 
-- **rpfm_lib** - Core library for file format handling
-- **rpfm_telemetry** - Logging, crash reporting and anonymous action telemetry with Sentry integration
-- **rpfm_ui** - Qt-based desktop application
-- **rpfm_server** - WebSocket/MCP backend server
+This crate has no feature flags. It depends on `rpfm_lib` with `integration_assembly_kit` and `support_error_bitcode` enabled.
+
+## Related crates
+
+- **rpfm_lib** — Core file-format library this crate builds on.
+- **rpfm_ipc** — Command/response protocol shared between `rpfm_ui` and `rpfm_server`; carries the request/response payloads for the workflows here.
+- **rpfm_telemetry** — Logging, crash reporting, and action telemetry. This crate stays Sentry-free and depends only on `log`.
+- **rpfm_ui** — Qt6 desktop frontend.
+- **rpfm_server** — WebSocket/MCP backend that hosts these workflows for the UI.
 
 ## Documentation
 
@@ -140,7 +137,7 @@ Full API documentation is available at [docs.rs](https://docs.rs/rpfm_extensions
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](../LICENSE) file for details.
+This project is licensed under the MIT License — see the [LICENSE](../LICENSE) file for details.
 
 ## Support
 

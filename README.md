@@ -1,34 +1,68 @@
 ![rpfm](https://github.com/Frodo45127/rpfm/assets/15714929/3a820a6a-f7c9-4b15-8c2d-44605e751f5d)
 # Rusted PackFile Manager
-***Rusted PackFile Manager*** (RPFM) is a... reimplementation in Rust and ***~~GTK3~~ ~~Qt5~~ Qt6*** of ***PackFile Manager*** (PFM), one of the best modding tools for Total War Games. Not only it can edit Packs, but also has integrated editors for DB Tables, Loc files, scripts,... and a bunch of different file formats.
 
-**Downloads here:** [https://github.com/Frodo45127/rpfm/releases][Downloads]
+***Rusted PackFile Manager*** (RPFM) is a Rust + ***Qt6*** reimplementation of ***PackFile Manager*** (PFM), one of the best modding tools for Total War games. It opens, inspects, edits and saves PackFiles for every Total War since *Empire: Total War*, and ships integrated editors for DB tables, Loc files, scripts, animations, portrait settings, rigid models, videos and a long list of other formats.
 
-**Manual here:** [***HERE, READ IT BEFORE ASKING***][Manual].
+**Downloads:** [https://github.com/Frodo45127/rpfm/releases][Downloads]
+
+**Manual (read it before asking!):** [HERE][Manual].
 
 [![become_a_patron_button](https://user-images.githubusercontent.com/15714929/40394531-2130b9ce-5e24-11e8-91a2-bbf8e6e75d21.png)][Patreon]
 
-# Requirements (to use)
-* ***Windows***: Just download it, extract it somewhere and execute it.
+## Requirements (to use)
+
+* ***Windows***: just download, extract and run.
 * ***Linux***:
-    - ***Arch Linux and derivates***: it's in the AUR as **rpfm-bin**.
-    - ***Other distros***: Make sure you have Qt6, xz, and 7zip installed. Or install the flatpak package.
-* ***MacOS***: You'll know it when I manage to compile it for Mac.
+    - ***Arch Linux and derivatives***: it's in the AUR as **rpfm-bin**.
+    - ***Other distros***: install Qt6, xz and 7zip — or use the Flatpak.
+* ***macOS***: you'll know it when I manage to compile it for Mac.
 
-# Requirements (to build)
+## Requirements (to build)
 
-Check the building instructions [here][CompInst]
+See the [compilation instructions][CompInst].
 
-# FAQ
-- **How can I translate it to my own language?**: go to the locale folder, copy the *English_en.ftl* file, rename it to *NameYouWantInTheUI_xx.ftl*. For example, for spanish it'll be *Español_es.ftl*. Translate it. Done.
-- **Why there is no .exe in the download?**: because you downloaded the source code, not the program. Check at the begining of this description, where is says ***Downloads here***.
+## Architecture
 
-# Credits
-* Created and Programmed by: **Frodo45127**.
+RPFM is split into several crates so the same code can power the desktop app, a headless server, and any third-party tool that wants to read or write Total War files.
+
+### Libraries
+
+| Crate                                    | Purpose                                                                       |
+|------------------------------------------|-------------------------------------------------------------------------------|
+| [`rpfm_lib`](./rpfm_lib)                 | Core file-format library: packs, schemas, DB, Loc, RigidModel, audio, video… |
+| [`rpfm_extensions`](./rpfm_extensions)   | Higher-level workflows: dependencies, diagnostics, search, optimizer, translator, glTF export. |
+| [`rpfm_ipc`](./rpfm_ipc)                 | Command/response protocol shared between UI and server.                       |
+| [`rpfm_telemetry`](./rpfm_telemetry)     | Logging, crash reporting and opt-out action telemetry.                        |
+| [`rpfm_ui_common`](./rpfm_ui_common)     | Shared Qt6 helpers used by every UI consumer.                                 |
+
+### Executables
+
+| Crate                                | Purpose                                                                                            |
+|--------------------------------------|----------------------------------------------------------------------------------------------------|
+| [`rpfm_ui`](./rpfm_ui)               | The Qt6 desktop application most people interact with.                                             |
+| [`rpfm_server`](./rpfm_server)       | Backend that does the heavy file/schema/filesystem work. Exposes WebSocket + MCP for AI tools. The UI spawns it automatically. |
+
+### Companion data
+
+| Folder                                          | Purpose                                                                            |
+|-------------------------------------------------|------------------------------------------------------------------------------------|
+| [`schemas`](./schemas)                          | RON schema files for every supported game, plus runtime patches and animation IDs. |
+| [`old_ak_files`](./old_ak_files)                | Archived Assembly Kit definitions for Empire and Napoleon (no AK was ever shipped). |
+| [`install`](./install)                          | Per-platform packaging scripts (Linux tar.zst, Flatpak, AUR, Windows zip).         |
+
+## FAQ
+
+- **How can I translate the UI to my own language?** Go to the `locale` folder, copy `English_en.ftl`, rename it to `NameYouWantInTheUI_xx.ftl` (for Spanish: `Español_es.ftl`), translate it. Done.
+- **Why is there no .exe in the download?** Because you downloaded the source code, not the program. See ***Downloads*** at the top.
+- **How do I contribute a mod translation?** Use RPFM's translator tool to produce a translation JSON, then submit it to the [Total War Translation Hub](https://github.com/Frodo45127/total_war_translation_hub). Runcher will pick it up automatically for any user with translations enabled.
+
+## Credits
+
+* Created and programmed by: **Frodo45127**.
 * Extra programming work by: **Vandy**.
-* Modern DDS Read support by: **Phazer**.
-* App Icons until v1.6.2 by: **Maruka**.
-* App Icons since v2.0.0 by: **Jake Armitage**.
+* Modern DDS read support by: **Phazer**.
+* App icons until v1.6.2 by: **Maruka**.
+* App icons since v2.0.0 by: **Jake Armitage**.
 * AnimPack research: **Marthenil** and **Frodo45127**.
 * Ca\_vp8 research: **John Sirett**.
 * LUA functions by: **Aexrael Dex**.
@@ -37,6 +71,8 @@ Check the building instructions [here][CompInst]
 * RigidModel module until v1.6.2 by: **Frodo45127**.
 * RigidModel module since v2.4.99 by: **Phazer**.
 * TW: Arena research and coding: **Trolldemorted**.
+
+## Support
 
 [Rustup download]: https://www.rustup.rs/ "Here you can download it :)"
 [Patreon]: https://www.patreon.com/RPFM

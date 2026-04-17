@@ -128,8 +128,8 @@ mkdir icons
 mkdir locale
 mkdir ui
 Copy-Item $RPFM_PATH/LICENSE I:\deploy\rpfm-release-assets
-Copy-Item $RPFM_PATH/Changelog.md I:\deploy\rpfm-release-assets
-Copy-Item $RPFM_PATH/Changelog.md I:\deploy\rpfm-release-assets\Changelog.txt
+Copy-Item $RPFM_PATH/CHANGELOG.md I:\deploy\rpfm-release-assets
+Copy-Item $RPFM_PATH/CHANGELOG.md I:\deploy\rpfm-release-assets\Changelog.txt
 Copy-Item $RPFM_PATH/icons/* I:\deploy\rpfm-release-assets\icons\
 Copy-Item $RPFM_PATH/locale/* I:\deploy\rpfm-release-assets\locale\
 Copy-Item $RPFM_PATH/rpfm_ui/ui_templates/* I:\deploy\rpfm-release-assets\ui\

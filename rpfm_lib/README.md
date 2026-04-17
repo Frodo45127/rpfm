@@ -2,11 +2,19 @@
 
 Core library for reading and writing Total War game files.
 
-This crate provides comprehensive support for reading, writing, and manipulating file formats used by Creative Assembly in Total War games since Empire: Total War. It forms the foundation of the Rusted PackFile Manager (RPFM) project.
+`rpfm_lib` parses, edits, and serializes the file formats used by Creative Assembly in every Total War game since *Empire: Total War*. It's the foundation `rpfm_ui`, `rpfm_server`, `rpfm_extensions`, and any external tool building on Rusted PackFile Manager rely on.
 
-## Supported Games
+> For user-facing project info (installation, building instructions, FAQ, contributing), see the [workspace README](../README.md) and the [manual][manual].
+>
+> This README targets developers consuming or working on the library.
 
-- Total War: Pharaoh - Dynasties
+[manual]: https://frodo45127.github.io/rpfm/
+
+## Supported games
+
+`SupportedGames` is the canonical registry. Currently:
+
+- Total War: Pharaoh – Dynasties
 - Total War: Pharaoh
 - Total War: Warhammer 3
 - Total War Saga: Troy
@@ -19,32 +27,46 @@ This crate provides comprehensive support for reading, writing, and manipulating
 - Total War: Shogun 2
 - Total War: Napoleon
 - Total War: Empire
+- Total War: Arena (research-only)
 
-## Supported File Formats
+## Module layout
 
-The library supports 30+ file types:
+Top-level modules in `src/`:
 
-| Category       | Formats                                           |
-|----------------|---------------------------------------------------|
-| **Containers** | Pack files (`.pack`)                              |
-| **Data**       | DB tables, Loc files, ESF (saves/startpos)        |
-| **3D Models**  | RigidModel (`.rigid_model_v2`)                    |
-| **Animations** | AnimPack, AnimFragment, AnimsTable, MatchedCombat |
-| **Audio**      | Sound banks (`.bnk`), sound events, DAT           |
-| **Images**     | DDS textures, atlases                             |
-| **Maps**       | BMD, tile databases, vegetation, CS2 collision    |
-| **UI**         | UIC, portrait settings, fonts                     |
-| **Text**       | Lua, XML, and other script formats                |
+- `files/` — Parsers and writers for every supported file format. `RFile` is the central abstraction; `RFileDecoded` is the tagged enum of decoded variants.
+- `schema/` — Versioned DB table definitions, field types, and runtime patches loaded from RON files.
+- `games/` — Per-game metadata: paths, manifests, version detection, compression/encryption rules. `SupportedGames` is the entry point.
+- `binary/` — `ReadBytes`/`WriteBytes` traits over byte buffers; the bedrock under every encoder/decoder.
+- `compression/` — LZ4, ZStd, and LZMA round-tripping with magic-number detection.
+- `encryption/` — CA's PackFile encryption (XOR-based path/size/data scrambling).
+- `integrations/` — Optional Assembly Kit, Git, and SQLite integrations (each behind a feature flag).
+- `error/` — `RLibError` and the crate's `Result` alias.
+- `notes/` — Per-file user notes attached to packs.
+- `utils.rs` — Shared helpers used across the rest of the crate.
 
-See the [files module documentation](https://docs.rs/rpfm_lib/latest/rpfm_lib/files/) for detailed support levels.
+## Supported file formats
 
-## Features
+The `files/` module currently covers ~35 formats. Support level varies — some are full read/write, some are read-only, some are partially decoded:
 
-- **Schema-based DB parsing**: Versioned schemas for all supported games
-- **Compression support**: LZ4, ZStd, LZMA
-- **Encryption support**: CA's pack encryption formats
-- **Assembly Kit integration**: Parse raw tables from the modding tools
-- **Git integration**: Repository operations for schema management
+| Category    | Formats                                                                                 |
+|-------------|-----------------------------------------------------------------------------------------|
+| Containers  | Pack (`.pack`)                                                                          |
+| Data        | DB tables, Loc, ESF (saves/startpos)                                                    |
+| 3D models   | RigidModel (`.rigid_model_v2`), UnitVariant, CS2 collision                              |
+| Animations  | AnimPack, Anim, AnimFragmentBattle, AnimsTable, MatchedCombat                           |
+| Audio       | Sound banks (`.bnk`), sound bank databases, sound events, DAT containers                |
+| Images      | DDS textures, atlases                                                                   |
+| Maps        | BMD, BMD vegetation, tile databases, group formations                                   |
+| UI          | UIC, portrait settings, fonts                                                           |
+| Text        | Lua, XML, JSON, YAML, HLSL, GLSL, Markdown, VMD, WSModel and 50+ other text-shaped formats — auto-detected by extension |
+| Video       | CA's `.ca_vp8`                                                                          |
+
+See the [`files` module documentation](https://docs.rs/rpfm_lib/latest/rpfm_lib/files/) for the precise support level of each format.
+
+## Architecture notes
+
+- **Lazy loading.** `RFile` holds an internal state machine (`OnDisk` → `Cached` → `Decoded`) so packs with thousands of files can be opened cheaply and decoded on demand.
+- **Schema-driven DB parsing.** DB tables are decoded against `Schema` definitions loaded from the `schemas/` repo. Runtime `patches.ron` overlays let downstream tools tweak field metadata without editing schema files.
 
 ## Usage
 
@@ -55,21 +77,22 @@ Add to your `Cargo.toml`:
 rpfm_lib = "4.7"
 ```
 
-### Reading a Pack File
+### Reading a Pack
 
 ```rust
 use rpfm_lib::files::pack::Pack;
-use rpfm_lib::games::supported_games::SupportedGames;
+use rpfm_lib::games::supported_games::{SupportedGames, KEY_WARHAMMER_3};
 
-let game_info = SupportedGames::Warhammer3.game_info();
-let pack = Pack::read_and_merge(&[path], &game_info, true, false, false)?;
+let games = SupportedGames::default();
+let game_info = games.game(KEY_WARHAMMER_3).unwrap();
+let pack = Pack::read_and_merge(&[path], game_info, true, false, false)?;
 
 for file in pack.files().values() {
     println!("{}", file.path_in_container_raw());
 }
 ```
 
-### Working with Database Tables
+### Decoding a DB table
 
 ```rust
 use rpfm_lib::files::{db::DB, Decodeable, DecodeableExtraData, RFileDecoded};
@@ -79,25 +102,44 @@ let schema = Schema::load(&schema_path, None)?;
 let mut extra_data = DecodeableExtraData::default();
 extra_data.set_schema(Some(&schema));
 
-// Decode a DB file from a pack
-let mut file = pack.files_by_path(&path, false).first().unwrap();
+let mut file = pack.files_by_path(&path, false).first().unwrap().clone();
 file.decode(&Some(extra_data), false, true)?;
 
-if let Ok(RFileDecoded::DB(db)) = file.decoded() {
+if let Ok(Some(RFileDecoded::DB(db))) = file.decoded() {
     println!("Table {} has {} rows", db.table_name(), db.data().len());
 }
 ```
 
-## Feature Flags
+## Feature flags
 
-- `integration_assembly_kit` - Enable Assembly Kit raw table parsing
-- `integration_git` - Enable Git repository operations
-## Related Crates
+| Flag                          | Default | Description                                                                  |
+|-------------------------------|---------|------------------------------------------------------------------------------|
+| `integration_assembly_kit`    | ✓       | Parse Assembly Kit raw XML tables and sync schemas from them.                |
+| `integration_git`             |         | Schema/data repository operations (clone, pull, status) via `git2`.          |
+| `integration_sqlite`          |         | Bundled SQLite + r2d2 connection pool, used by tools that need SQL exports. |
+| `support_error_bitcode`       |         | Encode error payloads with `bitcode` (smaller serialized errors).           |
+| `enable_content_inspector`    |         | Detect text-shaped binary files via the `content_inspector` crate.          |
+| `support_uic`                 |         | Enable parsing of compiled Qt UIC files for UI tooling.                     |
 
-- **rpfm_extensions** - Higher-level features (dependencies, diagnostics, search, optimizer)
-- **rpfm_telemetry** - Logging, crash reporting and anonymous action telemetry with Sentry integration
-- **rpfm_ui** - Qt-based desktop application
-- **rpfm_server** - WebSocket/MCP backend server
+## Public API entry points
+
+The most common types and traits a consumer reaches for:
+
+- **Containers.** `Pack`, `RFile`, `RFileDecoded`, `FileType`, `ContainerPath`.
+- **Decoding/encoding.** `Decodeable`, `Encodeable`, `DecodeableExtraData`, `EncodeableExtraData`.
+- **Schema.** `Schema`, `Definition`, `Field`, `FieldType`.
+- **Games.** `SupportedGames`, `GameInfo`, `KEY_*` game keys.
+- **I/O.** `ReadBytes`, `WriteBytes`, `Compressible`, `Decompressible`, `Decryptable`.
+- **Errors.** `RLibError`.
+
+## Related crates
+
+- **rpfm_extensions** — Higher-level features built on top of this crate (dependencies, diagnostics, search, optimizer, translator, glTF export).
+- **rpfm_ipc** — Command/response protocol shared between `rpfm_ui` and `rpfm_server`.
+- **rpfm_telemetry** — Logging, crash reporting, action telemetry. `rpfm_lib` itself depends only on the plain `log` crate and stays Sentry-free.
+- **rpfm_ui_common** — Shared Qt6 utilities for UI consumers.
+- **rpfm_ui** — Qt6 desktop frontend.
+- **rpfm_server** — WebSocket/MCP backend that performs the heavy lifting for `rpfm_ui`.
 
 ## Documentation
 
@@ -105,7 +147,7 @@ Full API documentation is available at [docs.rs](https://docs.rs/rpfm_lib).
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](../LICENSE) file for details.
+This project is licensed under the MIT License — see the [LICENSE](../LICENSE) file for details.
 
 ## Support
 
