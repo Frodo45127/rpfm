@@ -3092,6 +3092,36 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                     }
                 };
 
+                // Only export the tables that BOB actually reads when building ceo_data.ccd.
+                let ceo_allowed_folders: std::collections::HashSet<&str> = [
+                    "ceo_active_permissions_tables",
+                    "ceo_anti_ceo_pairs_tables",
+                    "ceo_can_equip_requirements_tables",
+                    "ceo_categories_tables",
+                    "ceo_effect_list_to_effects_tables",
+                    "ceo_effect_lists_tables",
+                    "ceo_equipment_category_managers_tables",
+                    "ceo_equipment_manager_all_possible_ceos_tables",
+                    "ceo_equipment_manager_campaign_lookups_tables",
+                    "ceo_equipment_manager_to_category_managers_tables",
+                    "ceo_equipment_manager_types_tables",
+                    "ceo_equipment_managers_tables",
+                    "ceo_equipped_set_bonus_ceos_tables",
+                    "ceo_equipped_set_bonus_effect_bundles_tables",
+                    "ceo_equipped_set_bonuses_tables",
+                    "ceo_equipped_set_bonuses_to_incident_junctions_tables",
+                    "ceo_event_feed_categories_tables",
+                    "ceo_group_ceos_tables",
+                    "ceo_group_spawners_tables",
+                    "ceo_groups_tables",
+                    "ceo_initial_data_active_ceos_tables",
+                    "ceo_initial_data_active_spawners_tables",
+                    "ceo_initial_data_equipments_tables",
+                    "ceo_initial_data_scripted_permissions_tables",
+                    "ceo_initial_data_stages_tables",
+                    "ceos_tables",
+                ].iter().copied().collect();
+
                 let ceo_table_paths: Vec<String> = pack_ref.files()
                     .keys()
                     .filter(|p| {
