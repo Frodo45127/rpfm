@@ -428,13 +428,14 @@ impl AppUISlots {
                 GlobalSearchUI::clear(&global_search_ui);
                 let _ = AppUI::purge_them_all(&app_ui, &pack_file_contents_ui, false);
 
-                match send_ipc_command_result_async(Command::LoadAllCAPackFiles, response_extractor!(Response::ContainerInfo)) {
-                    Ok(_) => {
+                match send_ipc_command_result_async(Command::LoadAllCAPackFiles, response_extractor!(Response::StringContainerInfo, v1, v2)) {
+                    Ok((pack_key, _)) => {
 
                         // Update the TreeView.
                         let mut build_data = BuildData::new();
                         build_data.editable = true;
-                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile, "");
+                        build_data.pack_key = Some(pack_key.clone());
+                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile, &pack_key);
                         global_search_ui.update_pack_sources(&pack_file_contents_ui);
 
                         match GAME_SELECTED.read().unwrap().key() {
