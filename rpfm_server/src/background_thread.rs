@@ -1466,7 +1466,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                         None => {
 
                             // If the table is one of the starpos tables, we need to return the latest version of the table, even if it's not in the game files.
-                            if table_name.starts_with("start_pos_") || table_name.starts_with("twad_") {
+                            if table_name.starts_with("start_pos_") || table_name.starts_with("twad_") || table_name.starts_with("ceo") { // TEMP FIX FOR NOW 
                                 match &schema {
                                     Some(schema) => {
                                         match schema.definitions_by_table_name(&table_name) {
@@ -3095,9 +3095,11 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 let ceo_table_paths: Vec<String> = pack_ref.files()
                     .keys()
                     .filter(|p| {
-                        let l = p.to_lowercase();
-                        (l.starts_with("db/ceo") || l.starts_with("db/ceos"))
-                            && !l.ends_with(".ccd")
+                        let mut parts = p.splitn(3, '/');
+                        parts.next(); // skip "db" Probably should move the files to something like ceo_dbs
+                        parts.next()
+                            .map(|folder| ceo_allowed_folders.contains(folder))
+                            .unwrap_or(false)
                     })
                     .cloned()
                     .collect();
@@ -3107,7 +3109,6 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                     d.set_schema(schema.as_ref());
                     Some(d)
                 };
-
                 let mut export_errors: Vec<String> = Vec::new();
 
                 // Group table paths by their target XML file so multiple
@@ -3206,6 +3207,19 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 }
 
                 // ── Step 4: Write BOB config and launch ───────────────────────
+                let cfg_path = bob_dir.join("BOB/default_configuration.xml");
+
+                // Backup any existing config so we can restore it after BOB runs.
+                let cfg_backup = bob_dir.join("BOB/default_configuration.xml.rpfm_bak");
+                let cfg_existed = cfg_path.exists();
+                if cfg_existed {
+                    if let Err(e) = std::fs::rename(&cfg_path, &cfg_backup) {
+                        for (orig, bak) in &xml_backups { let _ = std::fs::rename(bak, orig); }
+                        CentralCommand::send_back(&sender, Response::Error(format!("Failed to backup BOB config: {e}")));
+                        continue 'background_loop;
+                    }
+                }
+
                 const BOB_CONFIG_XML: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
                 <bob_configuration><processors><processor>Campaign</processor></processors>
                 <directories/><global_rules/><retail>0</retail><silent>1</silent>
@@ -3213,22 +3227,29 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 <merge_for_checkin_mode>2</merge_for_checkin_mode>
                 <selected_files><entry>&lt;working&gt;/campaigns/ceo_data.ccd</entry></selected_files>
                 </bob_configuration>"#;
-                let cfg_path = bob_dir.join(r"BOB\default_configuration.xml");
-                if let Some(p) = cfg_path.parent() { let _ = std::fs::create_dir_all(p); }
-                if std::fs::write(&cfg_path, BOB_CONFIG_XML).is_err() {
+
+                if let Err(e) = std::fs::write(&cfg_path, BOB_CONFIG_XML) {
+                    // Restore backup before bailing.
+                    if cfg_existed { let _ = std::fs::rename(&cfg_backup, &cfg_path); }
                     for (orig, bak) in &xml_backups { let _ = std::fs::rename(bak, orig); }
-                    CentralCommand::send_back(&sender, Response::Error("Failed to write BOB config".into()));
+                    CentralCommand::send_back(&sender, Response::Error(format!("Failed to write BOB config: {e}")));
                     continue 'background_loop;
                 }
 
                 let output = match SysCommand::new(&bob_exe).current_dir(&bob_dir).output() {
                     Ok(o) => o,
                     Err(e) => {
+                        let _ = std::fs::remove_file(&cfg_path);
+                        if cfg_existed { let _ = std::fs::rename(&cfg_backup, &cfg_path); }
                         for (orig, bak) in &xml_backups { let _ = std::fs::rename(bak, orig); }
                         CentralCommand::send_back(&sender, Response::Error(format!("Failed to launch BOB: {e}")));
                         continue 'background_loop;
                     }
                 };
+
+                // Restore config regardless of BOB's result.
+                let _ = std::fs::remove_file(&cfg_path);
+                if cfg_existed { let _ = std::fs::rename(&cfg_backup, &cfg_path); }
 
                 // ── Step 5: Poll for ceo_data.ccd (180s timeout) ─────────────
                 let deadline = Instant::now() + Duration::from_secs(180);
