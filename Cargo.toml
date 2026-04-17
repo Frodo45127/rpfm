@@ -75,7 +75,3 @@ caseless = "^0.2"
 half = "^2"
 rmcp = { version = "0.12", features = ["server", "transport-io", "transport-streamable-http-server", "macros"] }
 schemars = "1.0"
-
-# Windows resources support.
-[workspace.target.'cfg(windows)'.build-dependencies]
-winres = "^0.1"
