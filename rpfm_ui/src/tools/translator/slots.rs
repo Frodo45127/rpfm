@@ -15,7 +15,6 @@ use qt_core::SlotOfQItemSelectionQItemSelection;
 
 use std::rc::Rc;
 
-use rpfm_log::*;
 
 use rpfm_ui_common::clone;
 
@@ -53,7 +52,7 @@ impl ToolTranslatorSlots {
 
         let load_data_to_detailed_view = SlotOfQItemSelectionQItemSelection::new(ui.tool.main_widget(), clone!(
             ui => move |after, _| {
-                info!("Triggering 'load_data_to_detailed_view' for Translator.");
+                rpfm_telemetry::track_action("Translator: load_data_to_detailed_view");
 
                 if after.count() == 1 {
                     let base_index = after.at(0);
@@ -69,7 +68,7 @@ impl ToolTranslatorSlots {
 
         let move_selection_up = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
-                info!("Triggering 'move_selection_up' for Translator.");
+                rpfm_telemetry::track_action("Translator: move_selection_up");
 
                 ui.change_selected_row(None, Some(false));
             }
@@ -77,7 +76,7 @@ impl ToolTranslatorSlots {
 
         let move_selection_down = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
-                info!("Triggering 'move_selection_down' for Translator.");
+                rpfm_telemetry::track_action("Translator: move_selection_down");
 
                 ui.change_selected_row(None, Some(true));
             }
@@ -85,7 +84,7 @@ impl ToolTranslatorSlots {
 
         let translate_with_deepl = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
-                info!("Triggering 'translate_with_deepl' for Translator.");
+                rpfm_telemetry::track_action("Translator: translate_with_deepl");
 
                 ui.translated_value_textedit().set_enabled(false);
                 let event_loop = QEventLoop::new_0a();
@@ -104,7 +103,7 @@ impl ToolTranslatorSlots {
 
         let translate_with_chatgpt = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
-                info!("Triggering 'translate_with_chatgpt' for Translator.");
+                rpfm_telemetry::track_action("Translator: translate_with_chatgpt");
 
                 ui.translated_value_textedit().set_enabled(false);
                 let event_loop = QEventLoop::new_0a();
@@ -124,7 +123,7 @@ impl ToolTranslatorSlots {
 
         let translate_with_google = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
-                info!("Triggering 'translate_with_google' for Translator.");
+                rpfm_telemetry::track_action("Translator: translate_with_google");
 
                 ui.translated_value_textedit().set_enabled(false);
                 let event_loop = QEventLoop::new_0a();
@@ -143,7 +142,7 @@ impl ToolTranslatorSlots {
 
         let copy_from_source = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
-                info!("Triggering 'copy_from_source' for Translator.");
+                rpfm_telemetry::track_action("Translator: copy_from_source");
 
                 let source_text = ui.original_value_textedit().to_plain_text();
                 ui.translated_value_textedit().set_text(&source_text);
@@ -152,7 +151,7 @@ impl ToolTranslatorSlots {
 
         let import_from_translated_pack = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
-                info!("Triggering 'import_from_translated_pack' for Translator.");
+                rpfm_telemetry::track_action("Translator: import_from_translated_pack");
 
                 if let Err(error) = ui.import_from_another_pack() {
                     show_dialog(ui.tool.main_widget(), error, false);
@@ -162,7 +161,7 @@ impl ToolTranslatorSlots {
 
         let update_preview_original = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
-                info!("Triggering 'update_preview_original' for Translator.");
+                rpfm_telemetry::track_action("Translator: update_preview_original");
 
                 ui.original_value_html().clear();
                 ui.original_value_html().set_text(&QString::from_std_str(ui.to_html(&ui.original_value_textedit().to_plain_text().to_std_string())));
@@ -171,7 +170,7 @@ impl ToolTranslatorSlots {
 
         let update_preview_translated = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
-                info!("Triggering 'update_preview_translated' for Translator.");
+                rpfm_telemetry::track_action("Translator: update_preview_translated");
 
                 ui.translated_value_html().clear();
                 ui.translated_value_html().set_text(&QString::from_std_str(ui.to_html(&ui.translated_value_textedit().to_plain_text().to_std_string())));

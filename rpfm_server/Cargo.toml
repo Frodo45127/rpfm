@@ -25,9 +25,9 @@ anyhow.workspace = true
 
 # Internal dependencies.
 rpfm_lib = { workspace = true, features = ["integration_git", "integration_assembly_kit", "support_error_bitcode"] }
-rpfm_log.workspace = true
 rpfm_extensions.workspace = true
 rpfm_ipc.workspace = true
+rpfm_telemetry.workspace = true
 
 # Multithreaded iterator support.
 rayon.workspace = true

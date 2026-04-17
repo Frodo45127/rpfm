@@ -47,6 +47,7 @@ impl DebugViewSlots {
         // When we want to try to save the data to the backend.
         let save = SlotNoArgs::new(&view.editor, clone!(
             view => move || {
+            rpfm_telemetry::track_action("Debug View: Save");
             match view.save_view() {
                 Ok(decoded_packed_file) => {
                     let pack_key = String::new();

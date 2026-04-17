@@ -55,7 +55,7 @@
 //! # Example
 //!
 //! ```no_run
-//! use rpfm_log::{Logger, info, warn, error};
+//! use rpfm_telemetry::{Logger, info, warn};
 //! use std::path::Path;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -82,7 +82,6 @@
 //! generate local crash reports but won't upload to Sentry.
 
 use backtrace::Backtrace;
-pub use log::{error, info, warn};
 use ron::ser::PrettyConfig;
 pub use sentry::{ClientInitGuard, ClientOptions, end_session, end_session_with_status, Envelope, integrations::{log::SentryLogger, tracing::SentryLayer}, protocol::*, release_name, self, SessionMode};
 use serde_derive::Serialize;
@@ -93,8 +92,12 @@ use std::fs::{DirBuilder, File};
 use std::io::{BufWriter, Write};
 use std::{panic, panic::PanicHookInfo};
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
+
+use crate::actions::{TELEMETRY_EVENT_TAG, TELEMETRY_EVENT_VALUE, USAGE_TELEMETRY_ENABLED};
+use crate::{error, info, warn};
 
 /// Current version of the crate from Cargo.toml.
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -104,6 +107,34 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// This must be set before calling [`Logger::init()`] for Sentry integration to work.
 /// The DSN is provided by Sentry when creating a project.
 pub static SENTRY_DSN: LazyLock<Arc<RwLock<String>>> = LazyLock::new(|| Arc::new(RwLock::new(String::new())));
+
+/// Whether automatic Sentry crash reports (panics, auto-captured errors,
+/// session tracking) are allowed to be uploaded. On by default so panics
+/// during early startup (before settings are loaded) are still captured;
+/// callers may opt out via [`set_crash_reports_enabled`] after reading the
+/// `enable_crash_reports` setting.
+///
+/// This is checked from the `before_send` hook installed in [`Logger::init`],
+/// so toggling it at runtime takes effect immediately for all future events.
+static CRASH_REPORTS_ENABLED: AtomicBool = AtomicBool::new(true);
+
+/// Enables or disables automatic Sentry crash-report uploads.
+///
+/// This gates panic reports and any other event captured automatically by
+/// Sentry's integrations. Usage-telemetry events (flushed via
+/// [`crate::flush`]) are exempt and honour
+/// [`crate::set_usage_telemetry_enabled`] instead.
+///
+/// Callers should refresh this whenever the `enable_crash_reports` setting
+/// changes.
+pub fn set_crash_reports_enabled(enabled: bool) {
+    CRASH_REPORTS_ENABLED.store(enabled, Ordering::Relaxed);
+}
+
+/// Returns the current crash-reports enabled state.
+pub fn is_crash_reports_enabled() -> bool {
+    CRASH_REPORTS_ENABLED.load(Ordering::Relaxed)
+}
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -212,7 +243,7 @@ impl Logger {
     /// # Example
     ///
     /// ```no_run
-    /// # use rpfm_log::Logger;
+    /// # use rpfm_telemetry::Logger;
     /// # use std::path::Path;
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let _guard = Logger::init(
@@ -256,6 +287,27 @@ impl Logger {
 
         // Initialize Sentry's guard, for remote reporting. Only for release mode.
         let dsn = if cfg!(debug_assertions) { String::new() } else { SENTRY_DSN.read().unwrap().to_string() };
+
+        // Gate every Sentry event on the user-facing toggles: usage-telemetry
+        // events (tagged by `crate::flush`) honour `enable_usage_telemetry`,
+        // anything else (panics, auto-captured errors, sessions) honours
+        // `enable_crash_reports`. Returning `None` drops the event.
+        let before_send = Arc::new(|event: Event<'static>| -> Option<Event<'static>> {
+            let is_usage_telemetry = event
+                .tags
+                .get(TELEMETRY_EVENT_TAG)
+                .map(|v| v == TELEMETRY_EVENT_VALUE)
+                .unwrap_or(false);
+
+            let allowed = if is_usage_telemetry {
+                USAGE_TELEMETRY_ENABLED.load(Ordering::Relaxed)
+            } else {
+                CRASH_REPORTS_ENABLED.load(Ordering::Relaxed)
+            };
+
+            if allowed { Some(event) } else { None }
+        });
+
         let client_options = ClientOptions {
             release: release.clone(),
             sample_rate: 0.3,
@@ -263,6 +315,7 @@ impl Logger {
             enable_logs: true,
             auto_session_tracking: true,
             session_mode: SessionMode::Application,
+            before_send: Some(before_send),
             ..Default::default()
         };
 
@@ -381,7 +434,7 @@ impl Logger {
     /// # Example
     ///
     /// ```no_run
-    /// # use rpfm_log::{Logger, Level};
+    /// # use rpfm_telemetry::{Logger, Level};
     /// # fn example(sentry_guard: &sentry::ClientInitGuard) -> Result<(), Box<dyn std::error::Error>> {
     /// // Send a simple event
     /// Logger::send_event(sentry_guard, Level::Info, "Schema updated", None)?;

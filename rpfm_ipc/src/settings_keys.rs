@@ -81,6 +81,10 @@ pub const ENABLE_RENDERER: &str = "enable_renderer";
 pub const DIAGNOSTICS_TRIGGER_ON_OPEN: &str = "diagnostics_trigger_on_open";
 pub const DIAGNOSTICS_TRIGGER_ON_TABLE_EDIT: &str = "diagnostics_trigger_on_table_edit";
 
+// Telemetry settings.
+pub const ENABLE_USAGE_TELEMETRY: &str = "enable_usage_telemetry";
+pub const ENABLE_CRASH_REPORTS: &str = "enable_crash_reports";
+
 // AI settings.
 pub const AI_OPENAI_API_KEY: &str = "ai_openai_api_key";
 pub const DEEPL_API_KEY: &str = "deepl_api_key";

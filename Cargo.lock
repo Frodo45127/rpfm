@@ -4452,22 +4452,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rpfm_log"
-version = "4.7.105"
-dependencies = [
- "backtrace",
- "log",
- "os_info",
- "ron",
- "sentry",
- "serde",
- "serde_derive",
- "simplelog",
- "thiserror 2.0.18",
- "toml 0.9.12+spec-1.1.0",
-]
-
-[[package]]
 name = "rpfm_server"
 version = "4.7.105"
 dependencies = [
@@ -4485,7 +4469,7 @@ dependencies = [
  "rpfm_extensions",
  "rpfm_ipc",
  "rpfm_lib",
- "rpfm_log",
+ "rpfm_telemetry",
  "schemars",
  "self_update",
  "serde",
@@ -4496,6 +4480,22 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "winres",
+]
+
+[[package]]
+name = "rpfm_telemetry"
+version = "4.7.105"
+dependencies = [
+ "backtrace",
+ "log",
+ "os_info",
+ "ron",
+ "sentry",
+ "serde",
+ "serde_derive",
+ "simplelog",
+ "thiserror 2.0.18",
+ "toml 0.9.12+spec-1.1.0",
 ]
 
 [[package]]
@@ -4528,7 +4528,7 @@ dependencies = [
  "rpfm_extensions",
  "rpfm_ipc",
  "rpfm_lib",
- "rpfm_log",
+ "rpfm_telemetry",
  "rpfm_ui_common",
  "self_update",
  "serde",

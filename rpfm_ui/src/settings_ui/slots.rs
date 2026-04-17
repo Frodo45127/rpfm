@@ -80,6 +80,7 @@ impl SettingsUISlots {
         let restore_default = SlotNoArgs::new(&ui.dialog, clone!(
             app_ui,
             ui => move || {
+                rpfm_telemetry::track_action("Settings: Restore Defaults");
 
                 // Restore RPFM settings and reload the view, WITHOUT SAVING THE SETTINGS.
                 // An exception are the original states. We need to keep those.
@@ -114,6 +115,7 @@ impl SettingsUISlots {
         // What happens when we hit the "..." button for MyMods.
         let select_mymod_path = SlotNoArgs::new(&ui.dialog, clone!(
             ui => move || {
+                rpfm_telemetry::track_action("Settings: Select MyMod Path");
                 ui.update_entry_path(MYMOD_BASE_PATH, false);
             }
         ));
@@ -121,6 +123,7 @@ impl SettingsUISlots {
         // What happens when we hit the "..." button for Secondary Folder.
         let select_secondary_path = SlotNoArgs::new(&ui.dialog, clone!(
             ui => move || {
+                rpfm_telemetry::track_action("Settings: Select Secondary Path");
                 ui.update_entry_path(SECONDARY_PATH, false);
             }
         ));
@@ -133,6 +136,7 @@ impl SettingsUISlots {
                 SlotNoArgs::new(&ui.dialog, clone!(
                     key,
                     ui => move || {
+                    rpfm_telemetry::track_action("Settings: Select Game Path");
                     ui.update_entry_path(&key, false);
                 }))
             );
@@ -146,6 +150,7 @@ impl SettingsUISlots {
                 SlotNoArgs::new(&ui.dialog, clone!(
                     key,
                     ui => move || {
+                    rpfm_telemetry::track_action("Settings: Select Asskit Path");
                     ui.update_entry_path(&key, true);
                 }))
             );
@@ -155,15 +160,18 @@ impl SettingsUISlots {
         let shortcuts = SlotNoArgs::new(&ui.dialog, clone!(
             app_ui,
             ui => move || {
+                rpfm_telemetry::track_action("Settings: Open Shortcuts Dialog");
                 crate::ffi::kshortcut_dialog_init_safe(&ui.dialog.static_upcast::<QWidget>().as_ptr(), app_ui.shortcuts().as_ptr());
         }));
 
         // What happens when we hit the "Text Editor Preferences" button.
         let text_editor = SlotNoArgs::new(&ui.dialog, clone!(mut ui => move || {
+            rpfm_telemetry::track_action("Settings: Open Text Editor Config");
             ffi::open_text_editor_config_safe(&ui.dialog.static_upcast::<QWidget>().as_ptr());
         }));
 
         let font_settings = SlotNoArgs::new(&ui.dialog, clone!(mut ui => move || {
+            rpfm_telemetry::track_action("Settings: Open Font Settings");
             let font_changed: *mut bool = &mut false;
             let current_font = QApplication::font();
             let new_font = QFontDialog::get_font_bool_q_font_q_widget(font_changed, current_font.as_ref(), &ui.dialog);
@@ -173,6 +181,7 @@ impl SettingsUISlots {
         }));
 
         let clear_dependencies_cache = SlotNoArgs::new(&ui.dialog, clone!(mut ui => move || {
+            rpfm_telemetry::track_action("Settings: Clear Dependencies Cache");
             match dependencies_cache_path() {
                 Ok(path) => match settings_clear_path(&path) {
                     Ok(_) => show_dialog(&ui.dialog, tr("dependencies_cache_cleared"), true),
@@ -183,6 +192,7 @@ impl SettingsUISlots {
         }));
 
         let clear_autosaves = SlotNoArgs::new(&ui.dialog, clone!(mut ui => move || {
+            rpfm_telemetry::track_action("Settings: Clear Autosaves");
             match backup_autosave_path() {
                 Ok(path) => match settings_clear_path(&path) {
                     Ok(_) => show_dialog(&ui.dialog, tr("autosaves_cleared"), true),
@@ -193,6 +203,7 @@ impl SettingsUISlots {
         }));
 
         let clear_schemas = SlotNoArgs::new(&ui.dialog, clone!(mut ui => move || {
+            rpfm_telemetry::track_action("Settings: Clear Schemas");
             match schemas_path() {
                 Ok(path) => {
 
@@ -213,12 +224,14 @@ impl SettingsUISlots {
 
         let clear_layout = SlotNoArgs::new(&ui.dialog, clone!(
             app_ui => move || {
+                rpfm_telemetry::track_action("Settings: Clear Layout");
                 app_ui.main_window().restore_geometry(&QByteArray::from_slice(&settings_raw_data(ORIGINAL_GEOMETRY)));
                 app_ui.main_window().restore_state_1a(&QByteArray::from_slice(&settings_raw_data(ORIGINAL_WINDOW_STATE)));
         }));
 
         let add_rpfm_to_runcher_tools = SlotNoArgs::new(&ui.dialog, clone!(
             ui => move || {
+                rpfm_telemetry::track_action("Settings: Add RPFM to Runcher Tools");
                 match ui.add_rpfm_to_runcher_tools() {
                     Ok(_) => show_dialog(ui.dialog(), tr("add_rpfm_to_runcher_tools_success"), true),
                     Err(error) => show_dialog(ui.dialog(), error, false),
@@ -230,6 +243,7 @@ impl SettingsUISlots {
             let key_clone = key.clone();
             select_colour.insert(key.clone(), SlotNoArgs::new(&ui.dialog, clone!(
                 ui => move || {
+                    rpfm_telemetry::track_action("Settings: Change Colour");
                     if let Some(btn) = ui.colour_buttons().get(&key_clone) {
                         change_colour(btn);
                     }

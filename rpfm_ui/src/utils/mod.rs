@@ -39,7 +39,7 @@ use regex::Regex;
 use std::convert::AsRef;
 use std::fmt::Display;
 
-use rpfm_log::*;
+use rpfm_telemetry::*;
 
 use rpfm_ui_common::ASSETS_PATH;
 use rpfm_ui_common::utils::*;

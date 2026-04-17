@@ -53,6 +53,7 @@ impl PackFileSettingsSlots {
         let apply = SlotNoArgs::new(view.get_ref_apply_button(), clone!(
             app_ui,
             pack_file_contents_ui=> move || {
+                rpfm_telemetry::track_action("PackFile Settings: Apply");
                 for view in &*UI_STATE.get_open_packedfiles() {
                     if let ViewType::Internal(View::PackSettings(_)) = view.view_type() {
                         let _ = view.save(&app_ui, &pack_file_contents_ui);

@@ -40,7 +40,6 @@ use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::files::{ContainerPath, FileType, pack::*};
 use rpfm_lib::games::pfh_file_type::PFHFileType;
 use rpfm_lib::games::supported_games::*;
-use rpfm_log::*;
 use rpfm_lib::utils::*;
 
 use rpfm_ui_common::clone;
@@ -161,7 +160,7 @@ impl PackFileContentsSlots {
         let move_items = SlotOfQModelIndexInt::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |dest_parent, dest_row| {
-                info!("Triggering `Move` By Drag&Drop By Slot");
+                rpfm_telemetry::track_action("Move By Drag&Drop");
 
                 // Rare case, but possible due to selection weirdness.
                 let selected_items = <QPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
@@ -277,7 +276,7 @@ impl PackFileContentsSlots {
             diagnostics_ui,
             dependencies_ui,
             references_ui => move || {
-            info!("PackedFile opened as Preview By Slot");
+            rpfm_telemetry::track_action("Open PackedFile Preview");
             AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, None, true, false, DataSource::PackFile);
         }));
 
@@ -289,7 +288,7 @@ impl PackFileContentsSlots {
             diagnostics_ui,
             dependencies_ui,
             references_ui => move || {
-            info!("PackedFile opened as Full By Slot");
+            rpfm_telemetry::track_action("Open PackedFile Full");
             AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, None, false, false, DataSource::PackFile);
         }));
 
@@ -718,7 +717,7 @@ impl PackFileContentsSlots {
         let contextual_menu_add_file = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-                info!("Triggering `Add File` By Slot");
+                rpfm_telemetry::track_action("Add File");
 
                 // Create the FileDialog to get the file/s to add and configure it.
                 let file_dialog = QFileDialog::from_q_widget_q_string(
@@ -827,7 +826,7 @@ impl PackFileContentsSlots {
         let contextual_menu_add_folder = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-                info!("Triggering `Add Folder` By Slot");
+                rpfm_telemetry::track_action("Add Folder");
 
                 // Create the FileDialog to get the folder/s to add and configure it.
                 let file_dialog = QFileDialog::from_q_widget_q_string(
@@ -986,7 +985,7 @@ impl PackFileContentsSlots {
         // We populate it dynamically with the list of other open packs.
         let contextual_menu_copy_to_pack_about_to_show = SlotNoArgs::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             pack_file_contents_ui => move || {
-                info!("Triggering `Copy To Pack About To Show` By Slot");
+                rpfm_telemetry::track_action("Copy To Pack About To Show");
 
                 let menu = &pack_file_contents_ui.context_menu_copy_to_pack;
                 menu.clear();
@@ -1024,7 +1023,7 @@ impl PackFileContentsSlots {
         let contextual_menu_copy_to_pack = SlotOfQAction::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |action| {
-                info!("Triggering `Copy To Pack` By Slot");
+                rpfm_telemetry::track_action("Copy To Pack");
 
                 let target_key = action.data().to_string().to_std_string();
                 if target_key.is_empty() {
@@ -1071,7 +1070,7 @@ impl PackFileContentsSlots {
             app_ui,
             pack_file_contents_ui => move |_| {
                 if AppUI::are_you_sure_edition(&app_ui, "are_you_sure_delete") {
-                    info!("Triggering `Delete` By Slot");
+                    rpfm_telemetry::track_action("Delete");
 
                     let mut selected_items = <QPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
 
@@ -1114,7 +1113,7 @@ impl PackFileContentsSlots {
         let contextual_menu_extract = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-                info!("Triggering `Extract` By Slot");
+                rpfm_telemetry::track_action("Extract");
                 PackFileContentsUI::extract_packed_files(&app_ui, &pack_file_contents_ui, None, true, None);
             }
         ));
@@ -1124,7 +1123,7 @@ impl PackFileContentsSlots {
         let contextual_menu_rename = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-                info!("Triggering `Rename` By Slot");
+                rpfm_telemetry::track_action("Rename");
 
                 // Rare case, but possible due to selection weirdness.
                 let selected_items = <QPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
@@ -1242,7 +1241,7 @@ impl PackFileContentsSlots {
         let contextual_menu_copy = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-                info!("Triggering `Copy` By Slot");
+                rpfm_telemetry::track_action("Copy");
 
                 let paths_by_pack = pack_file_contents_ui.selected_items_grouped_by_pack_key();
                 if paths_by_pack.is_empty() {
@@ -1260,7 +1259,7 @@ impl PackFileContentsSlots {
         let contextual_menu_cut = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-                info!("Triggering `Cut` By Slot");
+                rpfm_telemetry::track_action("Cut");
 
                 let paths_by_pack = pack_file_contents_ui.selected_items_grouped_by_pack_key();
                 if paths_by_pack.is_empty() {
@@ -1278,7 +1277,7 @@ impl PackFileContentsSlots {
         let contextual_menu_paste = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-                info!("Triggering `Paste` By Slot");
+                rpfm_telemetry::track_action("Paste");
 
                 // Get the destination path from the selection. Do nothing if nothing is selected.
                 let selected_items = <QPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
@@ -1342,7 +1341,7 @@ impl PackFileContentsSlots {
         let contextual_menu_duplicate = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-                info!("Triggering `Duplicate` By Slot");
+                rpfm_telemetry::track_action("Duplicate");
 
                 let selected_items = <QPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
                 if selected_items.is_empty() {
@@ -1375,7 +1374,7 @@ impl PackFileContentsSlots {
         let contextual_menu_new_packed_file_anim_pack = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-            info!("Triggering `New AnimPack` By Slot");
+            rpfm_telemetry::track_action("New AnimPack");
             AppUI::new_file(&app_ui, &pack_file_contents_ui, FileType::AnimPack);
         }));
 
@@ -1383,7 +1382,7 @@ impl PackFileContentsSlots {
         let contextual_menu_new_packed_file_db = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-            info!("Triggering `New DB` By Slot");
+            rpfm_telemetry::track_action("New DB");
             AppUI::new_file(&app_ui, &pack_file_contents_ui, FileType::DB);
         }));
 
@@ -1391,7 +1390,7 @@ impl PackFileContentsSlots {
         let contextual_menu_new_packed_file_loc = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-            info!("Triggering `New Loc` By Slot");
+            rpfm_telemetry::track_action("New Loc");
             AppUI::new_file(&app_ui, &pack_file_contents_ui, FileType::Loc);
         }));
 
@@ -1399,7 +1398,7 @@ impl PackFileContentsSlots {
         let contextual_menu_new_packed_file_portrait_settings = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-            info!("Triggering `New Portrait Settings` By Slot");
+            rpfm_telemetry::track_action("New Portrait Settings");
             AppUI::new_file(&app_ui, &pack_file_contents_ui, FileType::PortraitSettings);
         }));
 
@@ -1407,7 +1406,7 @@ impl PackFileContentsSlots {
         let contextual_menu_new_packed_file_text = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-            info!("Triggering `New Text` By Slot");
+            rpfm_telemetry::track_action("New Text");
             AppUI::new_file(&app_ui, &pack_file_contents_ui, FileType::Text);
         }));
 
@@ -1418,7 +1417,7 @@ impl PackFileContentsSlots {
 
                 // Create the "New Folder" dialog and wait for a new name (or a cancellation).
                 if let Some(new_folder_name) = AppUI::new_folder_dialog(&app_ui) {
-                    info!("Triggering `New Folder` By Slot");
+                    rpfm_telemetry::track_action("New Folder");
 
                     // Get the currently selected paths, and only continue if there is only one.
                     let selected_paths = pack_file_contents_ui.packfile_contents_tree_view.get_path_from_selection();
@@ -1449,7 +1448,7 @@ impl PackFileContentsSlots {
         let contextual_menu_new_queek_packed_file = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-            info!("Triggering `New Queek File` By Slot");
+            rpfm_telemetry::track_action("New Queek File");
             AppUI::new_queek_packed_file(&app_ui, &pack_file_contents_ui);
         }));
 
@@ -1461,7 +1460,7 @@ impl PackFileContentsSlots {
             diagnostics_ui,
             dependencies_ui,
             references_ui => move |_| {
-            info!("Triggering `Open Decoder` By Slot");
+            rpfm_telemetry::track_action("Open Decoder");
             let selected_items = pack_file_contents_ui.packfile_contents_tree_view().get_item_types_from_selection(true);
             if selected_items.len() == 1 {
                 AppUI::open_special_view(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, SpecialView::Decoder(selected_items[0].path_raw().to_string()))
@@ -1476,7 +1475,7 @@ impl PackFileContentsSlots {
             diagnostics_ui,
             dependencies_ui,
             references_ui => move |_| {
-            info!("Triggering `Open Dependency Manager` By Slot");
+            rpfm_telemetry::track_action("Open Dependency Manager");
             AppUI::open_special_view(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, SpecialView::PackDependencies);
         }));
 
@@ -1498,7 +1497,7 @@ impl PackFileContentsSlots {
             diagnostics_ui,
             dependencies_ui,
             references_ui => move |_| {
-            info!("Triggering `Open In External Program` By Slot");
+            rpfm_telemetry::track_action("Open In External Program");
             AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, None, false, true, DataSource::PackFile);
         }));
 
@@ -1509,7 +1508,7 @@ impl PackFileContentsSlots {
             diagnostics_ui,
             dependencies_ui,
             references_ui => move |_| {
-            info!("Triggering `Open PackFile Settings` By Slot");
+            rpfm_telemetry::track_action("Open PackFile Settings");
             AppUI::open_special_view(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, SpecialView::PackSettings);
         }));
 
@@ -1521,7 +1520,7 @@ impl PackFileContentsSlots {
             diagnostics_ui,
             dependencies_ui,
             references_ui => move |_| {
-            info!("Triggering `Open Notes` By Slot");
+            rpfm_telemetry::track_action("Open Notes");
             AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, Some(RESERVED_NAME_NOTES.to_owned()), false, false, DataSource::PackFile);
         }));
 
@@ -1529,7 +1528,7 @@ impl PackFileContentsSlots {
         let contextual_menu_tables_merge_tables = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-            info!("Triggering `Merge Tables` By Slot");
+            rpfm_telemetry::track_action("Merge Tables");
 
             // Get the currently selected paths, and get how many we have of each type.
             let selected_paths = pack_file_contents_ui.packfile_contents_tree_view.get_path_from_selection();
@@ -1635,7 +1634,7 @@ impl PackFileContentsSlots {
         let contextual_menu_tables_update_table = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-            info!("Triggering `Update Table` By Slot");
+            rpfm_telemetry::track_action("Update Table");
 
             let selected_items = <QPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
             let item_type = if selected_items.len() == 1 { &selected_items[0] } else { return };
@@ -1683,7 +1682,7 @@ impl PackFileContentsSlots {
         let contextual_menu_generate_missing_loc_data = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-            info!("Triggering `Generate Loc Data` By Slot");
+            rpfm_telemetry::track_action("Generate Loc Data");
 
             // Make sure the backend has all the data updated.
             let _ = AppUI::back_to_back_end_all(&app_ui, &pack_file_contents_ui);
@@ -1715,7 +1714,7 @@ impl PackFileContentsSlots {
         let context_menu_save_pack = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-                info!("Triggering `Save Pack` By Context Menu Slot");
+                rpfm_telemetry::track_action("Save Pack");
 
                 let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first();
                 if let Err(error) = AppUI::save_packfile_by_key(&app_ui, &pack_file_contents_ui, pack_key, false, false) {
@@ -1727,7 +1726,7 @@ impl PackFileContentsSlots {
         let context_menu_save_pack_as = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-                info!("Triggering `Save Pack As` By Context Menu Slot");
+                rpfm_telemetry::track_action("Save Pack As");
 
                 let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first();
                 if let Err(error) = AppUI::save_packfile_by_key(&app_ui, &pack_file_contents_ui, pack_key, true, false) {
@@ -1740,7 +1739,7 @@ impl PackFileContentsSlots {
             app_ui,
             pack_file_contents_ui,
             global_search_ui => move |_| {
-                info!("Triggering `Close Pack` By Context Menu Slot");
+                rpfm_telemetry::track_action("Close Pack");
 
                 let pack_key = match pack_file_contents_ui.pack_key_from_selection_or_first() {
                     Some(key) => key,
@@ -1754,7 +1753,7 @@ impl PackFileContentsSlots {
         let context_menu_install = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-                info!("Triggering `Install` By Slot");
+                rpfm_telemetry::track_action("Install");
 
                 if let Err(error) = AppUI::save_packfile(&app_ui, &pack_file_contents_ui, false, false) {
                     return show_dialog(app_ui.main_window(), error, false);
@@ -1815,7 +1814,7 @@ impl PackFileContentsSlots {
         let context_menu_uninstall = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-                info!("Triggering `Uninstall` By Slot");
+                rpfm_telemetry::track_action("Uninstall");
 
                 let pack_key = match pack_file_contents_ui.pack_key_from_selection_or_first() {
                     Some(key) => key,
@@ -1876,7 +1875,7 @@ impl PackFileContentsSlots {
         let context_menu_change_packfile_type = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-                info!("Triggering `Change PackFile Type` By Slot");
+                rpfm_telemetry::track_action("Change PackFile Type");
 
                 let packfile_type = match &*(pack_file_contents_ui.context_menu_packfile_type_group.checked_action().text().remove_q_string(&QString::from_std_str("&")).to_std_string()) {
                     "Boot" => PFHFileType::Boot,
@@ -1925,7 +1924,7 @@ impl PackFileContentsSlots {
             app_ui,
             pack_file_contents_ui,
             global_search_ui => move |_| {
-                info!("Triggering `Optimize PackFile` By Slot");
+                rpfm_telemetry::track_action("Optimize PackFile");
 
                 app_ui.toggle_main_window(false);
 
@@ -1943,7 +1942,7 @@ impl PackFileContentsSlots {
             app_ui,
             pack_file_contents_ui,
             global_search_ui => move |_| {
-                info!("Triggering `Patch SiegeAI` By Slot");
+                rpfm_telemetry::track_action("Patch SiegeAI");
 
                 app_ui.toggle_main_window(false);
 
@@ -1969,7 +1968,7 @@ impl PackFileContentsSlots {
         let context_menu_live_export = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-                info!("Triggering `Live Export` By Slot");
+                rpfm_telemetry::track_action("Live Export");
 
                 app_ui.toggle_main_window(false);
 
@@ -1988,7 +1987,7 @@ impl PackFileContentsSlots {
         let context_menu_pack_map = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-                info!("Triggering `Pack Map` By Slot");
+                rpfm_telemetry::track_action("Pack Map");
 
                 app_ui.toggle_main_window(false);
 
@@ -2030,7 +2029,7 @@ impl PackFileContentsSlots {
             app_ui,
             pack_file_contents_ui => move |_| {
                 if AppUI::are_you_sure_edition(&app_ui, "are_you_sure_rescue_packfile") {
-                    info!("Triggering `Rescue PackFile` By Slot");
+                    rpfm_telemetry::track_action("Rescue PackFile");
 
                     app_ui.toggle_main_window(false);
 
@@ -2120,7 +2119,7 @@ impl PackFileContentsSlots {
             global_search_ui,
             dependencies_ui => move |_| {
                 if AppUI::are_you_sure(&app_ui, true, false) {
-                    info!("Triggering `Delete MyMod` By Context Menu");
+                    rpfm_telemetry::track_action("Delete MyMod");
 
                     let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
                     let mode = send_ipc_command(Command::GetPackOperationalMode(pack_key.clone()), response_extractor!(Response::OperationalMode));

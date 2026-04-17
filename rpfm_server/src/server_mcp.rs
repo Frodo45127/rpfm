@@ -30,7 +30,7 @@ use std::path::PathBuf;
 use rpfm_ipc::helpers::DataSource;
 use rpfm_ipc::messages::{Command, Response};
 use rpfm_lib::files::{ContainerPath, RFile, RFileDecoded};
-use rpfm_log::sentry;
+use rpfm_telemetry::sentry;
 
 use crate::session::{Session, recv_response};
 
@@ -1234,7 +1234,7 @@ Maps:
         _context: RequestContext<RoleServer>,
     ) -> Result<(), McpError> {
         // Acknowledge the logging level request. RPFM uses its own logging
-        // infrastructure (rpfm_log/sentry), so we accept the request but
+        // infrastructure (rpfm_telemetry/sentry), so we accept the request but
         // don't change the internal log level.
         Ok(())
     }

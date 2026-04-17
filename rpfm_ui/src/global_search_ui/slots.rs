@@ -17,7 +17,6 @@ use qt_core::{SlotOfBool, SlotOfQModelIndex, SlotNoArgs, SlotOfQString};
 
 use getset::*;
 
-use rpfm_log::*;
 use rpfm_ipc::settings_keys::*;
 
 use rpfm_ui_common::clone;
@@ -76,13 +75,14 @@ impl GlobalSearchSlots {
         let search = SlotNoArgs::new(&global_search_ui.dock_widget, clone!(
             pack_file_contents_ui,
             global_search_ui => move || {
-            info!("Triggering `Global Search` By Slot");
+            rpfm_telemetry::track_action("Global Search");
             global_search_ui.search(&pack_file_contents_ui);
         }));
 
         // What happens when we trigger the "Clear Search" action.
         let clear = SlotNoArgs::new(&global_search_ui.dock_widget, clone!(
             global_search_ui => move || {
+            rpfm_telemetry::track_action("Clear Global Search");
             global_search_ui.clear();
         }));
 
@@ -91,7 +91,7 @@ impl GlobalSearchSlots {
             app_ui,
             pack_file_contents_ui,
             global_search_ui => move || {
-            info!("Triggering `Global Replace (current)` By Slot");
+            rpfm_telemetry::track_action("Global Replace (current)");
             global_search_ui.replace_current(&app_ui, &pack_file_contents_ui);
         }));
 
@@ -100,7 +100,7 @@ impl GlobalSearchSlots {
             app_ui,
             pack_file_contents_ui,
             global_search_ui => move || {
-            info!("Triggering `Global Replace (all)` By Slot");
+            rpfm_telemetry::track_action("Global Replace (all)");
             global_search_ui.replace_all(&app_ui, &pack_file_contents_ui);
         }));
 
@@ -126,7 +126,7 @@ impl GlobalSearchSlots {
             diagnostics_ui,
             dependencies_ui,
             references_ui => move |model_index_filter| {
-            info!("Triggering `Open Global Search Match` By Slot");
+            rpfm_telemetry::track_action("Open Global Search Match");
             GlobalSearchUI::open_match(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, model_index_filter.as_ptr());
         }));
 

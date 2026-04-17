@@ -58,6 +58,7 @@ impl PackedFileVideoViewSlots {
             app_ui,
             pack_file_contents_ui,
             view => move || {
+                rpfm_telemetry::track_action("Video: Convert to CAMV");
                 view.set_current_format(SupportedFormats::CaVp8);
                 view.format_data_label.set_text(&QString::from_std_str(format!("{:?}", SupportedFormats::CaVp8)));
                 if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).find(|x| *x.path_read() == *view.path.read().unwrap()) {
@@ -73,6 +74,7 @@ impl PackedFileVideoViewSlots {
             app_ui,
             pack_file_contents_ui,
             view => move || {
+                rpfm_telemetry::track_action("Video: Convert to IVF");
                 view.set_current_format(SupportedFormats::Ivf);
                 view.format_data_label.set_text(&QString::from_std_str(format!("{:?}", SupportedFormats::Ivf)));
                 if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).find(|x| *x.path_read() == *view.path.read().unwrap()) {

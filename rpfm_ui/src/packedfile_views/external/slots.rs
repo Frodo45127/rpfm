@@ -59,6 +59,7 @@ impl PackedFileExternalViewSlots {
             app_ui,
             pack_file_contents_ui,
             packed_file_path => move || {
+                rpfm_telemetry::track_action("External File: Stop Watching");
                 if let Err(error) = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &packed_file_path.borrow(), DataSource::PackFile, true) {
                     show_dialog(app_ui.main_window(), error, false);
                 }
@@ -67,6 +68,7 @@ impl PackedFileExternalViewSlots {
 
         // Slot to open the folder of the current PackedFile in the file manager.
         let open_folder = SlotNoArgs::new(&view.stop_watching_button, move || {
+            rpfm_telemetry::track_action("External File: Open Folder");
             let _ = that(temp_dir());
         });
 

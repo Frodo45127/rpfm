@@ -47,6 +47,7 @@ impl UpdaterUISlots {
     pub unsafe fn new(ui: &Rc<UpdaterUI>) -> Self {
         let update_program = SlotNoArgs::new(ui.main_widget(), clone!(
             ui => move || {
+                rpfm_telemetry::track_action("Update Program");
                 ui.update_program_button.set_text(&qtr("updater_update_program_updating"));
                 ui.update_program_button.set_enabled(false);
 
@@ -77,6 +78,7 @@ impl UpdaterUISlots {
 
         let update_schemas = SlotNoArgs::new(ui.main_widget(), clone!(
             ui => move || {
+                rpfm_telemetry::track_action("Update Schemas");
                 ui.update_schemas_button.set_text(&qtr("updater_update_schemas_updating"));
                 ui.update_schemas_button.set_enabled(false);
 
@@ -94,6 +96,7 @@ impl UpdaterUISlots {
 
         let update_twautogen = SlotNoArgs::new(ui.main_widget(), clone!(
             ui => move || {
+                rpfm_telemetry::track_action("Update TW Autogen");
                 ui.update_twautogen_button.set_text(&qtr("updater_update_twautogen_updating"));
                 ui.update_twautogen_button.set_enabled(false);
 
@@ -111,6 +114,7 @@ impl UpdaterUISlots {
 
         let update_old_ak = SlotNoArgs::new(ui.main_widget(), clone!(
             ui => move || {
+                rpfm_telemetry::track_action("Update Empire/Napoleon AK");
                 ui.update_old_ak_button.set_text(&qtr("updater_update_old_ak_updating"));
                 ui.update_old_ak_button.set_enabled(false);
 

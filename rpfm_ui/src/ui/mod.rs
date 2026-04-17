@@ -39,7 +39,7 @@ use rpfm_ipc::helpers::DataSource;
 use rpfm_ipc::settings_keys::*;
 
 use rpfm_lib::games::supported_games::*;
-use rpfm_log::*;
+use rpfm_telemetry::*;
 
 use rpfm_ui_common::ASSETS_PATH;
 use rpfm_ui_common::PROGRAM_PATH;

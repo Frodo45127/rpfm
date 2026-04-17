@@ -21,7 +21,6 @@ use qt_core::QBox;
 use qt_core::{SlotOfBool, SlotNoArgs, SlotOfQString};
 
 use rpfm_lib::files::ContainerPath;
-use rpfm_log::*;
 
 use rpfm_ui_common::clone;
 
@@ -88,7 +87,7 @@ impl DependenciesUISlots {
             diagnostics_ui,
             dependencies_ui,
             references_ui => move || {
-            info!("Triggering `Open Dependency PackedFile (Preview)` By Slot");
+            rpfm_telemetry::track_action("Open Dependency PackedFile (Preview)");
             AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, None, true, false, DataSource::GameFiles);
         }));
 
@@ -100,7 +99,7 @@ impl DependenciesUISlots {
             diagnostics_ui,
             dependencies_ui,
             references_ui => move || {
-            info!("Triggering `Open Dependency PackedFile (Full)` By Slot");
+            rpfm_telemetry::track_action("Open Dependency PackedFile (Full)");
             AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, None, false, false, DataSource::GameFiles);
         }));
 
@@ -189,7 +188,7 @@ impl DependenciesUISlots {
         let contextual_menu_extract = SlotNoArgs::new(&dependencies_ui.dependencies_dock_widget, clone!(
             app_ui,
             dependencies_ui => move || {
-                info!("Triggering `Extract Dependencies` from context menu By Slot");
+                rpfm_telemetry::track_action("Extract Dependencies");
                 dependencies_ui.extract(&app_ui)
             }
         ));
@@ -199,7 +198,7 @@ impl DependenciesUISlots {
             app_ui,
             pack_file_contents_ui,
             dependencies_ui => move |_| {
-                info!("Triggering `Import Dependencies` from context menu By Slot");
+                rpfm_telemetry::track_action("Import Dependencies");
 
                 let paths = dependencies_ui.dependencies_tree_view.get_item_types_and_data_source_from_selection(true);
                 let ak_paths = paths.iter().filter_map(|(path, source)| if let DataSource::AssKitFiles = source { Some(path.to_owned()) } else { None }).collect::<Vec<ContainerPath>>();
@@ -225,6 +224,7 @@ impl DependenciesUISlots {
 
         let contextual_menu_copy_path = SlotOfBool::new(&dependencies_ui.dependencies_dock_widget, clone!(
             dependencies_ui => move |_| {
+            rpfm_telemetry::track_action("Dependencies: Copy Path");
             let selected_paths = dependencies_ui.dependencies_tree_view.get_path_from_selection();
             if selected_paths.len() == 1 && !selected_paths[0].is_empty() {
                 QGuiApplication::clipboard().set_text_1a(&QString::from_std_str(&selected_paths[0]));
@@ -233,11 +233,13 @@ impl DependenciesUISlots {
 
         let dependencies_tree_view_expand_all = SlotNoArgs::new(&dependencies_ui.dependencies_dock_widget, clone!(
             dependencies_ui => move || {
+                rpfm_telemetry::track_action("Dependencies: Expand All");
                 dependencies_ui.dependencies_tree_view.expand_all();
             }
         ));
         let dependencies_tree_view_collapse_all = SlotNoArgs::new(&dependencies_ui.dependencies_dock_widget, clone!(
             dependencies_ui => move || {
+                rpfm_telemetry::track_action("Dependencies: Collapse All");
                 dependencies_ui.dependencies_tree_view.collapse_all();
             }
         ));

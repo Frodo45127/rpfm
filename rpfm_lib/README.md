@@ -95,7 +95,7 @@ if let Ok(RFileDecoded::DB(db)) = file.decoded() {
 ## Related Crates
 
 - **rpfm_extensions** - Higher-level features (dependencies, diagnostics, search, optimizer)
-- **rpfm_log** - Crash reporting and structured logging with Sentry integration
+- **rpfm_telemetry** - Logging, crash reporting and anonymous action telemetry with Sentry integration
 - **rpfm_ui** - Qt-based desktop application
 - **rpfm_server** - WebSocket/MCP backend server
 

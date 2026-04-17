@@ -24,7 +24,6 @@ use getset::Getters;
 use std::rc::Rc;
 
 use rpfm_ipc::helpers::DataSource;
-use rpfm_log::*;
 use rpfm_lib::files::ContainerPath;
 use rpfm_ui_common::clone;
 
@@ -101,7 +100,7 @@ impl DiagnosticsUISlots {
             app_ui,
             pack_file_contents_ui,
             diagnostics_ui => move || {
-                info!("Triggering `Check PackFile (Diags)` By Slot");
+                rpfm_telemetry::track_action("Check PackFile (Diags)");
 
                 let _ = AppUI::back_to_back_end_all(&app_ui, &pack_file_contents_ui);
                 DiagnosticsUI::check(&app_ui, &diagnostics_ui);
@@ -112,7 +111,7 @@ impl DiagnosticsUISlots {
             app_ui,
             pack_file_contents_ui,
             diagnostics_ui => move || {
-                info!("Triggering `Check Open PackedFiles (Diag)` By Slot");
+                rpfm_telemetry::track_action("Check Open PackedFiles (Diag)");
 
                 let _ = AppUI::back_to_back_end_all(&app_ui, &pack_file_contents_ui);
                 let path_types = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).map(|x| ContainerPath::File(x.path_copy())).collect::<Vec<ContainerPath>>();
@@ -128,7 +127,7 @@ impl DiagnosticsUISlots {
             diagnostics_ui,
             dependencies_ui,
             references_ui => move |model_index_filter| {
-                info!("Triggering `Open Diagnostic Match` By Slot");
+                rpfm_telemetry::track_action("Open Diagnostic Match");
                 DiagnosticsUI::open_match(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, model_index_filter.as_ptr());
             }
         ));
@@ -178,6 +177,7 @@ impl DiagnosticsUISlots {
         let ignore_parent_folder = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
             pack_file_contents_ui,
             diagnostics_ui => move || {
+                rpfm_telemetry::track_action("Diagnostics: Ignore Parent Folder");
                 let selection = diagnostics_ui.selection_sorted_and_deduped();
                 let mut string = String::new();
 
@@ -200,6 +200,7 @@ impl DiagnosticsUISlots {
         let ignore_parent_folder_field = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
             pack_file_contents_ui,
             diagnostics_ui => move || {
+                rpfm_telemetry::track_action("Diagnostics: Ignore Parent Folder Field");
                 let selection = diagnostics_ui.selection_sorted_and_deduped();
                 let mut string = String::new();
 
@@ -229,6 +230,7 @@ impl DiagnosticsUISlots {
         let ignore_file = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
             pack_file_contents_ui,
             diagnostics_ui => move || {
+                rpfm_telemetry::track_action("Diagnostics: Ignore File");
                 let selection = diagnostics_ui.selection_sorted_and_deduped();
                 let mut string = String::new();
 
@@ -250,6 +252,7 @@ impl DiagnosticsUISlots {
         let ignore_file_field = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
             pack_file_contents_ui,
             diagnostics_ui => move || {
+                rpfm_telemetry::track_action("Diagnostics: Ignore File Field");
                 let selection = diagnostics_ui.selection_sorted_and_deduped();
                 let mut string = String::new();
 
@@ -278,6 +281,7 @@ impl DiagnosticsUISlots {
         let ignore_diagnostic_for_parent_folder = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
             pack_file_contents_ui,
             diagnostics_ui => move || {
+                rpfm_telemetry::track_action("Diagnostics: Ignore Diagnostic for Parent Folder");
                 let selection = diagnostics_ui.selection_sorted_and_deduped();
                 let mut string = String::new();
 
@@ -302,6 +306,7 @@ impl DiagnosticsUISlots {
         let ignore_diagnostic_for_parent_folder_field = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
             pack_file_contents_ui,
             diagnostics_ui => move || {
+                rpfm_telemetry::track_action("Diagnostics: Ignore Diagnostic for Parent Folder Field");
                 let selection = diagnostics_ui.selection_sorted_and_deduped();
                 let mut string = String::new();
 
@@ -332,6 +337,7 @@ impl DiagnosticsUISlots {
         let ignore_diagnostic_for_file = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
             pack_file_contents_ui,
             diagnostics_ui => move || {
+                rpfm_telemetry::track_action("Diagnostics: Ignore Diagnostic for File");
                 let selection = diagnostics_ui.selection_sorted_and_deduped();
                 let mut string = String::new();
 
@@ -354,6 +360,7 @@ impl DiagnosticsUISlots {
         let ignore_diagnostic_for_file_field = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
             pack_file_contents_ui,
             diagnostics_ui => move || {
+                rpfm_telemetry::track_action("Diagnostics: Ignore Diagnostic for File Field");
                 let selection = diagnostics_ui.selection_sorted_and_deduped();
                 let mut string = String::new();
 
@@ -383,6 +390,7 @@ impl DiagnosticsUISlots {
         let ignore_diagnostic_for_pack = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
             pack_file_contents_ui,
             diagnostics_ui => move || {
+                rpfm_telemetry::track_action("Diagnostics: Ignore Diagnostic for Pack");
                 let selection = diagnostics_ui.selection_sorted_and_deduped();
                 let mut string = String::new();
 

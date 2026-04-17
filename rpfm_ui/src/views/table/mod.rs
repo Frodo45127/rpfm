@@ -87,7 +87,7 @@ use rpfm_ipc::settings_keys::*;
 use rpfm_lib::files::{ContainerPath, FileType, db::DB, loc::Loc, table::{*, local::TableInMemory}};
 use rpfm_lib::games::supported_games::KEY_WARHAMMER_3;
 use rpfm_lib::schema::{Definition, Field, FieldType, Schema};
-use rpfm_log::error;
+use rpfm_telemetry::error;
 
 use rpfm_ui_common::ASSETS_PATH;
 use rpfm_ui_common::clone;

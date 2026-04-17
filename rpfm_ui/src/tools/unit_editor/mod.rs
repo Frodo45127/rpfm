@@ -53,7 +53,7 @@ use std::sync::RwLock;
 
 use rpfm_lib::files::{ContainerPath, FileType, RFile, text::{Text, TextFormat}};
 use rpfm_lib::games::supported_games::*;
-use rpfm_log::info;
+use rpfm_telemetry::info;
 
 use rpfm_ui_common::utils::*;
 

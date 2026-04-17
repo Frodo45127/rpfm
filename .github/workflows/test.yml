@@ -35,10 +35,10 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: -p rpfm_lib -p rpfm_extensions -p rpfm_ipc -p rpfm_log -p rpfm_server
+          args: -p rpfm_lib -p rpfm_extensions -p rpfm_ipc -p rpfm_telemetry -p rpfm_server
 
       - name: Run tests
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: -p rpfm_lib -p rpfm_extensions -p rpfm_ipc -p rpfm_log -p rpfm_server
+          args: -p rpfm_lib -p rpfm_extensions -p rpfm_ipc -p rpfm_telemetry -p rpfm_server

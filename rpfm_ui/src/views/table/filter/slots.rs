@@ -120,6 +120,7 @@ impl FilterViewSlots {
 
         let filter_add = SlotNoArgs::new(&view.main_widget, clone!(
             parent_view => move || {
+            rpfm_telemetry::track_action("Table Filter: Add");
             match FilterView::new(&parent_view) {
                 Ok(_) => FilterView::add_filter_group(&parent_view),
                 Err(_) => show_dialog(&parent_view.table_view, "Error while adding new filters. Realistically, this should never happen.", false),
@@ -129,6 +130,7 @@ impl FilterViewSlots {
         let filter_remove = SlotNoArgs::new(&view.main_widget, clone!(
             view,
             parent_view => move || {
+            rpfm_telemetry::track_action("Table Filter: Remove");
             if parent_view.filters().len() > 1 {
                 let pos = parent_view.filters().iter().position(|filter_view| view.main_widget.as_ptr().as_raw_ptr() == filter_view.main_widget.as_ptr().as_raw_ptr());
                 if let Some(pos) = pos {

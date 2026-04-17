@@ -58,7 +58,6 @@ use rpfm_ipc::helpers::DataSource;
 use rpfm_ipc::settings_keys::*;
 
 use rpfm_lib::files::{ContainerPath, portrait_settings::Variant};
-use rpfm_log::info;
 
 use rpfm_ui_common::utils::{atomic_from_cpp_box, find_widget, load_template, ref_from_atomic};
 
@@ -524,7 +523,7 @@ impl DiagnosticsUI {
 
         app_ui.menu_bar_packfile().set_enabled(false);
         let diagnostics_ignored = diagnostics_ui.diagnostics_ignored();
-        info!("Triggering check.");
+        rpfm_telemetry::track_action("Diagnostics Check");
         let diagnostics = send_ipc_command_async(Command::DiagnosticsCheck(diagnostics_ignored, diagnostics_ui.diagnostics_button_check_ak_only_refs().is_checked()), response_extractor!(Response::Diagnostics));
         Self::load_diagnostics_to_ui(app_ui, diagnostics_ui, diagnostics.results());
         Self::filter(app_ui, diagnostics_ui);
@@ -546,7 +545,7 @@ impl DiagnosticsUI {
 
         let mut diagnostics = UI_STATE.get_diagnostics();
         *diagnostics.diagnostics_ignored_mut() = diagnostics_ui.diagnostics_ignored();
-        info!("Triggering check update.");
+        rpfm_telemetry::track_action("Diagnostics Check Update");
         let diagnostics = send_ipc_command_async(Command::DiagnosticsUpdate(diagnostics, paths, diagnostics_ui.diagnostics_button_check_ak_only_refs().is_checked()), response_extractor!(Response::Diagnostics));
         Self::load_diagnostics_to_ui(app_ui, diagnostics_ui, diagnostics.results());
         Self::filter(app_ui, diagnostics_ui);

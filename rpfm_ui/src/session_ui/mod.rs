@@ -33,7 +33,7 @@ use std::rc::Rc;
 
 use rpfm_ipc::helpers::SessionInfo;
 
-use rpfm_log::*;
+use rpfm_telemetry::*;
 
 use crate::communications::CURRENT_SESSION_ID;
 use crate::utils::{qtr, qtre};

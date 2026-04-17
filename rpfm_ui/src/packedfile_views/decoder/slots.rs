@@ -132,76 +132,91 @@ impl PackedFileDecoderViewSlots {
         //------------------------------------//
         let use_this_bool = SlotNoArgs::new(&view.table_view, clone!(
             mut view => move || {
+            rpfm_telemetry::track_action("Decoder: Use as Bool");
             let _ = view.use_this(FieldType::Boolean);
         }));
 
         let use_this_f32 = SlotNoArgs::new(&view.table_view, clone!(
             mut view => move || {
+            rpfm_telemetry::track_action("Decoder: Use as F32");
             let _ = view.use_this(FieldType::F32);
         }));
 
         let use_this_f64 = SlotNoArgs::new(&view.table_view, clone!(
             mut view => move || {
+            rpfm_telemetry::track_action("Decoder: Use as F64");
             let _ = view.use_this(FieldType::F64);
         }));
 
         let use_this_i16 = SlotNoArgs::new(&view.table_view, clone!(
             mut view => move || {
+            rpfm_telemetry::track_action("Decoder: Use as I16");
             let _ = view.use_this(FieldType::I16);
         }));
 
         let use_this_i32 = SlotNoArgs::new(&view.table_view, clone!(
             mut view => move || {
+            rpfm_telemetry::track_action("Decoder: Use as I32");
             let _ = view.use_this(FieldType::I32);
         }));
 
         let use_this_i64 = SlotNoArgs::new(&view.table_view, clone!(
             mut view => move || {
+            rpfm_telemetry::track_action("Decoder: Use as I64");
             let _ = view.use_this(FieldType::I64);
         }));
 
         let use_this_optional_i16 = SlotNoArgs::new(&view.table_view, clone!(
             mut view => move || {
+            rpfm_telemetry::track_action("Decoder: Use as Optional I16");
             let _ = view.use_this(FieldType::OptionalI16);
         }));
 
         let use_this_optional_i32 = SlotNoArgs::new(&view.table_view, clone!(
             mut view => move || {
+            rpfm_telemetry::track_action("Decoder: Use as Optional I32");
             let _ = view.use_this(FieldType::OptionalI32);
         }));
 
         let use_this_optional_i64 = SlotNoArgs::new(&view.table_view, clone!(
             mut view => move || {
+            rpfm_telemetry::track_action("Decoder: Use as Optional I64");
             let _ = view.use_this(FieldType::OptionalI64);
         }));
 
         let use_this_colour_rgb = SlotNoArgs::new(&view.table_view, clone!(
             mut view => move || {
+            rpfm_telemetry::track_action("Decoder: Use as ColourRGB");
             let _ = view.use_this(FieldType::ColourRGB);
         }));
 
         let use_this_string_u8 = SlotNoArgs::new(&view.table_view, clone!(
             mut view => move || {
+            rpfm_telemetry::track_action("Decoder: Use as StringU8");
             let _ = view.use_this(FieldType::StringU8);
         }));
 
         let use_this_string_u16 = SlotNoArgs::new(&view.table_view, clone!(
             mut view => move || {
+            rpfm_telemetry::track_action("Decoder: Use as StringU16");
             let _ = view.use_this(FieldType::StringU16);
         }));
 
         let use_this_optional_string_u8 = SlotNoArgs::new(&view.table_view, clone!(
             mut view => move || {
+            rpfm_telemetry::track_action("Decoder: Use as Optional StringU8");
             let _ = view.use_this(FieldType::OptionalStringU8);
         }));
 
         let use_this_optional_string_u16 = SlotNoArgs::new(&view.table_view, clone!(
             mut view => move || {
+            rpfm_telemetry::track_action("Decoder: Use as Optional StringU16");
             let _ = view.use_this(FieldType::OptionalStringU16);
         }));
 
         let use_this_sequence_u32 = SlotNoArgs::new(&view.table_view, clone!(
             mut view => move || {
+            rpfm_telemetry::track_action("Decoder: Use as SequenceU32");
             let _ = view.use_this(FieldType::SequenceU32(Box::new(Definition::new(-100, None))));
         }));
 
@@ -221,6 +236,7 @@ impl PackedFileDecoderViewSlots {
         // Slots for the "Move up" contextual action of the TableView.
         let table_view_context_menu_move_up = SlotOfBool::new(&view.table_view, clone!(
             mut view => move |_| {
+                rpfm_telemetry::track_action("Decoder: Move Field Up");
 
                 let selection = view.table_view.selection_model().selection();
                 let indexes = selection.indexes();
@@ -254,6 +270,7 @@ impl PackedFileDecoderViewSlots {
         // Slots for the "Move down" contextual action of the TableView.
         let table_view_context_menu_move_down = SlotOfBool::new(&view.table_view, clone!(
             mut view => move |_| {
+                rpfm_telemetry::track_action("Decoder: Move Field Down");
 
                 let selection = view.table_view.selection_model().selection();
                 let indexes = selection.indexes();
@@ -294,6 +311,7 @@ impl PackedFileDecoderViewSlots {
         // Slots for the "Move left" contextual action of the TableView.
         let table_view_context_menu_move_left = SlotOfBool::new(&view.table_view, clone!(
             mut view => move |_| {
+                rpfm_telemetry::track_action("Decoder: Move Field Left");
 
                 let selection = view.table_view.selection_model().selection();
                 let indexes = selection.indexes();
@@ -327,6 +345,7 @@ impl PackedFileDecoderViewSlots {
         // Slots for the "Move right" contextual action of the TableView.
         let table_view_context_menu_move_right = SlotOfBool::new(&view.table_view, clone!(
             mut view => move |_| {
+                rpfm_telemetry::track_action("Decoder: Move Field Right");
 
                 let selection = view.table_view.selection_model().selection();
                 let indexes = selection.indexes();
@@ -367,6 +386,7 @@ impl PackedFileDecoderViewSlots {
         // Slots for the "Delete" contextual action of the TableView.
         let table_view_context_menu_delete = SlotOfBool::new(&view.table_view, clone!(
             mut view => move |_| {
+                rpfm_telemetry::track_action("Decoder: Delete Field");
 
                 let selection = view.table_view.selection_model().selection();
                 let indexes = selection.indexes();
@@ -449,6 +469,7 @@ impl PackedFileDecoderViewSlots {
         // Slots for the "Load" contextual action of the Version's TableView.
         let table_view_old_versions_context_menu_load = SlotOfBool::new(&view.table_view, clone!(
             mut view => move |_| {
+                rpfm_telemetry::track_action("Decoder: Load Old Version");
 
                 let selection = view.table_view_old_versions.selection_model().selection();
                 let indexes = selection.indexes();
@@ -477,6 +498,7 @@ impl PackedFileDecoderViewSlots {
         // Slots for the "Delete" contextual action of the Version's TableView.
         let table_view_old_versions_context_menu_delete = SlotOfBool::new(&view.table_view, clone!(
             mut view => move |_| {
+                rpfm_telemetry::track_action("Decoder: Delete Old Version");
 
                 let selection = view.table_view_old_versions.selection_model().selection();
                 let indexes = selection.indexes();
@@ -495,6 +517,7 @@ impl PackedFileDecoderViewSlots {
         let import_from_assembly_kit = SlotNoArgs::new(&view.table_view, clone!(
 
             mut view => move || {
+                rpfm_telemetry::track_action("Decoder: Import from Assembly Kit");
                 match view.import_from_assembly_kit() {
                     Ok(field_list) => {
                         println!("Amount of possible definitions: {}.", field_list.len());
@@ -522,6 +545,7 @@ impl PackedFileDecoderViewSlots {
         let test_definition = SlotNoArgs::new(&view.table_view, clone!(
             app_ui,
             view => move || {
+                rpfm_telemetry::track_action("Decoder: Test Definition");
                 match view.add_definition_to_schema() {
                     Ok(schema) => {
 
@@ -552,6 +576,7 @@ impl PackedFileDecoderViewSlots {
         // Slot for the "Kill them all!" button.
         let remove_all_fields = SlotNoArgs::new(&view.table_view, clone!(
             mut view => move || {
+                rpfm_telemetry::track_action("Decoder: Remove All Fields");
                 view.table_model.clear();
                 let _ = view.data.write().unwrap().seek(SeekFrom::Start(view.header_size));
                 let _ = view.update_view(&[], true);
@@ -565,6 +590,7 @@ impl PackedFileDecoderViewSlots {
             app_ui,
             pack_file_contents_ui,
             view => move || {
+                rpfm_telemetry::track_action("Decoder: Save Definition");
                 match view.add_definition_to_schema() {
                     Ok(schema) => {
 

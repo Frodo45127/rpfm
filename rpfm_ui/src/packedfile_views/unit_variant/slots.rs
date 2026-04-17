@@ -23,7 +23,6 @@ use getset::Getters;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use rpfm_log::info;
 
 use rpfm_ui_common::clone;
 
@@ -72,7 +71,7 @@ impl UnitVariantSlots {
             app_ui,
             pack_file_contents_ui,
             view => move || {
-                info!("Triggering `Modified Unit Variant File` By Slot");
+                rpfm_telemetry::track_action("Modified Unit Variant File");
 
                 if let DataSource::PackFile = *view.data_source.read().unwrap() {
                     set_modified(true, &view.path.read().unwrap(), &app_ui, &pack_file_contents_ui);
@@ -184,6 +183,7 @@ impl UnitVariantSlots {
 
         let main_list_add = SlotNoArgs::new(view.main_list_view(), clone!(
             view => move || {
+            rpfm_telemetry::track_action("Unit Variant: Add Category");
             let current_values = UnitVariantView::value_list_from_model(&view.main_list_model().static_upcast());
 
             match view.id_dialog(None, current_values) {
@@ -195,6 +195,7 @@ impl UnitVariantSlots {
         }));
         let main_list_clone = SlotNoArgs::new(view.main_list_view(), clone!(
             view => move || {
+            rpfm_telemetry::track_action("Unit Variant: Clone Category");
 
             let selection = view.main_list_view.selection_model().selected_indexes();
             let index = selection.at(0);
@@ -214,15 +215,18 @@ impl UnitVariantSlots {
         }));
         let main_list_delete = SlotNoArgs::new(view.main_list_view(), clone!(
             view => move || {
+            rpfm_telemetry::track_action("Unit Variant: Delete Category");
             view.remove_category(view.main_list_view.selection_model().selected_indexes().at(0))
         }));
 
         let variants_list_add = SlotNoArgs::new(view.main_list_view(), clone!(
             view => move || {
+            rpfm_telemetry::track_action("Unit Variant: Add Variant");
             view.add_variant();
         }));
         let variants_list_clone = SlotNoArgs::new(view.main_list_view(), clone!(
             view => move || {
+            rpfm_telemetry::track_action("Unit Variant: Clone Variant");
 
             let selection = view.variants_list_view.selection_model().selected_indexes();
             let index = selection.at(0);
@@ -232,6 +236,7 @@ impl UnitVariantSlots {
         }));
         let variants_list_delete = SlotNoArgs::new(view.main_list_view(), clone!(
             view => move || {
+            rpfm_telemetry::track_action("Unit Variant: Delete Variant");
             view.remove_variant(view.variants_list_view.selection_model().selected_indexes().at(0))
         }));
 

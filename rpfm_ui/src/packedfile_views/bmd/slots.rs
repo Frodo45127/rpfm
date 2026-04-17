@@ -16,7 +16,6 @@ use std::sync::Arc;
 
 use rpfm_ipc::helpers::DataSource;
 
-use rpfm_log::*;
 
 use rpfm_ui_common::clone;
 
@@ -45,7 +44,7 @@ impl FileBMDViewSlots {
             app_ui,
             pack_file_contents_ui,
             view => move || {
-                info!("Triggering `Modified BMD File` By Slot");
+                rpfm_telemetry::track_action("Modified BMD File");
                 if let Some(ref packed_file_path) = view.packed_file_path {
                     if let DataSource::PackFile = *view.data_source.read().unwrap() {
 

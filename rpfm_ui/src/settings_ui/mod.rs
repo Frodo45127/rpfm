@@ -238,6 +238,7 @@ impl SettingsUI {
             "settings_table_title",
             "settings_debug_title",
             "settings_diagnostics_title",
+            "settings_telemetry_title",
             "settings_ai_title",
         ];
         let mut nav_buttons: Vec<QBox<QPushButton>> = Vec::new();
@@ -476,6 +477,22 @@ impl SettingsUI {
         content_layout.add_widget_1a(&diagnostics_header);
         content_layout.add_widget_1a(&diagnostics_frame);
 
+        //-----------------------------------------------//
+        // `Telemetry` Frame.
+        //-----------------------------------------------//
+        let telemetry_header = QLabel::from_q_string_q_widget(&qtr("settings_telemetry_title"), &dialog);
+        telemetry_header.set_style_sheet(&QString::from_std_str("font-weight: bold; font-size: 13px; padding: 8px 0 4px 0;"));
+        let telemetry_frame = QWidget::new_1a(&dialog);
+        let telemetry_vbox = QVBoxLayout::new_1a(&telemetry_frame);
+        telemetry_vbox.set_contents_margins_4a(4, 0, 4, 0);
+        telemetry_vbox.set_spacing(2);
+
+        new_setting_checkbox(&mut checkboxes, &telemetry_vbox, &telemetry_frame, "enable_usage_telemetry", "settings_enable_usage_telemetry", "tt_enable_usage_telemetry_tip");
+        new_setting_checkbox(&mut checkboxes, &telemetry_vbox, &telemetry_frame, "enable_crash_reports", "settings_enable_crash_reports", "tt_enable_crash_reports_tip");
+
+        content_layout.add_widget_1a(&telemetry_header);
+        content_layout.add_widget_1a(&telemetry_frame);
+
         //-------------------------------------------------------------------------------//
         // `AI` section of the `Settings` dialog.
         //-------------------------------------------------------------------------------//
@@ -496,13 +513,14 @@ impl SettingsUI {
         content_layout.add_stretch_1a(1);
 
         // Collect category headers (for scroll navigation) and sections (for filtering).
-        // Order must match nav_buttons: [Paths, General, Table, Debug, Diagnostics, AI]
+        // Order must match nav_buttons: [Paths, General, Table, Debug, Diagnostics, Telemetry, AI]
         let category_headers: Vec<QBox<QLabel>> = vec![
             paths_header,
             general_header,
             table_header,
             debug_header,
             diagnostics_header,
+            telemetry_header,
             ai_header,
         ];
         // Note: extra_paths is a sub-section of Paths, stored separately for the extra_paths_header.
@@ -512,6 +530,7 @@ impl SettingsUI {
             ui_table_view_frame,
             debug_frame,
             diagnostics_frame,
+            telemetry_frame,
             ai_frame,
         ];
 

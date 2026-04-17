@@ -21,7 +21,7 @@ use tokio::sync::mpsc;
 use std::sync::Arc;
 
 use rpfm_ipc::messages::{Command, Message as IpcMessage, Response};
-use rpfm_log::{error, info};
+use rpfm_telemetry::{error, info};
 
 use crate::session::{DEFAULT_SESSION_TIMEOUT_SECS, SessionId, SessionManager, recv_response};
 
@@ -186,6 +186,7 @@ async fn handle_socket(socket: WebSocket, session_manager: Arc<SessionManager>, 
         // Check if this was the last session and shutdown the server if so.
         if session_manager.session_count() == 0 {
             info!("No more active sessions, shutting down server...");
+            rpfm_telemetry::flush("Server Action Telemetry");
             std::process::exit(0);
         }
     }

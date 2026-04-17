@@ -17,7 +17,6 @@ use qt_core::SlotOfQModelIndex;
 
 use std::rc::Rc;
 
-use rpfm_log::*;
 
 use rpfm_ui_common::clone;
 
@@ -62,7 +61,7 @@ impl ReferencesUISlots {
             diagnostics_ui,
             dependencies_ui,
             references_ui => move |model_index_filter| {
-                info!("Triggering `Open Reference Match` By Slot");
+                rpfm_telemetry::track_action("Open Reference Match");
                 ReferencesUI::open_match(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, model_index_filter.as_ptr());
             }
         ));

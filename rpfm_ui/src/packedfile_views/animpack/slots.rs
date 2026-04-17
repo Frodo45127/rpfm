@@ -75,6 +75,7 @@ impl PackedFileAnimPackViewSlots {
             app_ui,
             pack_file_contents_ui,
             view => move |_| {
+                rpfm_telemetry::track_action("AnimPack: Copy Files In");
 
                 // Do not add files to the animpack if its not in our own Pack.
                 if *view.data_source.read().unwrap() != DataSource::PackFile {
@@ -121,6 +122,7 @@ impl PackedFileAnimPackViewSlots {
             app_ui,
             pack_file_contents_ui,
             view => move |_| {
+                rpfm_telemetry::track_action("AnimPack: Copy Files Out");
 
                 // Do not import if we don't have an open pack.
                 if view.pack_tree_model_filter().source_model().row_count_0a() == 0 {
@@ -170,6 +172,7 @@ impl PackedFileAnimPackViewSlots {
             app_ui,
             pack_file_contents_ui,
             view => move || {
+                rpfm_telemetry::track_action("AnimPack: Delete Files");
 
                 // Get the file to delete from the TreeView.
                 let selection_file_to_move = view.anim_pack_tree_view.selection_model().selection();

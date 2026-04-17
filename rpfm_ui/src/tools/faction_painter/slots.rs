@@ -18,7 +18,6 @@ use qt_core::SlotOfQItemSelectionQItemSelection;
 
 use std::rc::Rc;
 
-use rpfm_log::*;
 
 use rpfm_ui_common::clone;
 
@@ -53,14 +52,14 @@ impl ToolFactionPainterSlots {
 
         let delayed_updates = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
-                info!("Triggering 'delayed_updates' for faction painter.");
+                rpfm_telemetry::track_action("faction painter: delayed_updates");
                 ui.filter_list();
             }
         ));
 
         let load_data_to_detailed_view = SlotOfQItemSelectionQItemSelection::new(ui.tool.main_widget(), clone!(
             ui => move |after, before| {
-                info!("Triggering 'load_data_to_detailed_view' for faction painter.");
+                rpfm_telemetry::track_action("faction painter: load_data_to_detailed_view");
 
                 // Save the previous data if needed.
                 if before.count() == 1 {
@@ -80,35 +79,35 @@ impl ToolFactionPainterSlots {
 
         let filter_edited = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
-                info!("Triggering 'filter_edited' for faction painter.");
+                rpfm_telemetry::track_action("faction painter: filter_edited");
                 ui.start_delayed_updates_timer();
             }
         ));
 
         let banner_restore_initial_values = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
-                info!("Triggering 'banner_restore_initial_values' for faction painter.");
+                rpfm_telemetry::track_action("faction painter: banner_restore_initial_values");
                 ui.banner_restore_initial_values();
             }
         ));
 
         let banner_restore_vanilla_values = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
-                info!("Triggering 'banner_restore_vanilla_values' for faction painter.");
+                rpfm_telemetry::track_action("faction painter: banner_restore_vanilla_values");
                 ui.banner_restore_vanilla_values();
             }
         ));
 
         let uniform_restore_initial_values = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
-                info!("Triggering 'uniform_restore_initial_values' for faction painter.");
+                rpfm_telemetry::track_action("faction painter: uniform_restore_initial_values");
                 ui.uniform_restore_initial_values();
             }
         ));
 
         let uniform_restore_vanilla_values = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
-                info!("Triggering 'uniform_restore_vanilla_values' for faction painter.");
+                rpfm_telemetry::track_action("faction painter: uniform_restore_vanilla_values");
                 ui.uniform_restore_vanilla_values();
             }
         ));

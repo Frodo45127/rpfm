@@ -506,6 +506,10 @@ settings_diagnostics_show_panel_on_boot = Enable Diagnostics Tool
 settings_diagnostics_trigger_on_open = Trigger Diagnostics Check on Open PackFile
 settings_diagnostics_trigger_on_edit = Trigger Diagnostics Check on Table Editing
 
+settings_telemetry_title = Telemetry Settings
+settings_enable_usage_telemetry = Enable Usage Telemetry
+settings_enable_crash_reports = Enable Crash Reports
+
 settings_text_title = Text Editor Settings
 
 settings_warning_message = <p><b style="color:red;">WARNING: Most of these settings require you to restart the program in order to take effect!</b></p><p></p>
@@ -543,6 +547,9 @@ tt_debug_check_for_missing_table_definitions_tip = If you enable this, RPFM will
 tt_diagnostics_enable_diagnostics_tool_tip = Enable this to make the diagnostics panel appear on start.
 tt_diagnostics_trigger_diagnostics_on_open_tip = Enable this to trigger a full PackFile Diagnostics check when opening a PackFile.
 tt_diagnostics_trigger_diagnostics_on_table_edit_tip = Enable this to trigger a limited diagnostics check each time you edit a table.
+
+tt_enable_usage_telemetry_tip = Enable this to send anonymous usage telemetry (which actions you use) to help improve RPFM. No personal data is collected.
+tt_enable_crash_reports_tip = Enable this to automatically upload crash reports and error traces to Sentry when RPFM panics. Helps us find and fix bugs faster. No personal data is collected.
 
 ### CA_VP8 Videos
 

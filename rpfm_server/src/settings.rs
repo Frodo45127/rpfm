@@ -104,7 +104,7 @@ impl Settings {
                         }
                     }
 
-                    rpfm_log::warn!("Failed to read settings file, using defaults. Error: {error}");
+                    rpfm_telemetry::warn!("Failed to read settings file, using defaults. Error: {error}");
                     Settings::default()
                 }
             }
@@ -231,6 +231,10 @@ impl Settings {
         // Diagnostics Settings.
         settings.initialize_bool(DIAGNOSTICS_TRIGGER_ON_OPEN, true);
         settings.initialize_bool(DIAGNOSTICS_TRIGGER_ON_TABLE_EDIT, true);
+
+        // Telemetry settings: opt-out, both default to on. Users can disable either in the preferences.
+        settings.initialize_bool(ENABLE_USAGE_TELEMETRY, true);
+        settings.initialize_bool(ENABLE_CRASH_REPORTS, true);
 
         settings.initialize_string(AI_OPENAI_API_KEY, "");
         settings.initialize_string(DEEPL_API_KEY, "");

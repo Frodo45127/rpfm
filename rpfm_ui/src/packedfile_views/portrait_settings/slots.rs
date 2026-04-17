@@ -23,7 +23,6 @@ use getset::Getters;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use rpfm_log::info;
 
 use rpfm_ui_common::clone;
 
@@ -76,7 +75,7 @@ impl PortraitSettingsSlots {
             app_ui,
             pack_file_contents_ui,
             view => move || {
-                info!("Triggering `Modified Portrait Settings File` By Slot");
+                rpfm_telemetry::track_action("Modified Portrait Settings File");
 
                 if let DataSource::PackFile = *view.data_source.read().unwrap() {
                     set_modified(true, &view.path.read().unwrap(), &app_ui, &pack_file_contents_ui);
@@ -188,6 +187,7 @@ impl PortraitSettingsSlots {
 
         let main_list_add = SlotNoArgs::new(view.main_list_view(), clone!(
             view => move || {
+            rpfm_telemetry::track_action("Portrait Settings: Add Entry");
             let current_values = PortraitSettingsView::text_list_from_model(&view.main_list_model().static_upcast());
 
             match view.id_dialog(None, current_values) {
@@ -199,6 +199,7 @@ impl PortraitSettingsSlots {
         }));
         let main_list_clone = SlotNoArgs::new(view.main_list_view(), clone!(
             view => move || {
+            rpfm_telemetry::track_action("Portrait Settings: Clone Entry");
 
             let selection = view.main_list_view.selection_model().selected_indexes();
             let index = selection.at(0);
@@ -218,11 +219,13 @@ impl PortraitSettingsSlots {
         }));
         let main_list_delete = SlotNoArgs::new(view.main_list_view(), clone!(
             view => move || {
+            rpfm_telemetry::track_action("Portrait Settings: Delete Entry");
             view.remove_entry(view.main_list_view.selection_model().selected_indexes().at(0))
         }));
         let main_list_delete_filtered = SlotNoArgs::new(view.main_list_view(), clone!(
             app_ui,
             view => move || {
+            rpfm_telemetry::track_action("Portrait Settings: Delete Filtered Entries");
             if AppUI::are_you_sure_edition(&app_ui, "are_you_sure_delete_filtered_out_rows") {
                 view.remove_filtered_out_entries();
             }
@@ -230,6 +233,7 @@ impl PortraitSettingsSlots {
 
         let variants_list_add = SlotNoArgs::new(view.main_list_view(), clone!(
             view => move || {
+            rpfm_telemetry::track_action("Portrait Settings: Add Variant");
             let current_values = PortraitSettingsView::text_list_from_model(&view.variants_list_model().static_upcast());
 
             match view.id_dialog(None, current_values) {
@@ -241,6 +245,7 @@ impl PortraitSettingsSlots {
         }));
         let variants_list_clone = SlotNoArgs::new(view.main_list_view(), clone!(
             view => move || {
+            rpfm_telemetry::track_action("Portrait Settings: Clone Variant");
 
             let selection = view.variants_list_view.selection_model().selected_indexes();
             let index = selection.at(0);
@@ -260,6 +265,7 @@ impl PortraitSettingsSlots {
         }));
         let variants_list_delete = SlotNoArgs::new(view.main_list_view(), clone!(
             view => move || {
+            rpfm_telemetry::track_action("Portrait Settings: Delete Variant");
             view.remove_variant(view.variants_list_view.selection_model().selected_indexes().at(0))
         }));
 

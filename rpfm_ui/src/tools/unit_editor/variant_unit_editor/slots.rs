@@ -143,6 +143,7 @@ impl SubToolVariantUnitEditorSlots {
 
         let faction_list_add_faction = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
+                rpfm_telemetry::track_action("Unit Editor Variant: Add Faction");
                 if let Err(error) = ui.load_add_faction_dialog() {
                     show_message_warning(&ui.tool.message_widget, error);
                 }
@@ -151,6 +152,7 @@ impl SubToolVariantUnitEditorSlots {
 
         let faction_list_clone_faction = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
+                rpfm_telemetry::track_action("Unit Editor Variant: Clone Faction");
                 if let Err(error) = ui.load_clone_faction_dialog() {
                     show_message_warning(&ui.tool.message_widget, error);
                 }
@@ -159,6 +161,7 @@ impl SubToolVariantUnitEditorSlots {
 
         let faction_list_delete_faction = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
+                rpfm_telemetry::track_action("Unit Editor Variant: Delete Faction");
                 if let Err(error) = ui.delete_faction() {
                     show_message_warning(&ui.tool.message_widget, error);
                 }
@@ -180,6 +183,7 @@ impl SubToolVariantUnitEditorSlots {
 
         let unit_variants_colours_list_add_colour_variant = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
+                rpfm_telemetry::track_action("Unit Editor Variant: Add Colour Variant");
                 if let Err(error) = ui.load_add_colour_variant_dialog() {
                     show_message_warning(&ui.tool.message_widget, error);
                 }
@@ -188,6 +192,7 @@ impl SubToolVariantUnitEditorSlots {
 
         let unit_variants_colours_list_clone_colour_variant = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
+                rpfm_telemetry::track_action("Unit Editor Variant: Clone Colour Variant");
                 if let Err(error) = ui.load_clone_colour_variant_dialog() {
                     show_message_warning(&ui.tool.message_widget, error);
                 }
@@ -196,6 +201,7 @@ impl SubToolVariantUnitEditorSlots {
 
         let unit_variants_colours_list_delete_colour_variant = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
+                rpfm_telemetry::track_action("Unit Editor Variant: Delete Colour Variant");
                 if let Err(error) = ui.delete_colour_variant() {
                     show_message_warning(&ui.tool.message_widget, error);
                 }

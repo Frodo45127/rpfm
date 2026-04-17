@@ -62,22 +62,26 @@ impl NotesSlots {
         }));
 
         let new_tip = SlotNoArgs::new(&view.new_button, clone!(view => move || {
+            rpfm_telemetry::track_action("Notes: New Tip");
             if let Err(error) = view.load_new_note_dialog(false) {
                 show_dialog(&view.list, error, false);
             }
         }));
 
         let edit_tip = SlotNoArgs::new(&view.list, clone!(view => move || {
+            rpfm_telemetry::track_action("Notes: Edit Tip");
             if let Err(error) = view.load_new_note_dialog(true) {
                 show_dialog(&view.list, error, false);
             }
         }));
 
         let delete_tip = SlotNoArgs::new(&view.list, clone!(view => move || {
+            rpfm_telemetry::track_action("Notes: Delete Tip");
             view.delete_selected_note();
         }));
 
         let open_link = SlotNoArgs::new(&view.list, clone!(view => move || {
+            rpfm_telemetry::track_action("Notes: Open Link");
             view.open_link();
         }));
 

@@ -4,9 +4,9 @@ resolver = "2"
 members = [
     # Libs
     "rpfm_lib",
-    "rpfm_log",
     "rpfm_extensions",
     "rpfm_ipc",
+    "rpfm_telemetry",
     "rpfm_ui_common",
 
     # Executables
@@ -32,10 +32,10 @@ debug = true
 [workspace.dependencies]
 # Internal workspace dependencies.
 rpfm_lib = { path = "rpfm_lib", version = "4.7.105" }
-rpfm_log = { path = "rpfm_log" }
 rpfm_extensions = { path = "rpfm_extensions", version = "4.7.105" }
 rpfm_ui_common = { path = "rpfm_ui_common" }
 rpfm_ipc = { path = "rpfm_ipc" }
+rpfm_telemetry = { path = "rpfm_telemetry" }
 
 # Common dependencies.
 anyhow = "^1"

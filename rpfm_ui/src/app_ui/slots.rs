@@ -48,7 +48,7 @@ use rpfm_ipc::helpers::{ContainerInfo, DataSource};
 
 use rpfm_lib::files::{ContainerPath, table::Table};
 use rpfm_lib::games::supported_games::*;
-use rpfm_log::*;
+use rpfm_telemetry::*;
 
 use rpfm_ui_common::clone;
 use rpfm_ui_common::utils::{create_grid_layout, ref_from_atomic};
@@ -234,7 +234,7 @@ impl AppUISlots {
             diagnostics_ui,
             dependencies_ui,
             references_ui => move |_| {
-                info!("Triggering `Command Palette: Open File` By Slot");
+                rpfm_telemetry::track_action("Command Palette: Open File");
                 crate::command_palette_ui::show_file_palette(
                     &app_ui,
                     &pack_file_contents_ui,
@@ -249,7 +249,7 @@ impl AppUISlots {
         let command_palette_open_commands = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-                info!("Triggering `Command Palette: Open Commands` By Slot");
+                rpfm_telemetry::track_action("Command Palette: Open Commands");
                 crate::command_palette_ui::show_command_palette(&app_ui, &pack_file_contents_ui);
             }
         ));
@@ -265,7 +265,7 @@ impl AppUISlots {
             dependencies_ui,
             global_search_ui,
             diagnostics_ui => move || {
-                info!("Triggering `Open PackFile Menu` By Slot");
+                rpfm_telemetry::track_action("Open PackFile Menu");
 
                 let generated = send_ipc_command(Command::IsThereADependencyDatabase(false), response_extractor!(Response::Bool));
                 app_ui.packfile_load_all_ca_packfiles().set_enabled(!generated);
@@ -284,7 +284,7 @@ impl AppUISlots {
 
                 // Check first if there has been changes in the PackFile.
                 if AppUI::are_you_sure(&app_ui, false, false) {
-                    info!("Triggering `New PackFile` By Slot");
+                    rpfm_telemetry::track_action("New PackFile");
                     AppUI::new_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &dependencies_ui);
                 }
             }
@@ -300,7 +300,7 @@ impl AppUISlots {
                 // Check first if there has been changes in the PackFile.
                 info!("Triggering `Open & Merge Packs` By Slot?");
                 if AppUI::are_you_sure(&app_ui, false, false) {
-                    info!("Triggering `Open & Merge Packs` By Slot");
+                    rpfm_telemetry::track_action("Open & Merge Packs");
 
                     // Create the FileDialog to get the PackFile to open and configure it.
                     let file_dialog = QFileDialog::from_q_widget_q_string(
@@ -340,7 +340,7 @@ impl AppUISlots {
             dependencies_ui,
             diagnostics_ui,
             global_search_ui => move |_| {
-                info!("Triggering `Open Packs (Additive)` By Slot");
+                rpfm_telemetry::track_action("Open Packs (Additive)");
 
                 let file_dialog = QFileDialog::from_q_widget_q_string(
                     &app_ui.main_window,
@@ -370,7 +370,7 @@ impl AppUISlots {
         let packfile_save_all = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-                info!("Triggering `Save All` By Slot");
+                rpfm_telemetry::track_action("Save All");
 
                 // Get all open packs from the server.
                 let pack_list = send_ipc_command(Command::ListOpenPacks, response_extractor!(Response::VecStringContainerInfo));
@@ -414,7 +414,7 @@ impl AppUISlots {
             // Check first if there has been changes in the PackFile. If we accept, just take all the PackFiles in the data folder
             // and open them all together, skipping mods.
             if AppUI::are_you_sure(&app_ui, false, false) {
-                info!("Triggering `Load all CA PackFiles` By Slot");
+                rpfm_telemetry::track_action("Load all CA PackFiles");
 
                 // Reset the autosave timer.
                 let timer = settings_i32(AUTOSAVE_INTERVAL);
@@ -478,7 +478,7 @@ impl AppUISlots {
             dependencies_ui,
             global_search_ui,
             diagnostics_ui => move |_| {
-                info!("Triggering `Select Session Dialog` By Slot");
+                rpfm_telemetry::track_action("Select Session Dialog");
 
                 match SessionUI::new(app_ui.main_window()) {
                     Ok(session_ui) => {
@@ -580,7 +580,7 @@ impl AppUISlots {
             dependencies_ui,
             diagnostics_ui,
             global_search_ui => move |_| {
-                info!("Triggering `Preferences Dialog` By Slot");
+                rpfm_telemetry::track_action("Preferences Dialog");
 
                 let game_key = GAME_SELECTED.read().unwrap().key();
                 let mymod_path_old = settings_path_buf(MYMOD_BASE_PATH);
@@ -631,6 +631,10 @@ impl AppUISlots {
 
                 // Make sure we don't drag the factory reset setting, no matter if the user saved or not.
                 let _ = settings_set_bool(FACTORY_RESET, false);
+
+                // Refresh telemetry enabled state in case the setting was toggled.
+                rpfm_telemetry::set_usage_telemetry_enabled(settings_bool(ENABLE_USAGE_TELEMETRY));
+                rpfm_telemetry::set_crash_reports_enabled(settings_bool(ENABLE_CRASH_REPORTS));
             }
         ));
 
@@ -652,7 +656,7 @@ impl AppUISlots {
             dependencies_ui,
             diagnostics_ui,
             global_search_ui => move || {
-                info!("Triggering `Open MyMod Menu` By Slot");
+                rpfm_telemetry::track_action("Open MyMod Menu");
                 AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &diagnostics_ui, &global_search_ui, &dependencies_ui);
             }
         ));
@@ -660,6 +664,7 @@ impl AppUISlots {
         // What happens when we trigger the "Open MyMod Folder" action.
         let mymod_open_mymod_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
+            rpfm_telemetry::track_action("Open MyMod Folder");
             let path = settings_path_buf("mymods_base_path");
             if path.is_dir() {
                 let _ = open::that(&path);
@@ -675,7 +680,7 @@ impl AppUISlots {
             dependencies_ui,
             diagnostics_ui,
             global_search_ui => move |_| {
-                info!("Triggering `New MyMod` By Slot");
+                rpfm_telemetry::track_action("New MyMod");
 
                 // Trigger the `New MyMod` Dialog, and get the result.
                 match MyModUI::new(&app_ui) {
@@ -795,7 +800,7 @@ impl AppUISlots {
         let mymod_import_all = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-                info!("Triggering `Import All MyMods` By Slot");
+                rpfm_telemetry::track_action("MyMod Import All");
                 AppUI::import_all_mymod(&app_ui, &pack_file_contents_ui);
             }
         ));
@@ -804,7 +809,7 @@ impl AppUISlots {
         let mymod_export_all = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
-                info!("Triggering `Export All MyMods` By Slot");
+                rpfm_telemetry::track_action("MyMod Export All");
                 AppUI::export_all_mymod(&app_ui, &pack_file_contents_ui);
             }
         ));
@@ -830,12 +835,14 @@ impl AppUISlots {
 
         let view_toggle_packfile_contents = SlotOfBool::new(&app_ui.main_window, clone!(
             pack_file_contents_ui => move |state| {
+            rpfm_telemetry::track_action("Toggle PackFile Contents Panel");
             if !state { pack_file_contents_ui.packfile_contents_dock_widget().hide(); }
             else { pack_file_contents_ui.packfile_contents_dock_widget().show();}
         }));
 
         let view_toggle_global_search_panel = SlotOfBool::new(&app_ui.main_window, clone!(
             global_search_ui => move |state| {
+            rpfm_telemetry::track_action("Toggle Global Search Panel");
             if !state { global_search_ui.dock_widget().hide(); }
             else {
                 global_search_ui.dock_widget().show();
@@ -845,18 +852,21 @@ impl AppUISlots {
 
         let view_toggle_diagnostics_panel = SlotOfBool::new(&app_ui.main_window, clone!(
             diagnostics_ui => move |state| {
+                rpfm_telemetry::track_action("Toggle Diagnostics Panel");
                 if !state { diagnostics_ui.diagnostics_dock_widget().hide(); }
                 else { diagnostics_ui.diagnostics_dock_widget().show();}
         }));
 
         let view_toggle_dependencies_panel = SlotOfBool::new(&app_ui.main_window, clone!(
             dependencies_ui => move |state| {
+                rpfm_telemetry::track_action("Toggle Dependencies Panel");
                 if !state { dependencies_ui.dependencies_dock_widget().hide(); }
                 else { dependencies_ui.dependencies_dock_widget().show();}
         }));
 
         let view_toggle_references_panel = SlotOfBool::new(&app_ui.main_window, clone!(
             references_ui => move |state| {
+                rpfm_telemetry::track_action("Toggle References Panel");
                 if !state { references_ui.references_dock_widget().hide(); }
                 else { references_ui.references_dock_widget().show();}
         }));
@@ -868,6 +878,7 @@ impl AppUISlots {
         // What happens when we trigger the "Launch Game" action.
         let game_selected_launch_game = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
+            rpfm_telemetry::track_action("Launch Game");
             match GAME_SELECTED.read().unwrap().game_launch_command(&settings_path_buf(GAME_SELECTED.read().unwrap().key())) {
                 Ok(command) => { let _ = open::that(command); },
                 _ => show_dialog(&app_ui.main_window, "The currently selected game cannot be launched from Steam.", false),
@@ -877,6 +888,7 @@ impl AppUISlots {
         // What happens when we trigger the "Open Game's Data Folder" action.
         let game_selected_open_game_data_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
+            rpfm_telemetry::track_action("Open Game Data Folder");
             if let Ok(path) = GAME_SELECTED.read().unwrap().data_path(&settings_path_buf(GAME_SELECTED.read().unwrap().key())) {
                 let _ = open::that(path);
             } else {
@@ -887,6 +899,7 @@ impl AppUISlots {
         // What happens when we trigger the "Open Game's Assembly Kit Folder" action.
         let game_selected_open_game_assembly_kit_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
+            rpfm_telemetry::track_action("Open AssKit Folder");
             let path = settings_path_buf(&format!("{}_assembly_kit", GAME_SELECTED.read().unwrap().key()));
             if path.is_dir() {
                 let _ = open::that(&path);
@@ -898,6 +911,7 @@ impl AppUISlots {
         // What happens when we trigger the "Open Config Folder" action.
         let game_selected_open_config_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
+            rpfm_telemetry::track_action("Open Config Folder");
             if let Ok(path) = config_path() {
                 let _ = open::that(path);
             } else {
@@ -912,7 +926,7 @@ impl AppUISlots {
             app_ui,
             pack_file_contents_ui,
             dependencies_ui => move |_| {
-                info!("Triggering `Change Game Selected` By Slot");
+                rpfm_telemetry::track_action("Change Game Selected");
                 AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, &dependencies_ui, true, false);
             }
         ));
@@ -926,7 +940,7 @@ impl AppUISlots {
             app_ui,
             dependencies_ui => move |_| {
                 if AppUI::are_you_sure_edition(&app_ui, "generate_dependencies_cache_are_you_sure") {
-                    info!("Triggering `Generate Dependencies Cache` By Slot");
+                    rpfm_telemetry::track_action("Generate Dependencies Cache");
 
                     if (GAME_SELECTED.read().unwrap().raw_db_version() > &0 && !settings_path_buf(&format!("{}_assembly_kit", GAME_SELECTED.read().unwrap().key())).is_dir()) ||
                         (*GAME_SELECTED.read().unwrap().raw_db_version() == 0 && !old_ak_data_path().unwrap_or_default().join(GAME_SELECTED.read().unwrap().key()).is_dir()) {
@@ -991,7 +1005,7 @@ impl AppUISlots {
             global_search_ui,
             diagnostics_ui,
             dependencies_ui => move || {
-                info!("Triggering `Faction Painter Tool` By Slot");
+                rpfm_telemetry::track_action("Faction Painter Tool");
 
                 app_ui.toggle_main_window(false);
                 if let Err(error) = ToolFactionPainter::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &dependencies_ui) {
@@ -1011,7 +1025,7 @@ impl AppUISlots {
             global_search_ui,
             diagnostics_ui,
             dependencies_ui => move || {
-                info!("Triggering `Unit Editor Tool` By Slot");
+                rpfm_telemetry::track_action("Unit Editor Tool");
 
                 app_ui.toggle_main_window(false);
                 if let Err(error) = ToolUnitEditor::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &dependencies_ui) {
@@ -1032,7 +1046,7 @@ impl AppUISlots {
             diagnostics_ui,
             references_ui,
             dependencies_ui => move || {
-                info!("Triggering `Translator Tool` By Slot");
+                rpfm_telemetry::track_action("Translator Tool");
 
                 app_ui.toggle_main_window(false);
                 if let Err(error) = ToolTranslator::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui) {
@@ -1053,6 +1067,7 @@ impl AppUISlots {
         // What happens when we trigger the "About Qt" action.
         let about_about_qt = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
+                rpfm_telemetry::track_action("About Qt");
                 QMessageBox::about_qt_1a(&app_ui.main_window);
             }
         ));
@@ -1060,6 +1075,7 @@ impl AppUISlots {
         // What happens when we trigger the "About RPFM" action.
         let about_about_rpfm = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
+                rpfm_telemetry::track_action("About RPFM");
                 #[cfg(feature = "only_for_the_brave")]
                 let only_for_the_brave = ", Only For The Brave";
 
@@ -1143,7 +1159,7 @@ impl AppUISlots {
         // What happens when we trigger the "Check Update" action.
         let about_check_updates = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
-                info!("Triggering `Check Updates` By Slot");
+                rpfm_telemetry::track_action("Check Updates");
                 if let Err(error) = UpdaterUI::new(&app_ui, None, None, None, None) {
                     show_dialog(app_ui.main_window(), error, false);
                 }
@@ -1153,7 +1169,7 @@ impl AppUISlots {
         // What happens when we trigger the "Update from AssKit" action.
         let debug_update_current_schema_from_asskit = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
-                info!("Triggering `Update Current Schema from AssKit` By Slot");
+                rpfm_telemetry::track_action("Update Current Schema from AssKit");
 
                 // If there is no problem, ere we go.
                 app_ui.toggle_main_window(false);
@@ -1170,7 +1186,7 @@ impl AppUISlots {
         // What happens when we trigger the "Update from AssKit" action.
         let debug_import_schema_patch = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui => move || {
-                info!("Triggering `Import Schema Patch` By Slot");
+                rpfm_telemetry::track_action("Import Schema Patch");
 
                 // If there is no problem, ere we go.
                 app_ui.toggle_main_window(false);
@@ -1208,7 +1224,7 @@ impl AppUISlots {
 
         let debug_reload_style_sheet = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui => move || {
-                info!("Triggering `Reload StyleSheets` By Slot");
+                rpfm_telemetry::track_action("Reload StyleSheets");
                 reload_theme(&app_ui);
             }
         ));
@@ -1463,7 +1479,7 @@ impl AppUISlots {
         let pack_file_backup_autosave = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui => move || {
-                info!("Triggering `Autosave` By Slot");
+                rpfm_telemetry::track_action("Autosave");
 
                 // Before autosaving, check the space used by autosaves and throw a warning if we pass 25GB
                 if let Ok(autosave_path) = backup_autosave_path() {
@@ -1514,6 +1530,7 @@ impl AppUISlots {
         let tab_bar_packed_file_close = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui => move || {
+            rpfm_telemetry::track_action("Close Tab");
             let index = app_ui.tab_bar_packed_file.current_index();
             AppUI::file_view_hide(&app_ui, &pack_file_contents_ui, &[index]);
         }));
@@ -1521,6 +1538,7 @@ impl AppUISlots {
         let tab_bar_packed_file_close_all = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui => move || {
+            rpfm_telemetry::track_action("Close All Tabs");
             let indexes = UI_STATE.get_open_packedfiles().iter().filter_map(|file_view| {
                 let index_to_check = app_ui.tab_bar_packed_file.index_of(file_view.main_widget());
                 if index_to_check != -1 {
@@ -1536,6 +1554,7 @@ impl AppUISlots {
         let tab_bar_packed_file_close_all_other = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui => move || {
+            rpfm_telemetry::track_action("Close Other Tabs");
             let index = app_ui.tab_bar_packed_file.current_index();
             let indexes = UI_STATE.get_open_packedfiles().iter().filter_map(|file_view| {
                 let index_to_check = app_ui.tab_bar_packed_file.index_of(file_view.main_widget());
@@ -1552,6 +1571,7 @@ impl AppUISlots {
         let tab_bar_packed_file_close_all_left = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui => move || {
+            rpfm_telemetry::track_action("Close Tabs Left");
             let index = app_ui.tab_bar_packed_file.current_index();
             let indexes = UI_STATE.get_open_packedfiles().iter().filter_map(|file_view| {
                 let index_to_check = app_ui.tab_bar_packed_file.index_of(file_view.main_widget());
@@ -1567,6 +1587,7 @@ impl AppUISlots {
         let tab_bar_packed_file_close_all_right = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui => move || {
+            rpfm_telemetry::track_action("Close Tabs Right");
             let index = app_ui.tab_bar_packed_file.current_index();
             let indexes = UI_STATE.get_open_packedfiles().iter().filter_map(|file_view| {
                 let index_to_check = app_ui.tab_bar_packed_file.index_of(file_view.main_widget());
@@ -1601,7 +1622,7 @@ impl AppUISlots {
             app_ui,
             pack_file_contents_ui,
             dependencies_ui => move || {
-                info!("Triggering `Import from Dependencies` By Slot");
+                rpfm_telemetry::track_action("Import from Dependencies");
 
                 // Only allow importing if we currently have a PackFile open.
                 if pack_file_contents_ui.packfile_contents_tree_model().row_count_0a() > 0 {
@@ -1646,6 +1667,7 @@ impl AppUISlots {
 
         let tab_bar_packed_file_toggle_quick_notes = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui => move || {
+                rpfm_telemetry::track_action("Toggle Quick Notes");
                 let index = app_ui.tab_bar_packed_file.current_index();
                 if index == -1 { return; }
 
@@ -1678,7 +1700,7 @@ impl AppUISlots {
 
             // Check first if there has been changes in the PackFile.
             if AppUI::are_you_sure(&app_ui, false, false) {
-                info!("Triggering `Open Pack` By Drag&Drop by Slot");
+                rpfm_telemetry::track_action("Open Pack By Drag&Drop");
 
                 // Now the fun thing. We have to get all the selected files, and then open them one by one.
                 // For that we use the same logic as for the "Load All CA PackFiles" feature.
@@ -1698,10 +1720,22 @@ impl AppUISlots {
             }
         }));
 
-        let discord_link = SlotNoArgs::new(&app_ui.main_window, || { QDesktopServices::open_url(&QUrl::new_1a(&QString::from_std_str(DISCORD_URL))); });
-        let github_link = SlotNoArgs::new(&app_ui.main_window, || { QDesktopServices::open_url(&QUrl::new_1a(&QString::from_std_str(GITHUB_URL))); });
-        let patreon_link = SlotNoArgs::new(&app_ui.main_window, || { QDesktopServices::open_url(&QUrl::new_1a(&QString::from_std_str(PATREON_URL))); });
-        let manual_link = SlotNoArgs::new(&app_ui.main_window, || { QDesktopServices::open_url(&QUrl::new_1a(&QString::from_std_str(MANUAL_URL))); });
+        let discord_link = SlotNoArgs::new(&app_ui.main_window, || {
+            rpfm_telemetry::track_action("Open Discord Link");
+            QDesktopServices::open_url(&QUrl::new_1a(&QString::from_std_str(DISCORD_URL)));
+        });
+        let github_link = SlotNoArgs::new(&app_ui.main_window, || {
+            rpfm_telemetry::track_action("Open GitHub Link");
+            QDesktopServices::open_url(&QUrl::new_1a(&QString::from_std_str(GITHUB_URL)));
+        });
+        let patreon_link = SlotNoArgs::new(&app_ui.main_window, || {
+            rpfm_telemetry::track_action("Open Patreon Link");
+            QDesktopServices::open_url(&QUrl::new_1a(&QString::from_std_str(PATREON_URL)));
+        });
+        let manual_link = SlotNoArgs::new(&app_ui.main_window, || {
+            rpfm_telemetry::track_action("Open Manual Link");
+            QDesktopServices::open_url(&QUrl::new_1a(&QString::from_std_str(MANUAL_URL)));
+        });
 
         // And here... we return all the slots.
 		Self {

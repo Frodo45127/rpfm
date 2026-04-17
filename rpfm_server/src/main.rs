@@ -19,11 +19,13 @@ use std::sync::Arc;
 
 use rpfm_ipc::helpers::SessionInfo;
 use rpfm_ipc::messages::{Command, Response};
-use rpfm_log::{Logger, SentryLayer, SENTRY_DSN, error, info, release_name};
+use rpfm_ipc::settings_keys::{ENABLE_CRASH_REPORTS, ENABLE_USAGE_TELEMETRY};
+
+use rpfm_telemetry::{Logger, SentryLayer, SENTRY_DSN, error, info, release_name};
 
 use crate::server_mcp::McpServer;
 use crate::session::SessionManager;
-use crate::settings::{error_path, init_config_path};
+use crate::settings::{error_path, init_config_path, Settings};
 use crate::server_websocket::ws_handler;
 
 pub mod background_thread;
@@ -81,6 +83,14 @@ async fn main() {
         info!("Sentry logging support for RPFM SERVER enabled. Starting...");
     } else {
         info!("Sentry logging support for RPFM SERVER disabled. Starting...");
+    }
+
+    // Read telemetry settings from disk before any sessions spin up so early commands
+    // are counted and crash reports respect the user's choice. Background threads will
+    // refresh these whenever the settings change.
+    if let Ok(settings) = Settings::init(false) {
+        rpfm_telemetry::set_usage_telemetry_enabled(settings.bool(ENABLE_USAGE_TELEMETRY));
+        rpfm_telemetry::set_crash_reports_enabled(settings.bool(ENABLE_CRASH_REPORTS));
     }
 
     // Create the session manager to handle per-client sessions,

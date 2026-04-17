@@ -44,9 +44,10 @@ use rpfm_lib::files::{animpack::AnimPack, Container, ContainerPath, db::DB, Deco
 use rpfm_lib::games::{GameInfo, LUA_REPO, LUA_BRANCH, LUA_REMOTE, OLD_AK_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE, pfh_file_type::PFHFileType, supported_games::*, VanillaDBTableNameLogic};
 use rpfm_lib::games::{TRANSLATIONS_REPO, TRANSLATIONS_BRANCH, TRANSLATIONS_REMOTE};
 use rpfm_lib::integrations::{assembly_kit::*, git::*};
-use rpfm_log::*;
 use rpfm_lib::schema::*;
 use rpfm_lib::utils::*;
+
+use rpfm_telemetry::*;
 
 use crate::*;
 use crate::comms::CentralCommand;
@@ -61,6 +62,38 @@ pub const VANILLA_FIXES_NAME: &str = "vanilla_fixes_";
 
 const DEFAULT_PACK_STEM: &str = "new_pack";
 const DEFAULT_PACK_EXT: &str = ".pack";
+
+/// Extracts the variant name (e.g. `"NewPack"`) from a [`Command`] for telemetry.
+///
+/// Uses the `Debug` impl via a custom `fmt::Write` that captures only the leading
+/// identifier, so we don't pay the cost of formatting any inner data.
+fn command_name(cmd: &Command) -> String {
+    struct NameOnly {
+        out: String,
+        done: bool,
+    }
+
+    impl std::fmt::Write for NameOnly {
+        fn write_str(&mut self, s: &str) -> std::fmt::Result {
+            if self.done {
+                return Ok(());
+            }
+            for c in s.chars() {
+                if c.is_alphanumeric() || c == '_' {
+                    self.out.push(c);
+                } else {
+                    self.done = true;
+                    return Ok(());
+                }
+            }
+            Ok(())
+        }
+    }
+
+    let mut capture = NameOnly { out: String::new(), done: false };
+    let _ = std::fmt::write(&mut capture, format_args!("{:?}", cmd));
+    capture.out
+}
 
 /// Derives a unique pack name for new (unsaved) packs. Appends a numeric suffix (_2, _3, etc.)
 /// to the stem if the base name is already taken. Returns a name like "new_pack.pack", "new_pack_2.pack", etc.
@@ -149,6 +182,10 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
     let mut settings = Settings::init(false).unwrap();
     let mut backup_settings = settings.clone();
 
+    // Sync the telemetry toggles with this session's on-disk settings.
+    rpfm_telemetry::set_usage_telemetry_enabled(settings.bool(ENABLE_USAGE_TELEMETRY));
+    rpfm_telemetry::set_crash_reports_enabled(settings.bool(ENABLE_CRASH_REPORTS));
+
     // Load all the tips we have.
     //let mut tips = if let Ok(tips) = Tips::load() { tips } else { Tips::default() };
 
@@ -157,6 +194,14 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
     //---------------------------------------------------------------------------------------//
     info!("Background Thread looping around…");
     'background_loop: while let Some((sender, response)) = receiver.recv().await {
+
+        // Record the action for telemetry, skipping lifecycle commands so we only
+        // measure real user-facing work. Counters are dropped silently when disabled.
+        match &response {
+            Command::Exit | Command::ClientDisconnecting => {}
+            cmd => rpfm_telemetry::record_action(&command_name(cmd)),
+        }
+
         match response {
 
             // Command to close the thread.
@@ -3101,7 +3146,14 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
             }
             Command::SettingsSetBool(key, value) => {
                 match settings.set_bool(&key, value) {
-                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
+                    Ok(_) => {
+                        match key.as_str() {
+                            ENABLE_USAGE_TELEMETRY => rpfm_telemetry::set_usage_telemetry_enabled(value),
+                            ENABLE_CRASH_REPORTS => rpfm_telemetry::set_crash_reports_enabled(value),
+                            _ => {}
+                        }
+                        CentralCommand::send_back(&sender, Response::Success);
+                    }
                     Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
                 }
             }

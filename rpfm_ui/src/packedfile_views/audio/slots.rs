@@ -19,7 +19,6 @@ use rodio::{Decoder, Player};
 use std::io::Cursor;
 use std::sync::Arc;
 
-use rpfm_log::*;
 use rpfm_ui_common::clone;
 
 use super::FileAudioView;
@@ -45,7 +44,7 @@ impl AudioSlots {
 
         let play = SlotNoArgs::new(view.play_button(), clone!(
             view => move || {
-                info!("Triggered play by slot.");
+                rpfm_telemetry::track_action("Audio: Play");
 
                 // We replace the sink because "stop" means "stop forever with no way to restart it".
                 // This also drops any previous sink, avoiding repeated sounds.
@@ -61,7 +60,7 @@ impl AudioSlots {
 
         let stop = SlotNoArgs::new(view.stop_button(), clone!(
             view => move || {
-                info!("Triggered stop by slot.");
+                rpfm_telemetry::track_action("Audio: Stop");
                 if let Ok(sink) = view.sink().read() {
                     sink.stop();
                 }

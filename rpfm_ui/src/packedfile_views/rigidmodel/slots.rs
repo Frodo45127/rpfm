@@ -20,7 +20,6 @@ use qt_core::SlotOfQString;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use rpfm_log::info;
 
 use rpfm_ui_common::clone;
 
@@ -55,7 +54,7 @@ impl RigidModelSlots {
             app_ui,
             pack_file_contents_ui,
             ui => move |after, _| {
-                info!("Triggering 'load_data_to_detailed_view' for Rigid Model view.");
+                rpfm_telemetry::track_action("Rigid Model view: load_data_to_detailed_view");
 
                 if after.count() == 1 {
                     let base_index = after.at(0);
@@ -71,7 +70,7 @@ impl RigidModelSlots {
 
         let change_version = SlotOfQString::new(&ui.lod_tree_view, clone!(
             ui => move |new| {
-                info!("Triggering 'change_version' for Rigid Model view.");
+                rpfm_telemetry::track_action("Rigid Model view: change_version");
 
                 if let Ok(new) = new.to_std_string().parse::<u32>() {
                     if *ui.data.read().unwrap().version() != new {
@@ -83,7 +82,7 @@ impl RigidModelSlots {
 
         let export_gltf = SlotNoArgs::new(&ui.lod_tree_view, clone!(
             ui => move || {
-                info!("Triggering 'export_gltf' for Rigid Model view.");
+                rpfm_telemetry::track_action("Rigid Model view: export_gltf");
 
                 if let Err(error) = ui.export_to_gltf() {
                     show_dialog(ui.detailed_view_groupbox(), error, false);

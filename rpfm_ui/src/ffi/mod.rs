@@ -58,7 +58,7 @@ use cpp_core::Ptr;
 
 use rpfm_ipc::settings_keys::*;
 #[cfg(feature = "support_model_renderer")] use rpfm_lib::files::ContainerPath;
-#[cfg(feature = "support_model_renderer")] use rpfm_log::info;
+#[cfg(feature = "support_model_renderer")] use rpfm_telemetry::info;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::Command;

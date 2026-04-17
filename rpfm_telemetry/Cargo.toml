@@ -1,9 +1,8 @@
 [package]
-name = "rpfm_log"
-description = "Logging and crash reporting for RPFM."
+name = "rpfm_telemetry"
+description = "Logging, crash reporting and anonymous action telemetry for RPFM."
 license = "MIT"
 repository = "https://github.com/Frodo45127/rpfm"
-readme = "README.md"
 
 version.workspace = true
 authors.workspace = true

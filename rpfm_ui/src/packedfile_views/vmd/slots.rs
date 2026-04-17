@@ -15,7 +15,6 @@ use qt_core::SlotNoArgs;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use rpfm_log::*;
 
 use rpfm_ui_common::clone;
 
@@ -48,7 +47,7 @@ impl FileVMDViewSlots {
             app_ui,
             pack_file_contents_ui,
             view => move || {
-                info!("Triggering `Modified VMD File` By Slot");
+                rpfm_telemetry::track_action("Modified VMD File");
                 if let Some(ref packed_file_path) = view.path {
                     if let DataSource::PackFile = *view.data_source.read().unwrap() {
 
@@ -62,7 +61,7 @@ impl FileVMDViewSlots {
         #[cfg(feature = "support_model_renderer")]
         let reload_render = SlotNoArgs::new(&view.editor, clone!(
             view => move || {
-                info!("Triggering `Reload VMD Renderer` By Slot");
+                rpfm_telemetry::track_action("Reload VMD Renderer");
                 if let Err(error) = view.reload_render() {
                     show_dialog(&view.editor, error, false);
                 }

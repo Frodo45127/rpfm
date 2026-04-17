@@ -36,7 +36,6 @@ use rpfm_ipc::helpers::DataSource;
 use rpfm_ipc::settings_keys::*;
 
 use rpfm_lib::files::{ContainerPath, RFileDecoded};
-use rpfm_log::*;
 
 use rpfm_ui_common::clone;
 use rpfm_ui_common::utils::{atomic_from_ptr, ref_from_atomic};
@@ -135,7 +134,7 @@ impl TableViewSlots {
             pack_file_contents_ui,
             diagnostics_ui,
             view => move || {
-            info!("Triggering `Delayed Table Updates` By Slot");
+            rpfm_telemetry::track_action("Delayed Table Updates");
 
             // Only save to the backend if both, the save and undo locks are disabled. Otherwise this will cause locks.
             if view.get_data_source() == DataSource::PackFile && !view.save_lock.load(Ordering::SeqCst) && !view.undo_lock.load(Ordering::SeqCst) {
@@ -164,7 +163,7 @@ impl TableViewSlots {
 
         let sort_order_column_changed = SlotOfIntSortOrder::new(&view.table_view, clone!(
             view => move |column, _| {
-                info!("Triggering `Sort Order` By Slot");
+                rpfm_telemetry::track_action("Sort Order");
                 sort_column(&view.table_view_ptr(), column, view.column_sort_state.clone());
             }
         ));
@@ -180,7 +179,7 @@ impl TableViewSlots {
             app_ui,
             pack_file_contents_ui,
             view => move |_,_| {
-            info!("Triggering `Update Context Menu for Table` By Slot");
+            rpfm_telemetry::track_action("Update Context Menu for Table");
             view.context_menu_update();
 
             TableView::update_key_deletes_list(&view, &app_ui, &pack_file_contents_ui);
@@ -191,7 +190,7 @@ impl TableViewSlots {
             app_ui,
             pack_file_contents_ui,
             view => move |item| {
-                info!("Triggering `Table Item Change` By Slot");
+                rpfm_telemetry::track_action("Table Item Change");
 
                 // If we are NOT UNDOING, paint the item as edited and add the edition to the undo list.
                 if !view.undo_lock.load(Ordering::SeqCst) {
@@ -336,7 +335,7 @@ impl TableViewSlots {
             app_ui,
             pack_file_contents_ui,
             view => move || {
-                info!("Triggering `Add Rows` By Slot");
+                rpfm_telemetry::track_action("Add Rows");
                 view.append_rows(false);
                 if let Some(ref packed_file_path) = view.packed_file_path {
                     if let DataSource::PackFile = *view.data_source.read().unwrap() {
@@ -351,7 +350,7 @@ impl TableViewSlots {
             app_ui,
             pack_file_contents_ui,
             view => move || {
-                info!("Triggering `Insert Rows` By Slot");
+                rpfm_telemetry::track_action("Insert Rows");
                 view.insert_rows(false);
                 if let Some(ref packed_file_path) = view.packed_file_path {
                     if let DataSource::PackFile = *view.data_source.read().unwrap() {
@@ -366,7 +365,7 @@ impl TableViewSlots {
             app_ui,
             pack_file_contents_ui,
             view => move || {
-                info!("Triggering `Delete Rows` By Slot");
+                rpfm_telemetry::track_action("Delete Rows");
                 view.smart_delete(true, &app_ui, &pack_file_contents_ui);
             }
         ));
@@ -376,7 +375,7 @@ impl TableViewSlots {
             app_ui,
             pack_file_contents_ui,
             view => move || {
-                info!("Triggering `Delete Rows Not in Filter` By Slot");
+                rpfm_telemetry::track_action("Delete Rows Not in Filter");
                 if AppUI::are_you_sure_edition(&app_ui, "are_you_sure_delete_filtered_out_rows") {
                     view.delete_filtered_out_rows(&app_ui, &pack_file_contents_ui);
                 }
@@ -389,7 +388,7 @@ impl TableViewSlots {
             pack_file_contents_ui,
             view => move || {
             view.append_rows(true);
-            info!("Triggering `Clone and Append` By Slot");
+            rpfm_telemetry::track_action("Clone and Append");
             if let Some(ref packed_file_path) = view.packed_file_path {
                 if let DataSource::PackFile = *view.data_source.read().unwrap() {
                     set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
@@ -403,7 +402,7 @@ impl TableViewSlots {
             pack_file_contents_ui,
             view => move || {
             view.insert_rows(true);
-            info!("Triggering `Clone and Insert` By Slot");
+            rpfm_telemetry::track_action("Clone and Insert");
             if let Some(ref packed_file_path) = view.packed_file_path {
                 if let DataSource::PackFile = *view.data_source.read().unwrap() {
                     set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
@@ -414,21 +413,21 @@ impl TableViewSlots {
         // When you want to copy one or more cells.
         let copy = SlotNoArgs::new(&view.table_view, clone!(
             view => move || {
-            info!("Triggering `Copy` By Slot");
+            rpfm_telemetry::track_action("Copy");
             view.copy_selection();
         }));
 
         // When you want to copy a table as a lua table.
         let copy_as_lua_table = SlotNoArgs::new(&view.table_view, clone!(
             view => move || {
-            info!("Triggering `Copy as Lua Table` By Slot");
+            rpfm_telemetry::track_action("Copy as Lua Table");
             view.copy_selection_as_lua_table();
         }));
 
         // When you want to copy a table to a filter string.
         let copy_to_filter_value = SlotNoArgs::new(&view.table_view, clone!(
             view => move || {
-            info!("Triggering `Copy selection to filter` By Slot");
+            rpfm_telemetry::track_action("Copy selection to filter");
             view.copy_selection_to_filter();
         }));
 
@@ -437,7 +436,7 @@ impl TableViewSlots {
             view,
             app_ui,
             pack_file_contents_ui => move || {
-            info!("Triggering `Paste` By Slot");
+            rpfm_telemetry::track_action("Paste");
             view.paste(&app_ui, &pack_file_contents_ui);
         }));
 
@@ -446,7 +445,7 @@ impl TableViewSlots {
             view,
             app_ui,
             pack_file_contents_ui => move || {
-            info!("Triggering `Paste as New Row` By Slot");
+            rpfm_telemetry::track_action("Paste as New Row");
                 view.paste_as_new_row(&app_ui, &pack_file_contents_ui);
             }
         ));
@@ -454,7 +453,7 @@ impl TableViewSlots {
         // When we want to invert the selection of the table.
         let invert_selection = SlotNoArgs::new(&view.table_view, clone!(
             mut view => move || {
-            info!("Triggering `Invert Selection` By Slot");
+            rpfm_telemetry::track_action("Invert Selection");
             let rows = view.table_filter.row_count_0a();
             let columns = view.table_filter.column_count_0a();
             if rows > 0 && columns > 0 {
@@ -469,6 +468,7 @@ impl TableViewSlots {
         // When we want to reset the selected items of the table to their original value.
         let reset_selection = SlotNoArgs::new(&view.table_view, clone!(
             mut view => move || {
+            rpfm_telemetry::track_action("Reset Selection");
             view.reset_selection();
         }));
 
@@ -477,7 +477,7 @@ impl TableViewSlots {
             app_ui,
             pack_file_contents_ui,
             view => move || {
-            info!("Triggering `Rewrite Selection` By Slot");
+            rpfm_telemetry::track_action("Rewrite Selection");
             view.rewrite_selection(&app_ui, &pack_file_contents_ui);
         }));
 
@@ -486,7 +486,7 @@ impl TableViewSlots {
             app_ui,
             pack_file_contents_ui,
             view => move || {
-            info!("Triggering `Revert Values` By Slot");
+            rpfm_telemetry::track_action("Revert Values");
             view.revert_values(&app_ui, &pack_file_contents_ui);
         }));
 
@@ -495,7 +495,7 @@ impl TableViewSlots {
             app_ui,
             pack_file_contents_ui,
             view => move || {
-            info!("Triggering `Generate Ids` By Slot");
+            rpfm_telemetry::track_action("Generate Ids");
             view.generate_ids(&app_ui, &pack_file_contents_ui);
         }));
 
@@ -504,7 +504,7 @@ impl TableViewSlots {
             app_ui,
             pack_file_contents_ui,
             view => move || {
-                info!("Triggering `Undo` By Slot");
+                rpfm_telemetry::track_action("Undo");
                 view.undo_redo(true, 0);
                 update_undo_model(&view.table_model_ptr(), &view.undo_model_ptr());
                 view.context_menu_update();
@@ -523,7 +523,7 @@ impl TableViewSlots {
             app_ui,
             pack_file_contents_ui,
             view => move || {
-                info!("Triggering `Redo` By Slot");
+                rpfm_telemetry::track_action("Redo");
                 view.undo_redo(false, 0);
                 update_undo_model(&view.table_model_ptr(), &view.undo_model_ptr());
                 view.context_menu_update();
@@ -543,7 +543,7 @@ impl TableViewSlots {
 
                 // For now only import if this is the parent table.
                 if let Some(ref packed_file_path) = view.packed_file_path {
-                    info!("Triggering `Import TSV` By Slot");
+                    rpfm_telemetry::track_action("Import TSV");
 
                     // Create a File Chooser to get the destination path and configure it.
                     let file_dialog = QFileDialog::from_q_widget_q_string(
@@ -635,7 +635,7 @@ impl TableViewSlots {
             pack_file_contents_ui,
             view => move |_| {
                 if let Some(ref packed_file_path) = view.packed_file_path {
-                    info!("Triggering `Export TSV` By Slot");
+                    rpfm_telemetry::track_action("Export TSV");
 
                     // Create a File Chooser to get the destination path and configure it.
                     let file_dialog = QFileDialog::from_q_widget_q_string(
@@ -680,13 +680,14 @@ impl TableViewSlots {
             app_ui,
             pack_file_contents_ui,
             view => move || {
-                info!("Triggering `Smart Delete` By Slot");
+                rpfm_telemetry::track_action("Smart Delete");
                 view.smart_delete(false, &app_ui, &pack_file_contents_ui);
             }
         ));
 
         let sidebar = SlotOfBool::new(&view.table_view, clone!(
             mut view => move |_| {
+            rpfm_telemetry::track_action("Table: Toggle Sidebar");
             match view.sidebar_scroll_area.is_visible() {
                 true => view.sidebar_scroll_area.hide(),
                 false => view.sidebar_scroll_area.show()
@@ -695,7 +696,7 @@ impl TableViewSlots {
 
         let search = SlotOfBool::new(&view.table_view, clone!(
             mut view => move |_| {
-            info!("Triggering `Search` By Slot");
+            rpfm_telemetry::track_action("Search");
             if let Some(search_view) = &*view.search_view() {
                 match search_view.main_widget().is_visible() {
                     true => search_view.main_widget().hide(),
@@ -711,14 +712,14 @@ impl TableViewSlots {
             view,
             app_ui,
             pack_file_contents_ui => move || {
-                info!("Triggering `Cascade Edition` By Slot");
+                rpfm_telemetry::track_action("Cascade Edition");
                 view.cascade_edition(&app_ui, &pack_file_contents_ui);
             }
         ));
 
         let patch_column = SlotNoArgs::new(&view.table_view, clone!(
             view => move || {
-                info!("Triggering `Patch Column` By Slot");
+                rpfm_telemetry::track_action("Patch Column");
                 if let Err(error) = view.patch_column() {
                     show_dialog(&view.table_view, error, false);
                 }
@@ -729,6 +730,7 @@ impl TableViewSlots {
             pack_file_contents_ui,
             references_ui,
             view => move || {
+            rpfm_telemetry::track_action("Find References");
 
             let selection = view.table_view.selection_model().selection();
             if selection.count() == 1 {
@@ -772,7 +774,7 @@ impl TableViewSlots {
             diagnostics_ui,
             dependencies_ui,
             references_ui => move || {
-                info!("Triggering `Go To Definition` By Slot");
+                rpfm_telemetry::track_action("Go To Definition");
                 if let Some(error) = view.go_to_definition(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui) {
                     log_to_status_bar(&error);
                 }
@@ -787,7 +789,7 @@ impl TableViewSlots {
             diagnostics_ui,
             dependencies_ui,
             references_ui => move || {
-                info!("Triggering `Go To File` By Slot");
+                rpfm_telemetry::track_action("Go To File");
                 if let Some(error) = view.go_to_file(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui) {
                     log_to_status_bar(&error);
                 }
@@ -806,7 +808,7 @@ impl TableViewSlots {
                 diagnostics_ui,
                 dependencies_ui,
                 references_ui => move || {
-                    info!("Triggering `Go To Loc` By Slot");
+                    rpfm_telemetry::track_action("Go To Loc");
                     if let Some(error) = view.go_to_loc(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, &field_name) {
                         log_to_status_bar(&error);
                     }
@@ -913,7 +915,7 @@ impl TableViewSlots {
             dependencies_ui,
             references_ui,
             view => move |model_index| {
-                info!("Triggering `Open Subtable` By Slot");
+                rpfm_telemetry::track_action("Open Subtable");
                 open_subtable(
                     model_index,
                     &view,
@@ -930,7 +932,7 @@ impl TableViewSlots {
 
         let profile_apply = SlotOfQString::new(&view.table_view, clone!(
             view => move |key| {
-                info!("Triggering `Apply Profile` By Slot");
+                rpfm_telemetry::track_action("Apply Profile");
 
                 view.apply_table_view_profile(&key.to_std_string());
             }
@@ -938,7 +940,7 @@ impl TableViewSlots {
 
         let profile_delete = SlotOfQString::new(&view.table_view, clone!(
             view => move |key| {
-                info!("Triggering `Delete Profile` By Slot");
+                rpfm_telemetry::track_action("Delete Profile");
 
                 view.delete_table_view_profile(&key.to_std_string());
                 if let Err(error) = view.save_table_view_profiles() {
@@ -949,7 +951,7 @@ impl TableViewSlots {
 
         let profile_new = SlotNoArgs::new(&view.table_view, clone!(
             view => move || {
-                info!("Triggering `New Profile` By Slot");
+                rpfm_telemetry::track_action("New Profile");
 
                 if let Err(error) = view.new_profile_dialog() {
                     show_dialog(&view.table_view, error, false);
@@ -959,7 +961,7 @@ impl TableViewSlots {
 
         let profile_set_as_default = SlotOfQString::new(&view.table_view, clone!(
             view => move |key| {
-                info!("Triggering `Set Default Profile` By Slot");
+                rpfm_telemetry::track_action("Set Default Profile");
 
                 *view.profile_default.write().unwrap() = key.to_std_string().to_owned();
 
@@ -971,7 +973,7 @@ impl TableViewSlots {
 
         let toggle_flagged_rows_filter = SlotOfBool::new(&view.table_view, clone!(
             view => move |_| {
-                info!("Triggering `Toggle Flagged Rows Filter` By Slot");
+                rpfm_telemetry::track_action("Toggle Flagged Rows Filter");
                 view.filter_table();
             }
         ));

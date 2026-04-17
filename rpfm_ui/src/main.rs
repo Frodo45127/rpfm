@@ -52,7 +52,7 @@ use std::sync::{Arc, atomic::{AtomicBool, AtomicPtr}, LazyLock, RwLock};
 
 use rpfm_ipc::settings_keys::*;
 use rpfm_lib::games::{GameInfo, supported_games::{SupportedGames, KEY_WARHAMMER_3}};
-use rpfm_log::*;
+use rpfm_telemetry::*;
 
 use rpfm_ui_common::APP_NAME;
 use rpfm_ui_common::ASSETS_PATH;
@@ -63,7 +63,7 @@ use rpfm_ui_common::ORG_NAME;
 use rpfm_ui_common::utils::*;
 
 use crate::communications::{CentralCommand, Response, websocket_loop};
-use crate::settings_ui::backend::settings_string;
+use crate::settings_ui::backend::{settings_bool, settings_string};
 use crate::ui::*;
 use crate::ui_state::UIState;
 
@@ -232,7 +232,14 @@ fn main() {
 
                 // If we closed the window BEFORE executing, exit the app.
                 if unsafe { ui.app_ui.main_window().is_visible() } {
-                    unsafe { QApplication::exec() }
+                    rpfm_telemetry::set_usage_telemetry_enabled(settings_bool(ENABLE_USAGE_TELEMETRY));
+                    rpfm_telemetry::set_crash_reports_enabled(settings_bool(ENABLE_CRASH_REPORTS));
+                    let exit_code = unsafe { QApplication::exec() };
+
+                    // Flush telemetry data to Sentry before the guard is dropped.
+                    rpfm_telemetry::flush("UI Action Telemetry");
+
+                    exit_code
                 } else {
                     0
                 }

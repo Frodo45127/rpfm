@@ -11,7 +11,6 @@
 use qt_core::QBox;
 use qt_core::{SlotNoArgs, SlotOfQString};
 
-use rpfm_log::*;
 
 use rpfm_ui_common::clone;
 
@@ -44,7 +43,7 @@ impl SearchViewSlots {
         let search = SlotNoArgs::new(&view.main_widget, clone!(
             view,
             table_view => move || {
-                info!("Triggering `Local Search` By Slot");
+                rpfm_telemetry::track_action("Local Search");
                 view.search(&table_view);
             }
         ));
@@ -52,7 +51,7 @@ impl SearchViewSlots {
         let prev_match = SlotNoArgs::new(&view.main_widget, clone!(
             view,
             table_view => move || {
-                info!("Triggering `Local Prev Match` By Slot");
+                rpfm_telemetry::track_action("Local Prev Match");
                 view.prev_match(&table_view);
             }
         ));
@@ -60,7 +59,7 @@ impl SearchViewSlots {
         let next_match = SlotNoArgs::new(&view.main_widget, clone!(
             view,
             table_view => move || {
-                info!("Triggering `Local Next Match` By Slot");
+                rpfm_telemetry::track_action("Local Next Match");
                 view.next_match(&table_view);
             }
         ));
@@ -68,7 +67,7 @@ impl SearchViewSlots {
         let replace = SlotNoArgs::new(&view.main_widget, clone!(
             view,
             table_view => move || {
-                info!("Triggering `Local Replace Current` By Slot");
+                rpfm_telemetry::track_action("Local Replace Current");
                 view.replace_current(&table_view);
             }
         ));
@@ -76,7 +75,7 @@ impl SearchViewSlots {
         let replace_all = SlotNoArgs::new(&view.main_widget, clone!(
             view,
             table_view => move || {
-                info!("Triggering `Local Replace All` By Slot");
+                rpfm_telemetry::track_action("Local Replace All");
                 view.replace_all(&table_view);
             }
         ));

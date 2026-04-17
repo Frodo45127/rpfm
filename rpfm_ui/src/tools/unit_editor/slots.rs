@@ -87,6 +87,7 @@ impl ToolUnitEditorSlots {
 
         let change_caste = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
+                rpfm_telemetry::track_action("Unit Editor: Change Caste");
 
                 // First, disable the widgets enabled by the previous type.
                 if let Some(widgets) = ui.unit_type_dependant_widgets.get(&*ui.unit_caste_previous.read().unwrap()) {
@@ -105,6 +106,7 @@ impl ToolUnitEditorSlots {
 
         let copy_unit = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
+                rpfm_telemetry::track_action("Unit Editor: Copy Unit");
                 if let Err(error) = ui.load_copy_unit_dialog() {
                     show_message_warning(&ui.tool.message_widget, error);
                 }
@@ -121,6 +123,7 @@ impl ToolUnitEditorSlots {
 
         let open_variant_editor = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
+                rpfm_telemetry::track_action("Unit Editor: Open Variant Editor");
                 if let Err(error) = ui.open_variant_editor() {
                     show_message_error(&ui.tool.message_widget, error);
                 }
