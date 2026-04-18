@@ -906,12 +906,10 @@ impl AppUI {
             if index != -1 {
                 app_ui.tab_bar_packed_file.remove_tab(index);
             }
-
-            // Delete the widget manually to free memory.
-            widget.delete_later();
         }
 
-        // Remove all open PackedFiles and their slots.
+        // Remove all open PackedFiles and their slots. This drops the Arc<QBox<QWidget>>
+        // for each view, which triggers the actual widget deletion via QBox::drop.
         UI_STATE.set_open_packedfiles().clear();
 
         // Just in case what was open before this was a DB Table, make sure the "Game Selected" menu is re-enabled.
@@ -946,13 +944,12 @@ impl AppUI {
                     app_ui.tab_bar_packed_file.remove_tab(index);
                 }
 
-                // Delete the widget manually to free memory.
-                widget.delete_later();
                 delete_indexes.push(file_index);
             }
         }
 
-        // Remove all open PackedFiles and their slots.
+        // Remove all open PackedFiles and their slots. This drops the Arc<QBox<QWidget>>
+        // for each view, which triggers the actual widget deletion via QBox::drop.
         delete_indexes.reverse();
         for index in &delete_indexes {
             UI_STATE.set_open_packedfiles().remove(*index);
@@ -1000,9 +997,6 @@ impl AppUI {
                 if index != -1 {
                     app_ui.tab_bar_packed_file.remove_tab(index);
                 }
-
-                // Delete the widget manually to free memory.
-                widget.delete_later();
             }
 
             if !path.is_empty() {
