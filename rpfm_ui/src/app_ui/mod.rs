@@ -3456,21 +3456,21 @@ impl AppUI {
         button_box.button(StandardButton::Ok).released().connect(dialog.slot_accept());
 
         if dialog.exec() == 1 {
-            settings_set_bool(PACK_REMOVE_ITM_FILES, pack_remove_itm_files_checkbox.is_checked());
-            settings_set_bool(DB_IMPORT_DATACORES_INTO_TWAD_KEY_DELETES, db_import_datacores_into_twad_key_deletes_checkbox.is_checked());
-            settings_set_bool(DB_OPTIMIZE_DATACORED_TABLES, db_optimize_datacored_tables_checkbox.is_checked());
-            settings_set_bool(TABLE_REMOVE_DUPLICATED_ENTRIES, table_remove_duplicated_entries_checkbox.is_checked());
-            settings_set_bool(TABLE_REMOVE_ITM_ENTRIES, table_remove_itm_entries_checkbox.is_checked());
-            settings_set_bool(TABLE_REMOVE_ITNR_ENTRIES, table_remove_itnr_entries_checkbox.is_checked());
-            settings_set_bool(TABLE_REMOVE_EMPTY_FILE, table_remove_empty_file_checkbox.is_checked());
-            settings_set_bool(TEXT_REMOVE_UNUSED_XML_MAP_FOLDERS, text_remove_unused_xml_map_folders_checkbox.is_checked());
-            settings_set_bool(TEXT_REMOVE_UNUSED_XML_PREFAB_FOLDER, text_remove_unused_xml_prefab_folder_checkbox.is_checked());
-            settings_set_bool(TEXT_REMOVE_AGF_FILES, text_remove_agf_files_checkbox.is_checked());
-            settings_set_bool(TEXT_REMOVE_MODEL_STATISTICS_FILES, text_remove_model_statistics_files_checkbox.is_checked());
-            settings_set_bool(PTS_REMOVE_UNUSED_ART_SETS, pts_remove_unused_art_sets_checkbox.is_checked());
-            settings_set_bool(PTS_REMOVE_UNUSED_VARIANTS, pts_remove_unused_variants_checkbox.is_checked());
-            settings_set_bool(PTS_REMOVE_EMPTY_MASKS, pts_remove_empty_masks_checkbox.is_checked());
-            settings_set_bool(PTS_REMOVE_EMPTY_FILE, pts_remove_empty_file_checkbox.is_checked());
+            let _ = settings_set_bool(PACK_REMOVE_ITM_FILES, pack_remove_itm_files_checkbox.is_checked());
+            let _ = settings_set_bool(DB_IMPORT_DATACORES_INTO_TWAD_KEY_DELETES, db_import_datacores_into_twad_key_deletes_checkbox.is_checked());
+            let _ = settings_set_bool(DB_OPTIMIZE_DATACORED_TABLES, db_optimize_datacored_tables_checkbox.is_checked());
+            let _ = settings_set_bool(TABLE_REMOVE_DUPLICATED_ENTRIES, table_remove_duplicated_entries_checkbox.is_checked());
+            let _ = settings_set_bool(TABLE_REMOVE_ITM_ENTRIES, table_remove_itm_entries_checkbox.is_checked());
+            let _ = settings_set_bool(TABLE_REMOVE_ITNR_ENTRIES, table_remove_itnr_entries_checkbox.is_checked());
+            let _ = settings_set_bool(TABLE_REMOVE_EMPTY_FILE, table_remove_empty_file_checkbox.is_checked());
+            let _ = settings_set_bool(TEXT_REMOVE_UNUSED_XML_MAP_FOLDERS, text_remove_unused_xml_map_folders_checkbox.is_checked());
+            let _ = settings_set_bool(TEXT_REMOVE_UNUSED_XML_PREFAB_FOLDER, text_remove_unused_xml_prefab_folder_checkbox.is_checked());
+            let _ = settings_set_bool(TEXT_REMOVE_AGF_FILES, text_remove_agf_files_checkbox.is_checked());
+            let _ = settings_set_bool(TEXT_REMOVE_MODEL_STATISTICS_FILES, text_remove_model_statistics_files_checkbox.is_checked());
+            let _ = settings_set_bool(PTS_REMOVE_UNUSED_ART_SETS, pts_remove_unused_art_sets_checkbox.is_checked());
+            let _ = settings_set_bool(PTS_REMOVE_UNUSED_VARIANTS, pts_remove_unused_variants_checkbox.is_checked());
+            let _ = settings_set_bool(PTS_REMOVE_EMPTY_MASKS, pts_remove_empty_masks_checkbox.is_checked());
+            let _ = settings_set_bool(PTS_REMOVE_EMPTY_FILE, pts_remove_empty_file_checkbox.is_checked());
 
             AppUI::purge_them_all(app_ui, pack_file_contents_ui, true)?;
             GlobalSearchUI::clear(global_search_ui);
@@ -3485,21 +3485,21 @@ impl AppUI {
             pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(response_2), DataSource::PackFile, &pack_key);
             Ok(Some(()))
         } else {
-            settings_set_bool(PACK_REMOVE_ITM_FILES, pack_remove_itm_files_checkbox.is_checked());
-            settings_set_bool(DB_IMPORT_DATACORES_INTO_TWAD_KEY_DELETES, db_import_datacores_into_twad_key_deletes_checkbox.is_checked());
-            settings_set_bool(DB_OPTIMIZE_DATACORED_TABLES, db_optimize_datacored_tables_checkbox.is_checked());
-            settings_set_bool(TABLE_REMOVE_DUPLICATED_ENTRIES, table_remove_duplicated_entries_checkbox.is_checked());
-            settings_set_bool(TABLE_REMOVE_ITM_ENTRIES, table_remove_itm_entries_checkbox.is_checked());
-            settings_set_bool(TABLE_REMOVE_ITNR_ENTRIES, table_remove_itnr_entries_checkbox.is_checked());
-            settings_set_bool(TABLE_REMOVE_EMPTY_FILE, table_remove_empty_file_checkbox.is_checked());
-            settings_set_bool(TEXT_REMOVE_UNUSED_XML_MAP_FOLDERS, text_remove_unused_xml_map_folders_checkbox.is_checked());
-            settings_set_bool(TEXT_REMOVE_UNUSED_XML_PREFAB_FOLDER, text_remove_unused_xml_prefab_folder_checkbox.is_checked());
-            settings_set_bool(TEXT_REMOVE_AGF_FILES, text_remove_agf_files_checkbox.is_checked());
-            settings_set_bool(TEXT_REMOVE_MODEL_STATISTICS_FILES, text_remove_model_statistics_files_checkbox.is_checked());
-            settings_set_bool(PTS_REMOVE_UNUSED_ART_SETS, pts_remove_unused_art_sets_checkbox.is_checked());
-            settings_set_bool(PTS_REMOVE_UNUSED_VARIANTS, pts_remove_unused_variants_checkbox.is_checked());
-            settings_set_bool(PTS_REMOVE_EMPTY_MASKS, pts_remove_empty_masks_checkbox.is_checked());
-            settings_set_bool(PTS_REMOVE_EMPTY_FILE, pts_remove_empty_file_checkbox.is_checked());
+            let _ = settings_set_bool(PACK_REMOVE_ITM_FILES, pack_remove_itm_files_checkbox.is_checked());
+            let _ = settings_set_bool(DB_IMPORT_DATACORES_INTO_TWAD_KEY_DELETES, db_import_datacores_into_twad_key_deletes_checkbox.is_checked());
+            let _ = settings_set_bool(DB_OPTIMIZE_DATACORED_TABLES, db_optimize_datacored_tables_checkbox.is_checked());
+            let _ = settings_set_bool(TABLE_REMOVE_DUPLICATED_ENTRIES, table_remove_duplicated_entries_checkbox.is_checked());
+            let _ = settings_set_bool(TABLE_REMOVE_ITM_ENTRIES, table_remove_itm_entries_checkbox.is_checked());
+            let _ = settings_set_bool(TABLE_REMOVE_ITNR_ENTRIES, table_remove_itnr_entries_checkbox.is_checked());
+            let _ = settings_set_bool(TABLE_REMOVE_EMPTY_FILE, table_remove_empty_file_checkbox.is_checked());
+            let _ = settings_set_bool(TEXT_REMOVE_UNUSED_XML_MAP_FOLDERS, text_remove_unused_xml_map_folders_checkbox.is_checked());
+            let _ = settings_set_bool(TEXT_REMOVE_UNUSED_XML_PREFAB_FOLDER, text_remove_unused_xml_prefab_folder_checkbox.is_checked());
+            let _ = settings_set_bool(TEXT_REMOVE_AGF_FILES, text_remove_agf_files_checkbox.is_checked());
+            let _ = settings_set_bool(TEXT_REMOVE_MODEL_STATISTICS_FILES, text_remove_model_statistics_files_checkbox.is_checked());
+            let _ = settings_set_bool(PTS_REMOVE_UNUSED_ART_SETS, pts_remove_unused_art_sets_checkbox.is_checked());
+            let _ = settings_set_bool(PTS_REMOVE_UNUSED_VARIANTS, pts_remove_unused_variants_checkbox.is_checked());
+            let _ = settings_set_bool(PTS_REMOVE_EMPTY_MASKS, pts_remove_empty_masks_checkbox.is_checked());
+            let _ = settings_set_bool(PTS_REMOVE_EMPTY_FILE, pts_remove_empty_file_checkbox.is_checked());
 
             Ok(None)
         }

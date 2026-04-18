@@ -83,8 +83,8 @@ pub unsafe fn init_app_exclusive_settings(app_ui: &AppUI) {
     q_settings.sync();
 
     // These settings need to use QSettings because they're read in the C++ side.
-    settings_set_raw_data(ORIGINAL_GEOMETRY, &app_ui.main_window().save_geometry().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
-    settings_set_raw_data(ORIGINAL_WINDOW_STATE, &app_ui.main_window().save_state_0a().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
+    let _ = settings_set_raw_data(ORIGINAL_GEOMETRY, &app_ui.main_window().save_geometry().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
+    let _ = settings_set_raw_data(ORIGINAL_WINDOW_STATE, &app_ui.main_window().save_state_0a().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
 
     // This one needs to be checked here, due to how the ui works.
     app_ui.menu_bar_debug().menu_action().set_visible(settings_bool(ENABLE_DEBUG_MENU));
@@ -132,75 +132,82 @@ pub fn settings_raw_data(key: &str) -> Vec<u8> {
 }
 
 /// Set a boolean setting on the server and update the local cache.
-pub fn settings_set_bool(key: &str, value: bool) {
-    send_ipc_command(Command::SettingsSetBool(key.to_string(), value), response_extractor!());
+pub fn settings_set_bool(key: &str, value: bool) -> Result<()> {
+    send_ipc_command_result(Command::SettingsSetBool(key.to_string(), value), response_extractor!())?;
     SETTINGS_CACHE.with(|cache| {
         if let Some(ref mut s) = *cache.borrow_mut() {
             s.bool.insert(key.to_owned(), value);
         }
     });
+    Ok(())
 }
 
 /// Set an i32 setting on the server and update the local cache.
-pub fn settings_set_i32(key: &str, value: i32) {
-    send_ipc_command(Command::SettingsSetI32(key.to_string(), value), response_extractor!());
+pub fn settings_set_i32(key: &str, value: i32) -> Result<()> {
+    send_ipc_command_result(Command::SettingsSetI32(key.to_string(), value), response_extractor!())?;
     SETTINGS_CACHE.with(|cache| {
         if let Some(ref mut s) = *cache.borrow_mut() {
             s.i32.insert(key.to_owned(), value);
         }
     });
+    Ok(())
 }
 
 /// Set an f32 setting on the server and update the local cache.
 #[allow(dead_code)]
-pub fn settings_set_f32(key: &str, value: f32) {
-    send_ipc_command(Command::SettingsSetF32(key.to_string(), value), response_extractor!());
+pub fn settings_set_f32(key: &str, value: f32) -> Result<()> {
+    send_ipc_command_result(Command::SettingsSetF32(key.to_string(), value), response_extractor!())?;
     SETTINGS_CACHE.with(|cache| {
         if let Some(ref mut s) = *cache.borrow_mut() {
             s.f32.insert(key.to_owned(), value);
         }
     });
+    Ok(())
 }
 
 /// Set a string setting on the server and update the local cache.
-pub fn settings_set_string(key: &str, value: &str) {
-    send_ipc_command(Command::SettingsSetString(key.to_string(), value.to_string()), response_extractor!());
+pub fn settings_set_string(key: &str, value: &str) -> Result<()> {
+    send_ipc_command_result(Command::SettingsSetString(key.to_string(), value.to_string()), response_extractor!())?;
     SETTINGS_CACHE.with(|cache| {
         if let Some(ref mut s) = *cache.borrow_mut() {
             s.string.insert(key.to_owned(), value.to_owned());
         }
     });
+    Ok(())
 }
 
 /// Set a PathBuf setting on the server and update the local cache.
 #[allow(dead_code)]
-pub fn settings_set_path_buf(key: &str, value: &PathBuf) {
-    send_ipc_command(Command::SettingsSetPathBuf(key.to_string(), value.clone()), response_extractor!());
+pub fn settings_set_path_buf(key: &str, value: &PathBuf) -> Result<()> {
+    send_ipc_command_result(Command::SettingsSetPathBuf(key.to_string(), value.clone()), response_extractor!())?;
     SETTINGS_CACHE.with(|cache| {
         if let Some(ref mut s) = *cache.borrow_mut() {
             s.string.insert(key.to_owned(), value.to_string_lossy().to_string());
         }
     });
+    Ok(())
 }
 
 /// Set a Vec<String> setting on the server and update the local cache.
-pub fn settings_set_vec_string(key: &str, value: &[String]) {
-    send_ipc_command(Command::SettingsSetVecString(key.to_string(), value.to_vec()), response_extractor!());
+pub fn settings_set_vec_string(key: &str, value: &[String]) -> Result<()> {
+    send_ipc_command_result(Command::SettingsSetVecString(key.to_string(), value.to_vec()), response_extractor!())?;
     SETTINGS_CACHE.with(|cache| {
         if let Some(ref mut s) = *cache.borrow_mut() {
             s.vec_string.insert(key.to_owned(), value.to_vec());
         }
     });
+    Ok(())
 }
 
 /// Set a Vec<u8> setting on the server and update the local cache.
-pub fn settings_set_raw_data(key: &str, value: &[u8]) {
-    send_ipc_command(Command::SettingsSetVecRaw(key.to_string(), value.to_vec()), response_extractor!());
+pub fn settings_set_raw_data(key: &str, value: &[u8]) -> Result<()> {
+    send_ipc_command_result(Command::SettingsSetVecRaw(key.to_string(), value.to_vec()), response_extractor!())?;
     SETTINGS_CACHE.with(|cache| {
         if let Some(ref mut s) = *cache.borrow_mut() {
             s.raw_data.insert(key.to_owned(), value.to_vec());
         }
     });
+    Ok(())
 }
 
 pub fn config_path() -> Result<PathBuf> {

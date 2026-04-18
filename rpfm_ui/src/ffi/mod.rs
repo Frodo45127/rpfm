@@ -700,8 +700,8 @@ pub extern fn anim_paths_by_skeleton_callback(skeleton_name: *mut QString, out: 
 pub extern "C" fn are_you_sure(main_window: *mut QMainWindow, is_delete_my_mod: bool, is_full_close: bool) -> bool {
     unsafe {
         if is_full_close {
-            settings_set_raw_data(GEOMETRY, &main_window.as_ref().unwrap().save_geometry().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
-            settings_set_raw_data(WINDOW_STATE, &main_window.as_ref().unwrap().save_state_0a().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
+            let _ = settings_set_raw_data(GEOMETRY, &main_window.as_ref().unwrap().save_geometry().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
+            let _ = settings_set_raw_data(WINDOW_STATE, &main_window.as_ref().unwrap().save_state_0a().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
         }
     }
 
