@@ -144,7 +144,11 @@ impl NotesView {
             return;
         }
 
-        let mut notes = send_ipc_command(Command::NotesForPath(pack_key, self.path.read().unwrap().to_owned()), response_extractor!(Response::VecNote));
+        let mut notes = match send_ipc_command_result(Command::NotesForPath(pack_key, self.path.read().unwrap().to_owned()), response_extractor!(Response::VecNote)) {
+            Ok(notes) => notes,
+            Err(_) => return,
+        };
+
         if !notes.is_empty() {
             notes.sort_by_key(|note| *note.id());
             notes.iter().for_each(|note| self.add_item_to_notes_list(note));
