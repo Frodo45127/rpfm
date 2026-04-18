@@ -10,12 +10,6 @@
 
 //!This module contains the code to build/use the ***Settings*** UI.
 
-use qt_core::QByteArray;
-use qt_core::QEasingCurve;
-use qt_core::QObject;
-use qt_core::QPoint;
-use qt_core::QPropertyAnimation;
-use qt_core::q_easing_curve;
 use qt_widgets::QCheckBox;
 use qt_widgets::QVBoxLayout;
 use qt_widgets::QComboBox;
@@ -33,12 +27,18 @@ use qt_gui::{QColor, q_color::NameFormat};
 use qt_gui::{QPalette, q_palette::ColorRole};
 
 use qt_core::QBox;
+use qt_core::QByteArray;
+use qt_core::QEasingCurve;
+use qt_core::q_easing_curve;
 use qt_core::QFlags;
-use qt_core::SlotNoArgs;
+use qt_core::QObject;
+use qt_core::QPoint;
+use qt_core::QPropertyAnimation;
 use qt_core::QPtr;
 use qt_core::QSettings;
 use qt_core::QString;
 use qt_core::QVariant;
+use qt_core::SlotNoArgs;
 
 use cpp_core::CastInto;
 use cpp_core::Ptr;
@@ -379,20 +379,20 @@ impl SettingsUI {
         let extra_packfile_autosave_interval_spinbox = new_setting_spinbox(&general_vbox, &general_frame, "settings_autosave_interval", "tt_settings_autosave_interval_tip");
         let mut checkboxes = BTreeMap::new();
 
-        new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, "check_updates_on_start", "settings_check_updates_on_start", "tt_extra_network_check_updates_on_start_tip");
-        new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, "check_schema_updates_on_start", "settings_check_schema_updates_on_start", "tt_extra_network_check_schema_updates_on_start_tip");
-        new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, "check_lua_autogen_updates_on_start", "settings_check_lua_autogen_updates_on_start", "tt_settings_check_lua_autogen_updates_on_start_tip");
-        new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, "check_old_ak_updates_on_start", "settings_check_old_ak_updates_on_start", "tt_settings_check_old_ak_updates_on_start_tip");
-        new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, "allow_editing_of_ca_packfiles", "settings_allow_editing_of_ca_packfiles", "tt_extra_packfile_allow_editing_of_ca_packfiles_tip");
-        new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, "disable_file_previews", "settings_disable_file_previews", "tt_settings_disable_file_previews_tip");
-        new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, "start_maximized", "settings_ui_window_start_maximized_label", "tt_ui_window_start_maximized_tip");
-        new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, "packfile_treeview_resize_to_fit", "settings_packfile_treeview_resize_to_fit", "");
-        new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, "expand_treeview_when_adding_items", "settings_expand_treeview_when_adding_items", "settings_expand_treeview_when_adding_items_tip");
-        new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, "include_base_folder_on_add_from_folder", "include_base_folder_on_add_from_folder", "settings_include_base_folder_on_add_from_folder");
-        new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, "delete_empty_folders_on_delete", "delete_empty_folders_on_delete", "settings_delete_empty_folders_on_delete");
-        new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, "ignore_game_files_in_ak", "ignore_game_files_in_ak", "settings_ignore_game_files_in_ak");
-        new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, "enable_multifolder_filepicker", "enable_multifolder_filepicker", "settings_enable_multifolder_filepicker");
-        new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, "enable_pack_contents_drag_and_drop", "enable_pack_contents_drag_and_drop", "settings_enable_pack_contents_drag_and_drop");
+        new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, CHECK_UPDATES_ON_START, "settings_check_updates_on_start", "tt_extra_network_check_updates_on_start_tip");
+        new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, CHECK_SCHEMA_UPDATES_ON_START, "settings_check_schema_updates_on_start", "tt_extra_network_check_schema_updates_on_start_tip");
+        new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, CHECK_LUA_AUTOGEN_UPDATES_ON_START, "settings_check_lua_autogen_updates_on_start", "tt_settings_check_lua_autogen_updates_on_start_tip");
+        new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, CHECK_OLD_AK_UPDATES_ON_START, "settings_check_old_ak_updates_on_start", "tt_settings_check_old_ak_updates_on_start_tip");
+        new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, ALLOW_EDITING_OF_CA_PACKFILES, "settings_allow_editing_of_ca_packfiles", "tt_extra_packfile_allow_editing_of_ca_packfiles_tip");
+        new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, DISABLE_FILE_PREVIEWS, "settings_disable_file_previews", "tt_settings_disable_file_previews_tip");
+        new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, START_MAXIMIZED, "settings_ui_window_start_maximized_label", "tt_ui_window_start_maximized_tip");
+        new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, PACKFILE_TREEVIEW_RESIZE_TO_FIT, "settings_packfile_treeview_resize_to_fit", "");
+        new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, EXPAND_TREEVIEW_WHEN_ADDING_ITEMS, "settings_expand_treeview_when_adding_items", "settings_expand_treeview_when_adding_items_tip");
+        new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, INCLUDE_BASE_FOLDER_ON_ADD_FROM_FOLDER, "include_base_folder_on_add_from_folder", "settings_include_base_folder_on_add_from_folder");
+        new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, DELETE_EMPTY_FOLDERS_ON_DELETE, "delete_empty_folders_on_delete", "settings_delete_empty_folders_on_delete");
+        new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, IGNORE_GAME_FILES_IN_AK, "ignore_game_files_in_ak", "settings_ignore_game_files_in_ak");
+        new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, ENABLE_MULTIFOLDER_FILEPICKER, "enable_multifolder_filepicker", "settings_enable_multifolder_filepicker");
+        new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, ENABLE_PACK_CONTENTS_DRAG_AND_DROP, "enable_pack_contents_drag_and_drop", "settings_enable_pack_contents_drag_and_drop");
 
         content_layout.add_widget_1a(&general_header);
         content_layout.add_widget_1a(&general_frame);
@@ -408,27 +408,27 @@ impl SettingsUI {
         ui_table_vbox.set_contents_margins_4a(4, 0, 4, 0);
         ui_table_vbox.set_spacing(2);
 
-        new_setting_checkbox(&mut checkboxes, &ui_table_vbox, &ui_table_view_frame, "adjust_columns_to_content", "settings_ui_table_adjust_columns_to_content", "tt_ui_table_adjust_columns_to_content_tip");
-        new_setting_checkbox(&mut checkboxes, &ui_table_vbox, &ui_table_view_frame, "disable_combos_on_tables", "settings_ui_table_disable_combos", "tt_ui_table_disable_combos_tip");
-        new_setting_checkbox(&mut checkboxes, &ui_table_vbox, &ui_table_view_frame, "extend_last_column_on_tables", "settings_ui_table_extend_last_column_label", "tt_ui_table_extend_last_column_tip");
-        new_setting_checkbox(&mut checkboxes, &ui_table_vbox, &ui_table_view_frame, "tight_table_mode", "settings_ui_table_tight_table_mode_label", "tt_ui_table_tight_table_mode_tip");
-        new_setting_checkbox(&mut checkboxes, &ui_table_vbox, &ui_table_view_frame, "table_resize_on_edit", "settings_table_resize_on_edit", "tt_settings_table_resize_on_edit_tip");
-        new_setting_checkbox(&mut checkboxes, &ui_table_vbox, &ui_table_view_frame, "tables_use_old_column_order", "settings_ui_table_use_old_column_order_label", "tt_settings_tables_use_old_column_order_tip");
-        new_setting_checkbox(&mut checkboxes, &ui_table_vbox, &ui_table_view_frame, "tables_use_old_column_order_for_tsv", "settings_ui_table_use_old_column_order_for_tsv_label", "tt_settings_tables_use_old_column_order_for_tsv_tip");
-        new_setting_checkbox(&mut checkboxes, &ui_table_vbox, &ui_table_view_frame, "disable_uuid_regeneration_on_db_tables", "settings_disable_uuid_regeneration_tables", "tt_extra_disable_uuid_regeneration_on_db_tables_label_tip");
-        new_setting_checkbox(&mut checkboxes, &ui_table_vbox, &ui_table_view_frame, "use_right_size_markers", "settings_use_right_side_markers", "tt_ui_table_use_right_side_markers_tip");
-        new_setting_checkbox(&mut checkboxes, &ui_table_vbox, &ui_table_view_frame, "enable_lookups", "settings_enable_lookups", "tt_settings_enable_lookups_tip");
-        new_setting_checkbox(&mut checkboxes, &ui_table_vbox, &ui_table_view_frame, "enable_icons", "settings_enable_icons", "tt_settings_enable_icons_tip");
-        new_setting_checkbox(&mut checkboxes, &ui_table_vbox, &ui_table_view_frame, "enable_diff_markers", "settings_enable_diff_markers", "tt_settings_enable_diff_markers_tip");
-        // new_setting_checkbox(&mut checkboxes, &ui_table_vbox, &ui_table_view_frame, "hide_unused_columns", "hide_unused_columns", "settings_hide_unused_columns");
+        new_setting_checkbox(&mut checkboxes, &ui_table_vbox, &ui_table_view_frame, ADJUST_COLUMNS_TO_CONTENT, "settings_ui_table_adjust_columns_to_content", "tt_ui_table_adjust_columns_to_content_tip");
+        new_setting_checkbox(&mut checkboxes, &ui_table_vbox, &ui_table_view_frame, DISABLE_COMBOS_ON_TABLES, "settings_ui_table_disable_combos", "tt_ui_table_disable_combos_tip");
+        new_setting_checkbox(&mut checkboxes, &ui_table_vbox, &ui_table_view_frame, EXTEND_LAST_COLUMN_ON_TABLES, "settings_ui_table_extend_last_column_label", "tt_ui_table_extend_last_column_tip");
+        new_setting_checkbox(&mut checkboxes, &ui_table_vbox, &ui_table_view_frame, TIGHT_TABLE_MODE, "settings_ui_table_tight_table_mode_label", "tt_ui_table_tight_table_mode_tip");
+        new_setting_checkbox(&mut checkboxes, &ui_table_vbox, &ui_table_view_frame, TABLE_RESIZE_ON_EDIT, "settings_table_resize_on_edit", "tt_settings_table_resize_on_edit_tip");
+        new_setting_checkbox(&mut checkboxes, &ui_table_vbox, &ui_table_view_frame, TABLES_USE_OLD_COLUMN_ORDER, "settings_ui_table_use_old_column_order_label", "tt_settings_tables_use_old_column_order_tip");
+        new_setting_checkbox(&mut checkboxes, &ui_table_vbox, &ui_table_view_frame, TABLES_USE_OLD_COLUMN_ORDER_FOR_TSV, "settings_ui_table_use_old_column_order_for_tsv_label", "tt_settings_tables_use_old_column_order_for_tsv_tip");
+        new_setting_checkbox(&mut checkboxes, &ui_table_vbox, &ui_table_view_frame, DISABLE_UUID_REGENERATION_ON_DB_TABLES, "settings_disable_uuid_regeneration_tables", "tt_extra_disable_uuid_regeneration_on_db_tables_label_tip");
+        new_setting_checkbox(&mut checkboxes, &ui_table_vbox, &ui_table_view_frame, USE_RIGHT_SIZE_MARKERS, "settings_use_right_side_markers", "tt_ui_table_use_right_side_markers_tip");
+        new_setting_checkbox(&mut checkboxes, &ui_table_vbox, &ui_table_view_frame, ENABLE_LOOKUPS, "settings_enable_lookups", "tt_settings_enable_lookups_tip");
+        new_setting_checkbox(&mut checkboxes, &ui_table_vbox, &ui_table_view_frame, ENABLE_ICONS, "settings_enable_icons", "tt_settings_enable_icons_tip");
+        new_setting_checkbox(&mut checkboxes, &ui_table_vbox, &ui_table_view_frame, ENABLE_DIFF_MARKERS, "settings_enable_diff_markers", "tt_settings_enable_diff_markers_tip");
+        // new_setting_checkbox(&mut checkboxes, &ui_table_vbox, &ui_table_view_frame, HIDE_UNUSED_COLUMNS, "hide_unused_columns", "settings_hide_unused_columns");
 
         // Colour pairs.
         let mut colour_buttons = BTreeMap::new();
-        new_setting_colour_pair(&mut colour_buttons, &ui_table_vbox, &ui_table_view_frame, "settings_colour_added", "tt_settings_colour_added", "colour_light_table_added", "colour_dark_table_added");
-        new_setting_colour_pair(&mut colour_buttons, &ui_table_vbox, &ui_table_view_frame, "settings_colour_modified", "tt_settings_colour_modified", "colour_light_table_modified", "colour_dark_table_modified");
-        new_setting_colour_pair(&mut colour_buttons, &ui_table_vbox, &ui_table_view_frame, "settings_colour_error", "tt_settings_colour_error", "colour_light_diagnostic_error", "colour_dark_diagnostic_error");
-        new_setting_colour_pair(&mut colour_buttons, &ui_table_vbox, &ui_table_view_frame, "settings_colour_warning", "tt_settings_colour_warning", "colour_light_diagnostic_warning", "colour_dark_diagnostic_warning");
-        new_setting_colour_pair(&mut colour_buttons, &ui_table_vbox, &ui_table_view_frame, "settings_colour_info", "tt_settings_colour_info", "colour_light_diagnostic_info", "colour_dark_diagnostic_info");
+        new_setting_colour_pair(&mut colour_buttons, &ui_table_vbox, &ui_table_view_frame, "settings_colour_added", "tt_settings_colour_added", COLOUR_LIGHT_TABLE_ADDED, COLOUR_DARK_TABLE_ADDED);
+        new_setting_colour_pair(&mut colour_buttons, &ui_table_vbox, &ui_table_view_frame, "settings_colour_modified", "tt_settings_colour_modified", COLOUR_LIGHT_TABLE_MODIFIED, COLOUR_DARK_TABLE_MODIFIED);
+        new_setting_colour_pair(&mut colour_buttons, &ui_table_vbox, &ui_table_view_frame, "settings_colour_error", "tt_settings_colour_error", COLOUR_LIGHT_DIAGNOSTIC_ERROR, COLOUR_DARK_DIAGNOSTIC_ERROR);
+        new_setting_colour_pair(&mut colour_buttons, &ui_table_vbox, &ui_table_view_frame, "settings_colour_warning", "tt_settings_colour_warning", COLOUR_LIGHT_DIAGNOSTIC_WARNING, COLOUR_DARK_DIAGNOSTIC_WARNING);
+        new_setting_colour_pair(&mut colour_buttons, &ui_table_vbox, &ui_table_view_frame, "settings_colour_info", "tt_settings_colour_info", COLOUR_LIGHT_DIAGNOSTIC_INFO, COLOUR_DARK_DIAGNOSTIC_INFO);
 
         content_layout.add_widget_1a(&table_header);
         content_layout.add_widget_1a(&ui_table_view_frame);
@@ -443,13 +443,13 @@ impl SettingsUI {
         debug_vbox.set_contents_margins_4a(4, 0, 4, 0);
         debug_vbox.set_spacing(2);
 
-        new_setting_checkbox(&mut checkboxes, &debug_vbox, &debug_frame, "check_for_missing_table_definitions", "settings_debug_missing_table", "tt_debug_check_for_missing_table_definitions_tip");
-        new_setting_checkbox(&mut checkboxes, &debug_vbox, &debug_frame, "enable_debug_menu", "settings_debug_enable_debug_menu", "tt_settings_enable_debug_menu_tip");
-        new_setting_checkbox(&mut checkboxes, &debug_vbox, &debug_frame, "enable_unit_editor", "settings_enable_unit_editor", "tt_settings_debug_enable_unit_editor");
-        new_setting_checkbox(&mut checkboxes, &debug_vbox, &debug_frame, "enable_esf_editor", "settings_enable_esf_editor", "tt_settings_enable_esf_editor_tip");
-        new_setting_checkbox(&mut checkboxes, &debug_vbox, &debug_frame, "use_debug_view_unit_variant", "settings_use_debug_view_unit_variant", "tt_settings_use_debug_view_unit_variant_tip");
-        #[cfg(feature = "support_model_renderer")] new_setting_checkbox(&mut checkboxes, &debug_vbox, &debug_frame, "enable_renderer", "settings_enable_renderer", "tt_settings_enable_renderer_tip");
-        new_setting_checkbox(&mut checkboxes, &debug_vbox, &debug_frame, "use_lazy_loading", "settings_use_lazy_loading", "tt_extra_packfile_use_lazy_loading_tip");
+        new_setting_checkbox(&mut checkboxes, &debug_vbox, &debug_frame, CHECK_FOR_MISSING_TABLE_DEFINITIONS, "settings_debug_missing_table", "tt_debug_check_for_missing_table_definitions_tip");
+        new_setting_checkbox(&mut checkboxes, &debug_vbox, &debug_frame, ENABLE_DEBUG_MENU, "settings_debug_enable_debug_menu", "tt_settings_enable_debug_menu_tip");
+        new_setting_checkbox(&mut checkboxes, &debug_vbox, &debug_frame, ENABLE_UNIT_EDITOR, "settings_enable_unit_editor", "tt_settings_debug_enable_unit_editor");
+        new_setting_checkbox(&mut checkboxes, &debug_vbox, &debug_frame, ENABLE_ESF_EDITOR, "settings_enable_esf_editor", "tt_settings_enable_esf_editor_tip");
+        new_setting_checkbox(&mut checkboxes, &debug_vbox, &debug_frame, USE_DEBUG_VIEW_UNIT_VARIANT, "settings_use_debug_view_unit_variant", "tt_settings_use_debug_view_unit_variant_tip");
+        #[cfg(feature = "support_model_renderer")] new_setting_checkbox(&mut checkboxes, &debug_vbox, &debug_frame, ENABLE_RENDERER, "settings_enable_renderer", "tt_settings_enable_renderer_tip");
+        new_setting_checkbox(&mut checkboxes, &debug_vbox, &debug_frame, USE_LAZY_LOADING, "settings_use_lazy_loading", "tt_extra_packfile_use_lazy_loading_tip");
 
         // Buttons: text goes in a label (col 0), button gets a short action label (col 1).
         let debug_clear_dependencies_cache_folder_button = new_setting_button(&debug_vbox, &debug_frame, "settings_debug_clear_dependencies_cache_folder", "tt_settings_debug_clear_dependencies_cache_folder", "settings_action_clear");
@@ -471,8 +471,8 @@ impl SettingsUI {
         diagnostics_vbox.set_contents_margins_4a(4, 0, 4, 0);
         diagnostics_vbox.set_spacing(2);
 
-        new_setting_checkbox(&mut checkboxes, &diagnostics_vbox, &diagnostics_frame, "diagnostics_trigger_on_open", "settings_diagnostics_trigger_on_open", "tt_diagnostics_trigger_diagnostics_on_open_tip");
-        new_setting_checkbox(&mut checkboxes, &diagnostics_vbox, &diagnostics_frame, "diagnostics_trigger_on_table_edit", "settings_diagnostics_trigger_on_edit", "tt_diagnostics_trigger_diagnostics_on_table_edit_tip");
+        new_setting_checkbox(&mut checkboxes, &diagnostics_vbox, &diagnostics_frame, DIAGNOSTICS_TRIGGER_ON_OPEN, "settings_diagnostics_trigger_on_open", "tt_diagnostics_trigger_diagnostics_on_open_tip");
+        new_setting_checkbox(&mut checkboxes, &diagnostics_vbox, &diagnostics_frame, DIAGNOSTICS_TRIGGER_ON_TABLE_EDIT, "settings_diagnostics_trigger_on_edit", "tt_diagnostics_trigger_diagnostics_on_table_edit_tip");
 
         content_layout.add_widget_1a(&diagnostics_header);
         content_layout.add_widget_1a(&diagnostics_frame);
@@ -487,8 +487,8 @@ impl SettingsUI {
         telemetry_vbox.set_contents_margins_4a(4, 0, 4, 0);
         telemetry_vbox.set_spacing(2);
 
-        new_setting_checkbox(&mut checkboxes, &telemetry_vbox, &telemetry_frame, "enable_usage_telemetry", "settings_enable_usage_telemetry", "tt_enable_usage_telemetry_tip");
-        new_setting_checkbox(&mut checkboxes, &telemetry_vbox, &telemetry_frame, "enable_crash_reports", "settings_enable_crash_reports", "tt_enable_crash_reports_tip");
+        new_setting_checkbox(&mut checkboxes, &telemetry_vbox, &telemetry_frame, ENABLE_USAGE_TELEMETRY, "settings_enable_usage_telemetry", "tt_enable_usage_telemetry_tip");
+        new_setting_checkbox(&mut checkboxes, &telemetry_vbox, &telemetry_frame, ENABLE_CRASH_REPORTS, "settings_enable_crash_reports", "tt_enable_crash_reports_tip");
 
         content_layout.add_widget_1a(&telemetry_header);
         content_layout.add_widget_1a(&telemetry_frame);
@@ -768,7 +768,7 @@ impl SettingsUI {
         }
 
         for (key, path) in self.paths_asskit_line_edits.iter() {
-            path.set_text(&QString::from_std_str(get_str(&(key.to_owned() + "_assembly_kit"))));
+            path.set_text(&QString::from_std_str(get_str(&(key.to_owned() + ASSEMBLY_KIT_SUFFIX))));
         }
 
         // Get the default game.
@@ -833,7 +833,7 @@ impl SettingsUI {
         }
 
         for (key, line_edit) in self.paths_asskit_line_edits.iter() {
-            let _ = settings_set_string(&(key.to_owned() + "_assembly_kit"), &line_edit.text().to_std_string());
+            let _ = settings_set_string(&(key.to_owned() + ASSEMBLY_KIT_SUFFIX), &line_edit.text().to_std_string());
         }
 
         // We get his game's folder, depending on the selected game.
@@ -1019,12 +1019,12 @@ unsafe fn new_setting_checkbox(
     setting_row!(vbox, container, label, checkbox);
 
     // On Linux, program updates are managed by the package manager or Flatpak.
-    if cfg!(target_os = "linux") && settings_key == "check_updates_on_start" {
+    if cfg!(target_os = "linux") && settings_key == CHECK_UPDATES_ON_START {
         container.set_visible(false);
     }
 
     // Hidden settings.
-    if settings_key == "packfile_treeview_resize_to_fit" {
+    if settings_key == PACKFILE_TREEVIEW_RESIZE_TO_FIT {
         container.set_visible(false);
     }
 

@@ -188,7 +188,7 @@ impl Settings {
                 };
 
                 // If we got a path and we don't have it saved yet, save it automatically.
-                let ak_key = game_key.to_owned() + "_assembly_kit";
+                let ak_key = game_key.to_owned() + ASSEMBLY_KIT_SUFFIX;
                 let current_path = settings.string(&ak_key);
 
                 // Fix unsanitized paths.
