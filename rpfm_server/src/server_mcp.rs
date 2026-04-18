@@ -8,6 +8,33 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+//! [Model Context Protocol][mcp] server exposed at the `/mcp` endpoint.
+//!
+//! Wraps every [`Command`] the [`crate::background_thread`] dispatcher
+//! understands as an MCP **tool**, plus a handful of MCP **resources**
+//! (game lists, enum dumps, examples, reference docs) and **prompts** for
+//! common workflows ("open and inspect a pack", "edit a DB table",
+//! "manage dependencies", …). Each MCP client gets its own dedicated
+//! [`Session`] and [`McpServer`] — same isolation guarantees as the
+//! WebSocket clients.
+//!
+//! Each tool call:
+//!
+//! 1. Translates its `*Args` payload into a [`Command`] and ships it
+//!    through the session's
+//!    [`background_loop`](crate::background_thread::background_loop) via
+//!    the `send_and_respond!` helper.
+//! 2. Wraps the resulting [`Response`] back into a [`CallToolResult`].
+//!
+//! The `*Args` structs are the canonical schema for every tool. Their
+//! `JsonSchema` derive is what `rmcp` ships to clients to advertise tool
+//! arguments, so docstrings on individual fields show up directly in MCP
+//! tool listings.
+//!
+//! [mcp]: https://modelcontextprotocol.io/
+//! [`Session`]: crate::session::Session
+//! [`CallToolResult`]: rmcp::model::CallToolResult
+
 use rmcp::ErrorData as McpError;
 use rmcp::handler::server::{router::prompt::PromptRouter, tool::ToolRouter, wrapper::Parameters};
 use rmcp::model::{
@@ -102,10 +129,22 @@ macro_rules! parse_json {
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
+/// MCP server bound to a single [`Session`].
+///
+/// One instance is constructed per MCP client connection by the
+/// `StreamableHttpService` factory wired in `main.rs`. The
+/// `tool_router` and `prompt_router` fields are built once at construction
+/// time from the `#[tool_router]` / `#[prompt_router]` attribute macros
+/// applied further down in this module.
+///
+/// Cheap to clone — only `Arc` and small router structs.
 #[derive(Clone)]
 pub struct McpServer {
+    /// The session this MCP client is bound to.
     session: Arc<Session>,
+    /// The router auto-generated from `#[tool_router]` annotations.
     tool_router: ToolRouter<Self>,
+    /// The router auto-generated from `#[prompt_router]` annotations.
     prompt_router: PromptRouter<Self>,
 }
 

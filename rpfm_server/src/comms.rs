@@ -8,8 +8,20 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! This module defines the controls for inter-thread communication between
-//! the main thread receiving requests and the background thread processing them.
+//! Inter-thread communication primitives.
+//!
+//! Each [`session::Session`](crate::session::Session) owns a dedicated background
+//! thread that processes [`Command`]s serially. The HTTP / WebSocket /
+//! MCP-side handlers run on the `tokio` runtime and need to ship a
+//! `Command` into that thread plus get a stream of [`Response`]s back.
+//!
+//! [`CentralCommand`] is the thin abstraction that wires that up: a single
+//! [`tokio::sync::mpsc::unbounded_channel`] from handlers to the background
+//! loop, plus a per-request reply channel attached to each command. This
+//! keeps every request's responses isolated from every other request's,
+//! while still serialising work inside a session.
+//!
+//! [`Response`]: rpfm_ipc::messages::Response
 
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 
@@ -18,8 +30,12 @@ use std::sync::Mutex;
 
 use rpfm_ipc::messages::Command;
 
-/// This const is the standard message in case of message communication error. If this happens, crash the program.
+/// Panic message used when a receiver yields `None` (the background thread
+/// dropped the sender, which means it crashed or exited unexpectedly).
 pub const THREADS_COMMUNICATION_ERROR: &str = "Error in thread communication system. Response received: ";
+
+/// Panic message used when a `send` into the inter-thread channel fails (the
+/// receiver was dropped before we could deliver the message).
 pub const THREADS_SENDER_ERROR: &str = "Error in thread communication system. Sender failed to send message.";
 
 //-------------------------------------------------------------------------------//

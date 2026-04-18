@@ -8,6 +8,15 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+//! Persistent settings store and config-path helpers.
+//!
+//! Settings are kept in a single JSON file under the OS-specific config
+//! directory (resolved through [`directories::ProjectDirs`]) and exposed as a
+//! per-type [`Settings`] map: `bool`, `i32`, `f32`, `String`, raw bytes,
+//! and `Vec<String>`. Both the UI and the server side use the same
+//! [`rpfm_ipc::settings_keys`] constants when reading and writing, so a typo
+//! becomes a compile error rather than a silently-missed setting.
+
 use anyhow::{anyhow, Result};
 use directories::ProjectDirs;
 use ron::ser::{PrettyConfig, to_string_pretty};
@@ -68,17 +77,37 @@ macro_rules! set_batch {
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
+/// Snapshot of every persisted setting.
+///
+/// Each typed sub-map keeps its own keys; lookups never cross types, so
+/// `settings.bool("X")` and `settings.i32("X")` are independent. Lookups for
+/// a missing key return the type's default (`false`, `0`, `""`, …).
+///
+/// Values mutate through the typed `set_*` / `initialize_*` methods. Each
+/// successful set persists to disk immediately, unless [`set_block_write`]
+/// is set to `true` (used for batch updates via the [`set_batch!`] macro).
+///
+/// [`set_block_write`]: Self::set_block_write
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Settings {
 
+    /// When `true`, [`Self::write`] becomes a no-op. Used by [`set_batch!`]
+    /// to coalesce many updates into a single disk write.
     #[serde(skip_serializing, skip_deserializing)]
     pub block_write: bool,
 
+    /// Boolean settings.
     pub bool: HashMap<String, bool>,
+    /// Signed 32-bit integer settings.
     pub i32: HashMap<String, i32>,
+    /// 32-bit floating-point settings.
     pub f32: HashMap<String, f32>,
+    /// String settings (also used for path-shaped strings; see
+    /// [`Self::path_buf`] for `PathBuf` access on top of the same map).
     pub string: HashMap<String, String>,
+    /// Opaque byte-blob settings.
     pub raw_data: HashMap<String, Vec<u8>>,
+    /// Lists-of-strings settings.
     pub vec_string: HashMap<String, Vec<String>>
 }
 
@@ -88,6 +117,14 @@ pub struct Settings {
 
 impl Settings {
 
+    /// Build a fresh `Settings` instance, loading from disk and applying
+    /// per-key default initialisation.
+    ///
+    /// If `as_new` is `true` the on-disk file is ignored and a fully default
+    /// settings struct is returned (still applying the per-key defaults).
+    /// If reading the on-disk file fails, the broken file is backed up to
+    /// `settings.json.bak` and defaults are used — protects against sporadic
+    /// read failures silently resetting every setting.
     pub fn init(as_new: bool) -> Result<Self> {
         let mut settings = if !as_new {
             match Settings::read() {
@@ -280,6 +317,10 @@ impl Settings {
         Ok(settings)
     }
 
+    /// Read the on-disk settings file (`settings.json` under [`config_path`]).
+    ///
+    /// Errors if the file is missing or cannot be parsed as JSON. Most callers
+    /// want [`Self::init`] instead, which falls back to defaults on failure.
     pub fn read() -> Result<Self> {
         let mut data = vec![];
         let mut file = BufReader::new(File::open(config_path()?.join(SETTINGS_FILE_NAME))?);
@@ -303,111 +344,139 @@ impl Settings {
         self.block_write = status;
     }
 
+    /// Read a `bool` setting; returns `false` if `setting` isn't set.
     pub fn bool(&self, setting: &str) -> bool {
         self.bool.get(setting).copied().unwrap_or_default()
     }
 
+    /// Read an `i32` setting; returns `0` if `setting` isn't set.
     pub fn i32(&self, setting: &str) -> i32 {
         self.i32.get(setting).copied().unwrap_or_default()
     }
 
+    /// Read an `f32` setting; returns `0.0` if `setting` isn't set.
     pub fn f32(&self, setting: &str) -> f32 {
         self.f32.get(setting).copied().unwrap_or_default()
     }
 
+    /// Read a `String` setting; returns an empty string if `setting` isn't set.
     pub fn string(&self, setting: &str) -> String {
         self.string.get(setting).map(|x| x.to_owned()).unwrap_or_default()
     }
 
+    /// Read a path-shaped string setting as a `PathBuf`; returns an empty
+    /// `PathBuf` if `setting` isn't set. Backed by the same map as
+    /// [`Self::string`].
     pub fn path_buf(&self, setting: &str) -> PathBuf {
         self.string.get(setting).map(PathBuf::from).unwrap_or_default()
     }
 
+    /// Read a raw byte-blob setting; returns an empty `Vec` if `setting` isn't set.
     pub fn raw_data(&self, setting: &str) -> Vec<u8> {
         self.raw_data.get(setting).map(|x| x.to_vec()).unwrap_or_default()
     }
 
+    /// Read a `Vec<String>` setting; returns an empty `Vec` if `setting` isn't set.
     pub fn vec_string(&self, setting: &str) -> Vec<String> {
         self.vec_string.get(setting).map(|x| x.to_vec()).unwrap_or_default()
     }
 
+    /// Set a `bool` setting and persist to disk (subject to `block_write`).
     pub fn set_bool(&mut self, setting: &str, value: bool) -> Result<()> {
         self.bool.insert(setting.to_owned(), value);
         self.write()
     }
 
+    /// Set an `i32` setting and persist to disk (subject to `block_write`).
     pub fn set_i32(&mut self, setting: &str, value: i32) -> Result<()> {
         self.i32.insert(setting.to_owned(), value);
         self.write()
     }
 
+    /// Set an `f32` setting and persist to disk (subject to `block_write`).
     pub fn set_f32(&mut self, setting: &str, value: f32) -> Result<()> {
         self.f32.insert(setting.to_owned(), value);
         self.write()
     }
 
+    /// Set a `String` setting and persist to disk (subject to `block_write`).
     pub fn set_string(&mut self, setting: &str, value: &str) -> Result<()> {
         self.string.insert(setting.to_owned(), value.to_owned());
         self.write()
     }
 
+    /// Set a path setting (stored as a string) and persist to disk
+    /// (subject to `block_write`).
     pub fn set_path_buf(&mut self, setting: &str, value: &Path) -> Result<()> {
         self.string.insert(setting.to_owned(), value.to_string_lossy().to_string());
         self.write()
     }
 
+    /// Set a raw byte-blob setting and persist to disk (subject to `block_write`).
     pub fn set_raw_data(&mut self, setting: &str, value: &[u8]) -> Result<()> {
         self.raw_data.insert(setting.to_owned(), value.to_vec());
         self.write()
     }
 
+    /// Set a `Vec<String>` setting and persist to disk (subject to `block_write`).
     pub fn set_vec_string(&mut self, setting: &str, value: &[String]) -> Result<()> {
         self.vec_string.insert(setting.to_owned(), value.to_vec());
         self.write()
     }
 
+    /// Set a `bool` setting only if it isn't already set. Used by
+    /// [`Self::init`] to seed defaults without clobbering user choices.
     pub fn initialize_bool(&mut self, setting: &str, value: bool) {
         if !self.bool.contains_key(setting) {
             self.bool.insert(setting.to_owned(), value);
         }
     }
 
+    /// Set an `i32` setting only if it isn't already set. See [`Self::initialize_bool`].
     pub fn initialize_i32(&mut self, setting: &str, value: i32) {
         if !self.i32.contains_key(setting) {
             self.i32.insert(setting.to_owned(), value);
         }
     }
 
+    /// Set an `f32` setting only if it isn't already set. See [`Self::initialize_bool`].
     pub fn initialize_f32(&mut self, setting: &str, value: f32) {
         if !self.f32.contains_key(setting) {
             self.f32.insert(setting.to_owned(), value);
         }
     }
 
+    /// Set a `String` setting only if it isn't already set. See [`Self::initialize_bool`].
     pub fn initialize_string(&mut self, setting: &str, value: &str) {
         if !self.string.contains_key(setting) {
             self.string.insert(setting.to_owned(), value.to_owned());
         }
     }
 
+    /// Set a path setting only if it isn't already set. See [`Self::initialize_bool`].
     pub fn initialize_path_buf(&mut self, setting: &str, value: &Path) {
         if !self.string.contains_key(setting) {
             self.string.insert(setting.to_owned(), value.to_string_lossy().to_string());
         }
     }
 
+    /// Set a raw byte-blob setting only if it isn't already set. See [`Self::initialize_bool`].
     pub fn initialize_raw_data(&mut self, setting: &str, value: &[u8]) {
         if !self.raw_data.contains_key(setting) {
             self.raw_data.insert(setting.to_owned(), value.to_vec());
         }
     }
 
+    /// Set a `Vec<String>` setting only if it isn't already set. See [`Self::initialize_bool`].
     pub fn initialize_vec_string(&mut self, setting: &str, value: &[String]) {
         if !self.vec_string.contains_key(setting) {
             self.vec_string.insert(setting.to_owned(), value.to_vec());
         }
     }
 
+    /// Project the optimiser-related boolean settings into an
+    /// [`OptimizerOptions`] suitable for handing to
+    /// [`rpfm_extensions::optimizer`].
     pub fn optimizer_options(&self) -> OptimizerOptions {
         let mut options = OptimizerOptions::default();
 
@@ -526,10 +595,13 @@ pub fn schemas_path() -> Result<PathBuf> {
     Ok(config_path()?.join(SCHEMA_FOLDER))
 }
 
+/// Folder under [`config_path`] where user-side schema patches live.
 pub fn table_patches_path() -> Result<PathBuf> {
     Ok(config_path()?.join(TABLE_PATCHES_FOLDER))
 }
 
+/// Folder under [`config_path`] where saved table view profiles (column
+/// orders, filters, hidden columns) are persisted.
 pub fn table_profiles_path() -> Result<PathBuf> {
     Ok(config_path()?.join(TABLE_PROFILES_FOLDER))
 }
@@ -557,18 +629,30 @@ pub fn dependencies_cache_path() -> Result<PathBuf> {
     Ok(config_path()?.join(DEPENDENCIES_FOLDER))
 }
 
+/// Folder under [`config_path`] holding archived Empire/Napoleon Assembly Kit
+/// definitions (no AK was ever shipped for these games, so RPFM bundles a
+/// frozen copy via the `old_ak_files` submodule).
 pub fn old_ak_files_path() -> Result<PathBuf> {
     Ok(config_path()?.join("old_ak_files"))
 }
 
+/// Folder under [`config_path`] where the user's local mod translations are
+/// stored (one JSON per pack/language).
 pub fn translations_local_path() -> Result<PathBuf> {
     Ok(config_path()?.join(TRANSLATIONS_LOCAL_FOLDER))
 }
 
+/// Folder under [`config_path`] where the local clone of the Translation Hub
+/// repository is mirrored.
 pub fn translations_remote_path() -> Result<PathBuf> {
     Ok(config_path()?.join(TRANSLATIONS_REMOTE_FOLDER))
 }
 
+/// Recursively deletes the config folder, then re-runs [`init_config_path`] to recreate
+/// the standard sub-folders. Refuses to delete anything outside
+/// [`config_path`].
+///
+/// Used by the "reset settings" / "clear caches" actions in the UI.
 pub fn clear_config_path(path: &Path) -> Result<()> {
     if path.exists() && path.is_dir() && path.starts_with(config_path()?) {
         std::fs::remove_dir_all(path)?;

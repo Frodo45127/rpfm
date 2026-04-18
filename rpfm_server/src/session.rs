@@ -8,13 +8,31 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! This module defines sessions for per-client state management.
+//! Per-client session state and lifecycle.
 //!
-//! Each client connection gets its own session with isolated state,
-//! including its own background thread for processing commands.
+//! Each WebSocket connection (and each MCP client) is wrapped in a [`Session`]
+//! managed by a [`SessionManager`]. Sessions are isolated: open packs in one
+//! session aren't visible from another, and each one owns a dedicated
+//! background thread (see [`crate::background_thread`]) that processes its
+//! commands serially.
 //!
-//! Sessions persist for a configurable timeout after disconnection,
-//! allowing clients to reconnect to the same session.
+//! ## Lifecycle
+//!
+//! 1. **Create.** A new session gets a unique [`SessionId`] from the manager
+//!    plus a fresh background thread spawned on the `tokio` runtime.
+//! 2. **Connect / disconnect.** Clients increment [`Session::connect`] on
+//!    attach and [`Session::disconnect`] on detach. The connection count is
+//!    what the timeout logic watches.
+//! 3. **Reconnect.** A client can pass its previous `session_id` back on the
+//!    next WebSocket handshake to adopt the same session and recover its
+//!    in-memory state. See [`SessionManager::get_or_create_session`].
+//! 4. **Timeout.** When the connection count drops to zero, the session
+//!    enters a [`DEFAULT_SESSION_TIMEOUT_SECS`]-long grace period. Reconnects
+//!    cancel the timeout; otherwise the cleanup task removes the session and
+//!    its background thread exits.
+//! 5. **Empty manager → process exit.** When the last session is removed the
+//!    server process terminates, so no orphaned backend lingers in the
+//!    background.
 
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::time::{Duration, Instant};

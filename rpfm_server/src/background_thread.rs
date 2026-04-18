@@ -8,11 +8,24 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module with the background loop.
-
-Basically, this does the heavy load of the program.
-!*/
+//! Per-session command dispatcher — where every Pack, schema, search,
+//! diagnostics and dependency operation actually runs.
+//!
+//! Each [`Session`] spawns one task running [`background_loop`]. The loop
+//! pulls `(reply_sender, Command)` pairs off the session's mpsc channel,
+//! handles the command synchronously against the session's in-memory state
+//! (open packs, dependency cache, settings cache, schema), and ships every
+//! response back over the per-request `reply_sender`.
+//!
+//! Running commands serially per session is what keeps state consistent
+//! across many concurrent requests in the same session: a `SavePack`
+//! followed by a `ClosePack` always sees the right Pack, even when the
+//! WebSocket multiplexer is firing requests as fast as the client sends
+//! them.
+//!
+//! Telemetry: each dispatched command is recorded via
+//! [`rpfm_telemetry::record_action`] so usage counters reflect what the
+//! session actually did.
 
 use anyhow::{anyhow, Result};
 
@@ -57,10 +70,34 @@ use crate::updater;
 
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
+/// Filename of the per-game vanilla English Loc TSV bundled in the
+/// [Total War Translation Hub][tlh] repo. The translator compares mod loc
+/// entries against this file to detect rows that match vanilla and can be
+/// auto-translated from the official localisation.
+///
+/// Lives under [`crate::settings::translations_remote_path`] once the Hub
+/// has been cloned locally.
+///
+/// [tlh]: https://github.com/Frodo45127/total_war_translation_hub
 pub const VANILLA_LOC_NAME: &str = "vanilla_english.tsv";
+
+/// Filename prefix for community-maintained vanilla loc fix TSVs in the
+/// [Total War Translation Hub][tlh] repo (e.g. `vanilla_fixes_es.tsv`).
+/// Each one carries fixes for vanilla loc bugs in a specific language;
+/// the suffix is the language code.
+///
+/// Discovered alongside [`VANILLA_LOC_NAME`] under
+/// [`crate::settings::translations_remote_path`].
+///
+/// [tlh]: https://github.com/Frodo45127/total_war_translation_hub
 pub const VANILLA_FIXES_NAME: &str = "vanilla_fixes_";
 
+/// Stem used to seed names for newly created Packs (`new_pack.pack`,
+/// `new_pack_2.pack`, …).
 const DEFAULT_PACK_STEM: &str = "new_pack";
+
+/// Extension appended to [`DEFAULT_PACK_STEM`] when materialising a new
+/// Pack's filename.
 const DEFAULT_PACK_EXT: &str = ".pack";
 
 /// Extracts the variant name (e.g. `"NewPack"`) from a [`Command`] for telemetry.
@@ -150,9 +187,20 @@ fn get_pack<'a>(packs: &'a BTreeMap<String, Pack>, pack_key: &str, sender: &Unbo
     }
 }
 
-/// This is the background loop that's going to be executed in a parallel thread to the UI. No UI or "Unsafe" stuff here.
+/// The per-session command dispatcher.
 ///
-/// All communication between this and the UI thread is done use the `CENTRAL_COMMAND` static.
+/// Receives `(reply_sender, command)` pairs from the session's mpsc
+/// `receiver` and processes them serially against the session's
+/// in-memory state (open packs, dependency cache, schema, settings cache,
+/// per-pack [`OperationalMode`]). For each command, the matching handler
+/// computes the response (often several responses for multi-stage
+/// operations) and ships them back through `reply_sender`.
+///
+/// One instance runs per [`Session`], spawned by [`Session::new`]. The loop
+/// terminates when the session is dropped or [`Command::Exit`] is dispatched.
+///
+/// No UI or `unsafe` work happens here — everything is plain async Rust on
+/// top of `rpfm_lib` and `rpfm_extensions`.
 pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Response>, Command)>, session: Arc<Session>) {
 
     //---------------------------------------------------------------------------------------//

@@ -8,6 +8,50 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+//! # `rpfm_server`
+//!
+//! Backend process for [Rusted PackFile Manager][rpfm]. Hosts the heavy work
+//! that the Qt6 UI ([`rpfm_ui`][ui]) and AI / MCP clients drive remotely:
+//! Pack I/O, schema decoding, diagnostics, search, dependencies, optimisation
+//! and so on.
+//!
+//! [rpfm]: https://github.com/Frodo45127/rpfm
+//! [ui]: https://crates.io/crates/rpfm_ui
+//!
+//! ## Architecture
+//!
+//! The server is built on [`axum`] (HTTP + WebSocket) and [`tokio`]. It binds
+//! to `127.0.0.1:45127` by default and exposes three endpoints:
+//!
+//! | Endpoint    | Method | Purpose                                                                          |
+//! |-------------|--------|----------------------------------------------------------------------------------|
+//! | `/ws`       | GET    | WebSocket upgrade. Carries the [`rpfm_ipc`] command/response protocol.           |
+//! | `/sessions` | GET    | REST: list every active session (used by the UI session picker).                 |
+//! | `/mcp`      | *      | MCP `StreamableHttpService` exposing the same surface to AI / MCP clients.       |
+//!
+//! Every client connection is wrapped in a [`session::Session`] managed by a
+//! [`session::SessionManager`]. Each session owns a dedicated background
+//! thread (see [`background_thread`]) that processes commands serially against
+//! its own in-memory state (open packs, dependency cache, settings cache),
+//! so multiple concurrent clients can't step on each other.
+//!
+//! ## Modules
+//!
+//! - [`background_thread`] — central command dispatcher; one async loop per session.
+//! - [`comms`] — generic mpsc-based request/response abstraction used to talk
+//!   to the background thread.
+//! - [`server_websocket`] — `/ws` upgrade handler and message multiplexer.
+//! - [`server_mcp`] — `/mcp` endpoint: tools, prompts, resources for MCP clients.
+//! - [`session`] — `SessionManager`, `Session`, lifecycle and timeout handling.
+//! - [`settings`] — JSON-backed settings store with batch-write optimisation.
+//! - [`updater`] — self-update checks against GitHub releases.
+//!
+//! ## Telemetry
+//!
+//! Logging, panic capture and action telemetry are wired through
+//! [`rpfm_telemetry`]. The Sentry guard returned by [`Logger::init`] is held
+//! for the process lifetime in [`main`].
+
 use axum::{extract::State, routing::get, Json, Router};
 use rmcp::transport::streamable_http_server::{session::local::LocalSessionManager, StreamableHttpService};
 use tokio::net::TcpListener;
@@ -46,19 +90,42 @@ static GLOBAL: MiMalloc = MiMalloc;
 //                                  Constants
 //-------------------------------------------------------------------------------//
 
+/// Sentry DSN used for crash reports and action telemetry.
+///
+/// Hard-coded to RPFM's project on `sentry.io`. Empty in debug builds via
+/// the `Logger::init` guard's behaviour.
 const SENTRY_DSN_KEY: &str = "https://ed9c0bdfc2bce3385cdabd643059f412@o152833.ingest.us.sentry.io/4510998756065280";
 
+/// Default IP address the HTTP server binds to (`127.0.0.1` / loopback).
 const DEFAULT_ADDRESS: [u8; 4] = [127, 0, 0, 1];
+
+/// Default TCP port the HTTP server listens on.
 const DEFAULT_PORT: u16 = 45127;
 
+/// Organisation domain used to derive the OS-specific config directory
+/// (mirrors `QCoreApplication::organizationDomain` on the UI side).
 const ORG_DOMAIN: &str = "com";
+
+/// Organisation name used to derive the OS-specific config directory.
 const ORG_NAME: &str = "FrodoWazEre";
+
+/// Application name used to derive the OS-specific config directory.
 const APP_NAME: &str = "rpfm";
 
 //-------------------------------------------------------------------------------//
 //                                  Functions
 //-------------------------------------------------------------------------------//
 
+/// Process entry point.
+///
+/// Initialises the Sentry/telemetry guard, primes the telemetry toggles from
+/// persisted settings, builds the [`session::SessionManager`], wires the
+/// `axum` router (`/ws`, `/sessions`, `/mcp`) and starts the listener on
+/// [`DEFAULT_ADDRESS`]:[`DEFAULT_PORT`].
+///
+/// Returns when the listener stops accepting (typically after every session
+/// has been cleaned up — the cleanup task in [`session::SessionManager`]
+/// terminates the process when the session set drains).
 #[tokio::main]
 async fn main() {
 

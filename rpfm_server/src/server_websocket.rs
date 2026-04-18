@@ -8,6 +8,26 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+//! WebSocket upgrade handler and message multiplexer for the `/ws` endpoint.
+//!
+//! On upgrade, the handler either reuses an existing [`Session`] (when the
+//! client supplies `?session_id=N`) or creates a new one. From then on the
+//! socket carries a stream of JSON-encoded [`IpcMessage<Command>`] frames
+//! from the client and [`IpcMessage<Response>`] frames back. Each command
+//! is dispatched into the session's dedicated background thread, whose
+//! responses are forwarded back over the same socket with the originating
+//! request `id` preserved so the client can correlate them.
+//!
+//! Graceful disconnect (`Command::ClientDisconnecting`) tears the session
+//! down immediately and flushes telemetry. Hard disconnects (socket close
+//! without that command) leave the session in a 5-minute grace period so
+//! the client can reconnect with the same `session_id` and pick up where it
+//! left off.
+//!
+//! [`Session`]: crate::session::Session
+//! [`IpcMessage<Command>`]: rpfm_ipc::messages::Message
+//! [`IpcMessage<Response>`]: rpfm_ipc::messages::Message
+
 use axum::{
     extract::ws::{Message, WebSocket, WebSocketUpgrade},
     extract::{Query, State},

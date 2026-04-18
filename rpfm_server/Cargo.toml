@@ -1,5 +1,6 @@
 [package]
 name = "rpfm_server"
+description = "Backend server for RPFM, exposing pack and schema operations over WebSocket and MCP."
 
 version.workspace = true
 authors.workspace = true

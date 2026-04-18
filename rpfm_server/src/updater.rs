@@ -8,6 +8,25 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+//! Self-update checks against GitHub releases.
+//!
+//! On Linux, in-app updates are typically disabled (the distro / Flatpak
+//! manages updates instead). On Windows, the standalone server can pull a
+//! release zip from GitHub, extract it next to the running binary, replace
+//! the executable atomically, and open the changelog so the user actually
+//! reads it.
+//!
+//! The two relevant pieces of public surface are:
+//!
+//! - [`check_updates_rpfm`] — non-destructive: returns an [`APIResponse`]
+//!   describing whether an update is available, what kind, and what version.
+//! - [`update_main_program`] — performs the actual download / extract /
+//!   replace, then opens the changelog.
+//!
+//! Both have `*_with` variants that take an explicit release-fetching
+//! closure; those are the actual implementations and the ones the unit tests
+//! exercise.
+
 use anyhow::{anyhow, Result};
 use itertools::Itertools;
 use self_update::{backends::github::ReleaseList, Download, Extract, get_target, cargo_crate_version, Move, update::Release};
@@ -29,21 +48,39 @@ const REPO_NAME: &str = "rpfm";
 
 const UPDATE_FOLDER_PREFIX: &str = "updates";
 
+/// Filename of the changelog inside the release archive. Opened with the
+/// system handler at the end of [`update_main_program_with`].
 pub const CHANGELOG_FILE: &str = "Changelog.txt";
 
+/// Setting value identifying the stable update channel.
 pub const STABLE: &str = "Stable";
+
+/// Setting value identifying the beta update channel.
 pub const BETA: &str = "Beta";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
+/// Marker type used as a namespace for updater-related items.
+///
+/// Currently empty; lives here so future utility functions can hang off
+/// `Updater::*` without breaking the existing function-style API.
 pub struct Updater {}
 
-/// This enum controls the channels through where RPFM will try to update.
+/// Channels RPFM can pull updates from.
+///
+/// Versions in the third semver component greater than or equal to `99` are
+/// treated as **betas** (e.g. `4.7.99`), versions below `99` as **stable**.
+/// The check logic in [`check_updates_rpfm_with`] uses this to allow opting
+/// out of betas: a beta user with the stable channel selected will see the
+/// most recent stable release as an available "update" even when its
+/// version number is lower.
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum UpdateChannel {
+    /// Only stable releases are considered.
     Stable,
+    /// Both stable and beta releases are considered, latest first.
     Beta
 }
 
@@ -51,13 +88,19 @@ pub enum UpdateChannel {
 //                              Backend functions
 //---------------------------------------------------------------------------//
 
-/// This function takes care of updating RPFM itself when a new version comes out.
+/// Download the latest release for the configured update channel and replace
+/// the running install with it. Opens the changelog at the end.
+///
+/// Errors if the network request fails, no asset is available for the
+/// current architecture, or the in-place file replace fails.
 pub fn update_main_program(settings: &Settings) -> Result<()> {
     let channel = update_channel(settings);
     update_main_program_with(|| last_release(channel))
 }
 
-/// Inner function that accepts a release-fetching closure for testability.
+/// Implementation backing [`update_main_program`], with the release source
+/// abstracted as a closure so unit tests can inject a stub release without
+/// hitting the network.
 pub fn update_main_program_with(fetch_release: impl FnOnce() -> Result<Release>) -> Result<()> {
     let last_release = fetch_release()?;
 
@@ -208,7 +251,10 @@ pub fn check_updates_rpfm_with(current_version_str: &str, update_channel: Update
     }
 }
 
-/// This function returns the last release available, according to our update channel.
+/// Fetch the most recent release from GitHub matching `update_channel`.
+///
+/// Returns the first release whose third semver component is `< 99` for
+/// `Stable`, or the absolute latest for `Beta`.
 pub fn last_release(update_channel: UpdateChannel) -> Result<Release> {
     let releases = ReleaseList::configure()
         .repo_owner(REPO_OWNER)
@@ -227,7 +273,8 @@ pub fn last_release(update_channel: UpdateChannel) -> Result<Release> {
     }
 }
 
-/// This function returns the currently selected update channel.
+/// Read the persisted update channel from settings. Defaults to
+/// [`UpdateChannel::Stable`] when the setting is missing or unrecognised.
 pub fn update_channel(settings: &Settings) -> UpdateChannel {
     match &*settings.string("update_channel") {
         BETA => UpdateChannel::Beta,
