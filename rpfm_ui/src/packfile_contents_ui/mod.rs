@@ -133,6 +133,7 @@ pub struct PackFileContentsUI {
     //-------------------------------------------------------------------------------//
     context_menu_save_pack: QPtr<QAction>,
     context_menu_save_pack_as: QPtr<QAction>,
+    context_menu_save_pack_for_release: QPtr<QAction>,
     context_menu_close_pack: QPtr<QAction>,
 
     context_menu_install: QPtr<QAction>,
@@ -288,6 +289,7 @@ impl PackFileContentsUI {
 
         let context_menu_save_pack = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("context_menu_save_pack"));
         let context_menu_save_pack_as = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("context_menu_save_pack_as"));
+        let context_menu_save_pack_for_release = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("save_pack_for_release"));
         let context_menu_close_pack = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("context_menu_close_pack"));
 
         packfile_contents_tree_view_context_menu.add_separator();
@@ -463,6 +465,7 @@ impl PackFileContentsUI {
             //-------------------------------------------------------------------------------//
             context_menu_save_pack,
             context_menu_save_pack_as,
+            context_menu_save_pack_for_release,
             context_menu_close_pack,
 
             context_menu_install,

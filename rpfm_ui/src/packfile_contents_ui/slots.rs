@@ -115,6 +115,7 @@ pub struct PackFileContentsSlots {
 
     pub context_menu_save_pack: QBox<SlotOfBool>,
     pub context_menu_save_pack_as: QBox<SlotOfBool>,
+    pub context_menu_save_pack_for_release: QBox<SlotOfBool>,
     pub context_menu_close_pack: QBox<SlotOfBool>,
 
     pub context_menu_install: QBox<SlotOfBool>,
@@ -639,6 +640,7 @@ impl PackFileContentsSlots {
                 if contents == 4 {
                     pack_file_contents_ui.context_menu_save_pack.set_visible(true);
                     pack_file_contents_ui.context_menu_save_pack_as.set_visible(true);
+                    pack_file_contents_ui.context_menu_save_pack_for_release.set_visible(true);
                     pack_file_contents_ui.context_menu_close_pack.set_visible(true);
                     pack_file_contents_ui.context_menu_install.set_visible(true);
                     pack_file_contents_ui.context_menu_uninstall.set_visible(true);
@@ -693,6 +695,7 @@ impl PackFileContentsSlots {
                 } else {
                     pack_file_contents_ui.context_menu_save_pack.set_visible(false);
                     pack_file_contents_ui.context_menu_save_pack_as.set_visible(false);
+                    pack_file_contents_ui.context_menu_save_pack_for_release.set_visible(false);
                     pack_file_contents_ui.context_menu_close_pack.set_visible(false);
                     pack_file_contents_ui.context_menu_install.set_visible(false);
                     pack_file_contents_ui.context_menu_uninstall.set_visible(false);
@@ -1717,7 +1720,7 @@ impl PackFileContentsSlots {
                 rpfm_telemetry::track_action("Save Pack");
 
                 let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first();
-                if let Err(error) = AppUI::save_packfile_by_key(&app_ui, &pack_file_contents_ui, pack_key, false, false) {
+                if let Err(error) = AppUI::save_packfile_by_key(&app_ui, &pack_file_contents_ui, pack_key, false) {
                     show_dialog(app_ui.main_window(), error, false);
                 }
             }
@@ -1729,8 +1732,30 @@ impl PackFileContentsSlots {
                 rpfm_telemetry::track_action("Save Pack As");
 
                 let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first();
-                if let Err(error) = AppUI::save_packfile_by_key(&app_ui, &pack_file_contents_ui, pack_key, true, false) {
+                if let Err(error) = AppUI::save_packfile_by_key(&app_ui, &pack_file_contents_ui, pack_key, true) {
                     show_dialog(app_ui.main_window(), error, false);
+                }
+            }
+        ));
+
+        let context_menu_save_pack_for_release = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui => move |_| {
+                rpfm_telemetry::track_action("Save Pack For Release");
+
+                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first();
+
+                // Let the user review/adjust optimizer options before the release save.
+                // Cancel in the dialog aborts the whole Save For Release.
+                match AppUI::optimizer_dialog(&app_ui, &pack_file_contents_ui, &global_search_ui, pack_key.clone()) {
+                    Ok(Some(_)) => {
+                        if let Err(error) = AppUI::save_packfile_by_key(&app_ui, &pack_file_contents_ui, pack_key, false) {
+                            show_dialog(app_ui.main_window(), error, false);
+                        }
+                    }
+                    Ok(None) => {}
+                    Err(error) => show_dialog(app_ui.main_window(), error, false),
                 }
             }
         ));
@@ -1755,7 +1780,7 @@ impl PackFileContentsSlots {
             pack_file_contents_ui => move |_| {
                 rpfm_telemetry::track_action("Install");
 
-                if let Err(error) = AppUI::save_packfile(&app_ui, &pack_file_contents_ui, false, false) {
+                if let Err(error) = AppUI::save_packfile(&app_ui, &pack_file_contents_ui, false) {
                     return show_dialog(app_ui.main_window(), error, false);
                 }
 
@@ -1928,7 +1953,7 @@ impl PackFileContentsSlots {
 
                 app_ui.toggle_main_window(false);
 
-                match AppUI::optimizer_dialog(&app_ui, &pack_file_contents_ui, &global_search_ui) {
+                match AppUI::optimizer_dialog(&app_ui, &pack_file_contents_ui, &global_search_ui, None) {
                     Ok(Some(_)) => show_dialog(app_ui.main_window(), tr("optimize_packfile_success"), true),
                     Ok(None) => {},
                     Err(error) => show_dialog(app_ui.main_window(), error, false),
@@ -2248,6 +2273,7 @@ impl PackFileContentsSlots {
 
             context_menu_save_pack,
             context_menu_save_pack_as,
+            context_menu_save_pack_for_release,
             context_menu_close_pack,
 
             context_menu_install,

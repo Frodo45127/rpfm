@@ -190,7 +190,6 @@ pub struct AppUI {
     packfile_close_pack_menu: QBox<QMenu>,
     packfile_save_pack_menu: QBox<QMenu>,
     packfile_save_pack_as_menu: QBox<QMenu>,
-    packfile_save_pack_for_release: QBox<QMenu>,
     packfile_save_all: QPtr<QAction>,
     packfile_select_session: QPtr<QAction>,
     packfile_settings: QPtr<QAction>,
@@ -442,7 +441,6 @@ impl AppUI {
         let packfile_close_pack_menu = QMenu::from_q_string_q_widget(&qtr("close_pack_menu"), &menu_bar_packfile);
         let packfile_save_pack_menu = QMenu::from_q_string_q_widget(&qtr("save_pack_menu"), &menu_bar_packfile);
         let packfile_save_pack_as_menu = QMenu::from_q_string_q_widget(&qtr("save_pack_as_menu"), &menu_bar_packfile);
-        let packfile_save_pack_for_release = QMenu::from_q_string_q_widget(&qtr("save_pack_for_release"), &menu_bar_packfile);
 
         let packfile_select_session = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "select_session", "select_session", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let packfile_settings = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "settings", "settings", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
@@ -456,7 +454,6 @@ impl AppUI {
         menu_bar_packfile.insert_menu(&packfile_save_all, &packfile_close_pack_menu);
         menu_bar_packfile.insert_menu(&packfile_save_all, &packfile_save_pack_menu);
         menu_bar_packfile.insert_menu(&packfile_save_all, &packfile_save_pack_as_menu);
-        menu_bar_packfile.insert_menu(&packfile_save_all, &packfile_save_pack_for_release);
 
         menu_bar_packfile.insert_separator(&packfile_open_recent.menu_action());
         menu_bar_packfile.insert_separator(&packfile_close_pack_menu.menu_action());
@@ -681,7 +678,6 @@ impl AppUI {
             packfile_close_pack_menu,
             packfile_save_pack_menu,
             packfile_save_pack_as_menu,
-            packfile_save_pack_for_release,
             packfile_save_all,
             packfile_select_session,
             packfile_settings,
@@ -1154,9 +1150,8 @@ impl AppUI {
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         save_as: bool,
-        optimize: bool
     ) -> Result<()> {
-        Self::save_packfile_by_key(app_ui, pack_file_contents_ui, None, save_as, optimize)
+        Self::save_packfile_by_key(app_ui, pack_file_contents_ui, None, save_as)
     }
 
     /// This function is used to save a specific `PackFile` to disk, identified by pack key.
@@ -1169,7 +1164,6 @@ impl AppUI {
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         target_pack_key: Option<String>,
         save_as: bool,
-        optimize: bool
     ) -> Result<()> {
 
         let mut result: Result<()> = Ok(());
@@ -1186,21 +1180,6 @@ impl AppUI {
 
         // First, we need to save all open `PackedFiles` to the backend. If one fails, we want to know what one.
         AppUI::back_to_back_end_all(app_ui, pack_file_contents_ui)?;
-
-        if optimize {
-            let _ = AppUI::purge_them_all(app_ui, pack_file_contents_ui, true);
-
-            let options = optimizer_options();
-            match send_ipc_command_result_async(Command::OptimizePackFile(pack_key.clone(), options), response_extractor!(Response::HashSetStringHashSetString, v1, v2)) {
-                Ok((response_1, response_2)) => {
-                    let response_1 = response_1.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<ContainerPath>>();
-                    let response_2 = response_2.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<ContainerPath>>();
-                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(response_1, true), DataSource::PackFile, &pack_key);
-                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(response_2), DataSource::PackFile, &pack_key);
-                }
-                Err(error) => show_dialog(&app_ui.main_window, error, false),
-            }
-        }
 
         let mut path = match send_ipc_command_result(Command::GetPackFilePath(pack_key.clone()), response_extractor!(Response::PathBuf)) {
             Ok(path) => path,
@@ -1335,7 +1314,6 @@ impl AppUI {
             app_ui.packfile_close_pack_menu.set_enabled(true);
             app_ui.packfile_save_pack_menu.set_enabled(false);
             app_ui.packfile_save_pack_as_menu.set_enabled(false);
-            app_ui.packfile_save_pack_for_release.set_enabled(false);
             app_ui.packfile_save_all.set_enabled(false);
 
             // This one too, though we had to deal with it specially later on.
@@ -1352,7 +1330,6 @@ impl AppUI {
             app_ui.packfile_close_pack_menu.set_enabled(enable);
             app_ui.packfile_save_pack_menu.set_enabled(enable);
             app_ui.packfile_save_pack_as_menu.set_enabled(enable);
-            app_ui.packfile_save_pack_for_release.set_enabled(enable);
             app_ui.packfile_save_all.set_enabled(enable);
 
             // If there is a "MyMod" path set in the settings...
@@ -1409,7 +1386,6 @@ impl AppUI {
         app_ui.packfile_close_pack_menu.clear();
         app_ui.packfile_save_pack_menu.clear();
         app_ui.packfile_save_pack_as_menu.clear();
-        app_ui.packfile_save_pack_for_release.clear();
 
         //---------------------------------------------------------------------------------------//
         // Build the menus...
@@ -1654,7 +1630,7 @@ impl AppUI {
                 app_ui,
                 pack_file_contents_ui,
                 pack_key => move |_| {
-                    if let Err(error) = Self::save_packfile_by_key(&app_ui, &pack_file_contents_ui, Some(pack_key.clone()), false, false) {
+                    if let Err(error) = Self::save_packfile_by_key(&app_ui, &pack_file_contents_ui, Some(pack_key.clone()), false) {
                         show_dialog(&app_ui.main_window, error, false);
                     }
                 }
@@ -1667,25 +1643,12 @@ impl AppUI {
                 app_ui,
                 pack_file_contents_ui,
                 pack_key => move |_| {
-                    if let Err(error) = Self::save_packfile_by_key(&app_ui, &pack_file_contents_ui, Some(pack_key.clone()), true, false) {
+                    if let Err(error) = Self::save_packfile_by_key(&app_ui, &pack_file_contents_ui, Some(pack_key.clone()), true) {
                         show_dialog(&app_ui.main_window, error, false);
                     }
                 }
             ));
             save_as_action.triggered().connect(&slot_save_as);
-
-            // Save Pack For Release action (per-pack).
-            let save_for_release_action = app_ui.packfile_save_pack_for_release.add_action_q_string(&QString::from_std_str(pack_key));
-            let slot_save_for_release = SlotOfBool::new(&save_for_release_action, clone!(
-                app_ui,
-                pack_file_contents_ui,
-                pack_key => move |_| {
-                    if let Err(error) = Self::save_packfile_by_key(&app_ui, &pack_file_contents_ui, Some(pack_key.clone()), false, true) {
-                        show_dialog(&app_ui.main_window, error, false);
-                    }
-                }
-            ));
-            save_for_release_action.triggered().connect(&slot_save_for_release);
         }
 
         app_ui.packfile_open_recent.menu_action().set_visible(!app_ui.packfile_open_recent.actions().is_empty());
@@ -1698,7 +1661,6 @@ impl AppUI {
         app_ui.packfile_close_pack_menu.set_enabled(has_packs);
         app_ui.packfile_save_pack_menu.set_enabled(has_packs);
         app_ui.packfile_save_pack_as_menu.set_enabled(has_packs);
-        app_ui.packfile_save_pack_for_release.set_enabled(has_packs);
     }
 
     /// This function takes care of the re-creation of the `MyMod` list for each game.
@@ -3352,7 +3314,8 @@ impl AppUI {
     pub unsafe fn optimizer_dialog(
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        global_search_ui: &Rc<GlobalSearchUI>
+        global_search_ui: &Rc<GlobalSearchUI>,
+        target_pack_key: Option<String>,
     ) -> Result<Option<()>> {
 
         // Load the UI Template.
@@ -3370,6 +3333,7 @@ impl AppUI {
         let pts_groupbox: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "pts_groupbox")?;
 
         let pack_remove_itm_files_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "pack_remove_itm_files_checkbox")?;
+        let pack_apply_compression_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "pack_apply_compression_checkbox")?;
         let db_import_datacores_into_twad_key_deletes_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "db_import_datacores_into_twad_key_deletes_checkbox")?;
         let db_optimize_datacored_tables_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "db_optimize_datacored_tables_checkbox")?;
         let table_remove_duplicated_entries_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "table_remove_duplicated_entries_checkbox")?;
@@ -3386,6 +3350,7 @@ impl AppUI {
         let pts_remove_empty_file_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "pts_remove_empty_file_checkbox")?;
 
         let pack_remove_itm_files_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "pack_remove_itm_files_label")?;
+        let pack_apply_compression_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "pack_apply_compression_label")?;
         let db_import_datacores_into_twad_key_deletes_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "db_import_datacores_into_twad_key_deletes_label")?;
         let db_optimize_datacored_tables_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "db_optimize_datacored_tables_label")?;
         let table_remove_duplicated_entries_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "table_remove_duplicated_entries_label")?;
@@ -3411,6 +3376,7 @@ impl AppUI {
         pts_groupbox.set_title(&qtr("optimizer_pts_title"));
 
         pack_remove_itm_files_label.set_text(&qtr("optimizer_pack_remove_itm_files"));
+        pack_apply_compression_label.set_text(&qtr("optimizer_pack_apply_compression"));
         db_import_datacores_into_twad_key_deletes_label.set_text(&qtr("optimizer_db_import_datacores_into_twad_key_deletes"));
         db_optimize_datacored_tables_label.set_text(&qtr("optimizer_db_optimize_datacored_tables"));
         table_remove_duplicated_entries_label.set_text(&qtr("optimizer_table_remove_duplicated_entries"));
@@ -3428,6 +3394,7 @@ impl AppUI {
 
         {
             pack_remove_itm_files_checkbox.set_checked(settings_bool(PACK_REMOVE_ITM_FILES));
+            pack_apply_compression_checkbox.set_checked(settings_bool(PACK_APPLY_COMPRESSION));
             db_import_datacores_into_twad_key_deletes_checkbox.set_checked(settings_bool(DB_IMPORT_DATACORES_INTO_TWAD_KEY_DELETES));
             db_optimize_datacored_tables_checkbox.set_checked(settings_bool(DB_OPTIMIZE_DATACORED_TABLES));
             table_remove_duplicated_entries_checkbox.set_checked(settings_bool(TABLE_REMOVE_DUPLICATED_ENTRIES));
@@ -3447,10 +3414,18 @@ impl AppUI {
         db_optimize_datacored_tables_checkbox.set_visible(false);
         db_optimize_datacored_tables_label.set_visible(false);
 
+        // Disable the compression checkbox if the active game doesn't support any compression format.
+        if GAME_SELECTED.read().unwrap().compression_formats_supported().is_empty() {
+            pack_apply_compression_checkbox.set_checked(false);
+            pack_apply_compression_checkbox.set_enabled(false);
+            pack_apply_compression_label.set_enabled(false);
+        }
+
         button_box.button(StandardButton::Ok).released().connect(dialog.slot_accept());
 
         if dialog.exec() == 1 {
             let _ = settings_set_bool(PACK_REMOVE_ITM_FILES, pack_remove_itm_files_checkbox.is_checked());
+            let _ = settings_set_bool(PACK_APPLY_COMPRESSION, pack_apply_compression_checkbox.is_checked());
             let _ = settings_set_bool(DB_IMPORT_DATACORES_INTO_TWAD_KEY_DELETES, db_import_datacores_into_twad_key_deletes_checkbox.is_checked());
             let _ = settings_set_bool(DB_OPTIMIZE_DATACORED_TABLES, db_optimize_datacored_tables_checkbox.is_checked());
             let _ = settings_set_bool(TABLE_REMOVE_DUPLICATED_ENTRIES, table_remove_duplicated_entries_checkbox.is_checked());
@@ -3469,7 +3444,9 @@ impl AppUI {
             AppUI::purge_them_all(app_ui, pack_file_contents_ui, true)?;
             GlobalSearchUI::clear(global_search_ui);
 
-            let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+            let pack_key = target_pack_key
+                .or_else(|| pack_file_contents_ui.pack_key_from_selection_or_first())
+                .unwrap_or_default();
             let options = optimizer_options();
             let (response_1, response_2) = send_ipc_command_result_async(Command::OptimizePackFile(pack_key.clone(), options), response_extractor!(Response::HashSetStringHashSetString, v1, v2))?;
             let response_1 = response_1.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<ContainerPath>>();
@@ -3480,6 +3457,7 @@ impl AppUI {
             Ok(Some(()))
         } else {
             let _ = settings_set_bool(PACK_REMOVE_ITM_FILES, pack_remove_itm_files_checkbox.is_checked());
+            let _ = settings_set_bool(PACK_APPLY_COMPRESSION, pack_apply_compression_checkbox.is_checked());
             let _ = settings_set_bool(DB_IMPORT_DATACORES_INTO_TWAD_KEY_DELETES, db_import_datacores_into_twad_key_deletes_checkbox.is_checked());
             let _ = settings_set_bool(DB_OPTIMIZE_DATACORED_TABLES, db_optimize_datacored_tables_checkbox.is_checked());
             let _ = settings_set_bool(TABLE_REMOVE_DUPLICATED_ENTRIES, table_remove_duplicated_entries_checkbox.is_checked());

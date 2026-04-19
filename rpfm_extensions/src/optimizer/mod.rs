@@ -21,6 +21,11 @@
 //!
 //! - **ITM File Removal**: Remove files that are byte-for-byte identical to
 //!   vanilla game files. These provide no benefit and can cause conflicts.
+//! - **Apply Compression**: Turn on the pack's `compress` flag using the
+//!   most modern compression format the active game supports (overriding
+//!   whatever the pack had configured), so the next save actually compresses
+//!   the files. No-op if the game supports no compression formats. Intended
+//!   as a final step before release on a pack you've been editing uncompressed.
 //!
 //! ## Table Optimizations (DB/Loc)
 //!
@@ -163,6 +168,12 @@ pub struct OptimizerOptions {
     /// Allow the optimizer to remove files unchanged from vanilla, reducing the pack size.
     pack_remove_itm_files: bool,
 
+    /// Allow the optimizer to apply the most modern compression format the active game supports, so the next save compresses the files.
+    ///
+    /// Overrides whatever format the pack had configured. Intended as a final step before release on a pack
+    /// that's been edited uncompressed. No-op if the active game supports no compression formats.
+    pack_apply_compression: bool,
+
     /// Allows the optimizer to update the twad_key_deletes table using the data cored tables in your pack to guess the keys.
     ///
     /// IT DOESN'T DELETE THE DATACORED TABLES.
@@ -224,6 +235,7 @@ impl Default for OptimizerOptions {
     fn default() -> Self {
         Self {
             pack_remove_itm_files: true,
+            pack_apply_compression: true,
             db_import_datacores_into_twad_key_deletes: false,
             db_optimize_datacored_tables: false,
             table_remove_duplicated_entries: true,
@@ -266,6 +278,7 @@ impl OptimizableContainer for Pack {
     ///     - Removal of empty Portrait Settings files.
     /// - Pack:
     ///     - Remove files identical to parent/vanilla.
+    ///     - Apply the most modern compression format the active game supports, so the next save compresses the files.
     fn optimize(&mut self,
         paths_to_optimize: Option<Vec<ContainerPath>>,
         dependencies: &mut Dependencies,
@@ -451,6 +464,13 @@ impl OptimizableContainer for Pack {
 
         // Delete all the files marked for deletion.
         files_to_delete.iter().for_each(|x| { self.remove(&ContainerPath::File(x.to_owned())); });
+
+        // Apply the most modern compression format the game supports, overriding whatever the pack had set.
+        // `set_compression_format` handles the "no formats supported" case (falls back to None → compress=false).
+        if options.pack_apply_compression {
+            let cf = game.compression_formats_supported().first().cloned().unwrap_or_default();
+            self.set_compression_format(cf, game);
+        }
 
         // Return the deleted files, so the caller can know what got removed.
         Ok((files_to_delete, files_to_add))

@@ -82,6 +82,7 @@ pub unsafe fn set_connections(ui: &PackFileContentsUI, slots: &PackFileContentsS
 
     ui.context_menu_save_pack.triggered().connect(&slots.context_menu_save_pack);
     ui.context_menu_save_pack_as.triggered().connect(&slots.context_menu_save_pack_as);
+    ui.context_menu_save_pack_for_release.triggered().connect(&slots.context_menu_save_pack_for_release);
     ui.context_menu_close_pack.triggered().connect(&slots.context_menu_close_pack);
 
     ui.context_menu_install.triggered().connect(&slots.context_menu_install);

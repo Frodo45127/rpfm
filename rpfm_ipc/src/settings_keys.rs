@@ -95,6 +95,7 @@ pub const DEEPL_API_KEY: &str = "deepl_api_key";
 
 // Optimizer settings.
 pub const PACK_REMOVE_ITM_FILES: &str = "pack_remove_itm_files";
+pub const PACK_APPLY_COMPRESSION: &str = "pack_apply_compression";
 pub const DB_IMPORT_DATACORES_INTO_TWAD_KEY_DELETES: &str = "db_import_datacores_into_twad_key_deletes";
 pub const DB_OPTIMIZE_DATACORED_TABLES: &str = "db_optimize_datacored_tables";
 pub const TABLE_REMOVE_DUPLICATED_ENTRIES: &str = "table_remove_duplicated_entries";
