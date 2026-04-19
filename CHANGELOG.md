@@ -22,6 +22,9 @@ If you're looking for the changes included in the latest beta (against the lates
 - Implemented welcome page.
 - Implemented `Delete Filtered Out Rows` action for portrait settings list.
 - Implmeneted support for editing GroupFormation files for all games after Rome 2 except Warhammer 1 and 2 (thanks Alex Zhao for the research).
+- Added `Compress Pack` as an optimizer option.
+- Implemented `Import/Export All MyMod` feature.
+- Implemented new settings to toggle off telemetry and crash reports.
 
 ### Changed
 - Decoupled UI from Backend into RPFM UI and RPFM Server.
@@ -32,6 +35,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Moved a lot of actions around in menus to more natural places.
 - Migrated UI to Qt6.
 - Refactored settings dialog.
+- Save For Release now shows the optimizer dialog, so you can configure it.
 
 ### Removed
 - Removed cli tool. If you use it, consider migrating to the new RPFM Server.
@@ -49,6 +53,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Fixed some particular dds files not being readable.
 - Fixed save as dialog not having a translated title.
 - Fixed `Generate Missing Locs` not generating short descriptions for building culture variants.
+- Fixed target warning on compilation.
 
 ## [4.7.4]
 ### Added
