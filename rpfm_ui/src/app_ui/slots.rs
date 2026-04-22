@@ -545,9 +545,14 @@ impl AppUISlots {
                                 }
 
                                 // Rebuild the tree view from the new session's pack file data.
-                                let mut build_data = BuildData::new();
-                                build_data.editable = true;
-                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile, "");
+                                // Enumerate the packs the new session has open and append a tree entry per pack.
+                                let pack_list = send_ipc_command(Command::ListOpenPacks, response_extractor!(Response::VecStringContainerInfo));
+                                for (pack_key, _) in &pack_list {
+                                    let mut build_data = BuildData::new();
+                                    build_data.editable = true;
+                                    build_data.pack_key = Some(pack_key.clone());
+                                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::AddPack(build_data), DataSource::PackFile, pack_key);
+                                }
                                 global_search_ui.update_pack_sources(&pack_file_contents_ui);
 
                                 // Re-enable the main window.

@@ -34,7 +34,7 @@ use rpfm_ui_common::utils::create_grid_layout;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
-use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR, send_ipc_command_async, send_ipc_command_result, send_ipc_command_result_async};
+use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR, send_ipc_command_result, send_ipc_command_result_async};
 use crate::ffi::get_text_safe;
 use crate::pack_tree::*;
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -428,7 +428,9 @@ impl FileView {
                         };
 
                         // Save the PackedFile, and trigger the stuff that needs to be triggered after a save.
-                        send_ipc_command_async(Command::SavePackedFileFromView(self.pack_key_copy(), self.path_copy(), data), response_extractor!());
+                        if let Err(error) = send_ipc_command_result_async(Command::SavePackedFileFromView(self.pack_key_copy(), self.path_copy(), data), response_extractor!()) {
+                            show_dialog(pack_file_contents_ui.packfile_contents_tree_view(), error, false);
+                        }
                         Ok(())
                     },
                     ViewType::External(view) => {

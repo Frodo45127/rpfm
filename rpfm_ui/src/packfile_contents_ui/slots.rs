@@ -668,30 +668,36 @@ impl PackFileContentsSlots {
                     pack_file_contents_ui.context_menu_mymod_delete.set_visible(is_mymod);
                     pack_file_contents_ui.context_menu_mymod_open_folder.set_visible(is_mymod);
 
-                    let (ui_data, _) = send_ipc_command(Command::GetPackFileDataForTreeView(pack_key), response_extractor!(Response::ContainerInfoVecRFileInfo));
-                    pack_file_contents_ui.context_menu_packfile_type_group.block_signals(true);
-                    match ui_data.pfh_file_type() {
-                        PFHFileType::Boot => pack_file_contents_ui.context_menu_packfile_type_boot.set_checked(true),
-                        PFHFileType::Release => pack_file_contents_ui.context_menu_packfile_type_release.set_checked(true),
-                        PFHFileType::Patch => pack_file_contents_ui.context_menu_packfile_type_patch.set_checked(true),
-                        PFHFileType::Mod => pack_file_contents_ui.context_menu_packfile_type_mod.set_checked(true),
-                        PFHFileType::Movie => pack_file_contents_ui.context_menu_packfile_type_movie.set_checked(true),
-                    }
-                    pack_file_contents_ui.context_menu_packfile_type_group.block_signals(false);
+                    // Skip the pack-specific state when the selection no longer maps to an open pack
+                    // (e.g. just-closed pack, stale selection after a save-as). A dialog here would be
+                    // noisy — the menu items stay at their previous state instead.
+                    if !pack_key.is_empty() {
+                        if let Ok((ui_data, _)) = send_ipc_command_result(Command::GetPackFileDataForTreeView(pack_key), response_extractor!(Response::ContainerInfoVecRFileInfo)) {
+                            pack_file_contents_ui.context_menu_packfile_type_group.block_signals(true);
+                            match ui_data.pfh_file_type() {
+                                PFHFileType::Boot => pack_file_contents_ui.context_menu_packfile_type_boot.set_checked(true),
+                                PFHFileType::Release => pack_file_contents_ui.context_menu_packfile_type_release.set_checked(true),
+                                PFHFileType::Patch => pack_file_contents_ui.context_menu_packfile_type_patch.set_checked(true),
+                                PFHFileType::Mod => pack_file_contents_ui.context_menu_packfile_type_mod.set_checked(true),
+                                PFHFileType::Movie => pack_file_contents_ui.context_menu_packfile_type_movie.set_checked(true),
+                            }
+                            pack_file_contents_ui.context_menu_packfile_type_group.block_signals(false);
 
-                    pack_file_contents_ui.context_menu_compression_group.block_signals(true);
-                    match ui_data.compress() {
-                        CompressionFormat::None => pack_file_contents_ui.context_menu_compression_none.set_checked(true),
-                        CompressionFormat::Lzma1 => pack_file_contents_ui.context_menu_compression_lzma1.set_checked(true),
-                        CompressionFormat::Lz4 => pack_file_contents_ui.context_menu_compression_lz4.set_checked(true),
-                        CompressionFormat::Zstd => pack_file_contents_ui.context_menu_compression_zstd.set_checked(true),
-                    }
-                    pack_file_contents_ui.context_menu_compression_group.block_signals(false);
+                            pack_file_contents_ui.context_menu_compression_group.block_signals(true);
+                            match ui_data.compress() {
+                                CompressionFormat::None => pack_file_contents_ui.context_menu_compression_none.set_checked(true),
+                                CompressionFormat::Lzma1 => pack_file_contents_ui.context_menu_compression_lzma1.set_checked(true),
+                                CompressionFormat::Lz4 => pack_file_contents_ui.context_menu_compression_lz4.set_checked(true),
+                                CompressionFormat::Zstd => pack_file_contents_ui.context_menu_compression_zstd.set_checked(true),
+                            }
+                            pack_file_contents_ui.context_menu_compression_group.block_signals(false);
 
-                    pack_file_contents_ui.context_menu_data_is_encrypted.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_ENCRYPTED_DATA));
-                    pack_file_contents_ui.context_menu_index_includes_timestamp.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS));
-                    pack_file_contents_ui.context_menu_index_is_encrypted.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_ENCRYPTED_INDEX));
-                    pack_file_contents_ui.context_menu_header_is_extended.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_EXTENDED_HEADER));
+                            pack_file_contents_ui.context_menu_data_is_encrypted.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_ENCRYPTED_DATA));
+                            pack_file_contents_ui.context_menu_index_includes_timestamp.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS));
+                            pack_file_contents_ui.context_menu_index_is_encrypted.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_ENCRYPTED_INDEX));
+                            pack_file_contents_ui.context_menu_header_is_extended.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_EXTENDED_HEADER));
+                        }
+                    }
                 } else {
                     pack_file_contents_ui.context_menu_save_pack.set_visible(false);
                     pack_file_contents_ui.context_menu_save_pack_as.set_visible(false);
@@ -2078,6 +2084,7 @@ impl PackFileContentsSlots {
                             Ok(pack_file_info) => {
                                 let mut build_data = BuildData::new();
                                 build_data.editable = true;
+                                build_data.pack_key = Some(pack_key.clone());
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile, &pack_key);
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile, &pack_key);
 
