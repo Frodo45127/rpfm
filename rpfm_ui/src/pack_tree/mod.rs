@@ -1724,12 +1724,18 @@ impl PackTree for QPtr<QTreeView> {
                                     }
                                 }
 
-                                // Get the times we must to go up until we reach the parent.
-                                let cycles = if !path.is_empty() { path.len() } else { 0 };
+                                // Walk up the tree marking ancestors pristine. Cycles must be the
+                                // path depth, not the byte length of the path string — the old
+                                // calculation walked past the root and derefed a null parent.
+                                let path_split = path.split('/').collect::<Vec<_>>();
+                                let cycles = if !path_split.is_empty() { path_split.len() - 1 } else { 0 };
                                 let mut parent = item.parent();
 
                                 // Unleash hell upon the land.
                                 for _ in 0..cycles {
+                                    if parent.is_null() || !parent.data_1a(ITEM_STATUS).is_valid() {
+                                        break;
+                                    }
 
                                     if !parent.data_1a(ITEM_IS_FOREVER_MODIFIED).to_bool() {
                                         if parent.data_1a(ITEM_STATUS).to_int_0a() != ITEM_STATUS_PRISTINE {
