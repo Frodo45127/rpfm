@@ -180,8 +180,7 @@ impl PackedFileDecoderView {
         let table_name = container_path.db_table_name_from_path()
             .ok_or_else(|| anyhow!("The decoder cannot be use for this file."))?;
 
-        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-        let mut data = Cursor::new(send_ipc_command_result(Command::GetPackedFileRawData(pack_key, path.to_owned()), response_extractor!(Response::VecU8))?);
+        let mut data = Cursor::new(send_ipc_command_result(Command::GetPackedFileRawData(file_view.pack_key_copy(), path.to_owned()), response_extractor!(Response::VecU8))?);
 
         // Create the hex view on the left side.
         let layout: QPtr<QGridLayout> = file_view.main_widget().layout().static_downcast();

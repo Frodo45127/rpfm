@@ -73,9 +73,7 @@ impl PackFileSettingsView {
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>
     ) -> Result<()> {
-
-        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-        let settings = send_ipc_command_result(Command::GetPackSettings(pack_key), response_extractor!(Response::PackSettings))?;
+        let settings = send_ipc_command_result(Command::GetPackSettings(pack_file_view.pack_key_copy()), response_extractor!(Response::PackSettings))?;
 
         let layout: QPtr<QGridLayout> = pack_file_view.main_widget().layout().static_downcast();
 

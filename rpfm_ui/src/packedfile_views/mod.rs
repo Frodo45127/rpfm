@@ -345,11 +345,10 @@ impl FileView {
                                     }
 
                                     // Save the new list and return Ok.
-                                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                                    let _ = CENTRAL_COMMAND.read().unwrap().send(Command::SetDependencyPackFilesList(pack_key.clone(), entries));
+                                    let _ = CENTRAL_COMMAND.read().unwrap().send(Command::SetDependencyPackFilesList(self.pack_key_copy(), entries));
 
                                     // Set the packfile as modified. This one is special, as this is a "simulated PackedFile", so we have to mark the PackFile manually.
-                                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::Folder(String::new())]), DataSource::PackFile, &pack_key);
+                                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::Folder(String::new())]), DataSource::PackFile, &self.pack_key_copy());
                                     UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
                                 }
                                 return Ok(())
@@ -359,8 +358,7 @@ impl FileView {
                             View::Image(_) => return Ok(()),
                             View::MatchedCombatDebug(_) => return Ok(()),
                             View::PackSettings(view) => {
-                                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                                let _ = CENTRAL_COMMAND.read().unwrap().send(Command::SetPackSettings(pack_key, view.save_view()));
+                                let _ = CENTRAL_COMMAND.read().unwrap().send(Command::SetPackSettings(self.pack_key_copy(), view.save_view()));
                                 return Ok(())
                             },
 
@@ -409,8 +407,7 @@ impl FileView {
                             View::UnitVariant(view) => RFileDecoded::UnitVariant(view.save_view()),
                             View::UnitVariantDebug(_) => return Ok(()),
                             View::Video(view) => {
-                                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                                send_ipc_command_result(Command::SetVideoFormat(pack_key, self.path_copy(), view.get_current_format()), response_extractor!())?;
+                                send_ipc_command_result(Command::SetVideoFormat(self.pack_key_copy(), self.path_copy(), view.get_current_format()), response_extractor!())?;
                                 return Ok(());
                             }
                             View::VMD(view) => {
@@ -431,13 +428,11 @@ impl FileView {
                         };
 
                         // Save the PackedFile, and trigger the stuff that needs to be triggered after a save.
-                        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                        send_ipc_command_async(Command::SavePackedFileFromView(pack_key, self.path_copy(), data), response_extractor!());
+                        send_ipc_command_async(Command::SavePackedFileFromView(self.pack_key_copy(), self.path_copy(), data), response_extractor!());
                         Ok(())
                     },
                     ViewType::External(view) => {
-                        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                        if let Err(error) = send_ipc_command_result_async(Command::SavePackedFileFromExternalView(pack_key, self.path_copy(), view.get_external_path()), response_extractor!()) {
+                        if let Err(error) = send_ipc_command_result_async(Command::SavePackedFileFromExternalView(self.pack_key_copy(), self.path_copy(), view.get_external_path()), response_extractor!()) {
                             show_dialog(pack_file_contents_ui.packfile_contents_tree_view(), error, false);
                         }
 
@@ -460,10 +455,10 @@ impl FileView {
     ) -> Result<()> {
 
         let data_source = self.data_source();
+        let pack_key = self.pack_key_copy();
         if data_source != DataSource::ExternalFile {
             match self.view_type_mut() {
                 ViewType::Internal(view) => {
-                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
                     let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::DecodePackedFile(pack_key.clone(), path.to_owned(), data_source));
                     let response = CentralCommand::recv(&receiver);
 
