@@ -97,21 +97,17 @@ pub struct Message<T: Debug> {
 ///
 /// A pack can either be in normal mode or in MyMod mode, which links it to
 /// a specific game folder and mod name for import/export operations.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub enum OperationalMode {
 
     /// MyMod mode enabled. Contains the game folder name (e.g. "warhammer_2") and the MyMod pack name.
     MyMod(String, String),
 
     /// Normal mode - no MyMod association.
+    #[default]
     Normal,
 }
 
-impl Default for OperationalMode {
-    fn default() -> Self {
-        Self::Normal
-    }
-}
 
 /// This enum defines the commands (messages) you can send to the background thread in order to execute actions.
 ///
