@@ -102,6 +102,24 @@ use crate::{error, info, warn};
 /// Current version of the crate from Cargo.toml.
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+/// Patch version of the current crate, parsed from `CARGO_PKG_VERSION_PATCH`.
+///
+/// rpfm uses the patch number as the beta marker: a value `>=` [`BETA_PATCH_THRESHOLD`]
+/// identifies a beta build (e.g. `4.7.106` is a beta, `4.7.0` is stable).
+const VERSION_PATCH: u64 = match u64::from_str_radix(env!("CARGO_PKG_VERSION_PATCH"), 10) {
+    Ok(v) => v,
+    Err(_) => panic!("CARGO_PKG_VERSION_PATCH is not a valid u64"),
+};
+
+/// Patch number at or above which a build is considered a beta release.
+const BETA_PATCH_THRESHOLD: u64 = 99;
+
+/// Sentry environment for stable releases.
+const SENTRY_ENV_PRODUCTION: &str = "production";
+
+/// Sentry environment for beta builds (patch `>=` [`BETA_PATCH_THRESHOLD`]).
+const SENTRY_ENV_BETA: &str = "beta";
+
 /// Sentry DSN (Data Source Name) for error reporting.
 ///
 /// This must be set before calling [`Logger::init()`] for Sentry integration to work.
@@ -308,8 +326,18 @@ impl Logger {
             if allowed { Some(event) } else { None }
         });
 
+        // Route beta builds into a separate Sentry environment so beta noise
+        // doesn't pollute production crash trends. rpfm marks betas by bumping
+        // the patch number to `>= BETA_PATCH_THRESHOLD` (e.g. 4.7.106).
+        let environment = if VERSION_PATCH >= BETA_PATCH_THRESHOLD {
+            Cow::Borrowed(SENTRY_ENV_BETA)
+        } else {
+            Cow::Borrowed(SENTRY_ENV_PRODUCTION)
+        };
+
         let client_options = ClientOptions {
             release: release.clone(),
+            environment: Some(environment),
             sample_rate: 0.3,
             traces_sample_rate: 0.3,
             enable_logs: true,
