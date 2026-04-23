@@ -15,6 +15,9 @@ members = [
     "rpfm_ui",
 ]
 
+# Fix clippy trying to compile ritual.
+exclude = ["3rdparty"]
+
 [workspace.package]
 version = "4.7.106"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
