@@ -36,6 +36,66 @@ extern "C" void trigger_tableview_filter(
     filter2->variant_to_search = variant_to_search;
     filter2->show_edited_cells = show_edited_cells;
     filter2->flagged_row_roles = flagged_row_roles;
+
+    // Precompute the per-match caches so `filterAcceptsRow` runs in constant
+    // time per row relative to the match count instead of recompiling regexes
+    // and rebuilding QLists/QMaps for every source row.
+    filter2->cached_regex.clear();
+    filter2->cached_variants.clear();
+    filter2->cached_groups.clear();
+
+    int match_count = filter2->patterns.count();
+    filter2->cached_regex.reserve(match_count);
+    filter2->cached_variants.reserve(match_count);
+
+    for (int i = 0; i < match_count; ++i) {
+
+        // Precompile the regex once per match. If this match ends up in a
+        // non-regex branch at runtime the cached entry is simply never read.
+        QRegularExpression::PatternOptions opts = QRegularExpression::PatternOptions();
+        Qt::CaseSensitivity cs = static_cast<Qt::CaseSensitivity>(filter2->case_sensitive.value(i, 0));
+        if (cs == Qt::CaseInsensitive) {
+            opts |= QRegularExpression::CaseInsensitiveOption;
+        }
+
+        QString pattern = filter2->patterns.at(i);
+        bool is_regex = filter2->regex.value(i, 0) == 1;
+        bool is_not = filter2->nott.value(i, 0) == 1;
+
+        // Negated regex is implemented as a zero-width negative-lookahead
+        // wrapper. Non-regex negation flips the containment test at match
+        // time and must leave the pattern untouched.
+        if (is_regex && is_not) {
+            pattern = "^((?!" + pattern + ").)*$";
+        }
+        filter2->cached_regex.append(QRegularExpression(pattern, opts));
+
+        // Variants list per match (roles 2 / 40 / both).
+        QList<int> variants;
+        int variant = filter2->variant_to_search.value(i, 0);
+        if (variant == 0) {
+            variants.append(2);
+        } else if (variant == 1) {
+            variants.append(40);
+        } else {
+            variants.append(2);
+            variants.append(40);
+        }
+        filter2->cached_variants.append(variants);
+    }
+
+    // Group map from match indices, same priority as the old per-row build:
+    // all matches in a group must pass, any single group passing accepts the
+    // row.
+    for (int i = 0; i < filter2->match_groups_per_column.count(); ++i) {
+        int group = filter2->match_groups_per_column.at(i);
+        if (!filter2->cached_groups.contains(group)) {
+            filter2->cached_groups.insert(group, QList<int>{i});
+        } else {
+            filter2->cached_groups[group].append(i);
+        }
+    }
+
     filter2->setFilterKeyColumn(0);
 }
 
@@ -45,9 +105,11 @@ QTableViewSortFilterProxyModel::QTableViewSortFilterProxyModel(QObject *parent):
 // Function called when the filter changes.
 bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QModelIndex &source_parent) const {
 
+    // Hoisted once per row — the old code re-cast inside every match iteration.
+    QStandardItemModel* model = static_cast<QStandardItemModel*>(sourceModel());
+
     // If flag-based row filtering is enabled, check if any cell in the row has one of the selected flags.
     if (!flagged_row_roles.isEmpty()) {
-        QStandardItemModel* model = static_cast<QStandardItemModel*>(sourceModel());
         int col_count = model->columnCount(source_parent);
         bool has_flag = false;
 
@@ -75,153 +137,120 @@ bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMod
         return true;
     }
 
-    // First, split the matches in groups.
-    QMap<int, QList<int>> matches_per_group = QMap<int, QList<int>>();
-
-    // Initialize the groups so it doesn't explode later.
-    for (int i = 0; i < match_groups_per_column.count(); ++i) {
-        int group = match_groups_per_column.at(i);
-        if (!matches_per_group.contains(group)) {
-            auto vec = QList<int>();
-            vec.append(i);
-            matches_per_group.insert(group, vec);
-        } else {
-            matches_per_group[group].append(i);
-        }
-    }
-
     // Logic for groups:
     // - For a group to be valid, all matches on it must be valid (if one of them is not valid, the entire group is invalid).
     // - For a row to be valid, one of the group needs to be valid (we keep trying until we find a valid one).
-    // This means we have to check one group at a time, and if one of them is valid, the full row is valid.
-    for (const QList<int>& group: std::as_const(matches_per_group)) {
+    // The groups map itself is precomputed in `trigger_tableview_filter`.
+    for (const QList<int>& group: std::as_const(cached_groups)) {
         bool is_group_valid = true;
 
         // For each column, check if it's on the current group.
         for (int match: group) {
 
             // Ignore empty matches.
-            QString pattern = patterns.at(match);
+            const QString& pattern = patterns.at(match);
             if (pattern.isEmpty()) {
                 continue;
             }
 
             int column = columns.at(match);
-            bool use_regex = regex.at(match) == 1 ? true: false;
-            bool use_nott = nott.at(match) == 1 ? true: false;
+            bool use_regex = regex.at(match) == 1;
+            bool use_nott = nott.at(match) == 1;
             Qt::CaseSensitivity case_sensitivity = static_cast<Qt::CaseSensitivity>(case_sensitive.at(match));
-            bool show_blank_cells_in_column = show_blank_cells.at(match) == 1 ? true: false;
-            bool show_edited_cells_in_column = show_edited_cells.at(match) == 1 ? true: false;
+            bool show_blank_cells_in_column = show_blank_cells.at(match) == 1;
+            bool show_edited_cells_in_column = show_edited_cells.at(match) == 1;
 
-            QList<int>* variants = new QList<int>();
-            if (variant_to_search.at(match) == 0) {
-                variants->append(2);
-            } else if (variant_to_search.at(match) == 1) {
-                variants->append(40);
-            } else {
-                variants->append(2);
-                variants->append(40);
+            // Precomputed in `trigger_tableview_filter` — no per-row heap alloc
+            // (the old code called `new QList<int>()` here and leaked it).
+            const QList<int>& variants = cached_variants.at(match);
+
+            QModelIndex currntIndex = model->index(source_row, column, source_parent);
+            if (!currntIndex.isValid()) {
+                continue;
             }
 
-            QModelIndex currntIndex = sourceModel()->index(source_row, column, source_parent);
-            QStandardItem *currntData = static_cast<QStandardItemModel*>(sourceModel())->itemFromIndex(currntIndex);
+            QStandardItem *currntData = model->itemFromIndex(currntIndex);
 
-            QVariant isModifiedFromVanillaVariant = currntData->data(24);
-            bool isModifiedFromVanilla = !isModifiedFromVanillaVariant.isNull() ? isModifiedFromVanillaVariant.toBool(): false;
-
-            if (currntIndex.isValid()) {
-
-                // If the variant is modified and we want to show modified cells, we let it pass the filters.
-                if (show_edited_cells_in_column && isModifiedFromVanilla) {
+            // Only fetch role 24 when the flag that actually consults it is on.
+            // The old code fetched this for every row regardless.
+            if (show_edited_cells_in_column) {
+                QVariant modifiedVariant = currntData->data(24);
+                if (!modifiedVariant.isNull() && modifiedVariant.toBool()) {
                     continue;
                 }
+            }
 
-                // Checkbox matches.
-                //
-                // NOTE: isCheckable is broken if the cell is not editable.
-                else if (currntData->data(Qt::CheckStateRole).isValid()) {
-                    QString pattern_lower = pattern.toLower();
-                    bool isChecked = currntData->checkState() == Qt::CheckState::Checked;
+            // Checkbox matches.
+            //
+            // NOTE: isCheckable is broken if the cell is not editable.
+            if (currntData->data(Qt::CheckStateRole).isValid()) {
+                QString pattern_lower = pattern.toLower();
+                bool isChecked = currntData->checkState() == Qt::CheckState::Checked;
 
-                    if (use_nott) {
-                        isChecked = !isChecked;
+                if (use_nott) {
+                    isChecked = !isChecked;
+                }
+
+                if (
+                    ((pattern_lower == "true" || pattern_lower == "1") && !isChecked) ||
+                    ((pattern_lower == "false" || pattern_lower == "0") && isChecked)) {
+                    is_group_valid = false;
+                    break;
+                }
+            }
+
+            // In case of text, if it's empty we let it pass the filters.
+            else if (show_blank_cells_in_column && currntData->data(2).toString().isEmpty()) {
+                continue;
+            }
+
+            // Text matches via the cached, pre-compiled regex. The `use_nott`
+            // regex-wrapping transformation was also baked in at cache time.
+            else if (use_regex) {
+                const QRegularExpression& re = cached_regex.at(match);
+                if (re.isValid()) {
+                    for (int v : variants) {
+                        QRegularExpressionMatch m = re.match(currntData->data(v).toString());
+                        if (!m.hasMatch()) {
+                            is_group_valid = false;
+                            break;
+                        }
                     }
 
-                    if (
-                        ((pattern_lower == "true" || pattern_lower == "1") && !isChecked) ||
-                        ((pattern_lower == "false" || pattern_lower == "0") && isChecked)) {
-                        is_group_valid = false;
+                    if (!is_group_valid) {
                         break;
                     }
                 }
-
-                // In case of text, if it's empty we let it pass the filters.
-                else if (show_blank_cells_in_column && currntData->data(2).toString().isEmpty()) {
-                    continue;
-                }
-
-                // Float matches.
-                // We need to do special stuff so they match against the formatted number, not against the unformatted one.
-                //else if (currntData.data(2).toFloat(conversion_ok)) {
-
-                //}
-
-                // Text matches.
-                else if (use_regex) {
-                    if (use_nott) {
-                        pattern = "^((?!" + pattern + ").)*$";
-                    }
-
-                    QRegularExpression::PatternOptions options = QRegularExpression::PatternOptions();
-                    if (case_sensitivity == Qt::CaseSensitivity::CaseInsensitive) {
-                        options |= QRegularExpression::CaseInsensitiveOption;
-                    }
-
-                    QRegularExpression regex(pattern, options);
-                    if (regex.isValid()) {
-                        for (int f = 0; f < variants->count(); ++f) {
-                            QRegularExpressionMatch match = regex.match(currntData->data(variants->at(f)).toString());
-                            if (!match.hasMatch()) {
-                                is_group_valid = false;
-                                break;
-                            }
-                        }
-
-                        if (!is_group_valid) {
+            }
+            else {
+                if (use_nott) {
+                    for (int v : variants) {
+                        if (currntData->data(v).toString().contains(pattern, case_sensitivity)) {
+                            is_group_valid = false;
                             break;
                         }
                     }
-                }
-                else {
-                    if (use_nott) {
-                        for (int f = 0; f < variants->count(); ++f) {
-                            if (currntData->data(variants->at(f)).toString().contains(pattern, case_sensitivity)) {
-                                is_group_valid = false;
-                                break;
-                            }
-                        }
 
-                        if (!is_group_valid) {
+                    if (!is_group_valid) {
+                        break;
+                    }
+                } else {
+                    for (int v : variants) {
+                        if (!currntData->data(v).toString().contains(pattern, case_sensitivity)) {
+                            is_group_valid = false;
                             break;
                         }
-                    } else {
-                        for (int f = 0; f < variants->count(); ++f) {
-                            if (!currntData->data(variants->at(f)).toString().contains(pattern, case_sensitivity)) {
-                                is_group_valid = false;
-                                break;
-                            }
-                        }
+                    }
 
-                        if (!is_group_valid) {
-                            break;
-                        }
+                    if (!is_group_valid) {
+                        break;
                     }
                 }
             }
         }
 
         if (is_group_valid) {
-            return is_group_valid;
+            return true;
         }
     }
 

@@ -5,6 +5,8 @@
 #include <QSortFilterProxyModel>
 #include <QStandardItem>
 #include <QList>
+#include <QMap>
+#include <QRegularExpression>
 #include <QStringList>
 
 extern "C" QSortFilterProxyModel* new_tableview_filter(QObject *parent = nullptr);
@@ -37,6 +39,11 @@ public:
     QList<int> variant_to_search;
     QList<int> show_edited_cells;
     QList<int> flagged_row_roles;
+
+    // Caches shared accross all row filter operations.
+    QList<QRegularExpression> cached_regex;
+    QList<QList<int>> cached_variants;
+    QMap<int, QList<int>> cached_groups;
 
     explicit QTableViewSortFilterProxyModel(QObject *parent = nullptr);
     bool filterAcceptsRow(int source_row, const QModelIndex & source_parent) const;
