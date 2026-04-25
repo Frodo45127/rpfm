@@ -1150,6 +1150,40 @@ impl Dependencies {
         Err(RLibError::DependenciesCacheFileNotFound(file_path.to_owned()))
     }
 
+    /// Batch variant of [`Dependencies::file_mut`] that returns one `&mut RFile` per matching path.
+    pub fn files_mut_by_paths(
+        &mut self,
+        paths: &HashSet<String>,
+        include_vanilla: bool,
+        include_parent: bool,
+    ) -> HashMap<String, &mut RFile> {
+        let mut result: HashMap<String, &mut RFile> = HashMap::with_capacity(paths.len());
+
+        if include_parent {
+            for (k, v) in self.parent_files.iter_mut() {
+                if paths.contains(k) {
+                    result.insert(k.clone(), v);
+                }
+            }
+        }
+
+        if include_vanilla {
+            for (k, v) in self.vanilla_files.iter_mut() {
+                if paths.contains(k) && !result.contains_key(k) {
+                    result.insert(k.clone(), v);
+                }
+            }
+
+            for (k, v) in self.vanilla_loose_files.iter_mut() {
+                if paths.contains(k) && !result.contains_key(k) {
+                    result.insert(k.clone(), v);
+                }
+            }
+        }
+
+        result
+    }
+
     /// This function returns a reference to all files corresponding to the provided paths.
     pub fn files_by_path(&self, file_paths: &[ContainerPath], include_vanilla: bool, include_parent: bool, case_insensitive: bool) -> HashMap<String, &RFile> {
         let (file_paths, folder_paths): (Vec<_>, Vec<_>) = file_paths.iter().partition_map(|file_path| match file_path {

@@ -11,11 +11,12 @@
 //! Module with the structs and functions specific for `Pack` diagnostics.
 
 use getset::{Getters, MutGetters};
+use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 
 use std::{fmt, fmt::Display};
 
-use rpfm_lib::files::{EncodeableExtraData, pack::Pack};
+use rpfm_lib::files::{EncodeableExtraData, pack::Pack, RFile};
 use rpfm_lib::utils::INVALID_CHARACTERS_WINDOWS;
 
 use crate::diagnostics::*;
@@ -107,9 +108,6 @@ impl PackDiagnostic {
         let mut diagnostics = Vec::new();
 
         let extra_data = Some(EncodeableExtraData::new_from_game_info(game));
-        let real_paths: Vec<String> = packs.values()
-            .flat_map(|pack| pack.paths().values().flatten().map(|x| x.to_string()).collect::<Vec<_>>())
-            .collect();
 
         for (key, pack) in packs.iter_mut() {
             let mut diagnostic = PackDiagnostic { pack: key.clone(), ..Default::default() };
@@ -163,27 +161,44 @@ impl PackDiagnostic {
                 diagnostic.results_mut().push(result);
             }
 
-            for path in &real_paths {
-                if let Some(rfile) = pack.file_mut(path, true) {
-                    if let Ok(dep_file) = dependencies.file_mut(path, true, true) {
+            // ITM / overwrite pass. The expensive bit is `data_hash` (encode /
+            // disk read), so we collect disjoint `&mut RFile` pairs and parallelise.
+            let candidate_paths: HashSet<String> = pack.files().keys()
+                .filter(|k| dependencies.file(k, true, true, false).is_ok())
+                .cloned()
+                .collect();
 
-                        let mut itm = false;
-                        if let Ok(local_hash) = rfile.data_hash(&extra_data) {
-                            if let Ok(dependency_hash) = dep_file.data_hash(&extra_data) {
-                                if local_hash == dependency_hash {
-                                    let result = PackDiagnosticReport::new(PackDiagnosticReportType::FileITM(rfile.path_in_container_raw().to_string()));
-                                    diagnostic.results_mut().push(result);
-                                    itm = true;
-                                }
-                            }
-                        }
+            if !candidate_paths.is_empty() {
 
-                        if !itm {
-                            let result = PackDiagnosticReport::new(PackDiagnosticReportType::FileOverwrite(rfile.path_in_container_raw().to_string()));
-                            diagnostic.results_mut().push(result);
-                        }
-                    }
-                }
+                // One-shot batch: `Dependencies::file_mut` in a loop would
+                // reborrow `&mut self` each call and invalidate prior refs.
+                let mut dep_files = dependencies.files_mut_by_paths(&candidate_paths, true, true);
+
+                // `HashMap::remove` moves the `&mut RFile` out so each pair
+                // owns two disjoint refs, safe to send across rayon workers.
+                let pairs: Vec<(&mut RFile, &mut RFile)> = pack.files_mut().iter_mut()
+                    .filter_map(|(k, pack_rfile)| {
+                        dep_files.remove(k).map(|dep_rfile| (pack_rfile, dep_rfile))
+                    })
+                    .collect();
+
+                // Parallel hash + compare. Each worker owns a disjoint pair so
+                // the two `data_hash` calls can run concurrently with the rest.
+                let reports: Vec<PackDiagnosticReport> = pairs.into_par_iter()
+                    .filter_map(|(rfile, dep_file)| {
+                        let local_hash = rfile.data_hash(&extra_data).ok()?;
+                        let dependency_hash = dep_file.data_hash(&extra_data).ok()?;
+                        let path = rfile.path_in_container_raw().to_string();
+                        let report_type = if local_hash == dependency_hash {
+                            PackDiagnosticReportType::FileITM(path)
+                        } else {
+                            PackDiagnosticReportType::FileOverwrite(path)
+                        };
+                        Some(PackDiagnosticReport::new(report_type))
+                    })
+                    .collect();
+
+                diagnostic.results_mut().extend(reports);
             }
 
             if !diagnostic.results().is_empty() {
