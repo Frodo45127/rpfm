@@ -155,14 +155,6 @@ pub struct AppUI {
     message_widget: QPtr<QWidget>,
 
     //-------------------------------------------------------------------------------//
-    // Status bar stuff.
-    //-------------------------------------------------------------------------------//
-    discord_button: QBox<QPushButton>,
-    github_button: QBox<QPushButton>,
-    patreon_button: QBox<QPushButton>,
-    manual_button: QBox<QPushButton>,
-
-    //-------------------------------------------------------------------------------//
     // `MenuBar` menus.
     //-------------------------------------------------------------------------------//
     menu_bar_packfile: QPtr<QMenu>,
@@ -341,34 +333,6 @@ impl AppUI {
         layout.add_widget_5a(welcome_page_ui.welcome_widget(), 0, 0, 1, 1);
         tab_bar_packed_file.hide();
         welcome_page_ui.welcome_widget().show();
-
-        let github_button = QPushButton::from_q_widget(&status_bar);
-        github_button.set_flat(true);
-        github_button.set_tool_tip(&qtr("github_link"));
-        if is_dark_theme() {
-            github_button.set_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/github.svg", ASSETS_PATH.to_string_lossy()))));
-        } else {
-            github_button.set_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/github-dark.svg", ASSETS_PATH.to_string_lossy()))));
-        }
-        status_bar.add_permanent_widget_1a(&github_button);
-
-        let manual_button = QPushButton::from_q_widget(&status_bar);
-        manual_button.set_flat(true);
-        manual_button.set_tool_tip(&qtr("open_manual"));
-        manual_button.set_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/manual_icon.png", ASSETS_PATH.to_string_lossy()))));
-        status_bar.add_permanent_widget_1a(&manual_button);
-
-        let discord_button = QPushButton::from_q_widget(&status_bar);
-        discord_button.set_flat(true);
-        discord_button.set_tool_tip(&qtr("discord_link"));
-        discord_button.set_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/discord.svg", ASSETS_PATH.to_string_lossy()))));
-        status_bar.add_permanent_widget_1a(&discord_button);
-
-        let patreon_button = QPushButton::from_q_widget(&status_bar);
-        patreon_button.set_flat(true);
-        patreon_button.set_tool_tip(&qtr("patreon_link"));
-        patreon_button.set_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/patreon.png", ASSETS_PATH.to_string_lossy()))));
-        status_bar.add_permanent_widget_1a(&patreon_button);
 
         STATUS_BAR.store(status_bar.as_mut_raw_ptr(), Ordering::SeqCst);
 
@@ -654,14 +618,6 @@ impl AppUI {
             welcome_page_ui,
             shortcuts,
             message_widget,
-
-            //-------------------------------------------------------------------------------//
-            // Status bar stuff.
-            //-------------------------------------------------------------------------------//
-            discord_button,
-            github_button,
-            patreon_button,
-            manual_button,
 
             //-------------------------------------------------------------------------------//
             // `MenuBar` menus.

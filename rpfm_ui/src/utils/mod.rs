@@ -335,7 +335,6 @@ pub unsafe fn reload_theme(app_ui: &AppUI) {
     } else {
         QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/github-dark.svg", ASSETS_PATH.to_string_lossy())))
     };
-    app_ui.github_button().set_icon(&github_icon);
     app_ui.welcome_page_ui().github_button().set_icon(&github_icon);
 
     // Re-apply diagnostic filter button colors for the current theme.
