@@ -8,6 +8,7 @@
 #include <QIcon>
 #include <QMimeData>
 #include <QResource>
+#include <QStatusBar>
 
 // Must be called before QApplication is created. Sets up KIconTheme so that the
 // KIconEnginePlugin is discovered and icons are palette-recolored on dark themes.
@@ -23,7 +24,11 @@ extern "C" QMainWindow* new_q_main_window_custom(bool (*are_you_sure) (QMainWind
 QMainWindowCustom::QMainWindowCustom(QWidget *parent, bool (*are_you_sure_fn) (QMainWindow* main_window, bool is_delete_my_mod, bool is_full_close), bool is_dark_theme_enabled) : QMainWindow(parent) {
     are_you_sure = are_you_sure_fn;
     dark_theme_enabled = is_dark_theme_enabled;
-    busyIndicator = new KBusyIndicatorWidget(this);
+
+    busyIndicator = new KBusyIndicatorWidget();
+    busyIndicator->setFixedSize(16, 16);
+    statusBar()->addPermanentWidget(busyIndicator);
+    busyIndicator->hide();
 
     setAcceptDrops(true);
 
@@ -45,13 +50,6 @@ void QMainWindowCustom::closeEvent(QCloseEvent *event) {
     if (are_you_sure(this, false, true)) {
         event->accept();
     }
-}
-
-void QMainWindowCustom::moveEvent(QMoveEvent* event) {
-    Q_UNUSED(event);
-
-    const QPoint center = rect().center();
-    busyIndicator->move(center.x() - busyIndicator->width() / 2, center.y() - busyIndicator->height() / 2);
 }
 
 void QMainWindowCustom::changeEvent(QEvent* event) {

@@ -3,7 +3,6 @@
 
 #include <QMainWindow>
 #include <QCloseEvent>
-#include <QMoveEvent>
 #include <QEvent>
 #include <QMessageBox>
 #include <KBusyIndicatorWidget>
@@ -16,7 +15,6 @@ class QMainWindowCustom : public QMainWindow
 public:
     explicit QMainWindowCustom(QWidget *parent = nullptr, bool (*are_you_sure)(QMainWindow* main_window, bool is_delete_my_mod, bool is_full_close) = nullptr, bool is_dark_theme_enabled = false);
     void closeEvent(QCloseEvent *event) override;
-    void moveEvent(QMoveEvent *event) override;
     void changeEvent(QEvent *event) override;
 
 private:
