@@ -159,9 +159,6 @@ bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMod
             Qt::CaseSensitivity case_sensitivity = static_cast<Qt::CaseSensitivity>(case_sensitive.at(match));
             bool show_blank_cells_in_column = show_blank_cells.at(match) == 1;
             bool show_edited_cells_in_column = show_edited_cells.at(match) == 1;
-
-            // Precomputed in `trigger_tableview_filter` — no per-row heap alloc
-            // (the old code called `new QList<int>()` here and leaked it).
             const QList<int>& variants = cached_variants.at(match);
 
             QModelIndex currntIndex = model->index(source_row, column, source_parent);
@@ -172,7 +169,6 @@ bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMod
             QStandardItem *currntData = model->itemFromIndex(currntIndex);
 
             // Only fetch role 24 when the flag that actually consults it is on.
-            // The old code fetched this for every row regardless.
             if (show_edited_cells_in_column) {
                 QVariant modifiedVariant = currntData->data(24);
                 if (!modifiedVariant.isNull() && modifiedVariant.toBool()) {
@@ -204,8 +200,7 @@ bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMod
                 continue;
             }
 
-            // Text matches via the cached, pre-compiled regex. The `use_nott`
-            // regex-wrapping transformation was also baked in at cache time.
+            // Text matches via the cached, pre-compiled regex.
             else if (use_regex) {
                 const QRegularExpression& re = cached_regex.at(match);
                 if (re.isValid()) {
