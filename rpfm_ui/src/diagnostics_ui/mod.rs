@@ -975,16 +975,14 @@ impl DiagnosticsUI {
                 .flatten()
                 .collect::<Vec<_>>();
 
-            for (index, row) in rows.iter().enumerate() {
-
-                // Unlock the model before the last insertion.
-                if index == rows.len() - 1 {
-                    diagnostics_ui.diagnostics_table_model.block_signals(false);
-                }
-
+            for row in rows.iter() {
                 diagnostics_ui.diagnostics_table_model.append_row_q_list_of_q_standard_item(ref_from_atomic(row));
-
             }
+
+            // Unblock signals now that every row is in place, and invalidate the filter to
+            // force it to re-query the source from scratch.
+            diagnostics_ui.diagnostics_table_model.block_signals(false);
+            diagnostics_ui.diagnostics_table_filter.invalidate();
 
             // After that, check if the table is open, and paint the results into it.
             for diagnostic_type in diagnostics {
