@@ -186,7 +186,7 @@ fn main() {
 
     // Sentry client guard, so we can reuse it later on and keep it in scope for the entire duration of the program.
     *SENTRY_DSN.write().unwrap() = SENTRY_DSN_KEY.to_owned();
-    let guard = Logger::init(&PathBuf::from("."), true, false, release_name!()).expect("Failed to initialize logging system.");
+    let guard = Logger::init(&PathBuf::from("."), true, true, release_name!()).expect("Failed to initialize logging system.");
     if guard.is_enabled() {
         info!("Sentry logging support on RPFM_UI enabled. Starting...");
     } else {
