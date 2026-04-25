@@ -1,0 +1,49 @@
+# Drop this file at the root of your Qt project as `.clangd`.
+#
+# It assumes Qt Creator generated `compile_commands.json` into
+# `.qtc_clangd/` (the default for QtC's bundled clangd plugin).
+# We point clangd at that directory and strip the Qt-Creator-specific
+# flags clangd doesn't understand (`-nostdinc`, the wrapped-Qt include
+# path, `-fsyntax-only`, …).
+#
+# If your DB lives elsewhere (`build/`, `build-Debug/`, `cmake-build-debug/`),
+# change `CompilationDatabase` to that directory or just delete this whole
+# file — clangd auto-discovers `./compile_commands.json` and `./build/...`.
+
+CompileFlags:
+  # Where the compile_commands.json file lives, relative to this .clangd
+  CompilationDatabase: .qtc_clangd
+  Remove:
+    # Qt Creator wraps libc++/Qt headers in its own shim. Remove the wrap so
+    # clangd can use the real system + Qt headers.
+    - -nostdinc
+    - -nostdinc++
+    - -I/usr/share/qtcreator/cplusplus/wrappedQtHeaders*
+    # Qt Creator passes -fsyntax-only when probing — pointless for an LSP and
+    # produces noise.
+    - -fsyntax-only
+    # Compiler-only diagnostics that clangd doesn't understand.
+    - -Wno-documentation-unknown-command
+    - -Wno-unknown-warning-option
+    - -mno-direct-extern-access
+  Add:
+    # signals/slots/Q_OBJECT will sometimes parse before any Qt header has
+    # been seen; this make clangd tolerant of the unknown-attribute warning
+    # that Qt Creator's QT_ANNOTATE_FUNCTION expansion emits.
+    - -Wno-unknown-attributes
+    - -Wno-microsoft-enum-value
+
+Diagnostics:
+  Suppress:
+    # MOC-generated TUs are visited by clangd directly; the include set looks
+    # "unused" because the real includer is the moc_*.cpp file.
+    - unused-includes
+
+Index:
+  Background: Build
+  StandardLibrary: Yes
+
+InlayHints:
+  Enabled: Yes
+  ParameterNames: Yes
+  DeducedTypes: Yes
