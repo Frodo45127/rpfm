@@ -29,6 +29,15 @@ BUILD_DIR="$(mktemp -d)"
 echo "Building RPFM v${VERSION} for ${TARGET}..."
 echo "Build directory: ${BUILD_DIR}"
 
+# Load Sentry secrets from the repo-root .env (gitignored). Sourced before
+# `cargo build` so `option_env!` in rpfm_ui/rpfm_server picks up the DSNs and
+# bakes them into the binaries; reused below for the symbol upload step.
+if [ -f "$REPO_ROOT/.env" ]; then
+    set -a; . "$REPO_ROOT/.env"; set +a
+else
+    echo "Warning: .env not found at repo root; binaries will be built without Sentry DSNs."
+fi
+
 # Clean and rebuild qt_rpfm_extensions so stale artifacts are not reused.
 if [ -f "3rdparty/src/qt_rpfm_extensions/Makefile" ]; then
     make -C 3rdparty/src/qt_rpfm_extensions clean || true
@@ -38,6 +47,35 @@ fi
 cargo clean
 cargo build --release --bin rpfm_server
 cargo build --release --features "enable_tools" --bin rpfm_ui
+
+# Upload debug symbols to Sentry so stack traces in crash reports get
+# resolved to function names and source lines. UI and server live in
+# different Sentry projects, so each binary uploads under its own slug.
+if [ -n "${SENTRY_AUTH_TOKEN:-}" ]; then
+    if [ -n "${SENTRY_ORG:-}" ] && [ -n "${RPFM_UI_SENTRY_PROJECT:-}" ]; then
+        echo "Uploading rpfm_ui debug symbols to Sentry..."
+        sentry-cli debug-files upload \
+            --org "$SENTRY_ORG" \
+            --project "$RPFM_UI_SENTRY_PROJECT" \
+            --include-sources \
+            target/release/rpfm_ui
+    else
+        echo "Warning: SENTRY_ORG / RPFM_UI_SENTRY_PROJECT not set, skipping rpfm_ui symbol upload."
+    fi
+
+    if [ -n "${SENTRY_ORG:-}" ] && [ -n "${RPFM_SERVER_SENTRY_PROJECT:-}" ]; then
+        echo "Uploading rpfm_server debug symbols to Sentry..."
+        sentry-cli debug-files upload \
+            --org "$SENTRY_ORG" \
+            --project "$RPFM_SERVER_SENTRY_PROJECT" \
+            --include-sources \
+            target/release/rpfm_server
+    else
+        echo "Warning: SENTRY_ORG / RPFM_SERVER_SENTRY_PROJECT not set, skipping rpfm_server symbol upload."
+    fi
+else
+    echo "Warning: SENTRY_AUTH_TOKEN not set, skipping symbol upload."
+fi
 
 echo "Collecting assets..."
 

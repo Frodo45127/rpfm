@@ -2,6 +2,19 @@
 Set-Variable -Name "RPFM_PATH" -Value ((Get-Location).path)
 Set-Variable -Name "RPFM_VERSION" -Value (Select-String -Path Cargo.toml -Pattern '^version = \"(.*)\"$').Matches.Groups[1].value
 
+# Load Sentry secrets from the repo-root .env (gitignored). Loaded before
+# `cargo build` so `option_env!` in rpfm_ui/rpfm_server picks up the DSNs and
+# bakes them into the binaries; reused below for the symbol upload step.
+if (Test-Path "$RPFM_PATH\.env") {
+    Get-Content "$RPFM_PATH\.env" | ForEach-Object {
+        if ($_ -match '^\s*([^#=]+)\s*=\s*(.+)\s*$') {
+            [Environment]::SetEnvironmentVariable($matches[1].Trim(), $matches[2].Trim(), "Process")
+        }
+    }
+} else {
+    Write-Host "Warning: .env not found at repo root; binaries will be built without Sentry DSNs."
+}
+
 # Clean qt_rpfm_extensions so stale artifacts are not reused.
 if (Test-Path "$RPFM_PATH\3rdparty\src\qt_rpfm_extensions\Makefile") {
     Push-Location "$RPFM_PATH\3rdparty\src\qt_rpfm_extensions"
@@ -12,6 +25,37 @@ if (Test-Path "$RPFM_PATH\3rdparty\src\qt_rpfm_extensions\Makefile") {
 # Build the tools.
 cargo build --release --bin rpfm_server
 cargo build --release --features "enable_tools" --bin rpfm_ui
+
+# Upload debug symbols to Sentry so stack traces in crash reports get
+# resolved to function names and source lines. UI and server live in
+# different Sentry projects, so each binary uploads under its own slug.
+if ($env:SENTRY_AUTH_TOKEN) {
+    if ($env:SENTRY_ORG -and $env:RPFM_UI_SENTRY_PROJECT) {
+        Write-Host "Uploading rpfm_ui debug symbols to Sentry..."
+        sentry-cli debug-files upload `
+            --org $env:SENTRY_ORG `
+            --project $env:RPFM_UI_SENTRY_PROJECT `
+            --include-sources `
+            $RPFM_PATH\target\release\rpfm_ui.exe `
+            $RPFM_PATH\target\release\rpfm_ui.pdb
+    } else {
+        Write-Host "Warning: SENTRY_ORG / RPFM_UI_SENTRY_PROJECT not set, skipping rpfm_ui symbol upload."
+    }
+
+    if ($env:SENTRY_ORG -and $env:RPFM_SERVER_SENTRY_PROJECT) {
+        Write-Host "Uploading rpfm_server debug symbols to Sentry..."
+        sentry-cli debug-files upload `
+            --org $env:SENTRY_ORG `
+            --project $env:RPFM_SERVER_SENTRY_PROJECT `
+            --include-sources `
+            $RPFM_PATH\target\release\rpfm_server.exe `
+            $RPFM_PATH\target\release\rpfm_server.pdb
+    } else {
+        Write-Host "Warning: SENTRY_ORG / RPFM_SERVER_SENTRY_PROJECT not set, skipping rpfm_server symbol upload."
+    }
+} else {
+    Write-Host "Warning: SENTRY_AUTH_TOKEN not set, skipping symbol upload."
+}
 
 # Prepare the paths for the deployment.
 Set-Location I:\

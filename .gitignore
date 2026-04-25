@@ -128,6 +128,7 @@ missing_table_definitions.txt
 
 # Secret tokens.
 gh-token
+.env
 
 # New RPFM Config files. This one shouldn't be added either.
 settings.json

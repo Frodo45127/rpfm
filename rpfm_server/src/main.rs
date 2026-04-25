@@ -91,10 +91,10 @@ static GLOBAL: MiMalloc = MiMalloc;
 //-------------------------------------------------------------------------------//
 
 /// Sentry DSN used for crash reports and action telemetry.
-///
-/// Hard-coded to RPFM's project on `sentry.io`. Empty in debug builds via
-/// the `Logger::init` guard's behaviour.
-const SENTRY_DSN_KEY: &str = "https://ed9c0bdfc2bce3385cdabd643059f412@o152833.ingest.us.sentry.io/4510998756065280";
+const SENTRY_DSN_KEY: &str = match option_env!("RPFM_SERVER_SENTRY_DSN") {
+    Some(dsn) => dsn,
+    None => "",
+};
 
 /// Default IP address the HTTP server binds to (`127.0.0.1` / loopback).
 const DEFAULT_ADDRESS: [u8; 4] = [127, 0, 0, 1];

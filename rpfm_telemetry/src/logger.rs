@@ -304,7 +304,7 @@ impl Logger {
         }
 
         // Initialize Sentry's guard, for remote reporting. Only for release mode.
-        let dsn = if cfg!(debug_assertions) { String::new() } else { SENTRY_DSN.read().unwrap().to_string() };
+        let dsn = SENTRY_DSN.read().unwrap().to_string();
 
         // Gate every Sentry event on the user-facing toggles: usage-telemetry
         // events (tagged by `crate::flush`) honour `enable_usage_telemetry`,
