@@ -46,9 +46,11 @@ use qt_core::QVariant;
 
 use tokio::runtime::Runtime;
 
+use std::net::TcpStream;
 use std::path::PathBuf;
 use std::process::Command as SystemCommand;
 use std::sync::{Arc, atomic::{AtomicBool, AtomicPtr}, LazyLock, RwLock};
+use std::time::Duration;
 
 use rpfm_ipc::settings_keys::*;
 use rpfm_lib::games::{GameInfo, supported_games::{SupportedGames, KEY_WARHAMMER_3}};
@@ -254,29 +256,29 @@ fn main() {
 
 /// This function is used to spawn the rpfm_server process if it's not already running.
 fn spawn_server() {
-
-    // First, check if the server is already running.
-    if std::net::TcpStream::connect_timeout(&"127.0.0.1:45127".parse().unwrap(), std::time::Duration::from_millis(100)).is_ok() {
+    if TcpStream::connect_timeout(&"127.0.0.1:45127".parse().unwrap(), Duration::from_millis(100)).is_ok() {
         info!("rpfm_server already running. Skipping spawn.");
         return;
     }
 
-    if cfg!(debug_assertions) {
-        info!("Spawning rpfm_server in debug mode...");
-        let _ = SystemCommand::new("cargo")
-            .arg("build")
-            .arg("-p")
-            .arg("rpfm_server")
-            .output();
+    std::thread::spawn(|| {
+        if cfg!(debug_assertions) {
+            info!("Spawning rpfm_server in debug mode...");
+            let _ = SystemCommand::new("cargo")
+                .arg("build")
+                .arg("-p")
+                .arg("rpfm_server")
+                .output();
 
-        let _ = SystemCommand::new("target/debug/rpfm_server")
-            .spawn();
-    } else {
-        info!("Spawning rpfm_server in release mode...");
-        let mut path = std::env::current_exe().unwrap();
-        path.pop();
-        path.push("rpfm_server");
-        let _ = SystemCommand::new(path)
-            .spawn();
-    }
+            let _ = SystemCommand::new("target/debug/rpfm_server")
+                .spawn();
+        } else {
+            info!("Spawning rpfm_server in release mode...");
+            let mut path = std::env::current_exe().unwrap();
+            path.pop();
+            path.push("rpfm_server");
+            let _ = SystemCommand::new(path)
+                .spawn();
+        }
+    });
 }
