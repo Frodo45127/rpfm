@@ -16,6 +16,7 @@ use qt_core::QString;
 use qt_core::QVariant;
 
 use anyhow::Result;
+use directories::ProjectDirs;
 
 use std::cell::RefCell;
 use std::{collections::HashMap, path::{Path, PathBuf}};
@@ -28,32 +29,61 @@ use rpfm_ipc::settings_keys::*;
 use rpfm_lib::schema::{Definition, Schema};
 
 use crate::app_ui::AppUI;
-use crate::communications::{send_ipc_command, send_ipc_command_result};
+use crate::communications::{send_ipc_command, send_ipc_command_async, send_ipc_command_result, send_ipc_command_result_async};
 
 //-------------------------------------------------------------------------------//
 //                          Settings cache
 //-------------------------------------------------------------------------------//
 
+/// Filename of the on-disk settings JSON file the server writes.
+/// Mirrors `rpfm_server::settings::SETTINGS_FILE_NAME`.
+const SETTINGS_FILE_NAME: &str = "settings.json";
+
+/// `ProjectDirs` triple shared with the server so both processes resolve to
+/// the same config directory.
+const ORG_DOMAIN: &str = "com";
+const ORG_NAME: &str = "FrodoWazEre";
+const APP_NAME: &str = "rpfm";
+
 thread_local! {
-    static SETTINGS_CACHE: RefCell<Option<SettingsSnapshot>> = RefCell::new(None);
+    static SETTINGS_CACHE: RefCell<Option<SettingsSnapshot>> = const { RefCell::new(None) };
 }
 
-/// Ensures the cache is populated, fetching from the server if needed, then calls `f` with it.
+/// Returns the snapshot from the cache, or [`SettingsSnapshot::default`] when
+/// the cache hasn't been seeded yet.
 fn with_cache<T>(f: impl FnOnce(&SettingsSnapshot) -> T) -> T {
     SETTINGS_CACHE.with(|cache| {
         let mut borrow = cache.borrow_mut();
         if borrow.is_none() {
-            *borrow = Some(send_ipc_command(Command::SettingsGetAll, response_extractor!(Response::SettingsAll)));
+            *borrow = Some(SettingsSnapshot::default());
         }
         f(borrow.as_ref().unwrap())
     })
 }
 
-/// Invalidates the local settings cache, forcing a re-fetch on next read.
-pub fn invalidate_settings_cache() {
-    SETTINGS_CACHE.with(|cache| {
-        *cache.borrow_mut() = None;
-    });
+/// Resolve the on-disk settings file path, mirroring
+/// `rpfm_server::settings::config_path` so both processes hit the same JSON.
+fn settings_file_path() -> Option<PathBuf> {
+    let dir = if cfg!(debug_assertions) {
+        std::env::current_dir().ok()?
+    } else {
+        ProjectDirs::from(ORG_DOMAIN, ORG_NAME, APP_NAME)?.config_dir().to_path_buf()
+    };
+    Some(dir.join(SETTINGS_FILE_NAME))
+}
+
+/// Populate the settings cache from the on-disk JSON file the server persists.
+pub fn load_settings_cache_from_disk() {
+    let Some(path) = settings_file_path() else { return; };
+    let Ok(data) = std::fs::read(&path) else { return; };
+    let Ok(snapshot) = serde_json::from_slice::<SettingsSnapshot>(&data) else { return; };
+    SETTINGS_CACHE.with(|cache| { *cache.borrow_mut() = Some(snapshot); });
+}
+
+/// Replace the cached snapshot with the one from the server.
+pub fn load_settings_cache_from_server() {
+    let snapshot = send_ipc_command_async(Command::SettingsGetAll, response_extractor!(Response::SettingsAll));
+    SETTINGS_CACHE.with(|cache| { *cache.borrow_mut() = Some(snapshot); });
 }
 
 //-------------------------------------------------------------------------------//
@@ -201,7 +231,7 @@ pub fn settings_set_vec_string(key: &str, value: &[String]) -> Result<()> {
 
 /// Set a Vec<u8> setting on the server and update the local cache.
 pub fn settings_set_raw_data(key: &str, value: &[u8]) -> Result<()> {
-    send_ipc_command_result(Command::SettingsSetVecRaw(key.to_string(), value.to_vec()), response_extractor!())?;
+    send_ipc_command_result_async(Command::SettingsSetVecRaw(key.to_string(), value.to_vec()), response_extractor!())?;
     SETTINGS_CACHE.with(|cache| {
         if let Some(ref mut s) = *cache.borrow_mut() {
             s.raw_data.insert(key.to_owned(), value.to_vec());

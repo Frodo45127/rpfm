@@ -23,6 +23,8 @@ use qt_gui::QFont;
 use qt_gui::QIcon;
 
 use qt_core::QByteArray;
+use qt_core::QCoreApplication;
+use qt_core::q_event_loop::ProcessEventsFlag;
 use qt_core::QFlags;
 use qt_core::QString;
 use qt_core::WindowState;
@@ -112,8 +114,8 @@ pub struct GameSelectedIcons {
 /// Implementation of `UI`.
 impl UI {
 
-    /// This function initialize the entire `UI`.
-    pub unsafe fn new() -> Result<Self> {
+    /// Build every Qt widget, slot and connection without touching the WebSocket.
+    pub unsafe fn build_offline() -> Result<Self> {
         let app_ui = Rc::new(AppUI::new());
         let global_search_ui = Rc::new(GlobalSearchUI::new(app_ui.main_window())?);
         let pack_file_contents_ui = Rc::new(PackFileContentsUI::new(&app_ui)?);
@@ -121,7 +123,14 @@ impl UI {
         let dependencies_ui = Rc::new(DependenciesUI::new(&app_ui)?);
         let references_ui = Rc::new(ReferencesUI::new(app_ui.main_window())?);
 
-        AppUITempSlots::build(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui);
+        // Show the main-window skeleton as soon as it exists.
+        log_to_status_bar("Loading interface...");
+        app_ui.toggle_main_window(false);
+        app_ui.main_window().show();
+        QCoreApplication::process_events_q_flags_process_events_flag_int(
+            QFlags::from(ProcessEventsFlag::AllEvents),
+            100,
+        );
 
         let app_slots = AppUISlots::new(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, &dependencies_ui, &references_ui);
         let pack_file_contents_slots = PackFileContentsSlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui);
@@ -145,10 +154,8 @@ impl UI {
         diagnostics_ui::connections::set_connections(&diagnostics_ui, &diagnostics_slots);
         references_ui::connections::set_connections(&references_ui, &references_slots);
 
-        // Initialize settings. Ignore errors here, as we have no way to show them yet.
-        init_app_exclusive_settings(&app_ui);
-
-        // Apply last ui state.
+        // Apply last ui state. The settings cache is loaded from disk in
+        // `main()`, so these reads are non-blocking.
         app_ui.main_window().restore_geometry(&QByteArray::from_slice(&settings_raw_data(GEOMETRY)));
         app_ui.main_window().restore_state_1a(&QByteArray::from_slice(&settings_raw_data(WINDOW_STATE)));
 
@@ -160,16 +167,59 @@ impl UI {
 
         UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
 
-        // If we want the window to start maximized...
         if settings_bool(START_MAXIMIZED) {
             app_ui.main_window().set_window_state(QFlags::from(WindowState::WindowMaximized));
         }
 
         reload_theme(&app_ui);
 
-        // Show the Main Window...
-        app_ui.main_window().show();
-        log_to_status_bar("Initializing, please wait...");
+        // Clean up folders from previous updates while we wait for the
+        // WebSocket. Filesystem-only, no IPC dependency.
+        if !cfg!(debug_assertions) {
+            if let Ok(folders) = read_dir(&*PROGRAM_PATH) {
+                for folder in folders.flatten() {
+                    let folder_path = folder.path();
+                    if folder_path.is_dir() && folder_path.file_name().unwrap().to_string_lossy().starts_with("update") {
+                        let _ = remove_dir_all(&folder_path);
+                    }
+                }
+                info!("Update folders cleared.");
+            }
+        }
+
+        // Window's already shown and disabled (see top of function).
+        log_to_status_bar("Connecting to backend...");
+
+        Ok(Self {
+            app_ui,
+            _global_search_ui: global_search_ui,
+            _pack_file_contents_ui: pack_file_contents_ui,
+            _diagnostics_ui: diagnostics_ui,
+            _dependencies_ui: dependencies_ui
+        })
+    }
+
+    /// Run every initialisation step that needs the WebSocket to be alive.
+    pub unsafe fn finish_online_init(
+        app_ui: &Rc<AppUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
+        dependencies_ui: &Rc<DependenciesUI>,
+        references_ui: &Rc<ReferencesUI>,
+    ) {
+        // Load the settings cache from the server.
+        load_settings_cache_from_server();
+
+        // Now that the server has replied with telemetry settings, honour them.
+        rpfm_telemetry::set_usage_telemetry_enabled(settings_bool(ENABLE_USAGE_TELEMETRY));
+        rpfm_telemetry::set_crash_reports_enabled(settings_bool(ENABLE_CRASH_REPORTS));
+
+        // Initialize settings. Ignore errors here, as we have no way to show them yet.
+        init_app_exclusive_settings(app_ui);
+
+        // This is here because this needs the connection to be operative to work.
+        AppUITempSlots::build(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui);
 
         // Do not trigger the automatic game changed signal here, as that will trigger an expensive and useless dependency rebuild.
         info!("Setting initial Game Selected…");
@@ -194,7 +244,7 @@ impl UI {
             _ => app_ui.game_selected_warhammer_3().set_checked(true),
         }
 
-        AppUI::change_game_selected(&app_ui, &pack_file_contents_ui, &dependencies_ui, true, false);
+        AppUI::change_game_selected(app_ui, pack_file_contents_ui, dependencies_ui, true, false);
         info!("Initial Game Selected set to {}.", settings_string(DEFAULT_GAME));
 
         // We get all the Arguments provided when starting RPFM, just in case we passed it a path,
@@ -224,7 +274,7 @@ impl UI {
 
             if !paths.is_empty() {
                 info!("Directly opening Pack/s {paths:?}.");
-                if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &dependencies_ui, &paths, "", false) {
+                if let Err(error) = AppUI::open_packfile(app_ui, pack_file_contents_ui, global_search_ui, dependencies_ui, &paths, "", false) {
                     show_dialog(app_ui.main_window(), error, false);
 
                 } else {
@@ -233,32 +283,19 @@ impl UI {
                     if !rfiles.is_empty() {
                         for file in &rfiles {
                             let path = file.to_string_lossy().to_string();
-                            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, Some(path), false, false, DataSource::PackFile);
+                            AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path), false, false, DataSource::PackFile);
                         }
                     }
 
                     if settings_bool(DIAGNOSTICS_TRIGGER_ON_OPEN) {
-                        DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+                        DiagnosticsUI::check(app_ui, diagnostics_ui);
                     }
                 }
             }
         }
 
         // Check for updates, ignoring errors.
-        let _ = UpdaterUI::new_with_precheck(&app_ui);
-
-        // Clean up folders from previous updates, if they exist.
-        if !cfg!(debug_assertions) {
-            if let Ok(folders) = read_dir(&*PROGRAM_PATH) {
-                for folder in folders.flatten() {
-                    let folder_path = folder.path();
-                    if folder_path.is_dir() && folder_path.file_name().unwrap().to_string_lossy().starts_with("update") {
-                        let _ = remove_dir_all(&folder_path);
-                    }
-                }
-                info!("Update folders cleared.");
-            }
-        }
+        let _ = UpdaterUI::new_with_precheck(app_ui);
 
         // Show the "only for the brave" alert for specially unstable builds.
         #[cfg(feature = "only_for_the_brave")] {
@@ -280,14 +317,10 @@ impl UI {
             }
         }
 
+        // Re-enable input — the user can finally drive the app.
+        app_ui.toggle_main_window(true);
+        log_to_status_bar("Initialization complete.");
         info!("Initialization complete.");
-        Ok(Self {
-            app_ui,
-            _global_search_ui: global_search_ui,
-            _pack_file_contents_ui: pack_file_contents_ui,
-            _diagnostics_ui: diagnostics_ui,
-            _dependencies_ui: dependencies_ui
-        })
     }
 }
 

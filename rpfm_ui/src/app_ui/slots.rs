@@ -42,6 +42,8 @@ use qt_core::QVariant;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::sync::atomic::Ordering;
+use std::time::Instant;
 
 use rpfm_ipc::settings_keys::*;
 use rpfm_ipc::helpers::{ContainerInfo, DataSource};
@@ -55,7 +57,7 @@ use rpfm_ui_common::utils::{create_grid_layout, ref_from_atomic};
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
-use crate::communications::{THREADS_COMMUNICATION_ERROR, Command, Response, send_ipc_command, send_ipc_command_result, send_ipc_command_result_async, send_ipc_command_async};
+use crate::communications::{RECONNECT_COMPLETE, THREADS_COMMUNICATION_ERROR, Command, Response, send_ipc_command, send_ipc_command_result, send_ipc_command_result_async, send_ipc_command_async};
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::DISCORD_URL;
@@ -76,7 +78,7 @@ use crate::settings_ui::backend::*;
 use crate::settings_ui::SettingsUI;
 use crate::SUPPORTED_GAMES;
 #[cfg(feature = "enable_tools")]use crate::tools::{faction_painter::ToolFactionPainter, translator::ToolTranslator, unit_editor::ToolUnitEditor};
-use crate::ui::GameSelectedIcons;
+use crate::ui::{GameSelectedIcons, UI};
 use crate::updater_ui::UpdaterUI;
 use crate::{ui_state::OperationalMode, UI_STATE};
 use crate::utils::*;
@@ -181,6 +183,7 @@ pub struct AppUISlots {
     //-----------------------------------------------//
     pub pack_file_backup_autosave: QBox<SlotNoArgs>,
     pub server_status_update: QBox<SlotNoArgs>,
+    pub connection_check: QBox<SlotNoArgs>,
 
     pub tab_bar_packed_file_context_menu_show: QBox<SlotOfQPoint>,
     pub tab_bar_packed_file_close: QBox<SlotNoArgs>,
@@ -1525,6 +1528,30 @@ impl AppUISlots {
             }
         }));
 
+        // Connection-check slot.
+        let connection_check = SlotNoArgs::new(&app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui,
+            dependencies_ui,
+            references_ui => move || {
+                if app_ui.connection_finalized.get() {
+                    return;
+                }
+
+                if RECONNECT_COMPLETE.load(Ordering::SeqCst) {
+                    app_ui.connection_finalized.set(true);
+                    app_ui.timer_connection_check.stop();
+                    UI::finish_online_init(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui);
+                } else if Instant::now() >= app_ui.connection_deadline.get() {
+                    app_ui.connection_finalized.set(true);
+                    app_ui.timer_connection_check.stop();
+                    log_to_status_bar("Could not connect to rpfm_server. Check your installation, then restart RPFM.");
+                }
+            }
+        ));
+
         // When we want to show the context menu.
         let tab_bar_packed_file_context_menu_show = SlotOfQPoint::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
@@ -1827,6 +1854,7 @@ impl AppUISlots {
             //-----------------------------------------------//
             pack_file_backup_autosave,
             server_status_update,
+            connection_check,
 
             tab_bar_packed_file_context_menu_show,
             tab_bar_packed_file_close,

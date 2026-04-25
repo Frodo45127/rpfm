@@ -65,7 +65,7 @@ use rpfm_ui_common::ORG_NAME;
 use rpfm_ui_common::utils::*;
 
 use crate::communications::{CentralCommand, Response, websocket_loop};
-use crate::settings_ui::backend::{settings_bool, settings_string};
+use crate::settings_ui::backend::{load_settings_cache_from_disk, settings_string};
 use crate::ui::*;
 use crate::ui_state::UIState;
 
@@ -209,6 +209,9 @@ fn main() {
         QGuiApplication::set_desktop_file_name(&QString::from_std_str("rpfm"));
     }
 
+    // At this point we don't have the server for querying for settings, so we have to manually load them.
+    load_settings_cache_from_disk();
+
     //---------------------------------------------------------------------------------------//
     // Preparing the Program...
     //---------------------------------------------------------------------------------------//
@@ -228,14 +231,12 @@ fn main() {
 
     // Create the application and start the loop.
     QApplication::init(|_app| {
-        let ui = unsafe { UI::new() };
+        let ui = unsafe { UI::build_offline() };
         match ui {
             Ok(ui) => {
 
                 // If we closed the window BEFORE executing, exit the app.
                 if unsafe { ui.app_ui.main_window().is_visible() } {
-                    rpfm_telemetry::set_usage_telemetry_enabled(settings_bool(ENABLE_USAGE_TELEMETRY));
-                    rpfm_telemetry::set_crash_reports_enabled(settings_bool(ENABLE_CRASH_REPORTS));
                     let exit_code = unsafe { QApplication::exec() };
 
                     // Flush telemetry data to Sentry before the guard is dropped.

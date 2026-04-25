@@ -65,12 +65,13 @@ use itertools::Itertools;
 use self_update::cargo_crate_version;
 use time::OffsetDateTime;
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{atomic::Ordering, RwLock};
+use std::time::Instant;
 
 use rpfm_ipc::settings_keys::*;
 use rpfm_ipc::helpers::{ContainerInfo, DataSource, NewFile};
@@ -283,6 +284,11 @@ pub struct AppUI {
     //-------------------------------------------------------------------------------//
     timer_backup_autosave: QBox<QTimer>,
     timer_server_status: QBox<QTimer>,
+
+    /// Connection check timer & company, for the initial connection to the server.
+    timer_connection_check: QBox<QTimer>,
+    connection_deadline: Rc<Cell<Instant>>,
+    connection_finalized: Rc<Cell<bool>>,
 
     tab_bar_packed_file_context_menu: QBox<QMenu>,
     tab_bar_packed_file_close: QPtr<QAction>,
@@ -630,6 +636,13 @@ impl AppUI {
         timer_server_status.set_interval(5000);
         timer_server_status.start_0a();
 
+        // Check for connection every 100ms, until a deadline of 30 seconds is reached.
+        let timer_connection_check = QTimer::new_1a(&main_window);
+        timer_connection_check.set_interval(100);
+        timer_connection_check.start_0a();
+        let connection_deadline = Rc::new(Cell::new(Instant::now() + std::time::Duration::from_secs(30)));
+        let connection_finalized = Rc::new(Cell::new(false));
+
         // Create ***Da monsta***.
         AppUI {
 
@@ -768,6 +781,9 @@ impl AppUI {
             //-------------------------------------------------------------------------------//
             timer_backup_autosave,
             timer_server_status,
+            timer_connection_check,
+            connection_deadline,
+            connection_finalized,
 
             tab_bar_packed_file_context_menu,
             tab_bar_packed_file_close,
@@ -3646,7 +3662,7 @@ impl AppUI {
             // Send the command to the background thread to set the new `Game Selected`. We expect two responses:
             // - New compression format.
             // - Success.
-            let (_cf, dependencies_info) = send_ipc_command(Command::SetGameSelected(new_game_selected.to_owned(), rebuild_dependencies), response_extractor!(Response::CompressionFormatDependenciesInfo, v1, v2));
+            let (_cf, dependencies_info) = send_ipc_command_async(Command::SetGameSelected(new_game_selected.to_owned(), rebuild_dependencies), response_extractor!(Response::CompressionFormatDependenciesInfo, v1, v2));
             *GAME_SELECTED.write().unwrap() = SUPPORTED_GAMES.game(&new_game_selected).unwrap();
             dep_info = dependencies_info;
 

@@ -92,7 +92,7 @@ impl SettingsUISlots {
                 let original_font_size = settings_i32(ORIGINAL_FONT_SIZE);
 
                 CENTRAL_COMMAND.read().unwrap().send(Command::ClearSettings);
-                invalidate_settings_cache();
+                load_settings_cache_from_server();
                 init_app_exclusive_settings(&app_ui);
 
                 let _ = settings_set_string(FONT_NAME, &original_font_name);
@@ -105,7 +105,7 @@ impl SettingsUISlots {
                 // Once the original settings are reloaded, wipe them out from the backend again and put the old ones in.
                 // That way, if the user cancels, we still have the old settings.
                 CENTRAL_COMMAND.read().unwrap().send(Command::RestoreBackupSettings);
-                invalidate_settings_cache();
+                load_settings_cache_from_server();
 
                 // Set this value to indicate future operations that a reset has taken place.
                 let _ = settings_set_bool(FACTORY_RESET, true);
