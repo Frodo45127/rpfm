@@ -66,6 +66,7 @@ pub struct WelcomePageUI {
     manual_button: QBox<QPushButton>,
     discord_button: QBox<QPushButton>,
     patreon_button: QBox<QPushButton>,
+    feedback_button: QBox<QPushButton>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -201,7 +202,7 @@ impl WelcomePageUI {
         let links_layout = create_grid_layout(links_widget.static_upcast());
         links_layout.set_spacing(8);
         links_layout.set_column_stretch(0, 1);
-        links_layout.set_column_stretch(5, 1);
+        links_layout.set_column_stretch(6, 1);
         center_layout.add_widget_5a(&links_widget, 4, 0, 1, 1);
 
         let github_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("GitHub"), &links_widget);
@@ -228,6 +229,11 @@ impl WelcomePageUI {
         patreon_button.set_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/patreon.png", ASSETS_PATH.to_string_lossy()))));
         links_layout.add_widget_5a(&patreon_button, 0, 4, 1, 1);
 
+        let feedback_button = QPushButton::from_q_string_q_widget(&qtr("welcome_send_feedback"), &links_widget);
+        feedback_button.set_flat(true);
+        feedback_button.set_icon(&QIcon::from_theme_q_string(&QString::from_std_str("mail-send")));
+        links_layout.add_widget_5a(&feedback_button, 0, 5, 1, 1);
+
         Self {
             welcome_widget,
             logo_label,
@@ -241,6 +247,7 @@ impl WelcomePageUI {
             manual_button,
             discord_button,
             patreon_button,
+            feedback_button,
         }
     }
 

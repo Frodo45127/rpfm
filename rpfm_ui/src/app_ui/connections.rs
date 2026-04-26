@@ -155,4 +155,5 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.welcome_page_ui().manual_button().released().connect(&slots.manual_link);
     app_ui.welcome_page_ui().discord_button().released().connect(&slots.discord_link);
     app_ui.welcome_page_ui().patreon_button().released().connect(&slots.patreon_link);
+    app_ui.welcome_page_ui().feedback_button().released().connect(&slots.send_feedback);
 }

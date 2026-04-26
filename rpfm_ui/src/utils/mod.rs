@@ -13,9 +13,13 @@ Module with all the utility functions, to make our programming lives easier.
 !*/
 
 use qt_widgets::QApplication;
+use qt_widgets::QDialog;
+use qt_widgets::QLabel;
 use qt_widgets::QMenu;
 use qt_widgets::{QMessageBox, q_message_box::{Icon, StandardButton}};
 use qt_widgets::QMainWindow;
+use qt_widgets::QPushButton;
+use qt_widgets::QTextEdit;
 use qt_widgets::QToolButton;
 use qt_widgets::QWidget;
 
@@ -28,6 +32,7 @@ use qt_gui::q_palette::ColorRole;
 use qt_core::QFlags;
 use qt_core::QListOfQObject;
 use qt_core::QPtr;
+use qt_core::SlotNoArgs;
 use qt_core::QString;
 
 use cpp_core::CppBox;
@@ -42,6 +47,7 @@ use std::fmt::Display;
 use rpfm_telemetry::*;
 
 use rpfm_ui_common::ASSETS_PATH;
+use rpfm_ui_common::clone;
 use rpfm_ui_common::utils::*;
 
 use crate::LOCALE;
@@ -117,6 +123,95 @@ pub unsafe fn show_message_info<T: Display>(widget: &QPtr<QWidget>, text: T) {
 pub unsafe fn show_dialog<T: Display>(parent: impl cpp_core::CastInto<Ptr<QWidget>>, text: T, is_success: bool) {
     let title = if is_success { tr("title_success")} else { tr("title_error") };
     rpfm_ui_common::utils::show_dialog(parent, title, text, is_success);
+}
+
+/// Modal dialog that lets the user type a free-form message and ship it to
+/// Sentry via [`rpfm_telemetry::send_user_feedback`].
+///
+/// # Arguments
+///
+/// * `parent` - Widget that owns the dialog; the dialog is centered on it.
+pub unsafe fn show_feedback_dialog(parent: impl cpp_core::CastInto<Ptr<QWidget>>) {
+    let parent = parent.cast_into();
+    let icon = QIcon::from_theme_q_string(&QString::from_std_str("mail-send"));
+
+    let dialog = QDialog::new_1a(parent);
+    dialog.set_window_title(&qtr("feedback_dialog_title"));
+    dialog.set_window_icon(&icon);
+    dialog.set_modal(true);
+    dialog.resize_2a(560, 380);
+
+    let main_grid = create_grid_layout(dialog.static_upcast());
+    main_grid.set_contents_margins_4a(16, 16, 16, 16);
+    main_grid.set_spacing(12);
+
+    // Header row: icon + bold title.
+    let header_widget = QWidget::new_1a(&dialog);
+    let header_layout = create_grid_layout(header_widget.static_upcast());
+    header_layout.set_spacing(10);
+
+    let header_icon_label = QLabel::from_q_widget(&header_widget);
+    header_icon_label.set_pixmap(&icon.pixmap_2_int(32, 32));
+    header_layout.add_widget_5a(&header_icon_label, 0, 0, 1, 1);
+
+    let title_label = QLabel::from_q_string_q_widget(
+        &QString::from_std_str(format!("<h3 style='margin:0;'>{}</h3>", tr("feedback_dialog_title"))),
+        &header_widget,
+    );
+    header_layout.add_widget_5a(&title_label, 0, 1, 1, 1);
+    header_layout.set_column_stretch(1, 1);
+
+    main_grid.add_widget_5a(&header_widget, 0, 0, 1, 1);
+
+    // Explanation paragraph.
+    let explanation_label = QLabel::from_q_string_q_widget(&qtr("feedback_dialog_explanation"), &dialog);
+    explanation_label.set_word_wrap(true);
+    main_grid.add_widget_5a(&explanation_label, 1, 0, 1, 1);
+
+    // Multiline text input.
+    let text_edit = QTextEdit::from_q_widget(&dialog);
+    text_edit.set_placeholder_text(&qtr("feedback_dialog_placeholder"));
+    text_edit.set_minimum_height(140);
+    main_grid.add_widget_5a(&text_edit, 2, 0, 1, 1);
+    main_grid.set_row_stretch(2, 1);
+
+    // Right-aligned button row. Send is the default action (Enter triggers it).
+    let buttons_widget = QWidget::new_1a(&dialog);
+    let buttons_layout = create_grid_layout(buttons_widget.static_upcast());
+    buttons_layout.set_spacing(8);
+    buttons_layout.set_column_stretch(0, 1);
+
+    let cancel_button = QPushButton::from_q_string_q_widget(&qtr("cancel"), &buttons_widget);
+    let send_button = QPushButton::from_q_string_q_widget(&qtr("send"), &buttons_widget);
+    send_button.set_icon(&icon);
+    send_button.set_default(true);
+
+    buttons_layout.add_widget_5a(&cancel_button, 0, 1, 1, 1);
+    buttons_layout.add_widget_5a(&send_button, 0, 2, 1, 1);
+
+    main_grid.add_widget_5a(&buttons_widget, 3, 0, 1, 1);
+
+    let dialog_ptr = dialog.static_upcast::<QDialog>();
+    let text_edit_ptr = text_edit.static_upcast::<QTextEdit>();
+
+    let send_slot = SlotNoArgs::new(&dialog, clone!(
+        text_edit_ptr,
+        dialog_ptr => move || {
+            let text = text_edit_ptr.to_plain_text().to_std_string();
+            if text.trim().is_empty() {
+                show_dialog(parent, tr("feedback_empty"), false);
+                return;
+            }
+
+            send_user_feedback(&text);
+            show_dialog(parent, tr("feedback_sent"), true);
+            dialog_ptr.accept();
+        }
+    ));
+
+    send_button.released().connect(&send_slot);
+    cancel_button.released().connect(dialog.slot_close());
+    dialog.exec();
 }
 
 /// This function creates a non-modal dialog, for debugging purpouses.

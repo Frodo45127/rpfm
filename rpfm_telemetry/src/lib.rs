@@ -27,7 +27,9 @@
 pub use log::{debug, error, info, trace, warn};
 
 mod actions;
+mod feedback;
 mod logger;
 
 pub use actions::*;
+pub use feedback::*;
 pub use logger::*;

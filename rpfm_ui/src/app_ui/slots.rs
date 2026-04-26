@@ -50,6 +50,7 @@ use rpfm_ipc::helpers::{ContainerInfo, DataSource};
 
 use rpfm_lib::files::{ContainerPath, table::Table};
 use rpfm_lib::games::supported_games::*;
+
 use rpfm_telemetry::*;
 
 use rpfm_ui_common::clone;
@@ -205,6 +206,7 @@ pub struct AppUISlots {
     pub github_link: QBox<SlotNoArgs>,
     pub patreon_link: QBox<SlotNoArgs>,
     pub manual_link: QBox<SlotNoArgs>,
+    pub send_feedback: QBox<SlotNoArgs>,
 }
 
 pub struct AppUITempSlots {}
@@ -1767,6 +1769,10 @@ impl AppUISlots {
             rpfm_telemetry::track_action("Open Manual Link");
             QDesktopServices::open_url(&QUrl::new_1a(&QString::from_std_str(MANUAL_URL)));
         });
+        let send_feedback = SlotNoArgs::new(&app_ui.main_window, clone!(app_ui => move || {
+            rpfm_telemetry::track_action("Send Feedback");
+            show_feedback_dialog(app_ui.main_window());
+        }));
 
         // And here... we return all the slots.
 		Self {
@@ -1875,6 +1881,7 @@ impl AppUISlots {
             github_link,
             patreon_link,
             manual_link,
+            send_feedback,
 		}
 	}
 }

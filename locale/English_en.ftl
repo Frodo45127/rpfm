@@ -1922,6 +1922,13 @@ welcome_open_pack = Open Pack
 welcome_new_mymod = New MyMod
 welcome_settings = Settings
 welcome_manual = Manual
+welcome_send_feedback = Send Feedback
 welcome_command_palette_tip = Tip: Press Ctrl+Shift+P to open the Command Palette, or Ctrl+P to quickly jump to a file.
 welcome_server_status_connected = Server: Connected, Session: #{"{"}{"}"}
 welcome_server_status_disconnected = Server: Disconnected
+
+feedback_dialog_title = Send Feedback
+feedback_dialog_explanation = <p>Tell the author what's working, what's broken, a joke, or what you'd like to see.</p>
+feedback_dialog_placeholder = Type your feedback here...
+feedback_empty = Feedback cannot be empty.
+feedback_sent = Thanks! Your feedback has been sent.

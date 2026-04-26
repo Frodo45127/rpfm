@@ -97,6 +97,7 @@ use std::sync::{Arc, LazyLock, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::actions::{TELEMETRY_EVENT_TAG, TELEMETRY_EVENT_VALUE, USAGE_TELEMETRY_ENABLED};
+use crate::feedback::FEEDBACK_EVENT_VALUE;
 use crate::{error, info, warn};
 
 /// Current version of the crate from Cargo.toml.
@@ -306,21 +307,20 @@ impl Logger {
         // Initialize Sentry's guard, for remote reporting. Only for release mode.
         let dsn = SENTRY_DSN.read().unwrap().to_string();
 
-        // Gate every Sentry event on the user-facing toggles: usage-telemetry
-        // events (tagged by `crate::flush`) honour `enable_usage_telemetry`,
-        // anything else (panics, auto-captured errors, sessions) honours
-        // `enable_crash_reports`. Returning `None` drops the event.
+        // Gate every Sentry event on the user-facing toggles. Usage-telemetry
+        // events (tagged by `crate::flush`) honour `enable_usage_telemetry`;
+        // user-feedback events (tagged by `crate::send_user_feedback`) always
+        // pass through because the user just clicked Send and that is consent
+        // in the moment; anything else (panics, auto-captured errors,
+        // sessions) honours `enable_crash_reports`. Returning `None` drops
+        // the event.
         let before_send = Arc::new(|event: Event<'static>| -> Option<Event<'static>> {
-            let is_usage_telemetry = event
-                .tags
-                .get(TELEMETRY_EVENT_TAG)
-                .map(|v| v == TELEMETRY_EVENT_VALUE)
-                .unwrap_or(false);
+            let kind = event.tags.get(TELEMETRY_EVENT_TAG).map(String::as_str);
 
-            let allowed = if is_usage_telemetry {
-                USAGE_TELEMETRY_ENABLED.load(Ordering::Relaxed)
-            } else {
-                CRASH_REPORTS_ENABLED.load(Ordering::Relaxed)
+            let allowed = match kind {
+                Some(TELEMETRY_EVENT_VALUE) => USAGE_TELEMETRY_ENABLED.load(Ordering::Relaxed),
+                Some(FEEDBACK_EVENT_VALUE) => true,
+                _ => CRASH_REPORTS_ENABLED.load(Ordering::Relaxed),
             };
 
             if allowed { Some(event) } else { None }
