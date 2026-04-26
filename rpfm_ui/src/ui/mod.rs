@@ -320,7 +320,6 @@ impl UI {
         // Re-enable input — the user can finally drive the app.
         app_ui.toggle_main_window(true);
         log_to_status_bar("Initialization complete.");
-        info!("Initialization complete.");
     }
 }
 
