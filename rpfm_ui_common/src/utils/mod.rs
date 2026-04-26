@@ -120,8 +120,13 @@ pub unsafe fn clear_layout(widget: &QPtr<QWidget>) {
 
 /// This function creates a `GridLayout` for the provided widget with the settings we want.
 pub unsafe fn create_grid_layout(widget: QPtr<QWidget>) -> QBox<QGridLayout> {
-    let widget_layout = QGridLayout::new_1a(&widget);
-    widget.set_layout(&widget_layout);
+    let widget_layout = if widget.layout().is_null() {
+        let layout = QGridLayout::new_1a(&widget);
+        widget.set_layout(&layout);
+        layout
+    } else {
+        QGridLayout::new_0a()
+    };
 
     // Due to how Qt works, if we want a decent look on windows, we have to do some specific tweaks there.
     if cfg!(target_os = "windows") {
@@ -154,8 +159,13 @@ pub unsafe fn load_template(parent: impl CastInto<Ptr<QWidget>>, path: &str) -> 
     file.read_to_end(&mut data)?;
 
     let parent: Ptr<QWidget> = parent.cast_into();
-    let layout = QVBoxLayout::new_1a(parent);
-    parent.set_layout(&layout);
+    let layout = if parent.layout().is_null() {
+        let layout = QVBoxLayout::new_1a(parent);
+        parent.set_layout(&layout);
+        layout
+    } else {
+        QVBoxLayout::new_0a()
+    };
 
     let ui_loader = QUiLoader::new_0a();
     let main_widget = ui_loader.load_bytes_with_parent(&data, parent);
