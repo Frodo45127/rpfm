@@ -234,6 +234,12 @@ fn main() {
 
     // Create the application and start the loop.
     QApplication::init(|_app| {
+
+        // On Windows, force the Fusion style so the UI looks consistent regardless of the
+        // platform's default style (which can be affected by Qt version, system theme, etc.).
+        #[cfg(target_os = "windows")]
+        unsafe { QApplication::set_style_q_string(&QString::from_std_str("Fusion")); }
+
         let ui = unsafe { UI::build_offline() };
         match ui {
             Ok(ui) => {
