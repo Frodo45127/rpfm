@@ -29,12 +29,15 @@
 
 use anyhow::{anyhow, Result};
 use itertools::Itertools;
-use self_update::{backends::github::ReleaseList, Download, Extract, get_target, cargo_crate_version, Move, update::Release};
+use self_update::{backends::github::ReleaseList, Download, get_target, cargo_crate_version, Move, update::Release};
 use tempfile::Builder;
+use zip::ZipArchive;
 
 use std::env::current_exe;
 use std::fmt::Display;
-use std::fs::{DirBuilder, File};
+use std::fs::{self, DirBuilder, File};
+use std::io;
+use std::path::Path;
 
 use rpfm_ipc::helpers::*;
 
@@ -123,8 +126,8 @@ pub fn update_main_program_with(fetch_release: impl FnOnce() -> Result<Release>)
             .set_header(reqwest::header::ACCEPT, "application/octet-stream".parse().unwrap())
             .download_to(&tmp_zip)?;
 
-        // self_update extractor doesn't work. It fails on every-single-test I did. So we use another one.
-        Extract::from_source(&tmp_zip_path).extract_into(tmp_dir.path()).map_err(|_| anyhow!("There was an error while extracting the update. This means either I uploaded a broken file, or your download was incomplete. In any case, no changes have been done so… try again later."))?;
+        // Due to bugs in the `self_update` crate, we can't use `Extract` for the zip path.
+        extract_zip(&tmp_zip_path, tmp_dir.path()).map_err(|e| anyhow!("There was an error while extracting the update. This means either I uploaded a broken file, or your download was incomplete. In any case, no changes have been done so… try again later: {e}"))?;
     }
 
     let mut dest_base_path = current_exe()?;
@@ -162,6 +165,33 @@ pub fn update_main_program_with(fetch_release: impl FnOnce() -> Result<Release>)
     let changelog_path = dest_base_path.join(CHANGELOG_FILE);
     let _ = open::that(changelog_path);
 
+    Ok(())
+}
+
+/// Extract a zip archive at `source` into `into_dir`.
+///
+/// Replacement for `self_update::Extract` which on Windows fails with
+/// `os error 267` ("The directory name is invalid") on any zip that
+/// contains directory entries — it calls `fs::File::create` on every
+/// entry without checking whether the entry is a directory.
+fn extract_zip(source: &Path, into_dir: &Path) -> Result<()> {
+    let file = File::open(source)?;
+    let mut archive = ZipArchive::new(file)?;
+    for i in 0..archive.len() {
+        let mut entry = archive.by_index(i)?;
+        let Some(rel_path) = entry.enclosed_name() else { continue };
+        let dest = into_dir.join(rel_path);
+
+        if entry.is_dir() {
+            fs::create_dir_all(&dest)?;
+        } else {
+            if let Some(parent) = dest.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            let mut out = File::create(&dest)?;
+            io::copy(&mut entry, &mut out)?;
+        }
+    }
     Ok(())
 }
 

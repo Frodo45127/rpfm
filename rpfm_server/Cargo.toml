@@ -41,6 +41,7 @@ open.workspace = true
 self_update.workspace = true
 tempfile.workspace = true
 reqwest.workspace = true
+zip.workspace = true
 
 # Config support.
 directories.workspace = true
