@@ -2505,9 +2505,8 @@ impl Dependencies {
         // This will fail if called on cache generation. Only execute it when updating the schema.
         if ak_files.is_none() {
             for key in loc_table.keys().sorted() {
-                match self.loc_key_source(key) {
-                    Some((_, _, _)) => {},
-                    None => info!("-- Bruteforce: cannot find source for loc key {key}."),
+                if self.loc_key_source(key).is_none() {
+                    info!("-- Bruteforce: cannot find source for loc key {key}.");
                 }
             }
         }
