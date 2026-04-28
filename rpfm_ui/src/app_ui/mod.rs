@@ -1015,6 +1015,16 @@ impl AppUI {
         additive: bool,
     ) -> Result<()> {
 
+        // Refuse to (re)open a pack that's already open. In non-additive mode the server-side
+        // check would be bypassed by the CloseAllPacks call below, so check up-front here.
+        let open_packs = send_ipc_command(Command::ListOpenPacks, response_extractor!(Response::VecStringContainerInfo));
+        for path in pack_file_paths {
+            let pack_key = path.to_string_lossy().to_string();
+            if open_packs.iter().any(|(k, _)| k == &pack_key) {
+                return Err(anyhow!("Pack '{}' is already open. Close it first if you want to reopen it.", pack_key));
+            }
+        }
+
         // Destroy whatever it's in the PackedFile's view, to avoid data corruption. We don't care about this result.
         // Only needed when replacing packs, not when adding alongside existing ones.
         if !additive {
