@@ -60,9 +60,9 @@ use rpfm_ipc::settings_keys::*;
 #[cfg(feature = "support_model_renderer")] use rpfm_lib::files::ContainerPath;
 #[cfg(feature = "support_model_renderer")] use rpfm_telemetry::info;
 
-use crate::CENTRAL_COMMAND;
-use crate::communications::Command;
-#[cfg(feature = "support_model_renderer")] use crate::communications::THREADS_COMMUNICATION_ERROR;
+#[cfg(feature = "support_model_renderer")] use crate::CENTRAL_COMMAND;
+use crate::communications::request_disconnect;
+#[cfg(feature = "support_model_renderer")] use crate::communications::{Command, THREADS_COMMUNICATION_ERROR};
 #[cfg(feature = "support_model_renderer")] use crate::GAME_SELECTED;
 #[cfg(feature = "support_model_renderer")] use crate::packedfile_views::DataSource;
 use crate::UI_STATE;
@@ -712,7 +712,7 @@ pub extern "C" fn are_you_sure(main_window: *mut QMainWindow, is_delete_my_mod: 
         if UI_STATE.get_is_modified() {
             qtr("delete_mymod_1")
         } else {
-            let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ClientDisconnecting);
+            request_disconnect();
             return true;
         }
     } else {
@@ -736,7 +736,7 @@ pub extern "C" fn are_you_sure(main_window: *mut QMainWindow, is_delete_my_mod: 
 
     // If the user confirmed closing, notify the server before actually closing.
     if result && is_full_close {
-        let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ClientDisconnecting);
+        request_disconnect();
     }
 
     result

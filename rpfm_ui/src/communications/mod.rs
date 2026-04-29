@@ -47,6 +47,9 @@ pub static RECONNECT_REQUESTED: AtomicBool = AtomicBool::new(false);
 /// Global flag to indicate that the WebSocket has successfully reconnected.
 pub static RECONNECT_COMPLETE: AtomicBool = AtomicBool::new(false);
 
+/// Global flag to signal that the application is shutting down.
+pub static SHUTDOWN_REQUESTED: AtomicBool = AtomicBool::new(false);
+
 /// This const is the standard message in case of message communication error. If this happens, crash the program.
 pub const THREADS_COMMUNICATION_ERROR: &str = "Error in thread communication system. Response received: ";
 pub const THREADS_SENDER_ERROR: &str = "Error in thread communication system. Sender failed to send message.";
@@ -221,6 +224,15 @@ pub fn request_reconnect(session_id: u64) {
     RECONNECT_REQUESTED.store(true, Ordering::SeqCst);
 }
 
+/// Mark the application as shutting down and tell the server to tear down the session.
+///
+/// The flag is set before the command is sent so the WebSocket loop can distinguish
+/// the upcoming connection drop from an unexpected disconnect and skip reconnection.
+pub fn request_disconnect() {
+    SHUTDOWN_REQUESTED.store(true, Ordering::SeqCst);
+    let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ClientDisconnecting);
+}
+
 /// Wait for the reconnection to complete, processing Qt events to keep the UI responsive.
 ///
 /// Returns true if reconnection completed within the timeout, false otherwise.
@@ -247,6 +259,13 @@ pub async fn websocket_loop(mut receiver: UnboundedReceiver<(IpcMessage<Command>
     let mut response_channels = HashMap::new();
 
     loop {
+        // Exit cleanly once the UI has requested disconnection — the server tears the
+        // connection down hard, so without this we'd loop forever trying to reconnect.
+        if SHUTDOWN_REQUESTED.load(Ordering::SeqCst) {
+            info!("Shutdown requested, exiting WebSocket loop.");
+            return;
+        }
+
         // Check if a reconnection was requested.
         if RECONNECT_REQUESTED.swap(false, Ordering::SeqCst) {
             current_session_id = RECONNECT_SESSION_ID.write().unwrap().take();
@@ -322,7 +341,11 @@ pub async fn websocket_loop(mut receiver: UnboundedReceiver<(IpcMessage<Command>
                                     break;
                                 }
                                 Err(error) => {
-                                    error!("WebSocket error: {}", error);
+                                    if SHUTDOWN_REQUESTED.load(Ordering::SeqCst) {
+                                        info!("WebSocket closed during shutdown.");
+                                    } else {
+                                        error!("WebSocket error: {}", error);
+                                    }
                                     break;
                                 }
                                 _ => {}
