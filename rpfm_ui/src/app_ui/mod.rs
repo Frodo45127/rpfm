@@ -600,7 +600,8 @@ impl AppUI {
         timer_server_status.set_interval(5000);
         timer_server_status.start_0a();
 
-        // Check for connection every 100ms, until a deadline of 30 seconds is reached.
+        // Check for connection every 100ms. After 30 seconds without a connection we warn
+        // the user but keep checking — debug builds can take minutes to compile rpfm_server.
         let timer_connection_check = QTimer::new_1a(&main_window);
         timer_connection_check.set_interval(100);
         timer_connection_check.start_0a();

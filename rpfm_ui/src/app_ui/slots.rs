@@ -1547,9 +1547,11 @@ impl AppUISlots {
                     app_ui.timer_connection_check.stop();
                     UI::finish_online_init(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui);
                 } else if Instant::now() >= app_ui.connection_deadline.get() {
-                    app_ui.connection_finalized.set(true);
-                    app_ui.timer_connection_check.stop();
-                    log_to_status_bar("Could not connect to rpfm_server. Check your installation, then restart RPFM.");
+                    log_to_status_bar("rpfm_server is taking longer than expected to start. Check your installation if this persists.");
+                    let next = Instant::now()
+                        .checked_add(std::time::Duration::from_secs(60 * 60 * 24))
+                        .unwrap_or_else(|| Instant::now() + std::time::Duration::from_secs(3600));
+                    app_ui.connection_deadline.set(next);
                 }
             }
         ));
