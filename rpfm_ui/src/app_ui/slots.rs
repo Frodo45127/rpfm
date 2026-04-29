@@ -393,8 +393,8 @@ impl AppUISlots {
                     // If the pack has a valid path on disk, save it. Otherwise, skip (save-as would
                     // require a dialog per pack which is disruptive for save-all).
                     if path.is_file() {
-                        if let Err(error) = send_ipc_command_result_async(Command::SavePack(pack_key.clone()), response_extractor!(Response::ContainerInfo)) {
-                            show_dialog(&app_ui.main_window, error, false);
+                        if let Err(error) = AppUI::save_packfile_by_key(&app_ui, &pack_file_contents_ui, Some(pack_key.clone()), false) {
+                            show_dialog(app_ui.main_window(), error, false);
                         }
                     }
                 }
