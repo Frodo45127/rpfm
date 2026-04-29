@@ -160,47 +160,51 @@ impl Settings {
 
             // Fix unsanitized paths.
             let current_path = settings.string(game_key);
-            if current_path.contains("\\") {
-                let _ = settings.set_string(game_key, &current_path.replace("\\", "/"));
-            }
+            if current_path.is_empty() {
+                if current_path.contains("\\") {
+                    let _ = settings.set_string(game_key, &current_path.replace("\\", "/"));
+                }
 
-            let game_path = if let Ok(Some(game_path)) = game.find_game_install_location() {
-                game_path.to_string_lossy().replace("\\", "/")
-            } else {
-                String::new()
-            };
+                let game_path = if let Ok(Some(game_path)) = game.find_game_install_location() {
+                    game_path.to_string_lossy().replace("\\", "/")
+                } else {
+                    String::new()
+                };
 
-            // If we got a path and we don't have it saved yet, save it automatically.
-            if current_path.is_empty() && !game_path.is_empty() {
-                let _ = settings.set_string(game_key, &game_path);
-            } else {
-                settings.initialize_string(game_key, &game_path);
+                // If we got a path and we don't have it saved yet, save it automatically.
+                if !game_path.is_empty() {
+                    let _ = settings.set_string(game_key, &game_path);
+                } else {
+                    settings.initialize_string(game_key, &game_path);
+                }
             }
 
             if game_key != KEY_EMPIRE &&
                 game_key != KEY_NAPOLEON &&
                 game_key != KEY_ARENA {
 
-                let ak_path = if let Ok(Some(ak_path)) = game.find_assembly_kit_install_location() {
-                    ak_path.join("assembly_kit").to_string_lossy().replace("\\", "/")
-                } else {
-                    String::new()
-                };
-
                 // If we got a path and we don't have it saved yet, save it automatically.
                 let ak_key = game_key.to_owned() + ASSEMBLY_KIT_SUFFIX;
                 let current_path = settings.string(&ak_key);
 
-                // Fix unsanitized paths.
-                if current_path.contains("\\") {
-                    let _ = settings.set_string(&ak_key, &current_path.replace("\\", "/"));
-                }
+                if current_path.is_empty() {
+                    let ak_path = if let Ok(Some(ak_path)) = game.find_assembly_kit_install_location() {
+                        ak_path.join("assembly_kit").to_string_lossy().replace("\\", "/")
+                    } else {
+                        String::new()
+                    };
 
-                // Ignore shogun 2, as that one is a zip.
-                if current_path.is_empty() && !ak_path.is_empty() && game_key != KEY_SHOGUN_2 {
-                    let _ = settings.set_string(&ak_key, &ak_path);
-                } else {
-                    settings.initialize_string(&ak_key, &ak_path);
+                    // Fix unsanitized paths.
+                    if current_path.contains("\\") {
+                        let _ = settings.set_string(&ak_key, &current_path.replace("\\", "/"));
+                    }
+
+                    // Ignore shogun 2, as that one is a zip.
+                    if !ak_path.is_empty() && game_key != KEY_SHOGUN_2 {
+                        let _ = settings.set_string(&ak_key, &ak_path);
+                    } else {
+                        settings.initialize_string(&ak_key, &ak_path);
+                    }
                 }
             }
         }
