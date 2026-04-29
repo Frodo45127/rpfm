@@ -332,7 +332,7 @@ pub async fn websocket_loop(mut receiver: UnboundedReceiver<(IpcMessage<Command>
                 }
             }
             Err(error) => {
-                error!("Failed to connect to WebSocket server: {}. Retrying in 5 seconds...", error);
+                info!("Failed to connect to WebSocket server: {}. Retrying in 5 seconds...", error);
                 tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
             }
         }
