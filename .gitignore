@@ -168,6 +168,7 @@ RenderViewLog.txt
 
 # Nuget's exe to fix the renderer repo on build.
 Nuget.exe
+nuget.exe
 
 # For people using zed.
 /.zed/
@@ -189,3 +190,6 @@ rpfm-v*
 # Random stuff I have for testing.
 rpfm_gpui
 zed-main
+
+# Sentry stuff.
+sentry-cli.exe
