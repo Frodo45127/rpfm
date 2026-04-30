@@ -41,7 +41,7 @@ use tokio::sync::mpsc;
 use std::sync::Arc;
 
 use rpfm_ipc::messages::{Command, Message as IpcMessage, Response};
-use rpfm_telemetry::{error, info};
+use rpfm_telemetry::{error, info, warn};
 
 use crate::session::{DEFAULT_SESSION_TIMEOUT_SECS, SessionId, SessionManager, recv_response};
 
@@ -166,7 +166,7 @@ async fn handle_socket(socket: WebSocket, session_manager: Arc<SessionManager>, 
                             });
                         }
                         Err(error) => {
-                            error!("Session {}: Deserialization error: {}", session.id(), error);
+                            warn!("Session {}: Deserialization error: {}", session.id(), error);
 
                             // Try to extract the message ID from the malformed message so we can
                             // send an error response back to the client.
