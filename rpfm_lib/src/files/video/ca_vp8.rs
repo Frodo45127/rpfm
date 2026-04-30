@@ -156,7 +156,7 @@ impl Video {
 
         buffer.write_u32(header_lenght as u32 + self.frame_data.len() as u32)?;
         buffer.write_u32(self.num_frames)?;
-        buffer.write_u32(self.frame_table.iter().map(|x| x.size).max().unwrap())?;
+        buffer.write_u32(self.frame_table.iter().map(|x| x.size).max().unwrap_or_default())?;
 
         if let Some(extra_data) = self.extra_data {
             buffer.write_u8(extra_data.0)?;
