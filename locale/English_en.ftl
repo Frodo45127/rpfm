@@ -1176,6 +1176,8 @@ packed_file_name = PackedFile Name
 tools_unit_editor = Unit Editor
 unit_editor_title = Unit Editor
 
+tools_ceo_builder = CEO Builder
+
 settings_enable_esf_editor = Enable ESF/CCD/SAVE Editor
 tt_settings_debug_enable_esf_editor = This setting allows you to enable the new ESF editor, but beware of issues.
 

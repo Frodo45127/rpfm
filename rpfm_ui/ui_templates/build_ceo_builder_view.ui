@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>BuildCeoBuilderView</class>
+ <widget class="QDialog" name="BuildCeoBuilderView">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>820</width>
+    <height>700</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>CEO Builder</string>
+  </property>
+  <layout class="QVBoxLayout" name="main_layout">
+
+   <!-- ── Form fields ── -->
+   <item>
+    <widget class="QGroupBox" name="form_groupbox">
+     <property name="title"><string>Character</string></property>
+     <layout class="QGridLayout" name="form_grid">
+
+      <item row="0" column="0">
+       <widget class="QLabel" name="name_label">
+        <property name="text"><string>Name (e.g. yue_jiu):</string></property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLineEdit" name="name_line_edit"/>
+      </item>
+
+      <item row="1" column="0">
+       <widget class="QLabel" name="type_label">
+        <property name="text"><string>Type:</string></property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QComboBox" name="type_combo_box"/>
+      </item>
+
+      <item row="2" column="0">
+       <widget class="QLabel" name="element_label">
+        <property name="text"><string>Element / Class:</string></property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QComboBox" name="element_combo_box"/>
+      </item>
+
+      <item row="3" column="0">
+       <widget class="QLabel" name="gender_label">
+        <property name="text"><string>Gender:</string></property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QComboBox" name="gender_combo_box"/>
+      </item>
+
+      <item row="4" column="0">
+       <widget class="QLabel" name="expanded_label">
+        <property name="text"><string>190 Expanded:</string></property>
+       </widget>
+      </item>
+      <item row="4" column="1">
+       <widget class="QCheckBox" name="expanded_check_box">
+        <property name="text"><string>Enable</string></property>
+       </widget>
+      </item>
+
+     </layout>
+    </widget>
+   </item>
+
+   <!-- ── Trait selector ── -->
+   <item>
+    <widget class="QGroupBox" name="traits_groupbox">
+     <property name="title"><string>Traits — select exactly 3</string></property>
+     <layout class="QVBoxLayout" name="traits_layout">
+
+      <item>
+       <layout class="QHBoxLayout" name="trait_filter_layout">
+        <item>
+         <widget class="QLabel" name="trait_filter_label">
+          <property name="text"><string>Filter:</string></property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLineEdit" name="trait_filter_line_edit">
+          <property name="placeholderText"><string>Search traits...</string></property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="trait_count_label">
+          <property name="text"><string>Selected: 0/3</string></property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+
+      <item>
+       <widget class="QListWidget" name="trait_list_widget">
+        <property name="minimumHeight"><number>160</number></property>
+        <property name="maximumHeight"><number>160</number></property>
+        <property name="selectionMode">
+         <enum>QAbstractItemView::MultiSelection</enum>
+        </property>
+       </widget>
+      </item>
+
+     </layout>
+    </widget>
+   </item>
+
+   <!-- ── Add / Clear buttons ── -->
+   <item>
+    <layout class="QHBoxLayout" name="add_buttons_layout">
+     <item>
+      <widget class="QPushButton" name="add_character_button">
+       <property name="text"><string>Add Character</string></property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="clear_all_button">
+       <property name="text"><string>Clear All</string></property>
+      </widget>
+     </item>
+     <item>
+      <spacer>
+       <property name="orientation"><enum>Qt::Horizontal</enum></property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QLabel" name="status_label">
+       <property name="text"><string></string></property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+
+   <!-- ── Queue table ── -->
+   <item>
+    <widget class="QGroupBox" name="queue_groupbox">
+     <property name="title"><string>Queue</string></property>
+     <layout class="QVBoxLayout" name="queue_layout">
+      <item>
+       <widget class="QTableWidget" name="queue_table_widget">
+        <property name="minimumHeight"><number>180</number></property>
+        <property name="selectionBehavior">
+         <enum>QAbstractItemView::SelectRows</enum>
+        </property>
+        <property name="selectionMode">
+         <enum>QAbstractItemView::SingleSelection</enum>
+        </property>
+        <property name="editTriggers">
+         <set>QAbstractItemView::NoEditTriggers</set>
+        </property>
+        <column><property name="text"><string>Name</string></property></column>
+        <column><property name="text"><string>Type</string></property></column>
+        <column><property name="text"><string>Element</string></property></column>
+        <column><property name="text"><string>Gender</string></property></column>
+        <column><property name="text"><string>190 Exp</string></property></column>
+        <column><property name="text"><string>Trait 1</string></property></column>
+        <column><property name="text"><string>Trait 2</string></property></column>
+        <column><property name="text"><string>Trait 3</string></property></column>
+       </widget>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="queue_buttons_layout">
+        <item>
+         <widget class="QPushButton" name="delete_selected_button">
+          <property name="text"><string>Delete Selected</string></property>
+         </widget>
+        </item>
+        <item>
+         <spacer>
+          <property name="orientation"><enum>Qt::Horizontal</enum></property>
+         </spacer>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+
+   <!-- ── Button box ── -->
+   <item>
+    <widget class="QDialogButtonBox" name="button_box">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel</set>
+     </property>
+    </widget>
+   </item>
+
+  </layout>
+ </widget>
+</ui>

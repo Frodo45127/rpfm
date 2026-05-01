@@ -113,13 +113,22 @@ impl Default for OperationalMode {
     }
 }
 
+/// Data for a single CEO entry passed from the UI to the background thread.
+///
+/// Mirrors the `CeoEntry` struct from TKTools' CEO Creator tab.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CeoEntryData {
+    /// Internal name (e.g. `yue_jiu`). Used as the key suffix in all generated table entries.
     pub name: String,
+    /// `"title"` or `"unique"`. Unique entries also generate armour CEO + equipment data.
     pub option: String,
+    /// Element class: `"metal"` | `"wood"` | `"earth"` | `"fire"` | `"water"`.
     pub element: String,
+    /// `"male"` or `"female"`.
     pub gender: String,
-    pub traits: Vec<(String, String)>, // (uuid, internal_key)
+    /// Exactly 3 traits as `(uuid, internal_key)` pairs.
+    pub traits: Vec<(String, String)>,
+    /// Whether to include 190 Expanded weapon slot entries.
     pub expanded: bool,
 }
 
