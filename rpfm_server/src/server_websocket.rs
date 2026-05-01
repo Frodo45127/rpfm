@@ -41,7 +41,7 @@ use tokio::sync::mpsc;
 use std::sync::Arc;
 
 use rpfm_ipc::messages::{Command, Message as IpcMessage, Response};
-use rpfm_telemetry::{error, info, warn};
+use rpfm_telemetry::{info, warn};
 
 use crate::session::{DEFAULT_SESSION_TIMEOUT_SECS, SessionId, SessionManager, recv_response};
 
