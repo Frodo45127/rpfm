@@ -48,7 +48,9 @@ jobs:
           cargo install --locked mdbook-langtabs
 
       - name: Build site (landing page + manual + API docs)
-        run: ./build_site.sh
+        run: |
+          chmod +x ./build_site.sh
+          ./build_site.sh
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
