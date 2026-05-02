@@ -283,7 +283,7 @@
                  </widget>
                 </item>
                 <item row="2" column="0">
-                 <widget class="QRadioButton" name="chatgpt_radio">
+                 <widget class="QRadioButton" name="ai_radio">
                   <property name="text">
                    <string>RadioButton</string>
                   </property>
@@ -432,7 +432,7 @@
               </widget>
              </item>
              <item row="4" column="0">
-              <widget class="QToolButton" name="translate_with_chatgpt">
+              <widget class="QToolButton" name="translate_with_ai">
                <property name="minimumSize">
                 <size>
                  <width>30</width>
@@ -599,38 +599,5 @@
   </customwidget>
  </customwidgets>
  <resources/>
- <connections>
-  <connection>
-   <sender>button_box</sender>
-   <signal>accepted()</signal>
-   <receiver>Dialog</receiver>
-   <slot>accept()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>257</x>
-     <y>628</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>157</x>
-     <y>274</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>button_box</sender>
-   <signal>rejected()</signal>
-   <receiver>Dialog</receiver>
-   <slot>reject()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>325</x>
-     <y>628</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>286</x>
-     <y>274</y>
-    </hint>
-   </hints>
-  </connection>
- </connections>
+ <connections/>
 </ui>

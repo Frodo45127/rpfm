@@ -90,7 +90,15 @@ pub const ENABLE_USAGE_TELEMETRY: &str = "enable_usage_telemetry";
 pub const ENABLE_CRASH_REPORTS: &str = "enable_crash_reports";
 
 // AI settings.
-pub const AI_OPENAI_API_KEY: &str = "ai_openai_api_key";
+//
+// The AI translator talks to any service that exposes the OpenAI
+// chat-completions wire format (OpenAI, Anthropic OpenAI-compat,
+// Gemini OpenAI-compat, OpenRouter, Ollama, vLLM, LM Studio, ...).
+// The user provides the full endpoint URL, an API key sent as a
+// `Bearer` token, and the model identifier to target.
+pub const AI_API_URL: &str = "ai_api_url";
+pub const AI_API_KEY: &str = "ai_api_key";
+pub const AI_MODEL: &str = "ai_model";
 pub const DEEPL_API_KEY: &str = "deepl_api_key";
 
 // Optimizer settings.

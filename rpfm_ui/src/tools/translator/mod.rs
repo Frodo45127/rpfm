@@ -33,12 +33,10 @@ use cpp_core::CppDeletable;
 
 use anyhow::anyhow;
 use base64::{Engine, engine::general_purpose::STANDARD};
-use chat_gpt_lib_rs::api_resources::{completions::{create_completion, CreateCompletionRequest, PromptInput}, models::Model};
-use chat_gpt_lib_rs::OpenAIClient;
 use deepl::{DeepLApi, Lang, ModelType, TagHandling};
 use getset::*;
 use regex::{Captures, Regex};
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use std::cell::LazyCell;
 use std::path::PathBuf;
@@ -143,7 +141,7 @@ pub struct ToolTranslator {
     language_combobox: QPtr<QComboBox>,
 
     deepl_radio_button: QPtr<QRadioButton>,
-    chatgpt_radio_button: QPtr<QRadioButton>,
+    ai_radio_button: QPtr<QRadioButton>,
     google_translate_radio_button: QPtr<QRadioButton>,
     copy_source_radio_button: QPtr<QRadioButton>,
 
@@ -160,7 +158,7 @@ pub struct ToolTranslator {
     move_selection_up: QPtr<QToolButton>,
     move_selection_down: QPtr<QToolButton>,
     translate_with_deepl: QPtr<QToolButton>,
-    translate_with_chatgpt: QPtr<QToolButton>,
+    translate_with_ai: QPtr<QToolButton>,
     translate_with_google: QPtr<QToolButton>,
     copy_from_source: QPtr<QToolButton>,
     import_from_translated_pack: QPtr<QToolButton>,
@@ -211,7 +209,7 @@ impl ToolTranslator {
         let context_label: QPtr<QLabel> = tool.find_widget("context_label")?;
         let context_text_edit: QPtr<QTextEdit> = tool.find_widget("context_text_edit")?;
         let deepl_radio_button: QPtr<QRadioButton> = tool.find_widget("deepl_radio")?;
-        let chatgpt_radio_button: QPtr<QRadioButton> = tool.find_widget("chatgpt_radio")?;
+        let ai_radio_button: QPtr<QRadioButton> = tool.find_widget("ai_radio")?;
         let google_translate_radio_button: QPtr<QRadioButton> = tool.find_widget("google_translate_radio")?;
         let copy_source_radio_button: QPtr<QRadioButton> = tool.find_widget("copy_source_radio")?;
         let empty_radio_button: QPtr<QRadioButton> = tool.find_widget("empty_radio")?;
@@ -219,14 +217,14 @@ impl ToolTranslator {
         behavior_groupbox.set_title(&qtr("behavior_title"));
         behavior_label.set_text(&qtr("behavior_info"));
         deepl_radio_button.set_text(&qtr("behavior_deepl"));
-        chatgpt_radio_button.set_text(&qtr("behavior_chatgpt"));
+        ai_radio_button.set_text(&qtr("behavior_ai"));
         google_translate_radio_button.set_text(&qtr("behavior_google_translate"));
         copy_source_radio_button.set_text(&qtr("behavior_copy_source"));
         empty_radio_button.set_text(&qtr("behavior_empty"));
 
         let behavior_group = QButtonGroup::new_1a(&behavior_groupbox);
         behavior_group.add_button_1a(&deepl_radio_button);
-        behavior_group.add_button_1a(&chatgpt_radio_button);
+        behavior_group.add_button_1a(&ai_radio_button);
         behavior_group.add_button_1a(&google_translate_radio_button);
         behavior_group.add_button_1a(&copy_source_radio_button);
         behavior_group.add_button_1a(&empty_radio_button);
@@ -426,25 +424,26 @@ impl ToolTranslator {
         let move_selection_up: QPtr<QToolButton> = tool.find_widget("move_selection_up")?;
         let move_selection_down: QPtr<QToolButton> = tool.find_widget("move_selection_down")?;
         let translate_with_deepl: QPtr<QToolButton> = tool.find_widget("translate_with_deepl")?;
-        let translate_with_chatgpt: QPtr<QToolButton> = tool.find_widget("translate_with_chatgpt")?;
+        let translate_with_ai: QPtr<QToolButton> = tool.find_widget("translate_with_ai")?;
         let translate_with_google: QPtr<QToolButton> = tool.find_widget("translate_with_google")?;
         let copy_from_source: QPtr<QToolButton> = tool.find_widget("copy_from_source")?;
         let import_from_translated_pack: QPtr<QToolButton> = tool.find_widget("import_from_translated_pack")?;
         move_selection_up.set_tool_tip(&qtr("translator_move_selection_up"));
         move_selection_down.set_tool_tip(&qtr("translator_move_selection_down"));
         translate_with_deepl.set_tool_tip(&qtr("translator_translate_with_deepl"));
-        translate_with_chatgpt.set_tool_tip(&qtr("translator_translate_with_chatgpt"));
+        translate_with_ai.set_tool_tip(&qtr("translator_translate_with_ai"));
         translate_with_google.set_tool_tip(&qtr("translator_translate_with_google"));
         copy_from_source.set_tool_tip(&qtr("translator_copy_from_source"));
         import_from_translated_pack.set_tool_tip(&qtr("translator_import_from_translated_pack"));
 
-        // Only allow AI translation if we have a key in settings. Ignore keys in env.
-        if settings_string(AI_OPENAI_API_KEY).is_empty() {
-            chatgpt_radio_button.set_enabled(false);
+        // Only allow AI translation if we have both a key and an endpoint URL configured.
+        // The provider can be anything that speaks the OpenAI chat-completions wire format.
+        if settings_string(AI_API_KEY).is_empty() || settings_string(AI_API_URL).is_empty() || settings_string(AI_MODEL).is_empty() {
+            ai_radio_button.set_enabled(false);
             context_text_edit.set_enabled(false);
-            translate_with_chatgpt.set_enabled(false);
+            translate_with_ai.set_enabled(false);
         } else {
-            chatgpt_radio_button.set_checked(true);
+            ai_radio_button.set_checked(true);
         }
 
         if settings_string(DEEPL_API_KEY).is_empty() {
@@ -477,7 +476,7 @@ impl ToolTranslator {
             language_combobox,
             context_text_edit,
             deepl_radio_button,
-            chatgpt_radio_button,
+            ai_radio_button,
             google_translate_radio_button,
             copy_source_radio_button,
             edit_all_same_values_radio_button,
@@ -489,7 +488,7 @@ impl ToolTranslator {
             move_selection_up,
             move_selection_down,
             translate_with_deepl,
-            translate_with_chatgpt,
+            translate_with_ai,
             translate_with_google,
             copy_from_source,
             import_from_translated_pack,
@@ -582,10 +581,10 @@ impl ToolTranslator {
                 if let Ok(tr) = result {
                     self.translated_value_textedit.set_plain_text(&QString::from_std_str(tr));
                 }
-            } else if self.chatgpt_radio_button().is_checked() {
+            } else if self.ai_radio_button().is_checked() {
                 let language = self.map_language_to_natural();
                 let context = self.context_text_edit().to_plain_text().to_std_string();
-                let result = Self::ask_chat_gpt(&source_text, &language, &context);
+                let result = Self::ask_ai(&source_text, &language, &context);
                 if let Ok(tr) = result {
                     self.translated_value_textedit.set_plain_text(&QString::from_std_str(tr));
                 }
@@ -855,21 +854,28 @@ impl ToolTranslator {
         }
     }
 
+    /// Translate `string` into `language` through any AI provider that exposes the OpenAI
+    /// chat-completions wire format.
+    ///
+    /// The endpoint URL, API key, and model are read from the user's settings, so the same code
+    /// path works against OpenAI, Anthropic's OpenAI-compat endpoint, Gemini's
+    /// `/v1beta/openai/`, OpenRouter, Ollama, vLLM, LM Studio, etc.
     #[tokio::main]
-    async fn ask_chat_gpt(string: &str, language: &str, context: &str) -> Result<String> {
+    async fn ask_ai(string: &str, language: &str, context: &str) -> Result<String> {
+        let api_url = settings_string(AI_API_URL);
+        let api_key = settings_string(AI_API_KEY);
+        let model = settings_string(AI_MODEL);
 
-        // Get the API key from the settings. If no API key is provided, it will use the OPENAI_API_KEY env variable.
-        let api_key = {
-            let key = settings_string(AI_OPENAI_API_KEY);
-            if key.is_empty() {
-                None
-            } else {
-                Some(key)
-            }
-        };
-        let client = OpenAIClient::new(api_key)?;
+        if api_url.is_empty() {
+            return Err(anyhow!("Missing AI API URL. Set it in Preferences > AI Settings."));
+        }
+        if api_key.is_empty() {
+            return Err(anyhow!("Missing AI API Key. Set it in Preferences > AI Settings."));
+        }
+        if model.is_empty() {
+            return Err(anyhow!("Missing AI model name. Set it in Preferences > AI Settings."));
+        }
 
-        // Prepare a request to generate a text completion.
         let mut prompt = format!("Translate the sentence after #### to {language}, keeping the translation as close to the original in tone and style as you can.");
         prompt.push_str(" Preserve the following parts of the text in the translation: any text delimited with '[[' and ']]', '||', jumplines and tabulations. ");
         if !context.is_empty() {
@@ -877,24 +883,44 @@ impl ToolTranslator {
         }
         prompt.push_str(string);
 
-        // According to OpenAI's docs, tokens is more or less 3/4 of a word. We don't have a way to easily count words, so we do a generous approximation.
-        // Then we duplicate it taking into account the completion tokens.
-        let max_tokens = Some((prompt.len() / 4) as u32 * 2u32);
-        let request = CreateCompletionRequest {
-            model: Model::Gpt3_5Turbo,
-            prompt: Some(PromptInput::String(prompt)),
-            max_tokens,
-            temperature: Some(0.2),
-            ..Default::default()
-        };
+        // Tokens are roughly 3/4 of a word; we use a generous approximation and double it to
+        // account for the completion side. Some providers reject `max_tokens` that exceed their
+        // context window, but for translation snippets this is well within bounds.
+        let max_tokens = (prompt.len() / 4) as u32 * 2;
+        let body = json!({
+            "model": model,
+            "temperature": 0.2,
+            "max_tokens": max_tokens,
+            "messages": [
+                { "role": "user", "content": prompt }
+            ],
+        });
 
-        // Responses sometimes start with jumplines, and we need them clean.
-        let response = create_completion(&client, &request).await?;
-        let mut response_text = response.choices.first().map(|x| x.text.clone()).unwrap_or_default();
-        if response_text.starts_with("\n\n") {
-            response_text = response_text[2..].to_owned();
-        } else if response_text.starts_with("\n") {
-            response_text = response_text[1..].to_owned();
+        let response = reqwest::Client::new()
+            .post(&api_url)
+            .bearer_auth(&api_key)
+            .header("Content-Type", "application/json")
+            .json(&body)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let text = response.text().await.unwrap_or_default();
+            return Err(anyhow!("AI request failed ({status}): {text}"));
+        }
+
+        let payload: Value = response.json().await?;
+        let mut response_text = payload["choices"]
+            .get(0)
+            .and_then(|choice| choice["message"]["content"].as_str())
+            .ok_or_else(|| anyhow!("Unexpected AI response shape: {payload}"))?
+            .to_owned();
+
+        // Some providers prepend stray newlines to chat completions; strip them so the textedit
+        // stays clean.
+        while response_text.starts_with('\n') {
+            response_text.remove(0);
         }
 
         Ok(response_text)

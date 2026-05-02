@@ -64,7 +64,7 @@ The `id` correlates a response to the request that produced it, which lets the U
 - Tables (`TIGHT_TABLE_MODE`, `ENABLE_LOOKUPS`, `ENABLE_ICONS`, `HIDE_UNUSED_COLUMNS`, …).
 - Diagnostics (`ENABLE_DEBUG_MENU`, `DIAGNOSTICS_TRIGGER_*`, …).
 - Telemetry (`ENABLE_USAGE_TELEMETRY`, `ENABLE_CRASH_REPORTS`).
-- AI/external services (`AI_OPENAI_API_KEY`, `DEEPL_API_KEY`).
+- AI/external services (`AI_API_URL`, `AI_API_KEY`, `AI_MODEL`, `DEEPL_API_KEY`).
 - Optimizer toggles (one constant per step).
 - Theme colour keys for light and dark variants.
 

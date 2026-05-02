@@ -277,7 +277,9 @@ impl Settings {
         settings.initialize_bool(ENABLE_USAGE_TELEMETRY, true);
         settings.initialize_bool(ENABLE_CRASH_REPORTS, true);
 
-        settings.initialize_string(AI_OPENAI_API_KEY, "");
+        settings.initialize_string(AI_API_URL, "https://api.openai.com/v1/chat/completions");
+        settings.initialize_string(AI_API_KEY, "");
+        settings.initialize_string(AI_MODEL, "gpt-4o-mini");
         settings.initialize_string(DEEPL_API_KEY, "");
 
         settings.initialize_vec_string(RECENT_FILE_LIST, &[]);

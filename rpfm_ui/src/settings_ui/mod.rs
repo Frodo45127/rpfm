@@ -148,7 +148,9 @@ pub struct SettingsUI {
     extra_network_update_channel_combobox: QBox<QComboBox>,
     extra_packfile_autosave_interval_spinbox: QBox<QSpinBox>,
     extra_packfile_autosave_amount_spinbox: QBox<QSpinBox>,
-    ai_openai_api_key_line_edit: QBox<QLineEdit>,
+    ai_api_url_line_edit: QBox<QLineEdit>,
+    ai_api_key_line_edit: QBox<QLineEdit>,
+    ai_model_line_edit: QBox<QLineEdit>,
     deepl_api_key_line_edit: QBox<QLineEdit>,
     font_data: Rc<RefCell<(String, i32)>>,
 
@@ -503,8 +505,18 @@ impl SettingsUI {
         ai_vbox.set_contents_margins_4a(4, 0, 4, 0);
         ai_vbox.set_spacing(2);
 
-        let ai_openai_api_key_line_edit = new_setting_line_edit(&ai_vbox, &ai_frame, "settings_ai_openai_api_key", "tt_ai_openai_api_key_tip");
+        let ai_api_url_line_edit = new_setting_line_edit(&ai_vbox, &ai_frame, "settings_ai_api_url", "tt_ai_api_url_tip");
+        let ai_api_key_line_edit = new_setting_line_edit(&ai_vbox, &ai_frame, "settings_ai_api_key", "tt_ai_api_key_tip");
+        let ai_model_line_edit = new_setting_line_edit(&ai_vbox, &ai_frame, "settings_ai_model", "tt_ai_model_tip");
         let deepl_api_key_line_edit = new_setting_line_edit(&ai_vbox, &ai_frame, "settings_deepl_api_key", "tt_deepl_api_key_tip");
+
+        // Endpoint URLs and API keys are long; bump the AI inputs width.
+        // QLineEdit size hint so users can actually see what they paste in.
+        let ai_field_width = (ai_api_url_line_edit.size_hint().width() * 5) / 2;
+        ai_api_url_line_edit.set_minimum_width(ai_field_width);
+        ai_api_key_line_edit.set_minimum_width(ai_field_width);
+        ai_model_line_edit.set_minimum_width(ai_field_width);
+        deepl_api_key_line_edit.set_minimum_width(ai_field_width);
 
         content_layout.add_widget_1a(&ai_header);
         content_layout.add_widget_1a(&ai_frame);
@@ -715,7 +727,9 @@ impl SettingsUI {
             extra_network_update_channel_combobox,
             extra_packfile_autosave_amount_spinbox,
             extra_packfile_autosave_interval_spinbox,
-            ai_openai_api_key_line_edit,
+            ai_api_url_line_edit,
+            ai_api_key_line_edit,
+            ai_model_line_edit,
             deepl_api_key_line_edit,
             font_data: Rc::new(RefCell::new((String::new(), -1))),
             checkboxes,
@@ -808,7 +822,9 @@ impl SettingsUI {
         }
 
         // Load AI keys.
-        self.ai_openai_api_key_line_edit.set_text(&QString::from_std_str(get_str(AI_OPENAI_API_KEY)));
+        self.ai_api_url_line_edit.set_text(&QString::from_std_str(get_str(AI_API_URL)));
+        self.ai_api_key_line_edit.set_text(&QString::from_std_str(get_str(AI_API_KEY)));
+        self.ai_model_line_edit.set_text(&QString::from_std_str(get_str(AI_MODEL)));
         self.deepl_api_key_line_edit.set_text(&QString::from_std_str(get_str(DEEPL_API_KEY)));
 
         // Load colours.
@@ -865,7 +881,9 @@ impl SettingsUI {
         }
 
         // Save AI keys.
-        let _ = settings_set_string(AI_OPENAI_API_KEY, &self.ai_openai_api_key_line_edit.text().to_std_string());
+        let _ = settings_set_string(AI_API_URL, &self.ai_api_url_line_edit.text().to_std_string());
+        let _ = settings_set_string(AI_API_KEY, &self.ai_api_key_line_edit.text().to_std_string());
+        let _ = settings_set_string(AI_MODEL, &self.ai_model_line_edit.text().to_std_string());
         let _ = settings_set_string(DEEPL_API_KEY, &self.deepl_api_key_line_edit.text().to_std_string());
 
         // Save colours.
@@ -991,9 +1009,13 @@ unsafe fn new_setting_label(container: &QBox<QWidget>, key: &str, tip_key: &str)
         l
     } else {
         let tip = tr(tip_key);
+        // Tips are inserted into a RichText label, so literal newlines from the .ftl source
+        // would be collapsed by the HTML renderer. Convert them to `<br>` so multi-line tips
+        // (e.g. lists of example URLs) keep their layout.
+        let tip_html = tip.replace('\n', "<br>");
         let rich = format!(
             "{}<br><span style='color: gray; font-size: small; font-style: italic; margin-top: 4px;'>{}</span>",
-            text, tip
+            text, tip_html
         );
         let l = QLabel::from_q_string_q_widget(&QString::from_std_str(rich), container);
         l.set_text_format(qt_core::TextFormat::RichText);

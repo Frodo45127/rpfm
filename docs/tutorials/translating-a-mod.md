@@ -71,7 +71,12 @@ At the top: a short instruction line and the target language (picked automatical
 **Auto-translation behaviour** — what should happen when you select a new line:
 
 - **Auto-translate with DeepL** — uses [DeepL](https://www.deepl.com/) for high-quality machine translation. Requires a DeepL API key set in **PackFile → Settings → AI**.
-- **Auto-translate with ChatGPT** — uses ChatGPT, with optional context. Quality varies. Requires an OpenAI API key in the same AI pane.
+- **Auto-translate with AI** — sends the line to any AI service that exposes the OpenAI chat-completions wire format, with optional context. Quality depends on the model you pick. Requires an API URL, API key and model in the same AI pane. Examples of supported endpoints:
+    - OpenAI: `https://api.openai.com/v1/chat/completions`
+    - Anthropic (OpenAI compat): `https://api.anthropic.com/v1/chat/completions`
+    - Gemini (OpenAI compat): `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`
+    - OpenRouter: `https://openrouter.ai/api/v1/chat/completions`
+    - Local (Ollama, vLLM, LM Studio, ...): `http://127.0.0.1:.../v1/chat/completions`
 - **Auto-translate with Google Translate** — mediocre but free.
 - **Copy Source Value** — leaves the source text in place; useful for terms that don't translate.
 - **Empty Translated Value** — does nothing on selection; you write the translation from scratch.

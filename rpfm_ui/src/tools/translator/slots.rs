@@ -33,7 +33,7 @@ pub struct ToolTranslatorSlots {
     move_selection_up: QBox<SlotNoArgs>,
     move_selection_down: QBox<SlotNoArgs>,
     translate_with_deepl: QBox<SlotNoArgs>,
-    translate_with_chatgpt: QBox<SlotNoArgs>,
+    translate_with_ai: QBox<SlotNoArgs>,
     translate_with_google: QBox<SlotNoArgs>,
     copy_from_source: QBox<SlotNoArgs>,
     import_from_translated_pack: QBox<SlotNoArgs>,
@@ -101,9 +101,9 @@ impl ToolTranslatorSlots {
             }
         ));
 
-        let translate_with_chatgpt = SlotNoArgs::new(ui.tool.main_widget(), clone!(
+        let translate_with_ai = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
-                rpfm_telemetry::track_action("Translator: translate_with_chatgpt");
+                rpfm_telemetry::track_action("Translator: translate_with_ai");
 
                 ui.translated_value_textedit().set_enabled(false);
                 let event_loop = QEventLoop::new_0a();
@@ -112,7 +112,7 @@ impl ToolTranslatorSlots {
                 let source_text = ui.original_value_textedit().to_plain_text().to_std_string();
                 let language = ui.map_language_to_natural();
                 let context = ui.context_text_edit().to_plain_text().to_std_string();
-                let result = ToolTranslator::ask_chat_gpt(&source_text, &language, &context);
+                let result = ToolTranslator::ask_ai(&source_text, &language, &context);
                 if let Ok(tr) = result {
                     ui.translated_value_textedit.set_text(&QString::from_std_str(tr));
                 }
@@ -182,7 +182,7 @@ impl ToolTranslatorSlots {
             move_selection_up,
             move_selection_down,
             translate_with_deepl,
-            translate_with_chatgpt,
+            translate_with_ai,
             translate_with_google,
             copy_from_source,
             import_from_translated_pack,

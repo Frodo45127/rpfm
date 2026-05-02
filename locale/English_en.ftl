@@ -1716,7 +1716,7 @@ compression_format_zstd = Zstd
 
 behavior_title = Auto-translation behavior
 behavior_info = Behavior when you select a new line:
-behavior_chatgpt = Auto-translate with ChatGPT (needs API Key, mid quality)
+behavior_ai = Auto-translate with AI (needs API Key, URL and model, quality depends on the model)
 behavior_google_translate = Auto-translate with Google Translate (bad quality)
 behavior_copy_source = Copy source value
 behavior_empty = Empty translated value
@@ -1767,8 +1767,17 @@ optimizer_instructions_label = <h3>Are you sure you want to optimize this PackFi
 translator_key = Key:
 context = Context
 settings_ai_title = AI Settings
-settings_ai_openai_api_key = OpenAI API Key:
-tt_ai_openai_api_key_tip = OpenAI API Key. You must get one from OpenAI's website.
+settings_ai_api_url = AI API URL:
+tt_ai_api_url_tip = Endpoint URL for an AI service that speaks the OpenAI chat-completions wire format. Examples:
+    - OpenAI: https://api.openai.com/v1/chat/completions
+    - Anthropic (OpenAI compat): https://api.anthropic.com/v1/chat/completions
+    - Gemini (OpenAI compat): https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
+    - OpenRouter: https://openrouter.ai/api/v1/chat/completions
+    - Local (Ollama, vLLM, LM Studio, ...): http://127.0.0.1:.../v1/chat/completions
+settings_ai_api_key = AI API Key:
+tt_ai_api_key_tip = API Key for the AI service. Sent as a Bearer token in the Authorization header.
+settings_ai_model = AI Model:
+tt_ai_model_tip = Model identifier passed to the AI service (e.g. gpt-4o-mini, claude-sonnet-4-5, gemini-2.0-flash).
 tt_settings_ui_language_tip = Select the display language for RPFM's interface.
 tt_settings_default_game_tip = Select the default Total War game to use when RPFM starts.
 tt_settings_update_channel_tip = Choose between Stable (recommended) and Beta update channels.
@@ -1794,7 +1803,7 @@ tt_settings_use_debug_view_unit_variant_tip = Use a debug view for the Unit Vari
 tt_settings_enable_renderer_tip = Enable the experimental 3D model renderer for previewing RigidModel files.
 tt_settings_add_rpfm_to_runcher_tools_tip = Register RPFM as an external tool in Runcher's configuration.
 
-translator_translate_with_chatgpt = Translate with ChatGPT
+translator_translate_with_ai = Translate with AI
 translator_translate_with_google = Translate with Google Translate
 
 label_file_itm = File identical to parent/vanilla file

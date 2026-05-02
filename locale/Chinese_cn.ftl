@@ -1586,7 +1586,7 @@ compression_format_zstd = Zstd
 
 behavior_title = 自动翻译行为
 behavior_info = 当您选择新行时的行为：
-behavior_chatgpt = 使用 ChatGPT 自动翻译（需要 API Key，中等质量）
+behavior_ai = 使用 AI 自动翻译（需要 API Key、URL 和模型，质量取决于所选模型）
 behavior_google_translate = 使用 Google 翻译自动翻译（低质量）
 behavior_copy_source = 复制来源值
 behavior_empty = 清空翻译值
@@ -1638,10 +1638,19 @@ optimizer_instructions_label = <h3>您确定要优化此 PackFile 吗？</h3>
 translator_key = 键:
 context = 上下文
 settings_ai_title = AI 设置
-settings_ai_openai_api_key = OpenAI API Key:
-tt_ai_openai_api_key_tip = OpenAI API Key。您必须从 OpenAI 的网站获取。
+settings_ai_api_url = AI API URL:
+tt_ai_api_url_tip = 兼容 OpenAI chat-completions 格式的 AI 服务的端点 URL。例如:
+    - OpenAI: https://api.openai.com/v1/chat/completions
+    - Anthropic (OpenAI 兼容): https://api.anthropic.com/v1/chat/completions
+    - Gemini (OpenAI 兼容): https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
+    - OpenRouter: https://openrouter.ai/api/v1/chat/completions
+    - 本地 (Ollama, vLLM, LM Studio, ...): http://127.0.0.1:.../v1/chat/completions
+settings_ai_api_key = AI API Key:
+tt_ai_api_key_tip = AI 服务的 API Key。作为 Bearer 令牌通过 Authorization 头发送。
+settings_ai_model = AI 模型:
+tt_ai_model_tip = 传递给 AI 服务的模型标识符（例如 gpt-4o-mini、claude-sonnet-4-5、gemini-2.0-flash）。
 
-translator_translate_with_chatgpt = 使用 ChatGPT 翻译
+translator_translate_with_ai = 使用 AI 翻译
 translator_translate_with_google = 使用 Google 翻译翻译
 
 label_file_itm = 文件与父级/原版文件相同
