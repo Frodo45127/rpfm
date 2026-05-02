@@ -8,7 +8,7 @@ This crate defines the type-safe message contract that the Qt6 frontend and the 
 >
 > This README targets developers consuming or working on the crate.
 
-[manual]: https://frodo45127.github.io/rpfm/
+[manual]: https://frodo45127.github.io/rpfm/manual/
 
 ## Protocol
 

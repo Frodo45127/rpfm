@@ -96,6 +96,8 @@
 
 # Doc-related folders.
 /book/
+/out/
+/target_doc/
 
 # Ignore autogen folder on debug builds.
 /tw_autogen/

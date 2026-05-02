@@ -8,7 +8,7 @@ Core library for reading and writing Total War game files.
 >
 > This README targets developers consuming or working on the library.
 
-[manual]: https://frodo45127.github.io/rpfm/
+[manual]: https://frodo45127.github.io/rpfm/manual/
 
 ## Supported games
 

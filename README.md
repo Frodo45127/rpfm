@@ -1,6 +1,12 @@
 ![rpfm](https://github.com/Frodo45127/rpfm/assets/15714929/3a820a6a-f7c9-4b15-8c2d-44605e751f5d)
 # Rusted PackFile Manager
 
+[![Tests](https://github.com/Frodo45127/rpfm/actions/workflows/test.yml/badge.svg)](https://github.com/Frodo45127/rpfm/actions/workflows/test.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/Frodo45127/rpfm)](https://github.com/Frodo45127/rpfm/releases/latest)
+[![AUR](https://img.shields.io/aur/version/rpfm-bin)](https://aur.archlinux.org/packages/rpfm-bin)
+[![Downloads](https://img.shields.io/github/downloads/Frodo45127/rpfm/total)](https://github.com/Frodo45127/rpfm/releases)
+
 ***Rusted PackFile Manager*** (RPFM) is a Rust + ***Qt6*** reimplementation of ***PackFile Manager*** (PFM), one of the best modding tools for Total War games. It opens, inspects, edits and saves PackFiles for every Total War since *Empire: Total War*, and ships integrated editors for DB tables, Loc files, scripts, animations, portrait settings, rigid models, videos and a long list of other formats.
 
 **Downloads:** [https://github.com/Frodo45127/rpfm/releases][Downloads]
@@ -76,6 +82,6 @@ RPFM is split into several crates so the same code can power the desktop app, a 
 
 [Rustup download]: https://www.rustup.rs/ "Here you can download it :)"
 [Patreon]: https://www.patreon.com/RPFM
-[Manual]: https://frodo45127.github.io/rpfm/
+[Manual]: https://frodo45127.github.io/rpfm/manual/
 [Downloads]: https://github.com/Frodo45127/rpfm/releases
-[CompInst]: https://frodo45127.github.io/rpfm/chapter_comp.html
+[CompInst]: https://frodo45127.github.io/rpfm/manual/building.html

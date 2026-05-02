@@ -8,7 +8,7 @@ While `rpfm_lib` handles low-level file format parsing, `rpfm_extensions` implem
 >
 > This README targets developers consuming or working on the crate.
 
-[manual]: https://frodo45127.github.io/rpfm/
+[manual]: https://frodo45127.github.io/rpfm/manual/
 
 ## Module layout
 

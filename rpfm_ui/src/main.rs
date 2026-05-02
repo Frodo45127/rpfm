@@ -158,7 +158,7 @@ static NEW_FILE_VIEW_CREATED: LazyLock<AtomicBool> = LazyLock::new(|| AtomicBool
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const VERSION_SUBTITLE: &str = " -- When the translator was finished";
 
-const MANUAL_URL: &str = "https://frodo45127.github.io/rpfm/";
+const MANUAL_URL: &str = "https://frodo45127.github.io/rpfm/manual/";
 const GITHUB_URL: &str = "https://github.com/Frodo45127/rpfm";
 const PATREON_URL: &str = "https://www.patreon.com/RPFM";
 const DISCORD_URL: &str = "https://discord.gg/moddingden";

@@ -1,4 +1,4 @@
-name: Deploy docs
+name: Deploy site
 on:
   push:
     branches:
@@ -31,13 +31,24 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Install latest mdbook and mdbook-langtabs
-        run: |
-          cargo install mdbook
-          cargo install mdbook-langtabs
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target_doc/
+          key: ${{ runner.os }}-cargo-docs-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Build Book
-        run: mdbook build
+      - name: Install mdbook + mdbook-langtabs
+        run: |
+          cargo install --locked mdbook
+          cargo install --locked mdbook-langtabs
+
+      - name: Build site (landing page + manual + API docs)
+        run: ./build_site.sh
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -45,7 +56,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './book'
+          path: './out'
 
   # Deployment job
   deploy:

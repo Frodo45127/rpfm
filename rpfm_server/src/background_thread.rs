@@ -3098,7 +3098,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
             Command::BuildStarposPost(pack_key, campaign_id, process_hlp_spd_data) => {
                 let dependencies = dependencies.read().unwrap();
                 let game_path = settings.path_buf(game.key());
-                let asskit_path = Some(settings.path_buf(&(game.key().to_owned() + "_assembly_kit")));
+                let asskit_path = Some(settings.path_buf(&(game.key().to_owned() + ASSEMBLY_KIT_SUFFIX)));
 
                 let sub_start_pos = if game.key() == KEY_THREE_KINGDOMS {
                     vec!["historical".to_owned(), "romance".to_owned()]
@@ -3115,7 +3115,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
             Command::BuildStarposCleanup(pack_key, campaign_id, process_hlp_spd_data) => {
                 let dependencies = dependencies.read().unwrap();
                 let game_path = settings.path_buf(game.key());
-                let asskit_path = Some(settings.path_buf(&(game.key().to_owned() + "_assembly_kit")));
+                let asskit_path = Some(settings.path_buf(&(game.key().to_owned() + ASSEMBLY_KIT_SUFFIX)));
 
                 let sub_start_pos = if game.key() == KEY_THREE_KINGDOMS {
                     vec!["historical".to_owned(), "romance".to_owned()]

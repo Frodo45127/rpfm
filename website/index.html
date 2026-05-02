@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Rusted PackFile Manager</title>
+  <meta name="description" content="Rusted PackFile Manager — a modern modding tool for Total War games. Edit Packs, DB tables, Loc files, scripts, animations, models and more.">
+  <link rel="icon" type="image/png" href="./assets/logo.png">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="#top">
+      <img src="./assets/logo.png" alt="" class="brand-mark">
+      <span class="brand-name">Rusted PackFile Manager</span>
+    </a>
+    <nav class="primary-nav">
+      <a href="#features">Features</a>
+      <a href="#server">Server</a>
+      <a href="./manual/">Manual</a>
+      <a href="./api/">API</a>
+      <a href="https://github.com/Frodo45127/rpfm">GitHub</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero-content">
+        <h1>Total War modding,<br>modernized.</h1>
+        <p class="lede">
+          A native Rust + Qt6 reimplementation of <em>PackFile Manager</em>.
+          Open, inspect, edit and save Packs for every Total War since
+          <em>Empire</em>, with first-class editors for tables, locs, scripts,
+          animations, portrait settings, models and more.
+        </p>
+        <div class="cta-row">
+          <div class="cta-split">
+            <a class="cta cta-primary cta-split-main" href="https://github.com/Frodo45127/rpfm/releases/latest">Download</a>
+            <details class="cta-split-dropdown">
+              <summary class="cta cta-primary cta-split-toggle" aria-label="Choose download channel">
+                <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </summary>
+              <ul class="cta-split-menu" role="menu">
+                <li role="none"><a role="menuitem" href="https://github.com/Frodo45127/rpfm/releases/latest">Latest stable release</a></li>
+                <li role="none"><a role="menuitem" href="https://github.com/Frodo45127/rpfm/releases" data-channel="prerelease">Latest pre-release</a></li>
+              </ul>
+            </details>
+          </div>
+          <a class="cta" href="./manual/">Read the manual</a>
+          <a class="cta cta-ghost" href="https://github.com/Frodo45127/rpfm">View on GitHub</a>
+        </div>
+        <p class="hero-supports">
+          Supports Pharaoh Dynasties • Pharaoh • Warhammer&nbsp;3 • Troy • Three Kingdoms • Warhammer 1&nbsp;&amp;&nbsp;2 • Thrones of Britannia • Attila • Rome 2 • Shogun 2 • Napoleon • Empire
+        </p>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <img src="./assets/logo.png" alt="" class="hero-logo">
+      </div>
+    </section>
+
+    <section id="features" class="section">
+      <h2 class="section-title">What it does</h2>
+      <p class="section-lede">Built for serious modders. Every editor exists because someone needed it.</p>
+      <div class="feature-grid">
+        <article class="feature">
+          <h3>Pack editor</h3>
+          <p>Open one or many Packs at once, navigate them as a tree, and add, extract, rename, duplicate or delete files in bulk.</p>
+        </article>
+        <article class="feature">
+          <h3>DB table editor</h3>
+          <p>Schema-aware grid for every supported game. Lookups, references, sorting, filtering, copy/paste from spreadsheets, TSV import &amp; export.</p>
+        </article>
+        <article class="feature">
+          <h3>Loc editor</h3>
+          <p>Full localisation editing with TSV round-tripping and side-by-side reference to the vanilla source text.</p>
+        </article>
+        <article class="feature">
+          <h3>Diagnostics</h3>
+          <p>Catches invalid references, datacore mistakes, missing locs, broken portrait variants, animation gaps and dozens of other classes of mod bugs before the game does.</p>
+        </article>
+        <article class="feature">
+          <h3>Global search &amp; replace</h3>
+          <p>Pattern or regex across the whole pack — or across vanilla and parent mods too — with one-shot or interactive replace.</p>
+        </article>
+        <article class="feature">
+          <h3>Dependencies</h3>
+          <p>Knows about vanilla data and parent mods. Detects ITM/ITNR rows, conflicting files and unresolved references; powers reference lookups everywhere else.</p>
+        </article>
+        <article class="feature">
+          <h3>MyMod workflow</h3>
+          <p>Project-style workspaces per game, with import/export, asset folders, templates, and one-click install to the game's data folder.</p>
+        </article>
+        <article class="feature">
+          <h3>Pack optimizer</h3>
+          <p>Strips ITM rows, datacore deletes, empty files, unused portrait variants and modding-tool byproducts to keep your final pack lean.</p>
+        </article>
+        <article class="feature">
+          <h3>Translator</h3>
+          <p>Generate, share and apply mod translations through the Total War Translation Hub, automatically detected by Runcher at launch.</p>
+        </article>
+        <article class="feature">
+          <h3>Specialised editors</h3>
+          <p>RigidModel viewer, AnimPack &amp; AnimFragment editors, Portrait Settings, ESF, BMD, UIC, audio banks, CA_VP8 video, embedded text editor with KDE syntax highlighting.</p>
+        </article>
+        <article class="feature">
+          <h3>Schema management</h3>
+          <p>Schemas for every supported game ship with the program and update over the air. Patches let you tweak field metadata without touching the schema files.</p>
+        </article>
+        <article class="feature">
+          <h3>Faction painter &amp; tools</h3>
+          <p>Integrated tools for faction colour editing, unit creation and translation workflows, all aware of the open Pack and its dependencies.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="server" class="section section-alt">
+      <div class="server-grid">
+        <div>
+          <h2 class="section-title">Built for tools, too</h2>
+          <p class="section-lede">
+            <code>rpfm_server</code> is the headless backend that powers the desktop app — and it's exposed for anything else that wants to script Total War files.
+          </p>
+          <ul class="server-points">
+            <li><strong>WebSocket protocol.</strong> Same command/response surface the UI uses, fully documented in the manual.</li>
+            <li><strong>MCP endpoint.</strong> 150+ tools, prompts and resources for AI agents and any client speaking the <a href="https://modelcontextprotocol.io/">Model Context Protocol</a>.</li>
+            <li><strong>Multi-session.</strong> Many clients, each with their own packs and dependency cache, against a single running server.</li>
+            <li><strong>Reusable libraries.</strong> Drop <code>rpfm_lib</code> + <code>rpfm_extensions</code> into your own Rust project — they're on <a href="https://crates.io/crates/rpfm_lib">crates.io</a>.</li>
+          </ul>
+          <div class="cta-row">
+            <a class="cta" href="./manual/server/overview.html">Server docs</a>
+            <a class="cta cta-ghost" href="./api/">Library API reference</a>
+          </div>
+        </div>
+        <pre class="code-block" aria-label="Connect to rpfm_server"><code>// Connect to a running rpfm_server
+const ws = new WebSocket("ws://127.0.0.1:45127/ws");
+
+ws.onmessage = (e) =&gt; {
+  const { id, data } = JSON.parse(e.data);
+  // SessionConnected, ContainerInfo, …
+};
+
+ws.onopen = () =&gt; ws.send(JSON.stringify({
+  id: 1,
+  data: { OpenPackFiles: ["/path/to/my_mod.pack"] }
+}));</code></pre>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">Get started</h2>
+      <div class="get-started">
+        <article class="gs-card">
+          <h3>Windows</h3>
+          <p>Download the latest release zip, extract anywhere, run <code>rpfm_ui.exe</code>.</p>
+          <a class="cta cta-small" href="https://github.com/Frodo45127/rpfm/releases">Releases</a>
+        </article>
+        <article class="gs-card">
+          <h3>Arch Linux</h3>
+          <p>Install <code>rpfm-bin</code> from the AUR.</p>
+          <a class="cta cta-small" href="https://aur.archlinux.org/packages/rpfm-bin">AUR page</a>
+        </article>
+        <article class="gs-card">
+          <h3>Other Linux</h3>
+          <p>Install the Flatpak, or build from source — Qt6 + KDE Frameworks 6 required.</p>
+          <a class="cta cta-small" href="./manual/building.html">Build instructions</a>
+        </article>
+        <article class="gs-card">
+          <h3>Need help?</h3>
+          <p>Read the manual, or join the modding community on Discord.</p>
+          <a class="cta cta-small" href="https://discord.gg/moddingden">Discord</a>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-grid">
+      <div>
+        <p class="footer-brand">
+          <img src="./assets/logo.png" alt="" class="footer-mark">
+          Rusted PackFile Manager
+        </p>
+        <p class="footer-tag">A modern modding tool for Total War, by <a href="https://github.com/Frodo45127">Frodo45127</a> and contributors.</p>
+        <p class="footer-license">Released under the MIT License.</p>
+      </div>
+      <div>
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/Frodo45127/rpfm">GitHub repository</a></li>
+          <li><a href="https://github.com/Frodo45127/rpfm/releases">Releases</a></li>
+          <li><a href="https://github.com/Frodo45127/rpfm/issues">Issue tracker</a></li>
+          <li><a href="https://github.com/Frodo45127/rpfm/blob/master/CHANGELOG.md">Changelog</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Documentation</h4>
+        <ul>
+          <li><a href="./manual/">User manual</a></li>
+          <li><a href="./api/">Library API</a></li>
+          <li><a href="./manual/building.html">Compilation</a></li>
+          <li><a href="./manual/server/overview.html">Server protocol</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Support the project</h4>
+        <ul>
+          <li><a href="https://www.patreon.com/RPFM"><img src="./assets/patreon.png" alt="" class="footer-icon"> Patreon</a></li>
+          <li><a href="https://github.com/Frodo45127/rpfm"><img src="./assets/github.svg" alt="" class="footer-icon"> Star on GitHub</a></li>
+        </ul>
+      </div>
+    </div>
+  </footer>
+  <script src="./script.js" defer></script>
+</body>
+</html>

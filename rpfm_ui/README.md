@@ -8,7 +8,7 @@ The Qt6 desktop frontend for ***Rusted PackFile Manager***.
 >
 > This README targets developers working on the UI crate itself.
 
-[manual]: https://frodo45127.github.io/rpfm/
+[manual]: https://frodo45127.github.io/rpfm/manual/
 
 ## Architecture
 
@@ -91,7 +91,7 @@ On Windows, KDE binaries must be reachable at runtime; on Linux the `rpfm-bin` A
 
 See the [compilation instructions][build] in the manual for platform-specific notes.
 
-[build]: https://frodo45127.github.io/rpfm/chapter_comp.html
+[build]: https://frodo45127.github.io/rpfm/manual/building.html
 
 ## Telemetry
 

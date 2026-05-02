@@ -8,7 +8,7 @@ The backend that does the actual PackFile, schema and filesystem work for ***Rus
 >
 > This README targets developers working on the server itself.
 
-[manual]: https://frodo45127.github.io/rpfm/
+[manual]: https://frodo45127.github.io/rpfm/manual/
 [mcp]: https://modelcontextprotocol.io/
 
 ## Architecture

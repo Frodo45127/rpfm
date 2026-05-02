@@ -6,7 +6,7 @@ Per-platform build scripts, packaging manifests and release tooling for ***Ruste
 >
 > This README targets maintainers cutting releases or working on the packaging itself.
 
-[manual]: https://frodo45127.github.io/rpfm/
+[manual]: https://frodo45127.github.io/rpfm/manual/
 
 ## Layout
 

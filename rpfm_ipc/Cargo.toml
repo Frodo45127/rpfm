@@ -1,5 +1,6 @@
 [package]
 name = "rpfm_ipc"
+description = "IPC protocol shared between rpfm_ui and rpfm_server."
 version.workspace = true
 authors.workspace = true
 rust-version.workspace = true
