@@ -61,6 +61,9 @@ else
 fi
 
 if [[ $SKIP_API -eq 0 ]]; then
+    sed -i.docbak -e '/"rpfm_ui_common",/d' -e '/"rpfm_ui",/d' "$ROOT/Cargo.toml"
+    trap 'mv "$ROOT/Cargo.toml.docbak" "$ROOT/Cargo.toml"' EXIT
+
     echo ">> building cargo doc for: ${API_CRATES[*]}"
     DOC_TARGET="$ROOT/target_doc"
     # Document one crate at a time, in dep order. `--no-deps -p X` doesn't always
