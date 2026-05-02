@@ -92,9 +92,11 @@ impl PackedFileAnimPackViewSlots {
                         let _ = file_view.save(&app_ui, &pack_file_contents_ui);
                     }
 
-                    // Ask the Background Thread to copy the files, and send him the path.
+                    // Ask the Background Thread to copy the files, and send him the path. Pack key
+                    // comes from the AnimPack view's own left-panel selection so the operation hits
+                    // the same Pack the user is clicking on, not whatever is selected in the dock.
                     app_ui.toggle_main_window(false);
-                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                    let pack_key = view.pack_tree_view.pack_key_from_selection_or_first().unwrap_or_default();
                     match send_ipc_command_result(Command::AddPackedFilesFromPackFileToAnimpack(pack_key.clone(), view.path().read().unwrap().to_owned(), item_types), response_extractor!(Response::VecContainerPath)) {
                         Ok(paths_ok) => {
 
@@ -134,9 +136,10 @@ impl PackedFileAnimPackViewSlots {
                 if selection_file_to_move.count() == 1 {
                     let item_types = view.anim_pack_tree_view.get_item_types_from_selection_filtered();
 
-                    // Ask the Background Thread to copy the files, and send him the path.
+                    // Ask the Background Thread to copy the files, and send him the path. Pack key
+                    // for the destination comes from the AnimPack view's own left-panel selection.
                     app_ui.toggle_main_window(false);
-                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                    let pack_key = view.pack_tree_view.pack_key_from_selection_or_first().unwrap_or_default();
                     match send_ipc_command_result(Command::AddPackedFilesFromAnimpack(pack_key.clone(), *view.data_source.read().unwrap(), view.path().read().unwrap().to_owned(), item_types), response_extractor!(Response::VecContainerPath)) {
                         Ok(paths_ok) => {
 
@@ -179,8 +182,10 @@ impl PackedFileAnimPackViewSlots {
                 if selection_file_to_move.count() == 1 {
                     let item_types = view.anim_pack_tree_view.get_item_types_from_selection_filtered();
 
-                    // Ask the backend to delete them.
-                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                    // Ask the backend to delete them. Pack key comes from the AnimPack view's own
+                    // left-panel selection so the operation targets the same Pack the user is
+                    // working in, not whatever is selected in the dock.
+                    let pack_key = view.pack_tree_view.pack_key_from_selection_or_first().unwrap_or_default();
                     match send_ipc_command_result(Command::DeleteFromAnimpack(pack_key.clone(), view.path().read().unwrap().to_owned(), item_types.clone()), response_extractor!()) {
                         Ok(()) => {
 

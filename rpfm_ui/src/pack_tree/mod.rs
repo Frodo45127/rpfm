@@ -158,6 +158,12 @@ pub trait PackTree {
     /// Returns None if the root node has no pack key set.
     unsafe fn get_pack_key_from_index(&self, index: CppBox<QModelIndex>) -> Option<String>;
 
+    /// Returns the pack key of the currently selected item in this `TreeView`, falling back to the first
+    /// editable pack root in the underlying source model if nothing is selected. Use this on any tree
+    /// view bound to the global PackFile contents model (the dock tree, the AnimPack view's left panel,
+    /// etc.) to resolve a per-tree pack key without leaking the dock's selection into other views.
+    unsafe fn pack_key_from_selection_or_first(&self) -> Option<String>;
+
     /// This function gives you a bitmask with what's selected in the PackFile Content's TreeView,
     /// the number of selected files, and the number of selected folders.
     /// Returns (content_bitmask, file_count, folder_count, pack_count, multi_pack).
@@ -765,6 +771,38 @@ impl PackTree for QPtr<QTreeView> {
                 return Some(key);
             }
         }
+        None
+    }
+
+    unsafe fn pack_key_from_selection_or_first(&self) -> Option<String> {
+
+        // First, try to get it from the current selection of *this* tree view.
+        let selection = self.selection_model().selection().indexes();
+        if selection.count() > 0 {
+            let index = selection.at(0);
+            let filter: QPtr<QSortFilterProxyModel> = self.model().static_downcast();
+            let source_index = filter.map_to_source(index);
+            if let Some(key) = self.get_pack_key_from_index(source_index) {
+                return Some(key);
+            }
+        }
+
+        // Fallback: walk the source model and return the first editable pack root's key.
+        let filter: QPtr<QSortFilterProxyModel> = self.model().static_downcast();
+        let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
+        for row in 0..model.row_count_0a() {
+            let item = model.item_1a(row);
+            if item.data_1a(ROOT_NODE_TYPE).to_int_0a() == ROOT_NODE_TYPE_EDITABLE_PACKFILE {
+                let variant = item.data_1a(ITEM_PACK_KEY);
+                if variant.is_valid() && !variant.is_null() {
+                    let key = variant.to_string().to_std_string();
+                    if !key.is_empty() {
+                        return Some(key);
+                    }
+                }
+            }
+        }
+
         None
     }
 

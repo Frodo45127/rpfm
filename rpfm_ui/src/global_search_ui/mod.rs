@@ -785,7 +785,11 @@ impl GlobalSearchUI {
         AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path.to_owned()), false, false, data_source);
 
         if is_match {
-            if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == data_source).find(|x| *x.path_read() == path) {
+            // For PackFile matches, disambiguate by pack key so we don't grab a same-named tab from another pack.
+            let target_pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+            if let Some(file_view) = UI_STATE.get_open_packedfiles().iter()
+                .filter(|x| x.data_source() == data_source)
+                .find(|x| *x.path_read() == path && (data_source != DataSource::PackFile || x.pack_key_copy() == target_pack_key)) {
                 match file_view.view_type() {
 
                     // If it's a anim fragment battle file, open and select the matched value.

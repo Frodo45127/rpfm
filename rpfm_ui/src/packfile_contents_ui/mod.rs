@@ -749,41 +749,14 @@ impl PackFileContentsUI {
         pack_file_contents_ui.filter_timer_delayed_updates.start_0a();
     }
 
-    /// Get the pack key from the current tree view selection, or fall back to the first editable pack root.
+    /// Get the pack key from the dock tree view's selection, or fall back to the first editable pack root.
     ///
-    /// This is the primary way UI code obtains the pack key to pass to server commands.
-    /// When multiple packs are open, it derives the key from the selected item's root node.
-    /// If nothing is selected, it returns the first editable pack root's key.
+    /// This is the primary way UI code obtains the pack key to pass to server commands when the
+    /// action is rooted in the dock tree. Code rooted in another tree view bound to the same model
+    /// (e.g. the AnimPack view's left panel) should call `pack_key_from_selection_or_first` directly
+    /// on its own tree view to read its own selection.
     pub unsafe fn pack_key_from_selection_or_first(&self) -> Option<String> {
-
-        // First, try to get it from the current tree selection.
-        let selection = self.packfile_contents_tree_view.selection_model().selection().indexes();
-        if selection.count() > 0 {
-            let index = selection.at(0);
-            let filter: qt_core::QPtr<qt_core::QSortFilterProxyModel> = self.packfile_contents_tree_view.model().static_downcast();
-            let source_index = filter.map_to_source(index);
-
-            if let Some(key) = self.packfile_contents_tree_view.get_pack_key_from_index(source_index) {
-                return Some(key);
-            }
-        }
-
-        // Fallback: return the first editable pack root's key.
-        for row in 0..self.packfile_contents_tree_model.row_count_0a() {
-            let item = self.packfile_contents_tree_model.item_1a(row);
-            let root_type = item.data_1a(rpfm_ui_common::ROOT_NODE_TYPE).to_int_0a();
-            if root_type == rpfm_ui_common::ROOT_NODE_TYPE_EDITABLE_PACKFILE {
-                let variant = item.data_1a(rpfm_ui_common::ITEM_PACK_KEY);
-                if variant.is_valid() && !variant.is_null() {
-                    let key = variant.to_string().to_std_string();
-                    if !key.is_empty() {
-                        return Some(key);
-                    }
-                }
-            }
-        }
-
-        None
+        self.packfile_contents_tree_view.pack_key_from_selection_or_first()
     }
 
     /// Returns the selected items grouped by their pack key.

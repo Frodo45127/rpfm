@@ -2279,9 +2279,10 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 let Some(pack) = get_pack(&packs, &pack_key, &sender) else { continue 'background_loop; };
                 let files = pack.files_by_paths(&paths, true);
 
-                let mut references: Vec<(DataSource, String, String, usize, usize)> = vec![];
+                let mut references: Vec<(DataSource, String, String, String, usize, usize)> = vec![];
 
-                // Pass for local tables.
+                // Pass for local tables. Tag each hit with the searched pack key so the UI can
+                // open the right tab when several packs are open with files at the same path.
                 for (table_name, columns) in &reference_map {
                     for file in &files {
                         if file.db_table_name_from_path().unwrap() == table_name {
@@ -2289,7 +2290,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                                 for column_name in columns {
                                     if let Some((column_index, row_indexes)) = data.table().rows_containing_data(column_name, &value) {
                                         for row_index in &row_indexes {
-                                            references.push((DataSource::PackFile, file.path_in_container_raw().to_owned(), column_name.to_owned(), column_index, *row_index));
+                                            references.push((DataSource::PackFile, pack_key.clone(), file.path_in_container_raw().to_owned(), column_name.to_owned(), column_index, *row_index));
                                         }
                                     }
                                 }
@@ -2298,7 +2299,9 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                     }
                 }
 
-                // Pass for parent tables.
+                // Pass for parent tables. Pack key is empty here: parent/vanilla results are navigated
+                // through the dependencies tree, which has a single root per source and doesn't need
+                // pack-level disambiguation.
                 for (table_name, columns) in &reference_map {
                         if let Ok(tables) = dependencies.read().unwrap().db_data(table_name, false, true) {
                         references.append(&mut tables.par_iter().map(|table| {
@@ -2307,7 +2310,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                                 for column_name in columns {
                                     if let Some((column_index, row_indexes)) = data.table().rows_containing_data(column_name, &value) {
                                         for row_index in &row_indexes {
-                                            references.push((DataSource::ParentFiles, table.path_in_container_raw().to_owned(), column_name.to_owned(), column_index, *row_index));
+                                            references.push((DataSource::ParentFiles, String::new(), table.path_in_container_raw().to_owned(), column_name.to_owned(), column_index, *row_index));
                                         }
                                     }
                                 }
@@ -2327,7 +2330,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                                 for column_name in columns {
                                     if let Some((column_index, row_indexes)) = data.table().rows_containing_data(column_name, &value) {
                                         for row_index in &row_indexes {
-                                            references.push((DataSource::GameFiles, table.path_in_container_raw().to_owned(), column_name.to_owned(), column_index, *row_index));
+                                            references.push((DataSource::GameFiles, String::new(), table.path_in_container_raw().to_owned(), column_name.to_owned(), column_index, *row_index));
                                         }
                                     }
                                 }
@@ -2338,7 +2341,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                     }
                 }
 
-                CentralCommand::send_back(&sender, Response::VecDataSourceStringStringUsizeUsize(references));
+                CentralCommand::send_back(&sender, Response::VecDataSourceStringStringStringUsizeUsize(references));
             },
 
             Command::GoToLoc(pack_key, loc_key) => {

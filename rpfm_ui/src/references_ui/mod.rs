@@ -129,14 +129,14 @@ impl ReferencesUI {
     }
 
     /// This function takes care of loading the results of a reference search into the table.
-    pub unsafe fn load_references_to_ui(&self, references: Vec<(DataSource, String, String, usize, usize)>) {
+    pub unsafe fn load_references_to_ui(&self, references: Vec<(DataSource, String, String, String, usize, usize)>) {
 
         // First, clean the current diagnostics.
         self.references_table_model.clear();
 
         if !references.is_empty() {
             let blocker = QSignalBlocker::from_q_object(&self.references_table_model);
-            for (index, (data_source, path, column_name, column_number, row_number)) in references.iter().enumerate() {
+            for (index, (data_source, pack_key, path, column_name, column_number, row_number)) in references.iter().enumerate() {
 
                 // Unlock in the last step.
                 if index == references.len() - 1 {
@@ -151,6 +151,7 @@ impl ReferencesUI {
                 let column_name_item = QStandardItem::new();
                 let column_number_item = QStandardItem::new();
                 let row_number_item = QStandardItem::new();
+                let pack_key_item = QStandardItem::new();
 
                 data_source_item.set_text(&QString::from_std_str(format!("{data_source}")));
                 path_item.set_text(&QString::from_std_str(path));
@@ -159,12 +160,14 @@ impl ReferencesUI {
                 column_number_item.set_data_1a(&QVariant::from_int(*column_number as i32));
                 row_number_item.set_data_2a(&QVariant::from_int(*row_number as i32), 2);
                 row_number_item.set_data_1a(&QVariant::from_int(*row_number as i32));
+                pack_key_item.set_text(&QString::from_std_str(pack_key));
 
                 data_source_item.set_editable(false);
                 path_item.set_editable(false);
                 column_name_item.set_editable(false);
                 column_number_item.set_editable(false);
                 row_number_item.set_editable(false);
+                pack_key_item.set_editable(false);
 
                 // Add an empty row to the list.
                 qlist_boi.append_q_standard_item(&data_source_item.into_ptr().as_mut_raw_ptr());
@@ -172,6 +175,7 @@ impl ReferencesUI {
                 qlist_boi.append_q_standard_item(&column_name_item.into_ptr().as_mut_raw_ptr());
                 qlist_boi.append_q_standard_item(&column_number_item.into_ptr().as_mut_raw_ptr());
                 qlist_boi.append_q_standard_item(&row_number_item.into_ptr().as_mut_raw_ptr());
+                qlist_boi.append_q_standard_item(&pack_key_item.into_ptr().as_mut_raw_ptr());
 
                 // Append the new row.
                 self.references_table_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
@@ -182,9 +186,12 @@ impl ReferencesUI {
             self.references_table_model.set_header_data_3a(2, Orientation::Horizontal, &QVariant::from_q_string(&qtr("reference_search_column_name")));
             self.references_table_model.set_header_data_3a(3, Orientation::Horizontal, &QVariant::from_q_string(&qtr("reference_search_column_number")));
             self.references_table_model.set_header_data_3a(4, Orientation::Horizontal, &QVariant::from_q_string(&qtr("reference_search_row_number")));
+            self.references_table_model.set_header_data_3a(5, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Pack Key")));
 
-            // Hide the column number column for tables.
+            // Hide the column number column for tables, and the pack key column (used internally to
+            // route navigation to the pack the result actually came from).
             self.references_table_view.hide_column(3);
+            self.references_table_view.hide_column(5);
             self.references_table_view.sort_by_column(1, SortOrder::AscendingOrder);
 
             self.references_table_view.horizontal_header().set_stretch_last_section(true);
@@ -212,10 +219,11 @@ impl ReferencesUI {
         let reference_path = model.item_2a(row, 1).text().to_std_string();
         let reference_column_number = model.item_2a(row, 3).data_0a().to_int_0a();
         let reference_row_number = model.item_2a(row, 4).data_0a().to_int_0a();
+        let reference_pack_key = model.item_2a(row, 5).text().to_std_string();
 
         match reference_data_source {
             DataSource::PackFile => {
-                let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&reference_path, reference_data_source, "");
+                let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&reference_path, reference_data_source, &reference_pack_key);
                 if let Some(ref tree_index) = tree_index {
                     if tree_index.is_valid() {
                         let _blocker = QSignalBlocker::from_q_object(pack_file_contents_ui.packfile_contents_tree_view().static_upcast::<QObject>());
@@ -239,9 +247,19 @@ impl ReferencesUI {
             DataSource::ExternalFile => {},
         }
 
-        // Open the table and select the cell.
+        // Open the table and select the cell. The selection update above places the right pack at
+        // the focus, so open_packedfile picks the correct pack when creating the tab.
         AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui,Some(reference_path.to_owned()), true, false, reference_data_source);
-        if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.path_read() == reference_path && x.data_source() == reference_data_source) {
+
+        // Match the just-opened tab by pack key for PackFile sources, so we don't pick up a tab
+        // from a different pack with the same path. Use the pack key that came back with the
+        // result, not the current tree selection — a user click between search and now would
+        // otherwise land on the wrong pack.
+        if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| {
+            *x.path_read() == reference_path
+                && x.data_source() == reference_data_source
+                && (reference_data_source != DataSource::PackFile || x.pack_key_copy() == reference_pack_key)
+        }) {
             if let ViewType::Internal(View::Table(view)) = file_view.view_type() {
                 let table_view = view.get_ref_table();
                 let table_view = table_view.table_view_ptr();

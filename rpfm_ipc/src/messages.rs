@@ -761,7 +761,7 @@ pub enum Command {
     /// Find all references to a value in a specific pack.
     /// First field is the pack key, then map of table -> columns to search, value to search.
     ///
-    /// Response: [`Response::VecDataSourceStringStringUsizeUsize`].
+    /// Response: [`Response::VecDataSourceStringStringStringUsizeUsize`].
     SearchReferences(String, HashMap<String, Vec<String>>, String),
 
     /// Get the name of a specific open PackFile.
@@ -1397,7 +1397,7 @@ pub enum Response {
     VecContainerPathVecContainerPathString(Vec<ContainerPath>, Vec<ContainerPath>, String),
     VecContainerPathVecRFileInfo(Vec<ContainerPath>, Vec<RFileInfo>),
     VecContainerPathVecString(Vec<ContainerPath>, Vec<String>),
-    VecDataSourceStringStringUsizeUsize(Vec<(DataSource, String, String, usize, usize)>),
+    VecDataSourceStringStringStringUsizeUsize(Vec<(DataSource, String, String, String, usize, usize)>),
     VecDefinition(Vec<Definition>),
     VecField(Vec<Field>),
     VecNote(Vec<Note>),

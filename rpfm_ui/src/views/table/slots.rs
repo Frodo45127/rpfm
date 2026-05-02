@@ -747,7 +747,7 @@ impl TableViewSlots {
 
                                 let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
                                 let selected_value = index.data_0a().to_string().to_std_string();
-                                match send_ipc_command_result_async(Command::SearchReferences(pack_key, reference_data.clone(), selected_value), response_extractor!(Response::VecDataSourceStringStringUsizeUsize)) {
+                                match send_ipc_command_result_async(Command::SearchReferences(pack_key, reference_data.clone(), selected_value), response_extractor!(Response::VecDataSourceStringStringStringUsizeUsize)) {
                                     Ok(data) => {
                                         references_ui.load_references_to_ui(data);
 

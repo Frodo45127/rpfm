@@ -1814,13 +1814,20 @@ impl AppUI {
 
             if let ContainerPath::File(ref path) = item_type {
 
+                // Resolve the pack the file belongs to up-front, so tab matching can disambiguate
+                // the same path across multiple open packs. Pack key only matters for PackFile views;
+                // for dependency views it's just whatever pack was selected when the tab was created.
+                let target_pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                let is_same_file = |fv: &FileView| -> bool {
+                    *fv.path_read() == *path
+                        && fv.data_source() == data_source
+                        && (data_source != DataSource::PackFile || fv.pack_key_copy() == target_pack_key)
+                };
+
                 // Close all preview views except the file we're opening.
                 for file_view in UI_STATE.get_open_packedfiles().iter() {
-                    let open_path = file_view.path_read();
                     let index = app_ui.tab_bar_packed_file.index_of(file_view.main_widget());
-                    if (data_source != file_view.data_source() ||
-                        (data_source == file_view.data_source() && *open_path != *path)) &&
-                        file_view.is_preview() && index != -1 {
+                    if !is_same_file(file_view) && file_view.is_preview() && index != -1 {
 
                         // If they're a rigid view, we need to pause their rendering.
                         #[cfg(feature = "support_model_renderer")] {
@@ -1840,7 +1847,7 @@ impl AppUI {
 
                 // If the file we want to open is already open, or it's hidden, we show it/focus it, instead of opening it again.
                 // If it was a preview, then we mark it as full. Index == -1 means it's not in a tab.
-                if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.path_read() == *path && x.data_source() == data_source) {
+                if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().find(|x| is_same_file(x)) {
                     if !is_external {
                         let index = app_ui.tab_bar_packed_file.index_of(tab_widget.main_widget());
 
@@ -1873,13 +1880,13 @@ impl AppUI {
                 }
 
                 // If we have a PackedFile open, but we want to open it as a external file, close it here.
-                if is_external && UI_STATE.get_open_packedfiles().iter().any(|x| *x.path_read() == *path && x.data_source() == data_source) {
+                if is_external && UI_STATE.get_open_packedfiles().iter().any(|x| is_same_file(x)) {
                     if let Err(error) = Self::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, data_source, true) {
                         show_dialog(&app_ui.main_window, error, false);
                     }
                 }
 
-                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                let pack_key = target_pack_key.clone();
                 let mut tab = FileView::new(path, &pack_key);
                 tab.main_widget().set_parent(&app_ui.tab_bar_packed_file);
                 tab.main_widget().set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
@@ -2522,8 +2529,13 @@ impl AppUI {
                 }
             }
 
+            let target_pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+
             // If the manager is already open, or it's hidden, we show it/focus it, instead of opening it again.
-            if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).find(|x| *x.path_read() == path) {
+            // The match must include the pack key so each open pack has its own special view tab.
+            if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter()
+                .filter(|x| x.data_source() == DataSource::PackFile)
+                .find(|x| *x.path_read() == path && x.pack_key_copy() == target_pack_key) {
                 let index = app_ui.tab_bar_packed_file.index_of(tab_widget.main_widget());
 
                 if index == -1 {
@@ -2537,7 +2549,7 @@ impl AppUI {
             }
 
             // If it's not already open/hidden, we create it and add it as a new tab.
-            let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+            let pack_key = target_pack_key;
             let mut tab = FileView::new(&path, &pack_key);
             tab.main_widget().set_parent(&app_ui.tab_bar_packed_file);
             tab.set_is_preview(false);
@@ -3466,6 +3478,22 @@ impl AppUI {
         // We also have to check for colliding packedfile names, so we can use their full path instead.
         let mut names = HashMap::new();
         let open_packedfiles = UI_STATE.get_open_packedfiles();
+
+        // Collect distinct pack keys among PackFile-sourced open tabs. When more than one pack
+        // contributes a tab the user can't tell tabs apart by filename alone, so we prefix the
+        // pack file name (e.g. `pack_a.pack: my_table`) to disambiguate them.
+        let mut distinct_packs: std::collections::HashSet<String> = std::collections::HashSet::new();
+        for file_view in open_packedfiles.iter() {
+            if file_view.data_source() == DataSource::PackFile
+                && self.tab_bar_packed_file.index_of(file_view.main_widget()) != -1 {
+                let pack_key = file_view.pack_key_copy();
+                if !pack_key.is_empty() {
+                    distinct_packs.insert(pack_key);
+                }
+            }
+        }
+        let show_pack_prefix = distinct_packs.len() > 1;
+
         for file_view in open_packedfiles.iter() {
             let widget = file_view.main_widget();
             if self.tab_bar_packed_file.index_of(widget) != -1 {
@@ -3484,7 +3512,7 @@ impl AppUI {
             }
         }
 
-        for file_view in UI_STATE.get_open_packedfiles().iter() {
+        for file_view in open_packedfiles.iter() {
             let widget = file_view.main_widget();
             let path = file_view.path_read();
             let path_split = path.split('/').collect::<Vec<_>>();
@@ -3498,6 +3526,20 @@ impl AppUI {
 
             if let Some(count) = names.get(&widget_name) {
                 let mut name = String::new();
+
+                // Prefix PackFile-sourced tabs with their pack file name when multiple packs are open.
+                if show_pack_prefix && file_view.data_source() == DataSource::PackFile {
+                    let pack_key = file_view.pack_key_copy();
+                    if !pack_key.is_empty() {
+                        let pack_name = std::path::Path::new(&pack_key)
+                            .file_name()
+                            .map(|n| n.to_string_lossy().to_string())
+                            .unwrap_or(pack_key);
+                        name.push_str(&pack_name);
+                        name.push_str(": ");
+                    }
+                }
+
                 match file_view.data_source() {
                     DataSource::PackFile => {},
                     DataSource::ParentFiles => name.push_str("Parent"),
@@ -3506,7 +3548,9 @@ impl AppUI {
                     DataSource::ExternalFile => name.push_str("External"),
                 }
 
-                if !name.is_empty() {
+                if matches!(file_view.data_source(),
+                    DataSource::ParentFiles | DataSource::GameFiles | DataSource::AssKitFiles | DataSource::ExternalFile)
+                {
                     if file_view.is_read_only() {
                         name.push_str("-RO:");
                     } else  {
