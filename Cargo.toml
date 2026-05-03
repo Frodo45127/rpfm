@@ -19,7 +19,7 @@ members = [
 exclude = ["3rdparty"]
 
 [workspace.package]
-version = "4.7.108"
+version = "4.7.109"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 rust-version = "1.85"
 edition = "2021"
@@ -34,8 +34,8 @@ debug = true
 
 [workspace.dependencies]
 # Internal workspace dependencies.
-rpfm_lib = { path = "rpfm_lib", version = "4.7.108" }
-rpfm_extensions = { path = "rpfm_extensions", version = "4.7.108" }
+rpfm_lib = { path = "rpfm_lib", version = "4.7.109" }
+rpfm_extensions = { path = "rpfm_extensions", version = "4.7.109" }
 rpfm_ui_common = { path = "rpfm_ui_common" }
 rpfm_ipc = { path = "rpfm_ipc" }
 rpfm_telemetry = { path = "rpfm_telemetry" }
