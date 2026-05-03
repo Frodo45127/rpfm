@@ -1054,6 +1054,9 @@ pub enum Command {
 
     BuildCeoEntries(String, Vec<CeoEntryData>),  // pack_key, entries
 
+
+    GetTraitCeos,
+
     //-----------------------------------------------------------------------//
     // Animation Commands
     //-----------------------------------------------------------------------//
@@ -1435,6 +1438,7 @@ pub enum Response {
     VecRFile(Vec<RFile>),
     VecRFileInfo(Vec<RFileInfo>),
     VecString(Vec<String>),
+    VecStringTuples(Vec<(String, String)>),
     VecStringContainerInfo(Vec<(String, ContainerInfo)>),
     VecU8(Vec<u8>),
     VideoInfoRFileInfo(VideoInfo, RFileInfo),

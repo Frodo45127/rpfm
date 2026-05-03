@@ -1032,7 +1032,7 @@ impl AppUISlots {
             pack_file_contents_ui => move || {
                 info!("Triggering `CEO Builder` By Slot");
                 app_ui.toggle_main_window(false);
-                if let Err(error) = AppUI::build_ceo_builder(&app_ui, &pack_file_contents_ui) {
+                if let Err(error) = crate::tools::ceo_builder::build_ceo_builder(&app_ui, &pack_file_contents_ui) {
                     show_dialog(&app_ui.main_window, error, false);
                 }
                 app_ui.toggle_main_window(true);

@@ -2093,7 +2093,7 @@ impl PackFileContentsSlots {
             pack_file_contents_ui => move |_| {
                 app_ui.toggle_main_window(false);
 
-                if let Err(error) = AppUI::build_ceo(&app_ui, &pack_file_contents_ui) {
+                if let Err(error) = crate::tools::ceo_builder::build_ceo(&app_ui, &pack_file_contents_ui) {
                     show_dialog(app_ui.main_window(), error, false);
                 }
 

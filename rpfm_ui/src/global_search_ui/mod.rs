@@ -2106,6 +2106,28 @@ impl GlobalSearchUI {
                                 match_file.matches_mut().push(match_entry);
                             }
                         },
+                        FileType::CeoDB => {
+                            let column_name = parent.child_2a(item.row(), 1).text().to_std_string();
+                            let column_number = parent.child_2a(item.row(), 3).text().to_std_string().parse().unwrap();
+                            let row_number = parent.child_2a(item.row(), 2).text().to_std_string().parse::<i64>().unwrap() - 1;
+                            let start = parent.child_2a(item.row(), 4).text().to_std_string().parse::<usize>().unwrap();
+                            let end = parent.child_2a(item.row(), 5).text().to_std_string().parse::<usize>().unwrap();
+                            let text = parent.child_2a(item.row(), 0).text().to_std_string();
+                            let match_file = match db_matches.iter_mut().find(|x| x.path() == &path) {
+                                Some(match_file) => match_file,
+                                None => {
+                                    let table = TableMatches::new(&path);
+                                    db_matches.push(table);
+                                    db_matches.last_mut().unwrap()
+                                }
+                            };
+
+                            let match_entry = TableMatch::new(&column_name, column_number, row_number, start, end, &text);
+
+                            if !match_file.matches_mut().contains(&match_entry) {
+                                match_file.matches_mut().push(match_entry);
+                            }
+                        },
                         FileType::ESF => todo!(),
                         FileType::Font => todo!(),
                         FileType::GroupFormations => todo!(),
@@ -2422,7 +2444,28 @@ impl GlobalSearchUI {
                                 let match_entry = TableMatch::new(&column_name, column_number, row_number, start, end, &text);
                                 match_file.matches_mut().push(match_entry);
                             }
-                        }
+                        },
+                         FileType::CeoDB => {
+                            if let Some(position) = db_matches.iter().position(|x| x.path() == &path) {
+                                db_matches.remove(position);
+                            }
+
+                            let table = TableMatches::new(&path);
+                            db_matches.push(table);
+                            let match_file = db_matches.last_mut().unwrap();
+
+                            // For the individual matches, we have to get them from the view, so the filtered out items are not added.
+                            for row in 0..item.row_count() {
+                                let column_name = item.child_2a(row, 1).text().to_std_string();
+                                let column_number = item.child_2a(row, 3).text().to_std_string().parse().unwrap();
+                                let row_number = item.child_2a(row, 2).text().to_std_string().parse::<i64>().unwrap() - 1;
+                                let start = item.child_2a(row, 4).text().to_std_string().parse::<usize>().unwrap();
+                                let end = item.child_2a(row, 5).text().to_std_string().parse::<usize>().unwrap();
+                                let text = item.child_2a(row, 0).text().to_std_string();
+                                let match_entry = TableMatch::new(&column_name, column_number, row_number, start, end, &text);
+                                match_file.matches_mut().push(match_entry);
+                            }
+                        },
                         FileType::ESF => todo!(),
                         FileType::Font => todo!(),
                         FileType::GroupFormations => todo!(),
