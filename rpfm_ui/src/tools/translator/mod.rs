@@ -38,9 +38,8 @@ use getset::*;
 use regex::{Captures, Regex};
 use serde_json::{json, Value};
 
-use std::cell::LazyCell;
 use std::path::PathBuf;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, LazyLock, RwLock};
 
 use rpfm_extensions::translator::*;
 
@@ -84,17 +83,19 @@ const TOOL_SUPPORTED_GAMES: [&str; 13] = [
     KEY_EMPIRE,
 ];
 
-const REGEX_COLOR: LazyCell<Regex> = LazyCell::new(|| Regex::new(r"\[\[col:(.*?)]](.*?)\[\[/col(.*?)]]").unwrap());
-const REGEX_RGBA: LazyCell<Regex> = LazyCell::new(|| Regex::new(r"\[\[rgba:(\d+?):(\d+?):(\d+?):(\d+?)]](.*?)\[\[/rgba(.*?)]]").unwrap());
-const REGEX_RGB: LazyCell<Regex> = LazyCell::new(|| Regex::new(r"\[\[rgba:(\d+?):(\d+?):(\d+?)]](.*?)\[\[/rgba(.*?)]]").unwrap());
-const REGEX_IMG: LazyCell<Regex> = LazyCell::new(|| Regex::new(r"\[\[img:(.+?)]](.*?)\[\[/img(.*?)]]").unwrap());
-//const REGEX_TR: LazyCell<Regex> = LazyCell::new(|| Regex::new(r"\{\{tr:(.+?)}}").unwrap());
+// `LazyLock<Regex>` in a `static` so the compiled regex is shared across calls. Declaring
+// these as `const LazyCell<_>` would re-run `Regex::new` every time the constant was named.
+static REGEX_COLOR: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\[\[col:(.*?)]](.*?)\[\[/col(.*?)]]").unwrap());
+static REGEX_RGBA: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\[\[rgba:(\d+?):(\d+?):(\d+?):(\d+?)]](.*?)\[\[/rgba(.*?)]]").unwrap());
+static REGEX_RGB: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\[\[rgba:(\d+?):(\d+?):(\d+?)]](.*?)\[\[/rgba(.*?)]]").unwrap());
+static REGEX_IMG: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\[\[img:(.+?)]](.*?)\[\[/img(.*?)]]").unwrap());
+//static REGEX_TR: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\{\{tr:(.+?)}}").unwrap());
 
 // These are all kind of internal links for different types of interactions.
-const REGEX_URL: LazyCell<Regex> = LazyCell::new(|| Regex::new(r"\[\[url:(.+?)]](.*?)\[\[/url(.*?)]]").unwrap());
-const REGEX_SL: LazyCell<Regex> = LazyCell::new(|| Regex::new(r"\[\[sl:(.+?)]](.*?)\[\[/sl(.*?)]]").unwrap());
-const REGEX_SL_TOOLTIP: LazyCell<Regex> = LazyCell::new(|| Regex::new(r"\[\[sl_tooltip:(.+?)]](.*?)\[\[/sl_tooltip(.*?)]]").unwrap());
-const REGEX_TOOLTIP: LazyCell<Regex> = LazyCell::new(|| Regex::new(r"\[\[tooltip:(.+?)]](.*?)\[\[/tooltip(.*?)]]").unwrap());
+static REGEX_URL: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\[\[url:(.+?)]](.*?)\[\[/url(.*?)]]").unwrap());
+static REGEX_SL: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\[\[sl:(.+?)]](.*?)\[\[/sl(.*?)]]").unwrap());
+static REGEX_SL_TOOLTIP: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\[\[sl_tooltip:(.+?)]](.*?)\[\[/sl_tooltip(.*?)]]").unwrap());
+static REGEX_TOOLTIP: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\[\[tooltip:(.+?)]](.*?)\[\[/tooltip(.*?)]]").unwrap());
 
 // While QTextDoc doesn't support this full css, we still have it just in case in the future there's a way to use it.
 const CSS_STYLE: &str = "
