@@ -32,7 +32,7 @@ cargo build --release --features "enable_tools" --bin rpfm_ui
 if ($env:SENTRY_AUTH_TOKEN) {
     if ($env:SENTRY_ORG -and $env:RPFM_UI_SENTRY_PROJECT) {
         Write-Host "Uploading rpfm_ui debug symbols to Sentry..."
-        sentry-cli debug-files upload `
+        .\sentry-cli.exe debug-files upload `
             --org $env:SENTRY_ORG `
             --project $env:RPFM_UI_SENTRY_PROJECT `
             --include-sources `
@@ -44,7 +44,7 @@ if ($env:SENTRY_AUTH_TOKEN) {
 
     if ($env:SENTRY_ORG -and $env:RPFM_SERVER_SENTRY_PROJECT) {
         Write-Host "Uploading rpfm_server debug symbols to Sentry..."
-        sentry-cli debug-files upload `
+        .\sentry-cli.exe debug-files upload `
             --org $env:SENTRY_ORG `
             --project $env:RPFM_SERVER_SENTRY_PROJECT `
             --include-sources `
