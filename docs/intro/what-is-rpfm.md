@@ -1,6 +1,6 @@
 # What is RPFM?
 
-<!-- IMAGE: A clean screenshot of the RPFM main window with a Pack open and the DB editor visible. Light/dark variants if possible. -->
+![This is RPFM](../images/what-is-rpfm.png)
 
 **Rusted PackFile Manager** (RPFM) is a modding tool for every Total War game from *Empire* (2009) onwards. It's a Rust + Qt6 reimplementation of the original *PackFile Manager* (PFM), built to be fast, accurate and pleasant to spend hours in.
 

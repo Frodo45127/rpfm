@@ -7,7 +7,7 @@ The DB Decoder is a low-level tool for reverse-engineering or fixing a DB table'
 
 For routine editing, you want the [DB editor](./db.md). The Decoder is a development tool.
 
-<!-- IMAGE: DB Decoder open on a DB file. Top-left: hex pane (index / raw bytes / ASCII columns). Top-right: the fields table. Middle: the "Current Field Decoded" panel listing every supported type. Right side: PackedFile Info plus the versions list. Bottom: Import / Test / Remove all / Finish it! buttons. -->
+![Decoder](../images/decoder.png)
 
 ## Opening the Decoder
 

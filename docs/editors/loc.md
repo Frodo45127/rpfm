@@ -2,7 +2,7 @@
 
 Loc files (anything ending in `.loc` — vanilla puts them under `text/`, mods conventionally use `text/db/` or `text/`) hold the localisation strings the game shows to the player. The Loc editor is a simplified DB editor with three columns: **key**, **text**, and **tooltip**.
 
-<!-- IMAGE: Loc editor showing a few rows with key + translated text + tooltip. -->
+![Loc Editor](../images/loc.png)
 
 ## The columns
 

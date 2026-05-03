@@ -2,7 +2,7 @@
 
 `.rigid_model_v2` (RMV2) is CA's in-engine 3D model format — used for units, monsters, buildings, props and effectively everything you see on the battle map. RPFM reads and writes versions 6, 7 and 8 of the format. Pre-RMV2 model formats (the ones in Empire and Napoleon) are not supported.
 
-<!-- IMAGE: RigidModel editor. Left: the LOD/mesh-block tree with the format-version combobox and the Export to glTF button on top. Right: the per-LOD detail panel (visibility, lod number, quality level), the per-mesh-block panel (mesh name, texture folder, shader name) and the textures table. With the renderer enabled, the 3D preview occupies a second pane on the right of the splitter. -->
+![RigidModel Editor](../images/rigidmodel.png)
 
 ## Layout
 

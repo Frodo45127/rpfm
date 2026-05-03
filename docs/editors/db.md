@@ -2,7 +2,7 @@
 
 The DB editor is the heart of RPFM. Every Total War mod that changes unit stats, tech effects, building chains, faction colours, ability cooldowns or hundreds of other things does it by editing rows in a DB table.
 
-<!-- IMAGE: A DB table open in the editor showing the grid in the centre, a status bar at the bottom with the line counter and flagged-rows filter, and the right-click context menu over a cell. -->
+![DB](../images/db.png)
 
 ## What's a DB table?
 
@@ -37,8 +37,6 @@ Right-click anywhere in the grid for the full action set. Highlights:
 - **Go To ▸ Go To Definition** / **Go To File** / **Go To Loc** (when a matching loc column exists for the row).
 - **New Profile** — save the current column visibility / sort / filter as a named profile.
 - **Undo** / **Redo**.
-
-`Ctrl+S` saves changes back into the in-memory Pack (you still need to save the Pack to disk).
 
 ## Editing rows
 

@@ -2,7 +2,7 @@
 
 Anything text-shaped opens in the text editor. RPFM uses **KTextEditor** under the hood, which means proper syntax highlighting, line numbers, find/replace, multi-cursor and the rest of the modern code-editor toolkit — for free, on every supported language.
 
-<!-- IMAGE: Text editor open on a Lua script with syntax highlighting and the find bar visible. -->
+![Text Editor](../images/text.png)
 
 ## What counts as "text"
 

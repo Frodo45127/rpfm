@@ -2,7 +2,7 @@
 
 An **AnimPack** (`.animpack`) is a container file CA uses to bundle animation-related game data — animation tables (`AnimsTable`), animation fragments (`AnimFragmentBattle`), matched-combat tables, and the raw `.bin` animation files referenced by them — into a single archive the engine can load efficiently. From a modder's perspective it's a "Pack inside a Pack".
 
-<!-- IMAGE: AnimPack editor showing the open-Pack tree on the left and the AnimPack's internal tree on the right, with the instructions banner across the top. -->
+![Animpack](../images/animpack.png)
 
 ## Layout
 

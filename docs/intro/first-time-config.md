@@ -4,7 +4,7 @@ RPFM works on Pack files, but most of the interesting features — diagnostics, 
 
 Open **Preferences** (Edit → Preferences, or `Ctrl+P` then "Preferences"). Settings are laid out as a single scrollable list grouped into sections — **Paths**, **General**, **Table**, **Debug**, **Diagnostics**, **Telemetry**, **AI** — with a search field at the top you can use to jump straight to a setting by name.
 
-<!-- IMAGE: Preferences dialog open on the Paths section, with Game Selected, MyMod path and Secondary path visible. -->
+![Settings, or Preferences for the finolis](../images/first-time-config-settings.png)
 
 ## 1. Set the game paths
 
@@ -46,7 +46,7 @@ Diagnostics, references and the dependency manager are dramatically more useful 
 
 Generating it can take a few minutes — RPFM is reading and indexing every vanilla Pack. The cache is automatically invalidated whenever the game updates, so you'll need to regenerate it after every patch.
 
-<!-- IMAGE: Game Selected menu with the "Generate Dependencies Cache" entry highlighted. -->
+![Game Selected menu, a classic](../images/first-time-config-gs.png)
 
 ## 6. (Optional) Set up the Assembly Kit (where supported)
 

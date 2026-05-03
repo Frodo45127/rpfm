@@ -2,7 +2,7 @@
 
 The image editor is a **viewer** that handles most image formats CA uses, including DDS, PNG, JPG and the various atlas formats.
 
-<!-- IMAGE: Image editor showing a DDS texture being previewed at 100 % zoom. -->
+![Image Viewer](../images/images.png)
 
 ## What it does
 

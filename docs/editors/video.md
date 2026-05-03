@@ -2,7 +2,7 @@
 
 `.ca_vp8` is a Creative Assembly–specific container around a VP8 video stream — used for movies, intros and similar. RPFM has full read/write support and can convert to and from the standard `.ivf` container.
 
-<!-- IMAGE: CA_VP8 editor showing the stream metadata (width, height, frame count, framerate) and the convert / play buttons. -->
+![Video Editor](../images/video.png)
 
 ## What you can do
 

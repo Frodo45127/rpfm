@@ -28,11 +28,7 @@ There's also `rpfm-git` if you want to build from the latest `develop` branch yo
 
 ### Other distributions (Flatpak)
 
-A Flatpak is the easiest way to run RPFM on any distro that supports Flatpak:
-
-<!-- IMAGE: Optional — Flatpak install command in a terminal. Probably skip. -->
-
-The Flatpak bundles Qt6 and the KDE Frameworks RPFM needs, so you don't have to install them yourself. Refer to the project's [releases page](https://github.com/Frodo45127/rpfm/releases) for the current Flatpak download.
+A Flatpak is the easiest way to run RPFM on any distro that supports Flatpak. The Flatpak bundles Qt6 and the KDE Frameworks RPFM needs, so you don't have to install them yourself. Refer to the project's [releases page](https://github.com/Frodo45127/rpfm/releases) for the current Flatpak download.
 
 ### Building from source
 

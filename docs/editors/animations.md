@@ -14,7 +14,7 @@ UI is a **JSON debug view**: the file decodes via the lib, gets serialised to pr
 
 A proper structured editor — the only one of the three that has a custom UI. The view exposes the fragment's metadata (skeleton name, locomotion graphs, identity flags) as form widgets, and the per-entry table as an embedded grid.
 
-<!-- IMAGE: AnimFragmentBattle editor showing the metadata fields at the top and the entries grid below. -->
+![Fragmented, like my heart](../images/animations-fragment.png)
 
 [Diagnostics](../search/diagnostics.md) for AnimFragmentBattle catch:
 

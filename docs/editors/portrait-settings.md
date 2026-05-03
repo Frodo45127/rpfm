@@ -2,7 +2,7 @@
 
 Files matching `*portrait_settings*.bin` (typically under `ui/`) describe how a character's portrait is composed in-game: which art set the character belongs to, which variants of that art set are available, the head-and-body camera setup for each entry, and which texture files supply the diffuse and mask layers for each variant. The Portrait Settings editor gives you a structured view instead of a binary blob.
 
-<!-- IMAGE: Portrait Settings editor showing the entry list on the left with its filter; on the right, head + body camera group boxes, the nested variants list with its own filter, the variant-detail fields, and the texture preview group boxes. -->
+![Portrait Settings Editor](../images/portrait-settings.png)
 
 ## Layout
 

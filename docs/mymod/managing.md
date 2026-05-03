@@ -2,7 +2,7 @@
 
 The MyMod actions are split between the **MyMod** menu in the menu bar (creation, opening, bulk operations) and the Pack root's right-click menu (per-Pack operations on a MyMod).
 
-<!-- IMAGE: MyMod menu open showing "Open MyMod Folder", "New MyMod", "Import All Open MyMods", "Export All Open MyMods", and the per-game submenus listing existing MyMods. -->
+![MyMod menu](../images/mymod-menu.png)
 
 ## The MyMod menu
 
