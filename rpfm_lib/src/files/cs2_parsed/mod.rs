@@ -649,10 +649,11 @@ pub struct Vfx {
 /// - [`Stairs`](Self::Stairs) - Interior wall stairs (Three Kingdoms)
 /// - [`Jump`](Self::Jump) - Jumping onto walls
 /// - [`UnknownSambucaPipe`](Self::UnknownSambucaPipe) - Sambuca-related (Thrones of Britannia)
-#[derive(PartialEq, Copy, Clone, Debug, Serialize, Deserialize)]
+#[derive(Default, PartialEq, Copy, Clone, Debug, Serialize, Deserialize)]
 #[repr(i32)]
 enum PipeType {
     /// Ship staircase movement.
+    #[default]
     ShipStaircase = 1,
     /// Ship walking movement (unconfirmed).
     ShipWalk = 2,
@@ -682,12 +683,6 @@ enum PipeType {
     SiegeLadder2 = 35,
     /// Barricade teleportation (Warhammer III).
     GroundTeleport = 38,
-}
-
-impl Default for PipeType {
-    fn default() -> Self {
-        Self::ShipStaircase
-    }
 }
 
 /// Type of Entity Formation line.
@@ -738,10 +733,11 @@ impl Default for PipeType {
 /// ## Invalid/Reserved
 /// - [`NumPurposes`](Self::NumPurposes) - Probably invalid
 /// - [`InvalidPurposes`](Self::InvalidPurposes) - Probably invalid
-#[derive(PartialEq, Copy, Clone, Debug, Serialize, Deserialize)]
+#[derive(Default, PartialEq, Copy, Clone, Debug, Serialize, Deserialize)]
 #[repr(i32)]
 enum EFLineType {
     /// Mid-size walls, first row in Warhammer walls.
+    #[default]
     LowWall = 0,
     /// Full-size walls.
     HighWall = 1,
@@ -797,12 +793,6 @@ enum EFLineType {
     NumPurposes = 26,
     /// Probably invalid.
     InvalidPurposes = 27,
-}
-
-impl Default for EFLineType {
-    fn default() -> Self {
-        Self::LowWall
-    }
 }
 
 //---------------------------------------------------------------------------//

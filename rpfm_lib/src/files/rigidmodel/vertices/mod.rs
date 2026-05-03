@@ -82,10 +82,11 @@ use super::materials::MaterialType;
 ///
 /// Different formats optimize for different use cases. The numeric value is stored
 /// as a u16 in the file format.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[repr(u16)]
 pub enum VertexFormat {
     /// Standard static geometry without animation.
+    #[default]
     Static = 0,
     /// Simplified collision mesh vertices (position only).
     Collision = 1,
@@ -101,12 +102,6 @@ pub enum VertexFormat {
     Uk12 = 12,
     /// Cloth simulation vertices with physics data.
     ClothSim = 25,
-}
-
-impl Default for VertexFormat {
-    fn default() -> Self {
-        Self::Static
-    }
 }
 
 /// Universal vertex structure containing all possible vertex attributes.

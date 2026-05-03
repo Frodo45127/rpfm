@@ -113,7 +113,7 @@ mod weighted_texture_blend;
 /// - **49-64**: Terrain and campaign materials
 /// - **65-82**: Weighted (skeletal) materials and variants
 /// - **83-100**: Water, unlit, terrain blends, projected decals
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[repr(u16)]
 pub enum MaterialType {
     /// Boat bow wave effect (water displacement).
@@ -157,6 +157,7 @@ pub enum MaterialType {
     /// Projected decal (first version).
     ProjectedDecal = 67,
     /// Default full-featured material (most common).
+    #[default]
     DefaultMaterial = 68,
     /// Grass and vegetation material.
     Grass = 69,
@@ -218,12 +219,6 @@ pub enum MaterialType {
     DecalOverlay = 99,
     /// Alpha-blended material.
     AlphaBlend = 100,
-}
-
-impl Default for MaterialType {
-    fn default() -> Self {
-        Self::DefaultMaterial
-    }
 }
 
 /// Complete material definition with textures, transforms, and shader parameters.
@@ -351,10 +346,11 @@ pub struct Texture {
 ///
 /// Determines which shader texture slot this texture is bound to during rendering.
 /// The numeric value is stored as an i32 in the file format.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[repr(i32)]
 pub enum TextureType {
     /// Base color/albedo texture.
+    #[default]
     Diffuse = 0,
     /// Normal map for surface detail (tangent space).
     Normal = 1,
@@ -384,12 +380,6 @@ pub enum TextureType {
     BaseColor = 27,
     /// PBR material properties (metallic/roughness/AO packed).
     MaterialMap = 29,
-}
-
-impl Default for TextureType {
-    fn default() -> Self {
-        Self::Diffuse
-    }
 }
 
 /// Cloth physics data structure 1 (format undocumented).
