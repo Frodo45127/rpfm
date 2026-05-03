@@ -155,7 +155,7 @@ use crate::compression::{CompressionFormat, Decompressible};
 use crate::encryption::Decryptable;
 use crate::error::{Result, RLibError};
 use crate::games::{GameInfo, pfh_version::PFHVersion, supported_games::*};
-use crate::{REGEX_DB, REGEX_CEO_DB, REGEX_PORTRAIT_SETTINGS};
+use crate::{REGEX_DB, REGEX_PORTRAIT_SETTINGS};
 use crate::schema::{Schema, Definition};
 use crate::utils::*;
 
@@ -380,7 +380,6 @@ pub enum RFileDecoded {
     BMDVegetation(BmdVegetation),
     Dat(Dat),
     DB(DB),
-    CeoDB(DB),
     ESF(ESF),
     Font(Font),
     GroupFormations(GroupFormations),
@@ -438,7 +437,6 @@ pub enum FileType {
     BMDVegetation,
     Dat,
     DB,
-    CeoDB,
     ESF,
     Font,
     GroupFormations,
@@ -929,7 +927,7 @@ pub trait Container {
 
                 // If we want to extract as tsv and we got a db/loc, export to tsv.
                 if let Some(schema) = schema {
-                    if rfile.file_type() == FileType::DB || rfile.file_type() == FileType::CeoDB || rfile.file_type() == FileType::Loc {
+                    if rfile.file_type() == FileType::DB || rfile.file_type() == FileType::Loc {
                         let mut destination_path_tsv = destination_path.to_owned();
 
                         // Make sure to NOT replace the extension if there is one, only append to it.
@@ -993,7 +991,7 @@ pub trait Container {
 
                     // If we want to extract as tsv and we got a db/loc, export to tsv.
                     if let Some(schema) = schema {
-                        if rfile.file_type() == FileType::DB || rfile.file_type() == FileType::CeoDB || rfile.file_type() == FileType::Loc {
+                        if rfile.file_type() == FileType::DB || rfile.file_type() == FileType::Loc {
                             let mut destination_path_tsv = destination_path.to_owned();
 
                             // Make sure to NOT replace the extension if there is one, only append to it.
@@ -2156,7 +2154,6 @@ impl RFile {
             (FileType::BMDVegetation, &RFileDecoded::BMDVegetation(_)) |
             (FileType::Dat, &RFileDecoded::Dat(_)) |
             (FileType::DB, &RFileDecoded::DB(_)) |
-            (FileType::CeoDB, &RFileDecoded::CeoDB(_)) |
             (FileType::ESF, &RFileDecoded::ESF(_)) |
             (FileType::Font, &RFileDecoded::Font(_)) |
             (FileType::GroupFormations, &RFileDecoded::GroupFormations(_)) |
@@ -2237,13 +2234,6 @@ impl RFile {
                         }
                         RFileDecoded::DB(DB::decode(&mut data, &Some(extra_data))?)
                     },
-                    FileType::CeoDB => {
-
-                        if extra_data.table_name.is_none() {
-                            extra_data.table_name = self.db_table_name_from_path();
-                        }
-                        RFileDecoded::CeoDB(DB::decode(&mut data, &Some(extra_data))?)
-                    },
                     FileType::ESF => RFileDecoded::ESF(ESF::decode(&mut data, &Some(extra_data))?),
                     FileType::Font => RFileDecoded::Font(Font::decode(&mut data, &Some(extra_data))?),
                     FileType::GroupFormations => RFileDecoded::GroupFormations(GroupFormations::decode(&mut data, &Some(extra_data))?),
@@ -2305,13 +2295,6 @@ impl RFile {
                             extra_data.table_name = self.db_table_name_from_path();
                         }
                         RFileDecoded::DB(DB::decode(&mut data, &Some(extra_data))?)
-                    },
-                    FileType::CeoDB => {
-
-                        if extra_data.table_name.is_none() {
-                            extra_data.table_name = self.db_table_name_from_path();
-                        }
-                        RFileDecoded::CeoDB(DB::decode(&mut data, &Some(extra_data))?)
                     },
                     FileType::ESF => RFileDecoded::ESF(ESF::decode(&mut data, &Some(extra_data))?),
                     FileType::Font => RFileDecoded::Font(Font::decode(&mut data, &Some(extra_data))?),
@@ -2384,7 +2367,6 @@ impl RFile {
                     RFileDecoded::BMDVegetation(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::Dat(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::DB(data) => data.encode(&mut buffer, extra_data)?,
-                    RFileDecoded::CeoDB(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::ESF(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::Font(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::GroupFormations(data) => data.encode(&mut buffer, extra_data)?,
@@ -2547,7 +2529,7 @@ impl RFile {
 
         // We can only compress files if the game supports them. And only in WH3 (and newer games?) is the table compression bug fixed.
         (
-            !matches!(self.file_type, FileType::DB | FileType::CeoDB | FileType::Loc) || (
+            !matches!(self.file_type, FileType::DB | FileType::Loc) || (
                 game_info.key() != KEY_PHARAOH_DYNASTIES &&
                 game_info.key() != KEY_PHARAOH &&
                 game_info.key() != KEY_TROY &&
@@ -2663,12 +2645,8 @@ impl RFile {
 
         // If that failed, check if it's in a folder which is known to only have specific files.
         // Microoptimization: check the path before using the regex. Regex is very, VERY slow.
-        else if path.starts_with("db/") && REGEX_DB.is_match(&path) {
+        else if (path.starts_with("db/") || path.starts_with("ceo_db/")) && REGEX_DB.is_match(&path) {
             self.file_type = FileType::DB;
-        }
-
-        else if path.starts_with("ceo_db/") && REGEX_CEO_DB.is_match(&path) {
-            self.file_type = FileType::CeoDB;
         }
 
         else if path.ends_with(portrait_settings::EXTENSION) && REGEX_PORTRAIT_SETTINGS.is_match(&path) {
@@ -2807,7 +2785,6 @@ impl RFile {
 
         let file = match file?.unwrap() {
             RFileDecoded::DB(table) => table.tsv_export(&mut writer, self.path_in_container_raw(), keys_first),
-            RFileDecoded::CeoDB(table) => table.tsv_export(&mut writer, self.path_in_container_raw(), keys_first),
             RFileDecoded::Loc(table) => table.tsv_export(&mut writer, self.path_in_container_raw()),
             _ => unimplemented!()
         };
@@ -2842,11 +2819,6 @@ impl RFile {
                 let data = RFileDecoded::DB(DB::merge(&files)?);
                 Ok(Self::new_from_decoded(&data, current_time()?, path))
             },
-            FileType::CeoDB => {
-                let files = sources.iter().filter_map(|file| if let Ok(RFileDecoded::CeoDB(table)) = file.decoded() { Some(table) } else { None }).collect::<Vec<_>>();
-                let data = RFileDecoded::CeoDB(DB::merge(&files)?);
-                Ok(Self::new_from_decoded(&data, current_time()?, path))
-            },
             FileType::Loc => {
                 let files = sources.iter().filter_map(|file| if let Ok(RFileDecoded::Loc(table)) = file.decoded() { Some(table) } else { None }).collect::<Vec<_>>();
                 let data = RFileDecoded::Loc(Loc::merge(&files)?);
@@ -2862,10 +2834,6 @@ impl RFile {
     pub fn update(&mut self, definition: &Option<Definition>) -> Result<()> {
         match self.decoded_mut() {
             Ok(RFileDecoded::DB(file)) => match definition {
-                Some(definition) => file.update(definition),
-                None => return Err(RLibError::RawTableMissingDefinition),
-            }
-            Ok(RFileDecoded::CeoDB(file)) => match definition {
                 Some(definition) => file.update(definition),
                 None => return Err(RLibError::RawTableMissingDefinition),
             }
@@ -2927,7 +2895,7 @@ impl RFile {
         }
 
         // If they're tables, make sure they're left decoded in memory.
-        if self.file_type() == FileType::DB || self.file_type() == FileType::CeoDB || self.file_type() == FileType::Loc {
+        if self.file_type() == FileType::DB || self.file_type() == FileType::Loc {
             if let Some(ref schema) = schema {
                 let mut extra_data = DecodeableExtraData::default();
                 extra_data.set_schema(Some(schema));
@@ -3126,7 +3094,6 @@ impl Display for FileType {
             FileType::BMDVegetation => write!(f, "Battle Map Definition (Vegetation)"),
             FileType::Dat => write!(f, "Dat Audio File"),
             FileType::DB => write!(f, "DB Table"),
-            FileType::CeoDB => write!(f, "CEO DB Table"),
             FileType::ESF => write!(f, "ESF"),
             FileType::Font => write!(f, "Font"),
             FileType::HlslCompiled => write!(f, "Hlsl Compiled"),
@@ -3162,7 +3129,6 @@ impl From<&str> for FileType {
             "BMDVegetation" => FileType::BMDVegetation,
             "Dat" => FileType::Dat,
             "DB" => FileType::DB,
-            "CeoDB" => FileType::CeoDB,
             "ESF" => FileType::ESF,
             "Font" => FileType::Font,
             "HlslCompiled" => FileType::HlslCompiled,
@@ -3199,7 +3165,6 @@ impl From<FileType> for String {
             FileType::BMDVegetation => "BMD Vegetation",
             FileType::Dat => "Dat",
             FileType::DB => "DB",
-            FileType::CeoDB => "CeoDB",
             FileType::ESF => "ESF",
             FileType::Font => "Font",
             FileType::HlslCompiled => "HlslCompiled",
@@ -3235,7 +3200,6 @@ impl From<&RFileDecoded> for FileType {
             RFileDecoded::BMDVegetation(_) => Self::BMDVegetation,
             RFileDecoded::Dat(_) => Self::Dat,
             RFileDecoded::DB(_) => Self::DB,
-            RFileDecoded::CeoDB(_) => Self::CeoDB,
             RFileDecoded::ESF(_) => Self::ESF,
             RFileDecoded::Font(_) => Self::Font,
             RFileDecoded::HlslCompiled(_) => Self::HlslCompiled,

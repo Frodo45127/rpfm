@@ -2412,11 +2412,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                                                                     format!("{}/{}/{}", prefix, table_name, table_file_name)
                                                                 };
 
-                                                                let decoded = if is_ceo_table(table_name) {
-                                                                    RFileDecoded::CeoDB(table)
-                                                                } else {
-                                                                    RFileDecoded::DB(table)
-                                                                };
+                                                                let decoded = RFileDecoded::DB(table);
                                                                 let file = RFile::new_from_decoded(&decoded, 0, &file_path);
                                                                 files.push(file);
                                                             },
@@ -2439,11 +2435,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                                                             let prefix = if is_ceo_table(table_name) { "ceo_db" } else { path_split[0] };
                                                             let file_path = format!("{}/{}/{}", prefix, table_name, table_file_name);
 
-                                                            let decoded = if is_ceo_table(table_name) {
-                                                                RFileDecoded::CeoDB(table)
-                                                            } else {
-                                                                RFileDecoded::DB(table)
-                                                            };
+                                                            let decoded = RFileDecoded::DB(table);
                                                             let file = RFile::new_from_decoded(&decoded, 0, &file_path);
                                                             files.push(file);
                                                         },
@@ -2470,11 +2462,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                                                             path.clone()
                                                         };
 
-                                                        let decoded = if is_ceo_table(table_name) {
-                                                            RFileDecoded::CeoDB(table)
-                                                        } else {
-                                                            RFileDecoded::DB(table)
-                                                        };
+                                                        let decoded = RFileDecoded::DB(table);
                                                         let file = RFile::new_from_decoded(&decoded, 0, &file_path);
                                                         files.push(file);
                                                     },
@@ -3252,7 +3240,6 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
 
                         let db_table = match rfile.decoded() {
                             Ok(RFileDecoded::DB(db)) => db.clone(),
-                            Ok(RFileDecoded::CeoDB(db)) => db.clone(),
                             _ => { export_errors.push(format!("Could not decode {table_path}")); continue; }
                         };
 
@@ -3700,7 +3687,6 @@ fn decode_and_send_file(file: &mut RFile, sender: &UnboundedSender<Response>, se
         Ok(RFileDecoded::BMDVegetation(_)) => CentralCommand::send_back(sender, Response::Unknown),
         Ok(RFileDecoded::Dat(_)) => CentralCommand::send_back(sender, Response::Unknown),
         Ok(RFileDecoded::DB(table)) => CentralCommand::send_back(sender, Response::DBRFileInfo(table, From::from(&*file))),
-        Ok(RFileDecoded::CeoDB(table)) => CentralCommand::send_back(sender, Response::DBRFileInfo(table, From::from(&*file))),
         Ok(RFileDecoded::ESF(data)) => CentralCommand::send_back(sender, Response::ESFRFileInfo(data, From::from(&*file))),
         Ok(RFileDecoded::Font(_)) => CentralCommand::send_back(sender, Response::Unknown),
         Ok(RFileDecoded::HlslCompiled(_)) => CentralCommand::send_back(sender, Response::Unknown),

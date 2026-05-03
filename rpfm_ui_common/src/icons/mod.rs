@@ -347,7 +347,6 @@ impl Icons {
                     FileType::BMDVegetation => &self.bmd_vegetation,
                     FileType::Dat => &self.dat,
                     FileType::DB => &self.db,
-                    FileType::CeoDB => &self.db,
                     FileType::ESF => &self.esf,
                     FileType::Font => &self.font,
                     FileType::GroupFormations => &self.group_formations,

@@ -1080,7 +1080,7 @@ impl Pack {
 
         let (missing_locs_path_existing, missing_locs_path_new) = self.missing_locs_paths();
 
-        let db_tables = self.files_by_type(&[FileType::DB, FileType::CeoDB]);
+        let db_tables = self.files_by_type(&[FileType::DB]);
         let loc_tables = self.files_by_type(&[FileType::Loc]);
         let mut missing_trads_file_new = Loc::new();
         let mut missing_trads_file_overwritten = Loc::new();
@@ -1103,7 +1103,6 @@ impl Pack {
             if let Ok(decoded) = rfile.decoded() {
                 let table = match decoded {
                     RFileDecoded::DB(t) => t,
-                    RFileDecoded::CeoDB(t) => t,
                     _ => return None,
                 };
                 let definition = table.definition();

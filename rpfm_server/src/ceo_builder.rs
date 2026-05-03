@@ -72,7 +72,7 @@ pub fn build_ceo_entries(
                 let patches = schema.patches_for_table(&table_name_with_suffix);
                 let db = DB::new(def, patches, &table_name_with_suffix);
                 let rfile = RFile::new_from_decoded(
-                    &RFileDecoded::CeoDB(db), 0, &path
+                    &RFileDecoded::DB(db), 0, &path
                 );
                 pack.insert(rfile)?;
             }
@@ -98,13 +98,13 @@ pub fn build_ceo_entries(
             };
 
             let mut files = pack.files_by_type_and_paths_mut(
-                &[FileType::CeoDB],
+                &[FileType::DB],
                 &[container_path.clone()],
                 true,
             );
 
             if let Some(file) = files.first_mut() {
-                if let Ok(RFileDecoded::CeoDB(db)) = file.decoded_mut() {
+                if let Ok(RFileDecoded::DB(db)) = file.decoded_mut() {
                     let fields = db.definition().fields_processed().to_vec();
                     let mut row: Vec<DecodedData> = Vec::new();
 
