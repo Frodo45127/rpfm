@@ -1019,7 +1019,7 @@ impl Matches {
                         None
                     }*/
                     None
-                } else if search_on.db && (file.file_type() == FileType::DB) {
+                } else if search_on.db && file.file_type() == FileType::DB {
                     if let Ok(RFileDecoded::DB(table)) = file.decoded() {
                         let mut result = table.search(file.path_in_container_raw(), pattern, case_sensitive, matching_mode);
                         result.set_source(source.clone());

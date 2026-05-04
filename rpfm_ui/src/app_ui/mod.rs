@@ -3992,7 +3992,7 @@ impl AppUI {
         }
     }
 
-    /// This function builds CEO data into the open pack.
+    /// This function is used to mass-update anim ids after an update.
     pub unsafe fn update_anim_ids(app_ui: &Rc<Self>, pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Result<()> {
 
         // We need to close all anim files before doing this, or their view may get skew. It should really be only the AnimFragment files, but I'm too lazy right now to do it.

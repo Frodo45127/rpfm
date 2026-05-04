@@ -131,9 +131,6 @@ pub unsafe fn build_ceo(app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileC
 
 /// Opens the CEO Builder dialog, letting the user add CEO entries that are
 /// inserted directly into the open pack's DB tables and loc file.
-
-/// Opens the CEO Builder dialog, letting the user add CEO entries that are
-/// inserted directly into the open pack's DB tables and loc file.
 pub unsafe fn build_ceo_builder(app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Result<()> {
 
     // CEO Builder is only supported for Three Kingdoms.
