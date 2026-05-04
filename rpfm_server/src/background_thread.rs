@@ -3192,6 +3192,40 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                     .cloned()
                     .collect();
 
+                // Validate that we have CEO tables to export.
+                if ceo_table_paths.is_empty() {
+                    for (orig, bak) in &xml_backups { let _ = std::fs::rename(bak, orig); }
+                    CentralCommand::send_back(&sender, Response::Error(
+                        "No CEO tables found in the pack (looked in db/ and ceo_db/ folders). \
+                         Import CEO tables from the Assembly Kit.".into()
+                    ));
+                    continue 'background_loop;
+                }
+
+                // Check that the critical tables needed by BOB are present.
+                let required_tables = [
+                    "ceos_tables",
+                    "ceo_nodes_tables",
+                    "ceo_thresholds_tables",
+                    "ceo_threshold_nodes_tables",
+                    "ceo_initial_datas_tables",
+                ];
+                let present_folders: std::collections::HashSet<&str> = ceo_table_paths.iter()
+                    .filter_map(|p| p.split('/').nth(1))
+                    .collect();
+                let missing: Vec<&&str> = required_tables.iter()
+                    .filter(|t| !present_folders.contains(**t))
+                    .collect();
+                if !missing.is_empty() {
+                    for (orig, bak) in &xml_backups { let _ = std::fs::rename(bak, orig); }
+                    let missing_list = missing.iter().map(|t| format!("  - {}", t)).collect::<Vec<_>>().join("\n");
+                    CentralCommand::send_back(&sender, Response::Error(
+                        format!("The following required CEO tables are missing from the pack:\n{}\n\n\
+                                 Import them from the Assembly Kit generate them.", missing_list)
+                    ));
+                    continue 'background_loop;
+                }
+
                 let decode_extra = {
                     let mut d = DecodeableExtraData::default();
                     d.set_schema(schema.as_ref());

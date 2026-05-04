@@ -51,6 +51,13 @@ const BUILD_CEO_BUILDER_VIEW_RELEASE: &str = "ui/build_ceo_builder_view.ui";
 
 /// This function builds CEO data into the open pack via BOB.
 pub unsafe fn build_ceo(app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Result<()> {
+
+    // CEO tools are only supported for Three Kingdoms.
+    let game_key = GAME_SELECTED.read().unwrap().key().to_owned();
+    if game_key != rpfm_lib::games::supported_games::KEY_THREE_KINGDOMS {
+        return Err(anyhow::anyhow!("The CEO Builder is only available for Total War: Three Kingdoms."));
+    }
+
     let template_path = if cfg!(debug_assertions) { BUILD_CEO_VIEW_DEBUG } else { BUILD_CEO_VIEW_RELEASE };
     let main_widget = load_template(app_ui.main_window(), template_path)?;
     let dialog = main_widget.static_downcast::<QDialog>();
@@ -128,6 +135,13 @@ pub unsafe fn build_ceo(app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileC
 /// Opens the CEO Builder dialog, letting the user add CEO entries that are
 /// inserted directly into the open pack's DB tables and loc file.
 pub unsafe fn build_ceo_builder(app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Result<()> {
+
+    // CEO Builder is only supported for Three Kingdoms.
+    let game_key = GAME_SELECTED.read().unwrap().key().to_owned();
+    if game_key != rpfm_lib::games::supported_games::KEY_THREE_KINGDOMS {
+        return Err(anyhow::anyhow!("The CEO Builder is only available for Total War: Three Kingdoms."));
+    }
+
     let template_path = if cfg!(debug_assertions) { BUILD_CEO_BUILDER_VIEW_DEBUG } else { BUILD_CEO_BUILDER_VIEW_RELEASE };
     let main_widget = load_template(app_ui.main_window(), template_path)?;
     let dialog = main_widget.static_downcast::<QDialog>();
@@ -168,10 +182,20 @@ pub unsafe fn build_ceo_builder(app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<P
     ) {
         Ok(traits) => traits,
         Err(error) => {
-            show_dialog(&*app_ui.main_window(), format!("Failed to load traits from dependencies: {}. Using empty list.", error), false);
-            vec![]
+            return Err(anyhow::anyhow!(
+                "Failed to load trait CEOs from the Assembly Kit dependencies. \
+                 Make sure the dependencies cache has been generated with the Assembly Kit path configured.\n\nError: {}", error
+            ));
         }
     };
+
+    if trait_ceos.is_empty() {
+        return Err(anyhow::anyhow!(
+            "No trait CEOs found in the Assembly Kit data. \
+             Make sure Three Kingdoms is selected, the Assembly Kit path is configured, \
+             and the dependencies cache has been regenerated."
+        ));
+    }
 
     // Populate list widget — store "uuid|key" in tooltip for retrieval
     for (ceo_key, display_name) in &trait_ceos {
