@@ -1100,7 +1100,11 @@ impl Pack {
         }).flatten().collect::<HashSet<String>>();
 
         let (missing_trads_new, missing_trads_overwritten) = db_tables.par_iter().filter_map(|rfile| {
-            if let Ok(RFileDecoded::DB(table)) = rfile.decoded() {
+            if let Ok(decoded) = rfile.decoded() {
+                let table = match decoded {
+                    RFileDecoded::DB(t) => t,
+                    _ => return None,
+                };
                 let definition = table.definition();
                 let loc_fields = definition.localised_fields();
                 let table_data = table.data();
@@ -1466,7 +1470,7 @@ impl PackNotes {
 
         // For tables, share notes between same-type tables.
         let mut path = note.path().to_lowercase();
-        if path.starts_with("db/") {
+        if path.starts_with("db/") || path.starts_with("ceo_db/") {
             let mut new_path = path.split('/').collect::<Vec<_>>();
             if new_path.len() == 3 {
                 new_path.pop();

@@ -103,6 +103,7 @@ pub unsafe fn set_connections(ui: &PackFileContentsUI, slots: &PackFileContentsS
     ui.context_menu_pack_map.triggered().connect(&slots.context_menu_pack_map);
     ui.context_menu_rescue_packfile.triggered().connect(&slots.context_menu_rescue_packfile);
     ui.context_menu_build_starpos.triggered().connect(&slots.context_menu_build_starpos);
+    ui.context_menu_build_ceo.triggered().connect(&slots.context_menu_build_ceo);   
     ui.context_menu_update_anim_ids.triggered().connect(&slots.context_menu_update_anim_ids);
 
     ui.context_menu_mymod_import.triggered().connect(&slots.context_menu_mymod_import);

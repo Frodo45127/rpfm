@@ -1526,9 +1526,6 @@ impl GlobalSearchUI {
             // Microoptimization: block the model from triggering signals on each item added. It reduce add times on 200 ms, depending on the case.
             model.block_signals(true);
 
-            let file_type_item = Self::new_item();
-            file_type_item.set_text(&QString::from_std_str::<String>(From::from(file_type)));
-            let file_type_item = atomic_from_cpp_box(file_type_item);
 
             let rows = matches.par_iter()
                 .filter(|match_table| !match_table.matches().is_empty())
@@ -1537,8 +1534,10 @@ impl GlobalSearchUI {
                     let qlist_daddy = QListOfQStandardItem::new_0a();
                     let file = Self::new_item();
 
+                    let actual_file_type = file_type;
+
                     file.set_text(&QString::from_std_str(path));
-                    TREEVIEW_ICONS.set_standard_item_icon(&file, Some(&file_type));
+                    TREEVIEW_ICONS.set_standard_item_icon(&file, Some(&actual_file_type));
 
                     let source_type = match match_table.source() {
                         SearchSource::Pack(key) => {
@@ -1588,7 +1587,9 @@ impl GlobalSearchUI {
                     qlist_daddy.append_q_standard_item(&Self::new_item().into_ptr().as_mut_raw_ptr());
                     qlist_daddy.append_q_standard_item(&Self::new_item().into_ptr().as_mut_raw_ptr());
                     qlist_daddy.append_q_standard_item(&Self::new_item().into_ptr().as_mut_raw_ptr());
-                    qlist_daddy.append_q_standard_item(&((*ptr_from_atomic(&file_type_item)).clone()).as_mut_raw_ptr());
+                    let ft_item = Self::new_item();
+                    ft_item.set_text(&QString::from_std_str::<String>(From::from(actual_file_type)));
+                    qlist_daddy.append_q_standard_item(&ft_item.into_ptr().as_mut_raw_ptr());
                     atomic_from_cpp_box(qlist_daddy)
                 })
                 .collect::<Vec<_>>();
@@ -2426,7 +2427,7 @@ impl GlobalSearchUI {
                                 let match_entry = TableMatch::new(&column_name, column_number, row_number, start, end, &text);
                                 match_file.matches_mut().push(match_entry);
                             }
-                        }
+                        },
                         FileType::ESF => todo!(),
                         FileType::Font => todo!(),
                         FileType::GroupFormations => todo!(),

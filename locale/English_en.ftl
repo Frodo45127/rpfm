@@ -1187,6 +1187,8 @@ packed_file_name = PackedFile Name
 tools_unit_editor = Unit Editor
 unit_editor_title = Unit Editor
 
+tools_ceo_builder = CEO Builder
+
 settings_enable_esf_editor = Enable ESF/CCD/SAVE Editor
 tt_settings_debug_enable_esf_editor = This setting allows you to enable the new ESF editor, but beware of issues.
 
@@ -1605,6 +1607,7 @@ updater_update_schemas_updating = Updating, pls wait...
 updater_update_twautogen_updating = Updating, pls wait...
 updater_update_old_ak_updating = Updating, pls wait...
 special_stuff_build_starpos = Build Startpos
+special_stuff_build_ceo = Build CEOs
 games_closed = Hit this when the game is closed
 build_starpos = Build Startpos
 build_starpos_instructions = <p>Instructions:</p>
@@ -1635,6 +1638,21 @@ build_starpos_instructions = <p>Instructions:</p>
         <li>Shogun 2.</li>
     </ul>
     <p>If it's not on this list, it has not been tested and may work... or not, so report any issue you see if you use it. If it says "partially, it means I did some limited testing on it and it works, but may still contain bugs, so if you use it and something doesn't work, report it.</p>
+
+build_ceo = Build CEO
+build_ceo_instructions = <p>Instructions:</p>
+    <ul>
+        <li>This has only been tested under Windows.</li>
+        <li>You need to have your Assembly Kit path configured correctly in Settings.</li>
+        <li>Your Assembly Kit must have the CEO XML files already present in <b>raw_data/db/</b> (they are included with the vanilla AKit).</li>
+        <li>If you have edited CEO XML files, make sure they are already in place in <b>raw_data/db/</b> before clicking Build CEO.</li>
+        <li>Hit the <b>Build CEO</b> button. BOB will run silently in the background and generate <b>ceo_data.ccd</b> in your Assembly Kit's <b>working_data/campaigns/</b> folder.</li>
+        <li>Once it finishes, the <b>Import CCD</b> button will unlock. Hit it to import <b>ceo_data.ccd</b> into your Pack under <b>db/</b>.</li>
+    </ul>
+    
+build_ceo_import = Import CCD
+build_ceo_done = BOB Done - Import CCD
+
 
 campaign_id = Campaign ID:
 process_hlp_spd_data = Process HLP and SPD data

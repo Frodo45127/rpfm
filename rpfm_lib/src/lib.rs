@@ -154,6 +154,10 @@ pub mod utils;
 /// - `data/units.txt` → does not match
 pub static REGEX_DB: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"db/[^/]+_tables/[^/]+$").unwrap());
 
+
+/// CEO
+pub static REGEX_CEO_DB: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^ceo_db/([^/]+)/(.+)$").unwrap());
+
 /// Regular expression to identify portrait settings file paths.
 ///
 /// Matches any path ending with `portrait_settings` followed by optional characters and `.bin`.

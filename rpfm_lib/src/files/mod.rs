@@ -2501,7 +2501,7 @@ impl RFile {
     /// It returns None of the file provided is not a DB Table.
     pub fn db_table_name_from_path(&self) -> Option<&str> {
         let split_path = self.path.split('/').collect::<Vec<_>>();
-        if split_path.len() == 3 && split_path[0].to_lowercase() == "db" {
+        if split_path.len() == 3 && (split_path[0].to_lowercase() == "db" || split_path[0].to_lowercase() == "ceo_db") {
             Some(split_path[1])
         } else {
             None
@@ -2645,7 +2645,7 @@ impl RFile {
 
         // If that failed, check if it's in a folder which is known to only have specific files.
         // Microoptimization: check the path before using the regex. Regex is very, VERY slow.
-        else if path.starts_with("db/") && REGEX_DB.is_match(&path) {
+        else if (path.starts_with("db/") || path.starts_with("ceo_db/")) && REGEX_DB.is_match(&path) {
             self.file_type = FileType::DB;
         }
 
@@ -2979,7 +2979,7 @@ impl ContainerPath {
     /// It returns None of the file provided is not a DB Table.
     pub fn db_table_name_from_path(&self) -> Option<&str> {
         let split_path = self.path_raw().split('/').collect::<Vec<_>>();
-        if split_path.len() == 3 && split_path[0].to_lowercase() == "db" {
+        if split_path.len() == 3 && (split_path[0].to_lowercase() == "db" || split_path[0].to_lowercase() == "ceo_db") {
             Some(split_path[1])
         } else {
             None

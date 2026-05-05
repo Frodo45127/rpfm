@@ -97,25 +97,38 @@ pub struct Message<T: Debug> {
 ///
 /// A pack can either be in normal mode or in MyMod mode, which links it to
 /// a specific game folder and mod name for import/export operations.
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum OperationalMode {
 
     /// MyMod mode enabled. Contains the game folder name (e.g. "warhammer_2") and the MyMod pack name.
     MyMod(String, String),
 
     /// Normal mode - no MyMod association.
-    #[default]
     Normal,
 }
 
+impl Default for OperationalMode {
+    fn default() -> Self {
+        Self::Normal
+    }
+}
 
+/// Data for a single CEO entry passed from the UI to the background thread.
+///
+/// Mirrors the `CeoEntry` struct from TKTools' CEO Creator tab.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CeoEntryData {
+    /// Internal name (e.g. `yue_jiu`). Used as the key suffix in all generated table entries.
     pub name: String,
+    /// `"title"` or `"unique"`. Unique entries also generate armour CEO + equipment data.
     pub option: String,
+    /// Element class: `"metal"` | `"wood"` | `"earth"` | `"fire"` | `"water"`.
     pub element: String,
+    /// `"male"` or `"female"`.
     pub gender: String,
-    pub traits: Vec<(String, String)>, // (uuid, internal_key)
+    /// Exactly 3 traits as `(uuid, internal_key)` pairs.
+    pub traits: Vec<(String, String)>,
+    /// Whether to include 190 Expanded weapon slot entries.
     pub expanded: bool,
 }
 
@@ -771,7 +784,7 @@ pub enum Command {
     /// Find all references to a value in a specific pack.
     /// First field is the pack key, then map of table -> columns to search, value to search.
     ///
-    /// Response: [`Response::VecDataSourceStringStringStringUsizeUsize`].
+    /// Response: [`Response::VecDataSourceStringStringUsizeUsize`].
     SearchReferences(String, HashMap<String, Vec<String>>, String),
 
     /// Get the name of a specific open PackFile.
@@ -1049,9 +1062,6 @@ pub enum Command {
     BuildCeoPost(String, String),  // pack_key, akit_path
 
     BuildCeoEntries(String, Vec<CeoEntryData>),  // pack_key, entries
-
-
-    GetTraitCeos,
 
     //-----------------------------------------------------------------------//
     // Animation Commands
@@ -1427,14 +1437,13 @@ pub enum Response {
     VecContainerPathVecContainerPathString(Vec<ContainerPath>, Vec<ContainerPath>, String),
     VecContainerPathVecRFileInfo(Vec<ContainerPath>, Vec<RFileInfo>),
     VecContainerPathVecString(Vec<ContainerPath>, Vec<String>),
-    VecDataSourceStringStringStringUsizeUsize(Vec<(DataSource, String, String, String, usize, usize)>),
+    VecDataSourceStringStringUsizeUsize(Vec<(DataSource, String, String, usize, usize)>),
     VecDefinition(Vec<Definition>),
     VecField(Vec<Field>),
     VecNote(Vec<Note>),
     VecRFile(Vec<RFile>),
     VecRFileInfo(Vec<RFileInfo>),
     VecString(Vec<String>),
-    VecStringTuples(Vec<(String, String)>),
     VecStringContainerInfo(Vec<(String, ContainerInfo)>),
     VecU8(Vec<u8>),
     VideoInfoRFileInfo(VideoInfo, RFileInfo),

@@ -73,6 +73,7 @@ use crate::settings::{error_path, init_config_path, Settings};
 use crate::server_websocket::ws_handler;
 
 pub mod background_thread;
+pub mod ceo_builder;
 pub mod comms;
 pub mod server_mcp;
 pub mod server_websocket;

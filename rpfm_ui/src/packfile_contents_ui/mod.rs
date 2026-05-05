@@ -161,6 +161,7 @@ pub struct PackFileContentsUI {
     context_menu_optimize_packfile: QPtr<QAction>,
     context_menu_rescue_packfile: QPtr<QAction>,
     context_menu_build_starpos: QPtr<QAction>,
+    context_menu_build_ceo: QPtr<QAction>,
     context_menu_patch_siege_ai: QPtr<QAction>,
     context_menu_live_export: QPtr<QAction>,
     context_menu_pack_map: QPtr<QAction>,
@@ -358,6 +359,7 @@ impl PackFileContentsUI {
         let context_menu_optimize_packfile = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
         let context_menu_rescue_packfile = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("special_stuff_rescue_packfile"));
         let context_menu_build_starpos = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("special_stuff_build_starpos"));
+        let context_menu_build_ceo = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("special_stuff_build_ceo"));
         let context_menu_patch_siege_ai = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("special_stuff_patch_siege_ai"));
         let context_menu_live_export = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("special_stuff_live_export"));
         let context_menu_pack_map = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("special_stuff_pack_map"));
@@ -493,6 +495,7 @@ impl PackFileContentsUI {
             context_menu_optimize_packfile,
             context_menu_rescue_packfile,
             context_menu_build_starpos,
+            context_menu_build_ceo,
             context_menu_patch_siege_ai,
             context_menu_live_export,
             context_menu_pack_map,

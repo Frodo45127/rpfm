@@ -63,6 +63,7 @@ use rpfm_lib::utils::*;
 use rpfm_telemetry::*;
 
 use crate::*;
+use crate::ceo_builder::{build_ceo_entries, build_ceo_post, get_trait_ceos};
 use crate::comms::CentralCommand;
 use crate::session::Session;
 use crate::settings::*;
@@ -1559,7 +1560,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                         None => {
 
                             // If the table is one of the starpos tables, we need to return the latest version of the table, even if it's not in the game files.
-                            if table_name.starts_with("start_pos_") || table_name.starts_with("twad_") {
+                            if table_name.starts_with("start_pos_") || table_name.starts_with("twad_") || table_name.starts_with("ceo") { // TEMP FIX FOR NOW 
                                 match &schema {
                                     Some(schema) => {
                                         match schema.definitions_by_table_name(&table_name) {
@@ -2469,6 +2470,12 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                             match &schema {
                                 Some(ref schema) => {
                                     let mut files = vec![];
+
+                                    // CEO table prefixes that should go into ceo_db/ instead of db/
+                                    let is_ceo_table = |name: &str| -> bool {
+                                        name.starts_with("ceo") || name == "ceos_tables" || name == "ceos_to_equipment_variants_tables"
+                                    };
+
                                     for path in paths {
 
                                         // We only have tables. If it's a folder, it's either a table folder, db or the root.
@@ -2494,11 +2501,15 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
 
                                                         match dependencies.import_from_ak(table_name, schema) {
                                                             Ok(table) => {
-                                                                let mut path = path_split.to_vec();
-                                                                path.push(table_file_name);
-                                                                let path = path.join("/");
+                                                                let prefix = if is_ceo_table(table_name) { "ceo_db" } else { path_split[0] };
+                                                                let file_path = if path_split.len() > 1 {
+                                                                    format!("{}/{}/{}", prefix, &path_split[1..].join("/"), table_file_name)
+                                                                } else {
+                                                                    format!("{}/{}/{}", prefix, table_name, table_file_name)
+                                                                };
 
-                                                                let file = RFile::new_from_decoded(&RFileDecoded::DB(table), 0, &path);
+                                                                let decoded = RFileDecoded::DB(table);
+                                                                let file = RFile::new_from_decoded(&decoded, 0, &file_path);
                                                                 files.push(file);
                                                             },
                                                             Err(_) => not_added_paths.push(path.clone()),
@@ -2517,11 +2528,11 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
 
                                                     match dependencies.import_from_ak(table_name, schema) {
                                                         Ok(table) => {
-                                                            let mut path = path_split.to_vec();
-                                                            path.push(table_file_name);
-                                                            let path = path.join("/");
+                                                            let prefix = if is_ceo_table(table_name) { "ceo_db" } else { path_split[0] };
+                                                            let file_path = format!("{}/{}/{}", prefix, table_name, table_file_name);
 
-                                                            let file = RFile::new_from_decoded(&RFileDecoded::DB(table), 0, &path);
+                                                            let decoded = RFileDecoded::DB(table);
+                                                            let file = RFile::new_from_decoded(&decoded, 0, &file_path);
                                                             files.push(file);
                                                         },
                                                         Err(_) => not_added_paths.push(path.clone()),
@@ -2536,10 +2547,19 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
 
                                             }
                                             ContainerPath::File(path) => {
-                                                let table_name = path.split('/').collect::<Vec<_>>()[1];
+                                                let path_parts = path.split('/').collect::<Vec<_>>();
+                                                let table_name = path_parts[1];
                                                 match dependencies.import_from_ak(table_name, schema) {
                                                     Ok(table) => {
-                                                        let file = RFile::new_from_decoded(&RFileDecoded::DB(table), 0, path);
+                                                        let file_path = if is_ceo_table(table_name) {
+                                                            let file_name = path_parts.last().unwrap_or(&"data__");
+                                                            format!("ceo_db/{}/{}", table_name, file_name)
+                                                        } else {
+                                                            path.clone()
+                                                        };
+
+                                                        let decoded = RFileDecoded::DB(table);
+                                                        let file = RFile::new_from_decoded(&decoded, 0, &file_path);
                                                         files.push(file);
                                                     },
                                                     Err(_) => not_added_paths.push(path.clone()),
@@ -3132,6 +3152,381 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 }
             },
 
+            Command::BuildCeo(pack_key, akit_path, bob_exe_path) => {
+                use std::process::Command as SysCommand;
+                use std::time::{Duration, Instant};
+
+                let akit_root = PathBuf::from(&akit_path);
+                let bob_exe = PathBuf::from(&bob_exe_path);
+                let bob_dir = match bob_exe.parent() {
+                    Some(d) => d.to_path_buf(),
+                    None => { CentralCommand::send_back(&sender, Response::Error("Invalid BOB path".into())); continue 'background_loop; }
+                };
+                let raw_db = akit_root.join(r"raw_data\db");
+                let ceo_ccd = akit_root.join(r"working_data\campaigns\ceo_data.ccd");
+
+                // ── Step 1: Backup existing ceo_data.ccd ─────────────────────
+                if ceo_ccd.exists() {
+                    let bak = ceo_ccd.with_extension("ccd.bak1");
+                    if let Err(e) = std::fs::copy(&ceo_ccd, &bak) {
+                        CentralCommand::send_back(&sender, Response::Error(format!("Failed to backup ceo_data.ccd: {e}")));
+                        continue 'background_loop;
+                    }
+                }
+
+                // ── Step 2: Backup raw_data/db/ceo_*.xml files ────────────────
+                let mut xml_backups: Vec<(PathBuf, PathBuf)> = Vec::new();
+                if raw_db.exists() {
+                    match std::fs::read_dir(&raw_db) {
+                        Ok(entries) => {
+                            for entry in entries.filter_map(|e| e.ok()) {
+                                let fname = entry.file_name();
+                                let s = fname.to_string_lossy().to_lowercase();
+                                if s.starts_with("ceo") && s.ends_with(".xml") {
+                                    let orig = entry.path();
+                                    let bak = orig.with_extension("xml.bak");
+                                    if std::fs::copy(&orig, &bak).is_ok() {
+                                        xml_backups.push((orig, bak));
+                                    }
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            CentralCommand::send_back(&sender, Response::Error(format!("Failed to read raw_data/db: {e}")));
+                            continue 'background_loop;
+                        }
+                    }
+                }
+
+                // ── Step 3: Export CEO DB tables from pack → raw_data/db XML ──
+                let pack_ref = match packs.get_mut(&pack_key) {
+                    Some(p) => p,
+                    None => {
+                        for (orig, bak) in &xml_backups { let _ = std::fs::rename(bak, orig); }
+                        CentralCommand::send_back(&sender, Response::Error(format!("Pack not found: {pack_key}")));
+                        continue 'background_loop;
+                    }
+                };
+
+                // Only export the tables that BOB actually reads when building ceo_data.ccd.
+                let ceo_allowed_folders: std::collections::HashSet<&str> = [
+                    "ceo_active_permissions_tables",
+                    "ceo_anti_ceo_pairs_tables",
+                    "ceo_can_equip_requirements_tables",
+                    "ceo_categories_tables",
+                    "ceo_effect_list_to_effects_tables",
+                    "ceo_effect_lists_tables",
+                    "ceo_equipment_category_managers_tables",
+                    "ceo_equipment_manager_all_possible_ceos_tables",
+                    "ceo_equipment_manager_campaign_lookups_tables",
+                    "ceo_equipment_manager_to_category_managers_tables",
+                    "ceo_equipment_manager_types_tables",
+                    "ceo_equipment_managers_tables",
+                    "ceo_equipped_set_bonus_ceos_tables",
+                    "ceo_equipped_set_bonus_effect_bundles_tables",
+                    "ceo_equipped_set_bonuses_tables",
+                    "ceo_equipped_set_bonuses_to_incident_junctions_tables",
+                    "ceo_event_feed_categories_tables",
+                    "ceo_group_ceos_tables",
+                    "ceo_group_spawners_tables",
+                    "ceo_groups_tables",
+                    "ceo_initial_data_active_ceos_tables",
+                    "ceo_initial_data_active_spawners_tables",
+                    "ceo_initial_data_equipments_tables",
+                    "ceo_initial_data_scripted_permissions_tables",
+                    "ceo_initial_data_stages_tables",
+                    "ceo_initial_data_to_stages_tables",
+                    "ceo_initial_data_triggers_tables",
+                    "ceo_initial_datas_tables",
+                    "ceo_location_enums_tables",
+                    "ceo_nodes_tables",
+                    "ceo_permissions_groups_tables",
+                    "ceo_permissions_tables",
+                    "ceo_post_battle_loot_chances_tables",
+                    "ceo_rarities_tables",
+                    "ceo_scripted_permissions_tables",
+                    "ceo_scripted_permissions_to_permissions_tables",
+                    "ceo_set_items_tables",
+                    "ceo_sets_tables",
+                    "ceo_spawner_can_spawn_requirements_tables",
+                    "ceo_spawners_tables",
+                    "ceo_template_manager_all_possible_ceos_tables",
+                    "ceo_template_manager_campaign_lookups_tables",
+                    "ceo_template_manager_ceo_limits_tables",
+                    "ceo_template_manager_ceo_spawn_limits_tables",
+                    "ceo_template_manager_supported_categories_tables",
+                    "ceo_template_manager_types_tables",
+                    "ceo_template_managers_tables",
+                    "ceo_threshold_nodes_tables",
+                    "ceo_thresholds_tables",
+                    "ceo_to_target_ceo_junctions_tables",
+                    "ceo_to_target_factions_tables",
+                    "ceo_to_target_junction_reasons_tables",
+                    "ceo_to_target_province_junctions_tables",
+                    "ceo_to_ui_display_junctions_tables",
+                    "ceo_trigger_behaviour_enums_tables",
+                    "ceo_trigger_target_requirements_tables",
+                    "ceo_trigger_targets_tables",
+                    "ceo_trigger_to_trigger_targets_tables",
+                    "ceo_triggers_tables",
+                    "ceos_tables",
+                    "ceos_to_equipment_variants_tables",
+                ].iter().copied().collect();
+
+                let ceo_table_paths: Vec<String> = pack_ref.files()
+                    .keys()
+                    .filter(|p| {
+                        let mut parts = p.splitn(3, '/');
+                        let prefix = parts.next().unwrap_or("");
+                        if prefix != "db" && prefix != "ceo_db" {
+                            return false;
+                        }
+                        parts.next()
+                            .map(|folder| ceo_allowed_folders.contains(folder))
+                            .unwrap_or(false)
+                    })
+                    .cloned()
+                    .collect();
+
+                // Validate that we have CEO tables to export.
+                if ceo_table_paths.is_empty() {
+                    for (orig, bak) in &xml_backups { let _ = std::fs::rename(bak, orig); }
+                    CentralCommand::send_back(&sender, Response::Error(
+                        "No CEO tables found in the pack (looked in db/ and ceo_db/ folders). \
+                         Import CEO tables from the Assembly Kit.".into()
+                    ));
+                    continue 'background_loop;
+                }
+
+                // Check that the critical tables needed by BOB are present.
+                let required_tables = [
+                    "ceos_tables",
+                    "ceo_nodes_tables",
+                    "ceo_thresholds_tables",
+                    "ceo_threshold_nodes_tables",
+                    "ceo_initial_datas_tables",
+                ];
+                let present_folders: std::collections::HashSet<&str> = ceo_table_paths.iter()
+                    .filter_map(|p| p.split('/').nth(1))
+                    .collect();
+                let missing: Vec<&&str> = required_tables.iter()
+                    .filter(|t| !present_folders.contains(**t))
+                    .collect();
+                if !missing.is_empty() {
+                    for (orig, bak) in &xml_backups { let _ = std::fs::rename(bak, orig); }
+                    let missing_list = missing.iter().map(|t| format!("  - {}", t)).collect::<Vec<_>>().join("\n");
+                    CentralCommand::send_back(&sender, Response::Error(
+                        format!("The following required CEO tables are missing from the pack:\n{}\n\n\
+                                 Import them from the Assembly Kit generate them.", missing_list)
+                    ));
+                    continue 'background_loop;
+                }
+
+                let decode_extra = {
+                    let mut d = DecodeableExtraData::default();
+                    d.set_schema(schema.as_ref());
+                    Some(d)
+                };
+                let mut export_errors: Vec<String> = Vec::new();
+
+                // Group table paths by their target XML file so multiple
+                // db tables (e.g. data__, data__01) are combined into one XML.
+                let mut xml_groups: std::collections::BTreeMap<String, Vec<String>> = std::collections::BTreeMap::new();
+                for table_path in &ceo_table_paths {
+                    // "db/ceos_tables/data__" -> folder="ceos_tables" -> xml="ceos.xml"
+                    let parts: Vec<&str> = table_path.split('/').collect();
+                    if parts.len() < 2 { continue; }
+                    let folder = parts[1];
+                    let xml_name = if folder.ends_with("_tables") {
+                        folder[..folder.len() - 7].to_owned() + ".xml"
+                    } else {
+                        folder.to_owned() + ".xml"
+                    };
+                    xml_groups.entry(xml_name).or_default().push(table_path.clone());
+                }
+
+                for (xml_name, table_paths) in &xml_groups {
+                    let xml_path = raw_db.join(xml_name);
+                    let table_tag = xml_name.trim_end_matches(".xml");
+                    let xsd_name = xml_name.replace(".xml", ".xsd");
+
+                    let mut xml = format!(
+                        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n\
+                         <dataroot xmlns:od=\"urn:schemas-microsoft-com:officedata\" \
+                         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" \
+                         xsi:noNamespaceSchemaLocation=\"{xsd_name}\" \
+                         export_time=\"\" revision=\"0\" export_branch=\"\" export_user=\"rpfm\">\r\n\
+                         <edit_uuid>00000000-0000-0000-0000-000000000000</edit_uuid>\r\n"
+                    );
+
+                    for table_path in table_paths {
+                        let rfile = match pack_ref.files_mut().get_mut(table_path.as_str()) {
+                            Some(f) => f,
+                            None => continue,
+                        };
+
+                        let _ = rfile.load();
+                        let _ = rfile.decode(&decode_extra, true, false);
+
+                        let db_table = match rfile.decoded() {
+                            Ok(RFileDecoded::DB(db)) => db.clone(),
+                            _ => { export_errors.push(format!("Could not decode {table_path}")); continue; }
+                        };
+
+                        let fields: Vec<_> = db_table.definition().fields_processed().to_vec();
+
+                        for row in db_table.data().iter() {
+                            let mut field_pairs: Vec<(String, String)> = Vec::new();
+                            for (field_def, value) in fields.iter().zip(row.iter()) {
+                                let fname = field_def.name().to_owned();
+                                let val_str = match value {
+                                    DecodedData::Boolean(b) => if *b { "1".to_owned() } else { "0".to_owned() },
+                                    DecodedData::I16(v) => v.to_string(),
+                                    DecodedData::I32(v) => v.to_string(),
+                                    DecodedData::I64(v) => v.to_string(),
+                                    DecodedData::OptionalI16(v) => v.to_string(),
+                                    DecodedData::OptionalI32(v) => v.to_string(),
+                                    DecodedData::OptionalI64(v) => v.to_string(),
+                                    DecodedData::F32(v) => v.to_string(),
+                                    DecodedData::F64(v) => v.to_string(),
+                                    DecodedData::StringU8(s) | DecodedData::StringU16(s) |
+                                    DecodedData::OptionalStringU8(s) | DecodedData::OptionalStringU16(s) => s.clone(),
+                                    DecodedData::ColourRGB(s) => s.clone(),
+                                    _ => String::new(),
+                                };
+                                let escaped = val_str
+                                    .replace('&', "&amp;")
+                                    .replace('<', "&lt;")
+                                    .replace('>', "&gt;")
+                                    .replace('"', "&quot;");
+                                field_pairs.push((fname, escaped));
+                            }
+                            field_pairs.sort_by(|a, b| a.0.cmp(&b.0));
+
+                            xml.push_str(&format!("<{table_tag}>\r\n"));
+                            for (fname, val) in &field_pairs {
+                                xml.push_str(&format!("<{fname}>{val}</{fname}>\r\n"));
+                            }
+                            xml.push_str(&format!("</{table_tag}>\r\n"));
+                        }
+                    }
+
+                    xml.push_str("</dataroot>\r\n");
+
+                    if let Err(e) = std::fs::write(&xml_path, xml.as_bytes()) {
+                        export_errors.push(format!("Failed to write {xml_name}: {e}"));
+                    }
+                }
+
+                if !export_errors.is_empty() {
+                    for (orig, bak) in &xml_backups { let _ = std::fs::rename(bak, orig); }
+                    CentralCommand::send_back(&sender, Response::Error(format!("Export errors:\n{}", export_errors.join("\n"))));
+                    continue 'background_loop;
+                }
+
+                // ── Step 4: Write BOB config and launch ───────────────────────
+                let cfg_path = bob_dir.join("BOB/default_configuration.xml");
+
+                // Backup any existing config so we can restore it after BOB runs.
+                let cfg_backup = bob_dir.join("BOB/default_configuration.xml.rpfm_bak");
+                let cfg_existed = cfg_path.exists();
+                if cfg_existed {
+                    if let Err(e) = std::fs::rename(&cfg_path, &cfg_backup) {
+                        for (orig, bak) in &xml_backups { let _ = std::fs::rename(bak, orig); }
+                        CentralCommand::send_back(&sender, Response::Error(format!("Failed to backup BOB config: {e}")));
+                        continue 'background_loop;
+                    }
+                }
+
+                const BOB_CONFIG_XML: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
+                <bob_configuration><processors><processor>Campaign</processor></processors>
+                <directories/><global_rules/><retail>0</retail><silent>1</silent>
+                <get_latest>0</get_latest><connect_db>0</connect_db>
+                <merge_for_checkin_mode>2</merge_for_checkin_mode>
+                <selected_files><entry>&lt;working&gt;/campaigns/ceo_data.ccd</entry></selected_files>
+                </bob_configuration>"#;
+
+                if let Err(e) = std::fs::write(&cfg_path, BOB_CONFIG_XML) {
+                    // Restore backup before bailing.
+                    if cfg_existed { let _ = std::fs::rename(&cfg_backup, &cfg_path); }
+                    for (orig, bak) in &xml_backups { let _ = std::fs::rename(bak, orig); }
+                    CentralCommand::send_back(&sender, Response::Error(format!("Failed to write BOB config: {e}")));
+                    continue 'background_loop;
+                }
+
+                let output = match SysCommand::new(&bob_exe).current_dir(&bob_dir).output() {
+                    Ok(o) => o,
+                    Err(e) => {
+                        let _ = std::fs::remove_file(&cfg_path);
+                        if cfg_existed { let _ = std::fs::rename(&cfg_backup, &cfg_path); }
+                        for (orig, bak) in &xml_backups { let _ = std::fs::rename(bak, orig); }
+                        CentralCommand::send_back(&sender, Response::Error(format!("Failed to launch BOB: {e}")));
+                        continue 'background_loop;
+                    }
+                };
+
+                // Restore config regardless of BOB's result.
+                let _ = std::fs::remove_file(&cfg_path);
+                if cfg_existed { let _ = std::fs::rename(&cfg_backup, &cfg_path); }
+
+                // ── Step 5: Poll for ceo_data.ccd (180s timeout) ─────────────
+                let deadline = Instant::now() + Duration::from_secs(180);
+                let found = loop {
+                    if ceo_ccd.exists() { break true; }
+                    if Instant::now() >= deadline { break false; }
+                    std::thread::sleep(Duration::from_millis(500));
+                };
+
+                // ── Step 6: Restore original ceo_*.xml files ─────────────────
+                for (orig, bak) in &xml_backups {
+                    let _ = std::fs::rename(bak, orig);
+                }
+
+                // ── Step 7: Report result ─────────────────────────────────────
+                if found {
+                    CentralCommand::send_back(&sender, Response::Success);
+                } else {
+                    CentralCommand::send_back(&sender, Response::Error(format!(
+                        "ceo_data.ccd not generated within 180s. BOB exit: {:?}\nstdout: {}",
+                        output.status.code(),
+                        String::from_utf8_lossy(&output.stdout)
+                    )));
+                }
+            }
+
+            Command::BuildCeoPost(pack_key, akit_path) => {
+                match packs.get_mut(&pack_key) {
+                    Some(pack) => {
+                        match build_ceo_post(pack, &akit_path) {
+                            Ok(paths) => CentralCommand::send_back(&sender, Response::VecContainerPath(paths)),
+                            Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
+                        }
+                    }
+                    None => CentralCommand::send_back(&sender, Response::Error(format!("Pack not found: {pack_key}"))),
+                }
+            }
+
+            Command::GetTraitCeos => {
+                let deps = dependencies.read().unwrap();
+                let trait_ceos = get_trait_ceos(&deps);
+                CentralCommand::send_back(&sender, Response::VecStringTuples(trait_ceos));
+            }
+            
+            Command::BuildCeoEntries(pack_key, entries) => {
+                let result = (|| -> Result<Vec<ContainerPath>> {
+                    let schema = schema.as_ref()
+                        .ok_or_else(|| anyhow!("No schema loaded for the current game."))?;
+                    let pack = packs.get_mut(&pack_key)
+                        .ok_or_else(|| anyhow!("Pack not found: {}", pack_key))?;
+                    build_ceo_entries(pack, schema, &entries)
+                })();
+
+                match result {
+                    Ok(paths) => CentralCommand::send_back(&sender, Response::VecContainerPath(paths)),
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                }
+            }
+
             Command::UpdateAnimIds(pack_key, starting_id, offset) => {
                 match packs.get_mut(&pack_key) {
                     Some(pack) => {
@@ -3355,6 +3750,8 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
 }
 
 /// Function to simplify logic for changing game selected.
+
+
 fn load_schema(schema: &mut Option<Schema>, packs: &mut BTreeMap<String, Pack>, game: &GameInfo, settings: &Settings) {
 
     // Before loading the schema, make sure we don't have tables with definitions from the current schema.

@@ -126,6 +126,7 @@ mod error;
 pub mod faction_painter;
 pub mod translator;
 pub mod unit_editor;
+pub mod ceo_builder;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs

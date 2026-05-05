@@ -156,6 +156,7 @@ pub struct AppUISlots {
     pub tools_faction_painter: QBox<SlotNoArgs>,
     pub tools_unit_editor: QBox<SlotNoArgs>,
     pub tools_translator: QBox<SlotNoArgs>,
+    pub tools_ceo_builder: QBox<SlotNoArgs>,
 
     //-----------------------------------------------//
     // `About` menu slots.
@@ -1070,6 +1071,19 @@ impl AppUISlots {
             show_dialog(&app_ui.main_window, TOOLS_NOT_ENABLED_ERROR, false);
         }));
 
+        // CEO Builder — no feature gate needed, built directly into the UI.
+        let tools_ceo_builder = SlotNoArgs::new(&app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui => move || {
+                info!("Triggering `CEO Builder` By Slot");
+                app_ui.toggle_main_window(false);
+                if let Err(error) = crate::tools::ceo_builder::build_ceo_builder(&app_ui, &pack_file_contents_ui) {
+                    show_dialog(&app_ui.main_window, error, false);
+                }
+                app_ui.toggle_main_window(true);
+            }
+        ));
+
 		//-----------------------------------------------//
         // `About` menu logic.
         //-----------------------------------------------//
@@ -1834,6 +1848,7 @@ impl AppUISlots {
             tools_faction_painter,
             tools_unit_editor,
             tools_translator,
+            tools_ceo_builder,
 
     		//-----------------------------------------------//
 	        // `About` menu slots.
