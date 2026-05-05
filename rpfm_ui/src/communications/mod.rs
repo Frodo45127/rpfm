@@ -195,9 +195,8 @@ where
     F: FnOnce(Response) -> T,
 {
     let receiver = CENTRAL_COMMAND.read().unwrap().send(command);
-    match CentralCommand::recv(&receiver) {
-        response => extractor(response),
-    }
+    let response = CentralCommand::recv(&receiver);
+    extractor(response)
 }
 
 /// Function to send a command to the backend. Use it for commands that can't fail.
@@ -209,9 +208,8 @@ where
     F: FnOnce(Response) -> T,
 {
     let receiver = CENTRAL_COMMAND.read().unwrap().send(command);
-    match CENTRAL_COMMAND.read().unwrap().recv_try(&receiver) {
-        response => extractor(response),
-    }
+    let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
+    extractor(response)
 }
 
 /// Request a reconnection to a specific session ID.

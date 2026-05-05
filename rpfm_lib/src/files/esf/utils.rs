@@ -1135,8 +1135,8 @@ impl ESF {
     /// string nodes.
     pub(crate) fn read_string_from_node(node_type: &NodeType, record_names: &mut Vec<String>, strings_utf8: &mut Vec<String>, strings_utf16: &mut Vec<String>) {
         match node_type {
-            NodeType::Utf16(value) => if !strings_utf16.contains(value) { strings_utf16.push(value.to_owned()) },
-            NodeType::Ascii(value) => if !strings_utf8.contains(value) { strings_utf8.push(value.to_owned()) },
+            NodeType::Utf16(value) if !strings_utf16.contains(value) => strings_utf16.push(value.to_owned()),
+            NodeType::Ascii(value) if !strings_utf8.contains(value) => strings_utf8.push(value.to_owned()),
             NodeType::Utf16Array(value) => value.iter().for_each(|value| if !strings_utf16.contains(value) { strings_utf16.push(value.to_owned()) }),
             NodeType::AsciiArray(value) => value.iter().for_each(|value| if !strings_utf8.contains(value) { strings_utf8.push(value.to_owned()) }),
             NodeType::Record(value) => {

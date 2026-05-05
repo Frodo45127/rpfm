@@ -7,6 +7,7 @@ use anyhow::{anyhow, Result};
 
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
+use std::slice::from_ref;
 
 use rpfm_lib::files::{Container, ContainerPath, db::DB, FileType, loc::Loc, pack::Pack, RFile, RFileDecoded, table::DecodedData};
 use rpfm_lib::schema::*;
@@ -47,8 +48,8 @@ pub fn build_ceo_entries(
 
         // Get-or-create a DB table file in the pack.
         // Returns the path so the caller can track it.
-        fn get_or_create_db<'a>(
-            pack: &'a mut Pack,
+        fn get_or_create_db(
+            pack: &mut Pack,
             schema: &Schema,
             table_name: &str,
             file_stem: &str,
@@ -57,7 +58,7 @@ pub fn build_ceo_entries(
             let container_path = ContainerPath::File(path.clone());
 
             // If the file doesn't exist yet, create it.
-            if pack.files_by_paths(&[container_path.clone()], false).is_empty() {
+            if pack.files_by_paths(from_ref(&container_path), false).is_empty() {
                 let _full_table_name = format!("{}_tables", table_name.trim_end_matches("_tables"));
                 let table_name_with_suffix = if table_name.ends_with("_tables") {
                     table_name.to_string()
@@ -99,7 +100,7 @@ pub fn build_ceo_entries(
 
             let mut files = pack.files_by_type_and_paths_mut(
                 &[FileType::DB],
-                &[container_path.clone()],
+                from_ref(&container_path),
                 true,
             );
 
@@ -156,7 +157,7 @@ pub fn build_ceo_entries(
         ) -> Result<ContainerPath> {
             let container_path = ContainerPath::File(loc_path.to_string());
 
-            if pack.files_by_paths(&[container_path.clone()], false).is_empty() {
+            if pack.files_by_paths(from_ref(&container_path), false).is_empty() {
                 let loc = Loc::new();
                 let rfile = RFile::new_from_decoded(
                     &RFileDecoded::Loc(loc), 0, loc_path
@@ -166,7 +167,7 @@ pub fn build_ceo_entries(
 
             let mut files = pack.files_by_type_and_paths_mut(
                 &[FileType::Loc],
-                &[container_path.clone()],
+                from_ref(&container_path),
                 true,
             );
 

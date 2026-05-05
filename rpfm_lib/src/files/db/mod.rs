@@ -658,23 +658,20 @@ impl DB {
             if let Ok(RFileDecoded::Loc(data)) = file.decoded_mut() {
                 let data = data.data_mut();
                 for row in data.iter_mut() {
-                    if let Some(field_data) = row.get_mut(0) {
-                        match field_data {
-                            DecodedData::StringU8(field_data) |
-                            DecodedData::StringU16(field_data) |
-                            DecodedData::OptionalStringU8(field_data) |
-                            DecodedData::OptionalStringU16(field_data) => {
-                                for (key_old, key_new) in &loc_keys {
-                                    if field_data == key_old {
-                                        *field_data = key_new.to_owned();
+                    if let Some(
+                        DecodedData::StringU8(field_data) |
+                        DecodedData::StringU16(field_data) |
+                        DecodedData::OptionalStringU8(field_data) |
+                        DecodedData::OptionalStringU16(field_data)
+                    ) = row.get_mut(0) {
+                        for (key_old, key_new) in &loc_keys {
+                            if field_data == key_old {
+                                *field_data = key_new.to_owned();
 
-                                        if !edited_paths.contains(&path) {
-                                            edited_paths.push(path.clone());
-                                        }
-                                    }
+                                if !edited_paths.contains(&path) {
+                                    edited_paths.push(path.clone());
                                 }
                             }
-                            _ => {}
                         }
                     }
                 }

@@ -283,7 +283,7 @@ impl RigidModelView {
     /// This function loads the data into the view, so it can be accessed in the UI.
     unsafe fn load_data(&self) -> Result<()> {
         let data = self.data().read().unwrap();
-        self.version_combobox().set_current_text(&QString::from_std_str(&data.version().to_string()));
+        self.version_combobox().set_current_text(&QString::from_std_str(data.version().to_string()));
 
         self.lod_tree_model.clear();
 
@@ -560,8 +560,7 @@ impl RigidModelView {
             Field::new("texture_type".to_string(), FieldType::StringU8, true, Some("PLACEHOLDER".to_string()), false, None, None, None, "".to_string(), 0, 0, BTreeMap::new(), None),
             Field::new("texture_path".to_string(), FieldType::StringU8, true, Some("PLACEHOLDER".to_string()), false, None, None, None, "".to_string(), 0, 0, BTreeMap::new(), None),
         ], &[], None);
-        let table_data = TableInMemory::new(&definition, None, "texture_list");
-        table_data
+        TableInMemory::new(&definition, None, "texture_list")
     }
 
     unsafe fn export_to_gltf(&self) -> Result<()> {

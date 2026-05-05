@@ -173,7 +173,7 @@ pub fn line_column_from_string_pos(string: &str, pos: u64) -> (u64, u64) {
         // If we're in the line, find the column.
         else {
             row = index as u64;
-            col = pos.checked_sub(pos_processed).unwrap_or_default();
+            col = pos.saturating_sub(pos_processed);
             break;
         }
     }

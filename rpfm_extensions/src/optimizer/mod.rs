@@ -376,27 +376,22 @@ impl OptimizableContainer for Pack {
             if !files_to_delete.contains(&path) {
 
                 match rfile.file_type() {
-                    FileType::DB => {
 
-                        // Unless we specifically wanted to, ignore the same-name-as-vanilla-or-parent files,
-                        // as those are probably intended to overwrite vanilla files, not to be optimized.
-                        if options.db_optimize_datacored_tables || !dependencies.file_exists(&path, true, true, true) {
-                            if let Ok(RFileDecoded::DB(db)) = rfile.decoded_mut() {
-                                if db.optimize(dependencies, Some(&self_copy_map), options) && options.table_remove_empty_file {
-                                    return Some(path);
-                                }
+                    // Unless we specifically wanted to, ignore the same-name-as-vanilla-or-parent files,
+                    // as those are probably intended to overwrite vanilla files, not to be optimized.
+                    FileType::DB if options.db_optimize_datacored_tables || !dependencies.file_exists(&path, true, true, true) => {
+                        if let Ok(RFileDecoded::DB(db)) = rfile.decoded_mut() {
+                            if db.optimize(dependencies, Some(&self_copy_map), options) && options.table_remove_empty_file {
+                                return Some(path);
                             }
                         }
                     }
 
-                    FileType::Loc => {
-
-                        // Same as with tables, don't optimize them if they're overwriting.
-                        if options.db_optimize_datacored_tables || !dependencies.file_exists(&path, true, true, true) {
-                            if let Ok(RFileDecoded::Loc(loc)) = rfile.decoded_mut() {
-                                if loc.optimize(dependencies, Some(&self_copy_map), options) && options.table_remove_empty_file {
-                                    return Some(path);
-                                }
+                    // Same as with tables, don't optimize them if they're overwriting.
+                    FileType::Loc if options.db_optimize_datacored_tables || !dependencies.file_exists(&path, true, true, true) => {
+                        if let Ok(RFileDecoded::Loc(loc)) = rfile.decoded_mut() {
+                            if loc.optimize(dependencies, Some(&self_copy_map), options) && options.table_remove_empty_file {
+                                return Some(path);
                             }
                         }
                     }
@@ -546,14 +541,8 @@ impl Optimizable for DB {
                         }
                     ).collect::<Vec<DecodedData>>();
 
-                    (!options.table_remove_itm_entries || (
-                        options.table_remove_itm_entries &&
-                        !vanilla_table.contains(&serde_json::to_string(&entry_json).unwrap()))
-                    ) &&
-                    (!options.table_remove_itnr_entries || (
-                        options.table_remove_itnr_entries &&
-                        entry != &new_row)
-                    )
+                    (!options.table_remove_itm_entries || !vanilla_table.contains(&serde_json::to_string(&entry_json).unwrap())) &&
+                    (!options.table_remove_itnr_entries || entry != &new_row)
                 });
 
                 // Dedupper. This is slower than a normal dedup, but it doesn't reorder rows.

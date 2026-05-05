@@ -38,6 +38,7 @@ use std::env::temp_dir;
 use std::fs::{DirBuilder, File};
 use std::io::{BufWriter, Cursor, Write};
 use std::path::PathBuf;
+use std::slice::from_ref;
 use std::sync::{Arc, RwLock};
 use std::thread;
 use std::time::SystemTime;
@@ -170,7 +171,7 @@ fn clipboard_entries_from_paths(pack: &Pack, paths: &[ContainerPath], pack_key: 
             Some(pos) => path.path_raw()[..pos].to_string(),
             None => String::new(),
         };
-        for file in pack.files_by_paths(&[path.clone()], false) {
+        for file in pack.files_by_paths(from_ref(path), false) {
             result.push((file.path_in_container_raw().to_string(), base_path.clone(), pack_key.to_string()));
         }
     }
@@ -3332,8 +3333,8 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                     let parts: Vec<&str> = table_path.split('/').collect();
                     if parts.len() < 2 { continue; }
                     let folder = parts[1];
-                    let xml_name = if folder.ends_with("_tables") {
-                        folder[..folder.len() - 7].to_owned() + ".xml"
+                    let xml_name = if let Some(folder) = folder.strip_suffix("_tables") {
+                        folder.to_owned() + ".xml"
                     } else {
                         folder.to_owned() + ".xml"
                     };

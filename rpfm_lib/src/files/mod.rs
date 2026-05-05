@@ -1127,25 +1127,19 @@ pub trait Container {
         // If tsv import is enabled, try to import the file to binary before adding it to the Container.
         let mut tsv_imported = false;
         let mut rfile = match source_path.extension() {
-            Some(extension) => {
-                if extension.to_string_lossy() == "tsv" {
-                    tsv_imported = true;
-                    let rfile = RFile::tsv_import_from_path(source_path, schema);
-                    if let Err(error) = rfile {
-                        warn!("File with path {} failed to import as TSV. Importing it as binary. If you're using the CLI - did you forget to provide schema with --tsv-as-binary flag? Error was: {}", &source_path.to_string_lossy(), error);
+            Some(extension) if extension.to_string_lossy() == "tsv" => {
+                tsv_imported = true;
+                let rfile = RFile::tsv_import_from_path(source_path, schema);
+                if let Err(error) = rfile {
+                    warn!("File with path {} failed to import as TSV. Importing it as binary. If you're using the CLI - did you forget to provide schema with --tsv-as-binary flag? Error was: {}", &source_path.to_string_lossy(), error);
 
-                        tsv_imported = false;
-                        RFile::new_from_file_path(source_path)
-                    } else {
-                        rfile
-                    }
-                } else {
+                    tsv_imported = false;
                     RFile::new_from_file_path(source_path)
+                } else {
+                    rfile
                 }
             }
-            None => {
-                RFile::new_from_file_path(source_path)
-            }
+            _ => RFile::new_from_file_path(source_path),
         }?;
 
         if !tsv_imported {
@@ -1245,27 +1239,20 @@ pub trait Container {
 
             // If tsv import is enabled, try to import the file to binary before adding it to the Container.
             let mut tsv_imported = false;
-            let mut rfile =
-            match file_path.extension() {
-                Some(extension) => {
-                    if extension.to_string_lossy() == "tsv" {
-                        tsv_imported = true;
-                        let rfile = RFile::tsv_import_from_path(&file_path, schema);
-                        if let Err(error) = rfile {
-                            warn!("File with path {} failed to import as TSV. Importing it as binary. If you're using the CLI - did you forget to provide schema with --tsv-as-binary flag? Error was: {}", &file_path.to_string_lossy(), error);
+            let mut rfile = match file_path.extension() {
+                Some(extension) if extension.to_string_lossy() == "tsv" => {
+                    tsv_imported = true;
+                    let rfile = RFile::tsv_import_from_path(&file_path, schema);
+                    if let Err(error) = rfile {
+                        warn!("File with path {} failed to import as TSV. Importing it as binary. If you're using the CLI - did you forget to provide schema with --tsv-as-binary flag? Error was: {}", &file_path.to_string_lossy(), error);
 
-                            tsv_imported = false;
-                            RFile::new_from_file_path(&file_path)
-                        } else {
-                            rfile
-                        }
-                    } else {
+                        tsv_imported = false;
                         RFile::new_from_file_path(&file_path)
+                    } else {
+                        rfile
                     }
                 }
-                None => {
-                    RFile::new_from_file_path(&file_path)
-                }
+                _ => RFile::new_from_file_path(&file_path),
             }?;
 
             if !tsv_imported {

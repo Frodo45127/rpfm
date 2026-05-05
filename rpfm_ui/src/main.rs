@@ -76,7 +76,7 @@ use crate::ui_state::UIState;
 /// This macro is used to create the extractor argument for the `send_ipc_command_result` and `send_ipc_command` functions.
 macro_rules! response_extractor {
     () => {
-        |response| if let crate::communications::Response::Success = response { () } else { panic!("{} {response:?}", crate::communications::THREADS_COMMUNICATION_ERROR) }
+        |response| if !matches!(response, crate::communications::Response::Success) { panic!("{} {response:?}", crate::communications::THREADS_COMMUNICATION_ERROR) }
     };
     ($variant:path) => {
         |response| if let $variant(value) = response { value } else { panic!("{} {response:?}", crate::communications::THREADS_COMMUNICATION_ERROR) }

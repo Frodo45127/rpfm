@@ -37,14 +37,12 @@ use std::io::{Read, Seek};
 use crate::error::Result;
 use crate::binary::ReadBytes;
 
-/// Old 64-byte key used in Arena and all the way back to Shogun 2 for decrypting file paths.
-///
-/// This key is no longer used but is kept for reference and backwards compatibility with older PackFiles.
+// Old 64-byte key used in Arena and all the way back to Shogun 2 for decrypting file paths.
+// This key is no longer used but is kept for reference and backwards compatibility with older PackFiles.
 // static INDEX_STRING_KEY: &str = "L2{B3dPL7L*v&+Q3ZsusUhy[BGQn(Uq$f>JQdnvdlf{-K:>OssVDr#TlYU|13B}r";
 
-/// Old [`u32`] key used in Arena's encrypted PackFiles for decrypting file sizes.
-///
-/// This key is no longer used but is kept for reference and backwards compatibility with older PackFiles.
+// Old u32 key used in Arena's encrypted PackFiles for decrypting file sizes.
+// This key is no longer used but is kept for reference and backwards compatibility with older PackFiles.
 // static INDEX_U32_KEY: u32 = 0x1509_1984;
 
 /// Current 64-byte key used for decrypting PackedFile paths in the encrypted index.

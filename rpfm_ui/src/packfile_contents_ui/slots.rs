@@ -1894,10 +1894,8 @@ impl PackFileContentsSlots {
 
                         let mut source_image_path = pack_path.to_path_buf();
                         source_image_path.set_extension("png");
-                        if source_image_path.is_file() {
-                            if remove_file(&data_image_path).is_err() {
-                                return show_dialog(app_ui.main_window(), "Error uninstalling the thumbnail of the Pack from the game's folder. Make sure nothing else is using it and try again.", false);
-                            }
+                        if source_image_path.is_file() && remove_file(&data_image_path).is_err() {
+                            return show_dialog(app_ui.main_window(), "Error uninstalling the thumbnail of the Pack from the game's folder. Make sure nothing else is using it and try again.", false);
                         }
 
                         log_to_status_bar(&tr("uninstall_success"));
