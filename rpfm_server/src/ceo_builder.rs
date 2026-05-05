@@ -13,7 +13,7 @@ use rpfm_lib::schema::*;
 
 use rpfm_ipc::messages::CeoEntryData;
 
-use rpfm_log::*;
+use rpfm_telemetry::*;
 
 /// Build CEO entries (armour, career, traits, loc) from structured input data.
 ///
@@ -1311,7 +1311,6 @@ pub fn get_trait_ceos(deps: &rpfm_extensions::dependencies::Dependencies) -> Vec
     info!("GetTraitCeos: returning {} traits", trait_ceos.len());
 
     trait_ceos
-            
 }
 
 /// Import ceo_data.ccd into the pack after BOB has run.
@@ -1334,4 +1333,3 @@ pub fn build_ceo_post(pack: &mut Pack, akit_path: &str) -> Result<Vec<ContainerP
         Err(e) => Err(anyhow!("{}", e)),
     }
 }
-

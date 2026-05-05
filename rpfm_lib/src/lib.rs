@@ -154,9 +154,17 @@ pub mod utils;
 /// - `data/units.txt` → does not match
 pub static REGEX_DB: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"db/[^/]+_tables/[^/]+$").unwrap());
 
-
-/// CEO
-pub static REGEX_CEO_DB: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^ceo_db/([^/]+)/(.+)$").unwrap());
+/// Regular expression to identify CEO database table file paths. These do not use the normal db prefix
+/// due to crashes when loading them in mods ingame.
+///
+/// Matches paths in the format: `ceo_db/{table_name}_tables/{file}`
+///
+/// # Examples
+///
+/// - `ceo_db/units_tables/core_units.bin` → matches
+/// - `ceo_db/buildings_tables/data.bin` → matches
+/// - `data/units.txt` → does not match
+pub static REGEX_CEO_DB: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"ceo_db/[^/]+_tables/[^/]+$").unwrap());
 
 /// Regular expression to identify portrait settings file paths.
 ///

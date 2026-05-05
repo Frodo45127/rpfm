@@ -1100,11 +1100,7 @@ impl Pack {
         }).flatten().collect::<HashSet<String>>();
 
         let (missing_trads_new, missing_trads_overwritten) = db_tables.par_iter().filter_map(|rfile| {
-            if let Ok(decoded) = rfile.decoded() {
-                let table = match decoded {
-                    RFileDecoded::DB(t) => t,
-                    _ => return None,
-                };
+            if let Ok(RFileDecoded::DB(table)) = rfile.decoded() {
                 let definition = table.definition();
                 let loc_fields = definition.localised_fields();
                 let table_data = table.data();

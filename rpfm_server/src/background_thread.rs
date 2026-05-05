@@ -1560,7 +1560,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                         None => {
 
                             // If the table is one of the starpos tables, we need to return the latest version of the table, even if it's not in the game files.
-                            if table_name.starts_with("start_pos_") || table_name.starts_with("twad_") || table_name.starts_with("ceo") { // TEMP FIX FOR NOW 
+                            if table_name.starts_with("start_pos_") || table_name.starts_with("twad_") || table_name.starts_with("ceo") {
                                 match &schema {
                                     Some(schema) => {
                                         match schema.definitions_by_table_name(&table_name) {
@@ -2470,12 +2470,6 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                             match &schema {
                                 Some(ref schema) => {
                                     let mut files = vec![];
-
-                                    // CEO table prefixes that should go into ceo_db/ instead of db/
-                                    let is_ceo_table = |name: &str| -> bool {
-                                        name.starts_with("ceo") || name == "ceos_tables" || name == "ceos_to_equipment_variants_tables"
-                                    };
-
                                     for path in paths {
 
                                         // We only have tables. If it's a folder, it's either a table folder, db or the root.
@@ -2501,15 +2495,15 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
 
                                                         match dependencies.import_from_ak(table_name, schema) {
                                                             Ok(table) => {
-                                                                let prefix = if is_ceo_table(table_name) { "ceo_db" } else { path_split[0] };
-                                                                let file_path = if path_split.len() > 1 {
-                                                                    format!("{}/{}/{}", prefix, &path_split[1..].join("/"), table_file_name)
-                                                                } else {
-                                                                    format!("{}/{}/{}", prefix, table_name, table_file_name)
-                                                                };
+                                                                let mut path = path_split.to_vec();
+                                                                path.push(table_file_name);
+                                                                let mut path = path.join("/");
 
-                                                                let decoded = RFileDecoded::DB(table);
-                                                                let file = RFile::new_from_decoded(&decoded, 0, &file_path);
+                                                                if table_name.starts_with("ceo") {
+                                                                    path = format!("ceo_{path}");
+                                                                }
+
+                                                                let file = RFile::new_from_decoded(&RFileDecoded::DB(table), 0, &path);
                                                                 files.push(file);
                                                             },
                                                             Err(_) => not_added_paths.push(path.clone()),
@@ -2528,11 +2522,15 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
 
                                                     match dependencies.import_from_ak(table_name, schema) {
                                                         Ok(table) => {
-                                                            let prefix = if is_ceo_table(table_name) { "ceo_db" } else { path_split[0] };
-                                                            let file_path = format!("{}/{}/{}", prefix, table_name, table_file_name);
+                                                            let mut path = path_split.to_vec();
+                                                            path.push(table_file_name);
+                                                            let mut path = path.join("/");
 
-                                                            let decoded = RFileDecoded::DB(table);
-                                                            let file = RFile::new_from_decoded(&decoded, 0, &file_path);
+                                                            if table_name.starts_with("ceo") {
+                                                                path = format!("ceo_{path}");
+                                                            }
+
+                                                            let file = RFile::new_from_decoded(&RFileDecoded::DB(table), 0, &path);
                                                             files.push(file);
                                                         },
                                                         Err(_) => not_added_paths.push(path.clone()),
@@ -2547,19 +2545,16 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
 
                                             }
                                             ContainerPath::File(path) => {
-                                                let path_parts = path.split('/').collect::<Vec<_>>();
-                                                let table_name = path_parts[1];
+                                                let table_name = path.split('/').collect::<Vec<_>>()[1];
                                                 match dependencies.import_from_ak(table_name, schema) {
                                                     Ok(table) => {
-                                                        let file_path = if is_ceo_table(table_name) {
-                                                            let file_name = path_parts.last().unwrap_or(&"data__");
-                                                            format!("ceo_db/{}/{}", table_name, file_name)
+                                                        let file_path = if table_name.starts_with("ceo") {
+                                                            format!("ceo_{}", path)
                                                         } else {
                                                             path.clone()
                                                         };
 
-                                                        let decoded = RFileDecoded::DB(table);
-                                                        let file = RFile::new_from_decoded(&decoded, 0, &file_path);
+                                                        let file = RFile::new_from_decoded(&RFileDecoded::DB(table), 0, &file_path);
                                                         files.push(file);
                                                     },
                                                     Err(_) => not_added_paths.push(path.clone()),
@@ -3511,7 +3506,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 let trait_ceos = get_trait_ceos(&deps);
                 CentralCommand::send_back(&sender, Response::VecStringTuples(trait_ceos));
             }
-            
+
             Command::BuildCeoEntries(pack_key, entries) => {
                 let result = (|| -> Result<Vec<ContainerPath>> {
                     let schema = schema.as_ref()
@@ -3750,8 +3745,6 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
 }
 
 /// Function to simplify logic for changing game selected.
-
-
 fn load_schema(schema: &mut Option<Schema>, packs: &mut BTreeMap<String, Pack>, game: &GameInfo, settings: &Settings) {
 
     // Before loading the schema, make sure we don't have tables with definitions from the current schema.
