@@ -256,6 +256,7 @@ pub struct AppUI {
     tools_faction_painter: QPtr<QAction>,
     tools_unit_editor: QPtr<QAction>,
     tools_translator: QPtr<QAction>,
+    tools_ceo_builder: QPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
     // `About` menu.
@@ -570,6 +571,7 @@ impl AppUI {
         let tools_faction_painter = menu_bar_tools.add_action_q_string(&qtr("tools_faction_painter"));
         let tools_unit_editor = menu_bar_tools.add_action_q_string(&qtr("tools_unit_editor"));
         let tools_translator = menu_bar_tools.add_action_q_string(&qtr("tools_translator"));
+        let tools_ceo_builder = menu_bar_tools.add_action_q_string(&qtr("tools_ceo_builder"));
         if !settings_bool(ENABLE_UNIT_EDITOR) {
             tools_unit_editor.set_enabled(false);
         }
@@ -718,6 +720,7 @@ impl AppUI {
             tools_faction_painter,
             tools_unit_editor,
             tools_translator,
+            tools_ceo_builder,
 
             //-------------------------------------------------------------------------------//
             // "About" menu.
