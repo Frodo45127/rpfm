@@ -1596,10 +1596,15 @@ impl AppUI {
         // Query the server for all open packs.
         let pack_list = send_ipc_command(Command::ListOpenPacks, response_extractor!(Response::VecStringContainerInfo));
 
-        for (pack_key, _container_info) in &pack_list {
+        for (pack_key, container_info) in &pack_list {
+
+            // The action label tracks the pack's *current* file name so renames via Save As
+            // are reflected on the next menu redraw. The slot still captures `pack_key`,
+            // which is the stable backend identifier (a HashMap key that survives renames).
+            let label = QString::from_std_str(container_info.file_name());
 
             // Close Pack action.
-            let close_action = app_ui.packfile_close_pack_menu.add_action_q_string(&QString::from_std_str(pack_key));
+            let close_action = app_ui.packfile_close_pack_menu.add_action_q_string(&label);
             let slot_close = SlotOfBool::new(&close_action, clone!(
                 app_ui,
                 pack_file_contents_ui,
@@ -1611,7 +1616,7 @@ impl AppUI {
             close_action.triggered().connect(&slot_close);
 
             // Save Pack action (per-pack).
-            let save_action = app_ui.packfile_save_pack_menu.add_action_q_string(&QString::from_std_str(pack_key));
+            let save_action = app_ui.packfile_save_pack_menu.add_action_q_string(&label);
             let slot_save = SlotOfBool::new(&save_action, clone!(
                 app_ui,
                 pack_file_contents_ui,
@@ -1624,7 +1629,7 @@ impl AppUI {
             save_action.triggered().connect(&slot_save);
 
             // Save Pack As action (per-pack).
-            let save_as_action = app_ui.packfile_save_pack_as_menu.add_action_q_string(&QString::from_std_str(pack_key));
+            let save_as_action = app_ui.packfile_save_pack_as_menu.add_action_q_string(&label);
             let slot_save_as = SlotOfBool::new(&save_as_action, clone!(
                 app_ui,
                 pack_file_contents_ui,
