@@ -658,7 +658,7 @@ impl TableView {
         } else if let TableType::RigidTexturesTable(_) = table_data {
             HashMap::new()
         } else if let Some(table_name) = table_name {
-            referencing_columns_for_table(&table_name, &table_definition)?
+            referencing_columns_for_table(table_name, &table_definition)?
         } else {
             HashMap::new()
         };
@@ -1301,7 +1301,7 @@ impl TableView {
         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
         let path = send_ipc_command_result(Command::AddKeysToKeyDeletes(pack_key.clone(), file_name.to_string(), table_name, keys), response_extractor!(Response::OptionContainerPath))?;
         if let Some(path) = path {
-            let edited_paths = vec![path];
+            let edited_paths = [path];
 
             // If it worked, get the list of edited PackedFiles and update the TreeView to reflect the change.
             pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Modify(edited_paths.to_vec()), DataSource::PackFile, &pack_key);
@@ -2058,7 +2058,7 @@ impl TableView {
                     self.save_lock.store(true, Ordering::SeqCst);
 
                     // Make sure the order of these ones is always correct (9->0).
-                    rows.sort_by(|x, y| x.0.cmp(&y.0));
+                    rows.sort_by_key(|x| x.0);
 
                     // First, we re-create the rows and re-insert them.
                     for (index, row_pack) in &rows {
@@ -2167,28 +2167,26 @@ impl TableView {
             if index.column() != -1 {
                 let current_row = index.row();
                 match last_row {
-                    Some(row) => {
 
-                        // If it's the same row as before, take the row from the table data and append it.
-                        if current_row == row {
-                            let entry = table_data.last_mut().unwrap();
-                            let data = self.get_escaped_lua_string_from_index(*index, &fields_processed);
-                            if entry.0.is_none() && fields_processed[index.column() as usize].is_key(patches) && has_keys {
-                                entry.0 = Some(self.escape_string_from_index(*index, &fields_processed));
-                            }
-                            entry.1.push(data);
+                    // If it's the same row as before, take the row from the table data and append it.
+                    Some(row) if current_row == row => {
+                        let entry = table_data.last_mut().unwrap();
+                        let data = self.get_escaped_lua_string_from_index(*index, &fields_processed);
+                        if entry.0.is_none() && fields_processed[index.column() as usize].is_key(patches) && has_keys {
+                            entry.0 = Some(self.escape_string_from_index(*index, &fields_processed));
                         }
+                        entry.1.push(data);
+                    }
 
-                        // If it's not the same row as before, we create it as a new row.
-                        else {
-                            let mut entry = (None, vec![]);
-                            let data = self.get_escaped_lua_string_from_index(*index, &fields_processed);
-                            entry.1.push(data.to_string());
-                            if entry.0.is_none() && fields_processed[index.column() as usize].is_key(patches) && has_keys {
-                                entry.0 = Some(self.escape_string_from_index(*index, &fields_processed));
-                            }
-                            table_data.push(entry);
+                    // If it's not the same row as before, we create it as a new row.
+                    Some(_) => {
+                        let mut entry = (None, vec![]);
+                        let data = self.get_escaped_lua_string_from_index(*index, &fields_processed);
+                        entry.1.push(data.to_string());
+                        if entry.0.is_none() && fields_processed[index.column() as usize].is_key(patches) && has_keys {
+                            entry.0 = Some(self.escape_string_from_index(*index, &fields_processed));
                         }
+                        table_data.push(entry);
                     }
                     None => {
                         let mut entry = (None, vec![]);

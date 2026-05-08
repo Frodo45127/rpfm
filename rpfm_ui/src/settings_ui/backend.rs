@@ -208,8 +208,8 @@ pub fn settings_set_string(key: &str, value: &str) -> Result<()> {
 
 /// Set a PathBuf setting on the server and update the local cache.
 #[allow(dead_code)]
-pub fn settings_set_path_buf(key: &str, value: &PathBuf) -> Result<()> {
-    send_ipc_command_result(Command::SettingsSetPathBuf(key.to_string(), value.clone()), response_extractor!())?;
+pub fn settings_set_path_buf(key: &str, value: &Path) -> Result<()> {
+    send_ipc_command_result(Command::SettingsSetPathBuf(key.to_string(), value.to_path_buf()), response_extractor!())?;
     SETTINGS_CACHE.with(|cache| {
         if let Some(ref mut s) = *cache.borrow_mut() {
             s.string.insert(key.to_owned(), value.to_string_lossy().to_string());

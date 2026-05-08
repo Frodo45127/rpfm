@@ -224,7 +224,7 @@ pub unsafe fn build_ceo_builder(app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<P
         );
 
         let item = QListWidgetItem::from_q_string(&QString::from_std_str(&display));
-        item.set_tool_tip(&QString::from_std_str(&format!("{}|{}", uuid, ceo_key)));
+        item.set_tool_tip(&QString::from_std_str(format!("{}|{}", uuid, ceo_key)));
         trait_list_widget.add_item_q_list_widget_item(item.into_ptr());
     }
 
@@ -246,8 +246,8 @@ pub unsafe fn build_ceo_builder(app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<P
     // Update selected count; disable unselected items when 3 are chosen
     let update_count = SlotNoArgs::new(&dialog, move || {
         let count = trait_list_ptr.selected_items().count();
-        trait_count_ptr.set_text(&QString::from_std_str(&format!("Selected: {}/3", count)));
-        let enabled_flags = (ItemFlag::ItemIsEnabled | ItemFlag::ItemIsSelectable).into();
+        trait_count_ptr.set_text(&QString::from_std_str(format!("Selected: {}/3", count)));
+        let enabled_flags = ItemFlag::ItemIsEnabled | ItemFlag::ItemIsSelectable;
         let disabled_flags = ItemFlag::ItemIsSelectable.into(); // no ItemIsEnabled
         for i in 0..trait_list_ptr.count() {
             let item = trait_list_ptr.item(i);
@@ -311,7 +311,7 @@ pub unsafe fn build_ceo_builder(app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<P
 
         name_ptr.clear();
         trait_list_ptr2.clear_selection();
-        status_ptr.set_text(&QString::from_std_str(&format!("OK: {} character(s) in queue.", queue_ptr.row_count())));
+        status_ptr.set_text(&QString::from_std_str(format!("OK: {} character(s) in queue.", queue_ptr.row_count())));
     });
     add_character_button.released().connect(&add_character);
 
@@ -335,7 +335,7 @@ pub unsafe fn build_ceo_builder(app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<P
             queue_ptr.remove_row(r);
         }
         status_ptr.set_text(&QString::from_std_str(
-            &format!("{} character(s) in queue.", queue_ptr.row_count())
+            format!("{} character(s) in queue.", queue_ptr.row_count())
         ));
     });
     delete_selected_button.released().connect(&delete_selected);
@@ -388,14 +388,14 @@ pub unsafe fn build_ceo_builder(app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<P
         ) {
             Ok(paths) => {
                 status_ptr.set_text(&QString::from_std_str(
-                    &format!("OK: {} file(s) updated.", paths.len())
+                    format!("OK: {} file(s) updated.", paths.len())
                 ));
                 *added_paths_closure.borrow_mut() = paths;
                 dialog_ptr.done(1);
             }
             Err(error) => {
                 run_button_ptr.set_enabled(true);
-                status_ptr.set_text(&QString::from_std_str(&format!("ERR: {}", error)));
+                status_ptr.set_text(&QString::from_std_str(format!("ERR: {}", error)));
             }
         }
     });

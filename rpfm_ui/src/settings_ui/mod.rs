@@ -1093,10 +1093,8 @@ unsafe fn new_setting_combobox(vbox: &QBox<QVBoxLayout>, container: &QBox<QWidge
     setting_row!(vbox, container, label, combobox);
 
     // On Linux, program updates are managed by the package manager or Flatpak.
-    if cfg!(target_os = "linux") {
-        if key == "settings_update_channel" {
-            container.set_visible(false);
-        }
+    if cfg!(target_os = "linux") && key == "settings_update_channel" {
+        container.set_visible(false);
     }
 
     combobox

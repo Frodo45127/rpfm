@@ -435,9 +435,9 @@ impl AppUI {
         menu_bar_packfile.insert_menu(&packfile_save_all, &packfile_save_pack_menu);
         menu_bar_packfile.insert_menu(&packfile_save_all, &packfile_save_pack_as_menu);
 
-        menu_bar_packfile.insert_separator(&packfile_open_recent.menu_action());
-        menu_bar_packfile.insert_separator(&packfile_close_pack_menu.menu_action());
-        menu_bar_packfile.insert_separator(&packfile_save_pack_menu.menu_action());
+        menu_bar_packfile.insert_separator(packfile_open_recent.menu_action());
+        menu_bar_packfile.insert_separator(packfile_close_pack_menu.menu_action());
+        menu_bar_packfile.insert_separator(packfile_save_pack_menu.menu_action());
         menu_bar_packfile.insert_separator(&packfile_select_session);
 
         //-----------------------------------------------//
@@ -1932,7 +1932,7 @@ impl AppUI {
                 }
 
                 // If we have a PackedFile open, but we want to open it as a external file, close it here.
-                if is_external && UI_STATE.get_open_packedfiles().iter().any(|x| is_same_file(x)) {
+                if is_external && UI_STATE.get_open_packedfiles().iter().any(is_same_file) {
                     if let Err(error) = Self::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, data_source, true) {
                         show_dialog(&app_ui.main_window, error, false);
                     }

@@ -508,7 +508,7 @@ impl GlobalSearchUI {
             if !item.is_null() {
                 let widget = item.widget();
                 if !widget.is_null() {
-                    let prop = widget.property("pack_key\0".as_ptr().cast());
+                    let prop = widget.property(c"pack_key".as_ptr().cast());
                     if prop.is_valid() && !prop.is_null() {
                         layout.remove_widget(&widget);
                         widget.delete_later();
@@ -537,7 +537,7 @@ impl GlobalSearchUI {
                         let name = item.text().to_std_string();
                         let checkbox = QCheckBox::from_q_string(&QString::from_std_str(&name));
                         checkbox.set_checked(true);
-                        checkbox.set_property("pack_key\0".as_ptr().cast(), &QVariant::from_q_string(&QString::from_std_str(&key)));
+                        checkbox.set_property(c"pack_key".as_ptr().cast(), &QVariant::from_q_string(&QString::from_std_str(&key)));
                         layout.add_widget_5a(&checkbox, next_row, 0, 1, 1);
                         next_row += 1;
                     }
@@ -560,7 +560,7 @@ impl GlobalSearchUI {
             if !item.is_null() {
                 let widget = item.widget();
                 if !widget.is_null() {
-                    let prop = widget.property("pack_key\0".as_ptr().cast());
+                    let prop = widget.property(c"pack_key".as_ptr().cast());
                     if prop.is_valid() && !prop.is_null() {
                         let checkbox: QPtr<QCheckBox> = widget.static_downcast();
                         checkboxes.push(checkbox);
@@ -2682,7 +2682,7 @@ impl GlobalSearchUI {
         let mut sources = Vec::new();
         for checkbox in self.get_pack_checkboxes() {
             if checkbox.is_checked() {
-                let pack_key = checkbox.property("pack_key\0".as_ptr().cast()).to_string().to_std_string();
+                let pack_key = checkbox.property(c"pack_key".as_ptr().cast()).to_string().to_std_string();
                 sources.push(SearchSource::Pack(pack_key));
             }
         }

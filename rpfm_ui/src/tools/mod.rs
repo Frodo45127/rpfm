@@ -513,7 +513,7 @@ impl Tool {
                             None => {
                                 let mut rows = vec![];
                                 let row_key_name_with_bar = format!("{row_key_name}|");
-                                let keys = row_data.iter().filter_map(|(key, _)|
+                                let keys = row_data.keys().filter_map(|key|
 
                                     // We need to get the subkey from the key, not from the value!!!
                                     if key.starts_with(&row_key_name_with_bar) {
