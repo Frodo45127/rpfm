@@ -2719,7 +2719,7 @@ impl AppUI {
             if let Some(mut name) = Self::new_packed_file_name_dialog(app_ui, pack_file_contents_ui) {
 
                 // DB Check.
-                let (new_path, new_packed_file) = if path.starts_with("db") && (path_split.len() == 2 || path_split.len() == 3) {
+                let (new_path, new_packed_file) = if (path.starts_with("db/") || path.starts_with("ceo_db/")) && (path_split.len() == 2 || path_split.len() == 3) {
                     let new_path = format!("{path}/{name}");
                     let table = path_split[1];
 

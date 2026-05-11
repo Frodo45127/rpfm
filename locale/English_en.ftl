@@ -1642,12 +1642,11 @@ build_starpos_instructions = <p>Instructions:</p>
 build_ceo = Build CEO
 build_ceo_instructions = <p>Instructions:</p>
     <ul>
-        <li>This has only been tested under Windows.</li>
-        <li>You need to have your Assembly Kit path configured correctly in Settings.</li>
-        <li>Your Assembly Kit must have the CEO XML files already present in <b>raw_data/db/</b> (they are included with the vanilla AKit).</li>
-        <li>If you have edited CEO XML files, make sure they are already in place in <b>raw_data/db/</b> before clicking Build CEO.</li>
-        <li>Hit the <b>Build CEO</b> button. BOB will run silently in the background and generate <b>ceo_data.ccd</b> in your Assembly Kit's <b>working_data/campaigns/</b> folder.</li>
-        <li>Once it finishes, the <b>Import CCD</b> button will unlock. Hit it to import <b>ceo_data.ccd</b> into your Pack under <b>db/</b>.</li>
+        <li>Tested only under Windows.</li>
+        <li>Have your Assembly Kit path configured correctly in Settings.</li>
+        <li>Import all of the necessary CEO files from the Assembly Kit dependencies within RPFM.</li>
+        <li>Make any changes, then hit the <b>Build CEO</b> button. This will open BOB — BOB will close if the build is successful, and stay open if there is an error in your CEOs.</li>
+        <li>Once that is done, hit <b>Import CCD</b> and it will import <b>ceo_data.ccd</b> into the <b>campaigns/</b> folder.</li>
     </ul>
     
 build_ceo_import = Import CCD
