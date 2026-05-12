@@ -14,6 +14,7 @@ Module with all the code related to the main `AppUI`.
 This module contains all the code needed to initialize the main Window and its menus.
 !*/
 
+use qt_widgets::QAbstractItemView;
 use qt_widgets::QApplication;
 use qt_widgets::QCheckBox;
 use qt_widgets::QComboBox;
@@ -49,6 +50,7 @@ use qt_core::ContextMenuPolicy;
 use qt_core::QBox;
 use qt_core::QEventLoop;
 use qt_core::QListOfQObject;
+use qt_core::QPointerOfQObject;
 use qt_core::QPtr;
 use qt_core::QRegularExpression;
 use qt_core::{SlotNoArgs, SlotOfBool};
@@ -294,7 +296,14 @@ pub struct AppUI {
     tab_bar_packed_file_import_from_dependencies: QPtr<QAction>,
     tab_bar_packed_file_toggle_quick_notes: QPtr<QAction>,
 
-    focused_widget: Rc<RwLock<Option<QPtr<QWidget>>>>,
+    /// Holds a `QPointer` to the last focused widget at the moment the main window is
+    /// disabled, so we can restore focus when it's re-enabled.
+    ///
+    /// We use the real `QPointer<QObject>` here (and not a plain `QPtr<QWidget>`) because
+    /// the focused widget may be an inline cell editor that gets destroyed by Qt while
+    /// the save's blocking IPC call spins the event loop. `QPointer` auto-nulls on
+    /// `QObject` deletion; the `QPtr` exposed by the `ritual` bindings does not.
+    focused_widget: Rc<RwLock<Option<CppBox<QPointerOfQObject>>>>,
     disabled_counter: Rc<RwLock<u32>>,
 }
 
@@ -779,9 +788,16 @@ impl AppUI {
 
             if *self.disabled_counter.read().unwrap() == 0 && !self.main_window().is_enabled() {
                 self.main_window().set_enabled(true);
-                if let Some(focus_widget) = &*self.focused_widget.read().unwrap() {
-                    if !focus_widget.is_null() && focus_widget.is_visible() && focus_widget.is_enabled() {
-                        focus_widget.set_focus_0a();
+                if let Some(qpointer) = &*self.focused_widget.read().unwrap() {
+
+                    // QPointer auto-nulls on QObject deletion, so this check is reliable.
+                    // No Qt event loop runs between here and `set_focus_0a` below, so the
+                    // object cannot be deleted in between.
+                    if !qpointer.is_null() {
+                        let widget = qpointer.data().dynamic_cast::<QWidget>();
+                        if !widget.is_null() && widget.is_visible() && widget.is_enabled() {
+                            widget.set_focus_0a();
+                        }
                     }
                 }
 
@@ -793,14 +809,42 @@ impl AppUI {
         else {
             *self.disabled_counter.write().unwrap() += 1;
             if self.main_window().is_enabled() {
-                let focus_widget = QApplication::focus_widget();
+                let mut focus_widget = QApplication::focus_widget();
+
+                // Do not focus on inline editors.
+                if !focus_widget.is_null() && Self::is_cell_editor(&focus_widget) {
+                    focus_widget.clear_focus();
+                    focus_widget = QApplication::focus_widget();
+                }
+
                 if !focus_widget.is_null() {
-                    *self.focused_widget.write().unwrap() = Some(focus_widget);
+                    let qpointer = QPointerOfQObject::new();
+                    qpointer.copy_from_q_object(&focus_widget);
+                    *self.focused_widget.write().unwrap() = Some(qpointer);
                 }
 
                 self.main_window().set_enabled(false);
             }
         }
+    }
+
+    /// Returns `true` if `widget` is hosted inside a `QAbstractItemView` — i.e. it's
+    /// almost certainly an inline cell editor whose lifetime is managed by the view
+    /// and ends as soon as it loses focus.
+    unsafe fn is_cell_editor(widget: &QPtr<QWidget>) -> bool {
+        let mut current = widget.parent_widget();
+
+        // Cap the walk so a malformed parent chain can never loop forever.
+        for _ in 0..16 {
+            if current.is_null() {
+                return false;
+            }
+            if !current.dynamic_cast::<QAbstractItemView>().is_null() {
+                return true;
+            }
+            current = current.parent_widget();
+        }
+        false
     }
 
     /// This function takes care of updating the Main Window's title to reflect the current state of the program.
