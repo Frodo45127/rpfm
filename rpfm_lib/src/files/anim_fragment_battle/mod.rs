@@ -85,7 +85,7 @@ use bitflags::bitflags;
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::io::Cursor;
 
 use crate::binary::{ReadBytes, WriteBytes};
@@ -316,24 +316,24 @@ impl AnimFragmentBattle {
     /// A tuple of `(entry_definition, anim_ref_definition)`.
     pub fn definitions() -> (Definition, Definition) {
         let mut anim_refs_definition = Definition::default();
-        anim_refs_definition.fields_mut().push(Field::new("file_path".to_string(), FieldType::StringU8, false, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
-        anim_refs_definition.fields_mut().push(Field::new("meta_file_path".to_string(), FieldType::StringU8, false, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
-        anim_refs_definition.fields_mut().push(Field::new("snd_file_path".to_string(), FieldType::StringU8, false, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
+        anim_refs_definition.fields_mut().push(Field { name: "file_path".to_string(), field_type: FieldType::StringU8, ..Default::default() });
+        anim_refs_definition.fields_mut().push(Field { name: "meta_file_path".to_string(), field_type: FieldType::StringU8, ..Default::default() });
+        anim_refs_definition.fields_mut().push(Field { name: "snd_file_path".to_string(), field_type: FieldType::StringU8, ..Default::default() });
 
         let mut definition = Definition::default();
-        definition.fields_mut().push(Field::new("animation_id".to_string(), FieldType::I32, true, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
-        definition.fields_mut().push(Field::new("blend_in_time".to_string(), FieldType::F32, false, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
-        definition.fields_mut().push(Field::new("selection_weight".to_string(), FieldType::F32, false, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
-        definition.fields_mut().push(Field::new("weapon_bone".to_string(), FieldType::I32, false, None, false, None, None, None, String::new(), -1, 6, BTreeMap::new(), None));
-        definition.fields_mut().push(Field::new("anim_refs".to_string(), FieldType::SequenceU32(Box::new(anim_refs_definition.clone())), false, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
-        definition.fields_mut().push(Field::new("slot_id".to_string(), FieldType::I32, true, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
-        definition.fields_mut().push(Field::new("filename".to_string(), FieldType::StringU8, false, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
-        definition.fields_mut().push(Field::new("metadata".to_string(), FieldType::StringU8, false, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
-        definition.fields_mut().push(Field::new("metadata_sound".to_string(), FieldType::StringU8, false, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
-        definition.fields_mut().push(Field::new("skeleton_type".to_string(), FieldType::StringU8, false, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
-        definition.fields_mut().push(Field::new("uk_3".to_string(), FieldType::I32, false, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
-        definition.fields_mut().push(Field::new("uk_4".to_string(), FieldType::StringU8, false, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
-        definition.fields_mut().push(Field::new("single_frame_variant".to_string(), FieldType::Boolean, false, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
+        definition.fields_mut().push(Field { name: "animation_id".to_string(), field_type: FieldType::I32, is_key: true, ..Default::default() });
+        definition.fields_mut().push(Field { name: "blend_in_time".to_string(), field_type: FieldType::F32, ..Default::default() });
+        definition.fields_mut().push(Field { name: "selection_weight".to_string(), field_type: FieldType::F32, ..Default::default() });
+        definition.fields_mut().push(Field { name: "weapon_bone".to_string(), field_type: FieldType::I32, is_bitwise: 6, ..Default::default() });
+        definition.fields_mut().push(Field { name: "anim_refs".to_string(), field_type: FieldType::SequenceU32(Box::new(anim_refs_definition.clone())), ..Default::default() });
+        definition.fields_mut().push(Field { name: "slot_id".to_string(), field_type: FieldType::I32, is_key: true, ..Default::default() });
+        definition.fields_mut().push(Field { name: "filename".to_string(), field_type: FieldType::StringU8, ..Default::default() });
+        definition.fields_mut().push(Field { name: "metadata".to_string(), field_type: FieldType::StringU8, ..Default::default() });
+        definition.fields_mut().push(Field { name: "metadata_sound".to_string(), field_type: FieldType::StringU8, ..Default::default() });
+        definition.fields_mut().push(Field { name: "skeleton_type".to_string(), field_type: FieldType::StringU8, ..Default::default() });
+        definition.fields_mut().push(Field { name: "uk_3".to_string(), field_type: FieldType::I32, ..Default::default() });
+        definition.fields_mut().push(Field { name: "uk_4".to_string(), field_type: FieldType::StringU8, ..Default::default() });
+        definition.fields_mut().push(Field { name: "single_frame_variant".to_string(), field_type: FieldType::Boolean, ..Default::default() });
 
         (definition, anim_refs_definition)
     }

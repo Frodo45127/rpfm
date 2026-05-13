@@ -331,33 +331,33 @@ pub struct Field {
     /// Name of the field.
     ///
     /// Must match the field name from the Assembly Kit table definition (usually snake_case, but not always).
-    name: String,
+    pub name: String,
 
     /// Data type of the field.
     ///
     /// Determines how the field's binary data is interpreted.
-    field_type: FieldType,
+    pub field_type: FieldType,
 
     /// Whether this field is part of the table's primary key.
     ///
     /// Can be overridden via patches. Use [`is_key()`] to get the patched value.
     ///
     /// [`is_key()`]: Field::is_key
-    is_key: bool,
+    pub is_key: bool,
 
     /// Default value for this field when creating new rows.
     ///
     /// Can be overridden via patches. Use [`default_value()`] to get the patched value.
     ///
     /// [`default_value()`]: Field::default_value
-    default_value: Option<String>,
+    pub default_value: Option<String>,
 
     /// Whether this field contains a filename/path.
     ///
     /// Can be overridden via patches. Use [`is_filename()`] to get the patched value.
     ///
     /// [`is_filename()`]: Field::is_filename
-    is_filename: bool,
+    pub is_filename: bool,
 
     /// Semicolon-separated list of relative paths where files for this field can be found.
     ///
@@ -365,7 +365,7 @@ pub struct Field {
     /// Use [`filename_relative_path()`] to get the parsed, patched value.
     ///
     /// [`filename_relative_path()`]: Field::filename_relative_path
-    filename_relative_path: Option<String>,
+    pub filename_relative_path: Option<String>,
 
     /// Foreign key reference to another table.
     ///
@@ -374,7 +374,7 @@ pub struct Field {
     /// Use [`is_reference()`] to get the patched value.
     ///
     /// [`is_reference()`]: Field::is_reference
-    is_reference: Option<(String, String)>,
+    pub is_reference: Option<(String, String)>,
 
     /// Additional columns from the referenced table to show in lookups.
     ///
@@ -382,26 +382,26 @@ pub struct Field {
     /// Use [`lookup()`] to get the patched value.
     ///
     /// [`lookup()`]: Field::lookup
-    lookup: Option<Vec<String>>,
+    pub lookup: Option<Vec<String>>,
 
     /// Human-readable description of the field's purpose.
     ///
     /// Can be overridden via patches. Use [`description()`] to get the patched value.
     ///
     /// [`description()`]: Field::description
-    description: String,
+    pub description: String,
 
     /// Visual position in CA's Assembly Kit table editor.
     ///
     /// `-1` means the position is unknown. This is used to maintain column order
     /// consistency with the Assembly Kit.
-    ca_order: i16,
+    pub ca_order: i16,
 
     /// Number of boolean columns this field should be split into.
     ///
     /// Only applicable to numeric fields. A value > 1 means the field should be
     /// expanded into that many boolean columns when processed.
-    is_bitwise: i32,
+    pub is_bitwise: i32,
 
     /// Named values for this field when treated as an enum.
     ///
@@ -409,13 +409,13 @@ pub struct Field {
     /// is treated as a string enum in processed fields.
     ///
     /// NOTE: When possible, prefer using lookups instead of enum_values.
-    enum_values: BTreeMap<i32, String>,
+    pub enum_values: BTreeMap<i32, String>,
 
     /// Index of the RGB colour group this field belongs to.
     ///
     /// When set, this field is part of a 3-field RGB triplet that should be
     /// merged into a single ColourRGB field when processed.
-    is_part_of_colour: Option<u8>,
+    pub is_part_of_colour: Option<u8>,
 
     /// Whether this field is unused by the game.
     ///
@@ -424,7 +424,7 @@ pub struct Field {
     ///
     /// [`unused()`]: Field::unused
     #[serde(skip_serializing, skip_deserializing)]
-    unused: bool,
+    pub unused: bool,
 }
 
 /// Supported data types for table fields.
@@ -454,7 +454,7 @@ pub struct Field {
 ///
 /// Sequence types contain a nested [`Definition`] that describes the structure of each
 /// array element. The length prefix determines how many elements follow.
-#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[derive(Clone, Default, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum FieldType {
     /// 1-byte boolean value (0 = false, 1 = true).
     Boolean,
@@ -478,6 +478,7 @@ pub enum FieldType {
     ColourRGB,
 
     /// UTF-8 encoded string with [`u16`] length prefix (max 65535 bytes).
+    #[default]
     StringU8,
 
     /// UTF-16 encoded string with [`u16`] length prefix (max 65535 characters).
@@ -1824,60 +1825,6 @@ impl Definition {
 /// Implementation of `Field`.
 impl Field {
 
-    /// Creates a new field with the specified properties.
-    ///
-    /// # Arguments
-    ///
-    /// * `name` - Field name
-    /// * `field_type` - Data type of the field
-    /// * `is_key` - Whether this field is part of the primary key
-    /// * `default_value` - Optional default value
-    /// * `is_filename` - Whether this field contains a filename
-    /// * `filename_relative_path` - Optional path hints for filename fields
-    /// * `is_reference` - Optional foreign key reference `(table, column)`
-    /// * `lookup` - Optional lookup columns
-    /// * `description` - Field description
-    /// * `ca_order` - Visual position in Assembly Kit
-    /// * `is_bitwise` - Number of boolean columns to expand into (0 or 1 = no expansion)
-    /// * `enum_values` - Map of integer values to string names for enum fields
-    /// * `is_part_of_colour` - Optional RGB colour group index
-    ///
-    /// # Returns
-    ///
-    /// Returns a new [`Field`] instance with the specified properties.
-    pub fn new(
-        name: String,
-        field_type: FieldType,
-        is_key: bool,
-        default_value: Option<String>,
-        is_filename: bool,
-        filename_relative_path: Option<String>,
-        is_reference: Option<(String, String)>,
-        lookup: Option<Vec<String>>,
-        description: String,
-        ca_order: i16,
-        is_bitwise: i32,
-        enum_values: BTreeMap<i32, String>,
-        is_part_of_colour: Option<u8>,
-    ) -> Self {
-        Self {
-            name,
-            field_type,
-            is_key,
-            default_value,
-            is_filename,
-            filename_relative_path,
-            is_reference,
-            lookup,
-            description,
-            ca_order,
-            is_bitwise,
-            enum_values,
-            is_part_of_colour,
-            unused: false
-        }
-    }
-
     //----------------------------------------------------------------------//
     // Manual getter implementations with patch support
     //----------------------------------------------------------------------//
@@ -2306,7 +2253,7 @@ impl Default for Field {
             filename_relative_path: None,
             is_reference: None,
             lookup: None,
-            description: String::from(""),
+            description: String::new(),
             ca_order: -1,
             is_bitwise: 0,
             enum_values: BTreeMap::new(),

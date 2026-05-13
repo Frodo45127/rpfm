@@ -438,40 +438,88 @@ impl DB {
         let mut definition = Definition::new(-100, None);
         let mut fields = vec![];
 
-        fields.push(Field::new("bool".to_owned(), FieldType::Boolean, false, Some("true".to_string()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("f32".to_owned(), FieldType::F32, false, Some("1.0".to_string()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("f64".to_owned(), FieldType::F64, false, Some("2.0".to_string()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("i16".to_owned(), FieldType::I16, false, Some("3".to_string()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("i32".to_owned(), FieldType::I32, false, Some("4".to_string()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("i64".to_owned(), FieldType::I64, false, Some("5".to_string()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("colour".to_owned(), FieldType::ColourRGB, false, Some("ABCDEF".to_string()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("stringu8".to_owned(), FieldType::StringU8, false, Some("AAAA".to_string()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("stringu16".to_owned(), FieldType::StringU16, false, Some("BBBB".to_string()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("optionali16".to_owned(), FieldType::OptionalI16, false, Some("3".to_string()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("optionali32".to_owned(), FieldType::OptionalI32, false, Some("4".to_string()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("optionali64".to_owned(), FieldType::OptionalI64, false, Some("5".to_string()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("optionalstringu8".to_owned(), FieldType::OptionalStringU8, false, Some("Opt".to_string()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("optionalstringu16".to_owned(), FieldType::OptionalStringU16, false, Some("Opt".to_string()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("sequenceu16".to_owned(), FieldType::SequenceU16(Box::new(Definition::new(-100, None))), false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
-        fields.push(Field::new("sequenceu32".to_owned(), FieldType::SequenceU32(Box::new(Definition::new(-100, None))), false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None));
+        fields.push(Field { name: "bool".to_owned(), field_type: FieldType::Boolean, default_value: Some("true".to_string()), ..Default::default() });
+        fields.push(Field { name: "f32".to_owned(), field_type: FieldType::F32, default_value: Some("1.0".to_string()), ..Default::default() });
+        fields.push(Field { name: "f64".to_owned(), field_type: FieldType::F64, default_value: Some("2.0".to_string()), ..Default::default() });
+        fields.push(Field { name: "i16".to_owned(), field_type: FieldType::I16, default_value: Some("3".to_string()), ..Default::default() });
+        fields.push(Field { name: "i32".to_owned(), field_type: FieldType::I32, default_value: Some("4".to_string()), ..Default::default() });
+        fields.push(Field { name: "i64".to_owned(), field_type: FieldType::I64, default_value: Some("5".to_string()), ..Default::default() });
+        fields.push(Field { name: "colour".to_owned(), field_type: FieldType::ColourRGB, default_value: Some("ABCDEF".to_string()), ..Default::default() });
+        fields.push(Field { name: "stringu8".to_owned(), field_type: FieldType::StringU8, default_value: Some("AAAA".to_string()), ..Default::default() });
+        fields.push(Field { name: "stringu16".to_owned(), field_type: FieldType::StringU16, default_value: Some("BBBB".to_string()), ..Default::default() });
+        fields.push(Field { name: "optionali16".to_owned(), field_type: FieldType::OptionalI16, default_value: Some("3".to_string()), ..Default::default() });
+        fields.push(Field { name: "optionali32".to_owned(), field_type: FieldType::OptionalI32, default_value: Some("4".to_string()), ..Default::default() });
+        fields.push(Field { name: "optionali64".to_owned(), field_type: FieldType::OptionalI64, default_value: Some("5".to_string()), ..Default::default() });
+        fields.push(Field { name: "optionalstringu8".to_owned(), field_type: FieldType::OptionalStringU8, default_value: Some("Opt".to_string()), ..Default::default() });
+        fields.push(Field { name: "optionalstringu16".to_owned(), field_type: FieldType::OptionalStringU16, default_value: Some("Opt".to_string()), ..Default::default() });
+        fields.push(Field { name: "sequenceu16".to_owned(), field_type: FieldType::SequenceU16(Box::new(Definition::new(-100, None))), ..Default::default() });
+        fields.push(Field { name: "sequenceu32".to_owned(), field_type: FieldType::SequenceU32(Box::new(Definition::new(-100, None))), ..Default::default() });
 
         // Special fields that use postprocessing.
-        fields.push(Field::new("merged_colours_1_r".to_owned(), FieldType::I32, false, Some("AB".to_string()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), Some(0)));
-        fields.push(Field::new("merged_colours_1_g".to_owned(), FieldType::I32, false, Some("CD".to_string()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), Some(0)));
-        fields.push(Field::new("merged_colours_1_b".to_owned(), FieldType::I32, false, Some("EF".to_string()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), Some(0)));
-        fields.push(Field::new("bitwise_values".to_owned(), FieldType::I32, false, Some("4".to_string()), false, None, None, None, String::new(), 0, 5, BTreeMap::new(), None));
-        fields.push(Field::new("enum_values".to_owned(), FieldType::I32, false, Some("8".to_string()), false, None, None, None, String::new(), 0, 0, {
-            let mut bt = BTreeMap::new();
-            bt.insert(0, "test0".to_owned());
-            bt.insert(1, "test1".to_owned());
-            bt.insert(2, "test2".to_owned());
-            bt.insert(3, "test3".to_owned());
-            bt
-        }, None));
+        fields.push(Field {
+            name: "merged_colours_1_r".to_owned(),
+            field_type: FieldType::I32,
+            default_value: Some("AB".to_string()),
+            is_part_of_colour: Some(0),
+            ..Default::default()
+        });
+        fields.push(Field {
+            name: "merged_colours_1_g".to_owned(),
+            field_type: FieldType::I32,
+            default_value: Some("CD".to_string()),
+            is_part_of_colour: Some(0),
+            ..Default::default()
+        });
+        fields.push(Field {
+            name: "merged_colours_1_b".to_owned(),
+            field_type: FieldType::I32,
+            default_value: Some("EF".to_string()),
+            is_part_of_colour: Some(0),
+            ..Default::default()
+        });
+        fields.push(Field {
+            name: "bitwise_values".to_owned(),
+            field_type: FieldType::I32,
+            default_value: Some("4".to_string()),
+            is_bitwise: 5,
+            ..Default::default()
+        });
+        fields.push(Field {
+            name: "enum_values".to_owned(),
+            field_type: FieldType::I32,
+            default_value: Some("8".to_string()),
+            enum_values: {
+                let mut bt = BTreeMap::new();
+                bt.insert(0, "test0".to_owned());
+                bt.insert(1, "test1".to_owned());
+                bt.insert(2, "test2".to_owned());
+                bt.insert(3, "test3".to_owned());
+                bt
+            },
+            ..Default::default()
+        });
 
-        fields.push(Field::new("merged_colours_2_r".to_owned(), FieldType::I32, false, Some("AB".to_string()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), Some(1)));
-        fields.push(Field::new("merged_colours_2_g".to_owned(), FieldType::I32, false, Some("CD".to_string()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), Some(1)));
-        fields.push(Field::new("merged_colours_2_b".to_owned(), FieldType::I32, false, Some("EF".to_string()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), Some(1)));
+        fields.push(Field {
+            name: "merged_colours_2_r".to_owned(),
+            field_type: FieldType::I32,
+            default_value: Some("AB".to_string()),
+            is_part_of_colour: Some(1),
+            ..Default::default()
+        });
+        fields.push(Field {
+            name: "merged_colours_2_g".to_owned(),
+            field_type: FieldType::I32,
+            default_value: Some("CD".to_string()),
+            is_part_of_colour: Some(1),
+            ..Default::default()
+        });
+        fields.push(Field {
+            name: "merged_colours_2_b".to_owned(),
+            field_type: FieldType::I32,
+            default_value: Some("EF".to_string()),
+            is_part_of_colour: Some(1),
+            ..Default::default()
+        });
 
         // TODO: add combined colour columns for testing.
 

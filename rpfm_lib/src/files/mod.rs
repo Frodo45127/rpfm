@@ -136,6 +136,10 @@
 //! [`Unknown`]: crate::files::unknown::Unknown
 //! [`Video`]: crate::files::video::Video
 
+// File decoders intentionally use the `let mut x = T::default(); x.field = …;` pattern
+// to make debugging them easier.
+#![allow(clippy::field_reassign_with_default)]
+
 use crc_fast::{checksum, CrcAlgorithm};
 use csv::{QuoteStyle, ReaderBuilder, WriterBuilder};
 use getset::*;
@@ -887,6 +891,7 @@ pub trait Container {
     ///     false
     /// )?;
     /// ```
+    #[allow(clippy::too_many_arguments)]
     fn extract(&mut self,
         container_path: ContainerPath,
         destination_path: &Path,

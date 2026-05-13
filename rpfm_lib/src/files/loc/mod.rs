@@ -51,7 +51,7 @@ use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 
 use std::borrow::Cow;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::fs::File;
 
 use crate::binary::{ReadBytes, WriteBytes};
@@ -154,9 +154,9 @@ impl Loc {
     pub(crate) fn new_definition() -> Definition {
         let mut definition = Definition::new(VERSION, None);
         let fields = vec![
-            Field::new("key".to_owned(), FieldType::StringU16, true, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("text".to_owned(), FieldType::StringU16, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("tooltip".to_owned(), FieldType::Boolean, false, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+            Field { name: "key".to_owned(), field_type: FieldType::StringU16, is_key: true, default_value: Some("PLACEHOLDER".to_owned()), ..Default::default() },
+            Field { name: "text".to_owned(), field_type: FieldType::StringU16, default_value: Some("PLACEHOLDER".to_owned()), ..Default::default() },
+            Field { name: "tooltip".to_owned(), field_type: FieldType::Boolean, default_value: Some("PLACEHOLDER".to_owned()), ..Default::default() },
         ];
         definition.set_fields(fields);
         definition

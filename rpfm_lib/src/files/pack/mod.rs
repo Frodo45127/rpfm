@@ -347,6 +347,11 @@ pub struct PackNotes {
     file_notes: HashMap<String, Vec<Note>>,
 }
 
+/// Parsed entry from the `diagnostics_files_to_ignore` pack setting.
+///
+/// Tuple shape: `(path, ignored_diagnostic_codes, ignored_field_names)`.
+pub type DiagnosticIgnoreEntry = (String, Vec<String>, Vec<String>);
+
 //---------------------------------------------------------------------------//
 //                           Structs Implementations
 //---------------------------------------------------------------------------//
@@ -1580,7 +1585,7 @@ impl PackSettings {
     /// This function returns the list of paths which the diagnostic tool should ignore.
     ///
     /// TODO: Move this to rpfm_extensions.
-    pub fn diagnostics_files_to_ignore(&self) -> Option<Vec<(String, Vec<String>, Vec<String>)>> {
+    pub fn diagnostics_files_to_ignore(&self) -> Option<Vec<DiagnosticIgnoreEntry>> {
         self.settings_text.get("diagnostics_files_to_ignore").map(|files_to_ignore| {
             let files = files_to_ignore.split('\n').collect::<Vec<&str>>();
 
@@ -1600,7 +1605,7 @@ impl PackSettings {
                 } else {
                     None
                 }
-            }).collect::<Vec<(String, Vec<String>, Vec<String>)>>()
+            }).collect::<Vec<DiagnosticIgnoreEntry>>()
         })
     }
 }

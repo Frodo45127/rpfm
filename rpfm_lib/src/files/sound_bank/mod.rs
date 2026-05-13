@@ -32,8 +32,8 @@ use crate::error::{Result, RLibError};
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 use crate::utils::check_size_mismatch;
 
-use self::sections::bkhd::BKHD;
-use self::sections::hirc::HIRC;
+use self::sections::bkhd::Bkhd;
+use self::sections::hirc::Hirc;
 
 use super::DecodeableExtraData;
 
@@ -105,9 +105,9 @@ pub struct SoundBank {
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum Section {
     /// Bank Header section containing version and metadata.
-    BKHD(BKHD),
+    BKHD(Bkhd),
     /// Hierarchy section containing audio object definitions.
-    HIRC(HIRC),
+    HIRC(Hirc),
 }
 
 //---------------------------------------------------------------------------//
@@ -131,14 +131,14 @@ impl Decodeable for SoundBank {
                 SIGNATURE_AKBK => return Err(RLibError::SoundBankUnsupportedSectionFound(SIGNATURE_AKBK.to_string())),
 
                 // First node is always a BKHD (BanK HeaDer?).
-                SIGNATURE_BKHD => Section::BKHD(BKHD::read(data, section_size as usize)?),
+                SIGNATURE_BKHD => Section::BKHD(Bkhd::read(data, section_size as usize)?),
                 SIGNATURE_HIRC => {
                     let header = match decoded.sections.first() {
                         Some(Section::BKHD(section)) => section,
                         _ => return Err(RLibError::SoundBankBKHDNotFound),
                     };
 
-                    Section::HIRC(HIRC::read(data, *header.version())?)
+                    Section::HIRC(Hirc::read(data, *header.version())?)
                 },
                 SIGNATURE_DATA => return Err(RLibError::SoundBankUnsupportedSectionFound(SIGNATURE_DATA.to_string())),
                 SIGNATURE_FXPR => return Err(RLibError::SoundBankUnsupportedSectionFound(SIGNATURE_FXPR.to_string())),

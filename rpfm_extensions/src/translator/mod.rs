@@ -398,11 +398,11 @@ impl PackTranslation {
         let mut definition = Definition::default();
 
         // We put the booleans first because they may act as a kind of filter.
-        definition.fields_mut().push(Field::new("key".to_string(), FieldType::StringU8, true, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
-        definition.fields_mut().push(Field::new("needs_retranslation".to_string(), FieldType::Boolean, false, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
-        definition.fields_mut().push(Field::new("removed".to_string(), FieldType::Boolean, false, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
-        definition.fields_mut().push(Field::new("value_original".to_string(), FieldType::StringU8, false, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
-        definition.fields_mut().push(Field::new("value_translated".to_string(), FieldType::StringU8, false, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
+        definition.fields_mut().push(Field { name: "key".to_string(), field_type: FieldType::StringU8, is_key: true, ..Default::default() });
+        definition.fields_mut().push(Field { name: "needs_retranslation".to_string(), field_type: FieldType::Boolean, ..Default::default() });
+        definition.fields_mut().push(Field { name: "removed".to_string(), field_type: FieldType::Boolean, ..Default::default() });
+        definition.fields_mut().push(Field { name: "value_original".to_string(), field_type: FieldType::StringU8, ..Default::default() });
+        definition.fields_mut().push(Field { name: "value_translated".to_string(), field_type: FieldType::StringU8, ..Default::default() });
 
         definition
     }

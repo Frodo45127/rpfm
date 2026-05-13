@@ -344,12 +344,7 @@ impl TableView {
         let (table_definition, table_name, packed_file_type, is_translator) = match table_data {
             TableType::AnimFragmentBattle(ref table) => (table.definition().clone(), None, FileType::AnimFragmentBattle, false),
             TableType::Atlas(ref table) => (table.definition().clone(), None, FileType::Atlas, false),
-            TableType::DependencyManager(_) => {
-                let mut definition = Definition::new(-1, None);
-                definition.fields_mut().push(Field::new("Load before ingame?".to_owned(), FieldType::Boolean, true, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
-                definition.fields_mut().push(Field::new("Parent Packs".to_owned(), FieldType::StringU8, true, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
-                (definition, None, FileType::Unknown, false)
-            },
+            TableType::DependencyManager(_) => (Self::dependency_manager_definition(), None, FileType::Unknown, false),
             TableType::DB(ref table) => (table.definition().clone(), Some(table.table_name()), FileType::DB, false),
             TableType::Loc(ref table) => (table.definition().clone(), None, FileType::Loc, false),
             TableType::NormalTable(ref table) => (table.definition().clone(), None, FileType::Unknown, false),
@@ -973,12 +968,7 @@ impl TableView {
             TableType::NormalTable(ref table) => table.definition().clone(),
             TableType::RigidTexturesTable(ref table) => table.definition().clone(),
             #[cfg(feature = "enable_tools")] TableType::TranslatorTable(ref table) => table.definition().clone(),
-            TableType::DependencyManager(_) => {
-                let mut definition = Definition::new(-1, None);
-                definition.fields_mut().push(Field::new("Load before ingame?".to_owned(), FieldType::Boolean, true, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
-                definition.fields_mut().push(Field::new("Parent Packs".to_owned(), FieldType::StringU8, true, None, false, None, None, None, String::new(), -1, 0, BTreeMap::new(), None));
-                definition
-            }
+            TableType::DependencyManager(_) => Self::dependency_manager_definition(),
         };
 
         *self.table_definition.write().unwrap() = table_definition;
@@ -1066,6 +1056,14 @@ impl TableView {
 
     pub fn get_packed_file_type(&self) -> &FileType {
         &self.packed_file_type
+    }
+
+    /// Synthetic [`Definition`] for the Dependency Manager pseudo-table.
+    fn dependency_manager_definition() -> Definition {
+        let mut definition = Definition::new(-1, None);
+        definition.fields_mut().push(Field { name: "Load before ingame?".to_owned(), field_type: FieldType::Boolean, is_key: true, ..Default::default() });
+        definition.fields_mut().push(Field { name: "Parent Packs".to_owned(), field_type: FieldType::StringU8, is_key: true, ..Default::default() });
+        definition
     }
 
     /// This function returns a reference to the definition of this table.

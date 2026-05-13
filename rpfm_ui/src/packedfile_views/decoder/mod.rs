@@ -1282,21 +1282,22 @@ impl PackedFileDecoderView {
                 } else { None };
 
                 fields.push(
-                    Field::new(
-                        field_name,
+                    Field {
+                        name: field_name,
                         field_type,
-                        field_is_key,
-                        if field_default_value.is_empty() { None } else { Some(field_default_value) },
-                        field_is_filename,
-                        if field_filename_relative_path.is_empty() { None } else { Some(field_filename_relative_path) },
-                        field_is_reference,
-                        field_lookup,
-                        field_description,
-                        field_ca_order,
-                        field_is_bitwise,
-                        field_enum_values,
-                        field_is_part_of_colour
-                    )
+                        is_key: field_is_key,
+                        default_value: if field_default_value.is_empty() { None } else { Some(field_default_value) },
+                        is_filename: field_is_filename,
+                        filename_relative_path: if field_filename_relative_path.is_empty() { None } else { Some(field_filename_relative_path) },
+                        is_reference: field_is_reference,
+                        lookup: field_lookup,
+                        description: field_description,
+                        ca_order: field_ca_order,
+                        is_bitwise: field_is_bitwise,
+                        enum_values: field_enum_values,
+                        is_part_of_colour: field_is_part_of_colour,
+                        ..Default::default()
+                    }
                 );
             }
         }

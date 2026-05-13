@@ -69,7 +69,6 @@ use rayon::prelude::*;
 use serde_derive::Deserialize;
 use serde_xml_rs::from_reader;
 
-use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::Path;
@@ -746,21 +745,18 @@ impl From<&RawField> for Field {
             None => false,
         };
 
-        Self::new(
-            raw_field.name.to_owned(),
+        Self {
+            name: raw_field.name.to_owned(),
             field_type,
-            raw_field.primary_key == "1",
-            raw_field.default_value.clone(),
+            is_key: raw_field.primary_key == "1",
+            default_value: raw_field.default_value.clone(),
             is_filename,
             filename_relative_path,
             is_reference,
             lookup,
-            if let Some(x) = &raw_field.field_description { x.to_owned() } else { String::new() },
-            0,
-            0,
-            BTreeMap::new(),
-            None
-        )
+            description: if let Some(x) = &raw_field.field_description { x.to_owned() } else { String::new() },
+            ..Default::default()
+        }
     }
 }
 
@@ -879,21 +875,22 @@ impl From<&RawDefinitionV0> for RawDefinition {
                         if let Some(ref name) = element.name {
                             if let Some(ref jet_type) = element.jet_type {
 
-                                let mut field = RawField::default();
-                                field.name = name.to_owned();
+                                let mut field = RawField {
+                                    name: name.to_owned(),
+                                    field_type: match &**jet_type {
+                                        "yesno" => "yesno".to_owned(),
+                                        "integer" => "integer".to_owned(),
+                                        "longinteger" | "autonumber" => "autonumber".to_owned(),
+                                        "decimal" | "single" => "single".to_owned(),
+                                        "double" => "double".to_owned(),
+                                        "text" | "memo" | "oleobject" | "replicationid" => "text".to_owned(),
 
-                                field.field_type = match &**jet_type {
-                                    "yesno" => "yesno".to_owned(),
-                                    "integer" => "integer".to_owned(),
-                                    "longinteger" | "autonumber" => "autonumber".to_owned(),
-                                    "decimal" | "single" => "single".to_owned(),
-                                    "double" => "double".to_owned(),
-                                    "text" | "memo" | "oleobject" | "replicationid" => "text".to_owned(),
+                                        // These are dates as in a DateTime format. Treat them as text for now.
+                                        "datetime" => "text".to_owned(),
 
-                                    // These are dates as in a DateTime format. Treat them as text for now.
-                                    "datetime" => "text".to_owned(),
-
-                                    _ => todo!("{}", jet_type),
+                                        _ => todo!("{}", jet_type),
+                                    },
+                                    ..Default::default()
                                 };
 
                                 if primary_keys.contains(&&*field.name) {

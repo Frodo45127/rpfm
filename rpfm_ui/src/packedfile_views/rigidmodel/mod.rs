@@ -44,12 +44,11 @@ use cpp_core::CppDeletable;
 use anyhow::Result;
 use getset::*;
 
-use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 
 use rpfm_lib::files::{FileType, rigidmodel::{*, materials::{Texture, TextureType}}, table::{DecodedData, local::TableInMemory, Table}};
-use rpfm_lib::schema::{Definition, Field, FieldType};
+use rpfm_lib::schema::{Definition, Field};
 
 use rpfm_ui_common::utils::{find_widget, load_template};
 #[cfg(feature = "support_model_renderer")] use rpfm_ui_common::settings::setting_bool;
@@ -557,8 +556,8 @@ impl RigidModelView {
 
     fn new_table() -> TableInMemory {
         let definition = Definition::new_with_fields(0, &[
-            Field::new("texture_type".to_string(), FieldType::StringU8, true, Some("PLACEHOLDER".to_string()), false, None, None, None, "".to_string(), 0, 0, BTreeMap::new(), None),
-            Field::new("texture_path".to_string(), FieldType::StringU8, true, Some("PLACEHOLDER".to_string()), false, None, None, None, "".to_string(), 0, 0, BTreeMap::new(), None),
+            Field { name: "texture_type".to_string(), is_key: true, default_value: Some("PLACEHOLDER".to_string()), ..Default::default() },
+            Field { name: "texture_path".to_string(), is_key: true, default_value: Some("PLACEHOLDER".to_string()), ..Default::default() },
         ], &[], None);
         TableInMemory::new(&definition, None, "texture_list")
     }

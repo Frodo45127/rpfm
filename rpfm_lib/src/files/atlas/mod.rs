@@ -57,7 +57,6 @@
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
-use std::collections::BTreeMap;
 
 use crate::error::Result;
 use crate::binary::{ReadBytes, WriteBytes};
@@ -200,14 +199,14 @@ impl Atlas {
     pub fn definition() -> Definition {
         let mut definition = Definition::new(VERSION, None);
         let fields = vec![
-            Field::new("string1".to_owned(), FieldType::StringU8, true, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("string2".to_owned(), FieldType::StringU8, true, Some("PLACEHOLDER".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("x_1".to_owned(), FieldType::F32, false, Some("0".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("y_1".to_owned(), FieldType::F32, false, Some("0".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("x_2".to_owned(), FieldType::F32, false, Some("0".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("y_2".to_owned(), FieldType::F32, false, Some("0".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("width".to_owned(), FieldType::F32, false, Some("0".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
-            Field::new("height".to_owned(), FieldType::F32, false, Some("0".to_owned()), false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None),
+            Field { name: "string1".to_owned(), is_key: true, default_value: Some("PLACEHOLDER".to_owned()), ..Default::default() },
+            Field { name: "string2".to_owned(), is_key: true, default_value: Some("PLACEHOLDER".to_owned()), ..Default::default() },
+            Field { name: "x_1".to_owned(), field_type: FieldType::F32, default_value: Some("0".to_owned()), ..Default::default() },
+            Field { name: "y_1".to_owned(), field_type: FieldType::F32, default_value: Some("0".to_owned()), ..Default::default() },
+            Field { name: "x_2".to_owned(), field_type: FieldType::F32, default_value: Some("0".to_owned()), ..Default::default() },
+            Field { name: "y_2".to_owned(), field_type: FieldType::F32, default_value: Some("0".to_owned()), ..Default::default() },
+            Field { name: "width".to_owned(), field_type: FieldType::F32, default_value: Some("0".to_owned()), ..Default::default() },
+            Field { name: "height".to_owned(), field_type: FieldType::F32, default_value: Some("0".to_owned()), ..Default::default() },
         ];
         definition.set_fields(fields);
         definition

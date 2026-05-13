@@ -33,7 +33,6 @@ use qt_core::QVariant;
 
 use cpp_core::Ref;
 
-use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 use std::vec;
@@ -424,7 +423,7 @@ impl ESFDetailedView {
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
-                    let field = Field::new("Value".to_owned(), FieldType::I32, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
+                    let field = Field { name: "Value".to_owned(), field_type: FieldType::I32, ..Default::default() };
 
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
@@ -445,7 +444,7 @@ impl ESFDetailedView {
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
-                    let field = Field::new("Value".to_owned(), FieldType::Boolean, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
+                    let field = Field { name: "Value".to_owned(), field_type: FieldType::Boolean, ..Default::default() };
 
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
@@ -466,7 +465,7 @@ impl ESFDetailedView {
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
-                    let field = Field::new("Value".to_owned(), FieldType::I16, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
+                    let field = Field { name: "Value".to_owned(), field_type: FieldType::I16, ..Default::default() };
 
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
@@ -487,7 +486,7 @@ impl ESFDetailedView {
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
-                    let field = Field::new("Value".to_owned(), FieldType::I16, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
+                    let field = Field { name: "Value".to_owned(), field_type: FieldType::I16, ..Default::default() };
 
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
@@ -508,7 +507,7 @@ impl ESFDetailedView {
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
-                    let field = Field::new("Value".to_owned(), FieldType::I32, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
+                    let field = Field { name: "Value".to_owned(), field_type: FieldType::I32, ..Default::default() };
 
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
@@ -529,7 +528,7 @@ impl ESFDetailedView {
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
-                    let field = Field::new("Value".to_owned(), FieldType::I64, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
+                    let field = Field { name: "Value".to_owned(), field_type: FieldType::I64, ..Default::default() };
 
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
@@ -550,7 +549,7 @@ impl ESFDetailedView {
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
-                    let field = Field::new("Value".to_owned(), FieldType::I16, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
+                    let field = Field { name: "Value".to_owned(), field_type: FieldType::I16, ..Default::default() };
 
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
@@ -571,7 +570,7 @@ impl ESFDetailedView {
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
-                    let field = Field::new("Value".to_owned(), FieldType::I16, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
+                    let field = Field { name: "Value".to_owned(), field_type: FieldType::I16, ..Default::default() };
 
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
@@ -592,7 +591,7 @@ impl ESFDetailedView {
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
-                    let field = Field::new("Value".to_owned(), FieldType::I32, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
+                    let field = Field { name: "Value".to_owned(), field_type: FieldType::I32, ..Default::default() };
 
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
@@ -613,7 +612,7 @@ impl ESFDetailedView {
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
-                    let field = Field::new("Value".to_owned(), FieldType::I64, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
+                    let field = Field { name: "Value".to_owned(), field_type: FieldType::I64, ..Default::default() };
 
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
@@ -634,7 +633,7 @@ impl ESFDetailedView {
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
-                    let field = Field::new("Value".to_owned(), FieldType::F32, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
+                    let field = Field { name: "Value".to_owned(), field_type: FieldType::F32, ..Default::default() };
 
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
@@ -655,7 +654,7 @@ impl ESFDetailedView {
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
-                    let field = Field::new("Value".to_owned(), FieldType::F32, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
+                    let field = Field { name: "Value".to_owned(), field_type: FieldType::F32, ..Default::default() };
 
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
@@ -676,8 +675,8 @@ impl ESFDetailedView {
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
-                    let x_field = Field::new("X".to_owned(), FieldType::F32, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
-                    let y_field = Field::new("Y".to_owned(), FieldType::F32, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
+                    let x_field = Field { name: "X".to_owned(), field_type: FieldType::F32, ..Default::default() };
+                    let y_field = Field { name: "Y".to_owned(), field_type: FieldType::F32, ..Default::default() };
 
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(x_field);
@@ -699,9 +698,9 @@ impl ESFDetailedView {
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
-                    let x_field = Field::new("X".to_owned(), FieldType::F32, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
-                    let y_field = Field::new("Y".to_owned(), FieldType::F32, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
-                    let z_field = Field::new("Z".to_owned(), FieldType::F32, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
+                    let x_field = Field { name: "X".to_owned(), field_type: FieldType::F32, ..Default::default() };
+                    let y_field = Field { name: "Y".to_owned(), field_type: FieldType::F32, ..Default::default() };
+                    let z_field = Field { name: "Z".to_owned(), field_type: FieldType::F32, ..Default::default() };
 
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(x_field);
@@ -724,7 +723,7 @@ impl ESFDetailedView {
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
-                    let field = Field::new("Value".to_owned(), FieldType::StringU8, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
+                    let field = Field { name: "Value".to_owned(), field_type: FieldType::StringU8, ..Default::default() };
 
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
@@ -745,7 +744,7 @@ impl ESFDetailedView {
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
-                    let field = Field::new("Value".to_owned(), FieldType::StringU8, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
+                    let field = Field { name: "Value".to_owned(), field_type: FieldType::StringU8, ..Default::default() };
 
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);
@@ -766,7 +765,7 @@ impl ESFDetailedView {
                     let widget = QWidget::new_1a(parent_widget);
                     let _ = create_grid_layout(widget.static_upcast());
 
-                    let field = Field::new("Value".to_owned(), FieldType::I16, false, None, false, None, None, None, String::new(), 0, 0, BTreeMap::new(), None);
+                    let field = Field { name: "Value".to_owned(), field_type: FieldType::I16, ..Default::default() };
 
                     let mut definition = Definition::new(0, None);
                     definition.fields_mut().push(field);

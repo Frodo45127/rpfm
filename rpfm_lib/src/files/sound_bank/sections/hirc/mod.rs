@@ -25,7 +25,7 @@ mod object;
 
 #[derive(PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct HIRC {
+pub struct Hirc {
     objects: Vec<Object>,
 }
 
@@ -33,7 +33,7 @@ pub struct HIRC {
 //                        Implementation of SoundBank
 //---------------------------------------------------------------------------//
 
-impl HIRC {
+impl Hirc {
 
     pub(crate) fn read<R: ReadBytes>(data: &mut R, version: u32) -> Result<Self> {
         let mut objects = vec![];
@@ -42,7 +42,7 @@ impl HIRC {
             objects.push(Object::read(data, version)?);
         }
 
-        Ok(HIRC {
+        Ok(Hirc {
             objects
         })
     }

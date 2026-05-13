@@ -14,7 +14,7 @@ use super::*;
 //                              Implementation
 //---------------------------------------------------------------------------//
 
-impl BKHD {
+impl Bkhd {
 
     pub(crate) fn read_v136<R: ReadBytes>(data: &mut R, version: u32, section_size: usize) -> Result<Self> {
         let id = data.read_u64()?;
@@ -29,7 +29,7 @@ impl BKHD {
         let project_id = data.read_u32()?;
         let padding = data.read_slice(section_size - NON_PADDED_SIZE, false)?;
 
-        Ok(BKHD {
+        Ok(Bkhd {
             version,
             id,
             language,

@@ -29,7 +29,7 @@ mod v136;
 
 #[derive(PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
-pub struct BKHD {
+pub struct Bkhd {
     version: u32,
     id: u64,
     language: Language,
@@ -135,7 +135,7 @@ impl TryFrom<u32> for Language {
     }
 }
 
-impl BKHD {
+impl Bkhd {
 
     pub(crate) fn read<R: ReadBytes>(data: &mut R, section_size: usize) -> Result<Self> {
 
