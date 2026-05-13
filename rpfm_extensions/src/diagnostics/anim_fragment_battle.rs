@@ -34,12 +34,20 @@ pub struct AnimFragmentBattleDiagnostic {
     results: Vec<AnimFragmentBattleDiagnosticReport>
 }
 
+/// Location of a flagged sub-entry within a fragment, with which path field tripped the check.
+///
+/// `(subrow, is_file_path, is_meta_file_path, is_snd_file_path)`.
+pub type AnimFragmentBattleAnimRefRef = (usize, bool, bool, bool);
+
+/// Location of a flagged entry within a fragment: row index and (optionally) the offending sub-entry.
+pub type AnimFragmentBattleEntryRef = (usize, Option<AnimFragmentBattleAnimRefRef>);
+
 /// This struct defines an individual anim fragment battle diagnostic result.
 #[derive(Debug, Clone, Getters, MutGetters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub")]
 pub struct AnimFragmentBattleDiagnosticReport {
     locomotion_graph: bool,
-    entry: Option<(usize, Option<(usize, bool, bool, bool)>)>,
+    entry: Option<AnimFragmentBattleEntryRef>,
     report_type: AnimFragmentBattleDiagnosticReportType,
 }
 
@@ -56,7 +64,7 @@ pub enum AnimFragmentBattleDiagnosticReportType {
 //-------------------------------------------------------------------------------//
 
 impl AnimFragmentBattleDiagnosticReport {
-    pub fn new(report_type: AnimFragmentBattleDiagnosticReportType, locomotion_graph: bool, entry: Option<(usize, Option<(usize, bool, bool, bool)>)>) -> Self {
+    pub fn new(report_type: AnimFragmentBattleDiagnosticReportType, locomotion_graph: bool, entry: Option<AnimFragmentBattleEntryRef>) -> Self {
         Self {
             locomotion_graph,
             entry,
@@ -106,6 +114,7 @@ impl AnimFragmentBattleDiagnostic {
     }
 
     /// This function takes care of checking the loc tables of your mod for errors.
+    #[allow(clippy::too_many_arguments)]
     pub fn check(
         pack_key: &str,
         file: &RFile,

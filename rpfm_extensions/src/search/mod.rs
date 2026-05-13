@@ -925,6 +925,7 @@ impl Matches {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn find_matches(&mut self, pattern: &str, case_sensitive: bool, matching_mode: &MatchingMode, search_on: &SearchOn, files: &mut Vec<&mut RFile>, _schema: &Schema, extra_data: Option<DecodeableExtraData>, source: &SearchSource) {
         let matches = files.par_iter_mut()
             .filter_map(|file| {
@@ -1312,6 +1313,7 @@ impl Default for MatchingMode {
 //                              Util functions
 //-------------------------------------------------------------------------------//
 
+#[allow(clippy::too_many_arguments)]
 fn replace_match_string(pattern: &str, replace_pattern: &str, case_sensitive: bool, matching_mode: &MatchingMode, start: usize, end: usize, previous_data: &str, current_data: &mut String) -> bool {
 
     // Only replace if the substring is actually a valid one.

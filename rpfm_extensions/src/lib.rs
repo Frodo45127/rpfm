@@ -75,14 +75,6 @@
 //! - Preserve mesh data, materials, and textures
 //! - Support for multiple LOD levels as separate scenes
 
-// Disabled `Clippy` linters, with the reasons why they were disabled.
-#![allow(
-    clippy::too_many_arguments,             // Disabled because it gets annoying really quick.
-    clippy::field_reassign_with_default,    // Disabled because it gets annoying on tests.
-    clippy::assigning_clones,
-    clippy::type_complexity,
-)]
-
 use std::{sync::{mpsc::Sender, Arc, LazyLock, RwLock}, thread::JoinHandle};
 
 pub mod dependencies;
@@ -97,10 +89,13 @@ pub mod translator;
 /// Used for versioning the dependencies cache to ensure compatibility.
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+/// Pair of a shutdown sender and the joinable worker thread keeping a startpos folder alive.
+type StartPosWorker = (Sender<bool>, JoinHandle<()>);
+
 /// Background thread handle for startpos generation.
 ///
 /// Some games have a bug where the startpos build process deletes a folder that it
 /// also requires to exist. This background thread repeatedly recreates the folder
 /// to work around the issue. This static holds the thread handles and communication
 /// channels for that process.
-static START_POS_WORKAROUND_THREAD: LazyLock<Arc<RwLock<Option<Vec<(Sender<bool>, JoinHandle<()>)>>>>> = LazyLock::new(|| Arc::new(RwLock::new(None)));
+static START_POS_WORKAROUND_THREAD: LazyLock<Arc<RwLock<Option<Vec<StartPosWorker>>>>> = LazyLock::new(|| Arc::new(RwLock::new(None)));

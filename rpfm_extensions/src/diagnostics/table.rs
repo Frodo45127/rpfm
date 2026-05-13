@@ -16,10 +16,22 @@ use serde_derive::{Serialize, Deserialize};
 
 use std::{fmt, fmt::Display};
 
+use rpfm_lib::files::pack::DiagnosticIgnoreEntry;
 use rpfm_lib::files::table::DecodedData;
 use rpfm_lib::schema::{DefinitionPatch, Field};
 
 use crate::diagnostics::*;
+
+/// Multi-column key index used by the DB duplicate-row check.
+///
+/// Maps each key-tuple to the list of `((cell_row, cell_column) list, file_index)` occurrences
+/// so duplicates across multiple files can be flagged.
+type DbKeyIndex<'a> = HashMap<Vec<&'a DecodedData>, Vec<(Vec<(i32, i32)>, usize)>>;
+
+/// Single-column key index used by the Loc duplicate-row check.
+///
+/// Maps each key cell to the list of `((row, column), file_index)` occurrences.
+type LocKeyIndex<'a> = HashMap<&'a DecodedData, Vec<((i32, i32), usize)>>;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -223,6 +235,7 @@ impl TableDiagnostic {
     }
 
     /// This function takes care of checking the db tables of your mod for errors.
+    #[allow(clippy::too_many_arguments)]
     pub fn check_db(
         files: &[(&str, &RFile)],
         dependencies: &Dependencies,
@@ -230,7 +243,7 @@ impl TableDiagnostic {
         game_info: &GameInfo,
         local_path_list: &HashMap<String, Vec<String>>,
         check_ak_only_refs: bool,
-        files_to_ignore: &Option<Vec<(String, Vec<String>, Vec<String>)>>,
+        files_to_ignore: &Option<Vec<DiagnosticIgnoreEntry>>,
         packs: &BTreeMap<String, Pack>,
         schema: &Schema,
         loc_data: &Option<HashMap<Cow<str>, Cow<str>>>
@@ -274,7 +287,7 @@ impl TableDiagnostic {
             }
         }
 
-        let mut global_keys: HashMap<Vec<&DecodedData>, Vec<(Vec<(i32, i32)>, usize)>> = HashMap::with_capacity(table_infos.iter().map(|x| x.table_data.len()).sum());
+        let mut global_keys: DbKeyIndex = HashMap::with_capacity(table_infos.iter().map(|x| x.table_data.len()).sum());
         let dec_files = files.iter()
             .filter_map(|(_, x)| match x.decoded().ok() {
                 Some(RFileDecoded::DB(ref table)) => Some((table, *x)),
@@ -617,7 +630,7 @@ impl TableDiagnostic {
     pub fn check_loc(
         files: &[(&str, &RFile)],
         global_ignored_diagnostics: &[String],
-        files_to_ignore: &Option<Vec<(String, Vec<String>, Vec<String>)>>
+        files_to_ignore: &Option<Vec<DiagnosticIgnoreEntry>>
     ) -> Vec<DiagnosticType> {
         let mut diagnostics = vec![];
 
@@ -653,7 +666,7 @@ impl TableDiagnostic {
             })
             .collect::<Vec<_>>();
 
-        let mut global_keys: HashMap<&DecodedData, Vec<((i32, i32), usize)>> = HashMap::with_capacity(table_infos.iter().map(|x| x.table_data.len()).sum());
+        let mut global_keys: LocKeyIndex = HashMap::with_capacity(table_infos.iter().map(|x| x.table_data.len()).sum());
 
         for (index, (table, _file)) in dec_files.iter().enumerate() {
             if let Some(table_info) = table_infos.get(index) {

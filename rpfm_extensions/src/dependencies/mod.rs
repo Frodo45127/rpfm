@@ -325,6 +325,17 @@ pub struct TableReferences {
     data: HashMap<String, String>,
 }
 
+/// Shape of the `.pak3` cache file, mirroring the `vanilla_tables` / `vanilla_locs`
+/// / `vanilla_folders` / `vanilla_paths` / `asskit_only_db_tables` fields of
+/// [`Dependencies`] in that order.
+type Pak3Cache = (
+    HashMap<String, Vec<String>>,
+    HashSet<String>,
+    HashSet<String>,
+    HashMap<String, Vec<String>>,
+    HashMap<String, DB>,
+);
+
 //-------------------------------------------------------------------------------//
 //                             Implementations
 //-------------------------------------------------------------------------------//
@@ -381,10 +392,12 @@ impl Dependencies {
 
     /// This function generates the dependencies cache for the game provided and returns it.
     pub fn generate_dependencies_cache(schema: &Option<Schema>, game_info: &GameInfo, game_path: &Path, asskit_path: &Option<PathBuf>, ignore_game_files_in_ak: bool) -> Result<Self> {
-        let mut cache = Self::default();
-        cache.build_date = current_time()?;
-        cache.version = VERSION.to_owned();
-        cache.vanilla_files = Pack::read_and_merge_ca_packs(game_info, game_path)?.files().clone();
+        let mut cache = Self {
+            build_date: current_time()?,
+            version: VERSION.to_owned(),
+            vanilla_files: Pack::read_and_merge_ca_packs(game_info, game_path)?.files().clone(),
+            ..Default::default()
+        };
 
         let cacheable = cache.vanilla_files.par_iter_mut()
             .filter_map(|(_, file)| {
@@ -671,7 +684,7 @@ impl Dependencies {
         });
 
         let mut file_path_3 = file_path.to_path_buf();
-        let handle_3: JoinHandle<Result<(HashMap<String, Vec<String>>, HashSet<String>, HashSet<String>, HashMap<String, Vec<String>>, HashMap<String, DB>)>> = spawn(move || {
+        let handle_3: JoinHandle<Result<Pak3Cache>> = spawn(move || {
             file_path_3.set_extension("pak3");
             let mut file = BufReader::new(File::open(&file_path_3)?);
             let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
@@ -2942,6 +2955,7 @@ impl Dependencies {
     /// Function to add tiles and tile maps to the provided pack.
     ///
     /// Only for Warhammer 3.
+    #[allow(clippy::too_many_arguments)]
     pub fn add_tile_maps_and_tiles(&mut self, packs: &mut BTreeMap<String, Pack>, pack_key: Option<&str>, game: &GameInfo, schema: &Schema, options: OptimizerOptions, tile_maps: Vec<PathBuf>, tiles: Vec<(PathBuf, String)>) -> Result<(Vec<ContainerPath>, Vec<ContainerPath>)> {
         let mut added_paths = vec![];
 
@@ -2998,9 +3012,10 @@ impl Dependencies {
         Ok((added_paths, paths_to_delete))
     }
 
-    // Function to trigger an startpos build.
-    //
-    // After this ends, remember to call the post one!
+    /// Function to trigger an startpos build.
+    ///
+    /// After this ends, remember to call the post one!
+    #[allow(clippy::too_many_arguments)]
     pub fn build_starpos_pre(&self, packs: &mut BTreeMap<String, Pack>, pack_key: Option<&str>, game: &GameInfo, game_path: &Path, campaign_id: &str, process_hlp_spd_data: bool, sub_start_pos: &str) -> Result<()> {
 
         // Pre-fetch data we need before taking mutable borrows.
@@ -3284,6 +3299,7 @@ impl Dependencies {
     /// Call this when the game closes after the pre function launched it.
     ///
     /// NOTE: The assembly kit path is only needed for Rome 2.
+    #[allow(clippy::too_many_arguments)]
     pub fn build_starpos_post(&self, packs: &mut BTreeMap<String, Pack>, pack_key: Option<&str>, game: &GameInfo, game_path: &Path, asskit_path: Option<PathBuf>,campaign_id: &str, process_hlp_spd_data: bool, cleanup_mode: bool, sub_start_pos: &[String]) -> Result<Vec<ContainerPath>> {
 
         // Pre-fetch data we need before taking mutable borrows.

@@ -91,6 +91,7 @@ impl TextDiagnostic {
     }
 
     /// This function takes care of checking for Text-Related for errors.
+    #[allow(clippy::too_many_arguments)]
     pub fn check(
         pack_key: &str,
         file: &RFile,

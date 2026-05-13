@@ -102,7 +102,7 @@ use std::{fmt, fmt::Display};
 use std::path::Path;
 
 use rpfm_lib::error::Result;
-use rpfm_lib::files::{ContainerPath, Container, DecodeableExtraData, FileType, pack::Pack, RFile, RFileDecoded};
+use rpfm_lib::files::{ContainerPath, Container, DecodeableExtraData, FileType, pack::{DiagnosticIgnoreEntry, Pack}, RFile, RFileDecoded};
 use rpfm_lib::games::{GameInfo, VanillaDBTableNameLogic};
 use rpfm_lib::schema::{FieldType, Schema};
 
@@ -238,6 +238,12 @@ pub enum DiagnosticLevel {
     Error,
 }
 
+/// Per-file ignore state derived from the pack's `diagnostics_files_to_ignore` setting.
+///
+/// Tuple shape: `(ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields)`.
+/// `None` means the whole file is skipped.
+pub type FileIgnoreState = (Vec<String>, HashSet<String>, HashMap<String, Vec<String>>);
+
 //-------------------------------------------------------------------------------//
 //                             Implementations
 //-------------------------------------------------------------------------------//
@@ -279,6 +285,7 @@ impl DiagnosticType {
 impl Diagnostics {
 
     /// This function performs a search over the parts of the provided Packs, storing his results.
+    #[allow(clippy::too_many_arguments)]
     pub fn check(&mut self, packs: &mut BTreeMap<String, Pack>, dependencies: &mut Dependencies, schema: &Schema, game_info: &GameInfo, game_path: &Path, paths_to_check: &[ContainerPath], check_ak_only_refs: bool) {
 
         // Clear the diagnostics first if we're doing a full check, or only the config ones and the ones for the path to update if we're doing a partial check.
@@ -548,7 +555,7 @@ impl Diagnostics {
     }
 
     /// Ignore entire tables if their path starts with the one we have (so we can do mass ignores) and we didn't specified a field to ignore.
-    fn ignore_data_for_file(file: &RFile, files_to_ignore: &Option<Vec<(String, Vec<String>, Vec<String>)>>) -> Option<(Vec<String>, HashSet<String>, HashMap<String, Vec<String>>)> {
+    fn ignore_data_for_file(file: &RFile, files_to_ignore: &Option<Vec<DiagnosticIgnoreEntry>>) -> Option<FileIgnoreState> {
         let mut ignored_fields = vec![];
         let mut ignored_diagnostics = HashSet::new();
         let mut ignored_diagnostics_for_fields: HashMap<String, Vec<String>> = HashMap::new();

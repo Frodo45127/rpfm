@@ -406,6 +406,7 @@ impl RigidModelMatches {
 impl RigidModelMatch {
 
     /// This function creates a new `RigidModelMatch` with the provided data.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         skeleton_id: bool,
         mesh_value: Option<(i32, i32)>,

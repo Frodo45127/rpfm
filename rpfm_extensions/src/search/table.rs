@@ -158,6 +158,7 @@ impl TableMatches {
     }
 
     /// This function check if the provided `&str` matches our search.
+    #[allow(clippy::too_many_arguments)]
     fn match_decoded_data(
         &mut self,
         text: &str,

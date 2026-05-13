@@ -380,6 +380,7 @@ impl PortraitSettingsMatches {
 impl PortraitSettingsMatch {
 
     /// This function creates a new `PortraitSettingsMatch` with the provided data.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(entry: usize, id: bool, camera_settings_head: bool, camera_settings_body: bool, variant: Option<(usize, bool, bool, bool, bool, bool)>, start: usize, end: usize, data: String) -> Self {
         Self {
             entry,

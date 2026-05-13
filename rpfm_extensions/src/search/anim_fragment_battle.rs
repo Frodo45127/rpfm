@@ -39,6 +39,17 @@ pub struct AnimFragmentBattleMatches {
     matches: Vec<AnimFragmentBattleMatch>,
 }
 
+/// Inner-row hit info for a fragment match.
+///
+/// Tuple shape: `(subrow, is_file_path, is_meta_file_path, is_snd_file_path)`.
+pub type AnimFragmentBattleAnimRefHit = (usize, bool, bool, bool);
+
+/// Per-entry hit info: outer row, optional inner sub-entry hit, and the five booleans
+/// telling which top-level entry columns produced the match.
+///
+/// Tuple shape: `(row, sub_entry, is_animation_id, is_blend_in_time, is_selection_weight, is_weapon_bone, is_uk_4)`.
+pub type AnimFragmentBattleEntryHit = (usize, Option<AnimFragmentBattleAnimRefHit>, bool, bool, bool, bool, bool);
+
 /// This struct represents a match within an Anim Fragment Battle File.
 #[derive(Debug, Clone, Eq, PartialEq, Getters, MutGetters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub")]
@@ -60,7 +71,7 @@ pub struct AnimFragmentBattleMatch {
     locomotion_graph: bool,
 
     /// If the match corresponds to an entry in the table view.
-    entry: Option<(usize, Option<(usize, bool, bool, bool)>, bool, bool, bool, bool, bool)>,
+    entry: Option<AnimFragmentBattleEntryHit>,
 
     /// Byte where the match starts.
     start: usize,
@@ -553,7 +564,8 @@ impl AnimFragmentBattleMatches {
 impl AnimFragmentBattleMatch {
 
     /// This function creates a new `AnimFragmentBattleMatch` with the provided data.
-    pub fn new(skeleton_name: bool, table_name: bool, mount_table_name: bool, unmount_table_name: bool, locomotion_graph: bool, entry: Option<(usize, Option<(usize, bool, bool, bool)>, bool, bool, bool, bool, bool)>, start: usize, end: usize, text: String) -> Self {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(skeleton_name: bool, table_name: bool, mount_table_name: bool, unmount_table_name: bool, locomotion_graph: bool, entry: Option<AnimFragmentBattleEntryHit>, start: usize, end: usize, text: String) -> Self {
         Self {
             skeleton_name,
             table_name,

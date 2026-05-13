@@ -181,10 +181,11 @@ impl PackTranslation {
 
     pub fn new(paths: &[PathBuf], pack: &Pack, game_key: &str, language: &str, dependencies: &Dependencies, base_english: &HashMap<String, String>, base_local_fixes: &HashMap<String, String>) -> Result<Self> {
         let mut translations = Self::load(paths, &pack.disk_file_name(), game_key, language).unwrap_or_else(|_| {
-            let mut tr = Self::default();
-            tr.language = language.to_owned();
-            tr.pack_name = pack.disk_file_name();
-            tr
+            Self {
+                language: language.to_owned(),
+                pack_name: pack.disk_file_name(),
+                ..Default::default()
+            }
         });
 
         // If the pack has dependencies, we have to try to load their translations too, then patch the live dependencies with them.
