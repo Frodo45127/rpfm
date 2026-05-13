@@ -8,13 +8,6 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-// Disabled `Clippy` linters, with the reasons why they were disabled.
-#![allow(
-    clippy::type_complexity,
-    clippy::missing_safety_doc,
-    clippy::arc_with_non_send_sync,
-)]
-
 use time::format_description::{parse, FormatItem};
 
 use std::path::PathBuf;

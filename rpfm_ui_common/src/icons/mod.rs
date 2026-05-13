@@ -102,6 +102,13 @@ pub struct Icons {
 //-------------------------------------------------------------------------------//
 
 impl Icons {
+    /// Loads every icon used by the file tree.
+    ///
+    /// # Safety
+    ///
+    /// Calls into Qt's icon loader through `cpp_core`; like every Qt FFI entrypoint in
+    /// this crate it must be invoked from the Qt main thread with `QApplication` already
+    /// initialised.
     pub unsafe fn new() -> Self {
         Self {
             packfile_editable: atomic_from_cpp_box(Self::load_icon("packfile_editable", "application-x-compress")),
@@ -157,6 +164,12 @@ impl Icons {
         }
     }
 
+    /// Loads a single icon by name, falling back to a theme icon when the asset file is missing.
+    ///
+    /// # Safety
+    ///
+    /// Calls into Qt's icon loader through `cpp_core`; must be invoked from the Qt main
+    /// thread with `QApplication` already initialised.
     pub unsafe fn load_icon(icon_name: &str, icon_name_fallback: &str) -> CppBox<QIcon> {
         let mut icon = QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}.png", ASSETS_PATH.to_string_lossy(), icon_name)));
 
@@ -323,6 +336,13 @@ impl Icons {
         })
     }
 
+    /// Sets the right icon on `item` based on the file type (or the tree-node type when
+    /// the item represents a Pack root).
+    ///
+    /// # Safety
+    ///
+    /// Mutates a Qt `QStandardItem` through a raw reference; must be invoked from the Qt
+    /// main thread, and `item` must point to a live object owned by an existing model.
     pub unsafe fn set_standard_item_icon(&self, item: &QStandardItem, file_type: Option<&FileType>) {
          let icon = ref_from_atomic_ref(
             match file_type {

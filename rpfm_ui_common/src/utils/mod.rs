@@ -90,6 +90,11 @@ pub fn log_to_status_bar_2<T: Display>(status_bar: QPtr<QStatusBar>, text: T) {
 /// - title: something that implements the trait `Display`, to put as title of the dialog window.
 /// - text: something that implements the trait `Display`, to put in the dialog window.
 /// - is_success: true for `Success` Dialog, false for `Error` Dialog.
+///
+/// # Safety
+///
+/// Goes through Qt's `cpp_core` FFI; must be invoked from the Qt main thread, and
+/// `parent` must point to a live widget owned by an existing window.
 pub unsafe fn show_dialog<T: Display, U: Display>(parent: impl cpp_core::CastInto<Ptr<QWidget>>, title: T, text: U, is_success: bool) {
 
     // Depending on the type of the dialog, set everything specific here.
@@ -109,6 +114,11 @@ pub unsafe fn show_dialog<T: Display, U: Display>(parent: impl cpp_core::CastInt
 }
 
 /// This function deletes all widgets from a widget's layout.
+///
+/// # Safety
+///
+/// Deletes Qt-owned children through `cpp_core`; must run on the Qt main thread and
+/// `widget` must still be alive.
 pub unsafe fn clear_layout(widget: &QPtr<QWidget>) {
     let layout = widget.layout();
     while !layout.is_empty() {
@@ -119,6 +129,11 @@ pub unsafe fn clear_layout(widget: &QPtr<QWidget>) {
 }
 
 /// This function creates a `GridLayout` for the provided widget with the settings we want.
+///
+/// # Safety
+///
+/// Constructs Qt objects through `cpp_core`; must be invoked from the Qt main thread and
+/// `widget` must still be alive.
 pub unsafe fn create_grid_layout(widget: QPtr<QWidget>) -> QBox<QGridLayout> {
     let widget_layout = if widget.layout().is_null() {
         let layout = QGridLayout::new_1a(&widget);
@@ -142,6 +157,11 @@ pub unsafe fn create_grid_layout(widget: QPtr<QWidget>) -> QBox<QGridLayout> {
 }
 
 /// This function returns the a widget from the view if it exits, and an error if it doesn't.
+///
+/// # Safety
+///
+/// Walks a Qt object tree via `cpp_core`; must be invoked from the Qt main thread and
+/// `main_widget` must still be alive.
 pub unsafe fn find_widget<T: StaticUpcast<qt_core::QObject>>(main_widget: &QPtr<QWidget>, widget_name: &str) -> Result<QPtr<T>>
     where QObject: DynamicCast<T> {
     main_widget.find_child(widget_name)
@@ -152,6 +172,11 @@ pub unsafe fn find_widget<T: StaticUpcast<qt_core::QObject>>(main_widget: &QPtr<
 }
 
 /// This function load the template file in the provided path to memory, and returns it as a `QBox<QWidget>`.
+///
+/// # Safety
+///
+/// Constructs Qt widgets from a `.ui` template through `cpp_core`; must be invoked from
+/// the Qt main thread and `parent` must point to a live widget.
 pub unsafe fn load_template(parent: impl CastInto<Ptr<QWidget>>, path: &str) -> Result<QBox<QWidget>> {
     let path = format!("{}/{}", ASSETS_PATH.to_string_lossy(), path);
     let mut data = vec!();

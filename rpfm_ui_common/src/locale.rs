@@ -8,6 +8,12 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+// `Locale` stores a `FluentBundle` which isn't `Send + Sync` on its own, yet it lives in
+// `LazyLock<Locale>` statics in the UI binaries; the `unsafe impl Send + Sync for Locale`
+// below promises the cross-thread safety the lint can't see, so the `Arc<RwLock<...>>`
+// is the intentional choice.
+#![allow(clippy::arc_with_non_send_sync)]
+
 use anyhow::{anyhow, Result};
 use fluent_bundle::{FluentResource, FluentBundle};
 use unic_langid::{langid, LanguageIdentifier, subtags::Language};
