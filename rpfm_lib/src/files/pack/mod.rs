@@ -1339,7 +1339,7 @@ impl Pack {
             // To avoid duplicating logic, we insert these files into the pack, extract them, then delete them from the Pack.
             let container_path = file.path_in_container();
             self.insert(file)?;
-            self.extract(container_path.clone(), &data_path, true, &None, false, keys_first, &extra_data, true)?;
+            self.extract(container_path.clone(), &data_path, true, &None, false, keys_first, &extra_data)?;
 
             self.remove(&container_path);
         }

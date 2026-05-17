@@ -3074,7 +3074,7 @@ impl Dependencies {
             DirBuilder::new().recursive(true).create(&game_campaign_path)?;
 
             game_campaign_path.push(VICTORY_OBJECTIVES_EXTRACTED_FILE_NAME);
-            pack_file.extract(ContainerPath::File(VICTORY_OBJECTIVES_FILE_NAME.to_owned()), &game_campaign_path, false, &None, true, false, &None, true)?;
+            pack_file.extract(ContainerPath::File(VICTORY_OBJECTIVES_FILE_NAME.to_owned()), &game_campaign_path, false, &None, true, false, &None)?;
         }
 
         let config_path = game.config_path(game_path).ok_or(RLibError::BuildStartposError("Error getting the game's config path.".to_owned()))?;

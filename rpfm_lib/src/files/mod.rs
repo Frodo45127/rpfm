@@ -851,7 +851,6 @@ pub trait Container {
     /// - `case_insensitive`: Enable case-insensitive folder matching (file extraction is always case-sensitive)
     /// - `keys_first`: When exporting to TSV, place key columns first
     /// - `extra_data`: Optional encoding context for binary files
-    /// - `keep_data_in_memory`: If `true`, loads disk-backed files to memory before extraction
     ///
     /// # Returns
     ///
@@ -876,7 +875,6 @@ pub trait Container {
     ///     false, // Case-sensitive
     ///     true,  // Keys first
     ///     &None,
-    ///     false
     /// )?;
     ///
     /// // Extract entire folder as TSV
@@ -888,7 +886,6 @@ pub trait Container {
     ///     true,  // Case-insensitive
     ///     true,
     ///     &None,
-    ///     false
     /// )?;
     /// ```
     #[allow(clippy::too_many_arguments)]
@@ -900,7 +897,6 @@ pub trait Container {
         case_insensitive: bool,
         keys_first: bool,
         extra_data: &Option<EncodeableExtraData>,
-        keep_data_in_memory: bool
     ) -> Result<Vec<PathBuf>> {
 
         let mut extracted_paths = vec![];
@@ -921,14 +917,6 @@ pub trait Container {
                 DirBuilder::new().recursive(true).create(&destination_folder)?;
 
                 let rfile = self.files_mut().get_mut(&container_path).ok_or_else(|| RLibError::FileNotFound(container_path.to_string()))?;
-
-                // If the file is on disk, load it to memory before saving. Why? Because if we import a file, then export it on the same position,
-                // we clear the disk file before loading its data to memory, which breaks stuff like MyMod Import/Export.
-                if let RFileInnerData::OnDisk(_) = &rfile.data {
-                    if keep_data_in_memory {
-                        rfile.load()?;
-                    }
-                }
 
                 // If we want to extract as tsv and we got a db/loc, export to tsv.
                 if let Some(schema) = schema {
@@ -985,14 +973,6 @@ pub trait Container {
                     let mut destination_folder = destination_path.to_owned();
                     destination_folder.pop();
                     DirBuilder::new().recursive(true).create(&destination_folder)?;
-
-                    // If the file is on disk, load it to memory before saving. Why? Because if we import a file, then export it on the same position,
-                    // we clear the disk file before loading its data to memory, which breaks stuff like MyMod Import/Export.
-                    if let RFileInnerData::OnDisk(_) = &rfile.data {
-                        if keep_data_in_memory {
-                            rfile.load()?;
-                        }
-                    }
 
                     // If we want to extract as tsv and we got a db/loc, export to tsv.
                     if let Some(schema) = schema {
@@ -2856,8 +2836,11 @@ impl RFile {
                   sanitized_destination_path.file_name().unwrap_or_default().to_string_lossy());
         }
 
-        let mut file = BufWriter::new(File::create(&sanitized_destination_path)?);
+        // Encode first, then create the destination file. This way, if the source happens to be
+        // the same path we're writing to (e.g. MyMod Import/Export), we read the source bytes
+        // before File::create truncates it. Avoids needing to pre-load OnDisk files into memory.
         let data = self.encode(extra_data, false, false, true)?.unwrap();
+        let mut file = BufWriter::new(File::create(&sanitized_destination_path)?);
         file.write_all(&data)?;
         Ok(sanitized_destination_path)
     }

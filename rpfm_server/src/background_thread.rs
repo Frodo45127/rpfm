@@ -1439,7 +1439,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                             let mut extracted_paths = vec![];
 
                             for container_path in container_paths {
-                                match pack.extract(container_path.clone(), &path, true, schema, false, settings.bool("tables_use_old_column_order_for_tsv"), &extra_data, true) {
+                                match pack.extract(container_path.clone(), &path, true, schema, false, settings.bool("tables_use_old_column_order_for_tsv"), &extra_data) {
                                     Ok(mut extracted_path) => extracted_paths.append(&mut extracted_path),
                                     Err(_) => {
                                         //error!("Error extracting {}: {}", container_path.path_raw(), error);
@@ -1485,10 +1485,13 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                         }
 
                         let container_path = ContainerPath::File(path_raw);
-                        match pack.extract(container_path, &path, true, schema, false, settings.bool("tables_use_old_column_order_for_tsv"), &extra_data, true) {
+                        match pack.extract(container_path.clone(), &path, true, schema, false, settings.bool("tables_use_old_column_order_for_tsv"), &extra_data) {
                             Ok(mut extracted_path) => extracted_paths.append(&mut extracted_path),
                             Err(_) => errors += 1,
                         }
+
+                        // Drop the cloned file from the temp pack so memory doesn't grow with the batch.
+                        pack.remove(&container_path);
                     }
 
                     if errors == 0 {
@@ -1833,7 +1836,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                         let cf = pack.compression_format();
                         let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(game, cf, settings.bool("disable_uuid_regeneration_on_db_tables")));
 
-                        match pack.extract(path.clone(), &folder, true, &schema, false, settings.bool("tables_use_old_column_order_for_tsv"), &extra_data, true) {
+                        match pack.extract(path.clone(), &folder, true, &schema, false, settings.bool("tables_use_old_column_order_for_tsv"), &extra_data) {
                             Ok(extracted_path) => {
                                 let _ = that(&extracted_path[0]);
                                 CentralCommand::send_back(&sender, Response::PathBuf(extracted_path[0].to_owned()));
