@@ -60,9 +60,9 @@ use crate::pack_tree::*;
 // Colors used all over the program for theming and stuff.
 pub const MEDIUM_DARKER_GREY: &str = "#262626";          // Medium-Darker Grey.
 pub const GREEN_BRIGHT: &str = "#D0FDCC";
-pub const GREEN_DARK: &str = "#708F6E";
+pub const GREEN_DARK: &str = "#264d26";
 pub const RED_BRIGHT: &str = "#FFCCCC";
-pub const RED_DARK: &str = "#8F6E6E";
+pub const RED_DARK: &str = "#4d2626";
 pub const TRANSPARENT_BRIGHT: &str = "#00000000";
 pub const ERROR_UNPRESSED_DARK: &str = "#b30000";
 pub const ERROR_UNPRESSED_LIGHT: &str = "#ffcccc";
