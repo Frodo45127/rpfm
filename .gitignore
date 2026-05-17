@@ -196,3 +196,4 @@ zed-main
 
 # Sentry stuff.
 sentry-cli.exe
+/target_docker/
