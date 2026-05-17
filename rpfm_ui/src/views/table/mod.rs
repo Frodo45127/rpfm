@@ -143,6 +143,7 @@ pub static ITEM_IS_SEQUENCE: i32 = 35;
 pub static ITEM_SEQUENCE_DATA: i32 = 36;
 
 pub static ITEM_SUB_DATA: i32 = 40;
+pub static ITEM_PACK_KEY: i32 = 41;
 pub static ITEM_ICON_CACHE: i32 = 50;
 pub static ITEM_ICON_PATH: i32 = 52;
 
