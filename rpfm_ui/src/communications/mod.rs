@@ -342,7 +342,7 @@ pub async fn websocket_loop(mut receiver: UnboundedReceiver<(IpcMessage<Command>
                                     if SHUTDOWN_REQUESTED.load(Ordering::SeqCst) {
                                         info!("WebSocket closed during shutdown.");
                                     } else {
-                                        error!("WebSocket error: {}", error);
+                                        warn!("WebSocket read loop ended: {}", error);
                                     }
                                     break;
                                 }

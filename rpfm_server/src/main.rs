@@ -65,7 +65,7 @@ use rpfm_ipc::helpers::SessionInfo;
 use rpfm_ipc::messages::{Command, Response};
 use rpfm_ipc::settings_keys::{ENABLE_CRASH_REPORTS, ENABLE_USAGE_TELEMETRY};
 
-use rpfm_telemetry::{Logger, SentryLayer, SENTRY_DSN, error, info, release_name};
+use rpfm_telemetry::{Logger, SentryLayer, SENTRY_DSN, info, release_name, warn};
 
 use crate::server_mcp::McpServer;
 use crate::session::SessionManager;
@@ -191,7 +191,7 @@ async fn main() {
             axum::serve(listener, app).await.unwrap();
         }
         Err(err) => {
-            error!("Failed to bind to address {}: {}\n\nThis usually means you got another copy of the server running. Either use that one, or stop it and try again.", addr, err);
+            warn!("Failed to bind to address {}: {}\n\nThis usually means you got another copy of the server running. Either use that one, or stop it and try again.", addr, err);
         }
     }
 }
