@@ -68,7 +68,7 @@ use self_update::cargo_crate_version;
 use time::OffsetDateTime;
 
 use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::ffi::OsStr;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -139,6 +139,19 @@ pub mod tips;
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
+
+/// A deferred request to open one or more PackFiles.
+///
+/// Open-pack slots enqueue one of these and trigger `timer_open_pack_dispatch`;
+/// the dispatcher slot drains the queue from a clean call stack so we never
+/// re-enter `open_packfile` from inside another in-flight blocking IPC.
+#[derive(Debug, Clone)]
+pub struct PendingOpenRequest {
+    pub paths: Vec<PathBuf>,
+    pub game_folder: String,
+    pub additive: bool,
+    pub trigger_diagnostics: bool,
+}
 
 /// This struct contains all the pointers we need to access to all the static widgets/actions created at the start of the program.
 ///
@@ -284,6 +297,12 @@ pub struct AppUI {
     timer_connection_check: QBox<QTimer>,
     connection_deadline: Rc<Cell<Instant>>,
     connection_finalized: Rc<Cell<bool>>,
+
+    /// Single-shot timer that fires the deferred open-pack dispatcher.
+    /// See `request_open_packfile` and the dispatcher slot in `slots.rs`.
+    timer_open_pack_dispatch: QBox<QTimer>,
+    pending_open_requests: Rc<RefCell<VecDeque<PendingOpenRequest>>>,
+    dispatch_open_in_progress: Rc<Cell<bool>>,
 
     tab_bar_packed_file_context_menu: QBox<QMenu>,
     tab_bar_packed_file_close: QPtr<QAction>,
@@ -619,6 +638,14 @@ impl AppUI {
         let connection_deadline = Rc::new(Cell::new(Instant::now() + std::time::Duration::from_secs(30)));
         let connection_finalized = Rc::new(Cell::new(false));
 
+        // Single-shot timer used to defer open-pack work out of the slot that requested it.
+        // Slots only enqueue a PendingOpenRequest and start the timer; the real work happens
+        // when the timer fires, by which point the requesting slot has fully unwound. This
+        // sidesteps the re-entrancy bugs that come from `recv_try`'s nested `process_events`.
+        let timer_open_pack_dispatch = QTimer::new_1a(&main_window);
+        timer_open_pack_dispatch.set_single_shot(true);
+        timer_open_pack_dispatch.set_interval(0);
+
         // Create ***Da monsta***.
         AppUI {
 
@@ -753,6 +780,10 @@ impl AppUI {
             timer_connection_check,
             connection_deadline,
             connection_finalized,
+
+            timer_open_pack_dispatch,
+            pending_open_requests: Rc::new(RefCell::new(VecDeque::new())),
+            dispatch_open_in_progress: Rc::new(Cell::new(false)),
 
             tab_bar_packed_file_context_menu,
             tab_bar_packed_file_close,
@@ -1172,6 +1203,36 @@ impl AppUI {
         Ok(())
     }
 
+    /// Enqueues a deferred open-pack request and arms the dispatch timer.
+    ///
+    /// Slots that previously called `open_packfile` directly should call this instead.
+    /// The slot returns immediately; the actual work runs from the dispatcher slot
+    /// (see `AppUISlots::new`) on the next event-loop iteration, by which point the
+    /// requesting slot has fully unwound. This is what prevents `open_packfile`'s
+    /// nested `process_events` from re-entering another open-pack slot.
+    ///
+    /// # Arguments
+    /// * `paths` — pack file paths to open.
+    /// * `game_folder` — MyMod game folder, or empty string for a regular open.
+    /// * `additive` — open alongside existing packs instead of replacing them.
+    /// * `trigger_diagnostics` — run a diagnostics check after the open succeeds,
+    ///   gated on the `DIAGNOSTICS_TRIGGER_ON_OPEN` setting.
+    pub unsafe fn request_open_packfile(
+        app_ui: &Rc<Self>,
+        paths: Vec<PathBuf>,
+        game_folder: &str,
+        additive: bool,
+        trigger_diagnostics: bool,
+    ) {
+        app_ui.pending_open_requests.borrow_mut().push_back(PendingOpenRequest {
+            paths,
+            game_folder: game_folder.to_owned(),
+            additive,
+            trigger_diagnostics,
+        });
+        app_ui.timer_open_pack_dispatch.start_0a();
+    }
+
     /// This function is used to save the currently open `PackFile` to disk.
     ///
     /// If the PackFile doesn't exist or we pass `save_as = true`,
@@ -1403,8 +1464,6 @@ impl AppUI {
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>,
-        dependencies_ui: &Rc<DependenciesUI>,
     ) {
 
         // First, we clear both menus, so we can rebuild them properly.
@@ -1436,25 +1495,9 @@ impl AppUI {
                     // Create the slot for that action.
                     let slot_open_mod = SlotOfBool::new(&open_mod_action, clone!(
                         app_ui,
-                        pack_file_contents_ui,
-                        dependencies_ui,
-                        global_search_ui,
-                        diagnostics_ui,
                         path => move |_| {
                         if Self::are_you_sure(&app_ui, false, false) {
-                            if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &dependencies_ui, &[path.to_path_buf()], "", false) {
-                                return show_dialog(&app_ui.main_window, error, false);
-                            }
-
-                            if settings_bool(DIAGNOSTICS_TRIGGER_ON_OPEN) {
-
-                                // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
-                                app_ui.menu_bar_packfile.set_enabled(false);
-
-                                DiagnosticsUI::check(&app_ui, &diagnostics_ui);
-
-                                app_ui.menu_bar_packfile.set_enabled(true);
-                            }
+                            Self::request_open_packfile(&app_ui, vec![path.to_path_buf()], "", false, true);
                         }
                     }));
 
@@ -1477,25 +1520,9 @@ impl AppUI {
                 // Create the slot for that action.
                 let slot_open_mod = SlotOfBool::new(&open_mod_action, clone!(
                     app_ui,
-                    pack_file_contents_ui,
-                    dependencies_ui,
-                    global_search_ui,
-                    diagnostics_ui,
                     path => move |_| {
                     if Self::are_you_sure(&app_ui, false, false) {
-                        if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &dependencies_ui, &[path.to_path_buf()], "", false) {
-                            return show_dialog(&app_ui.main_window, error, false);
-                        }
-
-                        if settings_bool(DIAGNOSTICS_TRIGGER_ON_OPEN) {
-
-                            // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
-                            app_ui.menu_bar_packfile.set_enabled(false);
-
-                            DiagnosticsUI::check(&app_ui, &diagnostics_ui);
-
-                            app_ui.menu_bar_packfile.set_enabled(true);
-                        }
+                        Self::request_open_packfile(&app_ui, vec![path.to_path_buf()], "", false, true);
                     }
                 }));
 
@@ -1517,25 +1544,9 @@ impl AppUI {
                 // Create the slot for that action.
                 let slot_open_mod = SlotOfBool::new(&open_mod_action, clone!(
                     app_ui,
-                    pack_file_contents_ui,
-                    dependencies_ui,
-                    global_search_ui,
-                    diagnostics_ui,
                     path => move |_| {
                     if Self::are_you_sure(&app_ui, false, false) {
-                        if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &dependencies_ui, &[path.to_path_buf()], "", false) {
-                            return show_dialog(&app_ui.main_window, error, false);
-                        }
-
-                        if settings_bool(DIAGNOSTICS_TRIGGER_ON_OPEN) {
-
-                            // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
-                            app_ui.menu_bar_packfile.set_enabled(false);
-
-                            DiagnosticsUI::check(&app_ui, &diagnostics_ui);
-
-                            app_ui.menu_bar_packfile.set_enabled(true);
-                        }
+                        Self::request_open_packfile(&app_ui, vec![path.to_path_buf()], "", false, true);
                     }
                 }));
 
@@ -1557,25 +1568,9 @@ impl AppUI {
                 // Create the slot for that action.
                 let slot_open_mod = SlotOfBool::new(&open_mod_action, clone!(
                     app_ui,
-                    pack_file_contents_ui,
-                    dependencies_ui,
-                    global_search_ui,
-                    diagnostics_ui,
                     path => move |_| {
                     if Self::are_you_sure(&app_ui, false, false) {
-                        if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &dependencies_ui, &[path.to_path_buf()], "", false) {
-                            return show_dialog(&app_ui.main_window, error, false);
-                        }
-
-                        if settings_bool(DIAGNOSTICS_TRIGGER_ON_OPEN) {
-
-                            // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
-                            app_ui.menu_bar_packfile.set_enabled(false);
-
-                            DiagnosticsUI::check(&app_ui, &diagnostics_ui);
-
-                            app_ui.menu_bar_packfile.set_enabled(true);
-                        }
+                        Self::request_open_packfile(&app_ui, vec![path.to_path_buf()], "", false, true);
                     }
                 }));
 
@@ -1605,25 +1600,9 @@ impl AppUI {
                                     // Create the slot for that action.
                                     let slot_open_mod = SlotOfBool::new(&open_mod_action, clone!(
                                         app_ui,
-                                        pack_file_contents_ui,
-                                        dependencies_ui,
-                                        global_search_ui,
-                                        diagnostics_ui,
                                         path => move |_| {
                                         if Self::are_you_sure(&app_ui, false, false) {
-                                            if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &dependencies_ui, &[path.to_path_buf()], "", false) {
-                                                return show_dialog(&app_ui.main_window, error, false);
-                                            }
-
-                                            if settings_bool(DIAGNOSTICS_TRIGGER_ON_OPEN) {
-
-                                                // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
-                                                app_ui.menu_bar_packfile.set_enabled(false);
-
-                                                DiagnosticsUI::check(&app_ui, &diagnostics_ui);
-
-                                                app_ui.menu_bar_packfile.set_enabled(true);
-                                            }
+                                            Self::request_open_packfile(&app_ui, vec![path.to_path_buf()], "", false, true);
                                         }
                                     }));
 
@@ -1701,10 +1680,6 @@ impl AppUI {
     /// This function takes care of the re-creation of the `MyMod` list for each game.
     pub unsafe fn build_open_mymod_submenus(
         app_ui: &Rc<Self>,
-        pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>,
-        global_search_ui: &Rc<GlobalSearchUI>,
-        dependencies_ui: &Rc<DependenciesUI>,
     ) {
 
         // First, we need to reset the menu, which basically means deleting all the game submenus and hiding them.
@@ -1776,25 +1751,9 @@ impl AppUI {
                                     // Create the slot for that action.
                                     let slot_open_mod = SlotOfBool::new(&open_mod_action, clone!(
                                         app_ui,
-                                        pack_file_contents_ui,
-                                        dependencies_ui,
-                                        global_search_ui,
-                                        diagnostics_ui,
                                         game_folder_name => move |_| {
                                         if Self::are_you_sure(&app_ui, false, false) {
-                                            if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &dependencies_ui, &[pack_file.to_path_buf()], &game_folder_name, true) {
-                                                return show_dialog(&app_ui.main_window, error, false);
-                                            }
-
-                                            if settings_bool(DIAGNOSTICS_TRIGGER_ON_OPEN) {
-
-                                                // Disable the top menus before triggering the check. Otherwise, we may end up in a crash.
-                                                app_ui.menu_bar_mymod.set_enabled(false);
-
-                                                DiagnosticsUI::check(&app_ui, &diagnostics_ui);
-
-                                                app_ui.menu_bar_mymod.set_enabled(true);
-                                            }
+                                            Self::request_open_packfile(&app_ui, vec![pack_file.to_path_buf()], &game_folder_name, true, true);
                                         }
                                     }));
 

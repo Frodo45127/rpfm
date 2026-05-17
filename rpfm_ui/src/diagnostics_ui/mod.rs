@@ -521,7 +521,6 @@ impl DiagnosticsUI {
             return;
         }
 
-        app_ui.menu_bar_packfile().set_enabled(false);
         let diagnostics_ignored = diagnostics_ui.diagnostics_ignored();
         rpfm_telemetry::track_action("Diagnostics Check");
         let diagnostics = send_ipc_command_async(Command::DiagnosticsCheck(diagnostics_ignored, diagnostics_ui.diagnostics_button_check_ak_only_refs().is_checked()), response_extractor!(Response::Diagnostics));
@@ -529,8 +528,6 @@ impl DiagnosticsUI {
         Self::filter(app_ui, diagnostics_ui);
         Self::update_level_counts(diagnostics_ui, diagnostics.results());
         UI_STATE.set_diagnostics(&diagnostics);
-
-        app_ui.menu_bar_packfile().set_enabled(true);
     }
 
     /// This function takes care of updating the results of a diagnostics check for the provided paths.
@@ -541,8 +538,6 @@ impl DiagnosticsUI {
             return;
         }
 
-        app_ui.menu_bar_packfile().set_enabled(false);
-
         let mut diagnostics = UI_STATE.get_diagnostics();
         *diagnostics.diagnostics_ignored_mut() = diagnostics_ui.diagnostics_ignored();
         rpfm_telemetry::track_action("Diagnostics Check Update");
@@ -551,8 +546,6 @@ impl DiagnosticsUI {
         Self::filter(app_ui, diagnostics_ui);
         Self::update_level_counts(diagnostics_ui, diagnostics.results());
         UI_STATE.set_diagnostics(&diagnostics);
-
-        app_ui.menu_bar_packfile().set_enabled(true);
     }
 
     /// This function takes care of loading the results of a diagnostic check into the table.

@@ -200,6 +200,11 @@ pub struct AppUISlots {
 
     pub open_pack_drop: QBox<SlotOfQListOfQString>,
 
+    /// Dispatcher slot for deferred open-pack requests. Drains
+    /// `AppUI::pending_open_requests` from a clean call stack so we never re-enter
+    /// `open_packfile` from inside another in-flight `process_events` loop.
+    pub open_pack_dispatch: QBox<SlotNoArgs>,
+
     //-----------------------------------------------//
     // `StatusBar` slots.
     //-----------------------------------------------//
@@ -268,15 +273,13 @@ impl AppUISlots {
         let packfile_open_menu = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui,
-            dependencies_ui,
-            global_search_ui,
-            diagnostics_ui => move || {
+            global_search_ui => move || {
                 rpfm_telemetry::track_action("Open PackFile Menu");
 
                 let generated = send_ipc_command(Command::IsThereADependencyDatabase(false), response_extractor!(Response::Bool));
                 app_ui.packfile_load_all_ca_packfiles().set_enabled(!generated);
 
-                AppUI::build_pack_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui);
+                AppUI::build_pack_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui);
             }
         ));
 
@@ -297,11 +300,7 @@ impl AppUISlots {
         ));
 
         let packfile_open_and_merge_packs = SlotOfBool::new(&app_ui.main_window, clone!(
-            app_ui,
-            pack_file_contents_ui,
-            dependencies_ui,
-            diagnostics_ui,
-            global_search_ui => move |_| {
+            app_ui => move |_| {
 
                 // Check first if there has been changes in the PackFile.
                 info!("Triggering `Open & Merge Packs` By Slot?");
@@ -326,14 +325,7 @@ impl AppUISlots {
                             paths.push(PathBuf::from(file_dialog.selected_files().at(index).to_std_string()));
                         }
 
-                        // Try to open it, and report it case of error.
-                        if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &dependencies_ui, &paths, "", false) {
-                            return show_dialog(&app_ui.main_window, error, false);
-                        }
-
-                        if settings_bool(DIAGNOSTICS_TRIGGER_ON_OPEN) {
-                            DiagnosticsUI::check(&app_ui, &diagnostics_ui);
-                        }
+                        AppUI::request_open_packfile(&app_ui, paths, "", false, true);
                     }
                 }
             }
@@ -341,11 +333,7 @@ impl AppUISlots {
 
         // What happens when we trigger the "Open Packs" action (additive open).
         let packfile_open_packfiles = SlotOfBool::new(&app_ui.main_window, clone!(
-            app_ui,
-            pack_file_contents_ui,
-            dependencies_ui,
-            diagnostics_ui,
-            global_search_ui => move |_| {
+            app_ui => move |_| {
                 rpfm_telemetry::track_action("Open Packs (Additive)");
 
                 let file_dialog = QFileDialog::from_q_widget_q_string(
@@ -361,13 +349,7 @@ impl AppUISlots {
                         paths.push(PathBuf::from(file_dialog.selected_files().at(index).to_std_string()));
                     }
 
-                    if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &dependencies_ui, &paths, "", true) {
-                        return show_dialog(&app_ui.main_window, error, false);
-                    }
-
-                    if settings_bool(DIAGNOSTICS_TRIGGER_ON_OPEN) {
-                        DiagnosticsUI::check(&app_ui, &diagnostics_ui);
-                    }
+                    AppUI::request_open_packfile(&app_ui, paths, "", true, true);
                 }
             }
         ));
@@ -612,7 +594,7 @@ impl AppUISlots {
                             // If we changed the "MyMod's Folder" path, disable the MyMod mode and set it so the MyMod menu will be re-built
                             // next time we open the MyMod menu.
                             if mymod_path_old != mymod_path_new {
-                                AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &diagnostics_ui, &global_search_ui, &dependencies_ui);
+                                AppUI::build_open_mymod_submenus(&app_ui);
                             }
 
                             // If we have changed the path of any of the games, and that game is the current `GameSelected`,
@@ -662,13 +644,9 @@ impl AppUISlots {
 
         // Slot to build the "Open from" submenus of the MyMod menu.
         let mymod_open_menu = SlotNoArgs::new(&app_ui.main_window, clone!(
-            app_ui,
-            pack_file_contents_ui,
-            dependencies_ui,
-            diagnostics_ui,
-            global_search_ui => move || {
+            app_ui => move || {
                 rpfm_telemetry::track_action("Open MyMod Menu");
-                AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &diagnostics_ui, &global_search_ui, &dependencies_ui);
+                AppUI::build_open_mymod_submenus(&app_ui);
             }
         ));
 
@@ -773,7 +751,7 @@ impl AppUISlots {
 
                                                     UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
 
-                                                    AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &diagnostics_ui, &global_search_ui, &dependencies_ui);
+                                                    AppUI::build_open_mymod_submenus(&app_ui);
                                                     app_ui.toggle_main_window(true);
                                                 }
 
@@ -1740,11 +1718,7 @@ impl AppUISlots {
         ));
 
         let open_pack_drop = SlotOfQListOfQString::new(&app_ui.main_window, clone!(
-            app_ui,
-            pack_file_contents_ui,
-            dependencies_ui,
-            global_search_ui,
-            diagnostics_ui => move |paths_q| {
+            app_ui => move |paths_q| {
             info!("Triggering `Open Pack` By Drag&Drop by Slot?");
 
             // Check first if there has been changes in the PackFile.
@@ -1758,16 +1732,54 @@ impl AppUISlots {
                     paths.push(PathBuf::from(paths_q.at(index).to_std_string()));
                 }
 
-                // Try to open it, and report it case of error.
-                if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &dependencies_ui, &paths, "", false) {
-                    return show_dialog(&app_ui.main_window, error, false);
-                }
-
-                if settings_bool(DIAGNOSTICS_TRIGGER_ON_OPEN) {
-                    DiagnosticsUI::check(&app_ui, &diagnostics_ui);
-                }
+                AppUI::request_open_packfile(&app_ui, paths, "", false, true);
             }
         }));
+
+        // Dispatcher slot for deferred open-pack requests. Drains the pending queue
+        // serially, so concurrent open clicks (or opens that arrive while diagnostics
+        // is pumping events) cannot recurse through `open_packfile`. The
+        // `dispatch_open_in_progress` guard makes the slot a no-op if it re-fires
+        // while a previous drain is still in flight; the outer loop picks up new
+        // requests before exiting.
+        let open_pack_dispatch = SlotNoArgs::new(&app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            dependencies_ui,
+            global_search_ui,
+            diagnostics_ui => move || {
+                if app_ui.dispatch_open_in_progress().get() {
+                    return;
+                }
+                app_ui.dispatch_open_in_progress().set(true);
+
+                loop {
+                    let request = app_ui.pending_open_requests().borrow_mut().pop_front();
+                    let Some(request) = request else { break };
+
+                    info!("Dispatching deferred open for {:?} (additive={}, mymod={:?})", request.paths, request.additive, request.game_folder);
+
+                    if let Err(error) = AppUI::open_packfile(
+                        &app_ui,
+                        &pack_file_contents_ui,
+                        &global_search_ui,
+                        &dependencies_ui,
+                        &request.paths,
+                        &request.game_folder,
+                        request.additive,
+                    ) {
+                        show_dialog(&app_ui.main_window, error, false);
+                        continue;
+                    }
+
+                    if request.trigger_diagnostics && settings_bool(DIAGNOSTICS_TRIGGER_ON_OPEN) {
+                        DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+                    }
+                }
+
+                app_ui.dispatch_open_in_progress().set(false);
+            }
+        ));
 
         let discord_link = SlotNoArgs::new(&app_ui.main_window, || {
             rpfm_telemetry::track_action("Open Discord Link");
@@ -1891,6 +1903,8 @@ impl AppUISlots {
             tab_bar_packed_file_toggle_quick_notes,
 
             open_pack_drop,
+            open_pack_dispatch,
+
             //-----------------------------------------------//
             // `StatusBar` slots.
             //-----------------------------------------------//
@@ -1908,11 +1922,9 @@ impl AppUITempSlots {
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>,
-        dependencies_ui: &Rc<DependenciesUI>,
     ) {
-        AppUI::build_pack_submenus(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui);
-        AppUI::build_open_mymod_submenus(app_ui, pack_file_contents_ui, diagnostics_ui, global_search_ui, dependencies_ui);
-        crate::welcome_page_ui::WelcomePageUI::build_recent_files(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui);
+        AppUI::build_pack_submenus(app_ui, pack_file_contents_ui, global_search_ui);
+        AppUI::build_open_mymod_submenus(app_ui);
+        crate::welcome_page_ui::WelcomePageUI::build_recent_files(app_ui);
     }
 }

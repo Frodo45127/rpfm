@@ -130,6 +130,7 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.timer_backup_autosave.timeout().connect(&slots.pack_file_backup_autosave);
     app_ui.timer_server_status.timeout().connect(&slots.server_status_update);
     app_ui.timer_connection_check.timeout().connect(&slots.connection_check);
+    app_ui.timer_open_pack_dispatch.timeout().connect(&slots.open_pack_dispatch);
 
     app_ui.tab_bar_packed_file.custom_context_menu_requested().connect(&slots.tab_bar_packed_file_context_menu_show);
     app_ui.tab_bar_packed_file_close.triggered().connect(&slots.tab_bar_packed_file_close);

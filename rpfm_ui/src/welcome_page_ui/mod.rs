@@ -37,12 +37,8 @@ use rpfm_ui_common::utils::create_grid_layout;
 
 use crate::app_ui::AppUI;
 use crate::communications::CURRENT_SESSION_ID;
-use crate::diagnostics_ui::DiagnosticsUI;
-use crate::dependencies_ui::DependenciesUI;
 use crate::GAME_SELECTED;
 use crate::GAME_SELECTED_ICONS;
-use crate::global_search_ui::GlobalSearchUI;
-use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::settings_ui::backend::*;
 use crate::utils::*;
 
@@ -349,13 +345,7 @@ impl WelcomePageUI {
     }
 
     /// This function rebuilds the recent files list in the welcome widget.
-    pub unsafe fn build_recent_files(
-        app_ui: &Rc<AppUI>,
-        pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        global_search_ui: &Rc<GlobalSearchUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>,
-        dependencies_ui: &Rc<DependenciesUI>,
-    ) {
+    pub unsafe fn build_recent_files(app_ui: &Rc<AppUI>) {
         let container = &app_ui.welcome_page_ui().recent_files_widget;
         let layout = container.layout();
 
@@ -395,20 +385,9 @@ impl WelcomePageUI {
 
                     let slot = qt_core::SlotOfBool::new(&btn, clone!(
                         app_ui,
-                        pack_file_contents_ui,
-                        dependencies_ui,
-                        global_search_ui,
-                        diagnostics_ui,
                         path => move |_| {
                         if AppUI::are_you_sure(&app_ui, false, false) {
-                            if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &dependencies_ui, &[path.to_path_buf()], "", false) {
-                                return show_dialog(app_ui.main_window(), error, false);
-                            }
-
-                            if settings_bool(DIAGNOSTICS_TRIGGER_ON_OPEN) {
-                                app_ui.menu_bar_packfile().set_enabled(false);
-                                DiagnosticsUI::check(&app_ui, &diagnostics_ui);
-                            }
+                            AppUI::request_open_packfile(&app_ui, vec![path.to_path_buf()], "", false, true);
                         }
                     }));
                     btn.clicked().connect(&slot);

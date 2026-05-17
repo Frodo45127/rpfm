@@ -2196,7 +2196,7 @@ impl PackFileContentsSlots {
                                 show_dialog(app_ui.main_window(), "Error deleting the MyMod's Asset Folder.", false);
                             }
 
-                            AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &diagnostics_ui, &global_search_ui, &dependencies_ui);
+                            AppUI::build_open_mymod_submenus(&app_ui);
 
                             let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ClosePack(pack_key.clone()));
                             AppUI::enable_packfile_actions(&app_ui, false);
