@@ -66,7 +66,7 @@ Official release builds use these cargo feature flags:
 | `rpfm_server` | (defaults)      |
 | `rpfm_ui`     | `enable_tools`  |
 
-The release scripts both invoke `cargo build --release --features "enable_tools" --bin rpfm_ui`; keep them in sync if the feature set changes.
+The release scripts build both binaries in a single invocation (`cargo build --release --bin rpfm_server --bin rpfm_ui`) so the workspace resolves once and shared crates are compiled with a unified feature set. `enable_tools` is already on rpfm_ui's default feature list, so no explicit `--features` flag is needed; keep the scripts in sync if the feature set changes.
 
 ## Building a release
 

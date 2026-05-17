@@ -23,8 +23,7 @@ if (Test-Path "$RPFM_PATH\3rdparty\src\qt_rpfm_extensions\Makefile") {
 }
 
 # Build the tools.
-cargo build --release --bin rpfm_server
-cargo build --release --features "enable_tools" --bin rpfm_ui
+cargo build --release --bin rpfm_server --bin rpfm_ui
 
 # Upload debug symbols to Sentry so stack traces in crash reports get
 # resolved to function names and source lines. UI and server live in

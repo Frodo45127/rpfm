@@ -45,8 +45,7 @@ fi
 
 # Build release binaries.
 cargo clean
-cargo build --release --bin rpfm_server
-cargo build --release --features "enable_tools" --bin rpfm_ui
+cargo build --release --bin rpfm_server --bin rpfm_ui
 
 # Upload debug symbols to Sentry so stack traces in crash reports get
 # resolved to function names and source lines. UI and server live in
