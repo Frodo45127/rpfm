@@ -45,6 +45,7 @@ use qt_core::CaseSensitivity;
 use qt_core::CheckState;
 use qt_core::Orientation;
 use qt_core::QBox;
+use qt_core::QByteArray;
 use qt_core::QFlags;
 use qt_core::q_item_selection_model::SelectionFlag;
 use qt_core::QItemSelection;
@@ -1651,7 +1652,8 @@ impl TableView {
 
                 // If it's checkable, we need to get a bool. Otherwise it's a String.
                 let item = self.table_model.item_from_index(model_index);
-                if fields_processed[model_index.column() as usize].field_type() == &FieldType::Boolean {
+                let field_type = fields_processed[model_index.column() as usize].field_type();
+                if field_type == &FieldType::Boolean {
                     match item.check_state() {
                         CheckState::Checked => copy.push_str("true"),
                         CheckState::Unchecked => copy.push_str("false"),
@@ -1660,8 +1662,18 @@ impl TableView {
                 }
 
                 // Fix for weird precision issues on copy.
-                else if fields_processed[model_index.column() as usize].field_type() == &FieldType::F32 {
+                else if field_type == &FieldType::F32 {
                     copy.push_str(&format!("{:.4}", item.data_1a(2).to_float_0a()));
+                }
+
+                // Sequence cells have no visible text (the displayed label is just a placeholder),
+                // so encode the raw bytes as hex with a `SEQ:` marker that paste can recognise.
+                else if matches!(field_type, FieldType::SequenceU16(_) | FieldType::SequenceU32(_)) {
+                    let bytes = item.data_1a(ITEM_SEQUENCE_DATA).to_byte_array();
+                    copy.push_str("SEQ:");
+                    for i in 0..bytes.size() {
+                        copy.push_str(&format!("{:02x}", bytes.at(i) as u8));
+                    }
                 }
                 else { copy.push_str(&QString::to_std_string(&item.text())); }
 
@@ -1936,8 +1948,15 @@ impl TableView {
                         FieldType::OptionalStringU8 |
                         FieldType::OptionalStringU16 => true,
 
-                        // Ignore sequences.
-                        FieldType::SequenceU16(_) | FieldType::SequenceU32(_) => false,
+                        // Sequences are only accepted from our own copy format: `SEQ:` followed
+                        // by an even number of hex digits encoding the raw sub-table bytes.
+                        FieldType::SequenceU16(_) | FieldType::SequenceU32(_) => {
+                            if let Some(hex) = text.strip_prefix("SEQ:") {
+                                hex.len() % 2 == 0 && hex.bytes().all(|b| b.is_ascii_hexdigit())
+                            } else {
+                                false
+                            }
+                        }
                     };
 
                     // If it's valid, add it to the real_cells list.
@@ -2753,9 +2772,36 @@ impl TableView {
                         }
                     }
 
-                    // Do NOT rewrite sequences.
+                    // Sequences arrive as `SEQ:<hex>` from our copy path; decode the bytes and
+                    // write them to the ITEM_SEQUENCE_DATA role so the sub-table roundtrips.
                     FieldType::SequenceU16(_) |
-                    FieldType::SequenceU32(_) => {},
+                    FieldType::SequenceU32(_) => {
+                        if let Some(hex) = text.strip_prefix("SEQ:") {
+                            if hex.len() % 2 == 0 {
+                                let mut new_bytes = Vec::with_capacity(hex.len() / 2);
+                                let mut valid = true;
+                                for chunk in hex.as_bytes().chunks_exact(2) {
+                                    let pair = std::str::from_utf8(chunk).unwrap_or("");
+                                    match u8::from_str_radix(pair, 16) {
+                                        Ok(byte) => new_bytes.push(byte),
+                                        Err(_) => { valid = false; break; }
+                                    }
+                                }
+
+                                if valid {
+                                    let item = self.table_model.item_from_index(real_cell);
+                                    let current_bytes = item.data_1a(ITEM_SEQUENCE_DATA).to_byte_array();
+                                    let current_slice = current_bytes.as_slice().iter().map(|x| *x as u8).collect::<Vec<u8>>();
+                                    if current_slice != new_bytes {
+                                        let qbytes = QByteArray::from_slice(&new_bytes);
+                                        item.set_data_2a(&QVariant::from_q_byte_array(&qbytes), ITEM_SEQUENCE_DATA);
+                                        changed_cells += 1;
+                                        self.process_edition(item);
+                                    }
+                                }
+                            }
+                        }
+                    },
                 }
             }
         }
