@@ -506,7 +506,7 @@ impl Diagnostics {
         // These two are global, so do not execute on file-specific runs.
         if paths_to_check.is_empty() {
             self.results_mut().extend(DependencyDiagnostic::check(packs));
-            self.results_mut().extend(PackDiagnostic::check(packs, dependencies, game_info));
+            self.results_mut().extend(PackDiagnostic::check(packs, dependencies, game_info, game_path));
         }
 
         self.results_mut().sort_by(|a, b| {
