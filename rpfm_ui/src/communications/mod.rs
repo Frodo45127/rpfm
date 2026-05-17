@@ -160,6 +160,36 @@ impl<T: Send + Sync + Debug + for<'a> serde::Deserialize<'a>> CentralCommand<T> 
             Self::recv(receiver)
         }
     }
+
+    /// Non-panicking variant of [`Self::recv_try`]. Returns `None` if the sender is
+    /// already disconnected — used by call sites where a lost backend should fail
+    /// gracefully (e.g. the updater) instead of crashing the whole UI.
+    pub fn recv_try_checked(&self, receiver: &Receiver<T>) -> Option<T> {
+        let event_loop = unsafe { QEventLoop::new_0a() };
+
+        if !self.try_lock.load(Ordering::SeqCst) {
+            self.try_lock.store(true, Ordering::SeqCst);
+
+            loop {
+                match receiver.try_recv() {
+                    Ok(data) => {
+                        self.try_lock.store(false, Ordering::SeqCst);
+                        return Some(data);
+                    },
+                    Err(error) => if error.is_disconnected() {
+                        self.try_lock.store(false, Ordering::SeqCst);
+                        return None;
+                    }
+                }
+                unsafe { event_loop.process_events(); }
+            }
+        }
+
+        else {
+            info!("Race condition avoided? Two items calling recv_try on the same execution crashes.");
+            receiver.recv().ok()
+        }
+    }
 }
 
 /// Function to send a command to the backend and receive a result. Use it for commands that can fail.
@@ -183,9 +213,10 @@ where
     F: FnOnce(Response) -> T,
 {
     let receiver = CENTRAL_COMMAND.read().unwrap().send(command);
-    match CENTRAL_COMMAND.read().unwrap().recv_try(&receiver) {
-        Response::Error(error) => Err(anyhow!(error)),
-        response => Ok(extractor(response)),
+    match CENTRAL_COMMAND.read().unwrap().recv_try_checked(&receiver) {
+        Some(Response::Error(error)) => Err(anyhow!(error)),
+        Some(response) => Ok(extractor(response)),
+        None => Err(anyhow!("{THREADS_COMMUNICATION_ERROR}Disconnected")),
     }
 }
 

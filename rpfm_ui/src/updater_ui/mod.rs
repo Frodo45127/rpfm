@@ -27,6 +27,8 @@ use rpfm_ipc::settings_keys::*;
 
 use rpfm_lib::integrations::git::GitResponse;
 
+use rpfm_telemetry::warn;
+
 use rpfm_ui_common::PROGRAM_PATH;
 use rpfm_ui_common::utils::*;
 
@@ -102,9 +104,8 @@ impl UpdaterUI {
         }
 
         let updates_for_program = if let Some(receiver) = receiver_updates {
-            let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-            match response {
-                Response::APIResponse(response) => {
+            match CENTRAL_COMMAND.read().unwrap().recv_try_checked(&receiver) {
+                Some(Response::APIResponse(response)) => {
                     match response {
                         APIResponse::NewStableUpdate(_) |
                         APIResponse::NewBetaUpdate(_) |
@@ -116,17 +117,20 @@ impl UpdaterUI {
                     Some(response)
                 }
 
-                Response::Error(_) => None,
-                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                Some(Response::Error(_)) => None,
+                None => {
+                    warn!("Update precheck (program) skipped: background channel disconnected.");
+                    None
+                }
+                Some(response) => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
         } else {
             None
         };
 
         let updates_for_schema = if let Some(receiver) = receiver_schema_updates {
-            let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-            match response {
-                Response::APIResponseGit(response) => {
+            match CENTRAL_COMMAND.read().unwrap().recv_try_checked(&receiver) {
+                Some(Response::APIResponseGit(response)) => {
                     match response {
                         GitResponse::NoLocalFiles |
                         GitResponse::NewUpdate |
@@ -138,17 +142,20 @@ impl UpdaterUI {
                     Some(response)
                 }
 
-                Response::Error(_) => None,
-                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                Some(Response::Error(_)) => None,
+                None => {
+                    warn!("Update precheck (schema) skipped: background channel disconnected.");
+                    None
+                }
+                Some(response) => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
         } else {
             None
         };
 
         let updates_for_twautogen = if let Some(receiver) = receiver_lua_autogen_updates {
-            let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-            match response {
-                Response::APIResponseGit(response) => {
+            match CENTRAL_COMMAND.read().unwrap().recv_try_checked(&receiver) {
+                Some(Response::APIResponseGit(response)) => {
                     match response {
                         GitResponse::NoLocalFiles |
                         GitResponse::NewUpdate |
@@ -160,17 +167,20 @@ impl UpdaterUI {
                     Some(response)
                 }
 
-                Response::Error(_) => None,
-                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                Some(Response::Error(_)) => None,
+                None => {
+                    warn!("Update precheck (TW autogen) skipped: background channel disconnected.");
+                    None
+                }
+                Some(response) => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
         } else {
             None
         };
 
         let updates_for_old_ak = if let Some(receiver) = receiver_old_ak_updates {
-            let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-            match response {
-                Response::APIResponseGit(response) => {
+            match CENTRAL_COMMAND.read().unwrap().recv_try_checked(&receiver) {
+                Some(Response::APIResponseGit(response)) => {
                     match response {
                         GitResponse::NoLocalFiles |
                         GitResponse::NewUpdate |
@@ -182,8 +192,12 @@ impl UpdaterUI {
                     Some(response)
                 }
 
-                Response::Error(_) => None,
-                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                Some(Response::Error(_)) => None,
+                None => {
+                    warn!("Update precheck (Empire/Napoleon AK) skipped: background channel disconnected.");
+                    None
+                }
+                Some(response) => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
             }
         } else {
             None
@@ -367,7 +381,9 @@ impl UpdaterUI {
                                 }
                             }
                             Err(error) => if error.is_disconnected() {
-                                panic!("{THREADS_COMMUNICATION_ERROR}");
+                                warn!("Update refresh (program) skipped: background channel disconnected.");
+                                pending_program = false;
+                                update_program_button.set_text(&qtr("updater_update_program_no_updates"));
                             }
                         }
                     }
@@ -398,7 +414,9 @@ impl UpdaterUI {
                             }
                         }
                         Err(error) => if error.is_disconnected() {
-                            panic!("{THREADS_COMMUNICATION_ERROR}");
+                            warn!("Update refresh (schema) skipped: background channel disconnected.");
+                            pending_schema = false;
+                            update_schemas_button.set_text(&qtr("updater_update_schemas_no_updates"));
                         }
                     }
                 }
@@ -428,7 +446,9 @@ impl UpdaterUI {
                             }
                         }
                         Err(error) => if error.is_disconnected() {
-                            panic!("{THREADS_COMMUNICATION_ERROR}");
+                            warn!("Update refresh (TW autogen) skipped: background channel disconnected.");
+                            pending_twautogen = false;
+                            update_twautogen_button.set_text(&qtr("updater_update_twautogen_no_updates"));
                         }
                     }
                 }
@@ -458,7 +478,9 @@ impl UpdaterUI {
                             }
                         }
                         Err(error) => if error.is_disconnected() {
-                            panic!("{THREADS_COMMUNICATION_ERROR}");
+                            warn!("Update refresh (Empire/Napoleon AK) skipped: background channel disconnected.");
+                            pending_old_ak = false;
+                            update_old_ak_button.set_text(&qtr("updater_update_old_ak_no_updates"));
                         }
                     }
                 }
