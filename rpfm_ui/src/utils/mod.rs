@@ -27,7 +27,11 @@ use qt_gui::QAction;
 use qt_gui::QGuiApplication;
 use qt_gui::QIcon;
 use qt_gui::q_palette::ColorRole;
+#[cfg(target_os = "windows")] use qt_gui::QColor;
+#[cfg(target_os = "windows")] use qt_gui::QPalette;
+#[cfg(target_os = "windows")] use qt_gui::q_palette::ColorGroup;
 
+#[cfg(target_os = "windows")] use qt_core::ColorScheme;
 #[cfg(target_os = "windows")] use qt_core::QCoreApplication;
 use qt_core::QFlags;
 use qt_core::QListOfQObject;
@@ -395,10 +399,84 @@ pub unsafe fn is_dark_theme() -> bool {
     window_color.lightness() < 128
 }
 
+/// Builds a softened gruvbox-flavored dark QPalette.
+///
+/// Used on Windows in place of Qt Fusion's stock dark palette, whose ~#191919 backgrounds
+/// against pure-white text produce harsh contrast. The gruvbox tones lift backgrounds to
+/// ~#282828 and dim text to a warm cream (~#ebdbb2) for a softer reading experience.
+#[cfg(target_os = "windows")]
+unsafe fn build_gruvbox_dark_palette() -> CppBox<QPalette> {
+    let make = |hex: &str| QColor::from_q_string(&QString::from_std_str(hex));
+
+    let bg0   = make("#282828");
+    let bg0_h = make("#1d2021");
+    let bg0_s = make("#32302f");
+    let bg1   = make("#3c3836");
+    let bg2   = make("#504945");
+    let bg3   = make("#665c54");
+    let bg4   = make("#7c6f64");
+
+    let fg0 = make("#fbf1c7");
+    let fg1 = make("#ebdbb2");
+    let fg4 = make("#a89984");
+
+    let red_bright    = make("#fb4934");
+    let blue          = make("#458588");
+    let blue_bright   = make("#83a598");
+    let purple_bright = make("#d3869b");
+    let orange        = make("#d65d0e");
+
+    let palette = QPalette::new();
+
+    palette.set_color_2a(ColorRole::Window, &bg0);
+    palette.set_color_2a(ColorRole::WindowText, &fg1);
+    palette.set_color_2a(ColorRole::Base, &bg0_h);
+    palette.set_color_2a(ColorRole::AlternateBase, &bg0_s);
+    palette.set_color_2a(ColorRole::Text, &fg1);
+    palette.set_color_2a(ColorRole::ToolTipBase, &bg1);
+    palette.set_color_2a(ColorRole::ToolTipText, &fg1);
+    // Fusion paints buttons, tool buttons, scrollbar handles, tabs and table headers
+    // as a gradient derived from Button, with the gradient top reaching lighter(115).
+    // Setting Button equal to Window keeps the gradient envelope flush with the panel
+    // instead of producing a visibly brighter band; the widgets still read as buttons
+    // through the gradient shading, the Mid/Dark border, and hover via Highlight.
+    palette.set_color_2a(ColorRole::Button, &bg0);
+    palette.set_color_2a(ColorRole::ButtonText, &fg1);
+    palette.set_color_2a(ColorRole::BrightText, &red_bright);
+
+    // Light/Midlight/Mid/Dark/Shadow must follow Qt's lightness ordering
+    // (Light > Midlight > Button > Mid > Dark > Shadow) because Fusion uses these
+    // for borders, separators, and gradient shading on toolbars/menus. A too-light
+    // Mid (e.g. bg3) reads as a misplaced warm strip against the neutral Window;
+    // a Midlight far above Window exaggerates toolbar gradients. Keep the range
+    // tight so Fusion's auto-shading blends cleanly with the gruvbox panels.
+    palette.set_color_2a(ColorRole::Light, &bg1);
+    palette.set_color_2a(ColorRole::Midlight, &bg0_s);
+    palette.set_color_2a(ColorRole::Mid, &bg0_h);
+    palette.set_color_2a(ColorRole::Dark, &bg0_h);
+    palette.set_color_2a(ColorRole::Shadow, &bg0_h);
+    palette.set_color_2a(ColorRole::Highlight, &blue);
+    palette.set_color_2a(ColorRole::HighlightedText, &fg0);
+    palette.set_color_2a(ColorRole::Link, &blue_bright);
+    palette.set_color_2a(ColorRole::LinkVisited, &purple_bright);
+    palette.set_color_2a(ColorRole::PlaceholderText, &fg4);
+    palette.set_color_2a(ColorRole::Accent, &orange);
+
+    palette.set_color_3a(ColorGroup::Disabled, ColorRole::WindowText, &bg4);
+    palette.set_color_3a(ColorGroup::Disabled, ColorRole::Text, &bg4);
+    palette.set_color_3a(ColorGroup::Disabled, ColorRole::ButtonText, &bg4);
+    palette.set_color_3a(ColorGroup::Disabled, ColorRole::Highlight, &bg2);
+    palette.set_color_3a(ColorGroup::Disabled, ColorRole::HighlightedText, &fg4);
+    palette.set_color_3a(ColorGroup::Disabled, ColorRole::PlaceholderText, &bg3);
+
+    palette
+}
+
 /// This function refreshes theme-dependent UI elements to match the current native theme.
 ///
-/// It does NOT override the native palette or stylesheet — Qt/KDE handles those.
-/// It only updates elements that need manual intervention: icons with light/dark variants,
+/// On Windows the dark variant is replaced with a softened gruvbox-flavored palette;
+/// other platforms keep the native palette unchanged.
+/// It updates elements that need manual intervention: icons with light/dark variants,
 /// diagnostic filter button colors, and forces a full repaint.
 pub unsafe fn reload_theme(app_ui: &AppUI) {
 
@@ -408,21 +486,34 @@ pub unsafe fn reload_theme(app_ui: &AppUI) {
     #[cfg(target_os = "windows")] {
         let app = QCoreApplication::instance();
         let qapp = app.static_downcast::<QApplication>();
-        if is_dark_theme() {
+
+        // Detect the system color scheme via QStyleHints, not the application palette —
+        // once we override with gruvbox below, the application palette no longer reflects
+        // future system light/dark switches.
+        let system_dark = QGuiApplication::style_hints().color_scheme() == ColorScheme::Dark;
+
+        if system_dark {
             qapp.set_style_sheet(&QString::from_std_str(
                 "QDockWidget {\
                     titlebar-close-icon: url(:/icons/breeze/actions/22/window-close.svg);\
                     titlebar-normal-icon: url(:/icons/breeze/actions/22/window-restore.svg);\
                 }"
             ));
+            let palette = build_gruvbox_dark_palette();
+            QApplication::set_palette_1a(&palette);
         } else {
             qapp.set_style_sheet(&QString::from_std_str(""));
+            // Restore the style's default palette for the current (light) scheme.
+            let palette = QApplication::style().standard_palette();
+            QApplication::set_palette_1a(&palette);
         }
     }
 
     // Re-apply the current native palette to force all widgets to refresh.
-    let native_palette = QGuiApplication::palette();
-    QApplication::set_palette_1a(&native_palette);
+    #[cfg(not(target_os = "windows"))] {
+        let native_palette = QGuiApplication::palette();
+        QApplication::set_palette_1a(&native_palette);
+    }
 
     // Select the appropriate GitHub icon based on the native theme.
     let github_icon = if is_dark_theme() {
