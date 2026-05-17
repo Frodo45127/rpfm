@@ -340,7 +340,6 @@ impl Logger {
             environment: Some(environment),
             sample_rate: 0.3,
             traces_sample_rate: 0.3,
-            enable_logs: true,
             auto_session_tracking: true,
             session_mode: SessionMode::Application,
             before_send: Some(before_send),
