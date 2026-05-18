@@ -10,6 +10,8 @@
 
 //! Shared data types for v1 (Shogun 2) group formations.
 
+use std::fmt::Display;
+
 use bitflags::bitflags;
 use serde_derive::{Serialize, Deserialize};
 
@@ -201,5 +203,75 @@ impl TryFrom<u32> for EntityType {
 impl From<EntityType> for u32 {
     fn from(value: EntityType) -> u32 {
         value as u32
+    }
+}
+
+impl Display for EntityType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::ArtilleryFixed => write!(f, "Fixed Artillery"),
+            Self::ArtilleryFoot => write!(f, "Foot Artillery"),
+            Self::ArtilleryHorse => write!(f, "Horse Artillery"),
+            Self::CavalryCamels => write!(f, "Camel Cavalry"),
+            Self::CavalryHeavy => write!(f, "Heavy Cavalry"),
+            Self::CavalryIrregular => write!(f, "Irregular Cavalry"),
+            Self::CavalryLancers => write!(f, "Lancer Cavalry"),
+            Self::CavalryLight => write!(f, "Light Cavalry"),
+            Self::CavalryMissile => write!(f, "Missile Cavalry"),
+            Self::CavalryStandard => write!(f, "Standard Cavalry"),
+            Self::Dragoons => write!(f, "Dragoons"),
+            Self::Elephants => write!(f, "Elephants"),
+            Self::General => write!(f, "General"),
+            Self::InfantryBerserker => write!(f, "Berserker Infantry"),
+            Self::InfantryElite => write!(f, "Elite Infantry"),
+            Self::InfantryGrenadiers => write!(f, "Grenadier Infantry"),
+            Self::InfantryIrregulars => write!(f, "Irregular Infantry"),
+            Self::InfantryLight => write!(f, "Light Infantry"),
+            Self::InfantryLine => write!(f, "Line Infantry"),
+            Self::InfantryMelee => write!(f, "Melee Infantry"),
+            Self::InfantryMilitia => write!(f, "Militia Infantry"),
+            Self::InfantryMob => write!(f, "Mob Infantry"),
+            Self::InfantrySkirmishers => write!(f, "Skirmisher Infantry"),
+            Self::NavalAdmiral => write!(f, "Admiral"),
+            Self::NavalBombKetch => write!(f, "Bomb Ketch"),
+            Self::NavalBrig => write!(f, "Brig"),
+            Self::NavalDhow => write!(f, "Dhow"),
+            Self::NavalFifthRate => write!(f, "Fifth Rate"),
+            Self::NavalFirstRate => write!(f, "First Rate"),
+            Self::NavalFourthRate => write!(f, "Fourth Rate"),
+            Self::NavalHeavyGalley => write!(f, "Heavy Galley"),
+            Self::NavalIndiaman => write!(f, "Indiaman"),
+            Self::NavalLightGalley => write!(f, "Light Galley"),
+            Self::NavalLugger => write!(f, "Lugger"),
+            Self::NavalMediumGalley => write!(f, "Medium Galley"),
+            Self::NavalOverFirstRate => write!(f, "Over First Rate"),
+            Self::NavalRazee => write!(f, "Razee"),
+            Self::NavalRocketShip => write!(f, "Rocket Ship"),
+            Self::NavalSecondRate => write!(f, "Second Rate"),
+            Self::NavalSixthRate => write!(f, "Sixth Rate"),
+            Self::NavalSloop => write!(f, "Sloop"),
+            Self::NavalSteamShip => write!(f, "Steam Ship"),
+            Self::NavalThirdRate => write!(f, "Third Rate"),
+            Self::NavalXebec => write!(f, "Xebec"),
+            Self::InfantrySpearman => write!(f, "Spearman Infantry"),
+            Self::InfantryHeavy => write!(f, "Heavy Infantry"),
+            Self::InfantrySpecial => write!(f, "Special Infantry"),
+            Self::InfantryBow => write!(f, "Bow Infantry"),
+            Self::InfantryMatchlock => write!(f, "Matchlock Infantry"),
+            Self::InfantrySword => write!(f, "Sword Infantry"),
+            Self::Siege => write!(f, "Siege"),
+            Self::CavalrySword => write!(f, "Sword Cavalry"),
+            Self::NavalHeavyShip => write!(f, "Heavy Ship"),
+            Self::NavalMediumShip => write!(f, "Medium Ship"),
+            Self::NavalLightShip => write!(f, "Light Ship"),
+            Self::NavalCannonShip => write!(f, "Cannon Ship"),
+            Self::NavalGalleon => write!(f, "Galleon"),
+            Self::NavalIronclad => write!(f, "Ironclad"),
+            Self::NavalCorvette => write!(f, "Corvette"),
+            Self::NavalFrigate => write!(f, "Frigate"),
+            Self::NavalGunboat => write!(f, "Gunboat"),
+            Self::NavalTorpedoboat => write!(f, "Torpedo Boat"),
+            Self::Any => write!(f, "Any"),
+        }
     }
 }

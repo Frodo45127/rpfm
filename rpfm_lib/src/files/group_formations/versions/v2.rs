@@ -13,6 +13,8 @@
 //! Used by: Rome 2, Attila, Warhammer, Warhammer 2, Thrones of Britannia,
 //! Three Kingdoms, Troy, Pharaoh, Warhammer 3.
 
+use std::fmt::Display;
+
 use bitflags::bitflags;
 use serde_derive::{Serialize, Deserialize};
 
@@ -68,7 +70,7 @@ pub enum EntityType {
     InfSpr = 1,
     InfPik = 2,
     InfMis = 3,
-    Com = 4,
+    #[default] Com = 4,
     CavShk = 5,
     CavMel = 6,
     CavMis = 7,
@@ -77,14 +79,14 @@ pub enum EntityType {
     Spcl = 10,
     ArtFld = 11,
     ArtFix = 12,
-    Uk13 = 13,
+    ArtSiege = 13,
     ShpMel = 14,
     ShpMis = 15,
     ShpArt = 16,
     ShpTrn = 17,
-    #[default] Any = 18,
-    Uk19 = 19,
-    Uk20 = 20,
+    ShpStk = 18,
+    ShpFir = 19,
+    Invalid = 20,
     Uk21 = 21,
     Uk22 = 22,
     Uk23 = 23,
@@ -108,14 +110,14 @@ impl TryFrom<u32> for EntityType {
             _ if value == Self::Spcl as u32 => Ok(Self::Spcl),
             _ if value == Self::ArtFld as u32 => Ok(Self::ArtFld),
             _ if value == Self::ArtFix as u32 => Ok(Self::ArtFix),
-            _ if value == Self::Uk13 as u32 => Ok(Self::Uk13),
+            _ if value == Self::ArtSiege as u32 => Ok(Self::ArtSiege),
             _ if value == Self::ShpMel as u32 => Ok(Self::ShpMel),
             _ if value == Self::ShpMis as u32 => Ok(Self::ShpMis),
             _ if value == Self::ShpArt as u32 => Ok(Self::ShpArt),
             _ if value == Self::ShpTrn as u32 => Ok(Self::ShpTrn),
-            _ if value == Self::Any as u32 => Ok(Self::Any),
-            _ if value == Self::Uk19 as u32 => Ok(Self::Uk19),
-            _ if value == Self::Uk20 as u32 => Ok(Self::Uk20),
+            _ if value == Self::ShpStk as u32 => Ok(Self::ShpStk),
+            _ if value == Self::ShpFir as u32 => Ok(Self::ShpFir),
+            _ if value == Self::Invalid as u32 => Ok(Self::Invalid),
             _ if value == Self::Uk21 as u32 => Ok(Self::Uk21),
             _ if value == Self::Uk22 as u32 => Ok(Self::Uk22),
             _ if value == Self::Uk23 as u32 => Ok(Self::Uk23),
@@ -128,5 +130,37 @@ impl TryFrom<u32> for EntityType {
 impl From<EntityType> for u32 {
     fn from(value: EntityType) -> u32 {
         value as u32
+    }
+}
+
+impl Display for EntityType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InfMel => write!(f, "Missile Infantry"),
+            Self::InfSpr => write!(f, "Spear Infantry"),
+            Self::InfPik => write!(f, "Pike Infantry"),
+            Self::InfMis => write!(f, "Missile Infantry"),
+            Self::Com => write!(f, "Command"),
+            Self::CavShk => write!(f, "Shock Cavalry"),
+            Self::CavMel => write!(f, "Melee Cavalry"),
+            Self::CavMis => write!(f, "Missile Cavalry"),
+            Self::Chariot => write!(f, "Chariot"),
+            Self::Elph => write!(f, "Elephant"),
+            Self::Spcl => write!(f, "Special"),
+            Self::ArtFld => write!(f, "Field Artillery"),
+            Self::ArtFix => write!(f, "Fixed Artillery"),
+            Self::ArtSiege => write!(f, "Siege Artillery"),
+            Self::ShpMel => write!(f, "Melee Ship"),
+            Self::ShpMis => write!(f, "Missile Ship"),
+            Self::ShpArt => write!(f, "Artillery Ship"),
+            Self::ShpTrn => write!(f, "Transport Ship"),
+            Self::ShpStk => write!(f, "Ramming Ship"),
+            Self::ShpFir => write!(f, "Fire Ship"),
+            Self::Invalid => write!(f, "Invalid"),
+            Self::Uk21 => write!(f, "Uk21"),
+            Self::Uk22 => write!(f, "Uk22"),
+            Self::Uk23 => write!(f, "Uk23"),
+            Self::Uk24 => write!(f, "Uk24"),
+        }
     }
 }
