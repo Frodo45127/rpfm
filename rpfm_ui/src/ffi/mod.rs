@@ -699,13 +699,6 @@ pub extern fn anim_paths_by_skeleton_callback(skeleton_name: *mut QString, out: 
 
 /// This function allow us to create a dialog when trying to close the main window.
 pub extern "C" fn are_you_sure(main_window: *mut QMainWindow, is_delete_my_mod: bool, is_full_close: bool) -> bool {
-    unsafe {
-        if is_full_close {
-            let _ = settings_set_raw_data(GEOMETRY, &main_window.as_ref().unwrap().save_geometry().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
-            let _ = settings_set_raw_data(WINDOW_STATE, &main_window.as_ref().unwrap().save_state_0a().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
-        }
-    }
-
     let title = qtr("rpfm_title");
     let message = if is_delete_my_mod {
         qtr("delete_mymod_0")
@@ -713,6 +706,7 @@ pub extern "C" fn are_you_sure(main_window: *mut QMainWindow, is_delete_my_mod: 
         if UI_STATE.get_is_modified() {
             qtr("delete_mymod_1")
         } else {
+            unsafe { save_main_window_state(main_window); }
             request_disconnect();
             return true;
         }
@@ -732,12 +726,27 @@ pub extern "C" fn are_you_sure(main_window: *mut QMainWindow, is_delete_my_mod: 
         message_box.exec() == StandardButton::Yes.to_int()
     };
 
-    // If the user confirmed closing, notify the server before actually closing.
     if result && is_full_close {
+        unsafe { save_main_window_state(main_window); }
         request_disconnect();
     }
 
     result
+}
+
+/// Persists the main window's geometry and dock/toolbar layout to settings.
+///
+/// # Arguments
+///
+/// * `main_window`: Pointer to the main window whose state is being saved.
+///
+/// # Safety
+///
+/// The caller must guarantee `main_window` points to a live `QMainWindow`.
+unsafe fn save_main_window_state(main_window: *mut QMainWindow) {
+    let window = main_window.as_ref().unwrap();
+    let _ = settings_set_raw_data(GEOMETRY, &window.save_geometry().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
+    let _ = settings_set_raw_data(WINDOW_STATE, &window.save_state_0a().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
 }
 
 /// This function allow us to create a dialog when trying to close another dialog.
