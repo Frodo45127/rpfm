@@ -58,6 +58,15 @@ QTableViewFrozen::QTableViewFrozen(QWidget* parent, void (*generate_tooltip_mess
     tableViewFrozen = new QTableView(this);
     generateTooltipMessage = generate_tooltip_message;
 
+    // Geometry cache starts invalid so the first updateFrozenTableGeometry call always applies.
+    geometryCacheValid = false;
+    cachedFrozenEmpty = true;
+    cachedVHeaderWidth = -1;
+    cachedFrozenWidth = -1;
+    cachedFrameWidth = -1;
+    cachedViewportHeight = -1;
+    cachedHHeaderHeight = -1;
+
     // Connect the header's resize signal of both QTableViews together, so they keep the same size.
     // Use blockSignals to prevent feedback loops between main↔frozen resize syncs.
     connect(
@@ -292,8 +301,25 @@ void QTableViewFrozen::updateFrozenTableGeometry() {
         vHeaderWidth = verticalHeader()->sizeHint().width();
     }
     int fw = frameWidth();
+    bool frozenEmpty = frozenColumns.isEmpty();
+    int vph = viewport()->height();
+    int hhh = horizontalHeader()->height();
 
-    if (frozenColumns.isEmpty()) {
+    // Early-exit when nothing relevant changed since the last apply. Every show()/hide()/
+    // setViewportMargins call below queues a paint event, and this function is called from many
+    // paths (resize, every edit, every paste, every batch op), so re-applying when state is
+    // unchanged was producing visible flicker on the vertical header.
+    if (geometryCacheValid &&
+        cachedFrozenEmpty == frozenEmpty &&
+        cachedVHeaderWidth == vHeaderWidth &&
+        cachedFrozenWidth == frozenWidth &&
+        cachedFrameWidth == fw &&
+        cachedViewportHeight == vph &&
+        cachedHHeaderHeight == hhh) {
+        return;
+    }
+
+    if (frozenEmpty) {
         verticalHeader()->show();
         tableViewFrozen->verticalHeader()->hide();
         tableViewFrozen->hide();
@@ -317,7 +343,7 @@ void QTableViewFrozen::updateFrozenTableGeometry() {
             fw,
             fw,
             vHeaderWidth + frozenWidth,
-            viewport()->height() + horizontalHeader()->height()
+            vph + hhh
         );
         tableViewFrozen->raise();
         tableViewFrozen->show();
@@ -325,6 +351,14 @@ void QTableViewFrozen::updateFrozenTableGeometry() {
         // Ensure the frozen view never scrolls horizontally — it must stay pinned at 0.
         tableViewFrozen->horizontalScrollBar()->setValue(0);
     }
+
+    cachedFrozenEmpty = frozenEmpty;
+    cachedVHeaderWidth = vHeaderWidth;
+    cachedFrozenWidth = frozenWidth;
+    cachedFrameWidth = fw;
+    cachedViewportHeight = vph;
+    cachedHHeaderHeight = hhh;
+    geometryCacheValid = true;
 }
 
 void QTableViewFrozen::toggleFreezer(int column) {

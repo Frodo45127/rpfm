@@ -1396,9 +1396,8 @@ impl TableView {
         // Update the line count.
         self.update_line_counter();
 
-        // Update the left-side header. This is to workaround a bug that causes said header to vanish on filter.
-        self.table_view().vertical_header().set_visible(false);
-        self.table_view().vertical_header().set_visible(true);
+        // Force a repaint of the vertical header after filtering.
+        self.table_view().vertical_header().static_upcast::<qt_widgets::QWidget>().update();
     }
 
     /// This function resets the currently selected cells to their original value.

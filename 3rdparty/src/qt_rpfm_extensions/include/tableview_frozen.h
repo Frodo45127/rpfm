@@ -33,6 +33,17 @@ private:
     bool sortSyncInProgress;
     void (*generateTooltipMessage)(QTableView* view, int globalPosX, int globalPosY);
 
+    // Cached state from the last applied updateFrozenTableGeometry pass. Used to early-exit when
+    // nothing has changed, so we don't re-trigger show()/hide()/setViewportMargins side effects
+    // (which were causing vertical-header flicker on every edit/filter/repaint cycle).
+    bool geometryCacheValid;
+    bool cachedFrozenEmpty;
+    int cachedVHeaderWidth;
+    int cachedFrozenWidth;
+    int cachedFrameWidth;
+    int cachedViewportHeight;
+    int cachedHHeaderHeight;
+
 public slots:
     void toggleFreezer(int column = 0);
 
