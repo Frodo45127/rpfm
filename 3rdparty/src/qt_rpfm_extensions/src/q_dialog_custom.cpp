@@ -17,9 +17,16 @@ QDialogCustom::QDialogCustom(QWidget *parent, bool (*are_you_sure_fn) (QDialog* 
 
 // Overload of the close event so we can put a dialog there.
 void QDialogCustom::closeEvent(QCloseEvent *event) {
+
+    // Do not trigger events for invisible/closed dialogs.
+    if (!isVisible()) {
+        event->accept();
+        return;
+    }
+
     event->ignore();
 
-    if (are_you_sure(this)) {
+    if (are_you_sure && are_you_sure(this)) {
         event->accept();
     }
 }
