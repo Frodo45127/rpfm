@@ -18,7 +18,7 @@ use qt_widgets::QLabel;
 use qt_widgets::QLayout;
 use qt_widgets::QLineEdit;
 use qt_widgets::QMainWindow;
-use qt_widgets::{QMessageBox, q_message_box};
+use qt_widgets::{QMessageBox, q_message_box::{Icon, StandardButton}};
 use qt_widgets::QTableView;
 use qt_widgets::QTreeView;
 use qt_widgets::QWidget;
@@ -33,6 +33,7 @@ use qt_core::CaseSensitivity;
 use qt_core::QBox;
 use qt_core::QBuffer;
 use qt_core::QByteArray;
+use qt_core::QFlags;
 #[cfg(feature = "support_model_renderer")] use qt_core::QListOfQByteArray;
 use qt_core::QListOfQObject;
 #[cfg(feature = "support_model_renderer")] use qt_core::QListOfQString;
@@ -719,19 +720,16 @@ pub extern "C" fn are_you_sure(main_window: *mut QMainWindow, is_delete_my_mod: 
         return true
     };
 
-    // If we're closing the main window, save the geometry to the settings before closing it.
     let result = unsafe {
-
-        // Create the dialog and run it (Yes => 3, No => 4).
-        QMessageBox::from_2_q_string_icon3_int_q_widget(
+        let message_box = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
+            Icon::Warning,
             &title,
             &message,
-            q_message_box::Icon::Warning,
-            65536, // No
-            16384, // Yes
-            1, // By default, select yes.
+            QFlags::from(StandardButton::Yes) | StandardButton::No,
             main_window,
-        ).exec() == 3
+        );
+        message_box.set_default_button_standard_button(StandardButton::Yes);
+        message_box.exec() == StandardButton::Yes.to_int()
     };
 
     // If the user confirmed closing, notify the server before actually closing.
@@ -747,16 +745,17 @@ pub extern "C" fn are_you_sure(main_window: *mut QMainWindow, is_delete_my_mod: 
     let title = qtr("rpfm_title");
     let message = qtr("close_tool");
 
-    // Create the dialog and run it (Yes => 3, No => 4).
-    unsafe { QMessageBox::from_2_q_string_icon3_int_q_widget(
-        &title,
-        &message,
-        q_message_box::Icon::Warning,
-        65536, // No
-        16384, // Yes
-        1, // By default, select yes.
-        dialog,
-    ).exec() == 3 }
+    unsafe {
+        let message_box = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
+            Icon::Warning,
+            &title,
+            &message,
+            QFlags::from(StandardButton::Yes) | StandardButton::No,
+            dialog,
+        );
+        message_box.set_default_button_standard_button(StandardButton::Yes);
+        message_box.exec() == StandardButton::Yes.to_int()
+    }
 }
 
 pub extern "C" fn generate_tooltip_message(view: *mut QTableView, global_pos_x: i32, global_pos_y: i32) {
