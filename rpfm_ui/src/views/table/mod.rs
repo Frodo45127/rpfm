@@ -1221,6 +1221,11 @@ impl TableView {
     pub unsafe fn update_key_deletes_list(view: &Arc<Self>, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
 
         // The add to key deletes menu works a bit different. Must be enabled only in supported games, regardless of pack source.
+        view.context_menu_add_to_twad_key_deletes_m.set_enabled(false);
+        if GAME_SELECTED.read().unwrap().key() != KEY_WARHAMMER_3 {
+            return;
+        }
+
         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
         if pack_key.is_empty() {
             return;
@@ -1254,10 +1259,8 @@ impl TableView {
             }
         }
 
-        if !context_menu_add_to_twad_key_deletes.is_empty() && GAME_SELECTED.read().unwrap().key() == KEY_WARHAMMER_3 {
+        if !context_menu_add_to_twad_key_deletes.is_empty() {
             view.context_menu_add_to_twad_key_deletes_m.set_enabled(true);
-        } else {
-            view.context_menu_add_to_twad_key_deletes_m.set_enabled(false);
         }
     }
 
