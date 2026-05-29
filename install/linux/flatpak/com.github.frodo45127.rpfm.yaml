@@ -52,8 +52,11 @@ modules:
       - rm -rf 3rdparty/src/qt_rpfm_extensions/Makefile
       - rm -rf target/qt_rpfm_extensions
 
-      # Build the binaries in a single command.
-      - cargo build --release --offline -p rpfm_server -p rpfm_ui
+      - |
+        set -a
+        [ -f .env ] && . ./.env
+        set +a
+        cargo build --release --offline -p rpfm_server -p rpfm_ui
 
       # Install binaries
       - install -Dm755 target/release/rpfm_server /app/bin/rpfm_server

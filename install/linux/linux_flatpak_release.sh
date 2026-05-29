@@ -41,6 +41,10 @@ done
 
 cd "$REPO_ROOT"
 
+if [ ! -f "$REPO_ROOT/.env" ]; then
+    echo "Warning: .env not found at repo root; the Flatpak will be built without Sentry DSNs / PostHog keys (telemetry and crash reporting disabled)."
+fi
+
 # Read the runtime version from the manifest so we have a single source of truth.
 RUNTIME_VERSION=$(grep 'runtime-version:' "$MANIFEST" | head -1 | sed "s/.*runtime-version: *['\"]\\{0,1\\}\\([^'\"]*\\)['\"]\\{0,1\\}/\\1/")
 echo "Runtime version from manifest: ${RUNTIME_VERSION}"
