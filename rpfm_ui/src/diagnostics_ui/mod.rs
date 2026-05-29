@@ -280,6 +280,7 @@ impl DiagnosticsUI {
         let diagnostics_table_model = QStandardItemModel::new_1a(&diagnostics_dock_inner_widget);
         diagnostics_table_filter.set_source_model(&diagnostics_table_model);
         diagnostics_table_view.set_model(&diagnostics_table_filter);
+        diagnostics_table_view.set_sorting_enabled(true);
 
         if settings_bool(TIGHT_TABLE_MODE) {
             diagnostics_table_view.vertical_header().set_minimum_section_size(22);
