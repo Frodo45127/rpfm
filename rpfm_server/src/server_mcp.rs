@@ -1562,7 +1562,7 @@ impl McpServer {
     // Dependencies
     //-----------------------------------------------------------------------//
 
-    #[tool(description = "Generate the dependencies cache for the selected game.")]
+    #[tool(description = "Generate the dependencies cache for the selected game. This can take a long time (more than 30 seconds), depending on your CPU and disk read speed. If the client is not careful, it can take enough time that the client may trigger a timeout.")]
     pub async fn generate_dependencies_cache(&self) -> Result<CallToolResult, McpError> {
         send_and_respond!(self, "generate_dependencies_cache", Command::GenerateDependenciesCache)
     }
