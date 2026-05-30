@@ -246,7 +246,8 @@ impl TableDiagnostic {
         files_to_ignore: &Option<Vec<DiagnosticIgnoreEntry>>,
         packs: &BTreeMap<String, Pack>,
         schema: &Schema,
-        loc_data: &Option<HashMap<Cow<str>, Cow<str>>>
+        loc_data: &Option<HashMap<Cow<str>, Cow<str>>>,
+        ca_packs: &HashSet<String>,
     ) -> Vec<DiagnosticType> {
         let mut diagnostics = vec![];
 
@@ -339,7 +340,7 @@ impl TableDiagnostic {
                         diagnostic.results_mut().push(result);
                     }
 
-                    if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("TableIsDataCoring"), &table_info.ignored_fields, &table_info.ignored_diagnostics, &table_info.ignored_diagnostics_for_fields) {
+                    if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("TableIsDataCoring"), &table_info.ignored_fields, &table_info.ignored_diagnostics, &table_info.ignored_diagnostics_for_fields) && !ca_packs.contains(table_info.pack_key) {
                         match game_info.vanilla_db_table_name_logic() {
                             VanillaDBTableNameLogic::FolderName => {
                                 if table.table_name_without_tables() == file.path_in_container_split()[2] {

@@ -14,10 +14,10 @@ use getset::{Getters, MutGetters};
 use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 
-use std::path::{Path, PathBuf};
 use std::{fmt, fmt::Display};
 
 use rpfm_lib::files::{Container, EncodeableExtraData, pack::Pack, RFile};
+use rpfm_lib::games::GameInfo;
 use rpfm_lib::utils::INVALID_CHARACTERS_WINDOWS;
 
 use crate::diagnostics::*;
@@ -105,13 +105,12 @@ impl Display for PackDiagnosticReportType {
 impl PackDiagnostic {
 
     /// This function takes care of checking for PackFile-Related for errors.
-    pub fn check(packs: &mut BTreeMap<String, Pack>, dependencies: &mut Dependencies, game: &GameInfo, game_path: &Path) -> Vec<DiagnosticType> {
+    pub fn check(packs: &mut BTreeMap<String, Pack>, dependencies: &mut Dependencies, game: &GameInfo, ca_packs: &HashSet<String>) -> Vec<DiagnosticType> {
         let mut diagnostics = Vec::new();
         let extra_data = Some(EncodeableExtraData::new_from_game_info(game));
-        let ca_packs: HashSet<PathBuf> = game.ca_packs_paths(game_path).unwrap_or_default().into_iter().collect();
         for (key, pack) in packs.iter_mut() {
             let mut diagnostic = PackDiagnostic { pack: key.clone(), ..Default::default() };
-            let is_ca_pack = ca_packs.contains(&PathBuf::from(pack.disk_file_path()));
+            let is_ca_pack = ca_packs.contains(key);
 
             let name = pack.disk_file_name();
             if name.contains(' ') {

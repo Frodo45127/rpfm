@@ -105,6 +105,7 @@ use rpfm_lib::error::Result;
 use rpfm_lib::files::{ContainerPath, Container, DecodeableExtraData, FileType, pack::{DiagnosticIgnoreEntry, Pack}, RFile, RFileDecoded};
 use rpfm_lib::games::{GameInfo, VanillaDBTableNameLogic};
 use rpfm_lib::schema::{FieldType, Schema};
+use rpfm_lib::utils::path_to_absolute_string;
 
 use crate::dependencies::Dependencies;
 
@@ -327,6 +328,17 @@ impl Diagnostics {
         // TODO: Check if we should split this so each pack is only affected by their own ignored files.
         let files_to_ignore = packs.values().find_map(|pack| pack.settings().diagnostics_files_to_ignore());
 
+        // Set of pack keys whose on-disk path matches a CA (vanilla) pack. Built once
+        // so per-file and per-pack checks can skip diagnostics that don't apply to vanilla content.
+        let ca_pack_paths: HashSet<String> = game_info.ca_packs_paths(game_path).unwrap_or_default()
+            .into_iter()
+            .map(|p| path_to_absolute_string(&p))
+            .collect();
+        let ca_packs: HashSet<String> = packs.iter()
+            .filter(|(_, pack)| ca_pack_paths.contains(&path_to_absolute_string(Path::new(pack.disk_file_path()))))
+            .map(|(key, _)| key.clone())
+            .collect();
+
         // To make sure we can read any non-db and non-loc file, we need to pre-decode them here.
         {
             // Extra data to decode animfragmentbattle files.
@@ -461,7 +473,8 @@ impl Diagnostics {
                             &files_to_ignore,
                             packs,
                             schema,
-                            &loc_data
+                            &loc_data,
+                            &ca_packs,
                         ));
                     },
                     FileType::Loc => {
@@ -506,7 +519,7 @@ impl Diagnostics {
         // These two are global, so do not execute on file-specific runs.
         if paths_to_check.is_empty() {
             self.results_mut().extend(DependencyDiagnostic::check(packs));
-            self.results_mut().extend(PackDiagnostic::check(packs, dependencies, game_info, game_path));
+            self.results_mut().extend(PackDiagnostic::check(packs, dependencies, game_info, &ca_packs));
         }
 
         self.results_mut().sort_by(|a, b| {
