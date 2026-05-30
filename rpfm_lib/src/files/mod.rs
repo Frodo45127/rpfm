@@ -1729,7 +1729,7 @@ pub trait Container {
         let path_lower = path.to_lowercase();
 
         // Skip reserved paths when using this.
-        if path_lower == RESERVED_NAME_NOTES || path_lower == RESERVED_NAME_SETTINGS {
+        if path_lower == RESERVED_NAME_NOTES || path_lower == RESERVED_NAME_SETTINGS || path_lower == RESERVED_NAME_DEPENDENCIES_MANAGER_V2 {
             return;
         }
 
