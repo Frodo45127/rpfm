@@ -19,6 +19,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(pack_menu_actions, "open_packs", "Open Packs", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+O"), "project-open");
     new_action(pack_menu_actions, "open_and_merge_packs", "Open & Merge Packs", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+Shift+O"), "project-open");
     new_action(pack_menu_actions, "save_all", "Save All Packs", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+S"), "document-save-as");
+    new_action(pack_menu_actions, "save_current", "Save Current Pack", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+Shift+S"), "document-save");
     new_action(pack_menu_actions, "install_pack", "Install Pack", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+Shift+I"), "format-align-vertical-top");
     new_action(pack_menu_actions, "uninstall_pack", "Uninstall Pack", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+Shift+U"), "format-align-vertical-bottom");
     new_action(pack_menu_actions, "load_all_ca_packs", "Load All CA Packs", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+G"), "dialog-object-properties");

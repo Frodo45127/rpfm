@@ -164,6 +164,10 @@ pub trait PackTree {
     /// etc.) to resolve a per-tree pack key without leaking the dock's selection into other views.
     unsafe fn pack_key_from_selection_or_first(&self) -> Option<String>;
 
+    /// Returns the pack key of the currently selected item in this `TreeView`, or `None` if nothing is
+    /// selected. Unlike `pack_key_from_selection_or_first`, this never falls back to "the first pack".
+    unsafe fn pack_key_from_selection(&self) -> Option<String>;
+
     /// This function gives you a bitmask with what's selected in the PackFile Content's TreeView,
     /// the number of selected files, and the number of selected folders.
     /// Returns (content_bitmask, file_count, folder_count, pack_count, multi_pack).
@@ -777,14 +781,8 @@ impl PackTree for QPtr<QTreeView> {
     unsafe fn pack_key_from_selection_or_first(&self) -> Option<String> {
 
         // First, try to get it from the current selection of *this* tree view.
-        let selection = self.selection_model().selection().indexes();
-        if selection.count() > 0 {
-            let index = selection.at(0);
-            let filter: QPtr<QSortFilterProxyModel> = self.model().static_downcast();
-            let source_index = filter.map_to_source(index);
-            if let Some(key) = self.get_pack_key_from_index(source_index) {
-                return Some(key);
-            }
+        if let Some(key) = self.pack_key_from_selection() {
+            return Some(key);
         }
 
         // Fallback: walk the source model and return the first editable pack root's key.
@@ -804,6 +802,18 @@ impl PackTree for QPtr<QTreeView> {
         }
 
         None
+    }
+
+    unsafe fn pack_key_from_selection(&self) -> Option<String> {
+        let selection = self.selection_model().selection().indexes();
+        if selection.count() == 0 {
+            return None;
+        }
+
+        let index = selection.at(0);
+        let filter: QPtr<QSortFilterProxyModel> = self.model().static_downcast();
+        let source_index = filter.map_to_source(index);
+        self.get_pack_key_from_index(source_index)
     }
 
     unsafe fn get_combination_from_main_treeview_selection(pack_file_contents_ui: &Rc<PackFileContentsUI>) -> (u8, u32, u32, u32, bool) {

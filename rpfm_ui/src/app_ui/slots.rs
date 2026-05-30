@@ -113,6 +113,7 @@ pub struct AppUISlots {
     pub packfile_load_all_ca_packfiles: QBox<SlotOfBool>,
     pub packfile_open_menu: QBox<SlotNoArgs>,
     pub packfile_save_all: QBox<SlotOfBool>,
+    pub packfile_save_current: QBox<SlotOfBool>,
     pub packfile_select_session: QBox<SlotOfBool>,
     pub packfile_settings: QBox<SlotOfBool>,
     pub packfile_quit: QBox<SlotOfBool>,
@@ -350,6 +351,36 @@ impl AppUISlots {
                     }
 
                     AppUI::request_open_packfile(&app_ui, paths, "", true, true);
+                }
+            }
+        ));
+
+        // Ctrl+Shift+S: save the pack the currently focused FileView belongs to. If no file is
+        // focused, fall back to the pack from the dock tree's selection. If neither resolves,
+        // do nothing.
+        let packfile_save_current = SlotOfBool::new(&app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+                let pack_key = {
+                    let current_widget = app_ui.tab_bar_packed_file.current_widget();
+                    if current_widget.is_null() {
+                        None
+                    } else {
+                        UI_STATE.get_open_packedfiles()
+                            .iter()
+                            .find(|file_view| file_view.main_widget().as_mut_raw_ptr() == current_widget.as_mut_raw_ptr())
+                            .map(|file_view| file_view.pack_key_copy())
+                    }
+                }.or_else(|| pack_file_contents_ui.pack_key_from_selection());
+
+                let pack_key = match pack_key {
+                    Some(key) => key,
+                    None => return,
+                };
+
+                rpfm_telemetry::track_action("Save Current Pack");
+                if let Err(error) = AppUI::save_packfile_by_key(&app_ui, &pack_file_contents_ui, Some(pack_key), false) {
+                    show_dialog(&app_ui.main_window, error, false);
                 }
             }
         ));
@@ -1817,6 +1848,7 @@ impl AppUISlots {
             packfile_open_and_merge_packs,
             packfile_load_all_ca_packfiles,
             packfile_save_all,
+            packfile_save_current,
             packfile_select_session,
             packfile_settings,
             packfile_quit,

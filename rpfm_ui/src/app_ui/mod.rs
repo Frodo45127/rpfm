@@ -199,6 +199,7 @@ pub struct AppUI {
     packfile_save_pack_menu: QBox<QMenu>,
     packfile_save_pack_as_menu: QBox<QMenu>,
     packfile_save_all: QPtr<QAction>,
+    packfile_save_current: QPtr<QAction>,
     packfile_select_session: QPtr<QAction>,
     packfile_settings: QPtr<QAction>,
     packfile_quit: QPtr<QAction>,
@@ -431,6 +432,9 @@ impl AppUI {
         let packfile_open_and_merge_packs = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "open_and_merge_packs", "open_and_merge_packs", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let packfile_load_all_ca_packfiles = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "load_all_ca_packs", "load_all_ca_packfiles", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
         let packfile_save_all = add_action_to_menu(&menu_bar_packfile, shortcuts.as_ref(), "pack_menu", "save_all", "save_all", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
+
+        // Hidden action for the Ctrl+Shift+S shortcut.
+        let packfile_save_current = add_action_to_widget(shortcuts.as_ref(), "pack_menu", "save_current", Some(main_window.static_upcast::<qt_widgets::QWidget>()));
 
         let packfile_open_recent = QMenu::from_q_string_q_widget(&qtr("open_recent"), &menu_bar_packfile);
         let packfile_open_from_content = QMenu::from_q_string_q_widget(&qtr("open_from_content"), &menu_bar_packfile);
@@ -687,6 +691,7 @@ impl AppUI {
             packfile_save_pack_menu,
             packfile_save_pack_as_menu,
             packfile_save_all,
+            packfile_save_current,
             packfile_select_session,
             packfile_settings,
             packfile_quit,

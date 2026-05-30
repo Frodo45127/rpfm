@@ -762,6 +762,12 @@ impl PackFileContentsUI {
         self.packfile_contents_tree_view.pack_key_from_selection_or_first()
     }
 
+    /// Returns the pack key of the dock tree's current selection, or `None` if nothing is selected.
+    /// Unlike `pack_key_from_selection_or_first`, never falls back to "the first pack".
+    pub unsafe fn pack_key_from_selection(&self) -> Option<String> {
+        self.packfile_contents_tree_view.pack_key_from_selection()
+    }
+
     /// Returns the selected items grouped by their pack key.
     ///
     /// Each selected item is resolved to its root pack node to determine the pack key,
