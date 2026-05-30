@@ -1801,7 +1801,20 @@ impl PackTree for QPtr<QTreeView> {
             }
 
             // If we want to remove the colour of the TreeView...
-            TreeViewOperation::Clean => clean_treeview(None, &model),
+            TreeViewOperation::Clean => {
+                if pack_key.is_empty() {
+                    clean_treeview(None, &model);
+                } else {
+                    for row in 0..model.row_count_0a() {
+                        let root_item = model.item_2a(row, 0);
+                        let item_key = root_item.data_1a(ITEM_PACK_KEY).to_string().to_std_string();
+                        if item_key == pack_key {
+                            clean_treeview(Some(root_item), &model);
+                            break;
+                        }
+                    }
+                }
+            },
 
             // If we want to remove everything from the TreeView...
             TreeViewOperation::Clear => model.clear(),
