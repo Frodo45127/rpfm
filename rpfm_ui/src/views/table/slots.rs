@@ -315,7 +315,7 @@ impl TableViewSlots {
                                 }
 
                                 if let DataSource::PackFile = *view.data_source.read().unwrap() {
-                                    set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
+                                    set_modified(true, &packed_file_path.read().unwrap(), &view.pack_key.read().unwrap(), &app_ui, &pack_file_contents_ui);
                                 }
                             }
                         }
@@ -339,7 +339,7 @@ impl TableViewSlots {
                 view.append_rows(false);
                 if let Some(ref packed_file_path) = view.packed_file_path {
                     if let DataSource::PackFile = *view.data_source.read().unwrap() {
-                        set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
+                        set_modified(true, &packed_file_path.read().unwrap(), &view.pack_key.read().unwrap(), &app_ui, &pack_file_contents_ui);
                     }
                 }
             }
@@ -354,7 +354,7 @@ impl TableViewSlots {
                 view.insert_rows(false);
                 if let Some(ref packed_file_path) = view.packed_file_path {
                     if let DataSource::PackFile = *view.data_source.read().unwrap() {
-                        set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
+                        set_modified(true, &packed_file_path.read().unwrap(), &view.pack_key.read().unwrap(), &app_ui, &pack_file_contents_ui);
                     }
                 }
             }
@@ -391,7 +391,7 @@ impl TableViewSlots {
             rpfm_telemetry::track_action("Clone and Append");
             if let Some(ref packed_file_path) = view.packed_file_path {
                 if let DataSource::PackFile = *view.data_source.read().unwrap() {
-                    set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
+                    set_modified(true, &packed_file_path.read().unwrap(), &view.pack_key.read().unwrap(), &app_ui, &pack_file_contents_ui);
                 }
             }
         }));
@@ -405,7 +405,7 @@ impl TableViewSlots {
             rpfm_telemetry::track_action("Clone and Insert");
             if let Some(ref packed_file_path) = view.packed_file_path {
                 if let DataSource::PackFile = *view.data_source.read().unwrap() {
-                    set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
+                    set_modified(true, &packed_file_path.read().unwrap(), &view.pack_key.read().unwrap(), &app_ui, &pack_file_contents_ui);
                 }
             }
         }));
@@ -511,7 +511,7 @@ impl TableViewSlots {
                 if view.history_undo.read().unwrap().is_empty() {
                     if let Some(ref packed_file_path) = view.packed_file_path {
                         if let DataSource::PackFile = *view.data_source.read().unwrap() {
-                            set_modified(false, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
+                            set_modified(false, &packed_file_path.read().unwrap(), &view.pack_key.read().unwrap(), &app_ui, &pack_file_contents_ui);
                         }
                     }
                 }
@@ -529,7 +529,7 @@ impl TableViewSlots {
                 view.context_menu_update();
                 if let Some(ref packed_file_path) = view.packed_file_path {
                     if let DataSource::PackFile = *view.data_source.read().unwrap() {
-                        set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
+                        set_modified(true, &packed_file_path.read().unwrap(), &view.pack_key.read().unwrap(), &app_ui, &pack_file_contents_ui);
                     }
                 }
             }
@@ -616,7 +616,7 @@ impl TableViewSlots {
                                 update_undo_model(&view.table_model_ptr(), &view.undo_model_ptr());
 
                                 if let DataSource::PackFile = *view.data_source.read().unwrap() {
-                                    set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
+                                    set_modified(true, &packed_file_path.read().unwrap(), &view.pack_key.read().unwrap(), &app_ui, &pack_file_contents_ui);
                                 }
                             },
                             Err(error) => return show_dialog(&view.table_view, error, false),

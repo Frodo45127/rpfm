@@ -1382,7 +1382,7 @@ pub unsafe fn open_subtable(
                     let _widget_grid = create_grid_layout(main_widget.static_upcast());
                     let accept_button = QPushButton::from_q_string(&qtr("nested_table_accept"));
 
-                    let table_view = TableView::new_view(&main_widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, view.data_source.clone()).unwrap();
+                    let table_view = TableView::new_view(&main_widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, view.data_source.clone(), view.pack_key.clone()).unwrap();
 
                     main_grid.add_widget_5a(&main_widget, 0, 0, 1, 1);
                     main_grid.add_widget_5a(&accept_button, 1, 0, 1, 1);

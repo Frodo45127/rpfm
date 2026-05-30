@@ -126,7 +126,8 @@ impl PackedFileESFViewSlots {
                         &pack_file_contents_ui,
                         &diagnostics_ui,
                         &dependencies_ui,
-                        &references_ui
+                        &references_ui,
+                        view.pack_key.clone(),
                     );
                 }
             }

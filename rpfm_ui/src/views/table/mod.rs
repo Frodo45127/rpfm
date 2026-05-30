@@ -283,6 +283,8 @@ pub struct TableView {
     data_source: Arc<RwLock<DataSource>>,
     #[getset(skip)]
     packed_file_path: Option<Arc<RwLock<String>>>,
+    #[getset(skip)]
+    pack_key: Arc<RwLock<String>>,
     packed_file_type: Arc<FileType>,
 
     #[getset(skip)]
@@ -341,6 +343,7 @@ impl TableView {
         table_data: TableType,
         packed_file_path: Option<Arc<RwLock<String>>>,
         data_source: Arc<RwLock<DataSource>>,
+        pack_key: Arc<RwLock<String>>,
     ) -> Result<Arc<Self>> {
 
         let (table_definition, table_name, packed_file_type, is_translator) = match table_data {
@@ -356,8 +359,7 @@ impl TableView {
 
         // Get the dependency data of this Table.
         let table_name_for_ref = if let Some(name) = table_name { name.to_owned() } else { "".to_owned() };
-        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-        let dependency_data = get_reference_data(packed_file_type, &table_name_for_ref, &table_definition, false, &pack_key)?;
+        let dependency_data = get_reference_data(packed_file_type, &table_name_for_ref, &table_definition, false, &**pack_key.read().unwrap())?;
 
         // Do not bother getting hashed data for tables that are not modded.
         let vanilla_hashed_tables = {
@@ -739,6 +741,7 @@ impl TableView {
             vanilla_hashed_tables: Arc::new(RwLock::new(vanilla_hashed_tables)),
             data_source,
             packed_file_path: packed_file_path.clone(),
+            pack_key: pack_key.clone(),
             packed_file_type: Arc::new(packed_file_type),
             banned_table,
             reference_map: Arc::new(RwLock::new(reference_map)),
@@ -2987,7 +2990,7 @@ impl TableView {
                 search_view.update_search(self);
             }
             if let DataSource::PackFile = *self.data_source.read().unwrap() {
-                set_modified(true, &packed_file_path.read().unwrap(), app_ui, pack_file_contents_ui);
+                set_modified(true, &packed_file_path.read().unwrap(), &self.pack_key.read().unwrap(), app_ui, pack_file_contents_ui);
             }
         }
 

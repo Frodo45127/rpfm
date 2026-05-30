@@ -374,10 +374,10 @@ impl ToolTranslator {
 
         // Unlike other tools, data is loaded here, because we need it to generate the table widget.
         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-        let data = send_ipc_command_result(Command::GetPackTranslation(pack_key, language), response_extractor!(Response::PackTranslation))?;
+        let data = send_ipc_command_result(Command::GetPackTranslation(pack_key.clone(), language), response_extractor!(Response::PackTranslation))?;
 
         let table_data = TableType::TranslatorTable(data.to_table()?);
-        let table = TableView::new_view(&table_view_container, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile)))?;
+        let table = TableView::new_view(&table_view_container, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile)), Arc::new(RwLock::new(pack_key)))?;
 
         let layout = tool.main_widget().layout().static_downcast::<QGridLayout>();
         layout.replace_widget_2a(table_view.as_ptr(), table.table_view().as_ptr());

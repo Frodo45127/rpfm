@@ -78,7 +78,7 @@ impl PortraitSettingsSlots {
                 rpfm_telemetry::track_action("Modified Portrait Settings File");
 
                 if let DataSource::PackFile = *view.data_source.read().unwrap() {
-                    set_modified(true, &view.path.read().unwrap(), &app_ui, &pack_file_contents_ui);
+                    set_modified(true, &view.path.read().unwrap(), &view.pack_key.read().unwrap(), &app_ui, &pack_file_contents_ui);
                 }
             }
         ));

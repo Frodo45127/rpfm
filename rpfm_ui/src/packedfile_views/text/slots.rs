@@ -54,7 +54,7 @@ impl PackedFileTextViewSlots {
                     if let DataSource::PackFile = *view.data_source.read().unwrap() {
 
                         // TODO: calculate a checksum of the file to also detect when it has gone back to its "unmodified" state.
-                        set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
+                        set_modified(true, &packed_file_path.read().unwrap(), &view.pack_key.read().unwrap(), &app_ui, &pack_file_contents_ui);
                     }
                 }
             }

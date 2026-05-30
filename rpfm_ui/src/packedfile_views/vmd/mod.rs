@@ -52,6 +52,7 @@ const XML: &str = "XML";
 #[getset(get = "pub")]
 pub struct FileVMDView {
     path: Option<Arc<RwLock<String>>>,
+    pack_key: Arc<RwLock<String>>,
     data_source: Arc<RwLock<DataSource>>,
 
     editor: QBox<QWidget>,
@@ -90,6 +91,7 @@ impl FileVMDView {
         #[cfg(feature = "support_model_renderer")] let mut renderer_enabled = false;
         let view = Arc::new(FileVMDView {
             path: Some(file_view.path_raw()),
+            pack_key: file_view.pack_key().clone(),
             data_source: file_view.data_source.clone(),
 
             editor: {

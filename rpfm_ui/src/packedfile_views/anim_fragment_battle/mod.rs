@@ -148,7 +148,7 @@ impl FileAnimFragmentBattleView {
         let entries_table_view: QPtr<QTableView> = find_widget(&main_widget.static_upcast(), "entries_table_view")?;
 
         let table_data = TableType::AnimFragmentBattle(data.to_table()?);
-        let table = TableView::new_view(&main_widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, Some(file_view.path_raw()), file_view.data_source.clone())?;
+        let table = TableView::new_view(&main_widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, Some(file_view.path_raw()), file_view.data_source.clone(), file_view.pack_key().clone())?;
 
         let layout = main_widget.layout().static_downcast::<QGridLayout>();
         layout.replace_widget_2a(entries_table_view.as_ptr(), table.table_view().as_ptr());

@@ -56,6 +56,7 @@ pub struct PackedFileTextView {
     editor: QBox<QWidget>,
     packed_file_path: Option<Arc<RwLock<String>>>,
     data_source: Arc<RwLock<DataSource>>,
+    pack_key: Arc<RwLock<String>>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -100,6 +101,7 @@ impl PackedFileTextView {
             editor,
             packed_file_path: Some(file_view.path_raw()),
             data_source: file_view.data_source.clone(),
+            pack_key: file_view.pack_key().clone(),
         });
 
         let slots = PackedFileTextViewSlots::new(&view, app_ui, pack_file_contents_ui);

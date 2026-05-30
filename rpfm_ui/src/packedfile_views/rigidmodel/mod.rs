@@ -82,6 +82,7 @@ mod slots;
 #[getset(get = "pub")]
 pub struct RigidModelView {
     path: Arc<RwLock<String>>,
+    pack_key: Arc<RwLock<String>>,
     data_source: Arc<RwLock<DataSource>>,
     data: Arc<RwLock<RigidModel>>,
 
@@ -202,7 +203,7 @@ impl RigidModelView {
         let table_view: QPtr<QTableView> = find_widget(&texture_list_groupbox.static_upcast(), "textures_table_view")?;
         let texture_list_groupbox = table_view.parent_widget();
         let texture_list_groupbox = texture_list_groupbox.into_q_box();
-        let textures_table = TableView::new_view(&texture_list_groupbox, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile)))?;
+        let textures_table = TableView::new_view(&texture_list_groupbox, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile)), file_view.pack_key().clone())?;
 
         let layout = texture_list_groupbox.layout().static_downcast::<QGridLayout>();
         layout.replace_widget_2a(table_view.as_ptr(), textures_table.table_view().as_ptr());
@@ -215,6 +216,7 @@ impl RigidModelView {
 
         let view = Arc::new(Self{
             path: file_view.path_raw(),
+            pack_key: file_view.pack_key().clone(),
             data_source: Arc::new(RwLock::new(file_view.data_source())),
             data: Arc::new(RwLock::new(data.clone())),
 
@@ -431,7 +433,7 @@ impl RigidModelView {
             }
 
             // As we don't use the list itself to store the data, we use this instead of a modified slot to mark the file as modified.
-            set_modified(true, &self.path.read().unwrap(), app_ui, pack_file_contents_ui);
+            set_modified(true, &self.path.read().unwrap(), &self.pack_key.read().unwrap(), app_ui, pack_file_contents_ui);
         }
     }
 

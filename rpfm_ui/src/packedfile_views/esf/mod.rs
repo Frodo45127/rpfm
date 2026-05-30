@@ -84,6 +84,7 @@ pub struct PackedFileESFView {
     detailed_view: Arc<RwLock<ESFDetailedView>>,
 
     _path: Arc<RwLock<String>>,
+    pack_key: Arc<RwLock<String>>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -163,7 +164,8 @@ impl PackedFileESFView {
 
             detailed_view: Arc::new(RwLock::new(ESFDetailedView::new(node_data_panel))),
 
-            _path: file_view.path_raw()
+            _path: file_view.path_raw(),
+            pack_key: file_view.pack_key().clone(),
         });
 
         view.tree_view.update_treeview(true, ESFTreeViewOperation::Build(&data));

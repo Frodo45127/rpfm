@@ -74,7 +74,8 @@ impl DependenciesManagerView {
             references_ui,
             table_data,
             Some(file_view.path_raw()),
-            file_view.data_source.clone()
+            file_view.data_source.clone(),
+            file_view.pack_key().clone(),
         )?;
 
         let dependencies_manager_view = Self {

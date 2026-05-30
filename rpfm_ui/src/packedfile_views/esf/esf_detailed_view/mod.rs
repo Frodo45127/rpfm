@@ -121,6 +121,7 @@ impl ESFDetailedView {
     }
 
     /// This function loads the provided subnodes to the detailed TreeView, saving and removing those who were before.
+    #[allow(clippy::too_many_arguments)]
     pub unsafe fn load_to_detailed_view(
         &mut self,
         tree_view: &QPtr<QTreeView>,
@@ -131,6 +132,7 @@ impl ESFDetailedView {
         diagnostics_ui: &Rc<DiagnosticsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
         references_ui: &Rc<ReferencesUI>,
+        pack_key: Arc<RwLock<String>>,
     ) {
         let parent_widget = &self.node_data_panel;
         let layout: QPtr<QGridLayout> = self.node_data_panel.layout().static_downcast();
@@ -432,7 +434,7 @@ impl ESFDetailedView {
                     let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::I32((*x).into())]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
-                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
+                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile)), pack_key.clone()).unwrap();
 
                     // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
@@ -453,7 +455,7 @@ impl ESFDetailedView {
                     let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::Boolean(*x)]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
-                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
+                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile)), pack_key.clone()).unwrap();
 
                     // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
@@ -474,7 +476,7 @@ impl ESFDetailedView {
                     let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::I16((*x).into())]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
-                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
+                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile)), pack_key.clone()).unwrap();
 
                     // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
@@ -495,7 +497,7 @@ impl ESFDetailedView {
                     let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::I16(*x)]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
-                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
+                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile)), pack_key.clone()).unwrap();
 
                     // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
@@ -516,7 +518,7 @@ impl ESFDetailedView {
                     let _ = table.set_data(&values.value().iter().map(|x| vec![DecodedData::I32(*x)]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
-                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
+                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile)), pack_key.clone()).unwrap();
 
                     // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
@@ -537,7 +539,7 @@ impl ESFDetailedView {
                     let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::I64(*x)]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
-                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
+                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile)), pack_key.clone()).unwrap();
 
                     // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
@@ -558,7 +560,7 @@ impl ESFDetailedView {
                     let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::I16((*x).into())]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
-                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
+                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile)), pack_key.clone()).unwrap();
 
                     // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
@@ -579,7 +581,7 @@ impl ESFDetailedView {
                     let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::I16(*x as i16)]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
-                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
+                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile)), pack_key.clone()).unwrap();
 
                     // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
@@ -600,7 +602,7 @@ impl ESFDetailedView {
                     let _ = table.set_data(&values.value().iter().map(|x| vec![DecodedData::I32(*x as i32)]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
-                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
+                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile)), pack_key.clone()).unwrap();
 
                     // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
@@ -621,7 +623,7 @@ impl ESFDetailedView {
                     let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::I64(*x as i64)]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
-                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
+                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile)), pack_key.clone()).unwrap();
 
                     // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
@@ -642,7 +644,7 @@ impl ESFDetailedView {
                     let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::F32(*x)]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
-                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
+                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile)), pack_key.clone()).unwrap();
 
                     // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
@@ -663,7 +665,7 @@ impl ESFDetailedView {
                     let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::F32(*x as f32)]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
-                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
+                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile)), pack_key.clone()).unwrap();
 
                     // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
@@ -686,7 +688,7 @@ impl ESFDetailedView {
                     let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::F32(*x.x()), DecodedData::F32(*x.y())]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
-                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
+                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile)), pack_key.clone()).unwrap();
 
                     // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
@@ -711,7 +713,7 @@ impl ESFDetailedView {
                     let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::F32(*x.x()), DecodedData::F32(*x.y()), DecodedData::F32(*x.z())]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
-                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
+                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile)), pack_key.clone()).unwrap();
 
                     // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
@@ -732,7 +734,7 @@ impl ESFDetailedView {
                     let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::StringU8(x.to_owned())]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
-                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
+                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile)), pack_key.clone()).unwrap();
 
                     // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
@@ -753,7 +755,7 @@ impl ESFDetailedView {
                     let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::StringU8(x.to_owned())]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
-                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
+                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile)), pack_key.clone()).unwrap();
 
                     // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);
@@ -774,7 +776,7 @@ impl ESFDetailedView {
                     let _ = table.set_data(&values.iter().map(|x| vec![DecodedData::I16(*x)]).collect::<Vec<Vec<DecodedData>>>());
 
                     let table_data = TableType::NormalTable(table);
-                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile))).unwrap();
+                    let table_view = TableView::new_view(&widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile)), pack_key.clone()).unwrap();
 
                     // layout.add_widget_5a(&label, row as i32, 0, 1, 1);
                     layout.add_widget_5a(&widget, row as i32, 1, 1, 1);

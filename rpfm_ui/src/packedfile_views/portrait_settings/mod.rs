@@ -89,6 +89,7 @@ mod slots;
 #[getset(get = "pub")]
 pub struct PortraitSettingsView {
     path: Arc<RwLock<String>>,
+    pack_key: Arc<RwLock<String>>,
     data_source: Arc<RwLock<DataSource>>,
 
     version: u32,
@@ -392,6 +393,7 @@ impl PortraitSettingsView {
 
         let view = Arc::new(Self{
             path: file_view.path_raw(),
+            pack_key: file_view.pack_key().clone(),
             data_source: Arc::new(RwLock::new(file_view.data_source())),
 
             version: *data.version(),

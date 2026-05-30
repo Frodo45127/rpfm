@@ -42,6 +42,7 @@ mod slots;
 pub struct FileBMDView {
     editor: QBox<QWidget>,
     packed_file_path: Option<Arc<RwLock<String>>>,
+    pack_key: Arc<RwLock<String>>,
     data_source: Arc<RwLock<DataSource>>,
 }
 
@@ -70,6 +71,7 @@ impl FileBMDView {
         let view = Arc::new(FileBMDView {
             editor,
             packed_file_path: Some(file_view.path_raw()),
+            pack_key: file_view.pack_key().clone(),
             data_source: file_view.data_source.clone(),
         });
 
