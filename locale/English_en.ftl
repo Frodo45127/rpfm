@@ -960,8 +960,7 @@ duplicated_row_explanation = Table rows usually convey one specific data to the 
 
     This can cause problems and it's advised to leave only one copy of each row in a table.
 
-invalid_loc_key_explanation = RPFM has detected that one row from your Loc file has a key with invalid characters in it. This can cause all sort of problems, including crashes, so it's better to fix it ASAP.
-    A common cause of this is an old bug in PFM code (yes, PFM) that causes Loc Keys to get invalid characters added at their end if you copy/paste them.
+table_invalid_key_explanation = RPFM has detected that one row from one of your tables has a key with invalid characters in it. This can cause all sort of problems, including crashes, so it's better to fix it ASAP.
 
     To fix it, edit the reported cell and delete any invalid (and often invisible) characters on it.
 
@@ -1648,7 +1647,7 @@ build_ceo_instructions = <p>Instructions:</p>
         <li>Make any changes, then hit the <b>Build CEO</b> button. This will open BOB — BOB will close if the build is successful, and stay open if there is an error in your CEOs.</li>
         <li>Once that is done, hit <b>Import CCD</b> and it will import <b>ceo_data.ccd</b> into the <b>campaigns/</b> folder.</li>
     </ul>
-    
+
 build_ceo_import = Import CCD
 build_ceo_done = BOB Done - Import CCD
 

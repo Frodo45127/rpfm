@@ -74,7 +74,7 @@ pub enum TableDiagnosticReportType {
     NoReferenceTableNorColumnFoundNoPak(String),
     InvalidEscape,
     DuplicatedRow(String),
-    InvalidLocKey,
+    InvalidKey,
     TableNameEndsInNumber,
     TableNameHasSpace,
     TableIsDataCoring,
@@ -142,7 +142,7 @@ impl DiagnosticReport for TableDiagnosticReport {
             TableDiagnosticReportType::NoReferenceTableNorColumnFoundNoPak(field_name) => format!("No reference column found in referenced table for column \"{field_name}\". Did you forget to generate the Dependencies Cache, or did you generate it before installing the Assembly kit?"),
             TableDiagnosticReportType::InvalidEscape => "Invalid line jump/tabulation detected in loc entry. Use \\\\n or \\\\t instead.".to_owned(),
             TableDiagnosticReportType::DuplicatedRow(combined_keys) => format!("Duplicated row: {combined_keys}."),
-            TableDiagnosticReportType::InvalidLocKey => "Invalid localisation key.".to_owned(),
+            TableDiagnosticReportType::InvalidKey => "Invalid key.".to_owned(),
             TableDiagnosticReportType::TableNameEndsInNumber => "Table name ends in number.".to_owned(),
             TableDiagnosticReportType::TableNameHasSpace => "Table name contains spaces.".to_owned(),
             TableDiagnosticReportType::TableIsDataCoring => "Table is datacoring.".to_owned(),
@@ -166,7 +166,7 @@ impl DiagnosticReport for TableDiagnosticReport {
             TableDiagnosticReportType::NoReferenceTableNorColumnFoundNoPak(_) => DiagnosticLevel::Warning,
             TableDiagnosticReportType::InvalidEscape => DiagnosticLevel::Warning,
             TableDiagnosticReportType::DuplicatedRow(_) => DiagnosticLevel::Warning,
-            TableDiagnosticReportType::InvalidLocKey => DiagnosticLevel::Error,
+            TableDiagnosticReportType::InvalidKey => DiagnosticLevel::Error,
             TableDiagnosticReportType::TableNameEndsInNumber => DiagnosticLevel::Error,
             TableDiagnosticReportType::TableNameHasSpace => DiagnosticLevel::Error,
             TableDiagnosticReportType::TableIsDataCoring => DiagnosticLevel::Warning,
@@ -192,7 +192,7 @@ impl Display for TableDiagnosticReportType {
             Self::NoReferenceTableNorColumnFoundNoPak(_) => "NoReferenceTableNorColumnFoundNoPak",
             Self::InvalidEscape => "InvalidEscape",
             Self::DuplicatedRow(_) => "DuplicatedRow",
-            Self::InvalidLocKey => "InvalidLocKey",
+            Self::InvalidKey => "InvalidKey",
             Self::TableNameEndsInNumber => "TableNameEndsInNumber",
             Self::TableNameHasSpace => "TableNameHasSpace",
             Self::TableIsDataCoring => "TableIsDataCoring",
@@ -538,6 +538,11 @@ impl TableDiagnostic {
                             diagnostic.results_mut().push(result);
                         }
 
+                        if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("InvalidKey"), &table_info.ignored_fields, &table_info.ignored_diagnostics, &table_info.ignored_diagnostics_for_fields) && field.is_key(table_info.patches) && !cell_data.is_empty() && (cell_data.ends_with(' ') || cell_data.contains('\n') || cell_data.contains('\r') || cell_data.contains('\t')) {
+                            let result = TableDiagnosticReport::new(TableDiagnosticReportType::InvalidKey, &[(row as i32, column as i32)], &table_info.fields_processed);
+                            diagnostic.results_mut().push(result);
+                        }
+
                         if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("ValueCannotBeEmpty"), &table_info.ignored_fields, &table_info.ignored_diagnostics, &table_info.ignored_diagnostics_for_fields) && cell_data.is_empty() && field.cannot_be_empty(table_info.patches) {
                             let result = TableDiagnosticReport::new(TableDiagnosticReportType::ValueCannotBeEmpty(field.name().to_string()), &[(row as i32, column as i32)], &table_info.fields_processed);
                             diagnostic.results_mut().push(result);
@@ -679,8 +684,8 @@ impl TableDiagnostic {
                 for (row, cells) in table_info.table_data.iter().enumerate() {
                     let key = cells[0].data_to_string();
                     let data = cells[1].data_to_string();
-                    if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, Some(field_key_name), Some("InvalidLocKey"), &table_info.ignored_fields, &table_info.ignored_diagnostics, &table_info.ignored_diagnostics_for_fields) && !key.is_empty() && (key.contains('\n') || key.contains('\r') || key.contains('\t')) {
-                        let result = TableDiagnosticReport::new(TableDiagnosticReportType::InvalidLocKey, &[(row as i32, 0)], &fields);
+                    if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, Some(field_key_name), Some("InvalidKey"), &table_info.ignored_fields, &table_info.ignored_diagnostics, &table_info.ignored_diagnostics_for_fields) && !key.is_empty() && (key.ends_with(' ') || key.contains('\n') || key.contains('\r') || key.contains('\t')) {
+                        let result = TableDiagnosticReport::new(TableDiagnosticReportType::InvalidKey, &[(row as i32, 0)], &fields);
                         diagnostic.results_mut().push(result);
                     }
 

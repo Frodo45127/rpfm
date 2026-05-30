@@ -1584,7 +1584,7 @@ impl DiagnosticsUI {
         diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_no_reference_table_nor_column_found_no_pak, TableDiagnosticReportType::NoReferenceTableNorColumnFoundNoPak(String::new()));
         diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_invalid_escape, TableDiagnosticReportType::InvalidEscape);
         diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_duplicated_row, TableDiagnosticReportType::DuplicatedRow(String::new()));
-        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_invalid_loc_key, TableDiagnosticReportType::InvalidLocKey);
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_invalid_loc_key, TableDiagnosticReportType::InvalidKey);
         diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_table_name_ends_in_number, TableDiagnosticReportType::TableNameEndsInNumber);
         diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_table_name_has_space, TableDiagnosticReportType::TableNameHasSpace);
         diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_table_is_datacoring, TableDiagnosticReportType::TableIsDataCoring);
@@ -1774,7 +1774,7 @@ impl DiagnosticsUI {
             TableDiagnosticReportType::NoReferenceTableNorColumnFoundNoPak(_) => qtr("no_reference_table_nor_column_found_no_pak_explanation"),
             TableDiagnosticReportType::InvalidEscape => qtr("invalid_escape_explanation"),
             TableDiagnosticReportType::DuplicatedRow(_) => qtr("duplicated_row_explanation"),
-            TableDiagnosticReportType::InvalidLocKey => qtr("invalid_loc_key_explanation"),
+            TableDiagnosticReportType::InvalidKey => qtr("table_invalid_key_explanation"),
             TableDiagnosticReportType::TableNameEndsInNumber => qtr("table_name_ends_in_number_explanation"),
             TableDiagnosticReportType::TableNameHasSpace => qtr("table_name_has_space_explanation"),
             TableDiagnosticReportType::TableIsDataCoring => qtr("table_is_datacoring_explanation"),
@@ -1867,7 +1867,7 @@ impl DiagnosticsUI {
         diag_ignored!(self, diagnostics_ignored, checkbox_no_reference_table_nor_column_found_no_pak, TableDiagnosticReportType::NoReferenceTableNorColumnFoundNoPak(String::new()));
         diag_ignored!(self, diagnostics_ignored, checkbox_invalid_escape, TableDiagnosticReportType::InvalidEscape);
         diag_ignored!(self, diagnostics_ignored, checkbox_duplicated_row, TableDiagnosticReportType::DuplicatedRow(String::new()));
-        diag_ignored!(self, diagnostics_ignored, checkbox_invalid_loc_key, TableDiagnosticReportType::InvalidLocKey);
+        diag_ignored!(self, diagnostics_ignored, checkbox_invalid_loc_key, TableDiagnosticReportType::InvalidKey);
         diag_ignored!(self, diagnostics_ignored, checkbox_table_name_ends_in_number, TableDiagnosticReportType::TableNameEndsInNumber);
         diag_ignored!(self, diagnostics_ignored, checkbox_table_name_has_space, TableDiagnosticReportType::TableNameHasSpace);
         diag_ignored!(self, diagnostics_ignored, checkbox_table_is_datacoring, TableDiagnosticReportType::TableIsDataCoring);
