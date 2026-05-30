@@ -1120,15 +1120,7 @@ impl AppUI {
         // Track all opened files in the recent file list.
         for pack_file_path in pack_file_paths {
             if let Some(path_str) = pack_file_path.to_str() {
-                let mut paths = settings_vec_string(RECENT_FILE_LIST);
-                if let Some(pos) = paths.iter().position(|x| x == path_str) {
-                    paths.remove(pos);
-                }
-                paths.insert(0, path_str.to_owned());
-                while paths.len() > 10 {
-                    paths.pop();
-                }
-                let _ = settings_set_vec_string(RECENT_FILE_LIST, &paths);
+                Self::add_path_to_recent_files(path_str);
             }
         }
 
@@ -1310,7 +1302,8 @@ impl AppUI {
 
             // Run it and act depending on the response we get (1 => Accept, 0 => Cancel).
             if file_dialog.exec() == 1 {
-                let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
+                let recent_path = file_dialog.selected_files().at(0).to_std_string();
+                let path = PathBuf::from(&recent_path);
                 let file_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
                 match send_ipc_command_result_async(Command::SavePackAs(pack_key.clone(), path), response_extractor!(Response::ContainerInfo)) {
                     Ok(pack_file_info) => {
@@ -1318,6 +1311,9 @@ impl AppUI {
                         let packfile_item = pack_file_contents_ui.packfile_contents_tree_model().item_1a(0);
                         packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
                         packfile_item.set_text(&QString::from_std_str(file_name));
+
+                        // Register the new path in the recent file list.
+                        Self::add_path_to_recent_files(&recent_path);
 
                         UI_STATE.set_is_modified(false, app_ui, pack_file_contents_ui);
                     }
@@ -1501,9 +1497,7 @@ impl AppUI {
                     let slot_open_mod = SlotOfBool::new(&open_mod_action, clone!(
                         app_ui,
                         path => move |_| {
-                        if Self::are_you_sure(&app_ui, false, false) {
-                            Self::request_open_packfile(&app_ui, vec![path.to_path_buf()], "", false, true);
-                        }
+                        Self::request_open_packfile(&app_ui, vec![path.to_path_buf()], "", true, true);
                     }));
 
                     // Connect the slot and store it.
@@ -4117,5 +4111,18 @@ impl AppUI {
         } else {
             Ok(())
         }
+    }
+
+    /// Inserts a path at the front of the recent file list, deduplicating and capping it at 10 entries.
+    pub fn add_path_to_recent_files(path_str: &str) {
+        let mut paths = settings_vec_string(RECENT_FILE_LIST);
+        if let Some(pos) = paths.iter().position(|x| x == path_str) {
+            paths.remove(pos);
+        }
+        paths.insert(0, path_str.to_owned());
+        while paths.len() > 10 {
+            paths.pop();
+        }
+        let _ = settings_set_vec_string(RECENT_FILE_LIST, &paths);
     }
 }

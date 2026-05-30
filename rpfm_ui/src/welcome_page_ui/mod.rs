@@ -386,9 +386,7 @@ impl WelcomePageUI {
                     let slot = qt_core::SlotOfBool::new(&btn, clone!(
                         app_ui,
                         path => move |_| {
-                        if AppUI::are_you_sure(&app_ui, false, false) {
-                            AppUI::request_open_packfile(&app_ui, vec![path.to_path_buf()], "", false, true);
-                        }
+                        AppUI::request_open_packfile(&app_ui, vec![path.to_path_buf()], "", true, true);
                     }));
                     btn.clicked().connect(&slot);
                 }
