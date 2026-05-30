@@ -46,6 +46,9 @@ zip.workspace = true
 # Config support.
 directories.workspace = true
 
+# Random ID generation (anonymous telemetry distinct_id).
+uuid.workspace = true
+
 # Serialization support.
 serde.workspace = true
 serde_json.workspace = true

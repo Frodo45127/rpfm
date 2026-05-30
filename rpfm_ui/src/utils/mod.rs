@@ -130,7 +130,7 @@ pub unsafe fn show_dialog<T: Display>(parent: impl cpp_core::CastInto<Ptr<QWidge
 }
 
 /// Modal dialog that lets the user type a free-form message and ship it to
-/// Sentry via [`rpfm_telemetry::send_user_feedback`].
+/// PostHog via [`rpfm_telemetry::send_user_feedback`].
 ///
 /// # Arguments
 ///

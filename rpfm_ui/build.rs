@@ -196,6 +196,14 @@ fn common_config() {
     println!("cargo:rerun-if-changed=./3rdparty/src/qt_rpfm_extensions/*");
     println!("cargo:rerun-if-changed=./rpfm_ui/build.rs");
 
+    // Properly rebuild if the PostHog API key or Sentry DSN env vars change.
+    for var in ["RPFM_UI_SENTRY_DSN", "RPFM_UI_POSTHOG_API_KEY"] {
+        println!("cargo:rerun-if-env-changed={var}");
+        if let Ok(value) = std::env::var(var) {
+            println!("cargo:rustc-env={var}={value}");
+        }
+    }
+
     // This creates the makefile for the custom widget lib.
     let mut qmake = Command::new("qmake6");
     if cfg!(debug_assertions) {

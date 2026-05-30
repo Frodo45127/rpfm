@@ -215,6 +215,11 @@ impl UI {
         rpfm_telemetry::set_usage_telemetry_enabled(settings_bool(ENABLE_USAGE_TELEMETRY));
         rpfm_telemetry::set_crash_reports_enabled(settings_bool(ENABLE_CRASH_REPORTS));
 
+        let anonymous_id = settings_string(ANONYMOUS_TELEMETRY_ID);
+        if !anonymous_id.is_empty() {
+            rpfm_telemetry::set_distinct_id(&anonymous_id);
+        }
+
         // Initialize settings. Ignore errors here, as we have no way to show them yet.
         init_app_exclusive_settings(app_ui);
 

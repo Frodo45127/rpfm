@@ -168,6 +168,11 @@ const SENTRY_DSN_KEY: &str = match option_env!("RPFM_UI_SENTRY_DSN") {
     None => "",
 };
 
+const POSTHOG_API_KEY_VALUE: &str = match option_env!("RPFM_UI_POSTHOG_API_KEY") {
+    Some(key) => key,
+    None => "",
+};
+
 /// Variable to keep the locale fallback data (english locales) used by the UI loaded and available.
 static LOCALE_FALLBACK: LazyLock<Locale> = LazyLock::new(|| {
     match Locale::initialize_fallback() {
@@ -189,6 +194,7 @@ fn main() {
 
     // Sentry client guard, so we can reuse it later on and keep it in scope for the entire duration of the program.
     *SENTRY_DSN.write().unwrap() = SENTRY_DSN_KEY.to_owned();
+    rpfm_telemetry::set_posthog_api_key(POSTHOG_API_KEY_VALUE);
     let guard = Logger::init(&PathBuf::from("."), true, true, release_name!()).expect("Failed to initialize logging system.");
     if guard.is_enabled() {
         info!("Sentry logging support on RPFM_UI enabled. Starting...");
@@ -214,6 +220,17 @@ fn main() {
 
     // At this point we don't have the server for querying for settings, so we have to manually load them.
     load_settings_cache_from_disk();
+
+    // Set the distinct_id from the pre-generated anonymous telemetry id setting, if available.
+    let anonymous_id = settings_string(ANONYMOUS_TELEMETRY_ID);
+    if !anonymous_id.is_empty() {
+        rpfm_telemetry::set_distinct_id(&anonymous_id);
+    }
+
+    // Attach breakdown dimensions to every PostHog event in the next flush.
+    rpfm_telemetry::set_event_property("release", serde_json::Value::from(env!("CARGO_PKG_VERSION")));
+    rpfm_telemetry::set_event_property("os", serde_json::Value::from(std::env::consts::OS));
+    rpfm_telemetry::set_event_property("is_beta", serde_json::Value::from(rpfm_telemetry::is_beta()));
 
     //---------------------------------------------------------------------------------------//
     // Preparing the Program...

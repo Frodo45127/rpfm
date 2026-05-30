@@ -96,8 +96,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::actions::{TELEMETRY_EVENT_TAG, TELEMETRY_EVENT_VALUE, USAGE_TELEMETRY_ENABLED};
-use crate::feedback::FEEDBACK_EVENT_VALUE;
 use crate::{error, info, warn};
 
 /// Current version of the crate from Cargo.toml.
@@ -136,24 +134,6 @@ pub static SENTRY_DSN: LazyLock<Arc<RwLock<String>>> = LazyLock::new(|| Arc::new
 /// This is checked from the `before_send` hook installed in [`Logger::init`],
 /// so toggling it at runtime takes effect immediately for all future events.
 static CRASH_REPORTS_ENABLED: AtomicBool = AtomicBool::new(true);
-
-/// Enables or disables automatic Sentry crash-report uploads.
-///
-/// This gates panic reports and any other event captured automatically by
-/// Sentry's integrations. Usage-telemetry events (flushed via
-/// [`crate::flush`]) are exempt and honour
-/// [`crate::set_usage_telemetry_enabled`] instead.
-///
-/// Callers should refresh this whenever the `enable_crash_reports` setting
-/// changes.
-pub fn set_crash_reports_enabled(enabled: bool) {
-    CRASH_REPORTS_ENABLED.store(enabled, Ordering::Relaxed);
-}
-
-/// Returns the current crash-reports enabled state.
-pub fn is_crash_reports_enabled() -> bool {
-    CRASH_REPORTS_ENABLED.load(Ordering::Relaxed)
-}
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -307,29 +287,13 @@ impl Logger {
         // Initialize Sentry's guard, for remote reporting. Only for release mode.
         let dsn = SENTRY_DSN.read().unwrap().to_string();
 
-        // Gate every Sentry event on the user-facing toggles. Usage-telemetry
-        // events (tagged by `crate::flush`) honour `enable_usage_telemetry`;
-        // user-feedback events (tagged by `crate::send_user_feedback`) always
-        // pass through because the user just clicked Send and that is consent
-        // in the moment; anything else (panics, auto-captured errors,
-        // sessions) honours `enable_crash_reports`. Returning `None` drops
-        // the event.
+        // Gate every Sentry event on the crash-reports toggle.
         let before_send = Arc::new(|event: Event<'static>| -> Option<Event<'static>> {
-            let kind = event.tags.get(TELEMETRY_EVENT_TAG).map(String::as_str);
-
-            let allowed = match kind {
-                Some(TELEMETRY_EVENT_VALUE) => USAGE_TELEMETRY_ENABLED.load(Ordering::Relaxed),
-                Some(FEEDBACK_EVENT_VALUE) => true,
-                _ => CRASH_REPORTS_ENABLED.load(Ordering::Relaxed),
-            };
-
-            if allowed { Some(event) } else { None }
+            if CRASH_REPORTS_ENABLED.load(Ordering::Relaxed) { Some(event) } else { None }
         });
 
-        // Route beta builds into a separate Sentry environment so beta noise
-        // doesn't pollute production crash trends. rpfm marks betas by bumping
-        // the patch number to `>= BETA_PATCH_THRESHOLD` (e.g. 4.7.106).
-        let environment = if VERSION_PATCH >= BETA_PATCH_THRESHOLD {
+        // Separate beta builds from production builds in Sentry.
+        let environment = if is_beta() {
             Cow::Borrowed(SENTRY_ENV_BETA)
         } else {
             Cow::Borrowed(SENTRY_ENV_PRODUCTION)
@@ -542,4 +506,24 @@ impl Logger {
 
         Self::send_event(sentry_guard, level, &message, Some((file_name, &data)))
     }
+}
+
+/// Enables or disables automatic Sentry crash-report uploads.
+///
+/// Callers should refresh this whenever the `enable_crash_reports` setting
+/// changes.
+pub fn set_crash_reports_enabled(enabled: bool) {
+    CRASH_REPORTS_ENABLED.store(enabled, Ordering::Relaxed);
+}
+
+/// Returns the current crash-reports enabled state.
+pub fn is_crash_reports_enabled() -> bool {
+    CRASH_REPORTS_ENABLED.load(Ordering::Relaxed)
+}
+
+/// Returns `true` when the running build is a beta (patch number at or above
+/// [`BETA_PATCH_THRESHOLD`]). All workspace crates share the same version so
+/// this answer applies to the whole product regardless of which crate calls.
+pub const fn is_beta() -> bool {
+    VERSION_PATCH >= BETA_PATCH_THRESHOLD
 }

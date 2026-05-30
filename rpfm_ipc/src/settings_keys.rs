@@ -89,6 +89,9 @@ pub const DIAGNOSTICS_TRIGGER_ON_TABLE_EDIT: &str = "diagnostics_trigger_on_tabl
 pub const ENABLE_USAGE_TELEMETRY: &str = "enable_usage_telemetry";
 pub const ENABLE_CRASH_REPORTS: &str = "enable_crash_reports";
 
+/// Anonymous per-install id for telemetry.
+pub const ANONYMOUS_TELEMETRY_ID: &str = "anonymous_telemetry_id";
+
 // AI settings.
 //
 // The AI translator talks to any service that exposes the OpenAI

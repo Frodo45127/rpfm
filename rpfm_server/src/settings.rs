@@ -277,6 +277,11 @@ impl Settings {
         settings.initialize_bool(ENABLE_USAGE_TELEMETRY, true);
         settings.initialize_bool(ENABLE_CRASH_REPORTS, true);
 
+        // Anonymous id to track distinct installs across sessions.
+        if settings.string(ANONYMOUS_TELEMETRY_ID).is_empty() {
+            let _ = settings.set_string(ANONYMOUS_TELEMETRY_ID, &uuid::Uuid::new_v4().to_string());
+        }
+
         settings.initialize_string(AI_API_URL, "https://api.openai.com/v1/chat/completions");
         settings.initialize_string(AI_API_KEY, "");
         settings.initialize_string(AI_MODEL, "gpt-4o-mini");

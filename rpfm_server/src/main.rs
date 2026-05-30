@@ -63,7 +63,7 @@ use std::sync::Arc;
 
 use rpfm_ipc::helpers::SessionInfo;
 use rpfm_ipc::messages::{Command, Response};
-use rpfm_ipc::settings_keys::{ENABLE_CRASH_REPORTS, ENABLE_USAGE_TELEMETRY};
+use rpfm_ipc::settings_keys::{ANONYMOUS_TELEMETRY_ID, ENABLE_CRASH_REPORTS, ENABLE_USAGE_TELEMETRY};
 
 use rpfm_telemetry::{Logger, SentryLayer, SENTRY_DSN, info, release_name, warn};
 
@@ -91,9 +91,15 @@ static GLOBAL: MiMalloc = MiMalloc;
 //                                  Constants
 //-------------------------------------------------------------------------------//
 
-/// Sentry DSN used for crash reports and action telemetry.
+/// Sentry DSN used for crash reports.
 const SENTRY_DSN_KEY: &str = match option_env!("RPFM_SERVER_SENTRY_DSN") {
     Some(dsn) => dsn,
+    None => "",
+};
+
+/// PostHog project API key used for telemetry and feedback.
+const POSTHOG_API_KEY_VALUE: &str = match option_env!("RPFM_SERVER_POSTHOG_API_KEY") {
+    Some(key) => key,
     None => "",
 };
 
@@ -133,6 +139,7 @@ async fn main() {
     // Sentry client guard, so we can reuse it later on and keep it in scope for the entire duration of the program.
     // Must be initialized before the tracing subscriber so the SentryLayer can capture spans.
     *SENTRY_DSN.write().unwrap() = SENTRY_DSN_KEY.to_owned();
+    rpfm_telemetry::set_posthog_api_key(POSTHOG_API_KEY_VALUE);
     let guard = Logger::init(&{
         init_config_path().expect("Error while trying to initialize config path. We're fucked.");
         error_path().unwrap_or_else(|_| PathBuf::from("."))
@@ -159,7 +166,17 @@ async fn main() {
     if let Ok(settings) = Settings::init(false) {
         rpfm_telemetry::set_usage_telemetry_enabled(settings.bool(ENABLE_USAGE_TELEMETRY));
         rpfm_telemetry::set_crash_reports_enabled(settings.bool(ENABLE_CRASH_REPORTS));
+
+        let id = settings.string(ANONYMOUS_TELEMETRY_ID);
+        if !id.is_empty() {
+            rpfm_telemetry::set_distinct_id(&id);
+        }
     }
+
+    // Attach breakdown dimensions to every PostHog event in the next flush.
+    rpfm_telemetry::set_event_property("release", serde_json::Value::from(env!("CARGO_PKG_VERSION")));
+    rpfm_telemetry::set_event_property("os", serde_json::Value::from(std::env::consts::OS));
+    rpfm_telemetry::set_event_property("is_beta", serde_json::Value::from(rpfm_telemetry::is_beta()));
 
     // Create the session manager to handle per-client sessions,
     // and start the background cleanup task for expired sessions.
