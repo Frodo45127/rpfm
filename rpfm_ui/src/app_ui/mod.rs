@@ -1338,7 +1338,9 @@ impl AppUI {
         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile, &pack_key);
 
         for file_view in UI_STATE.get_open_packedfiles().iter() {
-            file_view.clean();
+            if file_view.pack_key_copy() == pack_key {
+                file_view.clean();
+            }
         }
 
         // Then we re-enable the main Window and return whatever we've received.
