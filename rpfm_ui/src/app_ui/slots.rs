@@ -1454,7 +1454,7 @@ impl AppUISlots {
                         // Find it in the relevant TreeView and select it.
                         match file_view.data_source() {
                             DataSource::PackFile => {
-                                let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&file_view.path_read(), DataSource::PackFile, "");
+                                let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&file_view.path_read(), DataSource::PackFile, &file_view.pack_key_copy());
 
                                 // Manually select the open PackedFile, then open it. This means we can open PackedFiles nor in out filter.
                                 UI_STATE.set_packfile_contents_read_only(true);

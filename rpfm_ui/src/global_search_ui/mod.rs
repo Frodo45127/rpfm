@@ -459,7 +459,7 @@ impl GlobalSearchUI {
         self.build_trees();
 
         // Load the results to their respective models. Then, store the GlobalSearch for future checks.
-        match send_ipc_command_result(Command::GlobalSearch(pack_key, global_search), response_extractor!(Response::GlobalSearchVecRFileInfo, v1, v2)) {
+        match send_ipc_command_result(Command::GlobalSearch(pack_key.clone(), global_search), response_extractor!(Response::GlobalSearchVecRFileInfo, v1, v2)) {
             Ok((global_search, packed_files_info)) => {
 
                 // Focus on the tree with the results. We do it before loading because it's quite a lot faster that way.
@@ -483,7 +483,7 @@ impl GlobalSearchUI {
                 self.load_schema_matches_to_ui(global_search.matches().schema());
 
                 UI_STATE.set_global_search(&global_search);
-                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile, "");
+                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile, &pack_key);
             },
             Err(error) => show_dialog(&self.dock_widget, error, false),
         }
@@ -598,7 +598,7 @@ impl GlobalSearchUI {
             }
         }
 
-        match send_ipc_command_result(Command::GlobalSearchReplaceMatches(pack_key, global_search, matches.to_vec()), response_extractor!(Response::GlobalSearchVecRFileInfo, v1, v2)) {
+        match send_ipc_command_result(Command::GlobalSearchReplaceMatches(pack_key.clone(), global_search, matches.to_vec()), response_extractor!(Response::GlobalSearchVecRFileInfo, v1, v2)) {
             Ok((global_search, packed_files_info)) => {
 
                 // Re-search to update the results.
@@ -632,7 +632,7 @@ impl GlobalSearchUI {
 
                 self.matches_table_and_text_tree_view.set_animated(true);
 
-                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile, "");
+                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile, &pack_key);
             },
             Err(error) => show_dialog(app_ui.main_window(), error, false),
         }
@@ -659,7 +659,7 @@ impl GlobalSearchUI {
 
         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
 
-        match send_ipc_command_result(Command::GlobalSearchReplaceAll(pack_key, global_search), response_extractor!(Response::GlobalSearchVecRFileInfo, v1, v2)) {
+        match send_ipc_command_result(Command::GlobalSearchReplaceAll(pack_key.clone(), global_search), response_extractor!(Response::GlobalSearchVecRFileInfo, v1, v2)) {
             Ok((global_search, packed_files_info)) => {
 
                 // Re-search to update the results.
@@ -674,7 +674,7 @@ impl GlobalSearchUI {
                     }
                 }
 
-                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile, "");
+                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile, &pack_key);
             },
             Err(error) => show_dialog(app_ui.main_window(), error, false),
         }
