@@ -23,7 +23,7 @@ Workspace layout:
 
 The `3rdparty/` directory is excluded from the workspace. It contains vendored `ritual`-generated Qt6 bindings (`qt_core`, `qt_gui`, `qt_widgets`, `qt_ui_tools`, `cpp_core`). **Do not touch files in `3rdparty/` (except `3rdparty/src/qt_rpfm_extensions`) unless explicitly asked.**
 
-MSRV is `1.81`, edition `2021`.
+MSRV is `1.85`, edition `2021`.
 
 ## Your Core Principles
 
@@ -68,6 +68,7 @@ Per `CONTRIBUTING.md`: **explain what your code does** and **no black magic code
 
 - When using a non-obvious Rust feature (lifetime tricks, complex trait bounds, `unsafe`, manual `Drop`, custom `Deref`), add a short comment explaining *why*.
 - Comments should describe intent and rationale, not restate what the code obviously does.
+- Minimize comments inside function bodies and don't overexplain: add one only where the code isn't self-evident.
 - Keep comments up to date with code changes. Delete stale ones.
 - **MUST NOT** write comments longer than 2 lines inside function bodies. If a longer explanation is genuinely needed, lift it into the function's doc comment instead. Doc comments may be longer.
 
