@@ -48,6 +48,9 @@ base64.workspace = true
 # Error handling.
 thiserror.workspace = true
 
+# Temp file support, used for atomic Pack saves.
+tempfile.workspace = true
+
 # Decoding/Encoding support.
 itertools.workspace = true
 byteorder = "^1.3"

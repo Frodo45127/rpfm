@@ -11,7 +11,8 @@
 //! Module containing tests for decoding/encoding Packs in multiple formats.
 
 use std::io::{BufReader, BufWriter};
-use std::fs::File;
+use std::fs::{File, remove_file};
+use std::path::{Path, PathBuf};
 
 use crate::files::*;
 use super::Pack;
@@ -310,4 +311,39 @@ fn test_encode_pfh0() {
     pack_2.read_to_end(&mut data_pack_2).unwrap();
 
     assert_eq!(data_pack_1, data_pack_2);
+}
+
+#[test]
+fn test_save_repoints_lazy_files() {
+    let path_1 = "../test_files/PFH5_test.pack";
+    let path_2 = "../test_files/PFH5_test_save.pack";
+    let mut reader = BufReader::new(File::open(path_1).unwrap());
+
+    let games = SupportedGames::default();
+    let game = games.game(KEY_WARHAMMER_2).unwrap();
+    let mut decodeable_extra_data = DecodeableExtraData::default();
+    decodeable_extra_data.disk_file_path = Some(path_1);
+    decodeable_extra_data.data_size = reader.len().unwrap();
+    decodeable_extra_data.timestamp = last_modified_time_from_file(reader.get_ref()).unwrap();
+    decodeable_extra_data.game_info = Some(game);
+    decodeable_extra_data.lazy_load = true;
+
+    let mut pack = Pack::decode(&mut reader, &Some(decodeable_extra_data)).unwrap();
+    let expected_files = pack.files().len();
+
+    // Saving must not need every file preloaded, and must leave the in-memory lazy files
+    // pointing at the freshly written file rather than at the now-overwritten source.
+    pack.save(Some(Path::new(path_2)), game, &None).unwrap();
+
+    // Each lazy file must still load straight from the in-memory Pack after the save. This only
+    // works if the OnDisk entries were re-pointed at the new file with its new offsets/timestamp.
+    for file in pack.files_mut().values_mut() {
+        assert!(file.load().is_ok());
+    }
+
+    // The reopened Pack must contain the same files as the original.
+    let saved = Pack::read_and_merge(&[PathBuf::from(path_2)], game, true, false, false).unwrap();
+    assert_eq!(saved.files().len(), expected_files);
+
+    let _ = remove_file(path_2);
 }

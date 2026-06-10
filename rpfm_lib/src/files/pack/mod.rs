@@ -62,6 +62,7 @@ use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 use serde_json::{from_slice, to_string_pretty};
 use itertools::Itertools;
+use tempfile::NamedTempFile;
 
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -917,17 +918,42 @@ impl Pack {
             self.disk_file_path = path.to_string_lossy().to_string();
         }
 
-        // Before truncating the file, make sure we loaded everything to memory.
-        self.files.iter_mut().try_for_each(|(_, file)| file.load())?;
-
-        let mut file = BufWriter::new(File::create(&self.disk_file_path)?);
         let extra_data = if extra_data.is_some() {
             extra_data.clone()
         } else {
             Some(EncodeableExtraData::new_from_game_info(game_info))
         };
 
-        self.encode(&mut file, &extra_data)
+        // Encode to a temp pack instead of overwriting the existing one. This should help avoid
+        // corrupting the existing pack if encoding fails.
+        let target = PathBuf::from(&self.disk_file_path);
+        let parent = match target.parent() {
+            Some(parent) if !parent.as_os_str().is_empty() => parent.to_path_buf(),
+            _ => PathBuf::from("."),
+        };
+
+        let mut temp_file = NamedTempFile::new_in(&parent)?;
+        {
+            let mut buffer = BufWriter::new(&mut temp_file);
+            self.encode(&mut buffer, &extra_data)?;
+            buffer.flush()?;
+        }
+        temp_file.persist(&target).map_err(|error| RLibError::from(error.error))?;
+
+        // Reload the files that were not decoded, so their offsets are updated to match the new pack.
+        let mut reloaded = Self::read_and_merge(&[target], game_info, true, false, false)?;
+        self.local_timestamp = reloaded.local_timestamp;
+        for (key, file) in self.files.iter_mut() {
+            if file.decoded().is_ok() {
+                continue;
+            }
+
+            if let Some(reloaded_file) = reloaded.files.remove(key) {
+                *file = reloaded_file;
+            }
+        }
+
+        Ok(())
     }
 
     //-----------------------------------------------------------------------//
