@@ -1959,6 +1959,5 @@ impl AppUITempSlots {
     ) {
         AppUI::build_pack_submenus(app_ui, pack_file_contents_ui, global_search_ui, dependencies_ui);
         AppUI::build_open_mymod_submenus(app_ui);
-        crate::welcome_page_ui::WelcomePageUI::build_recent_files(app_ui);
     }
 }

@@ -110,6 +110,7 @@ use crate::settings_ui::backend::*;
 use crate::ui::GameSelectedIcons;
 use crate::ui_state::OperationalMode;
 use crate::utils::*;
+use crate::welcome_page_ui::WelcomePageUI;
 
 #[cfg(feature = "support_model_renderer")]
 use crate::packedfile_views::{View, ViewType};
@@ -1691,6 +1692,9 @@ impl AppUI {
         app_ui.packfile_close_pack_menu.set_enabled(has_packs);
         app_ui.packfile_save_pack_menu.set_enabled(has_packs);
         app_ui.packfile_save_pack_as_menu.set_enabled(has_packs);
+
+        // Keep the welcome page's recent files list in sync with the recent PackFiles menu.
+        WelcomePageUI::build_recent_files(app_ui);
     }
 
     /// This function takes care of the re-creation of the `MyMod` list for each game.
