@@ -63,7 +63,7 @@ rpfm_telemetry = { path = "rpfm_telemetry" }
 
 # Common dependencies.
 anyhow = "^1"
-base64 = "^0"
+base64 = "^0.22"
 bitcode = { version = "^0.6", features = ["serde"] }
 cpp_core = { path = "3rdparty/src/ritual/cpp_core" }
 crossbeam = "^0.8"
