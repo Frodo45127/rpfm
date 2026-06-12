@@ -8,52 +8,78 @@ If you're looking for the changes included in the latest beta (against the lates
 
 ## [Unreleased]
 ### Added
-- Implemented full support for using RPFM Server as an MCP Server.
-- Implemented extensive Typescript/C# documentation for the new RPFM Server, as part of RPFM's manual.
-- Implemented support for flatpak builds.
-- Implemented support for opening and editing multiple packs simultaneously.
-- Updated simplified chinese translation, thanks to SZY.
-- Implemented support for Copy/Cut/Paste/Duplicate files.
-- Implemented support for filtering tables using status flags.
-- Implemented frozen columns on tables.
-- Build Startpos dialog now remembers the last campaign you selected in a per-pack basis.
-- Implemented command palette with actions and file search.
-- Implemented light/dark theme autodetection.
-- Implemented welcome page.
-- Implemented `Delete Filtered Out Rows` action for portrait settings list.
-- Implmeneted support for editing GroupFormation files for all games after Rome 2 except Warhammer 1 and 2 (thanks Alex Zhao for the research).
-- Added `Compress Pack` as an optimizer option.
-- Implemented `Import/Export All MyMod` feature.
-- Implemented new settings to toggle off telemetry and crash reports.
+- Implemented MCP Server support for RPFM.
+- Implemented flatpak support.
+- Implemented support for opening multiple packs simultaneously.
+- Implemented support for `Copy/Copy To Pack/Cut/Paste/Duplicate` files (replaces `Add from Packfile`).
+- Implemented support for filtering tables with status flags (e.g. `Modified`, `Different from Vanilla`, ...).
+- Implemented support for frozen columns in tables.
+- Implemented command palette, with support for actions and file searches.
+- Implemented welcome page, visible when no files are open.
+- Implemented `Delete Filtered Out Rows` action for Portrait Settings lists.
+- Moved a lot of actions around in menus to more natural places.
+- Save for Release (and the optimizer) can now auto-compress the optimized pack.
+- Implemented User Feedback dialog.
+- Implemented landing page, at: [https://frodo45127.github.io/rpfm/](https://frodo45127.github.io/rpfm/).
+- Added AI context files, to help you if you want to use an AI model to develop RPFM.
+- Added a `Build CEO` action, to build CEO files for 3k directly from RPFM, thanks to [@Ironic](https://github.com/Ironictw2st).
+- Added a `CEO Builder` to graphically build CEO entries in RPFM, thanks to [@Ironic](https://github.com/Ironictw2st).
+- Added sorting to diagnostics panel.
+- Invalid key diagnostics now also report suspicious db keys (keys with jumplines, tabs or spaces).
+- Implemented support for custom config folders.
+- Implemented plugin scripts: drop Python/Lua scripts in the config `scripts` folder to run them on selected files from the contents menu.
 
 ### Changed
-- Decoupled UI from Backend into RPFM UI and RPFM Server.
-- Greatly expanded documentation for the entire project.
+- Backend and Frontend are now two separate processes: RPFM Server and RPFM UI.
+- The documentation for the whole project (both the manual and the codebase documentation) has been greatly expanded and updated.
 - Reduced size of dependencies cache on disk by about 20%.
-- Update checks are now no longer blocking the backend until they're done.
+- Update checks no longer run syncronously, allowing for faster checks.
+- Refactored build release process.
+- Updated simplified chinese translation, thanks to SZY.
+- Refactored logging and telemetry logic to be toggleable and more reliable.
+- Docs now deploy on actions, instead of existing duplicated in the repo.
 - Migrated docs to autodeploy through an action, removing their artifacts from the repo.
-- Moved a lot of actions around in menus to more natural places.
-- Migrated UI to Qt6.
-- Refactored settings dialog.
-- Save For Release now shows the optimizer dialog, so you can configure it.
+- The Build Startpos dialog now remembers the last campaign used on a per-pack basis.
+- Migrated the UI framework from Qt5 to Qt6.
+- Several actions has been moved to more fitting places.
+- RPFM will now make backups of settings to avoid setting-corruption bugs from making you lose your settings.
+- Refactored settings dialog into a more modern and user-friendly design.
+- Save for Release now shows the optimizer dialog, so you can configure it to your heart's content.
+- Greatly optimized table views performance, specially when dealing with large amounts of rows/data/filters. This also affects the diagnostics panel.
+- Greatly optimized performance of a few badly performing diagnostics.
+- The translator now accepts any AI service for AI translations, instead of being limited to ChatGPT.
+- Greatly improved compilation times.
+- Changed how packs are saved to avoid corrupting packs on error, and to remove RAM spikes.
 
 ### Removed
 - Removed cli tool. If you use it, consider migrating to the new RPFM Server.
-- Removed `Add from PackFile` feature.
-- Removed `Dark Theme` setting.
+- Removed `Add from PackFile` feature (replaced by `Copy/Copy To Pack`).
+- Removed `Dark Theme` setting (replaced by automatic OS dark mode detection).
 
 ### Fixed
+- Fixed closing a pack not updating the dependencies and window title like opening one does.
+- Fixed the window title not reflecting how many packs are currently open.
+- Fixed an error that caused some video files to fail to encode properly.
+- Fixed CTD when failing to encode video files.
 - Fixed RPFM erroring out when trying to read incomplete portrait settings files.
 - Fixed rare hang when diagnosing big packs.
-- Fixed crash reports being broken since the client/server split.
 - Fixed a bug in the Translator where it would incorrectly mark for retranslations lines that had been deleted then readded to the mod.
 - Fixed RPFM asking for updates under linux, where the system is the one that should update it.
-- Fixed ESF Editor not being scrolleable.
+- Fixed ESF Editor not being scrollable.
 - Fixed no updates on git repo being reported as error.
-- Fixed some particular dds files not being readable.
+- Fixed some particular DDS files not being readable.
 - Fixed save as dialog not having a translated title.
 - Fixed `Generate Missing Locs` not generating short descriptions for building culture variants.
 - Fixed target warning on compilation.
+- Fixed some diagnostics triggering on situations where they shouldn't, such as when opening vanilla packs.
+- Fixed Sequence Cells not being copiable/pasteable.
+- Fixed filters (and some other widgets) not being readable under certain conditions.
+- Fixed RPFM crashing when certain operations triggered to early in the opening pack process.
+- Fixed RPFM corrupting files on save when something caused an error during the save process.
+- Fixed double `Are you sure?` dialog appearing on close after using a tool.
+- Fixed RPFM process getting stuck on closing after using a tools.
+- Fixed old error message when saving packs.
+- Fixed `Save as` not adding the saved pack to the recent pack list.
 
 ## [4.7.4]
 ### Added
