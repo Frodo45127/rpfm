@@ -889,15 +889,22 @@ impl AppUI {
         // First check if we have a PackFile open. If not, just leave the default title.
         let current_version = cargo_crate_version!().split('.').map(|x| x.parse::<i32>().unwrap_or(0)).collect::<Vec<i32>>();
         let appendix = if current_version[2] >= 99 { " - Beta - " } else { "" };
+        let model = pack_file_contents_ui.packfile_contents_tree_model();
+        let pack_count = if model.invisible_root_item().is_null() { 0 } else { model.invisible_root_item().row_count() };
         let window_title =
-            if pack_file_contents_ui.packfile_contents_tree_model().invisible_root_item().is_null() ||
-            pack_file_contents_ui.packfile_contents_tree_model().invisible_root_item().row_count() == 0 {
+            if pack_count == 0 {
             "Rusted PackFile Manager[*]".to_owned() + appendix
         }
 
-        // If there is a `PackFile` open, check if it has been modified, and set the title accordingly.
+        // If there is a single `PackFile` open, show its name. With several open, also show how many.
         else {
-            format!("{}[*]{}", pack_file_contents_ui.packfile_contents_tree_model().item_1a(0).text().to_std_string(), appendix)
+            let first_name = model.item_1a(0).text().to_std_string();
+            if pack_count == 1 {
+                format!("{}[*]{}", first_name, appendix)
+            } else {
+                // Count goes first so it stays visible even when a long pack name is truncated.
+                format!("[{}] {}[*]{}", pack_count, first_name, appendix)
+            }
         };
 
         app_ui.main_window.set_window_modified(UI_STATE.get_is_modified());
@@ -1354,6 +1361,7 @@ impl AppUI {
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
+        dependencies_ui: &Rc<DependenciesUI>,
         pack_key: &str,
     ) {
         let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ClosePack(pack_key.to_string()));
@@ -1390,6 +1398,11 @@ impl AppUI {
         if remaining.is_empty() {
             Self::enable_packfile_actions(app_ui, false);
         }
+
+        // Mirror the open path: rebuild the dependency parent packs and refresh the window title so
+        // they reflect the packs that are still open after this one is gone.
+        Self::rebuild_parent_packs(app_ui, pack_file_contents_ui, dependencies_ui);
+        Self::update_window_title(app_ui, pack_file_contents_ui);
 
         GameSelectedIcons::set_game_selected_icon(app_ui);
     }
@@ -1467,6 +1480,7 @@ impl AppUI {
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
+        dependencies_ui: &Rc<DependenciesUI>,
     ) {
 
         // First, we clear both menus, so we can rebuild them properly.
@@ -1633,8 +1647,9 @@ impl AppUI {
                 app_ui,
                 pack_file_contents_ui,
                 global_search_ui,
+                dependencies_ui,
                 pack_key => move |_| {
-                    Self::close_pack(&app_ui, &pack_file_contents_ui, &global_search_ui, &pack_key);
+                    Self::close_pack(&app_ui, &pack_file_contents_ui, &global_search_ui, &dependencies_ui, &pack_key);
                 }
             ));
             close_action.triggered().connect(&slot_close);

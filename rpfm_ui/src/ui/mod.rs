@@ -224,7 +224,7 @@ impl UI {
         init_app_exclusive_settings(app_ui);
 
         // This is here because this needs the connection to be operative to work.
-        AppUITempSlots::build(app_ui, pack_file_contents_ui, global_search_ui);
+        AppUITempSlots::build(app_ui, pack_file_contents_ui, global_search_ui, dependencies_ui);
 
         // Do not trigger the automatic game changed signal here, as that will trigger an expensive and useless dependency rebuild.
         info!("Setting initial Game Selected…");

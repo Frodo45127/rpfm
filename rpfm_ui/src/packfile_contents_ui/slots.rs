@@ -1772,7 +1772,8 @@ impl PackFileContentsSlots {
         let context_menu_close_pack = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui,
-            global_search_ui => move |_| {
+            global_search_ui,
+            dependencies_ui => move |_| {
                 rpfm_telemetry::track_action("Close Pack");
 
                 let pack_key = match pack_file_contents_ui.pack_key_from_selection_or_first() {
@@ -1780,7 +1781,7 @@ impl PackFileContentsSlots {
                     None => return show_dialog(app_ui.main_window(), "No pack is open.", false),
                 };
 
-                AppUI::close_pack(&app_ui, &pack_file_contents_ui, &global_search_ui, &pack_key);
+                AppUI::close_pack(&app_ui, &pack_file_contents_ui, &global_search_ui, &dependencies_ui, &pack_key);
             }
         ));
 

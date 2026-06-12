@@ -274,13 +274,14 @@ impl AppUISlots {
         let packfile_open_menu = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui,
-            global_search_ui => move || {
+            global_search_ui,
+            dependencies_ui => move || {
                 rpfm_telemetry::track_action("Open PackFile Menu");
 
                 let generated = send_ipc_command(Command::IsThereADependencyDatabase(false), response_extractor!(Response::Bool));
                 app_ui.packfile_load_all_ca_packfiles().set_enabled(!generated);
 
-                AppUI::build_pack_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui);
+                AppUI::build_pack_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui, &dependencies_ui);
             }
         ));
 
@@ -1954,8 +1955,9 @@ impl AppUITempSlots {
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
+        dependencies_ui: &Rc<DependenciesUI>,
     ) {
-        AppUI::build_pack_submenus(app_ui, pack_file_contents_ui, global_search_ui);
+        AppUI::build_pack_submenus(app_ui, pack_file_contents_ui, global_search_ui, dependencies_ui);
         AppUI::build_open_mymod_submenus(app_ui);
         crate::welcome_page_ui::WelcomePageUI::build_recent_files(app_ui);
     }
