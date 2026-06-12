@@ -1358,6 +1358,24 @@ pub enum Command {
     ///
     /// Response: [`Response::VecField`].
     FieldsProcessed(Definition),
+
+    /// List the user plugin scripts available under the config `scripts` folder.
+    ///
+    /// Response: [`Response::VecString`] with the absolute path of each script.
+    GetPluginScripts,
+
+    /// Run a plugin script against a selection of files/folders from an open Pack.
+    ///
+    /// First field is the pack key, then the absolute path of the script to run, then the
+    /// selected container paths. The selected files are extracted to a temp folder mirroring
+    /// their in-pack structure (DB/Loc tables as TSV, everything else as raw binary), the script
+    /// is run with those file paths as arguments, and their (possibly modified) contents are read
+    /// back into the Pack afterwards.
+    ///
+    /// Response:
+    /// - [`Response::VecContainerPathOptionString`] (re-imported paths, optional script output/error message).
+    /// - [`Response::Error`] on failure.
+    RunPluginScript(String, PathBuf, Vec<ContainerPath>),
 }
 
 /// This enum defines the responses (messages) you can send to the UI thread as result of a command.

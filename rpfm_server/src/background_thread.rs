@@ -1867,6 +1867,136 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 }
             }
 
+            // When we want to list the plugin scripts available under the config "scripts" folder.
+            Command::GetPluginScripts => {
+                match scripts_path() {
+                    Ok(folder) => {
+                        let mut scripts = vec![];
+                        if let Ok(entries) = std::fs::read_dir(&folder) {
+                            for entry in entries.flatten() {
+                                let path = entry.path();
+                                if path.is_file() && plugin_script_interpreter(&path).is_some() {
+                                    scripts.push(path.to_string_lossy().to_string());
+                                }
+                            }
+                        }
+
+                        scripts.sort();
+                        CentralCommand::send_back(&sender, Response::VecString(scripts));
+                    }
+                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                }
+            }
+
+            // When we want to run a plugin script against a selection of files/folders.
+            Command::RunPluginScript(pack_key, script_path, container_paths) => {
+                let interpreter = match plugin_script_interpreter(&script_path) {
+                    Some(interpreter) => interpreter,
+                    None => {
+                        CentralCommand::send_back(&sender, Response::Error(format!("Unsupported plugin script type: {}", script_path.display())));
+                        continue 'background_loop;
+                    }
+                };
+
+                match packs.get_mut(&pack_key) {
+                    Some(pack) => {
+
+                        // Extract the selection to a per-pack temp folder, keeping the in-pack structure, so the
+                        // script sees the same paths it would inside the Pack. DB/Loc files are handed out as TSV
+                        // (same as the normal extract), everything else as raw binary.
+                        let base_folder = temp_dir().join("rpfm_plugins").join(pack.disk_file_name());
+                        let _ = std::fs::remove_dir_all(&base_folder);
+
+                        let cf = pack.compression_format();
+                        let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(game, cf, settings.bool("disable_uuid_regeneration_on_db_tables")));
+                        let keys_first = settings.bool("tables_use_old_column_order_for_tsv");
+
+                        let mut extracted_paths = vec![];
+                        let mut extract_failed = false;
+                        for container_path in &container_paths {
+                            match pack.extract(container_path.clone(), &base_folder, true, &schema, false, keys_first, &extra_data) {
+                                Ok(mut paths) => extracted_paths.append(&mut paths),
+                                Err(error) => {
+                                    CentralCommand::send_back(&sender, Response::Error(format!("Error extracting files for the plugin script: {}", error)));
+                                    extract_failed = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if extract_failed {
+                            continue 'background_loop;
+                        }
+
+                        // Run the script with the extracted file paths as arguments, waiting until it finishes.
+                        let output = std::process::Command::new(interpreter)
+                            .arg(&script_path)
+                            .args(&extracted_paths)
+                            .current_dir(&base_folder)
+                            .output();
+
+                        let message = match output {
+                            Ok(output) => {
+                                let stdout = String::from_utf8_lossy(&output.stdout);
+                                let stderr = String::from_utf8_lossy(&output.stderr);
+
+                                // Record the run so users can debug their scripts: a `last_run.log` in the
+                                // scripts folder (overwritten each run), plus the standard terminal logger.
+                                let report = format!("Script: {}\nStatus: {}\n\n--- stdout ---\n{}\n--- stderr ---\n{}\n", script_path.display(), output.status, stdout, stderr);
+                                if let Ok(folder) = scripts_path() {
+                                    let _ = std::fs::write(folder.join("last_run.log"), report.as_bytes());
+                                }
+
+                                info!("Plugin script {} finished with {}.", script_path.display(), output.status);
+                                if !stderr.trim().is_empty() {
+                                    warn!("Plugin script stderr:\n{}", stderr.trim());
+                                }
+
+                                if output.status.success() {
+                                    None
+                                } else {
+                                    Some(format!("The plugin script finished with errors. See last_run.log in the scripts folder.\n\n{}", stderr.trim()))
+                                }
+                            }
+                            Err(error) => {
+                                error!("Failed to run the plugin script {}: {}", script_path.display(), error);
+                                CentralCommand::send_back(&sender, Response::Error(format!("Failed to run the plugin script: {}", error)));
+                                continue 'background_loop;
+                            }
+                        };
+
+                        // Read the (possibly modified) files back into the Pack. Files the script deleted are left untouched.
+                        let mut reimported_paths = vec![];
+                        for disk_path in &extracted_paths {
+                            if !disk_path.is_file() {
+                                continue;
+                            }
+
+                            // TSV-exported DB/Loc files have a `.tsv` suffix appended to their in-pack name;
+                            // strip it to find the real file when the direct path doesn't match anything.
+                            let direct_path = container_path_from_disk_path(disk_path, &base_folder);
+                            let container_path = if pack.file_mut(&direct_path, false).is_some() {
+                                direct_path
+                            } else if let Some(stripped) = direct_path.strip_suffix(".tsv") {
+                                stripped.to_owned()
+                            } else {
+                                direct_path
+                            };
+
+                            if let Some(file) = pack.file_mut(&container_path, false) {
+                                if file.encode_from_external_data(&schema, disk_path).is_ok() {
+                                    reimported_paths.push(ContainerPath::File(container_path));
+                                }
+                            }
+                        }
+
+                        let _ = std::fs::remove_dir_all(&base_folder);
+                        CentralCommand::send_back(&sender, Response::VecContainerPathOptionString(reimported_paths, message));
+                    }
+                    None => CentralCommand::send_back(&sender, Response::Error(format!("Pack not found: {}", pack_key))),
+                }
+            }
+
             // When we want to update our schemas...
             Command::UpdateSchemas => {
 
@@ -3893,6 +4023,33 @@ fn git_update_check(
             Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
         }
     });
+}
+
+/// Returns the interpreter command for a plugin script, based on its extension.
+///
+/// Returns `None` for unsupported extensions, which is also how we filter the scripts folder.
+fn plugin_script_interpreter(path: &std::path::Path) -> Option<&'static str> {
+    match path.extension().and_then(|extension| extension.to_str()) {
+        Some("py") => Some("python"),
+        Some("lua") => Some("lua"),
+        _ => None,
+    }
+}
+
+/// Rebuilds the in-pack container path of a file extracted under `base_folder`.
+///
+/// The extraction keeps the in-pack structure, so the container path is just the file's path
+/// relative to `base_folder` with forward slashes (the separator container paths use).
+fn container_path_from_disk_path(disk_path: &std::path::Path, base_folder: &std::path::Path) -> String {
+    disk_path.strip_prefix(base_folder)
+        .unwrap_or(disk_path)
+        .components()
+        .filter_map(|component| match component {
+            std::path::Component::Normal(part) => Some(part.to_string_lossy().to_string()),
+            _ => None,
+        })
+        .collect::<Vec<_>>()
+        .join("/")
 }
 
 // TODO: what do we do with this?

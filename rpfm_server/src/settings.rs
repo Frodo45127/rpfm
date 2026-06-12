@@ -43,6 +43,10 @@ const SETTINGS_FILE_NAME: &str = "settings.json";
 const CONFIG_REDIRECT_FILE_NAME: &str = "config_folder.txt";
 
 const DEPENDENCIES_FOLDER: &str = "dependencies";
+
+/// Folder under [`config_path`] where the user drops plugin scripts (`.py`/`.lua`).
+const SCRIPTS_FOLDER: &str = "scripts";
+
 const TABLE_PATCHES_FOLDER: &str = "table_patches";
 const TABLE_PROFILES_FOLDER: &str = "table_profiles";
 const TRANSLATIONS_LOCAL_FOLDER: &str = "translations_local";
@@ -628,6 +632,7 @@ pub fn init_config_path() -> Result<()> {
     DirBuilder::new().recursive(true).create(schemas_path()?)?;
     DirBuilder::new().recursive(true).create(table_patches_path()?)?;
     DirBuilder::new().recursive(true).create(table_profiles_path()?)?;
+    DirBuilder::new().recursive(true).create(scripts_path()?)?;
     DirBuilder::new().recursive(true).create(old_ak_files_path()?)?;
 
     // Schema patches need their file existing to even save.
@@ -695,6 +700,12 @@ pub fn backup_autosave_path() -> Result<PathBuf> {
 /// This function returns the dependencies path.
 pub fn dependencies_cache_path() -> Result<PathBuf> {
     Ok(config_path()?.join(DEPENDENCIES_FOLDER))
+}
+
+/// Folder under [`config_path`] where the user drops plugin scripts shown in the
+/// PackFile contents context menu.
+pub fn scripts_path() -> Result<PathBuf> {
+    Ok(config_path()?.join(SCRIPTS_FOLDER))
 }
 
 /// Folder under [`config_path`] holding archived Empire/Napoleon Assembly Kit

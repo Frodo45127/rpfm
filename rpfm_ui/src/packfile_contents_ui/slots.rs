@@ -85,6 +85,8 @@ pub struct PackFileContentsSlots {
     pub contextual_menu_add_folder: QBox<SlotOfBool>,
     pub contextual_menu_copy_to_pack_about_to_show: QBox<SlotNoArgs>,
     pub contextual_menu_copy_to_pack: QBox<SlotOfQAction>,
+    pub contextual_menu_run_script_about_to_show: QBox<SlotNoArgs>,
+    pub contextual_menu_run_script: QBox<SlotOfQAction>,
     pub contextual_menu_delete: QBox<SlotOfBool>,
     pub contextual_menu_extract: QBox<SlotOfBool>,
     pub contextual_menu_rename: QBox<SlotOfBool>,
@@ -365,6 +367,7 @@ impl PackFileContentsSlots {
                     pack_file_contents_ui.context_menu_open_with_external_program.set_enabled(false);
                     pack_file_contents_ui.context_menu_open_notes.set_enabled(false);
                     pack_file_contents_ui.context_menu_update_table.set_enabled(false);
+                    pack_file_contents_ui.context_menu_run_script.menu_action().set_enabled(false);
                 } else {
                     match contents {
 
@@ -621,11 +624,13 @@ impl PackFileContentsSlots {
                         },
                     }
 
-                    // If there is anything selected, we can generate missing loc data.
+                    // If there is anything selected, we can generate missing loc data and run plugin scripts.
                     if files > 0 || folders > 0 {
                         pack_file_contents_ui.context_menu_generate_missing_loc_data.set_enabled(true);
+                        pack_file_contents_ui.context_menu_run_script.menu_action().set_enabled(true);
                     } else {
                         pack_file_contents_ui.context_menu_generate_missing_loc_data.set_enabled(false);
+                        pack_file_contents_ui.context_menu_run_script.menu_action().set_enabled(false);
                     }
                 }
 
@@ -1074,6 +1079,50 @@ impl PackFileContentsSlots {
 
                 app_ui.toggle_main_window(true);
                 PackFileContentsUI::start_delayed_updates_timer(&pack_file_contents_ui);
+            }
+        ));
+
+        // Populate the "Run Script" submenu with the plugin scripts found in the config scripts folder.
+        let contextual_menu_run_script_about_to_show = SlotNoArgs::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            pack_file_contents_ui => move || {
+                rpfm_telemetry::track_action("Run Script About To Show");
+
+                let menu = &pack_file_contents_ui.context_menu_run_script;
+                menu.clear();
+
+                let scripts = send_ipc_command(Command::GetPluginScripts, response_extractor!(Response::VecString));
+                for script_path in &scripts {
+
+                    // Use the file name as the display name, falling back to the full path.
+                    let display_name = std::path::Path::new(script_path)
+                        .file_name()
+                        .map(|name| name.to_string_lossy().to_string())
+                        .unwrap_or_else(|| script_path.clone());
+
+                    let action = menu.add_action_q_string(&QString::from_std_str(&display_name));
+                    action.set_data(&qt_core::QVariant::from_q_string(&QString::from_std_str(script_path)));
+                }
+
+                // If the menu is empty, add a disabled placeholder.
+                if menu.is_empty() {
+                    let action = menu.add_action_q_string(&qtr("context_menu_run_script_no_scripts"));
+                    action.set_enabled(false);
+                }
+            }
+        ));
+
+        // What happens when a script is selected from the "Run Script" submenu.
+        let contextual_menu_run_script = SlotOfQAction::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |action| {
+                rpfm_telemetry::track_action("Run Script");
+
+                let script_path = action.data().to_string().to_std_string();
+                if script_path.is_empty() {
+                    return;
+                }
+
+                PackFileContentsUI::run_plugin_script(&app_ui, &pack_file_contents_ui, &script_path);
             }
         ));
 
@@ -2265,6 +2314,8 @@ impl PackFileContentsSlots {
             contextual_menu_add_folder,
             contextual_menu_copy_to_pack_about_to_show,
             contextual_menu_copy_to_pack,
+            contextual_menu_run_script_about_to_show,
+            contextual_menu_run_script,
             contextual_menu_delete,
             contextual_menu_extract,
             contextual_menu_rename,

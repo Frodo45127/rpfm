@@ -127,6 +127,7 @@ pub struct PackFileContentsUI {
     context_menu_merge_tables: QPtr<QAction>,
     context_menu_update_table: QPtr<QAction>,
     context_menu_generate_missing_loc_data: QPtr<QAction>,
+    context_menu_run_script: QPtr<QMenu>,
 
     //-------------------------------------------------------------------------------//
     // Pack-level actions (shown when pack root is right-clicked).
@@ -282,6 +283,9 @@ impl PackFileContentsUI {
         let context_menu_update_table = add_action_to_menu(&packfile_contents_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "update_files", "context_menu_update_table", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_generate_missing_loc_data = add_action_to_menu(&packfile_contents_tree_view_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "generate_missing_loc_data", "context_menu_generate_missing_loc_data", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
 
+        // Submenu populated on demand with the user's plugin scripts (see the `about_to_show` slot).
+        let context_menu_run_script = packfile_contents_tree_view_context_menu.add_menu_q_string(&qtr("context_menu_run_script"));
+
         //-------------------------------------------------------------------------------//
         // Pack-level actions (shown when pack root is right-clicked).
         //-------------------------------------------------------------------------------//
@@ -408,6 +412,7 @@ impl PackFileContentsUI {
         context_menu_open_packfile_settings.set_enabled(false);
         context_menu_open_with_external_program.set_enabled(false);
         context_menu_open_notes.set_enabled(false);
+        context_menu_run_script.menu_action().set_enabled(false);
 
         // Create ***Da monsta***.
         Ok(Self {
@@ -461,6 +466,7 @@ impl PackFileContentsUI {
             context_menu_merge_tables,
             context_menu_update_table,
             context_menu_generate_missing_loc_data,
+            context_menu_run_script,
 
             //-------------------------------------------------------------------------------//
             // Pack-level actions.
@@ -745,6 +751,59 @@ impl PackFileContentsUI {
             }
             app_ui.toggle_main_window(true);
         }
+    }
+
+    /// Runs a plugin script against the current treeview selection.
+    ///
+    /// The selected files/folders are saved to the backend, extracted to a temp folder, handed to the
+    /// script as arguments, and their (possibly modified) contents are read back into the Pack. Any file
+    /// whose data changed has its open view reloaded and the pack marked as modified.
+    pub unsafe fn run_plugin_script(
+        app_ui: &Rc<AppUI>,
+        pack_file_contents_ui: &Rc<Self>,
+        script_path: &str,
+    ) {
+        let selected_items = <QPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(pack_file_contents_ui);
+        if selected_items.is_empty() {
+            return;
+        }
+
+        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+
+        // Flush open files to the backend first, or the script would run against outdated data.
+        if let Err(error) = UI_STATE.get_open_packedfiles()
+            .iter()
+            .filter(|x| x.data_source() == DataSource::PackFile)
+            .try_for_each(|packed_file| packed_file.save(app_ui, pack_file_contents_ui)) {
+            return show_dialog(app_ui.main_window(), error, false);
+        }
+
+        app_ui.toggle_main_window(false);
+        match send_ipc_command_result_async(Command::RunPluginScript(pack_key.clone(), PathBuf::from(script_path), selected_items), response_extractor!(Response::VecContainerPathOptionString, paths, message)) {
+            Ok((paths, message)) => {
+                if !paths.is_empty() {
+                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths.to_vec()), DataSource::PackFile, &pack_key);
+                    UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
+
+                    // Reload the views of any modified file still open, closing those that fail to reload.
+                    let failed_paths = UI_STATE.set_open_packedfiles()
+                        .iter_mut()
+                        .filter(|view| view.data_source() == DataSource::PackFile && paths.iter().any(|path| path.path_raw() == *view.path_read()))
+                        .filter_map(|view| if view.reload(&view.path_copy(), pack_file_contents_ui).is_err() { Some(view.path_copy()) } else { None })
+                        .collect::<Vec<_>>();
+
+                    for path in &failed_paths {
+                        let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, DataSource::PackFile, false);
+                    }
+                }
+
+                if let Some(message) = message {
+                    show_dialog(app_ui.main_window(), message, false);
+                }
+            }
+            Err(error) => show_dialog(app_ui.main_window(), error, false),
+        }
+        app_ui.toggle_main_window(true);
     }
 
     pub unsafe fn start_delayed_updates_timer(pack_file_contents_ui: &Rc<Self>,) {

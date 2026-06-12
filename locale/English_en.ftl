@@ -401,6 +401,8 @@ context_menu_add_folder = Add Folder
 context_menu_add_folders = Add Folder/s
 context_menu_copy_to_pack = Copy To Pack
 context_menu_copy_to_pack_no_packs = No other packs open
+context_menu_run_script = Run Script
+context_menu_run_script_no_scripts = No scripts found
 context_menu_extract_packfile = Extract PackFile
 
 context_menu_new_folder = Create Folder
