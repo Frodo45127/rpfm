@@ -458,7 +458,9 @@ settings_hint_game_switch = ** Won't fully apply until you switch the game selec
 settings_game_paths_title = Game Paths
 settings_game_paths_description = Set the installation folder for each Total War game and its Assembly Kit. These paths are usually autodetected and are used to locate game files, generate dependency caches, and enable game-specific features. The Assembly Kit path is optional and only needed for certain features.
 settings_extra_paths_title = Extra Paths
-settings_extra_paths_description = Set the folder where MyMod files are stored, and an optional secondary folder for additional PackFile sources.
+settings_extra_paths_description = Set different folders used by different features of RPFM.
+settings_paths_config = Config Folder*
+settings_paths_config_ph = Custom folder for RPFM's config data. Leave empty to use the default OS config folder. Existing data is not moved automatically.
 settings_paths_mymod = MyMod's Folder
 settings_paths_mymod_ph = This is the folder where you want to store all MyMod related files.
 

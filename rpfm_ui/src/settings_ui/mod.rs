@@ -64,7 +64,7 @@ use rpfm_ui_common::utils::create_grid_layout;
 use crate::app_ui::AppUI;
 use crate::ffi::*;
 use crate::SUPPORTED_GAMES;
-use crate::settings_ui::backend::{config_path, settings_get_all, settings_set_bool, settings_set_i32, settings_set_string};
+use crate::settings_ui::backend::{config_path, custom_config_path, set_custom_config_path, settings_get_all, settings_set_bool, settings_set_i32, settings_set_string};
 use crate::updater_ui::{BETA, STABLE, update_channel, UpdateChannel};
 use crate::utils::{tr, qtr, qtre};
 
@@ -127,6 +127,8 @@ pub struct SettingsUI {
     //-------------------------------------------------------------------------------//
     // `Path` section of the `Settings` dialog.
     //-------------------------------------------------------------------------------//
+    paths_config_line_edit: QBox<QLineEdit>,
+    paths_config_button: QBox<QPushButton>,
     paths_mymod_line_edit: QBox<QLineEdit>,
     paths_mymod_button: QBox<QPushButton>,
     paths_secondary_line_edit: QBox<QLineEdit>,
@@ -354,6 +356,7 @@ impl SettingsUI {
         extra_paths_vbox.set_contents_margins_4a(4, 0, 4, 0);
         extra_paths_vbox.set_spacing(2);
 
+        let (paths_config_line_edit, paths_config_button) = new_setting_path(&extra_paths_vbox, &extra_paths_frame, "settings_paths_config", "settings_paths_config_ph");
         let (paths_mymod_line_edit, paths_mymod_button) = new_setting_path(&extra_paths_vbox, &extra_paths_frame, "settings_paths_mymod", "settings_paths_mymod_ph");
         let (paths_secondary_line_edit, paths_secondary_button) = new_setting_path(&extra_paths_vbox, &extra_paths_frame, "settings_paths_secondary", "settings_paths_secondary_ph");
 
@@ -709,6 +712,8 @@ impl SettingsUI {
             //-------------------------------------------------------------------------------//
             // `Path` section of the `Settings` dialog.
             //-------------------------------------------------------------------------------//
+            paths_config_line_edit,
+            paths_config_button,
             paths_mymod_line_edit,
             paths_mymod_button,
             paths_secondary_line_edit,
@@ -765,6 +770,10 @@ impl SettingsUI {
         let get_str = |key: &str| settings.string.get(key).cloned().unwrap_or_default();
         let get_int = |key: &str| settings.i32.get(key).copied().unwrap_or_default();
         let get_bool = |key: &str| settings.bool.get(key).copied().unwrap_or_default();
+
+        // Load the custom config folder. It's stored apart from the settings JSON, so fetch it on its own.
+        let custom_config = custom_config_path().map(|path| path.to_string_lossy().to_string()).unwrap_or_default();
+        self.paths_config_line_edit.set_text(&QString::from_std_str(&custom_config));
 
         // Load the MyMod and secondary paths.
         self.paths_mymod_line_edit.set_text(&QString::from_std_str(get_str(MYMOD_BASE_PATH)));
@@ -840,6 +849,14 @@ impl SettingsUI {
 
     /// This function saves the data from our `SettingsUI` into a `Settings` and return it.
     pub unsafe fn save(&self) -> Result<()> {
+
+        // Only touch the custom config folder if it actually changed, as applying it recreates the whole config tree.
+        let new_config = self.paths_config_line_edit.text().to_std_string();
+        let old_config = custom_config_path().map(|path| path.to_string_lossy().to_string()).unwrap_or_default();
+        if new_config != old_config {
+            let _ = set_custom_config_path(Path::new(&new_config));
+        }
+
         let _ = settings_set_string(MYMOD_BASE_PATH, &self.paths_mymod_line_edit.text().to_std_string());
         let _ = settings_set_string(SECONDARY_PATH, &self.paths_secondary_line_edit.text().to_std_string());
 
@@ -918,6 +935,7 @@ impl SettingsUI {
             match self.paths_games_line_edits.get(game) {
                 Some(line_edit) => (line_edit, false),
                 None => match game {
+                    CUSTOM_CONFIG_PATH_KEY => (&self.paths_config_line_edit, false),
                     MYMOD_BASE_PATH => (&self.paths_mymod_line_edit, false),
                     SECONDARY_PATH => (&self.paths_secondary_line_edit, false),
                     _ => return,

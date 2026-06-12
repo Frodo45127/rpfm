@@ -50,6 +50,7 @@ use crate::utils::{show_dialog, tr};
 /// This means everything you can do with the stuff you have in the `SettingsUI` goes here.
 pub struct SettingsUISlots {
     pub restore_default: QBox<SlotNoArgs>,
+    pub select_config_path: QBox<SlotNoArgs>,
     pub select_mymod_path: QBox<SlotNoArgs>,
     pub select_secondary_path: QBox<SlotNoArgs>,
     pub select_game_paths: BTreeMap<String, QBox<SlotNoArgs>>,
@@ -109,6 +110,14 @@ impl SettingsUISlots {
 
                 // Set this value to indicate future operations that a reset has taken place.
                 let _ = settings_set_bool(FACTORY_RESET, true);
+            }
+        ));
+
+        // What happens when we hit the "..." button for the custom config folder.
+        let select_config_path = SlotNoArgs::new(&ui.dialog, clone!(
+            ui => move || {
+                rpfm_telemetry::track_action("Settings: Select Config Path");
+                ui.update_entry_path(super::CUSTOM_CONFIG_PATH_KEY, false);
             }
         ));
 
@@ -252,6 +261,7 @@ impl SettingsUISlots {
 
         Self {
             restore_default,
+            select_config_path,
             select_mymod_path,
             select_secondary_path,
             select_game_paths,

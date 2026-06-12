@@ -21,6 +21,7 @@ use super::{SettingsUI, slots::SettingsUISlots};
 /// This function is just glue to trigger after initializing both, the actions and the slots. It's here
 /// to not polute the other modules with a ton of connections.
 pub unsafe fn set_connections(settings_ui: &SettingsUI, slots: &SettingsUISlots) {
+    settings_ui.paths_config_button.released().connect(&slots.select_config_path);
     settings_ui.paths_mymod_button.released().connect(&slots.select_mymod_path);
     settings_ui.paths_secondary_button.released().connect(&slots.select_secondary_path);
 

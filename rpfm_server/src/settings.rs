@@ -39,6 +39,9 @@ use crate::*;
 
 const SETTINGS_FILE_NAME: &str = "settings.json";
 
+/// File for storing the path to the user-chosen custom config folder.
+const CONFIG_REDIRECT_FILE_NAME: &str = "config_folder.txt";
+
 const DEPENDENCIES_FOLDER: &str = "dependencies";
 const TABLE_PATCHES_FOLDER: &str = "table_patches";
 const TABLE_PROFILES_FOLDER: &str = "table_profiles";
@@ -539,10 +542,10 @@ impl Settings {
 //                             Extra Helpers
 //-------------------------------------------------------------------------------//
 
-/// This function returns the current config path, or an error if said path is not available.
+/// This function returns RPFM's default config path, ignoring any custom-folder redirect.
 ///
 /// Note: On `Debug´ mode this project is the project from where you execute one of RPFM's programs, which should be the root of the repo.
-pub fn config_path() -> Result<PathBuf> {
+pub fn default_config_path() -> Result<PathBuf> {
 
     // On debug builds we use the local folder as the config folder.
     if cfg!(debug_assertions) {
@@ -553,6 +556,58 @@ pub fn config_path() -> Result<PathBuf> {
             None => Err(anyhow!("Failed to get the config path."))
         }
     }
+}
+
+/// This function returns the active config path: the user's custom folder if one is set, or the default otherwise.
+///
+/// All other config sub-paths derive from this, so setting a custom folder relocates RPFM's whole config tree.
+pub fn config_path() -> Result<PathBuf> {
+    match custom_config_path()? {
+        Some(path) => Ok(path),
+        None => default_config_path(),
+    }
+}
+
+/// This function returns the user-configured custom config folder, or `None` if RPFM uses the default one.
+///
+/// The custom path is read from the [`CONFIG_REDIRECT_FILE_NAME`] file inside the default config path.
+pub fn custom_config_path() -> Result<Option<PathBuf>> {
+    let redirect_file = default_config_path()?.join(CONFIG_REDIRECT_FILE_NAME);
+    if !redirect_file.is_file() {
+        return Ok(None);
+    }
+
+    let raw = std::fs::read_to_string(&redirect_file)?;
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(PathBuf::from(trimmed)))
+    }
+}
+
+/// This function sets (or clears, when passed `None`) the custom config folder and initializes it.
+///
+/// The choice is persisted to the redirect file in the default config path. The new folder is created and
+/// populated right away, but the running program keeps using the old one until it's restarted.
+pub fn set_custom_config_path(path: Option<&Path>) -> Result<()> {
+
+    // The redirect file always lives in the default path, so make sure that one exists first.
+    let default_path = default_config_path()?;
+    DirBuilder::new().recursive(true).create(&default_path)?;
+    let redirect_file = default_path.join(CONFIG_REDIRECT_FILE_NAME);
+
+    match path {
+        Some(path) if !path.as_os_str().is_empty() => {
+            DirBuilder::new().recursive(true).create(path)?;
+            std::fs::write(&redirect_file, path.to_string_lossy().as_bytes())?;
+        }
+        _ => if redirect_file.is_file() {
+            std::fs::remove_file(&redirect_file)?;
+        }
+    }
+
+    init_config_path()
 }
 
 /// This function returns the path where crash logs are stored.

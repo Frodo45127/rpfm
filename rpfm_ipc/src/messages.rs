@@ -1272,6 +1272,20 @@ pub enum Command {
     /// - [`Response::Error`] on failure.
     SettingsClearPath(PathBuf),
 
+    /// Get the user-configured custom config folder (empty path if RPFM uses the default one).
+    ///
+    /// Response:
+    /// - [`Response::PathBuf`] on success.
+    /// - [`Response::Error`] on failure.
+    CustomConfigPath,
+
+    /// Set the custom config folder, or clear it when given an empty path. Takes effect on restart.
+    ///
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
+    SetCustomConfigPath(PathBuf),
+
     //-----------------------------------------------------------------------//
     // Settings Backup Commands
     //-----------------------------------------------------------------------//

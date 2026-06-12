@@ -45,6 +45,10 @@ const ORG_DOMAIN: &str = "com";
 const ORG_NAME: &str = "FrodoWazEre";
 const APP_NAME: &str = "rpfm";
 
+/// Name of the custom-config-folder redirect file. Mirrors
+/// `rpfm_server::settings::CONFIG_REDIRECT_FILE_NAME`.
+const CONFIG_REDIRECT_FILE_NAME: &str = "config_folder.txt";
+
 thread_local! {
     static SETTINGS_CACHE: RefCell<Option<SettingsSnapshot>> = const { RefCell::new(None) };
 }
@@ -61,15 +65,32 @@ fn with_cache<T>(f: impl FnOnce(&SettingsSnapshot) -> T) -> T {
     })
 }
 
-/// Resolve the on-disk settings file path, mirroring
-/// `rpfm_server::settings::config_path` so both processes hit the same JSON.
-fn settings_file_path() -> Option<PathBuf> {
-    let dir = if cfg!(debug_assertions) {
-        std::env::current_dir().ok()?
+/// Resolve RPFM's default config directory, ignoring any custom-folder redirect.
+fn default_config_dir() -> Option<PathBuf> {
+    if cfg!(debug_assertions) {
+        std::env::current_dir().ok()
     } else {
-        ProjectDirs::from(ORG_DOMAIN, ORG_NAME, APP_NAME)?.config_dir().to_path_buf()
-    };
-    Some(dir.join(SETTINGS_FILE_NAME))
+        Some(ProjectDirs::from(ORG_DOMAIN, ORG_NAME, APP_NAME)?.config_dir().to_path_buf())
+    }
+}
+
+/// Resolve the active config directory, mirroring `rpfm_server::settings::config_path`
+/// so both processes hit the same folder before the server is even up.
+fn config_dir() -> Option<PathBuf> {
+    let default = default_config_dir()?;
+    let redirect_file = default.join(CONFIG_REDIRECT_FILE_NAME);
+    if let Ok(raw) = std::fs::read_to_string(&redirect_file) {
+        let trimmed = raw.trim();
+        if !trimmed.is_empty() {
+            return Some(PathBuf::from(trimmed));
+        }
+    }
+    Some(default)
+}
+
+/// Resolve the on-disk settings file path so both processes hit the same JSON.
+fn settings_file_path() -> Option<PathBuf> {
+    Some(config_dir()?.join(SETTINGS_FILE_NAME))
 }
 
 /// Populate the settings cache from the on-disk JSON file the server persists.
@@ -274,6 +295,16 @@ pub fn dependencies_cache_path() -> Result<PathBuf> {
 
 pub fn settings_clear_path(path: &Path) -> Result<()> {
     send_ipc_command_result(Command::SettingsClearPath(path.to_path_buf()), response_extractor!())
+}
+
+/// Fetch the user-configured custom config folder. An empty path means RPFM uses the default one.
+pub fn custom_config_path() -> Result<PathBuf> {
+    send_ipc_command_result(Command::CustomConfigPath, response_extractor!(Response::PathBuf))
+}
+
+/// Set the custom config folder, or clear it when given an empty path. Takes effect on restart.
+pub fn set_custom_config_path(path: &Path) -> Result<()> {
+    send_ipc_command_result(Command::SetCustomConfigPath(path.to_path_buf()), response_extractor!())
 }
 
 pub fn optimizer_options() -> OptimizerOptions {

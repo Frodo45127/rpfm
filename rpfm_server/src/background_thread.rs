@@ -3692,6 +3692,19 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                     Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
                 }
             },
+            Command::CustomConfigPath => {
+                match custom_config_path() {
+                    Ok(path) => CentralCommand::send_back(&sender, Response::PathBuf(path.unwrap_or_default())),
+                    Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
+                }
+            },
+            Command::SetCustomConfigPath(path) => {
+                let path = if path.as_os_str().is_empty() { None } else { Some(path.as_path()) };
+                match set_custom_config_path(path) {
+                    Ok(()) => CentralCommand::send_back(&sender, Response::Success),
+                    Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
+                }
+            },
             Command::BackupSettings => {
                 backup_settings = settings.clone();
                 CentralCommand::send_back(&sender, Response::Success);

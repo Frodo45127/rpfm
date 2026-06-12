@@ -20,6 +20,7 @@ use std::collections::HashMap;
 // Path settings.
 pub const MYMOD_BASE_PATH: &str = "mymods_base_path";
 pub const SECONDARY_PATH: &str = "secondary_path";
+pub const CUSTOM_CONFIG_PATH_KEY: &str = "custom_config_path";
 
 /// Suffix appended to a game key to form the settings key for that game's
 /// Assembly Kit path (e.g. `warhammer_3` → `warhammer_3_assembly_kit`).
