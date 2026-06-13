@@ -1,6 +1,6 @@
 # Maintainer: Ismael Gutiérrez González <frodo_gv@hotmail.com>
 pkgname=('rpfm-git')
-pkgver=4.7.3.4238.g900301da
+pkgver=5.0.1.4525.g42a0ced7
 pkgrel=1
 pkgdesc="A modding tool for modern (since Empire) Total War games. Development version."
 arch=('x86_64')
@@ -12,11 +12,17 @@ provides=('rpfm')
 conflicts=('rpfm-bin')
 source=("git+https://github.com/Frodo45127/rpfm.git")
 sha256sums=('SKIP')
+options=('!lto')
 _programname=('rpfm')
 
 pkgver() {
     cd $_programname
     echo "$(grep '^version =' $srcdir/$_programname/Cargo.toml|cut -d\" -f2).$(git rev-list --count HEAD).g$(git rev-parse --short HEAD)"
+}
+
+prepare() {
+    cd $_programname
+    git -c protocol.file.allow=always submodule update --init --recursive 3rdparty/src/ritual
 }
 
 build() {
