@@ -12,4 +12,4 @@
     update = "none"
 [submodule "3rdparty/src/ritual"]
 	path = 3rdparty/src/ritual
-	url = git@github.com:Frodo45127/ritual.git
+	url = https://github.com/Frodo45127/ritual.git
