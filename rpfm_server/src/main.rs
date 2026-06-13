@@ -53,6 +53,9 @@
 //! [`rpfm_telemetry`]. The Sentry guard returned by [`Logger::init`] is held
 //! for the process lifetime in [`main`].
 
+// Under windows, hide the server window by default.
+#![windows_subsystem = "windows"]
+
 use axum::{extract::State, routing::get, Json, Router};
 use rmcp::transport::streamable_http_server::{session::local::LocalSessionManager, StreamableHttpService};
 use tokio::net::TcpListener;
