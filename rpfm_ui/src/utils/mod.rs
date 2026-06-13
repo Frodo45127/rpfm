@@ -45,6 +45,7 @@ use cpp_core::Ref;
 
 use regex::Regex;
 
+use std::cell::Cell;
 use std::convert::AsRef;
 use std::fmt::Display;
 
@@ -472,6 +473,19 @@ unsafe fn build_gruvbox_dark_palette() -> CppBox<QPalette> {
     palette
 }
 
+thread_local! {
+    /// Guards `reload_theme` against re-entrancy.
+    static RELOADING_THEME: Cell<bool> = const { Cell::new(false) };
+}
+
+/// RAII guard that clears [`RELOADING_THEME`] when it leaves scope, even on early return/panic.
+struct ReloadThemeGuard;
+impl Drop for ReloadThemeGuard {
+    fn drop(&mut self) {
+        RELOADING_THEME.with(|flag| flag.set(false));
+    }
+}
+
 /// This function refreshes theme-dependent UI elements to match the current native theme.
 ///
 /// On Windows the dark variant is replaced with a softened gruvbox-flavored palette;
@@ -479,6 +493,12 @@ unsafe fn build_gruvbox_dark_palette() -> CppBox<QPalette> {
 /// It updates elements that need manual intervention: icons with light/dark variants,
 /// diagnostic filter button colors, and forces a full repaint.
 pub unsafe fn reload_theme(app_ui: &AppUI) {
+
+    // Avoid re-entering this function via `themeChanged()` signal during palette updates.
+    if RELOADING_THEME.with(|flag| flag.replace(true)) {
+        return;
+    }
+    let _reentry_guard = ReloadThemeGuard;
 
     // On dark themes, QDockWidget titlebar close/float buttons use QStyle standard pixmaps
     // that are dark-colored and invisible on dark backgrounds. Override them with breeze
