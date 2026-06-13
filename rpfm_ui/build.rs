@@ -183,7 +183,7 @@ fn common_config() {
 
     // This is to make RPFM able to see the extra libs we need while building.
     println!("cargo:rustc-link-search=native=./3rdparty/builds");
-    println!("cargo:rustc-link-lib=dylib=qt_rpfm_extensions");
+    println!("cargo:rustc-link-lib=static=qt_rpfm_extensions");
     println!("cargo:rustc-link-lib=dylib=KF6BreezeIcons");
     println!("cargo:rustc-link-lib=dylib=KF6Completion");
     println!("cargo:rustc-link-lib=dylib=KF6IconThemes");
