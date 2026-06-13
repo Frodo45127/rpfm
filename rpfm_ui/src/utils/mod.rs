@@ -31,7 +31,7 @@ use qt_gui::q_palette::ColorRole;
 #[cfg(target_os = "windows")] use qt_gui::QPalette;
 #[cfg(target_os = "windows")] use qt_gui::q_palette::ColorGroup;
 
-#[cfg(target_os = "windows")] use qt_core::ColorScheme;
+use qt_core::ColorScheme;
 #[cfg(target_os = "windows")] use qt_core::QCoreApplication;
 use qt_core::QFlags;
 use qt_core::QListOfQObject;
@@ -55,10 +55,13 @@ use rpfm_ui_common::ASSETS_PATH;
 use rpfm_ui_common::clone;
 use rpfm_ui_common::utils::*;
 
+use rpfm_ipc::settings_keys::{THEME, THEME_LIGHT, THEME_DARK};
+
 use crate::LOCALE;
 use crate::LOCALE_FALLBACK;
 use crate::app_ui::AppUI;
 use crate::ffi::*;
+use crate::settings_ui::backend::settings_string;
 use crate::STATUS_BAR;
 use crate::pack_tree::*;
 
@@ -390,6 +393,25 @@ pub fn get_feature_flags() -> String {
     feature_flags
 }
 
+/// Applies the user's [`THEME`] preference to Qt's global color scheme.
+///
+/// - [`THEME_LIGHT`]/[`THEME_DARK`]: force that scheme regardless of the OS, via
+///   `QStyleHints::setColorScheme` (Qt 6.8+). The whole app then behaves exactly
+///   as if the OS were set to that mode.
+/// - Anything else (i.e. the default `os`): clear any override so RPFM follows the
+///   OS light/dark preference again.
+///
+/// This only sets the scheme; call [`reload_theme`] afterwards (or rely on the
+/// `themeChanged` signal it triggers) to refresh theme-dependent widgets.
+pub unsafe fn apply_theme_preference() {
+    let style_hints = QGuiApplication::style_hints();
+    match settings_string(THEME).as_str() {
+        THEME_LIGHT => style_hints.set_color_scheme(ColorScheme::Light),
+        THEME_DARK => style_hints.set_color_scheme(ColorScheme::Dark),
+        _ => style_hints.unset_color_scheme(),
+    }
+}
+
 /// Detects whether the current system theme is dark by checking the application palette.
 ///
 /// Returns `true` if the system is using a dark color scheme (Window background lightness < 128).
@@ -499,6 +521,11 @@ pub unsafe fn reload_theme(app_ui: &AppUI) {
         return;
     }
     let _reentry_guard = ReloadThemeGuard;
+
+    // Honour the user's theme preference (OS/light/dark) before reading the effective
+    // color scheme below. Forcing a scheme makes the rest of this function (and the
+    // native widgets) behave as if the OS were set to that mode.
+    apply_theme_preference();
 
     // On dark themes, QDockWidget titlebar close/float buttons use QStyle standard pixmaps
     // that are dark-colored and invisible on dark backgrounds. Override them with breeze

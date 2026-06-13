@@ -29,6 +29,17 @@ pub const ASSEMBLY_KIT_SUFFIX: &str = "_assembly_kit";
 // General settings.
 pub const DEFAULT_GAME: &str = "default_game";
 pub const LANGUAGE: &str = "language";
+
+/// UI theme preference. One of [`THEME_OS`], [`THEME_LIGHT`] or [`THEME_DARK`].
+pub const THEME: &str = "theme";
+
+/// [`THEME`] value: follow the OS light/dark preference (the default).
+pub const THEME_OS: &str = "os";
+/// [`THEME`] value: force the light scheme regardless of the OS preference.
+pub const THEME_LIGHT: &str = "light";
+/// [`THEME`] value: force the dark scheme regardless of the OS preference.
+pub const THEME_DARK: &str = "dark";
+
 pub const UPDATE_CHANNEL: &str = "update_channel";
 pub const AUTOSAVE_AMOUNT: &str = "autosave_amount";
 pub const AUTOSAVE_INTERVAL: &str = "autosave_interval";

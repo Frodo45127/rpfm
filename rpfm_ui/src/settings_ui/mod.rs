@@ -146,6 +146,7 @@ pub struct SettingsUI {
     // Settings widgets, keyed by their backend settings key.
     //-------------------------------------------------------------------------------//
     general_language_combobox: QBox<QComboBox>,
+    general_theme_combobox: QBox<QComboBox>,
     extra_global_default_game_combobox: QBox<QComboBox>,
     extra_network_update_channel_combobox: QBox<QComboBox>,
     extra_packfile_autosave_interval_spinbox: QBox<QSpinBox>,
@@ -378,6 +379,15 @@ impl SettingsUI {
         let locale_names = locales.iter().map(|(name, _)| &**name).collect::<Vec<_>>();
         let game_names = SUPPORTED_GAMES.games_sorted().iter().map(|x| *x.display_name()).collect::<Vec<_>>();
         let general_language_combobox = new_setting_combobox(&general_vbox, &general_frame, "settings_ui_language", "tt_settings_ui_language_tip", &locale_names);
+
+        // Theme options are index-based (see load/save), so the order here must stay
+        // [OS Preferred, Light, Dark] to match THEME_OS/THEME_LIGHT/THEME_DARK.
+        let theme_os = tr("settings_theme_os");
+        let theme_light = tr("settings_theme_light");
+        let theme_dark = tr("settings_theme_dark");
+        let theme_names = [&*theme_os, &*theme_light, &*theme_dark];
+        let general_theme_combobox = new_setting_combobox(&general_vbox, &general_frame, "settings_theme", "tt_settings_theme_tip", &theme_names);
+
         let extra_global_default_game_combobox = new_setting_combobox(&general_vbox, &general_frame, "settings_default_game", "tt_settings_default_game_tip", &game_names);
         let extra_network_update_channel_combobox = new_setting_combobox(&general_vbox, &general_frame, "settings_update_channel", "tt_settings_update_channel_tip", &[STABLE, BETA]);
         let extra_packfile_autosave_amount_spinbox = new_setting_spinbox(&general_vbox, &general_frame, "settings_autosave_amount", "tt_settings_autosave_amount");
@@ -728,6 +738,7 @@ impl SettingsUI {
             // Settings widgets.
             //-------------------------------------------------------------------------------//
             general_language_combobox,
+            general_theme_combobox,
             extra_global_default_game_combobox,
             extra_network_update_channel_combobox,
             extra_packfile_autosave_amount_spinbox,
@@ -812,6 +823,13 @@ impl SettingsUI {
             }
         }
 
+        let theme_index = match get_str(THEME).as_str() {
+            THEME_LIGHT => 1,
+            THEME_DARK => 2,
+            _ => 0,
+        };
+        self.general_theme_combobox.set_current_index(theme_index);
+
         for (index, update_channel_name) in [UpdateChannel::Stable, UpdateChannel::Beta].iter().enumerate() {
             if update_channel_name == &update_channel() {
                 self.extra_network_update_channel_combobox.set_current_index(index as i32);
@@ -882,6 +900,13 @@ impl SettingsUI {
             let file_name = format!("{}_{}", language, locale.language);
             let _ = settings_set_string(LANGUAGE, &file_name);
         }
+
+        let theme_value = match self.general_theme_combobox.current_index() {
+            1 => THEME_LIGHT,
+            2 => THEME_DARK,
+            _ => THEME_OS,
+        };
+        let _ = settings_set_string(THEME, theme_value);
 
         let _ = settings_set_string(UPDATE_CHANNEL, &self.extra_network_update_channel_combobox.current_text().to_std_string());
 

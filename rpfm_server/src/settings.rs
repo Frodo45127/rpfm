@@ -222,6 +222,7 @@ impl Settings {
         // General Settings.
         settings.initialize_string(DEFAULT_GAME, KEY_WARHAMMER_3);
         settings.initialize_string(LANGUAGE, "English_en");
+        settings.initialize_string(THEME, THEME_OS);
         //settings.initialize_string(UPDATE_CHANNEL, STABLE);
         settings.initialize_i32(AUTOSAVE_AMOUNT, 10);
         settings.initialize_i32(AUTOSAVE_INTERVAL, 5);

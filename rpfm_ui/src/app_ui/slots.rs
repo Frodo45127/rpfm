@@ -614,6 +614,7 @@ impl AppUISlots {
                 let ak_path_old = settings_path_buf(&format!("{game_key}_assembly_kit"));
                 let font_name_old = settings_string(FONT_NAME);
                 let font_size_old = settings_i32(FONT_SIZE);
+                let theme_old = settings_string(THEME);
 
                 match SettingsUI::new(&app_ui) {
                     Ok(saved) => {
@@ -641,6 +642,11 @@ impl AppUISlots {
                             if font_name_old != font_name || font_size_old != font_size {
                                 let font = QFont::from_q_string_int(&QString::from_std_str(&font_name), font_size);
                                 QApplication::set_font_1a(&font);
+                            }
+
+                            // If the theme preference changed, re-apply it and refresh theme-dependent widgets.
+                            if theme_old != settings_string(THEME) {
+                                reload_theme(&app_ui);
                             }
 
                             // If we detect a factory reset, reset the window's geometry and state.
