@@ -1229,12 +1229,15 @@ impl TableView {
             return;
         }
 
-        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+        let pack_key = view.pack_key.read().unwrap().clone();
         if pack_key.is_empty() {
             return;
         }
 
-        let paths = send_ipc_command(Command::GetTablesByTableName(pack_key, KEY_DELETES_TABLE_NAME.to_owned()), response_extractor!(Response::VecString));
+        let paths = match send_ipc_command_result(Command::GetTablesByTableName(pack_key, KEY_DELETES_TABLE_NAME.to_owned()), response_extractor!(Response::VecString)) {
+            Ok(paths) => paths,
+            Err(_) => return,
+        };
         view.context_menu_add_to_twad_key_deletes_m.clear();
 
         let mut context_menu_add_to_twad_key_deletes = vec![];
