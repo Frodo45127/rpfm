@@ -28,6 +28,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Invalid key diagnostics now also report suspicious db keys (keys with jumplines, tabs or spaces).
 - Implemented support for custom config folders.
 - Implemented plugin scripts: drop Python/Lua scripts in the config `scripts` folder to run them on selected files from the contents menu.
+- Implemented `Delete Duplicate Files` option in the Optimizer, to remove case-insensitively duplicated files with identical contents.
 
 ### Changed
 - Backend and Frontend are now two separate processes: RPFM Server and RPFM UI.
