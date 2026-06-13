@@ -26,6 +26,7 @@
 //! | Endpoint    | Method | Purpose                                                                          |
 //! |-------------|--------|----------------------------------------------------------------------------------|
 //! | `/ws`       | GET    | WebSocket upgrade. Carries the [`rpfm_ipc`] command/response protocol.           |
+//! | `/version`  | GET    | REST: report the server build version + pid.    |
 //! | `/sessions` | GET    | REST: list every active session (used by the UI session picker).                 |
 //! | `/mcp`      | *      | MCP `StreamableHttpService` exposing the same surface to AI / MCP clients.       |
 //!
@@ -197,6 +198,7 @@ async fn main() {
     // Setup the endpoints for the server.
     let app = Router::new()
         .route("/ws", get(ws_handler))
+        .route("/version", get(version_handler))
         .route("/sessions", get(sessions_handler))
         .nest_service("/mcp", http_service)
         .with_state(session_manager);
@@ -211,6 +213,16 @@ async fn main() {
             warn!("Failed to bind to address {}: {}\n\nThis usually means you got another copy of the server running. Either use that one, or stop it and try again.", addr, err);
         }
     }
+}
+
+/// REST endpoint reporting the server's build version and process id.
+///
+/// Returns a JSON object: `{ "version": "5.0.0", "pid": 1234 }`.
+async fn version_handler() -> Json<serde_json::Value> {
+    Json(serde_json::json!({
+        "version": env!("CARGO_PKG_VERSION"),
+        "pid": std::process::id(),
+    }))
 }
 
 /// REST endpoint to get information about all active sessions.

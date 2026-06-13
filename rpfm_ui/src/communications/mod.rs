@@ -31,6 +31,8 @@ use rpfm_telemetry::*;
 
 use crate::CENTRAL_COMMAND;
 
+pub mod server;
+
 /// Atomic counter for generating unique message IDs.
 static MESSAGE_ID_COUNTER: AtomicU64 = AtomicU64::new(0);
 
