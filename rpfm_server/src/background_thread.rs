@@ -987,7 +987,11 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                     Some(source_pack) => {
                         source_pack.files_by_paths(&paths, false)
                             .into_iter()
-                            .cloned()
+                            .map(|file| {
+                                let mut file = file.clone();
+                                let _ = file.load();
+                                file
+                            })
                             .collect::<Vec<RFile>>()
                     }
                     None => {
@@ -1286,6 +1290,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                             let found = source_pack.files_by_paths(&[path_as_container], false);
                             if let Some(file) = found.first() {
                                 let mut new_file = (*file).clone();
+                                let _ = new_file.load();
 
                                 // Compute relative path by stripping this file's base path.
                                 let relative_path = if !base_path.is_empty() && file_path.starts_with(base_path) {
