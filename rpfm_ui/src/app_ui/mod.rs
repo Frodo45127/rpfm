@@ -3360,6 +3360,7 @@ impl AppUI {
 
         let pack_remove_itm_files_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "pack_remove_itm_files_checkbox")?;
         let pack_apply_compression_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "pack_apply_compression_checkbox")?;
+        let pack_remove_duplicated_files_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "pack_remove_duplicated_files_checkbox")?;
         let db_import_datacores_into_twad_key_deletes_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "db_import_datacores_into_twad_key_deletes_checkbox")?;
         let db_optimize_datacored_tables_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "db_optimize_datacored_tables_checkbox")?;
         let table_remove_duplicated_entries_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "table_remove_duplicated_entries_checkbox")?;
@@ -3377,6 +3378,7 @@ impl AppUI {
 
         let pack_remove_itm_files_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "pack_remove_itm_files_label")?;
         let pack_apply_compression_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "pack_apply_compression_label")?;
+        let pack_remove_duplicated_files_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "pack_remove_duplicated_files_label")?;
         let db_import_datacores_into_twad_key_deletes_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "db_import_datacores_into_twad_key_deletes_label")?;
         let db_optimize_datacored_tables_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "db_optimize_datacored_tables_label")?;
         let table_remove_duplicated_entries_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "table_remove_duplicated_entries_label")?;
@@ -3403,6 +3405,7 @@ impl AppUI {
 
         pack_remove_itm_files_label.set_text(&qtr("optimizer_pack_remove_itm_files"));
         pack_apply_compression_label.set_text(&qtr("optimizer_pack_apply_compression"));
+        pack_remove_duplicated_files_label.set_text(&qtr("optimizer_pack_remove_duplicated_files"));
         db_import_datacores_into_twad_key_deletes_label.set_text(&qtr("optimizer_db_import_datacores_into_twad_key_deletes"));
         db_optimize_datacored_tables_label.set_text(&qtr("optimizer_db_optimize_datacored_tables"));
         table_remove_duplicated_entries_label.set_text(&qtr("optimizer_table_remove_duplicated_entries"));
@@ -3421,6 +3424,7 @@ impl AppUI {
         {
             pack_remove_itm_files_checkbox.set_checked(settings_bool(PACK_REMOVE_ITM_FILES));
             pack_apply_compression_checkbox.set_checked(settings_bool(PACK_APPLY_COMPRESSION));
+            pack_remove_duplicated_files_checkbox.set_checked(settings_bool(PACK_REMOVE_DUPLICATED_FILES));
             db_import_datacores_into_twad_key_deletes_checkbox.set_checked(settings_bool(DB_IMPORT_DATACORES_INTO_TWAD_KEY_DELETES));
             db_optimize_datacored_tables_checkbox.set_checked(settings_bool(DB_OPTIMIZE_DATACORED_TABLES));
             table_remove_duplicated_entries_checkbox.set_checked(settings_bool(TABLE_REMOVE_DUPLICATED_ENTRIES));
@@ -3452,6 +3456,7 @@ impl AppUI {
         if dialog.exec() == 1 {
             let _ = settings_set_bool(PACK_REMOVE_ITM_FILES, pack_remove_itm_files_checkbox.is_checked());
             let _ = settings_set_bool(PACK_APPLY_COMPRESSION, pack_apply_compression_checkbox.is_checked());
+            let _ = settings_set_bool(PACK_REMOVE_DUPLICATED_FILES, pack_remove_duplicated_files_checkbox.is_checked());
             let _ = settings_set_bool(DB_IMPORT_DATACORES_INTO_TWAD_KEY_DELETES, db_import_datacores_into_twad_key_deletes_checkbox.is_checked());
             let _ = settings_set_bool(DB_OPTIMIZE_DATACORED_TABLES, db_optimize_datacored_tables_checkbox.is_checked());
             let _ = settings_set_bool(TABLE_REMOVE_DUPLICATED_ENTRIES, table_remove_duplicated_entries_checkbox.is_checked());
@@ -3484,6 +3489,7 @@ impl AppUI {
         } else {
             let _ = settings_set_bool(PACK_REMOVE_ITM_FILES, pack_remove_itm_files_checkbox.is_checked());
             let _ = settings_set_bool(PACK_APPLY_COMPRESSION, pack_apply_compression_checkbox.is_checked());
+            let _ = settings_set_bool(PACK_REMOVE_DUPLICATED_FILES, pack_remove_duplicated_files_checkbox.is_checked());
             let _ = settings_set_bool(DB_IMPORT_DATACORES_INTO_TWAD_KEY_DELETES, db_import_datacores_into_twad_key_deletes_checkbox.is_checked());
             let _ = settings_set_bool(DB_OPTIMIZE_DATACORED_TABLES, db_optimize_datacored_tables_checkbox.is_checked());
             let _ = settings_set_bool(TABLE_REMOVE_DUPLICATED_ENTRIES, table_remove_duplicated_entries_checkbox.is_checked());

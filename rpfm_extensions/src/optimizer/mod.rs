@@ -174,6 +174,12 @@ pub struct OptimizerOptions {
     /// that's been edited uncompressed. No-op if the active game supports no compression formats.
     pack_apply_compression: bool,
 
+    /// Allow the optimizer to remove files that only differ from another file in their path's casing (what the FileDuplicated diagnostic flags).
+    ///
+    /// Only files with byte-for-byte identical contents are removed. When a group of such files is found the all-lowercase
+    /// one is kept (or the last one if none is lowercase) and the rest are deleted. Files with differing contents are left untouched.
+    pack_remove_duplicated_files: bool,
+
     /// Allows the optimizer to update the twad_key_deletes table using the data cored tables in your pack to guess the keys.
     ///
     /// IT DOESN'T DELETE THE DATACORED TABLES.
@@ -236,6 +242,7 @@ impl Default for OptimizerOptions {
         Self {
             pack_remove_itm_files: true,
             pack_apply_compression: true,
+            pack_remove_duplicated_files: false,
             db_import_datacores_into_twad_key_deletes: false,
             db_optimize_datacored_tables: false,
             table_remove_duplicated_entries: true,
@@ -278,6 +285,7 @@ impl OptimizableContainer for Pack {
     ///     - Removal of empty Portrait Settings files.
     /// - Pack:
     ///     - Remove files identical to parent/vanilla.
+    ///     - Remove case-insensitively duplicated files with identical contents.
     ///     - Apply the most modern compression format the active game supports, so the next save compresses the files.
     fn optimize(&mut self,
         paths_to_optimize: Option<Vec<ContainerPath>>,
@@ -309,6 +317,44 @@ impl OptimizableContainer for Pack {
         let pack_paths = self.paths().keys().map(|x| x.to_owned()).collect::<HashSet<String>>();
         let self_copy = self.clone();
         let self_copy_map = BTreeMap::from([("main".to_string(), self_copy)]);
+
+        // Pass to remove case-insensitively duplicated files (what the FileDuplicated diagnostic flags).
+        // The paths cache groups files by their lowercased path, so any entry with two or more real paths is a casing collision.
+        if options.pack_remove_duplicated_files {
+            let extra_data = Some(EncodeableExtraData::new_from_game_info(game));
+            let duplicated_groups = self.paths().values()
+                .filter(|paths| paths.len() >= 2)
+                .map(|paths| paths.to_vec())
+                .collect::<Vec<Vec<String>>>();
+
+            for group in &duplicated_groups {
+
+                // Hash every file in the group so we can tell identical contents from a mere name clash.
+                // If any file is missing or fails to hash, leave the whole group untouched.
+                let mut hashes = Vec::with_capacity(group.len());
+                for path in group {
+                    match self.files_mut().get_mut(path).and_then(|rfile| rfile.data_hash(&extra_data).ok()) {
+                        Some(hash) => hashes.push(hash),
+                        None => break,
+                    }
+                }
+
+                if hashes.len() != group.len() || hashes.iter().any(|hash| *hash != hashes[0]) {
+                    continue;
+                }
+
+                // Identical contents: keep the all-lowercase path if there's one, otherwise the last path, and delete the rest.
+                let to_keep = group.iter()
+                    .find(|path| **path == path.to_lowercase())
+                    .unwrap_or_else(|| group.last().unwrap());
+
+                for path in group {
+                    if path != to_keep {
+                        files_to_delete.insert(path.to_owned());
+                    }
+                }
+            }
+        }
 
         // List of files to optimize.
         let mut files_to_optimize = match paths_to_optimize {

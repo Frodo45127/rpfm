@@ -1081,6 +1081,7 @@ All tool responses are JSON-serialized. On failure, an error message is returned
                 "example": {
                     "pack_remove_itm_files": true,
                     "pack_apply_compression": true,
+                    "pack_remove_duplicated_files": false,
                     "db_import_datacores_into_twad_key_deletes": false,
                     "db_optimize_datacored_tables": false,
                     "table_remove_duplicated_entries": true,
@@ -1099,6 +1100,7 @@ All tool responses are JSON-serialized. On failure, an error message is returned
                 "field_descriptions": {
                     "pack_remove_itm_files": "Remove files identical to vanilla (Identical To Master).",
                     "pack_apply_compression": "Apply the most modern compression format the active game supports (overriding the pack's configured one), so the next save compresses the files.",
+                    "pack_remove_duplicated_files": "Remove case-insensitively duplicated files (same name ignoring casing) when their contents are identical, keeping the all-lowercase one or, failing that, the last one.",
                     "db_import_datacores_into_twad_key_deletes": "Import datacored tables into TWAD key deletes.",
                     "db_optimize_datacored_tables": "Optimize datacored tables.",
                     "table_remove_duplicated_entries": "Remove duplicate rows in tables.",

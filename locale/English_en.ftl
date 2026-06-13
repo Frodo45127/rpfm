@@ -1757,6 +1757,7 @@ optimizer_instructions_label = <h3>Are you sure you want to optimize this PackFi
             <li><b>Pack:</b></li>
             <ul>
                 <li><b>Remove files which are direct copies without changes from parent/vanilla files.</li>
+                <li><b>Remove duplicated files</b> whose path only differs in casing, when their contents are identical.</li>
                 <li><b>Compress the Pack</b> using the most modern format the game supports, so the next save writes a compressed Pack.li>
             </ul>
             <li><b>DB/Loc Files:</b></li>
@@ -1875,6 +1876,7 @@ optimizer_pts_title = Portrait Settings Files
 
 optimizer_pack_remove_itm_files = Remove unchanged files
 optimizer_pack_apply_compression = Compress the Pack
+optimizer_pack_remove_duplicated_files = Remove duplicated files
 optimizer_db_import_datacores_into_twad_key_deletes = Import datacores into twad_key_deletes
 optimizer_db_optimize_datacored_tables = <b>NOT RECOMMENDED:</b> Optimize datacored tables
 optimizer_table_remove_duplicated_entries = Remove duplicated entries

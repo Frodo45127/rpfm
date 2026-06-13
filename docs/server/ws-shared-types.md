@@ -1454,28 +1454,30 @@ public class Note
 
 Configuration for the pack optimizer.
 
-| Field                                       | Type    | Description                                               |
-|---------------------------------------------|---------|-----------------------------------------------------------|
-| `pack_remove_itm_files`                     | boolean | Remove files unchanged from vanilla                       |
-| `db_import_datacores_into_twad_key_deletes` | boolean | Import datacored tables into twad_key_deletes             |
-| `db_optimize_datacored_tables`              | boolean | Optimize datacored tables (not recommended)               |
-| `table_remove_duplicated_entries`           | boolean | Remove duplicated rows from DB and Loc files              |
-| `table_remove_itm_entries`                  | boolean | Remove Identical To Master rows                           |
-| `table_remove_itnr_entries`                 | boolean | Remove Identical To New Row rows                          |
-| `table_remove_empty_file`                   | boolean | Remove empty DB and Loc files                             |
-| `text_remove_unused_xml_map_folders`        | boolean | Remove unused XML files in map folders                    |
-| `text_remove_unused_xml_prefab_folder`      | boolean | Remove unused XML files in the prefab folder              |
-| `text_remove_agf_files`                     | boolean | Remove unused AGF files                                   |
-| `text_remove_model_statistics_files`        | boolean | Remove unused model_statistics files                      |
-| `pts_remove_unused_art_sets`                | boolean | Remove unused art sets in Portrait Settings               |
-| `pts_remove_unused_variants`                | boolean | Remove unused variants from Portrait Settings art sets    |
-| `pts_remove_empty_masks`                    | boolean | Remove empty masks in Portrait Settings                   |
-| `pts_remove_empty_file`                     | boolean | Remove empty Portrait Settings files                      |
+| Field                                       | Type    | Description                                                           |
+|---------------------------------------------|---------|-----------------------------------------------------------------------|
+| `pack_remove_itm_files`                     | boolean | Remove files unchanged from vanilla                                   |
+| `pack_remove_duplicated_files`              | boolean | Remove case-insensitively duplicated files with identical contents    |
+| `db_import_datacores_into_twad_key_deletes` | boolean | Import datacored tables into twad_key_deletes                         |
+| `db_optimize_datacored_tables`              | boolean | Optimize datacored tables (not recommended)                           |
+| `table_remove_duplicated_entries`           | boolean | Remove duplicated rows from DB and Loc files                          |
+| `table_remove_itm_entries`                  | boolean | Remove Identical To Master rows                                       |
+| `table_remove_itnr_entries`                 | boolean | Remove Identical To New Row rows                                      |
+| `table_remove_empty_file`                   | boolean | Remove empty DB and Loc files                                         |
+| `text_remove_unused_xml_map_folders`        | boolean | Remove unused XML files in map folders                                |
+| `text_remove_unused_xml_prefab_folder`      | boolean | Remove unused XML files in the prefab folder                          |
+| `text_remove_agf_files`                     | boolean | Remove unused AGF files                                               |
+| `text_remove_model_statistics_files`        | boolean | Remove unused model_statistics files                                  |
+| `pts_remove_unused_art_sets`                | boolean | Remove unused art sets in Portrait Settings                           |
+| `pts_remove_unused_variants`                | boolean | Remove unused variants from Portrait Settings art sets                |
+| `pts_remove_empty_masks`                    | boolean | Remove empty masks in Portrait Settings                               |
+| `pts_remove_empty_file`                     | boolean | Remove empty Portrait Settings files                                  |
 
 <!-- langtabs-start -->
 ```typescript
 interface OptimizerOptions {
   pack_remove_itm_files: boolean;
+  pack_remove_duplicated_files: boolean;
   db_import_datacores_into_twad_key_deletes: boolean;
   db_optimize_datacored_tables: boolean;
   table_remove_duplicated_entries: boolean;
@@ -1496,6 +1498,7 @@ interface OptimizerOptions {
 public class OptimizerOptions
 {
     public bool PackRemoveItmFiles { get; set; }
+    public bool PackRemoveDuplicatedFiles { get; set; }
     public bool DbImportDatacoresIntoTwadKeyDeletes { get; set; }
     public bool DbOptimizeDatacoredTables { get; set; }
     public bool TableRemoveDuplicatedEntries { get; set; }
