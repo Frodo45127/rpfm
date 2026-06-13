@@ -1307,7 +1307,7 @@ impl TableView {
         table.set_data(&table_in_memory.data())?;
         table.generate_twad_key_deletes_keys(&mut keys);
 
-        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+        let pack_key = self.pack_key.read().unwrap().clone();
         let path = send_ipc_command_result(Command::AddKeysToKeyDeletes(pack_key.clone(), file_name.to_string(), table_name, keys), response_extractor!(Response::OptionContainerPath))?;
         if let Some(path) = path {
             let edited_paths = [path];
@@ -3130,7 +3130,7 @@ impl TableView {
                 (fields_processed[*column as usize].clone(), value_before.to_string(), value_after.to_string()))
                 .collect::<Vec<_>>();
 
-            let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+            let pack_key = self.pack_key.read().unwrap().clone();
             let (edited_paths, packed_files_info) = send_ipc_command(Command::CascadeEdition(pack_key.clone(), table_name, definition, changes), response_extractor!(Response::VecContainerPathVecRFileInfo, v1, v2));
 
             // If it worked, get the list of edited PackedFiles and update the TreeView to reflect the change.
@@ -3478,7 +3478,7 @@ impl TableView {
                 FileType::Loc => {
                     let index_row = self.table_filter.map_to_source(self.table_view.selection_model().selection().indexes().at(0)).row();
                     let key = self.table_model.index_2a(index_row, 0).data_0a().to_string().to_std_string();
-                    send_ipc_command_async(Command::GetSourceDataFromLocKey(pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default(), key), response_extractor!(Response::OptionStringStringVecString))
+                    send_ipc_command_async(Command::GetSourceDataFromLocKey(self.pack_key.read().unwrap().clone(), key), response_extractor!(Response::OptionStringStringVecString))
                 }
                 _ => None,
             };
@@ -3494,7 +3494,7 @@ impl TableView {
                 });
 
                 // Then ask the backend to do the heavy work.
-                match send_ipc_command_result_async(Command::GoToDefinition(pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default(), ref_table, ref_column, ref_data), response_extractor!(Response::DataSourceStringUsizeUsize, v1, v2, v3, v4)) {
+                match send_ipc_command_result_async(Command::GoToDefinition(self.pack_key.read().unwrap().clone(), ref_table, ref_column, ref_data), response_extractor!(Response::DataSourceStringUsizeUsize, v1, v2, v3, v4)) {
 
                     // We receive a path/column/row, so we know what to open/select.
                     Ok((data_source, path, column, row)) => {
@@ -3735,7 +3735,7 @@ impl TableView {
                 let loc_key = format!("{table_name}_{loc_column_name}_{key}");
 
                 // Then ask the backend to do the heavy work.
-                match send_ipc_command_result_async(Command::GoToLoc(pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default(), loc_key), response_extractor!(Response::DataSourceStringUsizeUsize, v1, v2, v3, v4)) {
+                match send_ipc_command_result_async(Command::GoToLoc(self.pack_key.read().unwrap().clone(), loc_key), response_extractor!(Response::DataSourceStringUsizeUsize, v1, v2, v3, v4)) {
 
                     // We receive a path/column/row, so we know what to open/select.
                     Ok((data_source, path, column, row)) => {

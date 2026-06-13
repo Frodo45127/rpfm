@@ -615,7 +615,7 @@ impl PackedFileDecoderViewSlots {
                             }
                         }
 
-                        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                        let pack_key = view.pack_key().to_owned();
                         let _ = CENTRAL_COMMAND.read().unwrap().send(Command::CleanCache(pack_key, packed_files_to_save));
                         match send_ipc_command_result(Command::SaveSchema(schema), response_extractor!()) {
                             Ok(()) => show_dialog(&view.table_view, "Schema successfully saved.", true),

@@ -557,7 +557,7 @@ impl TableViewSlots {
                     if file_dialog.exec() == 1 {
                         let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
 
-                        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                        let pack_key = view.pack_key.read().unwrap().clone();
                         match send_ipc_command_result_async(Command::ImportTSV(pack_key, packed_file_path.read().unwrap().to_owned(), path), response_extractor!(Response::RFileDecoded)) {
                             Ok(data) => {
                                 let data = match data {
@@ -587,7 +587,7 @@ impl TableViewSlots {
                                     *view.reference_map.write().unwrap() = referencing_columns_for_table(&table_name, &definition).unwrap_or_default();
 
                                     // Regenerate the references for this table, as we may have different columns with new references.
-                                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                                    let pack_key = view.pack_key.read().unwrap().clone();
                                     if let Ok(data) = get_reference_data(*view.packed_file_type, &table_name, &definition, true, &pack_key) {
                                         view.set_dependency_data(&data);
                                     }
@@ -657,7 +657,7 @@ impl TableViewSlots {
                             }
                         }
 
-                        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                        let pack_key = view.pack_key.read().unwrap().clone();
                         if let Err(error) = send_ipc_command_result_async(Command::ExportTSV(pack_key, packed_file_path.read().unwrap().to_string(), path, view.get_data_source()), response_extractor!()) {
                             show_dialog(&view.table_view, error, false);
                         }
@@ -727,7 +727,6 @@ impl TableViewSlots {
         ));
 
         let find_references = SlotNoArgs::new(&view.table_view, clone!(
-            pack_file_contents_ui,
             references_ui,
             view => move || {
             rpfm_telemetry::track_action("Find References");
@@ -745,7 +744,7 @@ impl TableViewSlots {
                                 references_ui.references_dock_widget().show();
                                 references_ui.references_table_view().set_enabled(false);
 
-                                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                                let pack_key = view.pack_key.read().unwrap().clone();
                                 let selected_value = index.data_0a().to_string().to_std_string();
                                 match send_ipc_command_result_async(Command::SearchReferences(pack_key, reference_data.clone(), selected_value), response_extractor!(Response::VecDataSourceStringStringStringUsizeUsize)) {
                                     Ok(data) => {

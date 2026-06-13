@@ -154,6 +154,7 @@ pub struct PackedFileDecoderView {
     save_button: QBox<QPushButton>,
 
     packed_file_path: String,
+    pack_key: String,
     data: Arc<RwLock<Cursor<Vec<u8>>>>,
     table_name: String,
     version: i32,
@@ -482,6 +483,7 @@ impl PackedFileDecoderView {
             save_button,
 
             packed_file_path: file_view.path_copy(),
+            pack_key: file_view.pack_key_copy(),
             data: Arc::new(RwLock::new(data)),
             table_name: table_name.to_owned(),
             version,
