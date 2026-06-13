@@ -17,7 +17,7 @@ RPFM supports every Total War since *Empire*, with depth that varies depending o
 | Total War: Shogun 2                 | `shogun_2`           | Full    | |
 | Total War: Napoleon                 | `napoleon`           | Full    | No Assembly Kit ever shipped — RPFM uses archived AK definitions. |
 | Total War: Empire                   | `empire`             | Full    | No Assembly Kit ever shipped — RPFM uses archived AK definitions. |
-| Total War: Arena                    | `arena`              | Read-only | Discontinued; `supports_editing` is `false`, so RPFM can browse Arena Packs but won't save them. |
+| Total War: Arena                    | `arena`              | Read-only | Discontinued; RPFM can browse Arena Packs but won't save them. |
 
 ## Game-specific quirks
 

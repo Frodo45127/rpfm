@@ -59,7 +59,7 @@ Each column edits according to its declared type:
 | String          | Inline text editor.                                          |
 | ColourRGB       | Inline RGB editor + colour picker popup.                     |
 | Reference (FK)  | Auto-completing combo box pulling values from the referenced table. |
-| Sequence        | Sub-table opened in a popup editor.                          |
+| Sequence        | Sub-table opened in a popup editor. Sequence cells can be copied and pasted between rows like any other cell. |
 
 ### Lookups & references
 

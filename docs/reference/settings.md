@@ -13,7 +13,13 @@ The dialog is a single scrollable form with a left-hand navigation pane that jum
 The first section you'll touch as a new user. Holds two groups:
 
 - **Game paths** — for each supported game, a collapsible "spoiler" with the game install path and (where applicable) the Assembly Kit install path.
-- **Extra paths** — **MyMod base path** (root folder for [MyMod](../mymod/overview.md) projects) and **Secondary path** (extra mods folder in addition to the game's `data/`).
+- **Extra paths** — **MyMod base path** (root folder for [MyMod](../mymod/overview.md) projects), **Secondary path** (extra mods folder in addition to the game's `data/`), and **Custom config folder** (see below).
+
+### Custom config folder
+
+By default RPFM keeps its config, schemas, autosaves and crash reports in the OS config folder (see [Where settings live on disk](#where-settings-live-on-disk)). The **Custom config folder** field lets you point RPFM at a different folder instead — handy for portable installs or keeping everything on a separate drive. Leave it empty to use the default OS folder.
+
+A few caveats: this path is stored separately from the rest of the settings (so it survives a settings reset), changing it **recreates the whole config tree** at the new location, and **existing data is not moved automatically** — copy it over yourself if you want to keep your current schemas and caches.
 
 ## General
 

@@ -56,6 +56,7 @@ The actions are grouped under three submenus (**Add…**, **Create…**, **Open�
 - **Merge Tables** — only enabled with multiple DB tables of the same definition (or multiple Loc files) selected. Combines them into one and removes the originals. Useful for collapsing many small tables into a single one.
 - **Update Tables** — update the tables in the pack to their latest version supported by the game.
 - **Generate Missing Loc Data** — generates Loc entries for fields in your pack that are missing them.
+- **Run Script ▸ \<script\>** — run one of your [plugin scripts](./plugin-scripts.md) against the selection. The submenu lists every script in your config `scripts` folder.
 
 ### Pack-root actions
 

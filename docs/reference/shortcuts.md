@@ -14,13 +14,14 @@ The list below shows the **defaults** as defined in the source. Most shortcuts a
 | Open Packs              | `Ctrl+O`       |
 | Open & Merge Packs      | `Ctrl+Shift+O` |
 | Save All Packs          | `Ctrl+S`       |
+| Save Current Pack       | `Ctrl+Shift+S` |
 | Install Pack            | `Ctrl+Shift+I` |
 | Uninstall Pack          | `Ctrl+Shift+U` |
 | Load All CA Packs       | `Ctrl+G`       |
 | Settings                | `Ctrl+,`       |
 | Quit                    | (unbound)      |
 
-Save active Pack and Save Pack As are exposed via the Pack root context menu and the file-tab context menu rather than as global shortcuts.
+`Save All Packs` (`Ctrl+S`) saves every open Pack; `Save Current Pack` (`Ctrl+Shift+S`) saves only the Pack the focused file/tab belongs to. Save Pack As is exposed via the Pack root context menu and the file-tab context menu rather than as a global shortcut.
 
 ## File tabs
 

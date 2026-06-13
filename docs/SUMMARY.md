@@ -14,6 +14,7 @@
 - [The Pack tree](./packs/pack-tree.md)
 - [Pack settings & notes](./packs/pack-settings.md)
 - [Dependencies](./packs/dependencies.md)
+- [Plugin scripts](./packs/plugin-scripts.md)
 
 # Editors
 

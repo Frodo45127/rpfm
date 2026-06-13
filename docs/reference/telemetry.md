@@ -2,8 +2,8 @@
 
 RPFM ships two pieces of opt-out telemetry, both controlled from **Preferences → Telemetry**:
 
-- **Enable Usage Telemetry** — anonymous counters of which actions get used.
-- **Enable Crash Reports** — automatic upload of panic reports and breadcrumbs to Sentry when RPFM crashes.
+- **Enable Usage Telemetry** — anonymous counters of which actions get used, sent to **PostHog**. This channel also carries any [user feedback](#user-feedback) you submit.
+- **Enable Crash Reports** — automatic upload of panic reports and breadcrumbs to **Sentry** when RPFM crashes.
 
 Both default to **on**. Both take effect immediately.
 
@@ -11,11 +11,15 @@ Both default to **on**. Both take effect immediately.
 
 ### Usage telemetry
 
-When enabled, RPFM increments per-action counters in memory and flushes them to Sentry as a single event when the program shuts down gracefully (or, on the server side, when a session disconnects). The events are tagged so server and UI activity can be told apart.
+When enabled, RPFM increments per-action counters in memory and flushes them to PostHog (one event per distinct action, with the invocation count carried as a property) when the program shuts down gracefully (or, on the server side, when a session disconnects). The events are tagged with a `source` so server and UI activity can be told apart.
 
-Each counter is just `(action_name, count)`. There's no payload, no path, no Pack name, no game, no user identifier — just "Open PackFile happened 7 times in this session".
+Each counter is just `(action_name, count)`. There's no payload, no path, no Pack name, no game, no persistent user identifier — just "Open PackFile happened 7 times in this session". The `distinct_id` attached to each event is **ephemeral**: it's regenerated every run from the process id and a timestamp, so it can't be used to track you across sessions.
 
 Examples of action names that actually appear in the codebase: `Open PackFile Menu`, `Open PackedFile Full`, `Save Pack`, `Diagnostics Check`, `Cascade Edition`, `Optimize PackFile`, `Open In External Program`, `Merge Tables`. They're whatever string a `rpfm_telemetry::track_action(...)` call passes — there's no central registry.
+
+### User feedback
+
+RPFM has a **User Feedback** dialog you can use to send the developers a short message directly from the app. Submissions are posted to PostHog as a dedicated `user_feedback` event carrying your text. It rides on the same plumbing as usage telemetry, so sending feedback requires **Enable Usage Telemetry** to be on. Only what you type in the dialog is sent.
 
 ### Crash reports
 

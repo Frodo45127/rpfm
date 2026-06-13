@@ -12,7 +12,7 @@ Diagnostics is grouped internally by check category (one variant of `DiagnosticT
 
 | Category               | Sample checks |
 |------------------------|----------------|
-| **Tables**             | Outdated table version, invalid foreign-key references, empty rows, empty keys, duplicated rows, datacore vs. master mismatches, tables on the modding deny-list, table-name issues (trailing number, contains space), required fields left empty, altered / out-of-spec tables, dangling file-path field references, invalid escape sequences in text. |
+| **Tables**             | Outdated table version, invalid foreign-key references, empty rows, empty keys, keys with invalid characters (jumplines, tabs, spaces, or trailing whitespace), duplicated rows, datacore vs. master mismatches, tables on the modding deny-list, table-name issues (trailing number, contains space), required fields left empty, altered / out-of-spec tables, dangling file-path field references, invalid escape sequences in text. |
 | **Pack-level**         | Invalid Pack name, invalid file names, missing loc data for referenced keys, ITM (identical-to-master) files, files overwriting vanilla unintentionally, duplicate files. |
 | **Portrait Settings**  | Art sets / variants not declared in the corresponding tables, missing texture references, datacored portrait_settings files. |
 | **AnimFragmentBattle** | Missing locomotion graphs, missing animation files, missing sound files, missing metadata file. |
@@ -33,6 +33,8 @@ Every diagnostic carries a severity (`Info`, `Warning`, `Error`), a category, th
 There are no "on file add" or "on Pack save" auto-run triggers.
 
 ## Triaging results
+
+**Click a column header** to sort the results by that column (severity, file, type, etc.), so you can group everything of one kind together or push all the errors to the top.
 
 Double-click a diagnostic to jump to the offending file / row / cell. Right-click for the ignore actions:
 
