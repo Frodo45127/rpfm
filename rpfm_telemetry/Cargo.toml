@@ -15,7 +15,7 @@ rust-version.workspace = true
 backtrace = "^0.3"
 log.workspace = true
 os_info = "^3.0"
-sentry = { version = "^0", features = ["log", "logs", "tracing"] }
+sentry = { version = "^0", features = ["log", "tracing"] }
 simplelog = "^0.12"
 
 # Serialization support.
