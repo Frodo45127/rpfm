@@ -13,6 +13,7 @@ Module containing the ffi functions used for custom widgets.
 !*/
 
 use qt_widgets::QAbstractSpinBox;
+use qt_widgets::QCheckBox;
 #[cfg(feature = "enable_tools")] use qt_widgets::QDialog;
 use qt_widgets::QLabel;
 use qt_widgets::QLayout;
@@ -541,6 +542,13 @@ pub fn new_resizable_label_safe(parent: &Ptr<QWidget>, pixmap: &Ptr<QPixmap>) ->
 extern "C" { fn set_pixmap_on_resizable_label(label: *mut QLabel, pixmap: *mut QPixmap); }
 pub fn set_pixmap_on_resizable_label_safe(label: &Ptr<QLabel>, pixmap: &Ptr<QPixmap>) {
     unsafe { set_pixmap_on_resizable_label(label.as_mut_raw_ptr(), pixmap.as_mut_raw_ptr()); }
+}
+
+// This function allow us to create a QCheckBox whose label is elided (xxx...) when there isn't
+// enough horizontal space to draw it in full, instead of forcing the layout to keep its full width.
+extern "C" { fn new_eliding_check_box(text: *const QString, parent: *mut QWidget) -> *mut QCheckBox; }
+pub fn new_eliding_check_box_safe(text: &Ptr<QString>, parent: &Ptr<QWidget>) -> QPtr<QCheckBox> {
+    unsafe { QPtr::from_raw(new_eliding_check_box(text.as_raw_ptr(), parent.as_mut_raw_ptr())) }
 }
 
 //---------------------------------------------------------------------------//

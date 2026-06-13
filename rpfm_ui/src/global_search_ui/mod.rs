@@ -80,7 +80,7 @@ use crate::app_ui::AppUI;
 use crate::communications::{Command, Response, send_ipc_command_result};
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
-use crate::ffi::{kline_edit_configure_safe, new_treeview_filter_safe, scroll_to_row_safe, trigger_treeview_filter_safe};
+use crate::ffi::{kline_edit_configure_safe, new_eliding_check_box_safe, new_treeview_filter_safe, scroll_to_row_safe, trigger_treeview_filter_safe};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::packedfile_views::{View, ViewType};
@@ -199,6 +199,30 @@ pub struct GlobalSearchUI {
 /// Implementation of `GlobalSearchUI`.
 impl GlobalSearchUI {
 
+    /// Replaces a checkbox placeholder from the UI template with an eliding checkbox at the same
+    /// grid cell, so its label collapses to "xxx..." when there isn't enough horizontal space.
+    unsafe fn template_eliding_check_box(main_widget: &QPtr<QWidget>, name: &str) -> Result<QPtr<QCheckBox>> {
+        let placeholder: QPtr<QCheckBox> = find_widget(main_widget, name)?;
+        let parent_widget = placeholder.parent_widget();
+        let layout: QPtr<QGridLayout> = parent_widget.layout().static_downcast();
+
+        // Find the cell the placeholder occupies so the eliding checkbox can take its exact place.
+        let index = layout.index_of_q_widget(&placeholder);
+        let mut row = 0;
+        let mut column = 0;
+        let mut row_span = 0;
+        let mut column_span = 0;
+        layout.get_item_position(index, &mut row, &mut column, &mut row_span, &mut column_span);
+
+        let checkbox = new_eliding_check_box_safe(&QString::new().as_ptr(), &parent_widget.as_ptr());
+
+        layout.remove_widget(&placeholder);
+        placeholder.delete_later();
+        layout.add_widget_5a(&checkbox, row, column, row_span, column_span);
+
+        Ok(checkbox)
+    }
+
     /// This function creates an entire `GlobalSearchUI` struct.
     pub unsafe fn new(main_window: &QBox<QMainWindow>) -> Result<Self> {
 
@@ -237,9 +261,9 @@ impl GlobalSearchUI {
         let search_on_group_box: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "search_on_groupbox")?;
         search_on_group_box.set_title(&qtr("global_search_search_on"));
 
-        let search_source_parent: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "source_parent")?;
-        let search_source_game: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "source_game")?;
-        let search_source_asskit: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "source_asskit")?;
+        let search_source_parent: QPtr<QCheckBox> = Self::template_eliding_check_box(&main_widget.static_upcast(), "source_parent")?;
+        let search_source_game: QPtr<QCheckBox> = Self::template_eliding_check_box(&main_widget.static_upcast(), "source_game")?;
+        let search_source_asskit: QPtr<QCheckBox> = Self::template_eliding_check_box(&main_widget.static_upcast(), "source_asskit")?;
         search_source_parent.set_text(&qtr("global_search_source_parent"));
         search_source_game.set_text(&qtr("global_search_source_game"));
         search_source_asskit.set_text(&qtr("global_search_source_asskit"));
@@ -254,30 +278,30 @@ impl GlobalSearchUI {
         let search_source_group_box: QPtr<QGroupBox> = find_widget(&main_widget.static_upcast(), "search_source_groupbox")?;
         search_source_group_box.set_title(&qtr("global_search_search_source"));
 
-        let search_on_all_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "search_all")?;
-        let search_on_all_common_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "search_all_common")?;
+        let search_on_all_checkbox: QPtr<QCheckBox> = Self::template_eliding_check_box(&main_widget.static_upcast(), "search_all")?;
+        let search_on_all_common_checkbox: QPtr<QCheckBox> = Self::template_eliding_check_box(&main_widget.static_upcast(), "search_all_common")?;
         let search_on_anim_checkbox: QPtr<QCheckBox> = QCheckBox::from_q_widget(&main_widget).into_q_ptr();//find_widget(&main_widget.static_upcast(), "search_anim")?;
-        let search_on_anim_fragment_battle_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "search_anim_fragment_battle")?;
+        let search_on_anim_fragment_battle_checkbox: QPtr<QCheckBox> = Self::template_eliding_check_box(&main_widget.static_upcast(), "search_anim_fragment_battle")?;
         let search_on_anim_pack_checkbox: QPtr<QCheckBox> = QCheckBox::from_q_widget(&main_widget).into_q_ptr();//find_widget(&main_widget.static_upcast(), "search_anim_pack")?;
         let search_on_anims_table_checkbox: QPtr<QCheckBox> = QCheckBox::from_q_widget(&main_widget).into_q_ptr();//find_widget(&main_widget.static_upcast(), "search_anims_table")?;
-        let search_on_atlas_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "search_atlas")?;
+        let search_on_atlas_checkbox: QPtr<QCheckBox> = Self::template_eliding_check_box(&main_widget.static_upcast(), "search_atlas")?;
         let search_on_audio_checkbox: QPtr<QCheckBox> = QCheckBox::from_q_widget(&main_widget).into_q_ptr();//find_widget(&main_widget.static_upcast(), "search_audio")?;
         let search_on_bmd_checkbox: QPtr<QCheckBox> = QCheckBox::from_q_widget(&main_widget).into_q_ptr();//find_widget(&main_widget.static_upcast(), "search_bmd")?;
-        let search_on_db_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "search_db")?;
+        let search_on_db_checkbox: QPtr<QCheckBox> = Self::template_eliding_check_box(&main_widget.static_upcast(), "search_db")?;
         let search_on_esf_checkbox: QPtr<QCheckBox> = QCheckBox::from_q_widget(&main_widget).into_q_ptr();//find_widget(&main_widget.static_upcast(), "search_esf")?;
         let search_on_group_formations_checkbox: QPtr<QCheckBox> = QCheckBox::from_q_widget(&main_widget).into_q_ptr();//find_widget(&main_widget.static_upcast(), "search_group_formations")?;
         let search_on_image_checkbox: QPtr<QCheckBox> = QCheckBox::from_q_widget(&main_widget).into_q_ptr();//find_widget(&main_widget.static_upcast(), "search_image")?;
-        let search_on_loc_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "search_loc")?;
+        let search_on_loc_checkbox: QPtr<QCheckBox> = Self::template_eliding_check_box(&main_widget.static_upcast(), "search_loc")?;
         let search_on_matched_combat_checkbox: QPtr<QCheckBox> = QCheckBox::from_q_widget(&main_widget).into_q_ptr();//find_widget(&main_widget.static_upcast(), "search_matched_combat")?;
         let search_on_pack_checkbox: QPtr<QCheckBox> = QCheckBox::from_q_widget(&main_widget).into_q_ptr();//find_widget(&main_widget.static_upcast(), "search_pack")?;
-        let search_on_portrait_settings_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "search_portrait_settings")?;
-        let search_on_rigid_model_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "search_rigid_model")?;
-        let search_on_schemas_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "search_schemas")?;
+        let search_on_portrait_settings_checkbox: QPtr<QCheckBox> = Self::template_eliding_check_box(&main_widget.static_upcast(), "search_portrait_settings")?;
+        let search_on_rigid_model_checkbox: QPtr<QCheckBox> = Self::template_eliding_check_box(&main_widget.static_upcast(), "search_rigid_model")?;
+        let search_on_schemas_checkbox: QPtr<QCheckBox> = Self::template_eliding_check_box(&main_widget.static_upcast(), "search_schemas")?;
         let search_on_sound_bank_checkbox: QPtr<QCheckBox> = QCheckBox::from_q_widget(&main_widget).into_q_ptr();//find_widget(&main_widget.static_upcast(), "search_sound_bank")?;
-        let search_on_text_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "search_text")?;
+        let search_on_text_checkbox: QPtr<QCheckBox> = Self::template_eliding_check_box(&main_widget.static_upcast(), "search_text")?;
         let search_on_uic_checkbox: QPtr<QCheckBox> = QCheckBox::from_q_widget(&main_widget).into_q_ptr();//find_widget(&main_widget.static_upcast(), "search_uic")?;
-        let search_on_unit_variant_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "search_unit_variant")?;
-        let search_on_unknown_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "search_unknown")?;
+        let search_on_unit_variant_checkbox: QPtr<QCheckBox> = Self::template_eliding_check_box(&main_widget.static_upcast(), "search_unit_variant")?;
+        let search_on_unknown_checkbox: QPtr<QCheckBox> = Self::template_eliding_check_box(&main_widget.static_upcast(), "search_unknown")?;
         let search_on_video_checkbox: QPtr<QCheckBox> = QCheckBox::from_q_widget(&main_widget).into_q_ptr();//find_widget(&main_widget.static_upcast(), "search_video")?;
 
         search_on_all_checkbox.set_text(&qtr("global_search_all"));
@@ -517,12 +541,14 @@ impl GlobalSearchUI {
             }
         }
 
-        // Remove the static checkboxes from layout so we can re-add them after the pack ones.
+        // Remove the static checkboxes from layout so we can re-add them in their own column.
         layout.remove_widget(&self.search_source_parent);
         layout.remove_widget(&self.search_source_game);
         layout.remove_widget(&self.search_source_asskit);
 
-        // Add pack checkboxes first (row 0+).
+        // Add the dynamic pack checkboxes in their own column (column 1, on the right), one per row. We use
+        // eliding checkboxes so their labels collapse to "xxx..." when the panel is too narrow to show them in full.
+        let group_box_widget = self.search_source_group_box.static_upcast::<QWidget>().as_ptr();
         let tree_model = pack_file_contents_ui.packfile_contents_tree_model();
         let mut next_row = 0;
 
@@ -535,20 +561,20 @@ impl GlobalSearchUI {
                     let key = variant.to_string().to_std_string();
                     if !key.is_empty() {
                         let name = item.text().to_std_string();
-                        let checkbox = QCheckBox::from_q_string(&QString::from_std_str(&name));
+                        let checkbox = new_eliding_check_box_safe(&QString::from_std_str(&name).as_ptr(), &group_box_widget);
                         checkbox.set_checked(true);
                         checkbox.set_property(c"pack_key".as_ptr().cast(), &QVariant::from_q_string(&QString::from_std_str(&key)));
-                        layout.add_widget_5a(&checkbox, next_row, 0, 1, 1);
+                        layout.add_widget_5a(&checkbox, next_row, 1, 1, 1);
                         next_row += 1;
                     }
                 }
             }
         }
 
-        // Re-add static checkboxes after the pack ones.
-        layout.add_widget_5a(&self.search_source_parent, next_row, 0, 1, 1);
-        layout.add_widget_5a(&self.search_source_game, next_row + 1, 0, 1, 1);
-        layout.add_widget_5a(&self.search_source_asskit, next_row + 2, 0, 1, 1);
+        // Re-add the static source checkboxes in their own column (column 0, on the left), separate from the packs.
+        layout.add_widget_5a(&self.search_source_parent, 0, 0, 1, 1);
+        layout.add_widget_5a(&self.search_source_game, 1, 0, 1, 1);
+        layout.add_widget_5a(&self.search_source_asskit, 2, 0, 1, 1);
     }
 
     /// Helper to get all dynamically-created pack checkboxes from the search source group box.

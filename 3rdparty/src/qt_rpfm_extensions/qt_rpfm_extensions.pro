@@ -53,6 +53,7 @@ SOURCES += \
     src/resizable_label.cpp \
     src/spinbox_item_delegate.cpp \
     src/doublespinbox_item_delegate.cpp \
+    src/eliding_check_box.cpp \
     src/spoiler.cpp \
     src/tableview_command_palette.cpp \
     src/tableview_filter.cpp \
@@ -83,6 +84,7 @@ HEADERS += \
     include/combobox_item_delegate.h \
     include/spinbox_item_delegate.h \
     include/doublespinbox_item_delegate.h \
+    include/eliding_check_box.h \
     include/text_editor.h \
     include/tips_item_delegate.h \
     include/tree_item_delegate.h \
