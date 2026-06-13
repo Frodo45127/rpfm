@@ -123,6 +123,7 @@ Per `CONTRIBUTING.md`: **explain what your code does** and **no black magic code
 ## Imports and Dependencies
 
 - **MUST** avoid wildcard imports (`use module::*`) except for preludes, test modules (`use super::*`), and prelude re-exports.
+- **MUST** avoid long inline path chains like `crate::xxxx::yyyyy::method(...)` at call sites. Add a `use crate::xxxx::yyyyy;` and call `yyyyy::method(...)` instead.
 - Add new dependencies to the workspace `[workspace.dependencies]` table first, then reference them from per-crate `Cargo.toml` files. Match the existing version-pinning style (`"^X"` or exact pin).
 - Organize imports: standard library, external crates, local modules. Match the surrounding file.
 
