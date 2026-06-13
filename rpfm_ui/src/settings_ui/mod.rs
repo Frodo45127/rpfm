@@ -692,6 +692,9 @@ impl SettingsUI {
                 timer_ptr.start_0a();
             });
             search_field.text_changed().connect(&trigger_slot);
+
+            // Some sections are hidden for some bizarre reason. Trigger a filter to fix them.
+            timer.start_0a();
         }
 
         //-----------------------------------------------//
