@@ -64,13 +64,14 @@ The workspace already pins the canonical set of dependencies in the top-level `C
 
 ## Comments and "No Black Magic"
 
+> **HARD RULE — NO COMMENTS LONGER THAN 2 LINES INSIDE FUNCTIONS.** No exceptions. If a longer explanation is genuinely needed, lift it into the function's doc comment instead (doc comments may be longer). This is the most-violated rule here — re-read it before writing any in-body comment.
+
 Per `CONTRIBUTING.md`: **explain what your code does** and **no black magic code**. The maintainer uses this project to learn Rust, so unexplained cleverness is a regression.
 
 - When using a non-obvious Rust feature (lifetime tricks, complex trait bounds, `unsafe`, manual `Drop`, custom `Deref`), add a short comment explaining *why*.
 - Comments should describe intent and rationale, not restate what the code obviously does.
 - Minimize comments inside function bodies and don't overexplain: add one only where the code isn't self-evident.
 - Keep comments up to date with code changes. Delete stale ones.
-- **MUST NOT** write comments longer than 2 lines inside function bodies. If a longer explanation is genuinely needed, lift it into the function's doc comment instead. Doc comments may be longer.
 
 ## Documentation
 
