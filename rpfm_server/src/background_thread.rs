@@ -3293,9 +3293,10 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
             },
 
             Command::BuildCeo(pack_key, akit_path, bob_exe_path) => {
-                use std::process::Command as SysCommand;
+                use std::process::{Command as SysCommand, Stdio};
                 use std::time::{Duration, Instant};
 
+                info!("[BuildCeo] handler entered: pack={pack_key}, akit={akit_path}, bob={bob_exe_path}");
                 let akit_root = PathBuf::from(&akit_path);
                 let bob_exe = PathBuf::from(&bob_exe_path);
                 let bob_dir = match bob_exe.parent() {
@@ -3594,28 +3595,62 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                     continue 'background_loop;
                 }
 
-                let output = match SysCommand::new(&bob_exe).current_dir(&bob_dir).output() {
-                    Ok(o) => o,
+                info!("[BuildCeo] launching BOB: {} (cwd {})", bob_exe.display(), bob_dir.display());
+                let bob_start = Instant::now();
+
+                // Run with .status to prevent freeze if BOB crashes due to an error in table.
+                let bob_stdout_path = temp_dir().join("rpfm_bob_stdout.log");
+                let bob_stderr_path = temp_dir().join("rpfm_bob_stderr.log");
+
+                let mut cmd = SysCommand::new(&bob_exe);
+                cmd.current_dir(&bob_dir).stdin(Stdio::null());
+                match File::create(&bob_stdout_path) {
+                    Ok(f) => { cmd.stdout(Stdio::from(f)); }
+                    Err(_) => { cmd.stdout(Stdio::null()); }
+                }
+                match File::create(&bob_stderr_path) {
+                    Ok(f) => { cmd.stderr(Stdio::from(f)); }
+                    Err(_) => { cmd.stderr(Stdio::null()); }
+                }
+
+                let status = match cmd.status() {
+                    Ok(s) => s,
                     Err(e) => {
                         let _ = std::fs::remove_file(&cfg_path);
                         if cfg_existed { let _ = std::fs::rename(&cfg_backup, &cfg_path); }
                         for (orig, bak) in &xml_backups { let _ = std::fs::rename(bak, orig); }
+                        let _ = std::fs::remove_file(&bob_stdout_path);
+                        let _ = std::fs::remove_file(&bob_stderr_path);
+                        info!("[BuildCeo] BOB spawn failed after {:?}: {e}", bob_start.elapsed());
                         CentralCommand::send_back(&sender, Response::Error(format!("Failed to launch BOB: {e}")));
                         continue 'background_loop;
                     }
                 };
 
+                let bob_stdout = std::fs::read_to_string(&bob_stdout_path).unwrap_or_default();
+                let bob_stderr = std::fs::read_to_string(&bob_stderr_path).unwrap_or_default();
+                let _ = std::fs::remove_file(&bob_stdout_path);
+                let _ = std::fs::remove_file(&bob_stderr_path);
+                info!("[BuildCeo] BOB exited after {:?}, exit={:?}, stdout={}B, stderr={}B",
+                    bob_start.elapsed(), status.code(), bob_stdout.len(), bob_stderr.len());
+                if !bob_stderr.trim().is_empty() {
+                    info!("[BuildCeo] BOB stderr: {bob_stderr}");
+                }
+
                 // Restore config regardless of BOB's result.
                 let _ = std::fs::remove_file(&cfg_path);
                 if cfg_existed { let _ = std::fs::rename(&cfg_backup, &cfg_path); }
 
-                // ── Step 5: Poll for ceo_data.ccd (180s timeout) ─────────────
-                let deadline = Instant::now() + Duration::from_secs(180);
+                // ── Step 5: Confirm ceo_data.ccd was produced ────────────────
+                // BOB has already exited, so the file either exists now or never will. Allow a
+                // short grace window only for a filesystem flush, then fail fast
+                let grace_deadline = Instant::now() + Duration::from_secs(5);
                 let found = loop {
                     if ceo_ccd.exists() { break true; }
-                    if Instant::now() >= deadline { break false; }
-                    std::thread::sleep(Duration::from_millis(500));
+                    if Instant::now() >= grace_deadline { break false; }
+                    std::thread::sleep(Duration::from_millis(200));
                 };
+                info!("[BuildCeo] ceo_data.ccd present: {found}");
 
                 // ── Step 6: Restore original ceo_*.xml files ─────────────────
                 for (orig, bak) in &xml_backups {
@@ -3626,10 +3661,18 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 if found {
                     CentralCommand::send_back(&sender, Response::Success);
                 } else {
+                    // Surface BOB's own diagnostics (the "error in the table") instead of a bare timeout.
+                    let detail = if !bob_stderr.trim().is_empty() {
+                        bob_stderr
+                    } else if !bob_stdout.trim().is_empty() {
+                        bob_stdout
+                    } else {
+                        "(BOB produced no output)".to_owned()
+                    };
                     CentralCommand::send_back(&sender, Response::Error(format!(
-                        "ceo_data.ccd not generated within 180s. BOB exit: {:?}\nstdout: {}",
-                        output.status.code(),
-                        String::from_utf8_lossy(&output.stdout)
+                        "BOB finished (exit {:?}) but ceo_data.ccd was not generated. \
+                         This usually means BOB hit an error in the exported tables.\n\n{detail}",
+                        status.code()
                     )));
                 }
             }
