@@ -255,6 +255,7 @@ impl Settings {
         settings.initialize_bool(IGNORE_GAME_FILES_IN_AK, false);
         settings.initialize_bool(ENABLE_MULTIFOLDER_FILEPICKER, false);
         settings.initialize_bool(ENABLE_PACK_CONTENTS_DRAG_AND_DROP, true);
+        settings.initialize_bool(CLEAN_UI, false);
 
         // Table Settings.
         settings.initialize_bool(ADJUST_COLUMNS_TO_CONTENT, true);

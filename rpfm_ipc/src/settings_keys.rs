@@ -68,6 +68,7 @@ pub const AUTOSAVE_FOLDER_SIZE_WARNING_TRIGGERED: &str = "autosave_folder_size_w
 pub const IGNORE_GAME_FILES_IN_AK: &str = "ignore_game_files_in_ak";
 pub const ENABLE_MULTIFOLDER_FILEPICKER: &str = "enable_multifolder_filepicker";
 pub const ENABLE_PACK_CONTENTS_DRAG_AND_DROP: &str = "enable_pack_contents_drag_and_drop";
+pub const CLEAN_UI: &str = "clean_ui";
 
 // Hidden/migration settings.
 pub const IMPORT_FROM_QT: &str = "import_from_qt";

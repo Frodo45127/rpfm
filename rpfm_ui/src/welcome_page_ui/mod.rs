@@ -396,8 +396,10 @@ impl WelcomePageUI {
     }
 
     /// This function toggles visibility between the welcome widget and the tab widget.
+    ///
+    /// When the `CLEAN_UI` setting is enabled, the welcome page is never shown.
     pub unsafe fn toggle_visibility(&self, tab_bar: &QBox<qt_widgets::QTabWidget>) {
-        if tab_bar.count() == 0 {
+        if tab_bar.count() == 0 && !settings_bool(CLEAN_UI) {
             tab_bar.hide();
             self.build_logo();
             self.update_server_status();

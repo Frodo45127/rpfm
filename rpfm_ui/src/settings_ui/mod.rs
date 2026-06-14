@@ -409,6 +409,7 @@ impl SettingsUI {
         new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, IGNORE_GAME_FILES_IN_AK, "ignore_game_files_in_ak", "settings_ignore_game_files_in_ak");
         new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, ENABLE_MULTIFOLDER_FILEPICKER, "enable_multifolder_filepicker", "settings_enable_multifolder_filepicker");
         new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, ENABLE_PACK_CONTENTS_DRAG_AND_DROP, "enable_pack_contents_drag_and_drop", "settings_enable_pack_contents_drag_and_drop");
+        new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, CLEAN_UI, "settings_clean_ui", "tt_settings_clean_ui_tip");
 
         content_layout.add_widget_1a(&general_header);
         content_layout.add_widget_1a(&general_frame);
