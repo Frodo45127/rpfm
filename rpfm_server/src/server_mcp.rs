@@ -38,12 +38,12 @@
 use rmcp::ErrorData as McpError;
 use rmcp::handler::server::{router::prompt::PromptRouter, tool::ToolRouter, wrapper::Parameters};
 use rmcp::model::{
-    Annotated, CallToolResult, CompletionInfo, CompleteRequestParam, CompleteResult,
-    Content, ErrorCode, GetPromptRequestParam, GetPromptResult,
+    Annotated, CallToolResult, CompletionInfo, CompleteRequestParams, CompleteResult,
+    Content, ErrorCode, GetPromptRequestParams, GetPromptResult,
     ListPromptsResult, ListResourcesResult, ListResourceTemplatesResult,
-    PaginatedRequestParam, PromptMessage, PromptMessageRole,
-    RawResource, ReadResourceRequestParam, ReadResourceResult,
-    ResourceContents, ServerCapabilities, ServerInfo, SetLevelRequestParam,
+    PaginatedRequestParams, PromptMessage, PromptMessageRole,
+    RawResource, ReadResourceRequestParams, ReadResourceResult,
+    ResourceContents, ServerCapabilities, ServerInfo, SetLevelRequestParams,
 };
 use rmcp::schemars::JsonSchema;
 use rmcp::service::RequestContext;
@@ -793,12 +793,20 @@ pub struct GetPackTranslationArgs {
 //                             Implementations
 //-------------------------------------------------------------------------------//
 
-#[tool_handler]
-#[prompt_handler]
+#[tool_handler(router = self.tool_router)]
+#[prompt_handler(router = self.prompt_router)]
 impl rmcp::ServerHandler for McpServer {
     fn get_info(&self) -> ServerInfo {
-        ServerInfo {
-            instructions: Some("\
+        let capabilities = ServerCapabilities::builder()
+            .enable_tools()
+            .enable_prompts()
+            .enable_resources()
+            .enable_completions()
+            .enable_logging()
+            .build();
+
+        // `ServerInfo` is `#[non_exhaustive]` in rmcp, so it must be built through its constructor instead of a struct literal.
+        ServerInfo::new(capabilities).with_instructions("\
 This is the MCP server for RPFM (Rusted PackFile Manager), a tool for modding Total War games by \
 Creative Assembly. It lets you read, edit, create, and manage PackFiles (.pack) — the archive \
 format used by all modern Total War titles.
@@ -860,16 +868,7 @@ and example JSON payloads without needing tool calls.
 ## Responses
 
 All tool responses are JSON-serialized. On failure, an error message is returned instead of the expected data.
-".into()),
-            capabilities: ServerCapabilities::builder()
-                .enable_tools()
-                .enable_prompts()
-                .enable_resources()
-                .enable_completions()
-                .enable_logging()
-                .build(),
-            ..Default::default()
-        }
+")
     }
 
     //-----------------------------------------------------------------------//
@@ -878,7 +877,7 @@ All tool responses are JSON-serialized. On failure, an error message is returned
 
     async fn list_resources(
         &self,
-        _request: Option<PaginatedRequestParam>,
+        _request: Option<PaginatedRequestParams>,
         _context: RequestContext<RoleServer>,
     ) -> Result<ListResourcesResult, McpError> {
         let resources = vec![
@@ -902,7 +901,7 @@ All tool responses are JSON-serialized. On failure, an error message is returned
 
     async fn list_resource_templates(
         &self,
-        _request: Option<PaginatedRequestParam>,
+        _request: Option<PaginatedRequestParams>,
         _context: RequestContext<RoleServer>,
     ) -> Result<ListResourceTemplatesResult, McpError> {
         Ok(ListResourceTemplatesResult {
@@ -913,7 +912,7 @@ All tool responses are JSON-serialized. On failure, an error message is returned
 
     async fn read_resource(
         &self,
-        request: ReadResourceRequestParam,
+        request: ReadResourceRequestParams,
         _context: RequestContext<RoleServer>,
     ) -> Result<ReadResourceResult, McpError> {
         let uri = &request.uri;
@@ -1193,9 +1192,7 @@ Maps:
             }
         };
 
-        Ok(ReadResourceResult {
-            contents: vec![ResourceContents::text(content, uri.clone())],
-        })
+        Ok(ReadResourceResult::new(vec![ResourceContents::text(content, uri.clone())]))
     }
 
     //-----------------------------------------------------------------------//
@@ -1204,7 +1201,7 @@ Maps:
 
     async fn complete(
         &self,
-        request: CompleteRequestParam,
+        request: CompleteRequestParams,
         _context: RequestContext<RoleServer>,
     ) -> Result<CompleteResult, McpError> {
         let argument_name = &request.argument.name;
@@ -1258,13 +1255,11 @@ Maps:
         let values: Vec<String> = candidates.into_iter().take(100).collect();
         let has_more = total > 100;
 
-        Ok(CompleteResult {
-            completion: CompletionInfo {
-                values,
-                total: Some(total),
-                has_more: Some(has_more),
-            },
-        })
+        Ok(CompleteResult::new(CompletionInfo {
+            values,
+            total: Some(total),
+            has_more: Some(has_more),
+        }))
     }
 
     //-----------------------------------------------------------------------//
@@ -1273,7 +1268,7 @@ Maps:
 
     async fn set_level(
         &self,
-        _request: SetLevelRequestParam,
+        _request: SetLevelRequestParams,
         _context: RequestContext<RoleServer>,
     ) -> Result<(), McpError> {
         // Acknowledge the logging level request. RPFM uses its own logging
