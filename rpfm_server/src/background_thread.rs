@@ -3555,7 +3555,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                     xml.push_str("</dataroot>\r\n");
 
                     if let Err(e) = std::fs::write(&xml_path, xml.as_bytes()) {
-                        export_errors.push(format!("Failed to write {xml_name}: {e}"));
+                        export_errors.push(format!("Failed to write {}: {e}", xml_path.display()));
                     }
                 }
 
@@ -3568,13 +3568,25 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 // ── Step 4: Write BOB config and launch ───────────────────────
                 let cfg_path = bob_dir.join("BOB/default_configuration.xml");
 
+                // The `binaries\BOB` config dir may not exist on a fresh/partial Assembly Kit that never ran BOB. 
+                // Build CEO button. Create it up front.
+                if let Some(cfg_dir) = cfg_path.parent() {
+                    if let Err(e) = std::fs::create_dir_all(cfg_dir) {
+                        for (orig, bak) in &xml_backups { let _ = std::fs::rename(bak, orig); }
+                        CentralCommand::send_back(&sender, Response::Error(format!(
+                            "Failed to create BOB config directory {}: {e}", cfg_dir.display())));
+                        continue 'background_loop;
+                    }
+                }
+
                 // Backup any existing config so we can restore it after BOB runs.
                 let cfg_backup = bob_dir.join("BOB/default_configuration.xml.rpfm_bak");
                 let cfg_existed = cfg_path.exists();
                 if cfg_existed {
                     if let Err(e) = std::fs::rename(&cfg_path, &cfg_backup) {
                         for (orig, bak) in &xml_backups { let _ = std::fs::rename(bak, orig); }
-                        CentralCommand::send_back(&sender, Response::Error(format!("Failed to backup BOB config: {e}")));
+                        CentralCommand::send_back(&sender, Response::Error(format!(
+                            "Failed to backup BOB config {}: {e}", cfg_path.display())));
                         continue 'background_loop;
                     }
                 }
@@ -3591,7 +3603,8 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                     // Restore backup before bailing.
                     if cfg_existed { let _ = std::fs::rename(&cfg_backup, &cfg_path); }
                     for (orig, bak) in &xml_backups { let _ = std::fs::rename(bak, orig); }
-                    CentralCommand::send_back(&sender, Response::Error(format!("Failed to write BOB config: {e}")));
+                    CentralCommand::send_back(&sender, Response::Error(format!(
+                        "Failed to write BOB config {}: {e}", cfg_path.display())));
                     continue 'background_loop;
                 }
 
