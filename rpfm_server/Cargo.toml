@@ -10,7 +10,7 @@ rust-version.workspace = true
 [dependencies]
 
 # Memory allocator.
-mimalloc = { version = "^0", features = ["v3"] }
+mimalloc = { version = "^0" }
 
 # Network comms.
 axum = { version = "^0.8", features = ["ws"] }
