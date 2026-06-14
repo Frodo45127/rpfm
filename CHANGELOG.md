@@ -6,6 +6,26 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [5.0.2]
+### Added
+- Added temporal `Clean UI` setting to hide the new welcome page. This setting may be removed in a future version.
+
+### Changed
+- Disabled sentry log reporting. Was not useful and saturated too quickly.
+- The server window is now hidden by default.
+- The feedback button has been disabled.
+
+### Fixed
+- Fixed multiple compilation errors when using the git PKGBUILD.
+- Fixed arch binary not working on systems without AVX-512.
+- Fixed a few situations where some table actions may use the wrong pack key.
+- Fixed some settings being invisible until a search was done.
+- Fixed Global Search panel being stuck at a large size.
+- Fixed CTD when accessing the font dialog.
+- Fixed weird default font on the first RPFM run on Linux.
+- Fixed a myriad of issues with the Animpack editor.
+- Fixed tables scrolling infinitely when reordering their columns.
+
 ## [5.0.1]
 ### Added
 - Implemented Theme setting.
@@ -1875,7 +1895,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v5.0.1...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v5.0.2...HEAD
+[5.0.2]: https://github.com/Frodo45127/rpfm/compare/v5.0.1...v5.0.2
 [5.0.1]: https://github.com/Frodo45127/rpfm/compare/v5.0.0...v5.0.1
 [5.0.0]: https://github.com/Frodo45127/rpfm/compare/v4.7.4...v5.0.0
 [4.7.4]: https://github.com/Frodo45127/rpfm/compare/v4.7.3...v4.7.4
