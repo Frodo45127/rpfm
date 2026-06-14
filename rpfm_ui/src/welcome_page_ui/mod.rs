@@ -228,6 +228,7 @@ impl WelcomePageUI {
         let feedback_button = QPushButton::from_q_string_q_widget(&qtr("welcome_send_feedback"), &links_widget);
         feedback_button.set_flat(true);
         feedback_button.set_icon(&QIcon::from_theme_q_string(&QString::from_std_str("mail-send")));
+        feedback_button.set_enabled(false);
         links_layout.add_widget_5a(&feedback_button, 0, 5, 1, 1);
 
         Self {
