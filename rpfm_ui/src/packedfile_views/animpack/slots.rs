@@ -74,7 +74,7 @@ impl PackedFileAnimPackViewSlots {
         let copy_in = SlotOfQModelIndex::new(&view.pack_tree_view, clone!(
             app_ui,
             pack_file_contents_ui,
-            view => move |_| {
+            view => move |index| {
                 rpfm_telemetry::track_action("AnimPack: Copy Files In");
 
                 // Do not add files to the animpack if its not in our own Pack.
@@ -92,20 +92,22 @@ impl PackedFileAnimPackViewSlots {
                         let _ = file_view.save(&app_ui, &pack_file_contents_ui);
                     }
 
-                    // Ask the Background Thread to copy the files, and send him the path. Pack key
-                    // comes from the AnimPack view's own left-panel selection so the operation hits
-                    // the same Pack the user is clicking on, not whatever is selected in the dock.
+                    // Source key is the clicked file's own root; dest key is the Pack that owns this
+                    // AnimPack. They may differ, so the copy can move files across open Packs.
                     app_ui.toggle_main_window(false);
-                    let pack_key = view.pack_tree_view.pack_key_from_selection_or_first().unwrap_or_default();
-                    match send_ipc_command_result(Command::AddPackedFilesFromPackFileToAnimpack(pack_key.clone(), view.path().read().unwrap().to_owned(), item_types), response_extractor!(Response::VecContainerPath)) {
+                    let source_index = view.pack_tree_model_filter.map_to_source(index);
+                    let source_pack_key = view.pack_tree_view.get_pack_key_from_index(source_index).unwrap_or_default();
+                    let anim_pack_key = view.pack_key.read().unwrap().to_owned();
+                    match send_ipc_command_result(Command::AddPackedFilesFromPackFileToAnimpack(source_pack_key.clone(), anim_pack_key.clone(), view.path().read().unwrap().to_owned(), item_types), response_extractor!(Response::VecContainerPath)) {
                         Ok(paths_ok) => {
 
-                            // Update the AnimPack TreeView with the new files.
-                            view.anim_pack_tree_view.update_treeview(true, TreeViewOperation::Add(paths_ok.to_vec()), DataSource::PackFile, &pack_key);
-                            view.anim_pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_ok.to_vec()), DataSource::PackFile, &pack_key);
+                            // Add to the AnimPack tree using the source key, so the new items keep the
+                            // file info (icon/tooltip) of the originals still present in the source Pack.
+                            view.anim_pack_tree_view.update_treeview(true, TreeViewOperation::Add(paths_ok.to_vec()), DataSource::PackFile, &source_pack_key);
+                            view.anim_pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_ok.to_vec()), DataSource::PackFile, &source_pack_key);
 
-                            // Mark the AnimPack in the PackFile as modified.
-                            view.pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::File(view.path().read().unwrap().to_owned()); 1]), DataSource::PackFile, &pack_key);
+                            // Mark the AnimPack file as modified in its own Pack, not the source one.
+                            view.pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::File(view.path().read().unwrap().to_owned()); 1]), DataSource::PackFile, &anim_pack_key);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                         },
                         Err(error) => show_dialog(app_ui.main_window(), error, false),
@@ -136,16 +138,17 @@ impl PackedFileAnimPackViewSlots {
                 if selection_file_to_move.count() == 1 {
                     let item_types = view.anim_pack_tree_view.get_item_types_from_selection_filtered();
 
-                    // Ask the Background Thread to copy the files, and send him the path. Pack key
-                    // for the destination comes from the AnimPack view's own left-panel selection.
+                    // Destination is the left-panel selection; the AnimPack is read from its own Pack
+                    // (only relevant when it lives in a PackFile), so files can cross between open Packs.
                     app_ui.toggle_main_window(false);
-                    let pack_key = view.pack_tree_view.pack_key_from_selection_or_first().unwrap_or_default();
-                    match send_ipc_command_result(Command::AddPackedFilesFromAnimpack(pack_key.clone(), *view.data_source.read().unwrap(), view.path().read().unwrap().to_owned(), item_types), response_extractor!(Response::VecContainerPath)) {
+                    let dest_pack_key = view.pack_tree_view.pack_key_from_selection_or_first().unwrap_or_default();
+                    let anim_pack_key = view.pack_key.read().unwrap().to_owned();
+                    match send_ipc_command_result(Command::AddPackedFilesFromAnimpack(anim_pack_key, dest_pack_key.clone(), *view.data_source.read().unwrap(), view.path().read().unwrap().to_owned(), item_types), response_extractor!(Response::VecContainerPath)) {
                         Ok(paths_ok) => {
 
-                            // Update the AnimPack TreeView with the new files.
-                            view.pack_tree_view.update_treeview(true, TreeViewOperation::Add(paths_ok.to_vec()), DataSource::PackFile, &pack_key);
-                            view.pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_ok.to_vec()), DataSource::PackFile, &pack_key);
+                            // Update the destination Pack's TreeView with the new files.
+                            view.pack_tree_view.update_treeview(true, TreeViewOperation::Add(paths_ok.to_vec()), DataSource::PackFile, &dest_pack_key);
+                            view.pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_ok.to_vec()), DataSource::PackFile, &dest_pack_key);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
 
                             // Reload all the views belonging to overwritten files.
@@ -182,10 +185,9 @@ impl PackedFileAnimPackViewSlots {
                 if selection_file_to_move.count() == 1 {
                     let item_types = view.anim_pack_tree_view.get_item_types_from_selection_filtered();
 
-                    // Ask the backend to delete them. Pack key comes from the AnimPack view's own
-                    // left-panel selection so the operation targets the same Pack the user is
-                    // working in, not whatever is selected in the dock.
-                    let pack_key = view.pack_tree_view.pack_key_from_selection_or_first().unwrap_or_default();
+                    // The files live inside this AnimPack, so the operation targets the Pack that owns
+                    // it, regardless of what is selected in the left panel or the dock.
+                    let pack_key = view.pack_key.read().unwrap().to_owned();
                     match send_ipc_command_result(Command::DeleteFromAnimpack(pack_key.clone(), view.path().read().unwrap().to_owned(), item_types.clone()), response_extractor!()) {
                         Ok(()) => {
 

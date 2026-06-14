@@ -1032,18 +1032,24 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
             }
 
             // In case we want to move stuff from our PackFile to an Animpack...
-            Command::AddPackedFilesFromPackFileToAnimpack(pack_key, anim_pack_path, paths) => {
-                match packs.get_mut(&pack_key) {
-                    Some(pack) => {
-                let files = pack.files_by_paths(&paths, false)
-                    .into_iter()
-                    .map(|file| {
-                        let mut file = file.clone();
-                        let _ = file.load();
-                        file
-                    })
-                    .collect::<Vec<RFile>>();
+            Command::AddPackedFilesFromPackFileToAnimpack(source_pack_key, anim_pack_key, anim_pack_path, paths) => {
+                let files = match packs.get(&source_pack_key) {
+                    Some(pack) => pack.files_by_paths(&paths, false)
+                        .into_iter()
+                        .map(|file| {
+                            let mut file = file.clone();
+                            let _ = file.load();
+                            file
+                        })
+                        .collect::<Vec<RFile>>(),
+                    None => {
+                        CentralCommand::send_back(&sender, Response::Error(format!("Pack not found: {}", source_pack_key)));
+                        continue;
+                    }
+                };
 
+                match packs.get_mut(&anim_pack_key) {
+                    Some(pack) => {
                 match pack.files_mut().get_mut(&anim_pack_path) {
                     Some(file) => {
 
@@ -1072,15 +1078,15 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                     None => CentralCommand::send_back(&sender, Response::Error(format!("File not found in the Pack: {}.", anim_pack_path))),
                 }
                     }
-                    None => CentralCommand::send_back(&sender, Response::Error(format!("Pack not found: {}", pack_key))),
+                    None => CentralCommand::send_back(&sender, Response::Error(format!("Pack not found: {}", anim_pack_key))),
                 }
             }
 
             // In case we want to move stuff from an Animpack to our PackFile...
-            Command::AddPackedFilesFromAnimpack(pack_key, data_source, anim_pack_path, paths) => {
+            Command::AddPackedFilesFromAnimpack(anim_pack_key, dest_pack_key, data_source, anim_pack_path, paths) => {
                 let mut dependencies = dependencies.write().unwrap();
                 let anim_pack_file = match data_source {
-                    DataSource::PackFile => packs.get_mut(&pack_key).and_then(|pack| pack.files_mut().get_mut(&anim_pack_path)),
+                    DataSource::PackFile => packs.get_mut(&anim_pack_key).and_then(|pack| pack.files_mut().get_mut(&anim_pack_path)),
                     DataSource::GameFiles => dependencies.file_mut(&anim_pack_path, true, false).ok(),
                     DataSource::ParentFiles => dependencies.file_mut(&anim_pack_path, false, true).ok(),
                     DataSource::AssKitFiles |
@@ -1116,7 +1122,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 };
 
                 let result_paths = files.iter().map(|file| file.path_in_container()).collect::<Vec<_>>();
-                match packs.get_mut(&pack_key) {
+                match packs.get_mut(&dest_pack_key) {
                     Some(pack) => {
                         for mut file in files {
                             let _ = file.guess_file_type();
@@ -1124,7 +1130,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                         }
                         CentralCommand::send_back(&sender, Response::VecContainerPath(result_paths));
                     }
-                    None => CentralCommand::send_back(&sender, Response::Error(format!("Pack not found: {}", pack_key))),
+                    None => CentralCommand::send_back(&sender, Response::Error(format!("Pack not found: {}", dest_pack_key))),
                 }
             }
 

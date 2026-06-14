@@ -67,6 +67,8 @@ pub struct PackedFileAnimPackView {
     path: Arc<RwLock<String>>,
     #[getset(skip)]
     data_source: Arc<RwLock<DataSource>>,
+    #[getset(skip)]
+    pack_key: Arc<RwLock<String>>,
 
     pack_tree_view: QPtr<QTreeView>,
     pack_tree_model_filter: QBox<QSortFilterProxyModel>,
@@ -169,6 +171,7 @@ impl PackedFileAnimPackView {
         let packed_file_animpack_view = Arc::new(PackedFileAnimPackView {
             path: file_view.path_raw(),
             data_source: file_view.data_source.clone(),
+            pack_key: file_view.pack_key().clone(),
 
             pack_tree_view,
             pack_tree_model_filter,

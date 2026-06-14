@@ -325,7 +325,9 @@ pub struct AddPackedFilesFromPackFileArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct AddPackedFilesFromPackFileToAnimpackArgs {
-    /// The key of the target pack.
+    /// The key of the source pack the files are copied from.
+    pub source_pack_key: String,
+    /// The key of the pack that owns the target AnimPack (may differ from the source).
     pub pack_key: String,
     /// The animpack path.
     pub animpack_path: String,
@@ -335,7 +337,9 @@ pub struct AddPackedFilesFromPackFileToAnimpackArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct AddPackedFilesFromAnimpackArgs {
-    /// The key of the target pack.
+    /// The key of the pack that owns the AnimPack (only used when `source` is a PackFile).
+    pub anim_pack_key: String,
+    /// The key of the destination pack the files are copied into (may differ from the AnimPack's).
     pub pack_key: String,
     /// The data source to get the animpack from.
     pub source: DataSource,
@@ -1423,16 +1427,16 @@ impl McpServer {
         send_and_respond!(self, "add_packed_files_from_pack_file", Command::AddPackedFilesFromPackFile(params.0.pack_key, params.0.source_pack_path, paths))
     }
 
-    #[tool(description = "Add files from the pack identified by `pack_key` to an AnimPack. The `container_paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"animations/anim.anim\"}]. The `animpack_path` is the AnimPack's internal path.")]
+    #[tool(description = "Copy files from the pack identified by `source_pack_key` into an AnimPack owned by `pack_key` (the two may differ). The `container_paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"animations/anim.anim\"}]. The `animpack_path` is the AnimPack's internal path.")]
     pub async fn add_packed_files_from_pack_file_to_animpack(&self, params: Parameters<AddPackedFilesFromPackFileToAnimpackArgs>) -> Result<CallToolResult, McpError> {
         let paths: Vec<ContainerPath> = parse_json!(&params.0.container_paths);
-        send_and_respond!(self, "add_packed_files_from_pack_file_to_animpack", Command::AddPackedFilesFromPackFileToAnimpack(params.0.pack_key, params.0.animpack_path, paths))
+        send_and_respond!(self, "add_packed_files_from_pack_file_to_animpack", Command::AddPackedFilesFromPackFileToAnimpack(params.0.source_pack_key, params.0.pack_key, params.0.animpack_path, paths))
     }
 
-    #[tool(description = "Add files from an AnimPack to the pack identified by `pack_key`. The `source` is the DataSource (\"PackFile\", \"GameFiles\", etc.). The `animpack_path` is the AnimPack's internal path. The `container_paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"animations/anim.anim\"}].")]
+    #[tool(description = "Copy files from an AnimPack owned by `anim_pack_key` into the destination pack `pack_key` (the two may differ). The `source` is the DataSource (\"PackFile\", \"GameFiles\", etc.); `anim_pack_key` is only used when it is \"PackFile\". The `animpack_path` is the AnimPack's internal path. The `container_paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"animations/anim.anim\"}].")]
     pub async fn add_packed_files_from_animpack(&self, params: Parameters<AddPackedFilesFromAnimpackArgs>) -> Result<CallToolResult, McpError> {
         let paths: Vec<ContainerPath> = parse_json!(&params.0.container_paths);
-        send_and_respond!(self, "add_packed_files_from_animpack", Command::AddPackedFilesFromAnimpack(params.0.pack_key, params.0.source, params.0.animpack_path, paths))
+        send_and_respond!(self, "add_packed_files_from_animpack", Command::AddPackedFilesFromAnimpack(params.0.anim_pack_key, params.0.pack_key, params.0.source, params.0.animpack_path, paths))
     }
 
     #[tool(description = "Delete files from the pack identified by `pack_key`. The `paths` is a JSON array of ContainerPath: [{\"File\": \"path/to/file\"}, {\"Folder\": \"path/to/folder\"}].")]

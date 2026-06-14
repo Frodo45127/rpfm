@@ -1175,27 +1175,28 @@ public class AddPackedFilesFromPackFileResponse
 
 ### AddPackedFilesFromPackFileToAnimpack
 
-Copy packed files from the main Pack into an AnimPack.
+Copy packed files from a Pack into an AnimPack, which may live in a different open Pack.
 
-| Parameter       | Type            | Description              |
-|-----------------|-----------------|--------------------------|
-| `pack_key`      | string          | Pack containing animpack |
-| `animpack_path` | string          | Path to the AnimPack     |
-| `paths`         | ContainerPath[] | Paths to copy            |
+| Parameter         | Type            | Description                    |
+|-------------------|-----------------|--------------------------------|
+| `source_pack_key` | string          | Pack the files are copied from |
+| `pack_key`        | string          | Pack containing the animpack   |
+| `animpack_path`   | string          | Path to the AnimPack           |
+| `paths`           | ContainerPath[] | Paths to copy                  |
 
 Response: `{ VecContainerPath: ContainerPath[] }`
 
 <!-- langtabs-start -->
 ```typescript
 type AddPackedFilesFromPackFileToAnimpackRequest = {
-  AddPackedFilesFromPackFileToAnimpack: [string, string, ContainerPath[]]
+  AddPackedFilesFromPackFileToAnimpack: [string, string, string, ContainerPath[]]
 };
 type AddPackedFilesFromPackFileToAnimpackResponse = { VecContainerPath: ContainerPath[] };
 ```
 ```csharp
 public class AddPackedFilesFromPackFileToAnimpackRequest
 {
-    public Tuple<string, string, List<ContainerPath>> AddPackedFilesFromPackFileToAnimpack { get; set; }
+    public Tuple<string, string, string, List<ContainerPath>> AddPackedFilesFromPackFileToAnimpack { get; set; }
 }
 public class AddPackedFilesFromPackFileToAnimpackResponse
 {
@@ -1206,28 +1207,29 @@ public class AddPackedFilesFromPackFileToAnimpackResponse
 
 ### AddPackedFilesFromAnimpack
 
-Copy packed files from an AnimPack into the main Pack.
+Copy packed files from an AnimPack into a Pack, which may differ from the AnimPack's own.
 
-| Parameter       | Type            | Description              |
-|-----------------|-----------------|--------------------------|
-| `pack_key`      | string          | Target pack              |
-| `source`        | DataSource      | Data source              |
-| `animpack_path` | string          | Path to the AnimPack     |
-| `paths`         | ContainerPath[] | Paths to copy            |
+| Parameter       | Type            | Description                                      |
+|-----------------|-----------------|--------------------------------------------------|
+| `anim_pack_key` | string          | Pack owning the AnimPack (used when source=PackFile) |
+| `pack_key`      | string          | Destination pack                                 |
+| `source`        | DataSource      | Data source                                      |
+| `animpack_path` | string          | Path to the AnimPack                             |
+| `paths`         | ContainerPath[] | Paths to copy                                    |
 
 Response: `{ VecContainerPath: ContainerPath[] }`
 
 <!-- langtabs-start -->
 ```typescript
 type AddPackedFilesFromAnimpackRequest = {
-  AddPackedFilesFromAnimpack: [string, DataSource, string, ContainerPath[]]
+  AddPackedFilesFromAnimpack: [string, string, DataSource, string, ContainerPath[]]
 };
 type AddPackedFilesFromAnimpackResponse = { VecContainerPath: ContainerPath[] };
 ```
 ```csharp
 public class AddPackedFilesFromAnimpackRequest
 {
-    public Tuple<string, string, string, List<ContainerPath>> AddPackedFilesFromAnimpack { get; set; }  // second is DataSource enum
+    public Tuple<string, string, string, string, List<ContainerPath>> AddPackedFilesFromAnimpack { get; set; }  // third is DataSource enum
 }
 public class AddPackedFilesFromAnimpackResponse
 {

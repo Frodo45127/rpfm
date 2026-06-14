@@ -389,21 +389,23 @@ pub enum Command {
     /// - [`Response::Error`] if source pack not found.
     AddPackedFilesFromPackFile(String, String, Vec<ContainerPath>),
 
-    /// Add PackedFiles from a specific pack to an AnimPack.
-    /// First field is the pack key, then animpack path and container paths.
+    /// Add PackedFiles from a specific pack to an AnimPack, which may live in a different pack.
+    /// Fields are the source pack key, the pack key that owns the AnimPack, the animpack path,
+    /// and the container paths to copy.
     ///
     /// Response:
     /// - [`Response::VecContainerPath`] on success.
     /// - [`Response::Error`] on failure.
-    AddPackedFilesFromPackFileToAnimpack(String, String, Vec<ContainerPath>),
+    AddPackedFilesFromPackFileToAnimpack(String, String, String, Vec<ContainerPath>),
 
-    /// Add PackedFiles from an AnimPack to a specific pack.
-    /// First field is the pack key, then data source, animpack path, and container paths.
+    /// Add PackedFiles from an AnimPack to a specific pack, which may differ from the AnimPack's own.
+    /// Fields are the pack key that owns the AnimPack (only used when the data source is a PackFile),
+    /// the destination pack key, the data source, the animpack path, and the container paths.
     ///
     /// Response:
     /// - [`Response::VecContainerPath`] on success.
     /// - [`Response::Error`] on failure.
-    AddPackedFilesFromAnimpack(String, DataSource, String, Vec<ContainerPath>),
+    AddPackedFilesFromAnimpack(String, String, DataSource, String, Vec<ContainerPath>),
 
     /// Delete PackedFiles from an AnimPack in a specific pack.
     /// First field is the pack key, then animpack path and container paths.

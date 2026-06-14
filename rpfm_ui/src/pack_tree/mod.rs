@@ -1331,15 +1331,16 @@ impl PackTree for QPtr<QTreeView> {
                 // Make sure all items are pre-sorted. This can speed up adding large amounts of items.
                 sort_folders_before_files_alphabetically_container_paths(&mut item_types);
 
-                // Get the `RFileInfo` of each of the new paths, so we can later build their tooltip.
-                // If the tree has no pack key (animpacks), skip it.
+                // Query key is the tree root's pack key, or the `pack_key` arg for keyless trees (the
+                // AnimPack contents tree, where it holds the copy-in source Pack). Empty/stale key: skip.
                 let root = root_for_pack_key(&model, pack_key);
                 let resolved_pack_key = root.data_1a(ITEM_PACK_KEY).to_string().to_std_string();
-                let files_info = if resolved_pack_key.is_empty() {
+                let query_pack_key = if !resolved_pack_key.is_empty() { resolved_pack_key } else { pack_key.to_owned() };
+                let files_info = if query_pack_key.is_empty() {
                     vec![]
                 } else {
                     let item_paths = item_types.par_iter().map(|item| item.path_raw().to_owned()).collect::<Vec<_>>();
-                    send_ipc_command_result(Command::GetPackedFilesInfo(resolved_pack_key, item_paths), response_extractor!(Response::VecRFileInfo)).unwrap_or_default()
+                    send_ipc_command_result(Command::GetPackedFilesInfo(query_pack_key, item_paths), response_extractor!(Response::VecRFileInfo)).unwrap_or_default()
                 };
 
                 // Mark the base Pack as modified and having received additions.
