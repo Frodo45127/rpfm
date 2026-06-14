@@ -165,6 +165,10 @@ QTableViewFrozen::QTableViewFrozen(QWidget* parent, void (*generate_tooltip_mess
 
     // Configure (almost) the same way both tables.
     horizontalHeader()->setSectionsMovable(true);
+
+    // Disabled because this causes infinite scrolling when dragging columns.
+    horizontalHeader()->setAutoScroll(false);
+
     horizontalHeader()->setSortIndicator(-1, Qt::SortOrder::AscendingOrder);
     horizontalHeader()->setVisible(true);
     verticalHeader()->setVisible(true);
@@ -221,7 +225,11 @@ void QTableViewFrozen::updateSectionWidth(int logicalIndex, int /* oldSize */, i
     tableViewFrozen->horizontalHeader()->blockSignals(true);
     tableViewFrozen->setColumnWidth(logicalIndex, newSize);
     tableViewFrozen->horizontalHeader()->blockSignals(false);
-    updateFrozenTableGeometry();
+
+    // Only update the geometry if the column is a frozen one.
+    if (frozenColumns.contains(logicalIndex)) {
+        updateFrozenTableGeometry();
+    }
 }
 
 // Function to change the height columns at the same time we resize them in the main QTableView.
