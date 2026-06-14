@@ -10,6 +10,7 @@
 
 //!This module contains the code to build/use the ***Settings*** UI.
 
+use qt_widgets::QApplication;
 use qt_widgets::QCheckBox;
 use qt_widgets::QVBoxLayout;
 use qt_widgets::QComboBox;
@@ -840,7 +841,16 @@ impl SettingsUI {
             }
         }
 
-        *self.font_data.borrow_mut() = (get_str(FONT_NAME), get_int(FONT_SIZE));
+        // Seed the font from the live application font when unset (new installs have no font
+        // settings), so the font selector always opens with a valid font instead of crashing.
+        let font_name = get_str(FONT_NAME);
+        let font_size = get_int(FONT_SIZE);
+        if !font_name.is_empty() && font_size > 0 {
+            *self.font_data.borrow_mut() = (font_name, font_size);
+        } else {
+            let font = QApplication::font();
+            *self.font_data.borrow_mut() = (font.family().to_std_string(), font.point_size());
+        }
 
         // Load spinboxes.
         self.extra_packfile_autosave_amount_spinbox.set_value(get_int(AUTOSAVE_AMOUNT));

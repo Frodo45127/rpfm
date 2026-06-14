@@ -159,11 +159,13 @@ impl UI {
         app_ui.main_window().restore_geometry(&QByteArray::from_slice(&settings_raw_data(GEOMETRY)));
         app_ui.main_window().restore_state_1a(&QByteArray::from_slice(&settings_raw_data(WINDOW_STATE)));
 
-        // Apply the font.
+        // Apply the font only if we have one set.
         let font_name = settings_string(FONT_NAME);
         let font_size = settings_i32(FONT_SIZE);
-        let font = QFont::from_q_string_int(&QString::from_std_str(font_name), font_size);
-        QApplication::set_font_1a(&font);
+        if !font_name.is_empty() && font_size > 0 {
+            let font = QFont::from_q_string_int(&QString::from_std_str(&font_name), font_size);
+            QApplication::set_font_1a(&font);
+        }
 
         UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
 

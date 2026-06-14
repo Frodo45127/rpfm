@@ -638,9 +638,10 @@ impl AppUISlots {
                             }
 
                             // If we detect a change in the saved font, trigger a font change.
+                            // Skip unset/size-0 fonts: they produce an invalid QFont.
                             let font_name = settings_string(FONT_NAME);
                             let font_size = settings_i32(FONT_SIZE);
-                            if font_name_old != font_name || font_size_old != font_size {
+                            if (font_name_old != font_name || font_size_old != font_size) && !font_name.is_empty() && font_size > 0 {
                                 let font = QFont::from_q_string_int(&QString::from_std_str(&font_name), font_size);
                                 QApplication::set_font_1a(&font);
                             }

@@ -181,10 +181,11 @@ impl SettingsUISlots {
 
         let font_settings = SlotNoArgs::new(&ui.dialog, clone!(mut ui => move || {
             rpfm_telemetry::track_action("Settings: Open Font Settings");
-            let font_changed: *mut bool = &mut false;
+            // Back the out-param with a real local so the pointer stays valid for the whole call.
+            let mut font_changed = false;
             let current_font = QApplication::font();
-            let new_font = QFontDialog::get_font_bool_q_font_q_widget(font_changed, current_font.as_ref(), &ui.dialog);
-            if *font_changed {
+            let new_font = QFontDialog::get_font_bool_q_font_q_widget(&mut font_changed, current_font.as_ref(), &ui.dialog);
+            if font_changed {
                 *ui.font_data.borrow_mut() = (new_font.family().to_std_string(), new_font.point_size());
             }
         }));
