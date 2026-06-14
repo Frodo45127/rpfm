@@ -44,7 +44,7 @@ use rpfm_lib::utils::*;
 use rpfm_ui_common::FULL_DATE_FORMAT;
 use rpfm_ui_common::utils::{atomic_from_cpp_box, atomic_from_ptr, ref_from_atomic};
 
-use crate::communications::{Command, Response, send_ipc_command};
+use crate::communications::{Command, Response, send_ipc_command, send_ipc_command_result};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::TREEVIEW_ICONS;
 use crate::settings_ui::backend::settings_bool;
@@ -1332,10 +1332,15 @@ impl PackTree for QPtr<QTreeView> {
                 sort_folders_before_files_alphabetically_container_paths(&mut item_types);
 
                 // Get the `RFileInfo` of each of the new paths, so we can later build their tooltip.
+                // If the tree has no pack key (animpacks), skip it.
                 let root = root_for_pack_key(&model, pack_key);
                 let resolved_pack_key = root.data_1a(ITEM_PACK_KEY).to_string().to_std_string();
-                let item_paths = item_types.par_iter().map(|item| item.path_raw().to_owned()).collect::<Vec<_>>();
-                let files_info = send_ipc_command(Command::GetPackedFilesInfo(resolved_pack_key, item_paths), response_extractor!(Response::VecRFileInfo));
+                let files_info = if resolved_pack_key.is_empty() {
+                    vec![]
+                } else {
+                    let item_paths = item_types.par_iter().map(|item| item.path_raw().to_owned()).collect::<Vec<_>>();
+                    send_ipc_command_result(Command::GetPackedFilesInfo(resolved_pack_key, item_paths), response_extractor!(Response::VecRFileInfo)).unwrap_or_default()
+                };
 
                 // Mark the base Pack as modified and having received additions.
                 if !item_types.is_empty() {
