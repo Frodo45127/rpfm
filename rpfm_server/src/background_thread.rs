@@ -3294,7 +3294,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
 
             Command::BuildCeo(pack_key, akit_path, bob_exe_path) => {
                 use std::process::{Command as SysCommand, Stdio};
-                use std::time::{Duration, Instant};
+                use std::time::Instant;
 
                 info!("[BuildCeo] handler entered: pack={pack_key}, akit={akit_path}, bob={bob_exe_path}");
                 let akit_root = PathBuf::from(&akit_path);
@@ -3635,14 +3635,9 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 if cfg_existed { let _ = std::fs::rename(&cfg_backup, &cfg_path); }
 
                 // ── Step 5: Confirm ceo_data.ccd was produced ────────────────
-                // BOB has already exited, so the file either exists now or never will. Allow a
-                // short grace window only for a filesystem flush, then fail fast
-                let grace_deadline = Instant::now() + Duration::from_secs(5);
-                let found = loop {
-                    if ceo_ccd.exists() { break true; }
-                    if Instant::now() >= grace_deadline { break false; }
-                    std::thread::sleep(Duration::from_millis(200));
-                };
+                // BOB is single-process and we waited on its handle above, so its writes are
+                // already flushed and visible: the file either exists now or never will.
+                let found = ceo_ccd.exists();
                 info!("[BuildCeo] ceo_data.ccd present: {found}");
 
                 // ── Step 6: Restore original ceo_*.xml files ─────────────────
