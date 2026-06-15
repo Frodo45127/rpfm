@@ -3568,8 +3568,8 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 // ── Step 4: Write BOB config and launch ───────────────────────
                 let cfg_path = bob_dir.join("BOB/default_configuration.xml");
 
-                // The `binaries\BOB` config dir may not exist on a fresh/partial Assembly Kit that never ran BOB. 
-                // Build CEO button. Create it up front.
+                // The `binaries\BOB` config dir is absent on a fresh Assembly Kit that never ran
+                // BOB; create it up front so the config write below doesn't fail with OS error 3.
                 if let Some(cfg_dir) = cfg_path.parent() {
                     if let Err(e) = std::fs::create_dir_all(cfg_dir) {
                         for (orig, bak) in &xml_backups { let _ = std::fs::rename(bak, orig); }
@@ -3611,10 +3611,8 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 info!("[BuildCeo] launching BOB: {} (cwd {})", bob_exe.display(), bob_dir.display());
                 let bob_start = Instant::now();
 
-                // Wait on BOB with `.status()` rather than `.output()`. We only need BOB's exit
-                // code; `.status()` waits on BOB's process handle alone, so it returns as soon as
-                // BOB exits and never blocks reading captured output. The "freeze" was the old
-                // 180s poll below, now a short grace window.
+                // Use `.status()`, not `.output()`: it waits only on BOB's process handle, so it
+                // returns the moment BOB exits without blocking to read captured output.
                 let mut cmd = SysCommand::new(&bob_exe);
                 cmd.current_dir(&bob_dir).stdin(Stdio::null());
 
