@@ -3611,20 +3611,12 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 info!("[BuildCeo] launching BOB: {} (cwd {})", bob_exe.display(), bob_dir.display());
                 let bob_start = Instant::now();
 
-                // Run with .status to prevent freeze if BOB crashes due to an error in table.
-                let bob_stdout_path = temp_dir().join("rpfm_bob_stdout.log");
-                let bob_stderr_path = temp_dir().join("rpfm_bob_stderr.log");
-
+                // Wait on BOB with `.status()` rather than `.output()`. We only need BOB's exit
+                // code; `.status()` waits on BOB's process handle alone, so it returns as soon as
+                // BOB exits and never blocks reading captured output. The "freeze" was the old
+                // 180s poll below, now a short grace window.
                 let mut cmd = SysCommand::new(&bob_exe);
                 cmd.current_dir(&bob_dir).stdin(Stdio::null());
-                match File::create(&bob_stdout_path) {
-                    Ok(f) => { cmd.stdout(Stdio::from(f)); }
-                    Err(_) => { cmd.stdout(Stdio::null()); }
-                }
-                match File::create(&bob_stderr_path) {
-                    Ok(f) => { cmd.stderr(Stdio::from(f)); }
-                    Err(_) => { cmd.stderr(Stdio::null()); }
-                }
 
                 let status = match cmd.status() {
                     Ok(s) => s,
@@ -3632,23 +3624,13 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                         let _ = std::fs::remove_file(&cfg_path);
                         if cfg_existed { let _ = std::fs::rename(&cfg_backup, &cfg_path); }
                         for (orig, bak) in &xml_backups { let _ = std::fs::rename(bak, orig); }
-                        let _ = std::fs::remove_file(&bob_stdout_path);
-                        let _ = std::fs::remove_file(&bob_stderr_path);
                         info!("[BuildCeo] BOB spawn failed after {:?}: {e}", bob_start.elapsed());
                         CentralCommand::send_back(&sender, Response::Error(format!("Failed to launch BOB: {e}")));
                         continue 'background_loop;
                     }
                 };
 
-                let bob_stdout = std::fs::read_to_string(&bob_stdout_path).unwrap_or_default();
-                let bob_stderr = std::fs::read_to_string(&bob_stderr_path).unwrap_or_default();
-                let _ = std::fs::remove_file(&bob_stdout_path);
-                let _ = std::fs::remove_file(&bob_stderr_path);
-                info!("[BuildCeo] BOB exited after {:?}, exit={:?}, stdout={}B, stderr={}B",
-                    bob_start.elapsed(), status.code(), bob_stdout.len(), bob_stderr.len());
-                if !bob_stderr.trim().is_empty() {
-                    info!("[BuildCeo] BOB stderr: {bob_stderr}");
-                }
+                info!("[BuildCeo] BOB exited after {:?}, exit={:?}", bob_start.elapsed(), status.code());
 
                 // Restore config regardless of BOB's result.
                 let _ = std::fs::remove_file(&cfg_path);
@@ -3674,17 +3656,9 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 if found {
                     CentralCommand::send_back(&sender, Response::Success);
                 } else {
-                    // Surface BOB's own diagnostics (the "error in the table") instead of a bare timeout.
-                    let detail = if !bob_stderr.trim().is_empty() {
-                        bob_stderr
-                    } else if !bob_stdout.trim().is_empty() {
-                        bob_stdout
-                    } else {
-                        "(BOB produced no output)".to_owned()
-                    };
                     CentralCommand::send_back(&sender, Response::Error(format!(
                         "BOB finished (exit {:?}) but ceo_data.ccd was not generated. \
-                         This usually means BOB hit an error in the exported tables.\n\n{detail}",
+                         This usually means BOB hit an error in the exported tables.",
                         status.code()
                     )));
                 }
