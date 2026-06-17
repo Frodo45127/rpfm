@@ -44,6 +44,8 @@ public:
     QList<QRegularExpression> cached_regex;
     QList<QList<int>> cached_variants;
     QMap<int, QList<int>> cached_groups;
+    QList<int> cached_comparison_ops;
+    QList<double> cached_comparison_vals;
 
     explicit QTableViewSortFilterProxyModel(QObject *parent = nullptr);
     bool filterAcceptsRow(int source_row, const QModelIndex & source_parent) const;

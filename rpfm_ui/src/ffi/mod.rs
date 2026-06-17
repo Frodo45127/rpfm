@@ -223,6 +223,17 @@ pub fn draggable_file_tree_view_drop_signal(widget: QPtr<QWidget>) -> Signal<(*c
     }
 }
 
+// Signal emitted by the table's QFilterHeaderView when a column's filter funnel is clicked.
+// The argument is the logical column index of the clicked section.
+pub fn header_funnel_clicked_signal(header: QPtr<QObject>) -> Signal<(i32,)> {
+    unsafe {
+        Signal::new(
+            ::cpp_core::Ref::from_raw(header.as_raw_ptr()).expect("attempted to construct a null Ref"),
+            c"2funnelClicked(int)",
+        )
+    }
+}
+
 // This function allow us to create a model compatible with draggable items
 extern "C" { fn new_packed_file_model() -> *mut QStandardItemModel; }
 pub fn new_packed_file_model_safe() -> QBox<QStandardItemModel> {

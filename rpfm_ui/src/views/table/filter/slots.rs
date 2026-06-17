@@ -8,153 +8,223 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module with the slots for Table Views.
-!*/
+//! Slots backing the chip-based filter bar.
+//!
+//! The bar-level slots (FilterBarSlots) are stored on the `TableView` and live as long as
+//! the view itself. Each chip carries its own slots in `ChipSlots`, which are stored on
+//! the chip so they're dropped when the chip is removed.
 
 use qt_core::QBox;
-use qt_core::{SlotOfInt, SlotNoArgs, SlotOfQString};
+use qt_core::SlotNoArgs;
+use qt_core::SlotOfQString;
+
+use qt_gui::SlotOfQAction;
 
 use std::sync::Arc;
 
 use rpfm_ui_common::clone;
 
-use crate::utils::{check_regex, show_dialog};
+use crate::utils::show_dialog;
+use crate::views::table::FilterChipState;
 
-use super::*;
+use super::chip::Chip;
+use super::{FilterBar, TableView};
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
-/// This struct contains the slots of the view of a table filter.
-pub struct FilterViewSlots {
-    pub filter_line_edit: QBox<SlotNoArgs>,
-    pub filter_not_checkbox: QBox<SlotNoArgs>,
-    pub filter_match_group_selector: QBox<SlotNoArgs>,
-    pub filter_column_selector: QBox<SlotOfInt>,
-    pub filter_variant_selector: QBox<SlotOfInt>,
-    pub filter_case_sensitive_button: QBox<SlotNoArgs>,
-    pub filter_use_regex_button: QBox<SlotNoArgs>,
-    pub filter_show_blank_cells_button: QBox<SlotNoArgs>,
-    pub filter_show_edited_cells_button: QBox<SlotNoArgs>,
-    pub filter_trigger: QBox<SlotNoArgs>,
-    pub filter_check_regex: QBox<SlotOfQString>,
-    pub filter_add: QBox<SlotNoArgs>,
-    pub filter_remove: QBox<SlotNoArgs>,
+/// Slots backing the filter bar itself (its input edit, add button, columns button, debounce timer).
+pub struct FilterBarSlots {
+    pub input_text_changed: QBox<SlotOfQString>,
+    pub input_returned: QBox<SlotNoArgs>,
+    pub input_debounce_fired: QBox<SlotNoArgs>,
+    pub add_button_clicked: QBox<SlotNoArgs>,
+    pub columns_button_clicked: QBox<SlotNoArgs>,
+    pub help_button_clicked: QBox<SlotNoArgs>,
+}
+
+/// Per-chip slots; owned by the chip so they're released alongside the chip widget.
+pub struct ChipSlots {
+    pub value_text_changed: QBox<SlotOfQString>,
+    pub debounce_fired: QBox<SlotNoArgs>,
+    pub column_menu_triggered: QBox<SlotOfQAction>,
+    pub options_changed: QBox<SlotNoArgs>,
+    pub group_changed: QBox<SlotNoArgs>,
+    pub remove_clicked: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
 //                             Implementations
 //-------------------------------------------------------------------------------//
 
-/// Implementation for `FilterViewSlots`.
-impl FilterViewSlots {
-    pub unsafe fn new(
-        view: &Arc<FilterView>,
-        parent_view: &Arc<TableView>,
-    ) -> Self {
+impl FilterBarSlots {
+    pub unsafe fn new(bar: &Arc<FilterBar>, view: &Arc<TableView>) -> Self {
 
-        // When we want to filter the table...
-        let filter_line_edit = SlotNoArgs::new(&view.main_widget, clone!(
-            view => move || {
-                FilterView::start_delayed_updates_timer(&view);
+        // Typing into the input restarts the debounce timer. We don't refilter live
+        // off the input itself — the chip only materialises on Enter or button press.
+        let input_text_changed = SlotOfQString::new(bar.main_widget(), clone!(
+            bar => move |_| {
+                bar.restart_input_debounce();
             }
         ));
 
-        let filter_match_group_selector = SlotNoArgs::new(&view.main_widget, clone!(
-            parent_view => move || {
-            parent_view.filter_table();
-        }));
-
-        let filter_column_selector = SlotOfInt::new(&view.main_widget, clone!(
-            parent_view => move |_| {
-            parent_view.filter_table();
-        }));
-
-        let filter_variant_selector = SlotOfInt::new(&view.main_widget, clone!(
-            parent_view => move |_| {
-            parent_view.filter_table();
-        }));
-
-        let filter_not_checkbox = SlotNoArgs::new(&view.main_widget, clone!(
-            parent_view => move || {
-            parent_view.filter_table();
-        }));
-
-        let filter_case_sensitive_button = SlotNoArgs::new(&view.main_widget, clone!(
-            parent_view => move || {
-            parent_view.filter_table();
-        }));
-
-        let filter_use_regex_button = SlotNoArgs::new(&view.main_widget, clone!(
-            parent_view,
+        // Enter on the input promotes the typed text into a new chip and refilters.
+        let input_returned = SlotNoArgs::new(bar.main_widget(), clone!(
+            bar,
             view => move || {
-                parent_view.filter_table();
-
-                check_regex(&view.filter_line_edit.text().to_std_string(), view.filter_line_edit.static_upcast(), view.use_regex_button().is_checked());
-            }
-        ));
-
-        let filter_show_blank_cells_button = SlotNoArgs::new(&view.main_widget, clone!(
-            parent_view => move || {
-            parent_view.filter_table();
-        }));
-
-        let filter_show_edited_cells_button = SlotNoArgs::new(&view.main_widget, clone!(
-            parent_view => move || {
-            parent_view.filter_table();
-        }));
-
-        // Function triggered by the filter timer.
-        let filter_trigger = SlotNoArgs::new(&view.main_widget, clone!(
-            parent_view => move || {
-            parent_view.filter_table();
-        }));
-
-        // What happens when we trigger the "Check Regex" action.
-        let filter_check_regex = SlotOfQString::new(&view.main_widget, clone!(
-            view => move |string| {
-            check_regex(&string.to_std_string(), view.filter_line_edit.static_upcast(), view.use_regex_button().is_checked());
-        }));
-
-        let filter_add = SlotNoArgs::new(&view.main_widget, clone!(
-            parent_view => move || {
-            rpfm_telemetry::track_action("Table Filter: Add");
-            match FilterView::new(&parent_view) {
-                Ok(_) => FilterView::add_filter_group(&parent_view),
-                Err(_) => show_dialog(&parent_view.table_view, "Error while adding new filters. Realistically, this should never happen.", false),
-            }
-        }));
-
-        let filter_remove = SlotNoArgs::new(&view.main_widget, clone!(
-            view,
-            parent_view => move || {
-            rpfm_telemetry::track_action("Table Filter: Remove");
-            if parent_view.filters().len() > 1 {
-                let pos = parent_view.filters().iter().position(|filter_view| view.main_widget.as_ptr().as_raw_ptr() == filter_view.main_widget.as_ptr().as_raw_ptr());
-                if let Some(pos) = pos {
-                    parent_view.filter_base_widget.layout().remove_widget(view.main_widget.as_ptr());
-                    let _filter = parent_view.filters_mut().remove(pos);
-                    parent_view.filter_table();
+                let raw = bar.input_line_edit().text().to_std_string();
+                if raw.trim().is_empty() { return; }
+                let state = bar.parse_input(&raw);
+                match bar.add_chip(&view, state) {
+                    Ok(_) => {
+                        bar.input_line_edit().clear();
+                        view.filter_table();
+                    }
+                    Err(err) => show_dialog(bar.main_widget(), err.to_string(), false),
                 }
             }
-        }));
+        ));
+
+        // Debounce timeout: live preview. We parse the typed text and filter the table
+        // through it without materialising a chip, so results update as the user pauses.
+        // An empty input reverts to filtering on the existing chips alone.
+        let input_debounce_fired = SlotNoArgs::new(bar.main_widget(), clone!(
+            bar,
+            view => move || {
+                let raw = bar.input_line_edit().text().to_std_string();
+                if raw.trim().is_empty() {
+                    view.filter_table();
+                } else {
+                    let state = bar.parse_input(&raw);
+                    view.filter_table_with_preview(Some(&state));
+                }
+            }
+        ));
+
+        // The "+" button does the same as pressing Enter on the input, but also opens
+        // an empty chip when the input is blank so the user can pick a column visually.
+        let add_button_clicked = SlotNoArgs::new(bar.main_widget(), clone!(
+            bar,
+            view => move || {
+                rpfm_telemetry::track_action("Table Filter: Add Chip");
+                let raw = bar.input_line_edit().text().to_std_string();
+                let state = if raw.trim().is_empty() {
+                    FilterChipState { regex: true, ..FilterChipState::default() }
+                } else {
+                    bar.parse_input(&raw)
+                };
+                match bar.add_chip(&view, state) {
+                    Ok(_) => {
+                        bar.input_line_edit().clear();
+                        view.filter_table();
+                    }
+                    Err(err) => show_dialog(bar.main_widget(), err.to_string(), false),
+                }
+            }
+        ));
+
+        // Open the Columns popover. The popover widget is owned by TableView; it figures
+        // out its own anchor from the filter bar's Columns button.
+        let columns_button_clicked = SlotNoArgs::new(bar.main_widget(), clone!(
+            view => move || {
+                view.toggle_columns_popover();
+            }
+        ));
+
+        // Help button — pop a small dialog with the predicate grammar reference. The body
+        // is rich-text so the example snippets render as monospace.
+        let help_button_clicked = SlotNoArgs::new(bar.main_widget(), clone!(
+            bar => move || {
+                use qt_widgets::QMessageBox;
+                use qt_widgets::q_message_box::Icon;
+                use qt_core::QString;
+                use crate::utils::{qtr, tr};
+
+                let box_ = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
+                    Icon::Information,
+                    &qtr("filter_help_title"),
+                    &QString::from_std_str(""),
+                    qt_widgets::q_message_box::StandardButton::Ok.into(),
+                    bar.main_widget(),
+                );
+                box_.set_text_format(qt_core::TextFormat::RichText);
+                box_.set_text(&QString::from_std_str(tr("filter_help_body")));
+                box_.exec();
+            }
+        ));
 
         Self {
-            filter_line_edit,
-            filter_match_group_selector,
-            filter_column_selector,
-            filter_variant_selector,
-            filter_not_checkbox,
-            filter_case_sensitive_button,
-            filter_use_regex_button,
-            filter_show_blank_cells_button,
-            filter_show_edited_cells_button,
-            filter_trigger,
-            filter_check_regex,
-            filter_add,
-            filter_remove,
+            input_text_changed,
+            input_returned,
+            input_debounce_fired,
+            add_button_clicked,
+            columns_button_clicked,
+            help_button_clicked,
+        }
+    }
+}
+
+impl ChipSlots {
+
+    /// Build the slot bundle for `chip` and connect it to `view.filter_table()` for any
+    /// change that should refilter.
+    pub unsafe fn new(chip: &Arc<Chip>, view: &Arc<TableView>) -> Self {
+
+        let value_text_changed = SlotOfQString::new(chip.main_widget(), clone!(
+            chip => move |_| {
+                chip.restart_debounce();
+            }
+        ));
+
+        let debounce_fired = SlotNoArgs::new(chip.main_widget(), clone!(
+            view => move || {
+                view.filter_table();
+            }
+        ));
+
+        // When the user picks a column from the chip's column menu, copy the action's
+        // text onto the button and refilter.
+        let column_menu_triggered = SlotOfQAction::new(chip.main_widget(), clone!(
+            chip,
+            view => move |action| {
+                if action.is_null() { return; }
+                let label = action.text().to_std_string();
+                chip.set_column_label(&label);
+                view.filter_table();
+            }
+        ));
+
+        let options_changed = SlotNoArgs::new(chip.main_widget(), clone!(
+            view => move || {
+                view.filter_table();
+            }
+        ));
+
+        let group_changed = SlotNoArgs::new(chip.main_widget(), clone!(
+            view => move || {
+                view.filter_table();
+            }
+        ));
+
+        let remove_clicked = SlotNoArgs::new(chip.main_widget(), clone!(
+            chip,
+            view => move || {
+                rpfm_telemetry::track_action("Table Filter: Remove Chip");
+                if let Some(bar) = view.filter_bar_arc() {
+                    bar.remove_chip(&view, &chip);
+                    view.filter_table();
+                }
+            }
+        ));
+
+        Self {
+            value_text_changed,
+            debounce_fired,
+            column_menu_triggered,
+            options_changed,
+            group_changed,
+            remove_clicked,
         }
     }
 }

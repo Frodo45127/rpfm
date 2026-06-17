@@ -8,171 +8,308 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! TableView submodule to provide Filter functionality.
+//! TableView submodule providing the chip-based filter bar.
+//!
+//! The filter bar is a single horizontal bar containing zero or more *chips*. Each chip
+//! represents one filter predicate (column + value + flags) and is rendered as a compact
+//! rounded widget. The bar also exposes an input line edit so the user can type a
+//! predicate string and press Enter to spawn a new chip, plus a "Columns" button that
+//! opens the column-management popover.
 
-use qt_widgets::QCheckBox;
-use qt_widgets::QComboBox;
-use qt_widgets::QGridLayout;
+use qt_widgets::QHBoxLayout;
 use qt_widgets::QLineEdit;
+use qt_widgets::QScrollArea;
 use qt_widgets::QToolButton;
 use qt_widgets::QWidget;
 
-use qt_gui::QStandardItemModel;
-
 use qt_core::QBox;
 use qt_core::QPtr;
-use qt_core::QString;
 use qt_core::QTimer;
 
-use anyhow::Result;
-use getset::{Getters, MutGetters};
+use anyhow::{anyhow, Result};
+use getset::Getters;
 
 use std::sync::Arc;
 
 use rpfm_ipc::settings_keys::*;
-use rpfm_ui_common::utils::*;
+use rpfm_ui_common::utils::{find_widget, load_template};
 
 use crate::settings_ui::backend::settings_bool;
-use crate::utils::{qtr, tr};
+use crate::utils::qtr;
 use crate::views::table::clean_column_names;
 
-use self::slots::FilterViewSlots;
-use super::TableView;
+use self::chip::Chip;
+use self::slots::FilterBarSlots;
+use super::{FilterChipState, TableView};
 
+pub mod chip;
 mod connections;
-mod slots;
+pub mod slots;
+
+#[cfg(test)] mod test;
 
 const VIEW_DEBUG: &str = "rpfm_ui/ui_templates/table_filter_groupbox.ui";
 const VIEW_RELEASE: &str = "ui/table_filter_groupbox.ui";
+
+const INPUT_DEBOUNCE_MS: i32 = 250;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
-/// This struct contains the stuff needed for a filter row.
-#[derive(Getters, MutGetters)]
-#[getset(get = "pub", get_mut = "pub")]
-pub struct FilterView {
+/// The chip-based filter bar widget tree owned by a `TableView`.
+///
+/// Exactly one `FilterBar` exists per table view; chips are added/removed at runtime
+/// into the `chips_container` widget.
+#[derive(Getters)]
+#[getset(get = "pub")]
+pub struct FilterBar {
     main_widget: QBox<QWidget>,
-    not_checkbox: QPtr<QCheckBox>,
-    filter_line_edit: QPtr<QLineEdit>,
-    case_sensitive_button: QPtr<QToolButton>,
-    use_regex_button: QPtr<QToolButton>,
-    show_blank_cells_button: QPtr<QToolButton>,
-    show_edited_cells_button: QPtr<QToolButton>,
-    group_combobox: QPtr<QComboBox>,
-    column_combobox: QPtr<QComboBox>,
-    variant_combobox: QPtr<QComboBox>,
-    timer_delayed_updates: QBox<QTimer>,
+
+    columns_button: QPtr<QToolButton>,
+    flagged_rows_button: QPtr<QToolButton>,
+    #[getset(skip)]
+    _chips_scroll: QPtr<QScrollArea>,
+    chips_container: QPtr<QWidget>,
+    input_line_edit: QPtr<QLineEdit>,
     add_button: QPtr<QToolButton>,
-    remove_button: QPtr<QToolButton>,
+    help_button: QPtr<QToolButton>,
+    row_counter_label: QPtr<qt_widgets::QLabel>,
+
+    timer_input_debounce: QBox<QTimer>,
+
+    /// Cleaned column names in the order shown in chip column pickers (sorted display order).
+    column_names: Vec<String>,
+
+    /// Logical column indices corresponding to `column_names`.
+    logical_indices: Vec<i32>,
 }
 
 //-------------------------------------------------------------------------------//
 //                             Implementations
 //-------------------------------------------------------------------------------//
 
-impl FilterView {
+impl FilterBar {
 
+    /// Build the filter bar inside `view.filter_base_widget` and seed it with whatever
+    /// chips the table's `TableView::initial_filter_chips()` (if any) returns.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` on success; the bar is stored on the view via `view.set_filter_bar`.
+    /// `Err(_)` if the .ui template fails to load.
     pub unsafe fn new(view: &Arc<TableView>) -> Result<()> {
         let parent = view.filter_base_widget_ptr();
-        let parent_grid: QPtr<QGridLayout> = parent.layout().static_downcast();
+        let parent_grid: qt_core::QPtr<qt_widgets::QGridLayout> = parent.layout().static_downcast();
 
-        // Load the UI Template.
         let template_path = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };
         let main_widget = load_template(parent, template_path)?;
 
-        let not_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "not_checkbox")?;
-        let filter_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "filter_line_edit")?;
-        let case_sensitive_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "case_sensitive_button")?;
-        let use_regex_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "use_regex")?;
-        let show_blank_cells_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "show_blank_cells_button")?;
-        let show_edited_cells_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "show_edited_cells_button")?;
-        let group_combobox: QPtr<QComboBox> = find_widget(&main_widget.static_upcast(), "group_combobox")?;
-        let column_combobox: QPtr<QComboBox> = find_widget(&main_widget.static_upcast(), "column_combobox")?;
-        let variant_combobox: QPtr<QComboBox> = find_widget(&main_widget.static_upcast(), "variant_combobox")?;
-        let timer_delayed_updates = QTimer::new_1a(&main_widget);
-        let add_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "add_button")?;
-        let remove_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "remove_button")?;
-
-        filter_line_edit.set_placeholder_text(&qtr("table_filter"));
-        filter_line_edit.set_clear_button_enabled(true);
-        use_regex_button.set_tool_tip(&qtr("table_filter_use_regex"));
-        use_regex_button.set_checked(true);
-        show_blank_cells_button.set_tool_tip(&qtr("table_filter_show_blank_cells"));
-        show_edited_cells_button.set_tool_tip(&qtr("table_filter_show_edited_cells"));
-        case_sensitive_button.set_tool_tip(&qtr("table_filter_case_sensitive"));
-        timer_delayed_updates.set_single_shot(true);
-
-        // The first filter must never be deleted.
-        if !view.filters().is_empty() {
-            remove_button.set_enabled(true);
-        }
-
-        // Reuse the models from the first filterview, as that one will never get destroyed.
-        if let Some(first_filter) = view.filters().first() {
-            variant_combobox.set_model(first_filter.variant_combobox.model());
-            column_combobox.set_model(first_filter.column_combobox.model());
-            group_combobox.set_model(first_filter.group_combobox.model());
-        }
-
-        else {
-            let filter_match_group_list = QStandardItemModel::new_1a(&group_combobox);
-            let filter_column_list = QStandardItemModel::new_1a(&column_combobox);
-            let filter_variant_list = QStandardItemModel::new_1a(&variant_combobox);
-
-            variant_combobox.set_model(&filter_variant_list);
-            column_combobox.set_model(&filter_column_list);
-            group_combobox.set_model(&filter_match_group_list);
-
-            let fields = view.table_definition().fields_processed_sorted(settings_bool(TABLES_USE_OLD_COLUMN_ORDER));
-            for field in &fields {
-                let name = clean_column_names(field.name());
-                column_combobox.add_item_q_string(&QString::from_std_str(name));
-            }
-
-            group_combobox.add_item_q_string(&QString::from_std_str(format!("{} {}", tr("filter_group"), 1)));
-
-            variant_combobox.add_item_q_string(&qtr("filter_variant_source"));
-            variant_combobox.add_item_q_string(&qtr("filter_variant_lookup"));
-            variant_combobox.add_item_q_string(&qtr("filter_variant_both"));
-        }
-
-        // Add the new filter at the bottom of the window.
+        // load_template puts the widget in a stray layout if the parent already has one;
+        // re-attach it to the real grid so it shows up in the table view's layout.
         parent_grid.add_widget_5a(&main_widget, parent_grid.row_count(), 0, 1, 2);
 
-        let filter = Arc::new(Self {
+        let columns_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "columns_button")?;
+        let flagged_rows_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "flagged_rows_button")?;
+        let chips_scroll: QPtr<QScrollArea> = find_widget(&main_widget.static_upcast(), "chips_scroll")?;
+        let chips_container: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "chips_container")?;
+        let input_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "input_line_edit")?;
+        let add_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "add_button")?;
+        let help_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "help_button")?;
+        let row_counter_label: QPtr<qt_widgets::QLabel> = find_widget(&main_widget.static_upcast(), "row_counter_label")?;
+
+        input_line_edit.set_placeholder_text(&qtr("filter_bar_placeholder"));
+        input_line_edit.set_clear_button_enabled(true);
+        add_button.set_tool_tip(&qtr("filter_bar_add_chip"));
+        columns_button.set_tool_tip(&qtr("columns_popover_open"));
+        help_button.set_tool_tip(&qtr("filter_bar_help"));
+        flagged_rows_button.set_tool_tip(&qtr("table_filter_show_flagged_rows_tip"));
+
+        // Force the row counter text from code as well; the .ui sets it but we want
+        // to be sure nothing in the load path leaves it empty.
+        row_counter_label.set_text(&qt_core::QString::from_std_str("0/0"));
+
+        let timer_input_debounce = QTimer::new_1a(&main_widget);
+        timer_input_debounce.set_single_shot(true);
+        timer_input_debounce.set_interval(INPUT_DEBOUNCE_MS);
+
+        // Cache cleaned column names plus their logical model indices.
+        let (column_names, logical_indices) = {
+            let definition = view.table_definition();
+            let fields_sorted = definition.fields_processed_sorted(settings_bool(TABLES_USE_OLD_COLUMN_ORDER));
+            let fields_processed = definition.fields_processed();
+            let mut column_names = Vec::with_capacity(fields_sorted.len());
+            let mut logical_indices = Vec::with_capacity(fields_sorted.len());
+            for field in &fields_sorted {
+                column_names.push(clean_column_names(field.name()));
+                let logical = fields_processed.iter().position(|f| f == field).unwrap_or(0) as i32;
+                logical_indices.push(logical);
+            }
+            (column_names, logical_indices)
+        };
+
+        let filter_bar = Arc::new(Self {
             main_widget,
-            not_checkbox,
-            filter_line_edit,
-            case_sensitive_button,
-            use_regex_button,
-            show_blank_cells_button,
-            show_edited_cells_button,
-            group_combobox,
-            column_combobox,
-            variant_combobox,
-            timer_delayed_updates,
+            columns_button,
+            flagged_rows_button,
+            _chips_scroll: chips_scroll,
+            chips_container,
+            input_line_edit,
             add_button,
-            remove_button,
+            help_button,
+            row_counter_label,
+            timer_input_debounce,
+            column_names,
+            logical_indices,
         });
 
-        let slots = FilterViewSlots::new(&filter, view);
-        connections::set_connections_filter(&filter, &slots);
+        let slots = FilterBarSlots::new(&filter_bar, view);
+        connections::set_connections_filter_bar(&filter_bar, &slots);
 
-        view.filters_mut().push(filter);
+        view.set_filter_bar(filter_bar);
         Ok(())
     }
 
-    pub unsafe fn start_delayed_updates_timer(&self) {
-        self.timer_delayed_updates.set_interval(500);
-        self.timer_delayed_updates.start_0a();
+    /// Build a chip from `state`, append it to the bar, wire its signals.
+    ///
+    /// # Returns
+    ///
+    /// The new chip on success. Triggers no filter pass on its own — the caller (a slot)
+    /// will call `view.filter_table()` once it has installed the chip.
+    pub unsafe fn add_chip(&self, view: &Arc<TableView>, state: FilterChipState) -> Result<Arc<Chip>> {
+        let chip = Arc::new(Chip::new(&self.main_widget, &self.column_names, &self.logical_indices, &state)?);
+
+        // Insert the chip's widget at the end of the chips layout, before any trailing stretch.
+        let layout = self.chips_container.layout();
+        if layout.is_null() {
+            return Err(anyhow!("chips_container has no layout; .ui template is malformed"));
+        }
+        let hlayout: QPtr<QHBoxLayout> = layout.static_downcast();
+        hlayout.add_widget(chip.main_widget());
+
+        connections::set_connections_chip(&chip, &self.main_widget, view);
+
+        view.filter_chips_mut().push(chip.clone());
+        Ok(chip)
     }
 
-    pub unsafe fn add_filter_group(view: &TableView) {
-        if view.filters()[0].group_combobox.count() < view.filters().len() as i32 {
-            let name = QString::from_std_str(format!("{} {}", tr("filter_group"), view.filters()[0].group_combobox.count() + 1));
-            view.filters()[0].group_combobox.add_item_q_string(&name);
+    /// Remove the chip whose widget pointer matches `chip`, returning whether anything
+    /// was removed.
+    ///
+    /// We intentionally do **not** call `delete_later()` on the chip widget: doing so
+    /// from inside the remove button's signal handler races with Qt destroying the slot
+    /// wrappers parented to the same widget and crashes the process. Instead we hide
+    /// the widget and detach it from the layout, matching the long-standing pattern in
+    /// the old `FilterView` code. The widget is reaped when the filter bar itself dies.
+    pub unsafe fn remove_chip(&self, view: &Arc<TableView>, chip: &Arc<Chip>) -> bool {
+        let mut chips = view.filter_chips_mut();
+        let target = chip.main_widget().as_ptr().as_raw_ptr();
+        let pos = chips.iter().position(|c| c.main_widget().as_ptr().as_raw_ptr() == target);
+        if let Some(pos) = pos {
+            let removed = chips.remove(pos);
+            self.chips_container.layout().remove_widget(removed.main_widget().as_ptr());
+            removed.main_widget().hide();
+            true
+        } else {
+            false
         }
     }
+
+    /// Restart the debounce timer attached to the input line edit.
+    pub unsafe fn restart_input_debounce(&self) {
+        self.timer_input_debounce.start_0a();
+    }
+
+    /// Parse the text in the input line edit into a `FilterChipState`. Always succeeds
+    /// (even on empty input — caller is expected to discard empty chips), but the parser
+    /// is permissive: unknown flags are ignored, malformed `column:value` is treated as
+    /// a literal value with no column scope.
+    ///
+    /// The returned `column_index` is a **logical** model column index (or -1 for "Any").
+    ///
+    /// Grammar (whitespace-insensitive, all parts optional except value):
+    /// `[!] [column:]value [/i] [/r] [/s] [/lookup|/source|/both] [@group]`
+    pub fn parse_input(&self, raw: &str) -> FilterChipState {
+        parse_predicate(raw, &self.column_names, &self.logical_indices)
+    }
+}
+
+/// Standalone parser kept outside `impl` so it can be unit-tested without a Qt context.
+///
+/// `column_names` and `logical_indices` are parallel slices; entry `i` in `logical_indices`
+/// is the logical model column index for the display name at `column_names[i]`.
+fn parse_predicate(raw: &str, column_names: &[String], logical_indices: &[i32]) -> FilterChipState {
+    let mut state = FilterChipState {
+        column_index: -1,
+        pattern: String::new(),
+        not: false,
+        regex: true,           // matches the legacy default of "regex on"
+        case_sensitive: false,
+        show_blank: false,
+        show_edited: false,
+        variant: 0,
+        group: 0,
+    };
+
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return state;
+    }
+
+    let mut remaining = trimmed.to_string();
+
+    if let Some(stripped) = remaining.strip_prefix('!') {
+        state.not = true;
+        remaining = stripped.trim_start().to_string();
+    }
+
+    // Pull off trailing flag tokens (anything starting with '/' or '@') from the right.
+    // We walk tokens from the right; everything that isn't a flag joins back into the value.
+    let mut tokens: Vec<&str> = remaining.split_whitespace().collect();
+    while let Some(last) = tokens.last().copied() {
+        if let Some(rest) = last.strip_prefix('/') {
+            match rest {
+                "i" | "I" => state.case_sensitive = false,
+                "s" | "S" => state.case_sensitive = true,
+                "r" | "R" => state.regex = true,
+                "n" | "N" => state.regex = false,
+                "source" => state.variant = 0,
+                "lookup" => state.variant = 1,
+                "both" => state.variant = 2,
+                "blank" | "empty" => state.show_blank = true,
+                "edited" => state.show_edited = true,
+                _ => break,
+            }
+            tokens.pop();
+            continue;
+        }
+        if let Some(rest) = last.strip_prefix('@') {
+            if let Ok(n) = rest.parse::<i32>() {
+                state.group = n;
+                tokens.pop();
+                continue;
+            }
+        }
+        break;
+    }
+    remaining = tokens.join(" ");
+
+    // Split on the first ':' for column scoping. If the prefix doesn't match a column,
+    // treat the whole thing as the value (so URLs etc. work).
+    if let Some(colon_pos) = remaining.find(':') {
+        let (col_part, value_part) = remaining.split_at(colon_pos);
+        let col_part = col_part.trim();
+        let value_part = value_part[1..].trim_start();
+        if !col_part.is_empty() {
+            if let Some(sorted_idx) = column_names.iter().position(|c| c.eq_ignore_ascii_case(col_part)) {
+                // Translate display position to logical model column index.
+                state.column_index = logical_indices.get(sorted_idx).copied().unwrap_or(-1);
+                state.pattern = value_part.to_string();
+                return state;
+            }
+        }
+    }
+
+    state.pattern = remaining;
+    state
 }

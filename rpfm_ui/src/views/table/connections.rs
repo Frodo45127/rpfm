@@ -16,6 +16,8 @@ This module is, and should stay, private, as it's only glue between the `TableVi
 
 use std::sync::Arc;
 
+use crate::ffi::header_funnel_clicked_signal;
+
 use super::{TableView, slots::TableViewSlots};
 
 /// This function connects all the actions from the provided `TableView` with their slots in `TableViewSlots`.
@@ -52,7 +54,6 @@ pub unsafe fn set_connections(ui: &Arc<TableView>, slots: &TableViewSlots) {
     ui.context_menu_import_tsv().triggered().connect(&slots.import_tsv);
     ui.context_menu_export_tsv().triggered().connect(&slots.export_tsv);
     ui.context_menu_resize_columns().triggered().connect(&slots.resize_columns);
-    ui.context_menu_sidebar().triggered().connect(&slots.sidebar);
     ui.context_menu_search().triggered().connect(&slots.search);
     ui.context_menu_cascade_edition().triggered().connect(&slots.cascade_edition);
     ui.context_menu_find_references().triggered().connect(&slots.find_references);
@@ -95,4 +96,6 @@ pub unsafe fn set_connections(ui: &Arc<TableView>, slots: &TableViewSlots) {
     ui.flagged_rows_filter_error.toggled().connect(&slots.toggle_flagged_rows_filter);
     ui.flagged_rows_filter_warning.toggled().connect(&slots.toggle_flagged_rows_filter);
     ui.flagged_rows_filter_info.toggled().connect(&slots.toggle_flagged_rows_filter);
+
+    header_funnel_clicked_signal(ui.table_view_ptr().horizontal_header().static_upcast()).connect(&slots.header_funnel_clicked);
 }

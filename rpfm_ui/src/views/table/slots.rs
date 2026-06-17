@@ -88,7 +88,6 @@ pub struct TableViewSlots {
     pub export_tsv: QBox<SlotOfBool>,
     pub smart_delete: QBox<SlotNoArgs>,
     pub resize_columns: QBox<SlotNoArgs>,
-    pub sidebar: QBox<SlotOfBool>,
     pub search: QBox<SlotOfBool>,
     pub cascade_edition: QBox<SlotNoArgs>,
     pub patch_column: QBox<SlotNoArgs>,
@@ -107,6 +106,7 @@ pub struct TableViewSlots {
     pub profile_new: QBox<SlotNoArgs>,
     pub profile_set_as_default: QBox<SlotOfQString>,
     pub toggle_flagged_rows_filter: QBox<SlotOfBool>,
+    pub header_funnel_clicked: QBox<SlotOfInt>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -685,15 +685,6 @@ impl TableViewSlots {
             }
         ));
 
-        let sidebar = SlotOfBool::new(&view.table_view, clone!(
-            mut view => move |_| {
-            rpfm_telemetry::track_action("Table: Toggle Sidebar");
-            match view.sidebar_scroll_area.is_visible() {
-                true => view.sidebar_scroll_area.hide(),
-                false => view.sidebar_scroll_area.show()
-            }
-        }));
-
         let search = SlotOfBool::new(&view.table_view, clone!(
             mut view => move |_| {
             rpfm_telemetry::track_action("Search");
@@ -933,7 +924,7 @@ impl TableViewSlots {
             view => move |key| {
                 rpfm_telemetry::track_action("Apply Profile");
 
-                view.apply_table_view_profile(&key.to_std_string());
+                view.clone().apply_table_view_profile(&key.to_std_string());
             }
         ));
 
@@ -977,6 +968,25 @@ impl TableViewSlots {
             }
         ));
 
+        // Clicking a column header's filter funnel adds a chip pre-targeting that logical
+        // column and focuses its value field so the user can type the pattern straight away.
+        let header_funnel_clicked = SlotOfInt::new(&view.table_view, clone!(
+            view => move |logical_index| {
+                rpfm_telemetry::track_action("Table Filter: Header Funnel");
+                if let Some(bar) = view.filter_bar_arc() {
+                    let state = FilterChipState {
+                        column_index: logical_index,
+                        regex: true,
+                        ..FilterChipState::default()
+                    };
+                    if let Ok(chip) = bar.add_chip(&view, state) {
+                        chip.value_edit().set_focus_0a();
+                        view.filter_table();
+                    }
+                }
+            }
+        ));
+
         // Return the slots, so we can keep them alive for the duration of the view.
         Self {
             delayed_updates,
@@ -1006,7 +1016,6 @@ impl TableViewSlots {
             export_tsv,
             smart_delete,
             resize_columns,
-            sidebar,
             search,
             cascade_edition,
             patch_column,
@@ -1025,6 +1034,7 @@ impl TableViewSlots {
             profile_new,
             profile_set_as_default,
             toggle_flagged_rows_filter,
+            header_funnel_clicked,
         }
     }
 }

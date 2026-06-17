@@ -27,8 +27,7 @@ use qt_widgets::QMenu;
 use qt_widgets::QPushButton;
 use qt_widgets::QTableView;
 use qt_widgets::QTextEdit;
-use qt_widgets::QToolButton;
-use qt_widgets::QScrollArea;
+use qt_widgets::QToolBar;
 use qt_widgets::QSpinBox;
 use qt_widgets::QWidget;
 
@@ -40,11 +39,10 @@ use qt_gui::QListOfQStandardItem;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
 
-use qt_core::AlignmentFlag;
 use qt_core::CaseSensitivity;
 use qt_core::CheckState;
-use qt_core::Orientation;
 use qt_core::QBox;
+use qt_core::ToolButtonStyle;
 use qt_core::QByteArray;
 use qt_core::QFlags;
 use qt_core::q_item_selection_model::SelectionFlag;
@@ -111,11 +109,17 @@ use crate::UI_STATE;
 use crate::settings_ui::backend::*;
 use crate::utils::*;
 
-use self::filter::*;
+use self::columns_popover::ColumnsPopover;
+use self::columns_popover::connections::set_connections_columns_popover;
+use self::columns_popover::slots::ColumnsPopoverSlots;
+use self::filter::FilterBar;
+use self::filter::chip::Chip;
+use self::filter::slots::ChipSlots;
 use self::search::*;
 use self::slots::*;
 use self::utils::*;
 
+pub mod columns_popover;
 mod connections;
 pub mod filter;
 mod search;
@@ -204,8 +208,24 @@ pub struct TableView {
     table_model: QBox<QStandardItemModel>,
 
     filter_base_widget: QBox<QWidget>,
+
+    /// Chip-based filter bar replacing the legacy stacked filter rows.
+    ///
+    /// Stored behind `RwLock<Option<...>>` because the bar is constructed *after*
+    /// `TableView` exists (it needs an `Arc<TableView>` for its slot wiring).
     #[getset(skip)]
-    filters: Arc<RwLock<Vec<Arc<FilterView>>>>,
+    filter_bar: Arc<RwLock<Option<Arc<FilterBar>>>>,
+
+    /// Live filter chips currently shown in the filter bar.
+    #[getset(skip)]
+    filter_chips: Arc<RwLock<Vec<Arc<Chip>>>>,
+
+    /// Owning store for chip-scoped slots so they stay alive while the chip exists.
+    ///
+    /// Slots are parented to their chip's main widget, so Qt cleanup releases them when
+    /// the chip is destroyed; this Vec just keeps the Rust `QBox<Slot…>` handles around.
+    #[getset(skip)]
+    chip_slots: Arc<RwLock<Vec<ChipSlots>>>,
 
     #[getset(skip)]
     column_sort_state: Arc<RwLock<(i32, i8)>>,
@@ -213,6 +233,14 @@ pub struct TableView {
     signal_mapper_profile_apply: QBox<QSignalMapper>,
     signal_mapper_profile_delete: QBox<QSignalMapper>,
     signal_mapper_profile_set_as_default: QBox<QSignalMapper>,
+
+    /// Toolbar at the top of the view exposing the right-click actions as buttons.
+    ///
+    /// Visibility is driven by the `SHOW_TABLE_TOOLBAR` setting at view-construction time.
+    /// We keep ownership here so the widget survives for the lifetime of the view; the
+    /// actions themselves are owned by the context menu, which is constructed first.
+    #[getset(skip)]
+    _action_toolbar: QBox<QToolBar>,
 
     context_menu: QBox<QMenu>,
     context_menu_add_rows: QPtr<QAction>,
@@ -240,7 +268,6 @@ pub struct TableView {
     context_menu_import_tsv: QPtr<QAction>,
     context_menu_export_tsv: QPtr<QAction>,
     context_menu_resize_columns: QPtr<QAction>,
-    context_menu_sidebar: QPtr<QAction>,
     context_menu_search: QPtr<QAction>,
     context_menu_find_references: QPtr<QAction>,
     context_menu_cascade_edition: QPtr<QAction>,
@@ -253,16 +280,28 @@ pub struct TableView {
     context_menu_go_to_loc: Vec<QPtr<QAction>>,
     context_menu_add_to_twad_key_deletes_m: QBox<QMenu>,
 
-    sidebar_scroll_area: QBox<QScrollArea>,
+    /// Replacement for the legacy sidebar: a popup window listing all columns with
+    /// hide/freeze toggles. Built lazily after the view exists so it can wire to the
+    /// view's slots.
+    #[getset(skip)]
+    columns_popover: Arc<RwLock<Option<Arc<ColumnsPopover>>>>,
 
-    sidebar_hide_checkboxes: Vec<QBox<QCheckBox>>,
-    sidebar_hide_checkboxes_all: QBox<QCheckBox>,
-    sidebar_freeze_checkboxes: Vec<QBox<QCheckBox>>,
-    sidebar_freeze_checkboxes_all: QBox<QCheckBox>,
+    /// Slots owned by the popover. Stored on the view so they outlive popover rebuilds.
+    #[getset(skip)]
+    columns_popover_slots: Arc<RwLock<Option<ColumnsPopoverSlots>>>,
 
-    _table_status_bar: QBox<QWidget>,
-    table_status_bar_line_counter_label: QBox<QLabel>,
-    _flagged_rows_filter_button: QBox<QToolButton>,
+    /// Non-owning pointer mirrors of the hide/freeze checkboxes inside the popover.
+    ///
+    /// Kept as `QPtr` rather than `QBox` because the popover owns the underlying widgets.
+    /// The legacy slot/connection code reads through these handles so it doesn't have to
+    /// learn about the new popover module.
+    sidebar_hide_checkboxes: Vec<QPtr<QCheckBox>>,
+    sidebar_hide_checkboxes_all: QPtr<QCheckBox>,
+    sidebar_freeze_checkboxes: Vec<QPtr<QCheckBox>>,
+    sidebar_freeze_checkboxes_all: QPtr<QCheckBox>,
+
+    /// Menu attached to the filter bar's flagged-rows button. Owned here so it outlives
+    /// the popup interactions; the actions inside it drive `filter_table()`.
     _flagged_rows_filter_menu: QBox<QMenu>,
     flagged_rows_filter_added: QPtr<QAction>,
     flagged_rows_filter_modified: QPtr<QAction>,
@@ -315,11 +354,31 @@ pub struct TableView {
 }
 
 /// This struct contains data to load a specific status of a view.
+///
+/// New optional fields use `#[serde(default)]` so older JSON profile files load fine.
 #[derive(Debug, Default, Getters, Serialize, Deserialize)]
 #[getset(get = "pub")]
 pub struct TableViewProfile {
     column_order: Vec<i32>,
     columns_hidden: Vec<i32>,
+    #[serde(default)]
+    columns_frozen: Vec<i32>,
+    #[serde(default)]
+    filter_chips: Vec<FilterChipState>,
+}
+
+/// Serializable form of a single filter chip, used to restore chip-bar state from a profile.
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub struct FilterChipState {
+    pub column_index: i32,
+    pub pattern: String,
+    pub not: bool,
+    pub regex: bool,
+    pub case_sensitive: bool,
+    pub show_blank: bool,
+    pub show_edited: bool,
+    pub variant: i32,
+    pub group: i32,
 }
 
 //-------------------------------------------------------------------------------//
@@ -405,32 +464,25 @@ impl TableView {
         let mut banned_table = false;
         if let TableType::DependencyManager(_) = table_data {
             let warning_message = QLabel::from_q_string_q_widget(&qtr("dependency_packfile_list_label"), parent);
-            layout.add_widget_5a(&warning_message, 0, 0, 1, 4);
+            layout.add_widget_5a(&warning_message, 1, 0, 1, 4);
         } else if let TableType::DB(ref db) = table_data {
             banned_table = GAME_SELECTED.read().unwrap().is_file_banned(&format!("db/{}", &table_name_for_ref));
             if banned_table {
                 let warning_message = QLabel::from_q_string_q_widget(&qtr("banned_tables_warning"), parent);
-                layout.add_widget_5a(&warning_message, 0, 0, 1, 4);
+                layout.add_widget_5a(&warning_message, 1, 0, 1, 4);
             }
 
             if db.table_name() == KEY_DELETES_TABLE_NAME {
                 let warning_message = QLabel::from_q_string_q_widget(&qtr("twad_key_deletes_warning"), parent);
                 warning_message.set_word_wrap(true);
-                layout.add_widget_5a(&warning_message, 0, 0, 1, 4);
+                layout.add_widget_5a(&warning_message, 1, 0, 1, 4);
             }
         }
 
-        let table_status_bar = QWidget::new_1a(parent);
-        let table_status_bar_grid = create_grid_layout(table_status_bar.static_upcast());
-        let table_status_bar_line_counter_label = QLabel::from_q_string_q_widget(&qtre("line_counter", &["0", "0"]), &table_status_bar);
-        table_status_bar_grid.add_widget_5a(&table_status_bar_line_counter_label, 0, 0, 1, 1);
-
-        let flagged_rows_filter_button = QToolButton::new_1a(&table_status_bar);
-        flagged_rows_filter_button.set_text(&qtr("table_filter_show_flagged_rows"));
-        flagged_rows_filter_button.set_tool_tip(&qtr("table_filter_show_flagged_rows_tip"));
-        flagged_rows_filter_button.set_popup_mode(qt_widgets::q_tool_button::ToolButtonPopupMode::InstantPopup);
-
-        let flagged_rows_filter_menu = QMenu::from_q_widget(&flagged_rows_filter_button);
+        // Flagged-rows menu (added/modified/diagnostic flags). Parented to `table_view`
+        // so it outlives any popup interactions; the actual button that shows it lives
+        // in the filter bar, attached after that bar is constructed below.
+        let flagged_rows_filter_menu = QMenu::from_q_widget(&table_view);
 
         let flagged_rows_filter_added = flagged_rows_filter_menu.add_action_q_string(&qtr("table_filter_flag_added"));
         flagged_rows_filter_added.set_checkable(true);
@@ -453,12 +505,8 @@ impl TableView {
         let flagged_rows_filter_info = flagged_rows_filter_menu.add_action_q_string(&qtr("table_filter_flag_info"));
         flagged_rows_filter_info.set_checkable(true);
 
-        flagged_rows_filter_button.set_menu(&flagged_rows_filter_menu);
-        table_status_bar_grid.add_widget_5a(&flagged_rows_filter_button, 0, 1, 1, 1);
-
-        layout.add_widget_5a(&table_view, 1, 0, 1, 1);
-        layout.add_widget_5a(&table_status_bar, 2, 0, 1, 2);
-        layout.add_widget_5a(&filter_base_widget, 4, 0, 1, 2);
+        layout.add_widget_5a(&table_view, 2, 0, 1, 1);
+        layout.add_widget_5a(&filter_base_widget, 5, 0, 1, 2);
 
         // Action to make the delete button delete contents.
         let context_menu_smart_delete = add_action_to_widget(app_ui.shortcuts().as_ref(), "table_editor", "smart_delete", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
@@ -491,7 +539,6 @@ impl TableView {
         let context_menu_import_tsv = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "import_tsv", "context_menu_import_tsv", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_export_tsv = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "export_tsv", "context_menu_export_tsv", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_search = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "search", "context_menu_search", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
-        let context_menu_sidebar = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "sidebar", "context_menu_sidebar", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_find_references = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "find_references", "context_menu_find_references", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_cascade_edition = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "rename_references", "context_menu_cascade_edition", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_patch_column = add_action_to_menu(&context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "table_editor", "patch_columns", "context_menu_patch_column", Some(table_view.static_upcast::<qt_widgets::QWidget>()));
@@ -582,74 +629,160 @@ impl TableView {
         search_grid.add_widget_5a(&search_column_selector, 2, 2, 1, 1);
         search_grid.add_widget_5a(&search_case_sensitive_button, 2, 3, 1, 1);
 
-        layout.add_widget_5a(&search_widget, 3, 0, 1, 2);
+        layout.add_widget_5a(&search_widget, 4, 0, 1, 2);
         layout.set_column_stretch(0, 10);
         search_widget.hide();
 
         //--------------------------------------------------//
-        // Freeze/Hide Section.
+        // Columns popover
         //--------------------------------------------------//
 
-        // Create the search and hide/show/freeze widgets.
-        let sidebar_scroll_area = QScrollArea::new_1a(parent);
-        let sidebar_widget = QWidget::new_1a(&sidebar_scroll_area);
-        let sidebar_grid = create_grid_layout(sidebar_widget.static_upcast());
-        sidebar_scroll_area.set_widget(&sidebar_widget);
-        sidebar_scroll_area.set_widget_resizable(true);
-        sidebar_scroll_area.horizontal_scroll_bar().set_enabled(false);
-        sidebar_grid.set_contents_margins_4a(4, 0, 4, 4);
-        sidebar_grid.set_spacing(4);
-
-        let header_column = QLabel::from_q_string_q_widget(&qtr("header_column"), &sidebar_widget);
-        let header_hidden = QLabel::from_q_string_q_widget(&qtr("header_hidden"), &sidebar_widget);
-        let header_frozen = QLabel::from_q_string_q_widget(&qtr("header_frozen"), &sidebar_widget);
-
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&header_column, QFlags::from(AlignmentFlag::AlignHCenter));
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&header_hidden, QFlags::from(AlignmentFlag::AlignHCenter));
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&header_frozen, QFlags::from(AlignmentFlag::AlignHCenter));
-
-        sidebar_grid.add_widget_5a(&header_column, 0, 0, 1, 1);
-        sidebar_grid.add_widget_5a(&header_hidden, 0, 1, 1, 1);
-        sidebar_grid.add_widget_5a(&header_frozen, 0, 2, 1, 1);
-
-        let label_all = QLabel::from_q_string_q_widget(&qtr("all"), &sidebar_widget);
-        let sidebar_hide_checkboxes_all = QCheckBox::from_q_widget(&sidebar_widget);
-        let sidebar_freeze_checkboxes_all = QCheckBox::from_q_widget(&sidebar_widget);
-        //sidebar_freeze_checkboxes_all.set_enabled(false);
-
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&sidebar_hide_checkboxes_all, QFlags::from(AlignmentFlag::AlignHCenter));
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&sidebar_freeze_checkboxes_all, QFlags::from(AlignmentFlag::AlignHCenter));
-
-        sidebar_grid.add_widget_5a(&label_all, 1, 0, 1, 1);
-        sidebar_grid.add_widget_5a(&sidebar_hide_checkboxes_all, 1, 1, 1, 1);
-        sidebar_grid.add_widget_5a(&sidebar_freeze_checkboxes_all, 1, 2, 1, 1);
-
-        let mut sidebar_hide_checkboxes = vec![];
-        let mut sidebar_freeze_checkboxes = vec![];
-        for (index, column) in fields.iter().enumerate() {
-            let column_name = QLabel::from_q_string_q_widget(&QString::from_std_str(utils::clean_column_names(column.name())), &sidebar_widget);
-            let hide_show_checkbox = QCheckBox::from_q_widget(&sidebar_widget);
-            let freeze_unfreeze_checkbox = QCheckBox::from_q_widget(&sidebar_widget);
-            //freeze_unfreeze_checkbox.set_enabled(false);
-
-            sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&hide_show_checkbox, QFlags::from(AlignmentFlag::AlignHCenter));
-            sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&freeze_unfreeze_checkbox, QFlags::from(AlignmentFlag::AlignHCenter));
-
-            sidebar_grid.add_widget_5a(&column_name, (index + 2) as i32, 0, 1, 1);
-            sidebar_grid.add_widget_5a(&hide_show_checkbox, (index + 2) as i32, 1, 1, 1);
-            sidebar_grid.add_widget_5a(&freeze_unfreeze_checkbox, (index + 2) as i32, 2, 1, 1);
-
-            sidebar_hide_checkboxes.push(hide_show_checkbox);
-            sidebar_freeze_checkboxes.push(freeze_unfreeze_checkbox);
+        // Build column display names and a matching list of logical column indices for the
+        // popover. Logical indices line up with `fields_processed`, which is the order the
+        // underlying table model uses regardless of the user's preferred visual order.
+        let fields_processed_ref = table_definition.fields_processed();
+        let mut popover_column_names = Vec::with_capacity(fields.len());
+        let mut popover_logical_indexes = Vec::with_capacity(fields.len());
+        for field in &fields {
+            let display = utils::clean_column_names(field.name());
+            let logical = fields_processed_ref.iter().position(|f| f == field).unwrap_or(0) as i32;
+            popover_column_names.push(display);
+            popover_logical_indexes.push(logical);
         }
 
-        // Add all the stuff to the main grid and hide the search widget.
-        layout.add_widget_5a(&sidebar_scroll_area, 0, 4, 5, 1);
-        sidebar_scroll_area.hide();
-        sidebar_grid.set_row_stretch(999, 10);
+        let columns_popover_value = Arc::new(ColumnsPopover::new(parent, &popover_column_names, &popover_logical_indexes)?);
+
+        // Mirror non-owning checkbox handles into the legacy slot/connection paths so the
+        // surrounding code doesn't have to learn about the new popover module.
+        let sidebar_hide_checkboxes: Vec<QPtr<QCheckBox>> = columns_popover_value.rows().iter()
+            .map(|r| QPtr::new(r.hide_checkbox().as_ptr()))
+            .collect();
+        let sidebar_freeze_checkboxes: Vec<QPtr<QCheckBox>> = columns_popover_value.rows().iter()
+            .map(|r| QPtr::new(r.freeze_checkbox().as_ptr()))
+            .collect();
+        let sidebar_hide_checkboxes_all: QPtr<QCheckBox> = QPtr::new(columns_popover_value.hide_all_checkbox().as_ptr());
+        let sidebar_freeze_checkboxes_all: QPtr<QCheckBox> = QPtr::new(columns_popover_value.freeze_all_checkbox().as_ptr());
 
         let timer_delayed_updates = QTimer::new_1a(parent);
         timer_delayed_updates.set_single_shot(true);
+
+        //--------------------------------------------------//
+        // Action toolbar
+        //--------------------------------------------------//
+
+        // We add every right-click context-menu action to the toolbar. Qt shares actions
+        // between widgets cleanly: the same QAction can live in the toolbar and the menu,
+        // firing both visuals from one signal.
+        // Set theme icons on every action so the toolbar can render icon-only. Each
+        // action's text is reused as the tooltip by QToolBar when in IconOnly mode.
+        let set_action_icon = |action: &QPtr<QAction>, theme_name: &str| {
+            let icon = QIcon::from_theme_q_string(&QString::from_std_str(theme_name));
+            action.set_icon(&icon);
+        };
+        // Row management — KDE Breeze ships table-row-specific glyphs that read
+        // unambiguously even at icon-only sizes.
+        set_action_icon(&context_menu_add_rows, "edit-table-insert-row-below");
+        set_action_icon(&context_menu_insert_rows, "edit-table-insert-row-above");
+        set_action_icon(&context_menu_delete_rows, "edit-table-delete-row");
+        set_action_icon(&context_menu_delete_rows_not_in_filter, "edit-delete");
+        set_action_icon(&context_menu_smart_delete, "edit-clear-all");
+
+        // Cloning — `edit-duplicate` separates this conceptually from clipboard copy.
+        set_action_icon(&context_menu_clone_and_append, "edit-duplicate");
+        set_action_icon(&context_menu_clone_and_insert, "edit-duplicate");
+
+        // Generated/sequential IDs read well as a numbered-list glyph.
+        set_action_icon(&context_menu_generate_ids, "format-list-ordered");
+
+        // Clipboard — give the two non-plain variants their own glyphs so users can
+        // tell them apart at a glance.
+        set_action_icon(&context_menu_copy, "edit-copy");
+        set_action_icon(&context_menu_copy_as_lua_table, "text-x-script");
+        set_action_icon(&context_menu_copy_to_filter_value, "view-filter");
+        set_action_icon(&context_menu_paste, "edit-paste");
+        set_action_icon(&context_menu_paste_as_new_row, "edit-paste");
+
+        // Selection ops.
+        set_action_icon(&context_menu_invert_selection, "edit-select-invert");
+        set_action_icon(&context_menu_reset_selection, "edit-clear-history");
+        set_action_icon(&context_menu_rewrite_selection, "edit-find-replace");
+
+        // `document-revert` is Breeze's standard "revert to saved/original" glyph;
+        // distinct from `edit-undo` which represents history undo.
+        set_action_icon(&context_menu_revert_value, "document-revert");
+
+        // History.
+        set_action_icon(&context_menu_undo, "edit-undo");
+        set_action_icon(&context_menu_redo, "edit-redo");
+
+        // Search / navigation.
+        set_action_icon(&context_menu_search, "edit-find");
+        set_action_icon(&context_menu_find_references, "find-location");
+        set_action_icon(&context_menu_go_to_definition, "go-jump");
+        set_action_icon(&context_menu_go_to_file, "document-open");
+
+        // Schema-touching actions.
+        set_action_icon(&context_menu_patch_column, "configure");
+        // Cascade edition renames references; `edit-rename` matches the underlying op.
+        set_action_icon(&context_menu_cascade_edition, "edit-rename");
+
+        // Profiles behave like bookmarks for a particular view configuration.
+        set_action_icon(&context_menu_profiles_create, "bookmark-new");
+
+        // TSV import/export.
+        set_action_icon(&context_menu_import_tsv, "document-import");
+        set_action_icon(&context_menu_export_tsv, "document-export");
+
+        // View ops.
+        set_action_icon(&context_menu_resize_columns, "zoom-fit-width");
+
+        // QToolBar has no parented constructor; the layout's `add_widget_5a` below
+        // re-parents it to the table view's host widget.
+        let action_toolbar = QToolBar::new();
+        action_toolbar.set_movable(false);
+        action_toolbar.set_floatable(false);
+        action_toolbar.set_tool_button_style(ToolButtonStyle::ToolButtonIconOnly);
+
+        action_toolbar.add_action_q_action(&context_menu_add_rows);
+        action_toolbar.add_action_q_action(&context_menu_insert_rows);
+        action_toolbar.add_action_q_action(&context_menu_delete_rows);
+        action_toolbar.add_action_q_action(&context_menu_delete_rows_not_in_filter);
+        action_toolbar.add_action_q_action(&context_menu_smart_delete);
+        action_toolbar.add_separator();
+        action_toolbar.add_action_q_action(&context_menu_clone_and_append);
+        action_toolbar.add_action_q_action(&context_menu_clone_and_insert);
+        action_toolbar.add_action_q_action(&context_menu_generate_ids);
+        action_toolbar.add_separator();
+        action_toolbar.add_action_q_action(&context_menu_copy);
+        action_toolbar.add_action_q_action(&context_menu_copy_as_lua_table);
+        action_toolbar.add_action_q_action(&context_menu_copy_to_filter_value);
+        action_toolbar.add_action_q_action(&context_menu_paste);
+        action_toolbar.add_action_q_action(&context_menu_paste_as_new_row);
+        action_toolbar.add_separator();
+        action_toolbar.add_action_q_action(&context_menu_invert_selection);
+        action_toolbar.add_action_q_action(&context_menu_reset_selection);
+        action_toolbar.add_action_q_action(&context_menu_rewrite_selection);
+        action_toolbar.add_action_q_action(&context_menu_revert_value);
+        action_toolbar.add_separator();
+        action_toolbar.add_action_q_action(&context_menu_undo);
+        action_toolbar.add_action_q_action(&context_menu_redo);
+        action_toolbar.add_separator();
+        action_toolbar.add_action_q_action(&context_menu_search);
+        action_toolbar.add_action_q_action(&context_menu_find_references);
+        action_toolbar.add_action_q_action(&context_menu_go_to_definition);
+        action_toolbar.add_action_q_action(&context_menu_go_to_file);
+        action_toolbar.add_separator();
+        action_toolbar.add_action_q_action(&context_menu_patch_column);
+        action_toolbar.add_action_q_action(&context_menu_cascade_edition);
+        action_toolbar.add_action_q_action(&context_menu_profiles_create);
+        action_toolbar.add_separator();
+        action_toolbar.add_action_q_action(&context_menu_import_tsv);
+        action_toolbar.add_action_q_action(&context_menu_export_tsv);
+        action_toolbar.add_separator();
+        action_toolbar.add_action_q_action(&context_menu_resize_columns);
+
+        action_toolbar.set_visible(settings_bool(SHOW_TABLE_TOOLBAR));
+        layout.add_widget_5a(&action_toolbar, 0, 0, 1, 2);
 
         // Get the reference data for this table, to speedup reference searching.
         let reference_map = if let TableType::NormalTable(_) = table_data {
@@ -667,13 +800,16 @@ impl TableView {
             table_view,
             table_filter,
             table_model,
-            filters: Arc::new(RwLock::new(vec![])),
             filter_base_widget,
+            filter_bar: Arc::new(RwLock::new(None)),
+            filter_chips: Arc::new(RwLock::new(vec![])),
+            chip_slots: Arc::new(RwLock::new(vec![])),
             column_sort_state: Arc::new(RwLock::new((-1, 0))),
 
             signal_mapper_profile_apply,
             signal_mapper_profile_delete,
             signal_mapper_profile_set_as_default,
+            _action_toolbar: action_toolbar,
             context_menu,
             context_menu_add_rows,
             context_menu_insert_rows,
@@ -700,7 +836,6 @@ impl TableView {
             context_menu_import_tsv,
             context_menu_export_tsv,
             context_menu_resize_columns,
-            context_menu_sidebar,
             context_menu_search,
             context_menu_find_references,
             context_menu_cascade_edition,
@@ -718,11 +853,9 @@ impl TableView {
             sidebar_freeze_checkboxes,
             sidebar_freeze_checkboxes_all,
 
-            sidebar_scroll_area,
+            columns_popover: Arc::new(RwLock::new(Some(columns_popover_value))),
+            columns_popover_slots: Arc::new(RwLock::new(None)),
 
-            _table_status_bar: table_status_bar,
-            table_status_bar_line_counter_label,
-            _flagged_rows_filter_button: flagged_rows_filter_button,
             _flagged_rows_filter_menu: flagged_rows_filter_menu,
             flagged_rows_filter_added,
             flagged_rows_filter_modified,
@@ -769,9 +902,23 @@ impl TableView {
             packed_file_path.clone()
         );
 
-        // Build the first filter.
-        FilterView::new(&packed_file_table_view)?;
+        // Build the chip-based filter bar (replaces the legacy stacked filter rows).
+        FilterBar::new(&packed_file_table_view)?;
         SearchView::new(&packed_file_table_view)?;
+
+        // Attach the pre-built flagged-rows menu to the filter bar's button, and seed
+        // its row counter so it shows "0/0" before the first filter pass runs.
+        if let Some(bar) = packed_file_table_view.filter_bar_arc() {
+            bar.flagged_rows_button().set_menu(&packed_file_table_view._flagged_rows_filter_menu);
+            bar.row_counter_label().set_text(&QString::from_std_str("0/0"));
+        }
+
+        // Wire popover-specific slots (search, master toggles, move-up/move-down).
+        if let Some(popover) = packed_file_table_view.columns_popover_arc() {
+            let popover_slots = ColumnsPopoverSlots::new(&popover, &packed_file_table_view);
+            set_connections_columns_popover(&popover, &popover_slots);
+            *packed_file_table_view.columns_popover_slots.write().unwrap() = Some(popover_slots);
+        }
 
         packed_file_table_view.load_table_view_profiles()?;
 
@@ -798,7 +945,8 @@ impl TableView {
 
         // If we have a default profile, apply it.
         if !packed_file_table_view.profile_default().read().unwrap().is_empty() {
-            packed_file_table_view.apply_table_view_profile(&packed_file_table_view.profile_default().read().unwrap());
+            let default_profile = packed_file_table_view.profile_default().read().unwrap().clone();
+            packed_file_table_view.clone().apply_table_view_profile(&default_profile);
         }
 
         // Initialize the undo model.
@@ -816,30 +964,157 @@ impl TableView {
         Ok(packed_file_table_view)
     }
 
-    pub unsafe fn apply_table_view_profile(&self, key: &str) {
+    /// Apply just the column-related parts of a profile (order, hidden, frozen).
+    ///
+    /// Split out from `apply_table_view_profile` so callers without an `Arc<Self>` (such
+    /// as `reload_view`) can still restore column geometry. Filter-chip restoration
+    /// requires `Arc<Self>` and lives in the full method.
+    pub unsafe fn apply_table_view_profile_columns(&self, key: &str) {
         let profiles = self.profiles.read().unwrap();
-        if let Some(profile) = profiles.get(key) {
-            let header = self.table_view.horizontal_header();
+        let Some(profile) = profiles.get(key) else { return; };
 
-            // Block signals so the header doesn't trigger weird things while doing this.
-            header.block_signals(true);
+        let header = self.table_view.horizontal_header();
+        header.block_signals(true);
 
-            // Column order && hidden columns. Remember to set the sidebar status accordingly.
-            for (dest_index, logical_index) in profile.column_order.iter().enumerate() {
-                let visual_index = header.visual_index(*logical_index);
-                header.move_section(visual_index, dest_index as i32);
+        // Column order, hidden columns, frozen columns. The sidebar checkboxes live in the
+        // columns popover; toggling them runs the same logic as if the user had clicked
+        // them by hand, so no extra wiring is needed.
+        //
+        // We map by logical column index — the sidebar checkboxes are stored in the
+        // *sorted-fields* order used by the popover, which may differ from the logical
+        // (`fields_processed`) order. Use the sidebar-index lookup helper to translate.
+        let sidebar_index_by_logical = self.sidebar_index_by_logical_map();
 
-                if let Some(checkbox) = self.sidebar_hide_checkboxes().get(*logical_index as usize) {
+        for (dest_index, logical_index) in profile.column_order.iter().enumerate() {
+            let visual_index = header.visual_index(*logical_index);
+            header.move_section(visual_index, dest_index as i32);
+
+            if let Some(sidebar_idx) = sidebar_index_by_logical.get(&logical_index).copied() {
+                if let Some(checkbox) = self.sidebar_hide_checkboxes().get(sidebar_idx) {
                     checkbox.set_checked(profile.columns_hidden.contains(logical_index));
                 }
+                if let Some(checkbox) = self.sidebar_freeze_checkboxes().get(sidebar_idx) {
+                    let want_frozen = profile.columns_frozen.contains(logical_index);
+                    if checkbox.is_checked() != want_frozen {
+                        checkbox.set_checked(want_frozen);
+                    }
+                }
             }
-
-            header.block_signals(false);
         }
+
+        header.block_signals(false);
+    }
+
+    pub unsafe fn apply_table_view_profile(self: Arc<Self>, key: &str) {
+        let chips_to_apply = {
+            let profiles = self.profiles.read().unwrap();
+            match profiles.get(key) {
+                Some(profile) => profile.filter_chips.clone(),
+                None => return,
+            }
+        };
+
+        self.apply_table_view_profile_columns(key);
+
+        // Replace the chip bar's current chips with the profile's chips.
+        self.clone().clear_filter_chips();
+        if let Some(bar) = self.filter_bar_arc() {
+            for state in chips_to_apply {
+                let _ = bar.add_chip(&self, state);
+            }
+        }
+        self.filter_table();
 
         // We need to update the view afterwards. Otherwise it'll be stuck with old data due to signals not updating it.
         self.timer_delayed_updates.set_interval(5);
         self.timer_delayed_updates.start_0a();
+    }
+
+    /// Helper: map logical column index → index into the sorted sidebar checkbox vec.
+    ///
+    /// The two diverge whenever `TABLES_USE_OLD_COLUMN_ORDER` toggles the sort.
+    fn sidebar_index_by_logical_map(&self) -> HashMap<i32, usize> {
+        let definition = self.table_definition.read().unwrap();
+        let fields_sorted = definition.fields_processed_sorted(settings_bool(TABLES_USE_OLD_COLUMN_ORDER));
+        let fields_processed = definition.fields_processed();
+        let mut map = HashMap::with_capacity(fields_sorted.len());
+        for (sidebar_pos, field) in fields_sorted.iter().enumerate() {
+            if let Some(logical) = fields_processed.iter().position(|f| f == field) {
+                map.insert(logical as i32, sidebar_pos);
+            }
+        }
+        map
+    }
+
+    //--------------------------------------------------//
+    // Accessors for the chip-based filter bar.
+    //--------------------------------------------------//
+
+    /// Clone the `Arc` to the filter bar, if it has been built yet.
+    pub fn filter_bar_arc(&self) -> Option<Arc<FilterBar>> {
+        self.filter_bar.read().unwrap().clone()
+    }
+
+    /// Install the filter bar Arc on the view. Called by `FilterBar::new`.
+    pub fn set_filter_bar(&self, bar: Arc<FilterBar>) {
+        *self.filter_bar.write().unwrap() = Some(bar);
+    }
+
+    /// Borrow the live chip vector for reading. Used by `filter_table()` and persistence.
+    pub fn filter_chips(&self) -> RwLockReadGuard<'_, Vec<Arc<Chip>>> {
+        self.filter_chips.read().unwrap()
+    }
+
+    /// Borrow the live chip vector for writing. Used by `FilterBar` when adding/removing.
+    pub fn filter_chips_mut(&self) -> RwLockWriteGuard<'_, Vec<Arc<Chip>>> {
+        self.filter_chips.write().unwrap()
+    }
+
+    /// Stash chip-scoped slots so they outlive the local construction scope.
+    pub fn push_chip_slots(&self, slots: ChipSlots) {
+        self.chip_slots.write().unwrap().push(slots);
+    }
+
+    /// Remove every chip from the filter bar without triggering individual filter passes.
+    ///
+    /// Called by `apply_table_view_profile` so it can re-seed the bar from a profile in one go.
+    pub unsafe fn clear_filter_chips(self: Arc<Self>) {
+        if let Some(bar) = self.filter_bar_arc() {
+            let chips: Vec<Arc<Chip>> = self.filter_chips.write().unwrap().drain(..).collect();
+            for chip in chips {
+                bar.chips_container().layout().remove_widget(chip.main_widget().as_ptr());
+                chip.main_widget().hide();
+            }
+        }
+    }
+
+    //--------------------------------------------------//
+    // Columns popover accessors.
+    //--------------------------------------------------//
+
+    /// Clone the `Arc` to the popover, if it has been built yet.
+    pub fn columns_popover_arc(&self) -> Option<Arc<ColumnsPopover>> {
+        self.columns_popover.read().unwrap().clone()
+    }
+
+    /// Show/hide the columns popover.
+    ///
+    /// The popover is anchored beneath the filter bar's Columns button when available;
+    /// otherwise it shows at its current position (which is the right spot if it was
+    /// already shown before — Qt remembers the previous geometry).
+    pub unsafe fn toggle_columns_popover(&self) {
+        let popover = match self.columns_popover_arc() {
+            Some(p) => p,
+            None => return,
+        };
+        if let Some(bar) = self.filter_bar_arc() {
+            popover.toggle(bar.columns_button());
+        } else if popover.main_widget().is_visible() {
+            popover.main_widget().hide();
+        } else {
+            popover.main_widget().show();
+            popover.main_widget().raise();
+        }
     }
 
     pub unsafe fn delete_table_view_profile(&self, key: &str) {
@@ -861,6 +1136,25 @@ impl TableView {
         profile.columns_hidden = (0..header.count())
             .map(|visual_index| header.logical_index(visual_index))
             .filter(|logical_index| header.is_section_hidden(*logical_index))
+            .collect::<Vec<_>>();
+
+        // Frozen columns: walk the sidebar freeze checkboxes (sorted order) and emit the
+        // logical column index for any that are checked.
+        let sidebar_index_by_logical = self.sidebar_index_by_logical_map();
+        let mut logical_by_sidebar: Vec<i32> = vec![-1; self.sidebar_freeze_checkboxes().len()];
+        for (logical, sidebar_pos) in sidebar_index_by_logical {
+            if (sidebar_pos as usize) < logical_by_sidebar.len() {
+                logical_by_sidebar[sidebar_pos] = logical;
+            }
+        }
+        profile.columns_frozen = self.sidebar_freeze_checkboxes().iter().enumerate()
+            .filter_map(|(idx, cb)| if cb.is_checked() { Some(logical_by_sidebar[idx]) } else { None })
+            .filter(|i| *i >= 0)
+            .collect::<Vec<_>>();
+
+        // Filter chips: serialize each chip's current state.
+        profile.filter_chips = self.filter_chips.read().unwrap().iter()
+            .map(|chip| chip.current_state())
             .collect::<Vec<_>>();
 
         self.profiles.write().unwrap().insert(key.to_owned(), profile);
@@ -999,9 +1293,13 @@ impl TableView {
             }
         }
 
-        // If we have a default profile, apply it.
+        // If we have a default profile, apply its column geometry. (Chips can't be
+        // restored from `&self` because the chip-add path needs an `Arc<Self>`; reload
+        // is a definition-change path where re-running chip restoration is acceptable
+        // to skip.)
         if !self.profile_default().read().unwrap().is_empty() {
-            self.apply_table_view_profile(&self.profile_default().read().unwrap());
+            let default_profile = self.profile_default().read().unwrap().clone();
+            self.apply_table_view_profile_columns(&default_profile);
         }
 
         // Prepare the diagnostic pass.
@@ -1011,21 +1309,6 @@ impl TableView {
         update_undo_model(&model, undo_model);
         self.history_undo.write().unwrap().clear();
         self.history_redo.write().unwrap().clear();
-
-        // Rebuild the column list of the filter and search panels, just in case the definition changed.
-        // NOTE: We need to lock the signals for the column selector so it doesn't try to trigger in the middle of the rebuild, causing a deadlock.
-        for filter in self.filters_mut().iter() {
-            filter.column_combobox().block_signals(true);
-            filter.column_combobox().model().block_signals(true);
-            filter.column_combobox().clear();
-
-            for column in self.table_definition.read().unwrap().fields_processed_sorted(settings_bool(TABLES_USE_OLD_COLUMN_ORDER)) {
-                let name = QString::from_std_str(utils::clean_column_names(column.name()));
-                filter.column_combobox().add_item_q_string(&name);
-            }
-            filter.column_combobox().block_signals(false);
-            filter.column_combobox().model().block_signals(false);
-        };
 
         if let Some(search_view) = &*self.search_view() {
             search_view.reload(self);
@@ -1080,14 +1363,6 @@ impl TableView {
         self.search_view.read().unwrap()
     }
 
-    pub fn filters(&'_ self) -> RwLockReadGuard<'_, Vec<Arc<FilterView>>> {
-        self.filters.read().unwrap()
-    }
-
-    pub fn filters_mut(&'_ self) -> RwLockWriteGuard<'_, Vec<Arc<FilterView>>> {
-        self.filters.write().unwrap()
-    }
-
     /// This function allows you to set a new dependency data to an already created table.
     pub fn set_dependency_data(&self, data: &HashMap<i32, TableReferences>) {
         *self.dependency_data.write().unwrap() = data.clone();
@@ -1109,9 +1384,10 @@ impl TableView {
     }
 
     pub unsafe fn update_line_counter(&self) {
-        let rows_on_filter = self.table_filter.row_count_0a().to_string();
-        let rows_on_model = self.table_model.row_count_0a().to_string();
-        self.table_status_bar_line_counter_label.set_text(&qtre("line_counter", &[&rows_on_filter, &rows_on_model]));
+        let Some(bar) = self.filter_bar_arc() else { return; };
+        let rows_on_filter = self.table_filter.row_count_0a();
+        let rows_on_model = self.table_model.row_count_0a();
+        bar.row_counter_label().set_text(&QString::from_std_str(format!("{rows_on_filter}/{rows_on_model}")));
     }
 
     //----------------------------------------------------------------//
@@ -1333,6 +1609,15 @@ impl TableView {
 
     /// Function to filter the table.
     pub unsafe fn filter_table(&self) {
+        self.filter_table_with_preview(None);
+    }
+
+    /// Apply the chip-bar filter, optionally folding in a transient `preview` predicate.
+    ///
+    /// The preview predicate is text the user is typing in the filter input that hasn't
+    /// been promoted to a real chip yet; passing it here lets the table update live as
+    /// they pause typing. Pass `None` to filter on the materialised chips alone.
+    pub unsafe fn filter_table_with_preview(&self, preview: Option<&FilterChipState>) {
         let mut columns = vec![];
         let mut patterns = vec![];
         let mut sensitivity = vec![];
@@ -1344,50 +1629,39 @@ impl TableView {
         let mut show_edited_cells = vec![];
         let mut flagged_row_roles = vec![];
 
-        let filters = self.filters.read().unwrap();
-        for filter in filters.iter() {
+        // Snapshot every chip's state, then append the optional preview predicate so it's
+        // treated exactly like a chip for this pass without being persisted as one.
+        let mut states: Vec<FilterChipState> = {
+            let chips = self.filter_chips();
+            chips.iter().map(|chip| chip.current_state()).collect()
+        };
+        if let Some(preview) = preview {
+            states.push(preview.clone());
+        }
 
-            // Replace jumplines with ors, and then filter.
-            filter.filter_line_edit().block_signals(true);
-            let text = QString::from_std_str(filter.filter_line_edit().text().to_std_string().replace("\r\n", "|").replace('\n', "|"));
-            filter.filter_line_edit().undo();
-            filter.filter_line_edit().select_all();
-            filter.filter_line_edit().insert(&text);
-            filter.filter_line_edit().block_signals(false);
-
-            // Ignore empty filters.
-            if !filter.filter_line_edit().text().to_std_string().is_empty() {
-
-                let column_name = filter.column_combobox().current_text();
-                for column in 0..self.table_model.column_count_0a() {
-                    if self.table_model.header_data_2a(column, Orientation::Horizontal).to_string().compare_q_string_case_sensitivity(&column_name, CaseSensitivity::CaseSensitive) == 0 {
-                        columns.push(column);
-                        break;
-                    }
-                }
-
-                // Check if the filter should be "Case Sensitive".
-                let case_sensitive = filter.case_sensitive_button().is_checked();
-                if case_sensitive { sensitivity.push(CaseSensitivity::CaseSensitive); }
-                else { sensitivity.push(CaseSensitivity::CaseInsensitive); }
-
-                // Check for regex.
-                use_regex.push(filter.use_regex_button().is_checked());
-
-                // Check if we should filter out blank cells or not.
-                show_blank_cells.push(filter.show_blank_cells_button().is_checked());
-
-                // Check if we should filter out edited cells or not.
-                show_edited_cells.push(filter.show_edited_cells_button().is_checked());
-
-                let pattern = filter.filter_line_edit().text().to_std_string();
-                use_nott.push(filter.not_checkbox().is_checked());
-
-                patterns.push(QString::from_std_str(pattern).into_ptr());
-                match_groups.push(filter.group_combobox().current_index());
-
-                variant_to_search.push(filter.variant_combobox().current_index());
+        // Empty-value chips are skipped so the C++ proxy doesn't run a no-op pass over the model.
+        for state in &states {
+            if state.pattern.is_empty() && !state.show_blank && !state.show_edited {
+                continue;
             }
+
+            // Resolve column index -> table model column. A column_index of -1 means
+            // "any column"; we represent that to the proxy with -1 so it matches the
+            // existing C++ "no column scope" behavior.
+            if state.column_index < 0 {
+                columns.push(-1);
+            } else {
+                columns.push(state.column_index);
+            }
+
+            patterns.push(QString::from_std_str(&state.pattern).into_ptr());
+            use_nott.push(state.not);
+            use_regex.push(state.regex);
+            sensitivity.push(if state.case_sensitive { CaseSensitivity::CaseSensitive } else { CaseSensitivity::CaseInsensitive });
+            show_blank_cells.push(state.show_blank);
+            show_edited_cells.push(state.show_edited);
+            match_groups.push(state.group);
+            variant_to_search.push(state.variant);
         }
 
         // Collect active flagged row roles from the dropdown menu.

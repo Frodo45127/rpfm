@@ -1,202 +1,103 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>GroupBox</class>
- <widget class="QGroupBox" name="GroupBox">
+ <class>FilterBar</class>
+ <widget class="QWidget" name="FilterBar">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
     <width>991</width>
-    <height>42</height>
+    <height>32</height>
    </rect>
   </property>
-  <property name="windowTitle">
-   <string>GroupBox</string>
+  <property name="maximumSize">
+   <size><width>16777215</width><height>34</height></size>
   </property>
-  <property name="flat">
-   <bool>true</bool>
-  </property>
-  <layout class="QGridLayout" name="gridLayout">
-   <property name="leftMargin">
-    <number>0</number>
-   </property>
-   <property name="topMargin">
-    <number>0</number>
-   </property>
-   <property name="rightMargin">
-    <number>0</number>
-   </property>
-   <property name="bottomMargin">
-    <number>0</number>
-   </property>
-   <property name="spacing">
-    <number>0</number>
-   </property>
-   <item row="2" column="10">
-    <widget class="QToolButton" name="remove_button">
-     <property name="enabled">
-      <bool>false</bool>
-     </property>
-     <property name="text">
-      <string>...</string>
-     </property>
-     <property name="icon">
-      <iconset theme="list-remove"/>
-     </property>
-     <property name="iconSize">
-      <size>
-       <width>22</width>
-       <height>22</height>
-      </size>
-     </property>
-     <property name="checkable">
-      <bool>false</bool>
-     </property>
+  <layout class="QHBoxLayout" name="bar_layout">
+   <property name="leftMargin"><number>2</number></property>
+   <property name="topMargin"><number>1</number></property>
+   <property name="rightMargin"><number>2</number></property>
+   <property name="bottomMargin"><number>1</number></property>
+   <property name="spacing"><number>4</number></property>
+   <item>
+    <widget class="QToolButton" name="columns_button">
+     <property name="text"><string>Columns</string></property>
+     <property name="icon"><iconset theme="view-list-details"/></property>
+     <property name="iconSize"><size><width>16</width><height>16</height></size></property>
+     <property name="toolButtonStyle"><enum>Qt::ToolButtonTextBesideIcon</enum></property>
+     <property name="autoRaise"><bool>true</bool></property>
     </widget>
    </item>
-   <item row="2" column="4">
-    <widget class="QToolButton" name="show_blank_cells_button">
-     <property name="text">
-      <string/>
-     </property>
-     <property name="icon">
-      <iconset theme="markasblank"/>
-     </property>
-     <property name="iconSize">
-      <size>
-       <width>22</width>
-       <height>22</height>
-      </size>
-     </property>
-     <property name="checkable">
-      <bool>true</bool>
-     </property>
+   <item>
+    <widget class="QToolButton" name="flagged_rows_button">
+     <property name="text"><string/></property>
+     <property name="icon"><iconset theme="flag"/></property>
+     <property name="iconSize"><size><width>16</width><height>16</height></size></property>
+     <property name="toolButtonStyle"><enum>Qt::ToolButtonIconOnly</enum></property>
+     <property name="autoRaise"><bool>true</bool></property>
+     <property name="popupMode"><enum>QToolButton::InstantPopup</enum></property>
     </widget>
    </item>
-   <item row="2" column="0">
-    <widget class="QCheckBox" name="not_checkbox">
-     <property name="text">
-      <string>!</string>
-     </property>
+   <item>
+    <widget class="Line" name="sep_columns">
+     <property name="orientation"><enum>Qt::Vertical</enum></property>
     </widget>
    </item>
-   <item row="2" column="1">
-    <widget class="QLineEdit" name="filter_line_edit">
+   <item>
+    <widget class="QScrollArea" name="chips_scroll">
+     <property name="widgetResizable"><bool>true</bool></property>
+     <property name="frameShape"><enum>QFrame::NoFrame</enum></property>
+     <property name="horizontalScrollBarPolicy"><enum>Qt::ScrollBarAsNeeded</enum></property>
+     <property name="verticalScrollBarPolicy"><enum>Qt::ScrollBarAlwaysOff</enum></property>
      <property name="sizePolicy">
       <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-       <horstretch>0</horstretch>
+       <horstretch>1</horstretch>
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
+     <widget class="QWidget" name="chips_container">
+      <layout class="QHBoxLayout" name="chips_layout">
+       <property name="leftMargin"><number>0</number></property>
+       <property name="topMargin"><number>0</number></property>
+       <property name="rightMargin"><number>0</number></property>
+       <property name="bottomMargin"><number>0</number></property>
+       <property name="spacing"><number>4</number></property>
+      </layout>
+     </widget>
     </widget>
    </item>
-   <item row="2" column="2">
-    <widget class="QToolButton" name="case_sensitive_button">
-     <property name="text">
-      <string/>
-     </property>
-     <property name="icon">
-      <iconset theme="format-text-uppercase"/>
-     </property>
-     <property name="iconSize">
-      <size>
-       <width>22</width>
-       <height>22</height>
-      </size>
-     </property>
-     <property name="checkable">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
-   <item row="2" column="8">
-    <widget class="QComboBox" name="group_combobox">
+   <item>
+    <widget class="QLineEdit" name="input_line_edit">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
        <horstretch>0</horstretch>
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
-     <property name="minimumSize">
-      <size>
-       <width>80</width>
-       <height>0</height>
-      </size>
-     </property>
+     <property name="minimumSize"><size><width>220</width><height>0</height></size></property>
     </widget>
    </item>
-   <item row="2" column="3">
-    <widget class="QToolButton" name="use_regex">
-     <property name="text">
-      <string>...</string>
-     </property>
-     <property name="icon">
-      <iconset theme="nextfuzzyuntrans"/>
-     </property>
-     <property name="iconSize">
-      <size>
-       <width>22</width>
-       <height>22</height>
-      </size>
-     </property>
-     <property name="checkable">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
-   <item row="2" column="7">
-    <widget class="QComboBox" name="column_combobox">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-    </widget>
-   </item>
-   <item row="2" column="9">
+   <item>
     <widget class="QToolButton" name="add_button">
-     <property name="text">
-      <string/>
-     </property>
-     <property name="icon">
-      <iconset theme="list-add"/>
-     </property>
-     <property name="iconSize">
-      <size>
-       <width>22</width>
-       <height>22</height>
-      </size>
-     </property>
+     <property name="text"><string>+</string></property>
+     <property name="icon"><iconset theme="list-add"/></property>
+     <property name="iconSize"><size><width>16</width><height>16</height></size></property>
+     <property name="autoRaise"><bool>true</bool></property>
     </widget>
    </item>
-   <item row="2" column="6">
-    <widget class="QComboBox" name="variant_combobox">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
+   <item>
+    <widget class="QToolButton" name="help_button">
+     <property name="text"><string>?</string></property>
+     <property name="icon"><iconset theme="help-contents"/></property>
+     <property name="iconSize"><size><width>16</width><height>16</height></size></property>
+     <property name="autoRaise"><bool>true</bool></property>
     </widget>
    </item>
-   <item row="2" column="5">
-    <widget class="QToolButton" name="show_edited_cells_button">
-     <property name="text">
-      <string>...</string>
-     </property>
-     <property name="icon">
-      <iconset theme="cell_edit"/>
-     </property>
-     <property name="iconSize">
-      <size>
-       <width>22</width>
-       <height>22</height>
-      </size>
-     </property>
-     <property name="checkable">
-      <bool>true</bool>
-     </property>
+   <item>
+    <widget class="QLabel" name="row_counter_label">
+     <property name="text"><string notr="true">0/0</string></property>
+     <property name="minimumSize"><size><width>50</width><height>0</height></size></property>
+     <property name="alignment"><set>Qt::AlignVCenter|Qt::AlignRight</set></property>
     </widget>
    </item>
   </layout>
@@ -204,3 +105,5 @@
  <resources/>
  <connections/>
 </ui>
+</content>
+</invoke>

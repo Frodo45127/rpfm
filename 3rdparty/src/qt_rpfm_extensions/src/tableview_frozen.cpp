@@ -1,4 +1,5 @@
 #include "tableview_frozen.h"
+#include "filter_header_view.h"
 
 #include <QAbstractScrollArea>
 #include <QHeaderView>
@@ -57,6 +58,10 @@ QTableViewFrozen::QTableViewFrozen(QWidget* parent, void (*generate_tooltip_mess
     sortSyncInProgress = false;
     tableViewFrozen = new QTableView(this);
     generateTooltipMessage = generate_tooltip_message;
+
+    // Install the funnel-painting header before wiring any header signals below, so every
+    // horizontalHeader() reference (resize/sort/context-menu sync) binds to this instance.
+    setHorizontalHeader(new QFilterHeaderView(Qt::Horizontal, this));
 
     // Geometry cache starts invalid so the first updateFrozenTableGeometry call always applies.
     geometryCacheValid = false;

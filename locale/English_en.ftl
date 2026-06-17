@@ -1695,6 +1695,63 @@ filter_variant_source = Source
 filter_variant_lookup = Lookup
 filter_variant_both = Both
 
+filter_bar_placeholder = Type a filter and press Enter (e.g. column:value)
+filter_bar_add_chip = Add the typed text as a new filter chip
+filter_bar_settings = Filter settings
+filter_bar_help = Filter syntax help
+filter_help_title = Filter syntax
+filter_help_body = <p>Type a filter in the input field and press <b>Enter</b> (or the <b>+</b> button) to turn it into a removable chip.</p>
+    <p>Grammar (everything after the value is optional):</p>
+    <pre>[!] [column:]value [/i] [/r] [/s] [/n] [/source|/lookup|/both] [@group]</pre>
+    <p><b>Examples</b></p>
+    <ul>
+    <li><code>ork</code> — match the text "ork" in any column (case-insensitive regex)</li>
+    <li><code>faction:ork</code> — match only in the "Faction" column</li>
+    <li><code>!faction:ork</code> — exclude rows where Faction contains "ork"</li>
+    <li><code>cost:^1\d+$ /s</code> — case-sensitive regex on Cost</li>
+    <li><code>name:foo /n</code> — match literal "foo", no regex</li>
+    <li><code>name:dwarf /lookup</code> — match the lookup-resolved value, not the raw</li>
+    <li><code>faction:ork @1</code> — assigns this chip to group 1</li>
+    <li><code>cost:&gt;100</code> — numeric comparison: Cost greater than 100</li>
+    <li><code>cost:&lt;=50</code> — numeric comparison: Cost less than or equal to 50</li>
+    </ul>
+    <p><b>Numeric comparisons</b>: on number columns the value may start with <code>&gt;</code>, <code>&lt;</code>, <code>&gt;=</code>, <code>&lt;=</code>, <code>=</code> or <code>!=</code> followed by a number (e.g. <code>&gt;1</code>, <code>=5</code>, <code>!=0</code>). The chip then keeps only rows whose value satisfies the comparison.</p>
+    <p><b>Groups</b>: chips with the same <code>@N</code> are AND-combined; different groups are OR-combined. The default group is 0.</p>
+    <p>You can also fine-tune any chip's flags through its <b>gear</b> button after creating it.</p>
+filter_chip_remove = Remove this filter
+filter_chip_options = Filter options
+filter_chip_not = Negate (NOT)
+filter_chip_regex = Use regex
+filter_chip_case_sensitive = Case sensitive
+filter_chip_show_blank = Blank cells only
+filter_chip_show_edited = Edited cells only
+filter_chip_variant_source = Match source
+filter_chip_variant_lookup = Match lookup
+filter_chip_variant_both = Match both
+filter_chip_group_label = Group
+filter_chip_column_any = Any
+filter_group_and = AND
+filter_group_or = OR
+filter_by_this_column = Filter by this column...
+columns_popover_title = Columns
+columns_popover_search = Search columns...
+columns_popover_hide = Hide
+columns_popover_freeze = Freeze
+columns_popover_show_all = Show all
+columns_popover_hide_all = Hide all
+columns_popover_open = Manage columns
+columns_popover_move_up = Move column up
+columns_popover_move_down = Move column down
+
+settings_ui_show_table_toolbar_label = Show table action toolbar
+tt_settings_ui_show_table_toolbar_tip = Show a toolbar at the top of each table view exposing the right-click context-menu actions as buttons. Newly-opened table views pick up the change; already-open views need to be reopened.
+
+table_toolbar_clone_submenu = Clone
+table_toolbar_copy_submenu = Copy
+table_toolbar_go_to_submenu = Go to
+table_toolbar_profiles_submenu = Profiles
+column_header_filter = Filter by this column
+
 label_lua_invalid_key = Invalid Table Value on Lua Script
 text_invalid_key_explanation = In a lua table that has been marked as using values from a table there are values that are not in the table.
 

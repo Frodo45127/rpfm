@@ -53,7 +53,7 @@ use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR, send_ipc_command, send_ipc_command_result};
 use crate::references_ui::ReferencesUI;
 use crate::settings_ui::backend::{settings_path_buf, settings_string, translations_local_path};
-use crate::views::table::{TableType, TableView, utils::get_table_from_view};
+use crate::views::table::{FilterChipState, TableType, TableView, utils::get_table_from_view};
 use crate::utils::show_dialog;
 
 use self::slots::ToolTranslatorSlots;
@@ -394,18 +394,17 @@ impl ToolTranslator {
         //table.table_view().sort_by_column_1a(0);
         //table.table_view().sort_by_column_1a(1);
 
-        if let Some(filter_removed) = table.filters().first() {
-            filter_removed.filter_line_edit().set_text(&QString::from_std_str("false"));
-            filter_removed.column_combobox().set_current_index(2);
-            filter_removed.use_regex_button().set_checked(false);
+        // Pre-seed the chip bar with a "show only untranslated rows" filter (column 2 = false).
+        if let Some(bar) = table.filter_bar_arc() {
+            let state = FilterChipState {
+                column_index: 2,
+                pattern: "false".to_string(),
+                regex: false,
+                ..FilterChipState::default()
+            };
+            let _ = bar.add_chip(&table, state);
+            table.filter_table();
         }
-
-        //FilterView::new(&table)?;
-        //if let Some(filter_retranslation) = table.filters().get(1) {
-        //    filter_retranslation.filter_line_edit().set_text(&QString::from_std_str("true"));
-        //    filter_retranslation.column_combobox().set_current_index(1);
-        //    filter_retranslation.use_regex_button().set_checked(false);
-        //}
         let key_label: QPtr<QLabel> = tool.find_widget("key_label")?;
         let key_line_edit: QPtr<QLineEdit> = tool.find_widget("key_line_edit")?;
         key_label.set_text(&qtr("translator_key"));
@@ -752,7 +751,7 @@ impl ToolTranslator {
             *current_index = None;
         }
 
-        self.table().filters()[0].start_delayed_updates_timer();
+        self.table().filter_table();
     }
 
     unsafe fn clear_selected_field_data(&self) {

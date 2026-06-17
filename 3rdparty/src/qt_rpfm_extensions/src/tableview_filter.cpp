@@ -5,6 +5,34 @@
 #include <QStandardItem>
 #include <QStandardItemModel>
 
+// Numeric comparison operators a filter pattern may encode. CMP_NONE means the pattern is
+// plain text and must go through the regex/contains path instead.
+enum ComparisonOp { CMP_NONE = 0, CMP_EQ, CMP_NE, CMP_GT, CMP_GE, CMP_LT, CMP_LE };
+
+// Parse a leading comparison operator (>, <, >=, <=, =, ==, !=) followed by a number out of
+// a filter pattern.
+static int parse_comparison(const QString &pattern, double &value) {
+    QString p = pattern.trimmed();
+    int op = CMP_NONE;
+    QString operand;
+
+    if (p.startsWith(">=")) { op = CMP_GE; operand = p.mid(2); }
+    else if (p.startsWith("<=")) { op = CMP_LE; operand = p.mid(2); }
+    else if (p.startsWith("==")) { op = CMP_EQ; operand = p.mid(2); }
+    else if (p.startsWith("!=")) { op = CMP_NE; operand = p.mid(2); }
+    else if (p.startsWith(">")) { op = CMP_GT; operand = p.mid(1); }
+    else if (p.startsWith("<")) { op = CMP_LT; operand = p.mid(1); }
+    else if (p.startsWith("=")) { op = CMP_EQ; operand = p.mid(1); }
+    else { return CMP_NONE; }
+
+    bool ok = false;
+    double parsed = operand.trimmed().toDouble(&ok);
+    if (!ok) { return CMP_NONE; }
+
+    value = parsed;
+    return op;
+}
+
 // Function to create the filter in a way that we don't need to bother Rust with new types.
 extern "C" QSortFilterProxyModel* new_tableview_filter(QObject *parent) {
     QTableViewSortFilterProxyModel* filter = new QTableViewSortFilterProxyModel(parent);
@@ -43,10 +71,14 @@ extern "C" void trigger_tableview_filter(
     filter2->cached_regex.clear();
     filter2->cached_variants.clear();
     filter2->cached_groups.clear();
+    filter2->cached_comparison_ops.clear();
+    filter2->cached_comparison_vals.clear();
 
     int match_count = filter2->patterns.count();
     filter2->cached_regex.reserve(match_count);
     filter2->cached_variants.reserve(match_count);
+    filter2->cached_comparison_ops.reserve(match_count);
+    filter2->cached_comparison_vals.reserve(match_count);
 
     for (int i = 0; i < match_count; ++i) {
 
@@ -61,6 +93,13 @@ extern "C" void trigger_tableview_filter(
         QString pattern = filter2->patterns.at(i);
         bool is_regex = filter2->regex.value(i, 0) == 1;
         bool is_not = filter2->nott.value(i, 0) == 1;
+
+        // Parse a numeric comparison out of the pattern once. A non-comparison pattern
+        // yields CMP_NONE and falls through to the regex/contains path at match time.
+        double comparison_val = 0.0;
+        int comparison_op = parse_comparison(pattern, comparison_val);
+        filter2->cached_comparison_ops.append(comparison_op);
+        filter2->cached_comparison_vals.append(comparison_val);
 
         // Negated regex is implemented as a zero-width negative-lookahead
         // wrapper. Non-regex negation flips the containment test at match
@@ -159,6 +198,8 @@ bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMod
             Qt::CaseSensitivity case_sensitivity = static_cast<Qt::CaseSensitivity>(case_sensitive.at(match));
             bool show_blank_cells_in_column = show_blank_cells.at(match) == 1;
             bool show_edited_cells_in_column = show_edited_cells.at(match) == 1;
+            int comparison_op = cached_comparison_ops.at(match);
+            double comparison_val = cached_comparison_vals.at(match);
             const QList<int>& variants = cached_variants.at(match);
 
             QModelIndex currntIndex = model->index(source_row, column, source_parent);
@@ -198,6 +239,33 @@ bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMod
             // In case of text, if it's empty we let it pass the filters.
             else if (show_blank_cells_in_column && currntData->data(2).toString().isEmpty()) {
                 continue;
+            }
+
+            // Numeric comparison (>, <, >=, <=, =, !=). The cell's source value (role 2) is
+            // numeric for number columns; a non-numeric cell never matches a comparison.
+            else if (comparison_op != CMP_NONE) {
+                bool ok = false;
+                double cell_val = currntData->data(2).toDouble(&ok);
+                bool matches = false;
+                if (ok) {
+                    switch (comparison_op) {
+                        case CMP_EQ: matches = cell_val == comparison_val; break;
+                        case CMP_NE: matches = cell_val != comparison_val; break;
+                        case CMP_GT: matches = cell_val > comparison_val; break;
+                        case CMP_GE: matches = cell_val >= comparison_val; break;
+                        case CMP_LT: matches = cell_val < comparison_val; break;
+                        case CMP_LE: matches = cell_val <= comparison_val; break;
+                    }
+                }
+
+                if (use_nott) {
+                    matches = !matches;
+                }
+
+                if (!matches) {
+                    is_group_valid = false;
+                    break;
+                }
             }
 
             // Text matches via the cached, pre-compiled regex.

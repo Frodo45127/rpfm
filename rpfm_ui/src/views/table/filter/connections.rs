@@ -8,27 +8,54 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*!
-Module with all the code to connect `TableView` signals with their corresponding slots.
+//! Signal/slot wiring for the filter bar and individual chips.
 
-This module is, and should stay, private, as it's only glue between the `TableView` and `TableViewSlots` structs.
-!*/
+use qt_core::QBox;
 
-use super::{FilterView, slots::FilterViewSlots};
+use std::sync::Arc;
 
-pub unsafe fn set_connections_filter(ui: &FilterView, slots: &FilterViewSlots) {
-    ui.filter_line_edit.text_changed().connect(&slots.filter_line_edit);
-    ui.filter_line_edit.text_changed().connect(&slots.filter_check_regex);
+use qt_widgets::QWidget;
 
-    ui.not_checkbox.toggled().connect(&slots.filter_not_checkbox);
-    ui.group_combobox.current_index_changed().connect(&slots.filter_match_group_selector);
-    ui.column_combobox.current_index_changed().connect(&slots.filter_column_selector);
-    ui.variant_combobox.current_index_changed().connect(&slots.filter_variant_selector);
-    ui.case_sensitive_button.toggled().connect(&slots.filter_case_sensitive_button);
-    ui.use_regex_button.toggled().connect(&slots.filter_use_regex_button);
-    ui.show_blank_cells_button.toggled().connect(&slots.filter_show_blank_cells_button);
-    ui.show_edited_cells_button.toggled().connect(&slots.filter_show_edited_cells_button);
-    ui.timer_delayed_updates.timeout().connect(&slots.filter_trigger);
-    ui.add_button.released().connect(&slots.filter_add);
-    ui.remove_button.released().connect(&slots.filter_remove);
+use super::FilterBar;
+use super::TableView;
+use super::chip::Chip;
+use super::slots::{ChipSlots, FilterBarSlots};
+
+/// Wire the filter bar's input + buttons + debounce timer.
+pub unsafe fn set_connections_filter_bar(bar: &Arc<FilterBar>, slots: &FilterBarSlots) {
+    bar.input_line_edit().text_changed().connect(&slots.input_text_changed);
+    bar.input_line_edit().return_pressed().connect(&slots.input_returned);
+    bar.timer_input_debounce().timeout().connect(&slots.input_debounce_fired);
+    bar.add_button().released().connect(&slots.add_button_clicked);
+    bar.columns_button().released().connect(&slots.columns_button_clicked);
+    bar.help_button().released().connect(&slots.help_button_clicked);
+}
+
+/// Wire one chip's widgets and stash its slot bundle on the view so the slots survive.
+///
+/// `_bar_widget` is unused but kept in the signature for parity with how other widgets
+/// receive their owner pointer — Qt parents handle lifetime.
+pub unsafe fn set_connections_chip(chip: &Arc<Chip>, _bar_widget: &QBox<QWidget>, view: &Arc<TableView>) {
+    let slots = ChipSlots::new(chip, view);
+
+    chip.value_edit().text_changed().connect(&slots.value_text_changed);
+    chip.timer_debounce().timeout().connect(&slots.debounce_fired);
+
+    chip.column_menu().triggered().connect(&slots.column_menu_triggered);
+
+    chip.not_action().toggled().connect(&slots.options_changed);
+    chip.regex_action().toggled().connect(&slots.options_changed);
+    chip.case_action().toggled().connect(&slots.options_changed);
+    chip.show_blank_action().toggled().connect(&slots.options_changed);
+    chip.show_edited_action().toggled().connect(&slots.options_changed);
+    chip.variant_source_action().toggled().connect(&slots.options_changed);
+    chip.variant_lookup_action().toggled().connect(&slots.options_changed);
+    chip.variant_both_action().toggled().connect(&slots.options_changed);
+
+    chip.group_spinbox().value_changed().connect(&slots.group_changed);
+
+    chip.remove_button().released().connect(&slots.remove_clicked);
+
+    // Stash the slot bundle on the view so it lives as long as the chip does.
+    view.push_chip_slots(slots);
 }
