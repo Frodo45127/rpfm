@@ -49,7 +49,7 @@ use rpfm_ui_common::utils::{find_widget, load_template};
 
 use crate::settings_ui::backend::settings_bool;
 use crate::views::table::utils::clean_column_names;
-use crate::utils::show_dialog;
+use crate::utils::{qtr, qtre, show_dialog};
 
 use self::slots::SearchViewSlots;
 use super::{TableOperations, TableView, update_undo_model};
@@ -59,6 +59,34 @@ mod slots;
 
 const VIEW_DEBUG: &str = "rpfm_ui/ui_templates/table_search_widget.ui";
 const VIEW_RELEASE: &str = "ui/table_search_widget.ui";
+
+/// Stylesheet for the search bar. Flat hover-tinted tool buttons, checked toggles tinted
+/// with the highlight colour, and rounded line edits with a focus ring — matching the
+/// chip-based filter bar so the two bars read as one family.
+const SEARCH_BAR_STYLE: &str = r#"
+QLineEdit#search_line_edit, QLineEdit#replace_line_edit {
+    background: palette(base);
+    border: 1px solid palette(mid);
+    border-radius: 4px;
+    padding: 2px 4px;
+}
+QLineEdit#search_line_edit:focus, QLineEdit#replace_line_edit:focus {
+    border-color: palette(highlight);
+}
+QToolButton {
+    background: transparent;
+    border: none;
+    border-radius: 3px;
+    padding: 2px 5px;
+}
+QToolButton:hover {
+    background: palette(midlight);
+}
+QToolButton:checked {
+    background: palette(highlight);
+    color: palette(highlighted-text);
+}
+"#;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -80,6 +108,7 @@ pub struct SearchView {
     matches_label: QPtr<QLabel>,
     column_combobox: QPtr<QComboBox>,
     case_sensitive_button: QPtr<QToolButton>,
+    regex_button: QPtr<QToolButton>,
 
     last_search_data: Arc<RwLock<SearchData>>,
 }
@@ -118,8 +147,8 @@ impl SearchView {
         let template_path = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };
         let main_widget = load_template(parent, template_path)?;
 
-        let search_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "search_label")?;
-        let replace_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "replace_label")?;
+        main_widget.set_style_sheet(&QString::from_std_str(SEARCH_BAR_STYLE));
+
         let search_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "search_line_edit")?;
         let replace_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "replace_line_edit")?;
 
@@ -129,27 +158,29 @@ impl SearchView {
         let replace_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "replace_button")?;
         let replace_all_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "replace_all_button")?;
         let case_sensitive_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "case_sensitive_button")?;
+        let regex_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "regex_button")?;
         let close_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "close_button")?;
         let matches_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "matches_label")?;
 
-        // TODO: Move this to translations.
         let column_combobox: QPtr<QComboBox> = find_widget(&main_widget.static_upcast(), "column_combobox")?;
         let search_column_list = QStandardItemModel::new_1a(&column_combobox);
         column_combobox.set_model(&search_column_list);
-        column_combobox.add_item_q_string(&QString::from_std_str("* (All Columns)"));
+        column_combobox.add_item_q_string(&qtr("table_search_all_columns"));
 
-        search_label.set_text(&QString::from_std_str("Search Pattern:"));
-        replace_label.set_text(&QString::from_std_str("Replace Pattern:"));
-        search_line_edit.set_placeholder_text(&QString::from_std_str("Type here what you want to search."));
-        replace_line_edit.set_placeholder_text(&QString::from_std_str("If you want to replace the searched text with something, type the replacement here."));
+        search_line_edit.set_placeholder_text(&qtr("table_search_search_placeholder"));
+        replace_line_edit.set_placeholder_text(&qtr("table_search_replace_placeholder"));
 
-        search_button.set_tool_tip(&QString::from_std_str("Search"));
-        prev_match_button.set_tool_tip(&QString::from_std_str("Prev. Match"));
-        next_match_button.set_tool_tip(&QString::from_std_str("Next Match"));
-        replace_button.set_tool_tip(&QString::from_std_str("Replace Current"));
-        replace_all_button.set_tool_tip(&QString::from_std_str("Replace All"));
-        case_sensitive_button.set_tool_tip(&QString::from_std_str("Case Sensitive"));
-        close_button.set_tool_tip(&QString::from_std_str("Close"));
+        search_button.set_tool_tip(&qtr("table_search_search"));
+        prev_match_button.set_tool_tip(&qtr("table_search_prev_match"));
+        next_match_button.set_tool_tip(&qtr("table_search_next_match"));
+        replace_button.set_tool_tip(&qtr("table_search_replace"));
+        replace_all_button.set_tool_tip(&qtr("table_search_replace_all"));
+        case_sensitive_button.set_tool_tip(&qtr("table_search_case_sensitive"));
+        regex_button.set_tool_tip(&qtr("table_search_regex"));
+        close_button.set_tool_tip(&qtr("table_search_close"));
+
+        // Show the replace label/text on the buttons that carry text beside their icon.
+        replace_all_button.set_text(&qtr("table_search_replace_all"));
 
         let fields = view.table_definition.read().unwrap().fields_processed_sorted(settings_bool(TABLES_USE_OLD_COLUMN_ORDER));
         for column in &fields {
@@ -173,6 +204,7 @@ impl SearchView {
             matches_label,
             column_combobox,
             case_sensitive_button,
+            regex_button,
             last_search_data: Arc::new(RwLock::new(SearchData::default())),
         });
 
@@ -186,7 +218,7 @@ impl SearchView {
     /// This function reloads the search panel, in case the definition of the table changes.
     pub unsafe fn reload(&self, parent: &TableView) {
         self.column_combobox.clear();
-        self.column_combobox.add_item_q_string(&QString::from_std_str("* (All Columns)"));
+        self.column_combobox.add_item_q_string(&qtr("table_search_all_columns"));
 
         let fields = parent.table_definition.read().unwrap().fields_processed_sorted(settings_bool(TABLES_USE_OLD_COLUMN_ORDER));
         for column in &fields {
@@ -212,7 +244,7 @@ impl SearchView {
                 // If no matches have been found, report it.
                 else if table_search.matches.is_empty() {
                     table_search.current_item = None;
-                    self.matches_label.set_text(&QString::from_std_str("No matches found."));
+                    self.matches_label.set_text(&qtr("table_search_no_matches"));
                     self.prev_match_button.set_enabled(false);
                     self.next_match_button.set_enabled(false);
                     self.replace_button.set_enabled(false);
@@ -222,7 +254,7 @@ impl SearchView {
                 // Otherwise, if no matches have been found in the current filter, but they have been in the model...
                 else if matches_in_filter.is_empty() {
                     table_search.current_item = None;
-                    self.matches_label.set_text(&QString::from_std_str(format!("{} in current filter ({} in total)", matches_in_filter.len(), matches_in_model.len())));
+                    self.matches_label.set_text(&qtre("table_search_matches_filter", &[&matches_in_filter.len().to_string(), &matches_in_model.len().to_string()]));
                     self.prev_match_button.set_enabled(false);
                     self.next_match_button.set_enabled(false);
                     self.replace_button.set_enabled(false);
@@ -232,7 +264,7 @@ impl SearchView {
                 // Otherwise, matches have been found both, in the model and in the filter.
                 else {
                     table_search.current_item = Some(0);
-                    self.matches_label.set_text(&QString::from_std_str(format!("1 of {} in current filter ({} in total)", matches_in_filter.len(), matches_in_model.len())));
+                    self.matches_label.set_text(&qtre("table_search_matches_position", &[&1.to_string(), &matches_in_filter.len().to_string(), &matches_in_model.len().to_string()]));
                     self.prev_match_button.set_enabled(false);
                     self.replace_button.set_enabled(true);
                     self.replace_all_button.set_enabled(true);
@@ -272,7 +304,7 @@ impl SearchView {
                             QFlags::from(SelectionFlag::ClearAndSelect)
                         );
                         parent.table_view().scroll_to_2a(index, ScrollHint::EnsureVisible);
-                        self.matches_label.set_text(&QString::from_std_str(format!("{} of {} in current filter ({} in total)", *pos + 1, matches_in_filter.len(), matches_in_model.len())));
+                        self.matches_label.set_text(&qtre("table_search_matches_position", &[&(*pos + 1).to_string(), &matches_in_filter.len().to_string(), &matches_in_model.len().to_string()]));
                     }
                 }
             }
@@ -298,7 +330,7 @@ impl SearchView {
                             QFlags::from(SelectionFlag::ClearAndSelect)
                         );
                         parent.table_view().scroll_to_2a(index, ScrollHint::EnsureVisible);
-                        self.matches_label.set_text(&QString::from_std_str(format!("{} of {} in current filter ({} in total)", *pos + 1, matches_in_filter.len(), matches_in_model.len())));
+                        self.matches_label.set_text(&qtre("table_search_matches_position", &[&(*pos + 1).to_string(), &matches_in_filter.len().to_string(), &matches_in_model.len().to_string()]));
                     }
                 }
             }
@@ -314,7 +346,7 @@ impl SearchView {
                 // If no matches have been found, report it.
                 else if table_search.matches.is_empty() {
                     table_search.current_item = None;
-                    self.matches_label.set_text(&QString::from_std_str("No matches found."));
+                    self.matches_label.set_text(&qtr("table_search_no_matches"));
                     self.prev_match_button.set_enabled(false);
                     self.next_match_button.set_enabled(false);
                     self.replace_button.set_enabled(false);
@@ -324,7 +356,7 @@ impl SearchView {
                 // Otherwise, if no matches have been found in the current filter, but they have been in the model...
                 else if matches_in_filter.is_empty() {
                     table_search.current_item = None;
-                    self.matches_label.set_text(&QString::from_std_str(format!("{} in current filter ({} in total)", matches_in_filter.len(), matches_in_model.len())));
+                    self.matches_label.set_text(&qtre("table_search_matches_filter", &[&matches_in_filter.len().to_string(), &matches_in_model.len().to_string()]));
                     self.prev_match_button.set_enabled(false);
                     self.next_match_button.set_enabled(false);
                     self.replace_button.set_enabled(false);
@@ -339,7 +371,7 @@ impl SearchView {
                         None => Some(0)
                     };
 
-                    self.matches_label.set_text(&QString::from_std_str(format!("{} of {} in current filter ({} in total)", table_search.current_item.unwrap() + 1, matches_in_filter.len(), matches_in_model.len())));
+                    self.matches_label.set_text(&qtre("table_search_matches_position", &[&(table_search.current_item.unwrap() + 1).to_string(), &matches_in_filter.len().to_string(), &matches_in_model.len().to_string()]));
 
                     if table_search.current_item.unwrap() == 0 {
                         self.prev_match_button.set_enabled(false);
@@ -405,12 +437,16 @@ impl SearchView {
             table_search.matches.clear();
             table_search.current_item = None;
             table_search.pattern = self.search_line_edit.text().into_ptr();
-            //table_search.regex = self.search_search_line_edit.is_checked();
+            table_search.regex = self.regex_button.is_checked();
             table_search.case_sensitive = self.case_sensitive_button.is_checked();
             table_search.column = {
-                let column = self.column_combobox.current_text().to_std_string().replace(' ', "_").to_lowercase();
-                if column == "*_(all_columns)" { None }
-                else { Some(fields_processed.iter().position(|x| x.name() == column).unwrap() as i32) }
+                // Index 0 is the "all columns" entry; using the index keeps this
+                // independent of the (translated) text shown for that entry.
+                if self.column_combobox.current_index() <= 0 { None }
+                else {
+                    let column = self.column_combobox.current_text().to_std_string().replace(' ', "_").to_lowercase();
+                    fields_processed.iter().position(|x| x.name() == column).map(|x| x as i32)
+                }
             };
 
             let mut flags = if table_search.regex {

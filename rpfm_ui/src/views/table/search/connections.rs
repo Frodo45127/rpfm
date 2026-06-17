@@ -29,4 +29,8 @@ pub unsafe fn set_connections(ui: &SearchView, slots: &SearchViewSlots) {
     ui.close_button().released().connect(&slots.close);
     ui.search_line_edit().text_changed().connect(&slots.check_regex);
     ui.search_line_edit().return_pressed().connect(&slots.search);
+
+    // Toggling case-sensitivity or regex re-runs the search so results update live.
+    ui.case_sensitive_button().released().connect(&slots.search);
+    ui.regex_button().released().connect(&slots.search);
 }

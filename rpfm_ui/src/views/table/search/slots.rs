@@ -88,10 +88,12 @@ impl SearchViewSlots {
             }
         ));
 
-        // What happens when we trigger the "Check Regex" action.
+        // Validate the search pattern as a regex only while regex mode is on, so a plain
+        // text search containing regex metacharacters isn't flagged as invalid.
         let check_regex = SlotOfQString::new(&view.main_widget, clone!(
             mut view => move |string| {
-            check_regex_string(&string.to_std_string(), view.search_line_edit.static_upcast(), true);
+            let use_regex = view.regex_button.is_checked();
+            check_regex_string(&string.to_std_string(), view.search_line_edit.static_upcast(), use_regex);
         }));
 
         // Return the slots, so we can keep them alive for the duration of the view.

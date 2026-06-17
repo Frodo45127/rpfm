@@ -1743,6 +1743,21 @@ columns_popover_open = Manage columns
 columns_popover_move_up = Move column up
 columns_popover_move_down = Move column down
 
+table_search_search_placeholder = Search...
+table_search_replace_placeholder = Replace with...
+table_search_all_columns = All columns
+table_search_case_sensitive = Case sensitive
+table_search_regex = Use regex
+table_search_search = Search
+table_search_prev_match = Previous match
+table_search_next_match = Next match
+table_search_replace = Replace
+table_search_replace_all = Replace all
+table_search_close = Close search
+table_search_no_matches = No matches found.
+table_search_matches_filter = {"{"}{"}"} in current filter ({"{"}{"}"} in total)
+table_search_matches_position = {"{"}{"}"} of {"{"}{"}"} in current filter ({"{"}{"}"} in total)
+
 settings_ui_show_table_toolbar_label = Show table action toolbar
 tt_settings_ui_show_table_toolbar_tip = Show a toolbar at the top of each table view exposing the right-click context-menu actions as buttons. Newly-opened table views pick up the change; already-open views need to be reopened.
 
