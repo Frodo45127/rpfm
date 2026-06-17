@@ -8,7 +8,7 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-use time::format_description::{parse, FormatItem};
+use time::format_description::{FormatItem, parse_borrowed};
 
 use std::path::PathBuf;
 use std::sync::{Arc, LazyLock, RwLock};
@@ -81,9 +81,9 @@ pub static ASSETS_PATH: LazyLock<PathBuf> = LazyLock::new(|| if cfg!(debug_asser
 });
 
 /// Formatted date, so we can reuse it instead of re-parsing it on each use.
-pub static FULL_DATE_FORMAT: LazyLock<Vec<FormatItem<'static>>> = LazyLock::new(|| parse("[year]-[month]-[day] [hour]:[minute]:[second]").unwrap());
-pub static SLASH_DMY_DATE_FORMAT: LazyLock<Vec<FormatItem<'static>>> = LazyLock::new(|| parse("[day]/[month]/[year]").unwrap());
-pub static SLASH_MDY_DATE_FORMAT: LazyLock<Vec<FormatItem<'static>>> = LazyLock::new(|| parse("[month]/[day]/[year]").unwrap());
+pub static FULL_DATE_FORMAT: LazyLock<Vec<FormatItem<'static>>> = LazyLock::new(|| parse_borrowed::<1>("[year]-[month]-[day] [hour]:[minute]:[second]").unwrap());
+pub static SLASH_DMY_DATE_FORMAT: LazyLock<Vec<FormatItem<'static>>> = LazyLock::new(|| parse_borrowed::<1>("[day]/[month]/[year]").unwrap());
+pub static SLASH_MDY_DATE_FORMAT: LazyLock<Vec<FormatItem<'static>>> = LazyLock::new(|| parse_borrowed::<1>("[month]/[day]/[year]").unwrap());
 
 pub static ORG_DOMAIN: LazyLock<Arc<RwLock<String>>> = LazyLock::new(|| Arc::new(RwLock::new(String::from("com"))));
 pub static ORG_NAME: LazyLock<Arc<RwLock<String>>> = LazyLock::new(|| Arc::new(RwLock::new(String::from("FrodoWazEre"))));
