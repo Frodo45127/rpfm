@@ -3293,9 +3293,10 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
             },
 
             Command::BuildCeo(pack_key, akit_path, bob_exe_path) => {
-                use std::process::Command as SysCommand;
-                use std::time::{Duration, Instant};
+                use std::process::{Command as SysCommand, Stdio};
+                use std::time::Instant;
 
+                info!("[BuildCeo] handler entered: pack={pack_key}, akit={akit_path}, bob={bob_exe_path}");
                 let akit_root = PathBuf::from(&akit_path);
                 let bob_exe = PathBuf::from(&bob_exe_path);
                 let bob_dir = match bob_exe.parent() {
@@ -3554,7 +3555,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                     xml.push_str("</dataroot>\r\n");
 
                     if let Err(e) = std::fs::write(&xml_path, xml.as_bytes()) {
-                        export_errors.push(format!("Failed to write {xml_name}: {e}"));
+                        export_errors.push(format!("Failed to write {}: {e}", xml_path.display()));
                     }
                 }
 
@@ -3567,13 +3568,25 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 // ── Step 4: Write BOB config and launch ───────────────────────
                 let cfg_path = bob_dir.join("BOB/default_configuration.xml");
 
+                // The `binaries\BOB` config dir is absent on a fresh Assembly Kit that never ran
+                // BOB; create it up front so the config write below doesn't fail with OS error 3.
+                if let Some(cfg_dir) = cfg_path.parent() {
+                    if let Err(e) = std::fs::create_dir_all(cfg_dir) {
+                        for (orig, bak) in &xml_backups { let _ = std::fs::rename(bak, orig); }
+                        CentralCommand::send_back(&sender, Response::Error(format!(
+                            "Failed to create BOB config directory {}: {e}", cfg_dir.display())));
+                        continue 'background_loop;
+                    }
+                }
+
                 // Backup any existing config so we can restore it after BOB runs.
                 let cfg_backup = bob_dir.join("BOB/default_configuration.xml.rpfm_bak");
                 let cfg_existed = cfg_path.exists();
                 if cfg_existed {
                     if let Err(e) = std::fs::rename(&cfg_path, &cfg_backup) {
                         for (orig, bak) in &xml_backups { let _ = std::fs::rename(bak, orig); }
-                        CentralCommand::send_back(&sender, Response::Error(format!("Failed to backup BOB config: {e}")));
+                        CentralCommand::send_back(&sender, Response::Error(format!(
+                            "Failed to backup BOB config {}: {e}", cfg_path.display())));
                         continue 'background_loop;
                     }
                 }
@@ -3590,32 +3603,42 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                     // Restore backup before bailing.
                     if cfg_existed { let _ = std::fs::rename(&cfg_backup, &cfg_path); }
                     for (orig, bak) in &xml_backups { let _ = std::fs::rename(bak, orig); }
-                    CentralCommand::send_back(&sender, Response::Error(format!("Failed to write BOB config: {e}")));
+                    CentralCommand::send_back(&sender, Response::Error(format!(
+                        "Failed to write BOB config {}: {e}", cfg_path.display())));
                     continue 'background_loop;
                 }
 
-                let output = match SysCommand::new(&bob_exe).current_dir(&bob_dir).output() {
-                    Ok(o) => o,
+                info!("[BuildCeo] launching BOB: {} (cwd {})", bob_exe.display(), bob_dir.display());
+                let bob_start = Instant::now();
+
+                // Use `.status()`, not `.output()`: it waits only on BOB's process handle, so it
+                // returns the moment BOB exits without blocking to read captured output.
+                let mut cmd = SysCommand::new(&bob_exe);
+                cmd.current_dir(&bob_dir).stdin(Stdio::null());
+
+                let status = match cmd.status() {
+                    Ok(s) => s,
                     Err(e) => {
                         let _ = std::fs::remove_file(&cfg_path);
                         if cfg_existed { let _ = std::fs::rename(&cfg_backup, &cfg_path); }
                         for (orig, bak) in &xml_backups { let _ = std::fs::rename(bak, orig); }
+                        info!("[BuildCeo] BOB spawn failed after {:?}: {e}", bob_start.elapsed());
                         CentralCommand::send_back(&sender, Response::Error(format!("Failed to launch BOB: {e}")));
                         continue 'background_loop;
                     }
                 };
 
+                info!("[BuildCeo] BOB exited after {:?}, exit={:?}", bob_start.elapsed(), status.code());
+
                 // Restore config regardless of BOB's result.
                 let _ = std::fs::remove_file(&cfg_path);
                 if cfg_existed { let _ = std::fs::rename(&cfg_backup, &cfg_path); }
 
-                // ── Step 5: Poll for ceo_data.ccd (180s timeout) ─────────────
-                let deadline = Instant::now() + Duration::from_secs(180);
-                let found = loop {
-                    if ceo_ccd.exists() { break true; }
-                    if Instant::now() >= deadline { break false; }
-                    std::thread::sleep(Duration::from_millis(500));
-                };
+                // ── Step 5: Confirm ceo_data.ccd was produced ────────────────
+                // BOB is single-process and we waited on its handle above, so its writes are
+                // already flushed and visible: the file either exists now or never will.
+                let found = ceo_ccd.exists();
+                info!("[BuildCeo] ceo_data.ccd present: {found}");
 
                 // ── Step 6: Restore original ceo_*.xml files ─────────────────
                 for (orig, bak) in &xml_backups {
@@ -3627,9 +3650,9 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                     CentralCommand::send_back(&sender, Response::Success);
                 } else {
                     CentralCommand::send_back(&sender, Response::Error(format!(
-                        "ceo_data.ccd not generated within 180s. BOB exit: {:?}\nstdout: {}",
-                        output.status.code(),
-                        String::from_utf8_lossy(&output.stdout)
+                        "BOB finished (exit {:?}) but ceo_data.ccd was not generated. \
+                         This usually means BOB hit an error in the exported tables.",
+                        status.code()
                     )));
                 }
             }

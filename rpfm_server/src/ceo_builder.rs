@@ -423,6 +423,14 @@ pub fn build_ceo_entries(
                             "auto_id" => auto_id("ceo_initial_data_active_ceos", &format!("{stage1_key}|3k_main_ceo_class_metal")),
                         ])?;
                         if !added_paths.contains(&p) { added_paths.push(p); }
+                        // armour active_ceo into stage2
+                        let p = insert_row(pack, schema, "ceo_initial_data_active_ceos_tables", stem, &row![
+                            "initial_data_stage" => &stage2_key,
+                            "active_ceo" => &armor_ceo_key,
+                            "starting_points_delta" => "0",
+                            "auto_id" => auto_id("ceo_initial_data_active_ceos", &format!("{stage2_key}|{armor_ceo_key}")),
+                        ])?;
+                        if !added_paths.contains(&p) { added_paths.push(p); }
                         // expanded: sword_and_shield only if expanded
                         if entry.expanded {
                             let p = insert_row(pack, schema, "ceo_initial_data_active_ceos_tables", stem, &row![
