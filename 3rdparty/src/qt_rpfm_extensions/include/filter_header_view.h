@@ -26,7 +26,7 @@ protected:
 
 private:
     // Funnel rect for a given section rect: square of FUNNEL_SIZE, vertically centered,
-    // inset from the right edge by SORT_RESERVE so it clears Qt's sort indicator.
+    // flush against the section's right edge (no padding).
     QRect funnelRect(const QRect &sectionRect) const;
 
     // Logical column whose funnel contains pos, or -1 if pos isn't over any funnel.

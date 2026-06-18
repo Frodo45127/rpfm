@@ -8,11 +8,8 @@ namespace {
     // Size of the funnel glyph, in header pixels.
     const int FUNNEL_SIZE = 12;
 
-    // Reserved width on the right edge for Qt's sort indicator; the funnel sits left of it.
-    const int SORT_RESERVE = 20;
-
     // Sections narrower than this get no funnel, so it never collides with the label.
-    const int MIN_SECTION = FUNNEL_SIZE + SORT_RESERVE + 8;
+    const int MIN_SECTION = FUNNEL_SIZE + 28;
 }
 
 QFilterHeaderView::QFilterHeaderView(Qt::Orientation orientation, QWidget *parent)
@@ -24,7 +21,9 @@ QFilterHeaderView::QFilterHeaderView(Qt::Orientation orientation, QWidget *paren
 }
 
 QRect QFilterHeaderView::funnelRect(const QRect &sectionRect) const {
-    int x = sectionRect.right() - SORT_RESERVE - FUNNEL_SIZE;
+    // Flush against the section's right edge with no padding. Any inset here pushes the glyph
+    // left into the label, which on narrow columns ends up drawn over the text.
+    int x = sectionRect.right() - FUNNEL_SIZE;
     int y = sectionRect.top() + (sectionRect.height() - FUNNEL_SIZE) / 2;
     return QRect(x, y, FUNNEL_SIZE, FUNNEL_SIZE);
 }
