@@ -257,6 +257,9 @@ impl GlobalSearchSlots {
                 &global_search_ui.matches_column_selector_table_and_text_combobox,
                 &global_search_ui.matches_case_sensitive_table_and_text_button,
             );
+
+            // Filtering reorders the visible rows, so re-apply the banner spanning to the file rows.
+            global_search_ui.span_result_headers();
         }));
 
         let filter_schemas = SlotNoArgs::new(&global_search_ui.dock_widget, clone!(

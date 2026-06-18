@@ -48,6 +48,7 @@ SOURCES += \
     src/q_main_window_custom.cpp \
     src/packed_file_model.cpp \
     src/qstring_item_delegate.cpp \
+    src/search_match_item_delegate.cpp \
     src/combobox_item_delegate.cpp \
     src/qt_long_long_spinbox.cpp \
     src/resizable_label.cpp \
@@ -93,6 +94,7 @@ HEADERS += \
     include/treeview_draggable.h \
     include/treeview_filter.h \
     include/qstring_item_delegate.h \
+    include/search_match_item_delegate.h \
     include/packed_file_model.h \
     include/resizable_label.h \
     include/q_main_window_custom.h \

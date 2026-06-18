@@ -76,10 +76,12 @@ use crate::views::table::{ITEM_HAS_VANILLA_VALUE, ITEM_ICON_CACHE, ITEM_ICON_PAT
 // Custom delegates stuff.
 //---------------------------------------------------------------------------//
 
-//extern "C" { fn new_search_match_item_delegate(table_view: *mut QObject, column: i32); }
-//pub fn new_search_match_item_delegate_safe(table_view: &Ptr<QObject>, column: i32) {
-//    unsafe { new_search_match_item_delegate(table_view.as_mut_raw_ptr(), column) }
-//}
+// This function assigns the search-match highlight delegate to a column of a global search results view.
+extern "C" { fn new_search_match_item_delegate(table_view: *mut QObject, column: i32, is_dark_theme_enabled: bool, has_filter: bool); }
+pub fn new_search_match_item_delegate_safe(table_view: &Ptr<QObject>, column: i32, has_filter: bool) {
+    let is_dark_theme_enabled = unsafe { is_dark_theme() };
+    unsafe { new_search_match_item_delegate(table_view.as_mut_raw_ptr(), column, is_dark_theme_enabled, has_filter) }
+}
 
 extern "C" { fn new_unit_variant_item_delegate(table_view: *mut QObject, column: i32); }
 pub fn new_unit_variant_item_delegate_safe(table_view: &Ptr<QObject>, column: i32) {

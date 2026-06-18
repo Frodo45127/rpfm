@@ -15,6 +15,7 @@ This module contains all the code needed to initialize the Global Search Panel.
 !*/
 
 use qt_widgets::q_abstract_item_view::ScrollHint;
+use qt_widgets::q_header_view::ResizeMode;
 use qt_widgets::QCheckBox;
 use qt_widgets::QComboBox;
 use qt_widgets::QDockWidget;
@@ -80,7 +81,7 @@ use crate::app_ui::AppUI;
 use crate::communications::{Command, Response, send_ipc_command_result};
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
-use crate::ffi::{kline_edit_configure_safe, new_eliding_check_box_safe, new_treeview_filter_safe, scroll_to_row_safe, trigger_treeview_filter_safe};
+use crate::ffi::{kline_edit_configure_safe, new_eliding_check_box_safe, new_search_match_item_delegate_safe, new_treeview_filter_safe, scroll_to_row_safe, trigger_treeview_filter_safe};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::packedfile_views::{View, ViewType};
@@ -98,6 +99,34 @@ pub mod tips;
 /// Tool's ui template path.
 const VIEW_DEBUG: &str = "rpfm_ui/ui_templates/global_search_dock_widget.ui";
 const VIEW_RELEASE: &str = "ui/global_search_dock_widget.ui";
+
+/// Stylesheet for the global search panel. Flat hover-tinted tool buttons, checked toggles tinted
+/// with the highlight colour, and rounded line edits with a focus ring, matching the redesigned
+/// table search bar so the two read as one family.
+const SEARCH_BAR_STYLE: &str = r#"
+QLineEdit {
+    background: palette(base);
+    border: 1px solid palette(mid);
+    border-radius: 4px;
+    padding: 2px 4px;
+}
+QLineEdit:focus {
+    border-color: palette(highlight);
+}
+QToolButton {
+    background: transparent;
+    border: none;
+    border-radius: 3px;
+    padding: 2px 5px;
+}
+QToolButton:hover {
+    background: palette(midlight);
+}
+QToolButton:checked {
+    background: palette(highlight);
+    color: palette(highlighted-text);
+}
+"#;
 
 const ANIM_FRAGMENT_BATTLE_ENTRY_INDEX: i32 = 40;
 const ANIM_FRAGMENT_BATTLE_SUBENTRY_INDEX: i32 = 41;
@@ -122,6 +151,12 @@ const UNIT_VARIANT_VARIANT_INDEX: i32 = 42;
 
 const MATCH_SOURCE_TYPE: i32 = 48;
 const MATCH_PACK_KEY: i32 = 49;
+
+// Highlight range (in UTF-16 code units) of the matched substring within a match row's displayed
+// text. Read by the search-match item delegate to emphasise the match. Kept in sync with the
+// constants of the same name in search_match_item_delegate.cpp.
+const MATCH_HIGHLIGHT_START: i32 = 50;
+const MATCH_HIGHLIGHT_END: i32 = 51;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -236,6 +271,11 @@ impl GlobalSearchUI {
         main_window.add_dock_widget_2a(DockWidgetArea::RightDockWidgetArea, &dock_widget);
         dock_widget.set_window_title(&qtr("global_search"));
         dock_widget.set_object_name(&QString::from_std_str("global_search_dock"));
+
+        // Style the panel's contents like the redesigned table search bar. Applied to the inner
+        // widget (not the dock) so the dock's own title-bar buttons keep their native look.
+        let inner_widget: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "inner_widget")?;
+        inner_widget.set_style_sheet(&QString::from_std_str(SEARCH_BAR_STYLE));
 
         // Create the search & replace section.
         let search_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "search_line_edit")?;
@@ -378,6 +418,9 @@ impl GlobalSearchUI {
         tree_view_matches_table_and_text.set_model(&matches_table_and_text_tree_filter);
         matches_table_and_text_tree_filter.set_source_model(&matches_table_and_text_tree_model);
 
+        // Render the match column with highlighted context for each match (the file rows keep the default look).
+        new_search_match_item_delegate_safe(&tree_view_matches_table_and_text.static_upcast::<QObject>().as_ptr(), 0, true);
+
         // Schema
         let matches_widget_schema: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "tab_schema")?;
         let tree_view_matches_schema: QPtr<QTreeView> = find_widget(&main_widget.static_upcast(), "schema_tree_view")?;
@@ -505,6 +548,13 @@ impl GlobalSearchUI {
                 self.load_unit_variant_matches_to_ui(global_search.matches().unit_variant(), FileType::UnitVariant);
                 self.load_unknown_matches_to_ui(global_search.matches().unknown(), FileType::Unknown);
                 self.load_schema_matches_to_ui(global_search.matches().schema());
+
+                // Render the file results as a grouped flat list: expand every file so its matches
+                // are visible without manual clicking, and span each file row into a banner header.
+                self.matches_table_and_text_tree_view.set_animated(false);
+                self.matches_table_and_text_tree_view.expand_all();
+                self.matches_table_and_text_tree_view.set_animated(true);
+                self.span_result_headers();
 
                 UI_STATE.set_global_search(&global_search);
                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile, &pack_key);
@@ -1077,7 +1127,7 @@ impl GlobalSearchUI {
                         let start = Self::new_item();
                         let end = Self::new_item();
 
-                        text.set_text(&QString::from_std_str(Self::format_search_match(match_row.text(), *match_row.start(), *match_row.end())));
+                        Self::set_match_text(&text, match_row.text(), *match_row.start(), *match_row.end());
 
                         // Store the data needed to pin-point the match in the file in the text item.
                         let bool_data = if *match_row.skeleton_name() {
@@ -1224,7 +1274,7 @@ impl GlobalSearchUI {
                         let start = Self::new_item();
                         let end = Self::new_item();
 
-                        text.set_text(&QString::from_std_str(Self::format_search_match(match_row.text(), *match_row.start(), *match_row.end())));
+                        Self::set_match_text(&text, match_row.text(), *match_row.start(), *match_row.end());
                         column_name.set_text(&QString::from_std_str(match_row.column_name()));
                         row.set_data_2a(&QVariant::from_longlong(match_row.row_number() + 1), 2);
                         column_number.set_data_2a(&QVariant::from_uint(*match_row.column_number()), 2);
@@ -1309,7 +1359,7 @@ impl GlobalSearchUI {
                         let start = Self::new_item();
                         let end = Self::new_item();
 
-                        text.set_text(&QString::from_std_str(Self::format_search_match(match_row.text(), *match_row.start(), *match_row.end())));
+                        Self::set_match_text(&text, match_row.text(), *match_row.start(), *match_row.end());
 
                         // Store the data needed to pin-point the match in the file in the text item.
                         let bool_data = if *match_row.id() {
@@ -1445,7 +1495,7 @@ impl GlobalSearchUI {
                         let start = Self::new_item();
                         let end = Self::new_item();
 
-                        text.set_text(&QString::from_std_str(Self::format_search_match(match_row.text(), *match_row.start(), *match_row.end())));
+                        Self::set_match_text(&text, match_row.text(), *match_row.start(), *match_row.end());
 
                         // Store the data needed to pin-point the match in the file in the rigid model.
                         let bool_data = if *match_row.skeleton_id() {
@@ -1590,7 +1640,7 @@ impl GlobalSearchUI {
                         let start = Self::new_item();
                         let end = Self::new_item();
 
-                        text.set_text(&QString::from_std_str(Self::format_search_match(match_row.text(), *match_row.start(), *match_row.end())));
+                        Self::set_match_text(&text, match_row.text(), *match_row.start(), *match_row.end());
                         column_name.set_text(&QString::from_std_str(match_row.column_name()));
                         row.set_data_2a(&QVariant::from_longlong(match_row.row_number() + 1), 2);
                         column_number.set_data_2a(&QVariant::from_uint(*match_row.column_number()), 2);
@@ -1676,7 +1726,7 @@ impl GlobalSearchUI {
                         let start = Self::new_item();
                         let end = Self::new_item();
 
-                        text.set_text(&QString::from_std_str(Self::format_search_match(match_row.text(), *match_row.start(), *match_row.end())));
+                        Self::set_match_text(&text, match_row.text(), *match_row.start(), *match_row.end());
                         row.set_data_2a(&QVariant::from_ulonglong(match_row.row() + 1), 2);
                         start.set_data_2a(&QVariant::from_uint(*match_row.start() as u32), 2);
                         end.set_data_2a(&QVariant::from_uint(*match_row.end() as u32), 2);
@@ -1759,7 +1809,7 @@ impl GlobalSearchUI {
                         let start = Self::new_item();
                         let end = Self::new_item();
 
-                        text.set_text(&QString::from_std_str(Self::format_search_match(match_row.text(), *match_row.start(), *match_row.end())));
+                        Self::set_match_text(&text, match_row.text(), *match_row.start(), *match_row.end());
 
                         // Store the data needed to pin-point the match in the file in the text item.
                         let bool_data = if *match_row.name() {
@@ -1961,6 +2011,19 @@ impl GlobalSearchUI {
     }
 
     /// Function to filter the PackFile Contents TreeView.
+    /// Marks every top-level (file) row of the file results tree as first-column-spanned, so each
+    /// file renders as a full-width banner header instead of sharing the match columns.
+    ///
+    /// Must be re-applied after filtering, since the spanned flags are keyed by view row position.
+    unsafe fn span_result_headers(&self) {
+        let view = &self.matches_table_and_text_tree_view;
+        let root = QModelIndex::new();
+        let row_count = view.model().row_count_0a();
+        for row in 0..row_count {
+            view.set_first_column_spanned(row, &root, true);
+        }
+    }
+
     pub unsafe fn filter_results(
         view: &QPtr<QTreeView>,
         line_edit: &QPtr<QLineEdit>,
@@ -2827,12 +2890,16 @@ impl GlobalSearchUI {
         self.matches_table_and_text_tree_view.hide_column(4);
         self.matches_table_and_text_tree_view.hide_column(5);
         self.matches_table_and_text_tree_view.sort_by_column(0, SortOrder::AscendingOrder);
-        self.matches_table_and_text_tree_view.set_column_width(0, 300);
-        self.matches_table_and_text_tree_view.set_column_width(1, 200);
-        self.matches_table_and_text_tree_view.set_column_width(2, 20);
+
+        // Let the context column fill the panel while the column-name and row columns stay compact,
+        // so results don't overflow into a horizontal scroll on a narrow dock.
+        let header = self.matches_table_and_text_tree_view.header();
+        header.set_section_resize_mode_2a(1, ResizeMode::ResizeToContents);
+        header.set_section_resize_mode_2a(2, ResizeMode::ResizeToContents);
+        header.set_section_resize_mode_2a(0, ResizeMode::Stretch);
 
         // Show row before column for where it's relevant. Otherwise row tends to be hidden.
-        self.matches_table_and_text_tree_view.header().move_section(2, 1);
+        header.move_section(2, 1);
 
         // Same for the schema matches list.
         self.matches_schema_tree_model.block_signals(true);
@@ -2858,25 +2925,56 @@ impl GlobalSearchUI {
         item
     }
 
-    unsafe fn format_search_match(text: &str, start: usize, end: usize) -> String {
+    /// Sets a match row's displayed context line and the highlight range the delegate uses to
+    /// emphasise the matched substring.
+    ///
+    /// # Arguments
+    /// - `item`: the column-0 item of the match row.
+    /// - `text`: the full line (or field value) containing the match.
+    /// - `start`/`end`: byte offsets of the match within `text`.
+    unsafe fn set_match_text(item: &QStandardItem, text: &str, start: usize, end: usize) {
+        let (display, highlight_start, highlight_end) = Self::format_search_match(text, start, end);
+        item.set_text(&QString::from_std_str(&display));
+        item.set_data_2a(&QVariant::from_int(highlight_start), MATCH_HIGHLIGHT_START);
+        item.set_data_2a(&QVariant::from_int(highlight_end), MATCH_HIGHLIGHT_END);
+    }
 
-        // Trim the text so only the part with the match shows up.
-        let text_trimmed_start = if start >= 20 {
-            (true, closest_valid_char_byte(text, start - 20))
+    /// Builds the context line shown for a match, keeping a window of context around it.
+    ///
+    /// Unlike a plain truncation, this keeps a fixed amount of leading context and as much of the
+    /// rest of the line as a sane cap allows, so text matches show their surrounding line. The
+    /// returned offsets are in UTF-16 code units so they line up with `QString` indexing in the delegate.
+    ///
+    /// # Returns
+    /// The display string and the `(start, end)` highlight offsets within it.
+    fn format_search_match(text: &str, start: usize, end: usize) -> (String, i32, i32) {
+
+        // The backend reports start/end as valid char boundaries; just clamp them numerically.
+        // (closest_valid_char_byte panics when given an index at or past the string's end.)
+        let start = start.min(text.len());
+        let end = end.min(text.len()).max(start);
+
+        // Amount of context kept before the match, and the cap on the context kept after it.
+        const LEFT_CONTEXT: usize = 40;
+        const RIGHT_CONTEXT_MAX: usize = 1000;
+
+        let (prefix, window_start) = if start > LEFT_CONTEXT {
+            ("...", closest_valid_char_byte(text, start - LEFT_CONTEXT))
         } else {
-            (false, 0)
+            ("", 0)
         };
 
-        let text_trimmed_end = if text.len() >= 20 && end < text.len() - 20 {
-            (true, closest_valid_char_byte(text, end + 16))
+        let (suffix, window_end) = if text.len() > end + RIGHT_CONTEXT_MAX {
+            ("...", closest_valid_char_byte(text, end + RIGHT_CONTEXT_MAX))
         } else {
-            (false, text.len())
+            ("", text.len())
         };
 
-        format!("{}{}{}",
-            if text_trimmed_start.0 { "..." } else { "" },
-            text[text_trimmed_start.1..text_trimmed_end.1].trim(),
-            if text_trimmed_end.0 { "..." } else { "" }
-        )
+        let display = format!("{}{}{}", prefix, &text[window_start..window_end], suffix);
+
+        let highlight_start = display[..prefix.len() + (start - window_start)].encode_utf16().count() as i32;
+        let highlight_end = display[..prefix.len() + (end - window_start)].encode_utf16().count() as i32;
+
+        (display, highlight_start, highlight_end)
     }
 }
