@@ -1107,6 +1107,10 @@ impl AppUI {
         additive: bool,
     ) -> Result<()> {
 
+        // In single-pack mode the app keeps only one Pack open at a time, so any open pack is
+        // closed before opening a new one. This overrides the caller's additive request.
+        let additive = additive && !settings_bool(SINGLE_PACK_MODE);
+
         // Refuse to (re)open a pack that's already open. In non-additive mode the server-side
         // check would be bypassed by the CloseAllPacks call below, so check up-front here.
         let open_packs = send_ipc_command(Command::ListOpenPacks, response_extractor!(Response::VecStringContainerInfo));
