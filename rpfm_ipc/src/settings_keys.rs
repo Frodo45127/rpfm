@@ -160,6 +160,7 @@ pub const COLOUR_DARK_DIAGNOSTIC_INFO: &str = "colour_dark_diagnostic_info";
 
 /// A snapshot of all typed settings for batch transfer between server and UI.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(default)]
 pub struct SettingsSnapshot {
     pub bool: HashMap<String, bool>,
     pub i32: HashMap<String, i32>,
