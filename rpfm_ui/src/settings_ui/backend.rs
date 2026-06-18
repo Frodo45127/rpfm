@@ -18,8 +18,8 @@ use qt_core::QVariant;
 use anyhow::Result;
 use directories::ProjectDirs;
 
-use std::cell::RefCell;
 use std::{collections::HashMap, path::{Path, PathBuf}};
+use std::sync::{LazyLock, RwLock};
 
 use rpfm_extensions::optimizer::OptimizerOptions;
 
@@ -49,20 +49,24 @@ const APP_NAME: &str = "rpfm";
 /// `rpfm_server::settings::CONFIG_REDIRECT_FILE_NAME`.
 const CONFIG_REDIRECT_FILE_NAME: &str = "config_folder.txt";
 
-thread_local! {
-    static SETTINGS_CACHE: RefCell<Option<SettingsSnapshot>> = const { RefCell::new(None) };
-}
+/// Settings cache for the UI.
+static SETTINGS_CACHE: LazyLock<RwLock<Option<SettingsSnapshot>>> = LazyLock::new(|| RwLock::new(None));
 
 /// Returns the snapshot from the cache, or [`SettingsSnapshot::default`] when
 /// the cache hasn't been seeded yet.
 fn with_cache<T>(f: impl FnOnce(&SettingsSnapshot) -> T) -> T {
-    SETTINGS_CACHE.with(|cache| {
-        let mut borrow = cache.borrow_mut();
-        if borrow.is_none() {
-            *borrow = Some(SettingsSnapshot::default());
-        }
-        f(borrow.as_ref().unwrap())
-    })
+
+    // Fast path: the cache is already seeded, so a shared read lock is enough.
+    if let Some(snapshot) = SETTINGS_CACHE.read().unwrap().as_ref() {
+        return f(snapshot);
+    }
+
+    // Seed an empty default once, then read it back.
+    let mut write = SETTINGS_CACHE.write().unwrap();
+    if write.is_none() {
+        *write = Some(SettingsSnapshot::default());
+    }
+    f(write.as_ref().unwrap())
 }
 
 /// Resolve RPFM's default config directory, ignoring any custom-folder redirect.
@@ -98,13 +102,13 @@ pub fn load_settings_cache_from_disk() {
     let Some(path) = settings_file_path() else { return; };
     let Ok(data) = std::fs::read(&path) else { return; };
     let Ok(snapshot) = serde_json::from_slice::<SettingsSnapshot>(&data) else { return; };
-    SETTINGS_CACHE.with(|cache| { *cache.borrow_mut() = Some(snapshot); });
+    *SETTINGS_CACHE.write().unwrap() = Some(snapshot);
 }
 
 /// Replace the cached snapshot with the one from the server.
 pub fn load_settings_cache_from_server() {
     let snapshot = send_ipc_command_async(Command::SettingsGetAll, response_extractor!(Response::SettingsAll));
-    SETTINGS_CACHE.with(|cache| { *cache.borrow_mut() = Some(snapshot); });
+    *SETTINGS_CACHE.write().unwrap() = Some(snapshot);
 }
 
 //-------------------------------------------------------------------------------//
@@ -185,22 +189,18 @@ pub fn settings_raw_data(key: &str) -> Vec<u8> {
 /// Set a boolean setting on the server and update the local cache.
 pub fn settings_set_bool(key: &str, value: bool) -> Result<()> {
     send_ipc_command_result(Command::SettingsSetBool(key.to_string(), value), response_extractor!())?;
-    SETTINGS_CACHE.with(|cache| {
-        if let Some(ref mut s) = *cache.borrow_mut() {
-            s.bool.insert(key.to_owned(), value);
-        }
-    });
+    if let Some(ref mut s) = *SETTINGS_CACHE.write().unwrap() {
+        s.bool.insert(key.to_owned(), value);
+    }
     Ok(())
 }
 
 /// Set an i32 setting on the server and update the local cache.
 pub fn settings_set_i32(key: &str, value: i32) -> Result<()> {
     send_ipc_command_result(Command::SettingsSetI32(key.to_string(), value), response_extractor!())?;
-    SETTINGS_CACHE.with(|cache| {
-        if let Some(ref mut s) = *cache.borrow_mut() {
-            s.i32.insert(key.to_owned(), value);
-        }
-    });
+    if let Some(ref mut s) = *SETTINGS_CACHE.write().unwrap() {
+        s.i32.insert(key.to_owned(), value);
+    }
     Ok(())
 }
 
@@ -208,22 +208,18 @@ pub fn settings_set_i32(key: &str, value: i32) -> Result<()> {
 #[allow(dead_code)]
 pub fn settings_set_f32(key: &str, value: f32) -> Result<()> {
     send_ipc_command_result(Command::SettingsSetF32(key.to_string(), value), response_extractor!())?;
-    SETTINGS_CACHE.with(|cache| {
-        if let Some(ref mut s) = *cache.borrow_mut() {
-            s.f32.insert(key.to_owned(), value);
-        }
-    });
+    if let Some(ref mut s) = *SETTINGS_CACHE.write().unwrap() {
+        s.f32.insert(key.to_owned(), value);
+    }
     Ok(())
 }
 
 /// Set a string setting on the server and update the local cache.
 pub fn settings_set_string(key: &str, value: &str) -> Result<()> {
     send_ipc_command_result(Command::SettingsSetString(key.to_string(), value.to_string()), response_extractor!())?;
-    SETTINGS_CACHE.with(|cache| {
-        if let Some(ref mut s) = *cache.borrow_mut() {
-            s.string.insert(key.to_owned(), value.to_owned());
-        }
-    });
+    if let Some(ref mut s) = *SETTINGS_CACHE.write().unwrap() {
+        s.string.insert(key.to_owned(), value.to_owned());
+    }
     Ok(())
 }
 
@@ -231,33 +227,27 @@ pub fn settings_set_string(key: &str, value: &str) -> Result<()> {
 #[allow(dead_code)]
 pub fn settings_set_path_buf(key: &str, value: &Path) -> Result<()> {
     send_ipc_command_result(Command::SettingsSetPathBuf(key.to_string(), value.to_path_buf()), response_extractor!())?;
-    SETTINGS_CACHE.with(|cache| {
-        if let Some(ref mut s) = *cache.borrow_mut() {
-            s.string.insert(key.to_owned(), value.to_string_lossy().to_string());
-        }
-    });
+    if let Some(ref mut s) = *SETTINGS_CACHE.write().unwrap() {
+        s.string.insert(key.to_owned(), value.to_string_lossy().to_string());
+    }
     Ok(())
 }
 
 /// Set a Vec<String> setting on the server and update the local cache.
 pub fn settings_set_vec_string(key: &str, value: &[String]) -> Result<()> {
     send_ipc_command_result(Command::SettingsSetVecString(key.to_string(), value.to_vec()), response_extractor!())?;
-    SETTINGS_CACHE.with(|cache| {
-        if let Some(ref mut s) = *cache.borrow_mut() {
-            s.vec_string.insert(key.to_owned(), value.to_vec());
-        }
-    });
+    if let Some(ref mut s) = *SETTINGS_CACHE.write().unwrap() {
+        s.vec_string.insert(key.to_owned(), value.to_vec());
+    }
     Ok(())
 }
 
 /// Set a Vec<u8> setting on the server and update the local cache.
 pub fn settings_set_raw_data(key: &str, value: &[u8]) -> Result<()> {
     send_ipc_command_result_async(Command::SettingsSetVecRaw(key.to_string(), value.to_vec()), response_extractor!())?;
-    SETTINGS_CACHE.with(|cache| {
-        if let Some(ref mut s) = *cache.borrow_mut() {
-            s.raw_data.insert(key.to_owned(), value.to_vec());
-        }
-    });
+    if let Some(ref mut s) = *SETTINGS_CACHE.write().unwrap() {
+        s.raw_data.insert(key.to_owned(), value.to_vec());
+    }
     Ok(())
 }
 
