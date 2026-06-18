@@ -99,7 +99,7 @@ use crate::GAME_SELECTED;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::NEW_FILE_VIEW_CREATED;
 use crate::pack_tree::{BuildData, new_pack_file_tooltip, PackTree, TreeViewOperation};
-use crate::packedfile_views::{anim_fragment_battle::*, animpack::*, anims_table::*, audio::FileAudioView, bmd::FileBMDView, decoder::*, dependencies_manager::*, esf::*, external::*, group_formations::*, image::*, matched_combat::*, FileView, packfile_settings::*, portrait_settings::PortraitSettingsView, rigidmodel::*, SpecialView, table::*, text::*, unit_variant::*, video::*, vmd::*};
+use crate::packedfile_views::{anim_fragment_battle::*, animpack::*, anims_table::*, audio::FileAudioView, bmd::FileBMDView, decoder::*, dependencies_manager::*, esf::*, external::*, group_formations::*, image::*, matched_combat::*, FileView, packfile::PackFileExtraView, packfile_settings::*, portrait_settings::PortraitSettingsView, rigidmodel::*, SpecialView, table::*, text::*, unit_variant::*, video::*, vmd::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::references_ui::ReferencesUI;
 use crate::STATUS_BAR;
@@ -2554,6 +2554,7 @@ impl AppUI {
                     fake_path.push_str(DECODER_EXTENSION);
                     (fake_path, qtr("decoder_title"))
                 },
+                SpecialView::Pack(ref path) => (RESERVED_NAME_EXTRA_PACKFILE.to_owned() + "/" + path, QString::from_std_str(path)),
                 SpecialView::PackSettings => (RESERVED_NAME_SETTINGS.to_owned(), qtr("settings")),
                 SpecialView::PackDependencies => (RESERVED_NAME_DEPENDENCIES_MANAGER_V2.to_owned(), qtr("table_dependency_manager_title")),
             };
@@ -2608,6 +2609,17 @@ impl AppUI {
                         Err(error) => return show_dialog(&app_ui.main_window, error, false),
                     }
                 }
+                SpecialView::Pack(ref path) => {
+                    let pathbuf = PathBuf::from(path.to_owned());
+                    match PackFileExtraView::new_view(&mut tab, app_ui, pack_file_contents_ui, pathbuf) {
+                        Ok(_) => {
+                            app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &name);
+                            app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
+                            UI_STATE.set_open_packedfiles().push(tab);
+                        }
+                        Err(error) => show_dialog(&app_ui.main_window, error, false),
+                    }
+                },
                 SpecialView::PackSettings => {
                     match PackFileSettingsView::new_view(&mut tab, app_ui, pack_file_contents_ui) {
                         Ok(_) => {
@@ -3642,13 +3654,10 @@ impl AppUI {
                     if path.starts_with(RESERVED_NAME_EXTRA_PACKFILE) {
                         purge_on_delete.push(path.to_owned());
 
+                        // The temporary source Pack is keyed by its on-disk path, which is exactly what
+                        // follows the reserved prefix in this view's path. Close it so we don't leak it.
                         let path_split = path.split('/').collect::<Vec<_>>();
-                        let pack_path = path_split[1..].join("/");
-                        let pack_key = std::path::Path::new(&pack_path)
-                            .file_name()
-                            .and_then(|n| n.to_str())
-                            .unwrap_or("unknown.pack")
-                            .to_string();
+                        let pack_key = path_split[1..].join("/");
                         let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ClosePack(pack_key));
                     }
                     else if path.ends_with(DECODER_EXTENSION) {

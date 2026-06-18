@@ -399,6 +399,7 @@ context_menu_add_file = Add File
 context_menu_add_files = Add File/s
 context_menu_add_folder = Add Folder
 context_menu_add_folders = Add Folder/s
+context_menu_add_from_pack = Add from Pack…
 context_menu_copy_to_pack = Copy To Pack
 context_menu_copy_to_pack_no_packs = No other packs open
 context_menu_run_script = Run Script

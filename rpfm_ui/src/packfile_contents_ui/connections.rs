@@ -50,6 +50,7 @@ pub unsafe fn set_connections(ui: &PackFileContentsUI, slots: &PackFileContentsS
 
     ui.context_menu_add_file.triggered().connect(&slots.contextual_menu_add_file);
     ui.context_menu_add_folder.triggered().connect(&slots.contextual_menu_add_folder);
+    ui.context_menu_add_from_pack.triggered().connect(&slots.contextual_menu_add_from_pack);
     ui.context_menu_copy_to_pack.about_to_show().connect(&slots.contextual_menu_copy_to_pack_about_to_show);
     ui.context_menu_copy_to_pack.triggered().connect(&slots.contextual_menu_copy_to_pack);
     ui.context_menu_run_script.about_to_show().connect(&slots.contextual_menu_run_script_about_to_show);

@@ -83,6 +83,7 @@ pub struct PackFileContentsSlots {
 
     pub contextual_menu_add_file: QBox<SlotOfBool>,
     pub contextual_menu_add_folder: QBox<SlotOfBool>,
+    pub contextual_menu_add_from_pack: QBox<SlotOfBool>,
     pub contextual_menu_copy_to_pack_about_to_show: QBox<SlotNoArgs>,
     pub contextual_menu_copy_to_pack: QBox<SlotOfQAction>,
     pub contextual_menu_run_script_about_to_show: QBox<SlotNoArgs>,
@@ -634,6 +635,9 @@ impl PackFileContentsSlots {
                     }
                 }
 
+                // "Add from Pack" needs the same target-Pack context as "Copy to Pack", so keep them in sync.
+                pack_file_contents_ui.context_menu_add_from_pack.set_enabled(pack_file_contents_ui.context_menu_copy_to_pack.menu_action().is_enabled());
+
                 // Ask the other thread if there is a Dependency Database and a Schema loaded.
                 let is_there_a_dependency_database = send_ipc_command(Command::IsThereADependencyDatabase(false), response_extractor!(Response::Bool));
 
@@ -836,6 +840,34 @@ impl PackFileContentsSlots {
                         }
                     }
                 }
+            }
+        ));
+
+        // What happens when we trigger the "Add from Pack" action in the Contextual Menu.
+        let contextual_menu_add_from_pack = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui,
+            dependencies_ui,
+            references_ui => move |_| {
+                rpfm_telemetry::track_action("Add From Pack");
+
+                // Ask for the source Pack on disk, then open it as a read-only "Add from Pack" view.
+                let file_dialog = QFileDialog::from_q_widget_q_string(app_ui.main_window(), &qtr("context_menu_add_from_pack"));
+                file_dialog.set_file_mode(FileMode::ExistingFile);
+                file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
+                if file_dialog.exec() != 1 {
+                    return;
+                }
+
+                let selected_files = file_dialog.selected_files();
+                if selected_files.size() == 0 {
+                    return;
+                }
+
+                let path = selected_files.at(0).to_std_string();
+                AppUI::open_special_view(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, SpecialView::Pack(path));
             }
         ));
 
@@ -2312,6 +2344,7 @@ impl PackFileContentsSlots {
 
             contextual_menu_add_file,
             contextual_menu_add_folder,
+            contextual_menu_add_from_pack,
             contextual_menu_copy_to_pack_about_to_show,
             contextual_menu_copy_to_pack,
             contextual_menu_run_script_about_to_show,

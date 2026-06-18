@@ -102,6 +102,7 @@ pub struct PackFileContentsUI {
     packfile_contents_tree_view_context_menu: QBox<QMenu>,
     context_menu_add_file: QPtr<QAction>,
     context_menu_add_folder: QPtr<QAction>,
+    context_menu_add_from_pack: QPtr<QAction>,
     context_menu_copy_to_pack: QPtr<QMenu>,
     context_menu_new_folder: QPtr<QAction>,
     context_menu_new_packed_file_anim_pack: QPtr<QAction>,
@@ -257,6 +258,7 @@ impl PackFileContentsUI {
 
         let context_menu_add_file = add_action_to_menu(&menu_add.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "add_file", "context_menu_add_file", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_add_folder = add_action_to_menu(&menu_add.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "add_folder", "context_menu_add_folder", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
+        let context_menu_add_from_pack = add_action_to_menu(&menu_add.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "add_from_pack", "context_menu_add_from_pack", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_new_folder = add_action_to_menu(&menu_create.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "new_folder", "context_menu_new_folder", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_new_packed_file_anim_pack = add_action_to_menu(&menu_create.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "new_animpack", "context_menu_new_packed_file_anim_pack", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
         let context_menu_new_packed_file_db = add_action_to_menu(&menu_create.static_upcast(), app_ui.shortcuts().as_ref(), "pack_tree_context_menu", "new_db", "context_menu_new_packed_file_db", Some(packfile_contents_tree_view.static_upcast::<qt_widgets::QWidget>()));
@@ -390,6 +392,7 @@ impl PackFileContentsUI {
         // Disable all the Contextual Menu actions by default.
         context_menu_add_file.set_enabled(false);
         context_menu_add_folder.set_enabled(false);
+        context_menu_add_from_pack.set_enabled(false);
         context_menu_copy_to_pack.menu_action().set_enabled(false);
         context_menu_new_folder.set_enabled(false);
         context_menu_new_packed_file_anim_pack.set_enabled(false);
@@ -437,6 +440,7 @@ impl PackFileContentsUI {
 
             context_menu_add_file,
             context_menu_add_folder,
+            context_menu_add_from_pack,
             context_menu_copy_to_pack,
 
             context_menu_new_folder,
