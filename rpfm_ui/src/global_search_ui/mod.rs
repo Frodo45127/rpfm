@@ -264,6 +264,72 @@ impl GlobalSearchUI {
         self.inner_widget.set_style_sheet(&QString::from_std_str(SEARCH_BAR_STYLE));
     }
 
+    /// Every "search on" file-type checkbox, in a stable order. Each index is the bit position used
+    /// to persist its checked state in [`GLOBAL_SEARCH_FILES_STATUS`], so this order must never change.
+    fn search_on_checkboxes(&self) -> Vec<&QPtr<QCheckBox>> {
+        vec![
+            &self.search_on_all_checkbox,
+            &self.search_on_all_common_checkbox,
+            &self.search_on_anim_checkbox,
+            &self.search_on_anim_fragment_battle_checkbox,
+            &self.search_on_anim_pack_checkbox,
+            &self.search_on_anims_table_checkbox,
+            &self.search_on_atlas_checkbox,
+            &self.search_on_audio_checkbox,
+            &self.search_on_bmd_checkbox,
+            &self.search_on_db_checkbox,
+            &self.search_on_esf_checkbox,
+            &self.search_on_group_formations_checkbox,
+            &self.search_on_image_checkbox,
+            &self.search_on_loc_checkbox,
+            &self.search_on_matched_combat_checkbox,
+            &self.search_on_pack_checkbox,
+            &self.search_on_portrait_settings_checkbox,
+            &self.search_on_rigid_model_checkbox,
+            &self.search_on_schemas_checkbox,
+            &self.search_on_sound_bank_checkbox,
+            &self.search_on_text_checkbox,
+            &self.search_on_uic_checkbox,
+            &self.search_on_unit_variant_checkbox,
+            &self.search_on_unknown_checkbox,
+            &self.search_on_video_checkbox,
+        ]
+    }
+
+    /// Packs the current "search on" checkbox selection into the [`GLOBAL_SEARCH_FILES_STATUS`] bitmask.
+    pub unsafe fn search_on_status(&self) -> i32 {
+        let mut value = 0i32;
+        for (bit, checkbox) in self.search_on_checkboxes().iter().enumerate() {
+            if checkbox.is_checked() {
+                value |= 1 << bit;
+            }
+        }
+        value
+    }
+
+    /// Restores the "search on" selection saved in [`GLOBAL_SEARCH_FILES_STATUS`]. On first run
+    /// (nothing saved yet) it falls back to the default "common" set (DB, Loc and Text).
+    ///
+    /// Must run after the signal connections are set: the `All`/`All Common` toggles both set and
+    /// disable the individual checkboxes, so reproducing the saved state through them keeps the
+    /// enabled/disabled state consistent instead of setting the individual boxes behind their backs.
+    pub unsafe fn load_search_on_status(&self) {
+        let files_status = settings_i32(GLOBAL_SEARCH_FILES_STATUS);
+
+        // First run / nothing saved: default to the "common" set via its meta toggle.
+        if files_status == 0 {
+            self.search_on_all_common_checkbox.set_checked(true);
+        } else if files_status & 1 != 0 {
+            self.search_on_all_checkbox.set_checked(true);
+        } else if files_status & 2 != 0 {
+            self.search_on_all_common_checkbox.set_checked(true);
+        } else {
+            for (bit, checkbox) in self.search_on_checkboxes().iter().enumerate() {
+                checkbox.set_checked(files_status & (1 << bit) != 0);
+            }
+        }
+    }
+
     /// This function creates an entire `GlobalSearchUI` struct.
     pub unsafe fn new(main_window: &QBox<QMainWindow>) -> Result<Self> {
 

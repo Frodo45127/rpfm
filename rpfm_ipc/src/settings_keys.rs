@@ -142,6 +142,7 @@ pub const PTS_REMOVE_EMPTY_FILE: &str = "pts_remove_empty_file";
 pub const FACTORY_RESET: &str = "factoryReset";
 pub const MOVE_CHECKBOX_STATUS: &str = "move_checkbox_status";
 pub const GLOBAL_SEARCH_SOURCES_STATUS: &str = "global_search_sources_status";
+pub const GLOBAL_SEARCH_FILES_STATUS: &str = "global_search_files_status";
 pub const GEOMETRY: &str = "geometry";
 pub const WINDOW_STATE: &str = "windowState";
 pub const ORIGINAL_GEOMETRY: &str = "originalGeometry";

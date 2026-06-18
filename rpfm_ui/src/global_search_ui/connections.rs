@@ -47,4 +47,21 @@ pub unsafe fn set_connections(global_search_ui: &Rc<GlobalSearchUI>, slots: &Glo
     global_search_ui.search_source_parent.toggled().connect(slots.save_view_status());
     global_search_ui.search_source_game.toggled().connect(slots.save_view_status());
     global_search_ui.search_source_asskit.toggled().connect(slots.save_view_status());
+
+    // Persist the "search on" selection whenever it changes. The meta toggles are connected after
+    // their toggle_all/toggle_all_common slots above, so those run first and the save sees the
+    // resulting state. The individual (dummy) types are only driven by the meta toggles, so they
+    // don't need their own connection.
+    global_search_ui.search_on_all_checkbox.toggled().connect(slots.save_view_status());
+    global_search_ui.search_on_all_common_checkbox.toggled().connect(slots.save_view_status());
+    global_search_ui.search_on_db_checkbox.toggled().connect(slots.save_view_status());
+    global_search_ui.search_on_loc_checkbox.toggled().connect(slots.save_view_status());
+    global_search_ui.search_on_text_checkbox.toggled().connect(slots.save_view_status());
+    global_search_ui.search_on_schemas_checkbox.toggled().connect(slots.save_view_status());
+    global_search_ui.search_on_atlas_checkbox.toggled().connect(slots.save_view_status());
+    global_search_ui.search_on_unit_variant_checkbox.toggled().connect(slots.save_view_status());
+    global_search_ui.search_on_portrait_settings_checkbox.toggled().connect(slots.save_view_status());
+    global_search_ui.search_on_anim_fragment_battle_checkbox.toggled().connect(slots.save_view_status());
+    global_search_ui.search_on_rigid_model_checkbox.toggled().connect(slots.save_view_status());
+    global_search_ui.search_on_unknown_checkbox.toggled().connect(slots.save_view_status());
 }

@@ -145,7 +145,9 @@ impl UI {
         global_search_ui::connections::set_connections(&global_search_ui, &global_search_slots);
         global_search_ui::tips::set_tips(&global_search_ui);
 
-        global_search_ui.search_on_all_common_checkbox().set_checked(true);
+        // Restore the persisted "search on" selection (defaults to the common set on first run).
+        // Done after connections so the All/All Common toggles drive the individual checkboxes.
+        global_search_ui.load_search_on_status();
 
         packfile_contents_ui::connections::set_connections(&pack_file_contents_ui, &pack_file_contents_slots);
         packfile_contents_ui::tips::set_tips(&pack_file_contents_ui);

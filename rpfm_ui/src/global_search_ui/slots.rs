@@ -280,6 +280,7 @@ impl GlobalSearchSlots {
                 if global_search_ui.search_source_asskit.is_checked() { value |= 4; }
 
                 let _ = settings_set_i32(GLOBAL_SEARCH_SOURCES_STATUS, value);
+                let _ = settings_set_i32(GLOBAL_SEARCH_FILES_STATUS, global_search_ui.search_on_status());
         }));
 
         // And here... we return all the slots.
