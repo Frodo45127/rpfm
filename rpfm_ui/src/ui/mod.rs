@@ -176,6 +176,7 @@ impl UI {
         }
 
         reload_theme(&app_ui);
+        global_search_ui.reload_style();
 
         // Clean up folders from previous updates while we wait for the
         // WebSocket. Filesystem-only, no IPC dependency.

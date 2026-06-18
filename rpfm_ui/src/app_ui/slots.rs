@@ -1265,16 +1265,20 @@ impl AppUISlots {
         ));
 
         let debug_reload_style_sheet = SlotNoArgs::new(&app_ui.main_window, clone!(
-            app_ui => move || {
+            app_ui,
+            global_search_ui => move || {
                 rpfm_telemetry::track_action("Reload StyleSheets");
                 reload_theme(&app_ui);
+                global_search_ui.reload_style();
             }
         ));
 
         let theme_changed = SlotNoArgs::new(&app_ui.main_window, clone!(
-            app_ui => move || {
+            app_ui,
+            global_search_ui => move || {
                 info!("System theme changed, refreshing theme-dependent widgets");
                 reload_theme(&app_ui);
+                global_search_ui.reload_style();
             }
         ));
 

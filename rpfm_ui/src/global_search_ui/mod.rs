@@ -167,6 +167,7 @@ const MATCH_HIGHLIGHT_END: i32 = 51;
 #[getset(get = "pub")]
 pub struct GlobalSearchUI {
     dock_widget: QPtr<QDockWidget>,
+    inner_widget: QPtr<QWidget>,
 
     search_line_edit: QPtr<QLineEdit>,
     search_button: QPtr<QToolButton>,
@@ -256,6 +257,11 @@ impl GlobalSearchUI {
         layout.add_widget_5a(&checkbox, row, column, row_span, column_span);
 
         Ok(checkbox)
+    }
+
+    /// Re-applies the panel's stylesheet so its `palette(...)` colours resolve against the current theme.
+    pub unsafe fn reload_style(&self) {
+        self.inner_widget.set_style_sheet(&QString::from_std_str(SEARCH_BAR_STYLE));
     }
 
     /// This function creates an entire `GlobalSearchUI` struct.
@@ -450,6 +456,7 @@ impl GlobalSearchUI {
         // Create ***Da monsta***.
         Ok(Self {
             dock_widget,
+            inner_widget,
             search_line_edit,
             search_button,
 
