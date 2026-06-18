@@ -601,7 +601,8 @@ impl TableViewSlots {
                                     &data,
                                     &view.timer_delayed_updates,
                                     view.get_data_source(),
-                                    &view.vanilla_hashed_tables.read().unwrap()
+                                    &view.vanilla_hashed_tables.read().unwrap(),
+                                    &view.reference_map
                                 );
 
                                 // Prepare the diagnostic pass.

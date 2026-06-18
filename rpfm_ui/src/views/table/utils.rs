@@ -419,18 +419,20 @@ pub unsafe fn load_data(
     data: &TableType,
     timer: &QBox<QTimer>,
     data_source: DataSource,
-    vanilla_data: &[(DB, HashMap<String, i32>)]
+    vanilla_data: &[(DB, HashMap<String, i32>)],
+    referencing_columns: &RwLock<HashMap<String, HashMap<String, Vec<String>>>>
 ) {
     let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
     let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
     let reference_data = dependency_data.read().unwrap();
+    let referencing_columns = referencing_columns.read().unwrap();
 
     // First, we delete all the data from the `ListStore`. Just in case there is something there.
     // This wipes out header information, so remember to run "build_columns" after this.
     table_model.clear();
 
     // Build the columns. We do this without data already in to ensure Qt doesn't do unnecessary stuff.
-    let resize_after_data = build_columns(table_view, definition, table_name, data);
+    let resize_after_data = build_columns(table_view, definition, table_name, data, &referencing_columns);
 
     // Set the right data, depending on the table type you get.
     let (data, is_translator) = match data {
@@ -743,6 +745,7 @@ pub unsafe fn build_columns(
     definition: &Definition,
     table_name: Option<&str>,
     table_data: &TableType,
+    referencing_columns: &HashMap<String, HashMap<String, Vec<String>>>,
 ) -> bool {
     let filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
     let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
@@ -755,9 +758,7 @@ pub unsafe fn build_columns(
 
     let patches = Some(definition.patches());
 
-    // TODO: Temp fix. This has to go and tooltips should be requested from the backend.
-    let schema = schema().ok();
-    let tooltips = get_column_tooltips(&schema, &fields_processed, loc_fields, patches, table_name);
+    let tooltips = get_column_tooltips(referencing_columns, &fields_processed, loc_fields, patches, table_name);
     let adjust_columns = settings_bool(ADJUST_COLUMNS_TO_CONTENT);
     let header = table_view.horizontal_header();
 
@@ -827,48 +828,9 @@ pub unsafe fn build_columns(
                         continue;
                     }
 
-                    match field.field_type() {
-                        FieldType::Boolean |
-                        FieldType::F32 |
-                        FieldType::F64 |
-                        FieldType::I16 |
-                        FieldType::I32 |
-                        FieldType::I64 |
-                        FieldType::OptionalI16 |
-                        FieldType::OptionalI32 |
-                        FieldType::OptionalI64 |
-                        FieldType::ColourRGB => {
-                            let mut size = model.horizontal_header_item(index as i32).text().length() * 6 + 40;
-
-                            // Fix some columns getting their title eaten by description icon.
-                            if size < 100 {
-                                size = 100;
-                            }
-
-                            table_view.set_column_width(index as i32, size as i32);
-                        }
-                        FieldType::StringU8 |
-                        FieldType::StringU16 |
-                        FieldType::OptionalStringU8 |
-                        FieldType::OptionalStringU16 => {
-                            let mut size = table.data()
-                                .par_iter()
-                                .max_by_key(|row| row[index].data_to_string().len())
-                                .map(|row| row[index].data_to_string().len() * 6)
-                                .unwrap_or(COLUMN_SIZE_STRING as usize);
-
-                            // Enlarge a bit lookup columns so they show part of the lookup.
-                            if field.lookup(patches).is_some() {
-                                size += 200;
-                            }
-
-                            // Fix some columns getting their title eaten by description icon, and some columns being extremely long.
-                            size = size.clamp(60, 800);
-
-                            table_view.set_column_width(index as i32, size as i32 + 30);
-                        }
-                        FieldType::SequenceU16(_) | FieldType::SequenceU32(_) => table_view.set_column_width(index as i32, COLUMN_SIZE_STRING),
-                    }
+                    // Let Qt size DB columns to their actual contents after the data is loaded,
+                    // the same way the "Resize Columns" action does, instead of estimating widths.
+                    resize_after_data = true;
                 }
                 TableType::Loc(ref table) => {
                     match field.field_type() {
@@ -959,7 +921,7 @@ pub unsafe fn build_columns(
 
 /// This function sets the tooltip for the provided column header, if the column should have one.
 pub unsafe fn get_column_tooltips(
-    schema: &Option<Schema>,
+    referencing_columns: &HashMap<String, HashMap<String, Vec<String>>>,
     fields: &[Field],
     loc_fields: &[Field],
     patches: Option<&DefinitionPatch>,
@@ -972,10 +934,9 @@ pub unsafe fn get_column_tooltips(
     // - If we have a description, we add it to the tooltip.
     // - If the column references another column, we add it to the tooltip.
     // - If the column is referenced by another column, we add it to the tooltip.
-    if let Some(table_name) = table_name {
-        if let Some(ref schema) = schema {
+    if table_name.is_some() {
+        {
 
-            let ref_definitions = schema.definitions();
             tooltips = fields.par_iter().map(|field| {
                 let mut tooltip_text = String::new();
                 if !field.description(patches).is_empty() {
@@ -1012,28 +973,14 @@ pub unsafe fn get_column_tooltips(
                 }
 
                 else {
-                    let mut referenced_columns = {
-                        let short_table_name = if table_name.ends_with("_tables") { table_name.split_at(table_name.len() - 7).0 } else { table_name };
-                        let mut columns = vec![];
 
-                        // We get all the db definitions from the schema, then iterate all of them to find what tables reference our own.
-                        for (ref_table_name, ref_definition) in ref_definitions.iter() {
-                            let mut found = false;
-                            for ref_version in ref_definition {
-                                let ref_patches = Some(ref_version.patches());
-                                for ref_field in ref_version.fields_processed() {
-                                    if let Some((ref_ref_table, ref_ref_field)) = ref_field.is_reference(ref_patches) {
-                                        if ref_ref_table == short_table_name && ref_ref_field == field.name() {
-                                            found = true;
-                                            columns.push((ref_table_name.to_owned(), ref_field.name().to_owned()));
-                                        }
-                                    }
-                                }
-                                if found { break; }
-                            }
-                        }
-                        columns
-                    };
+                    // The backend already computed which tables/columns reference this column
+                    // (see `Schema::referencing_columns_for_table`), so just flatten its result.
+                    let mut referenced_columns = referencing_columns.get(field.name())
+                        .map(|refs| refs.iter()
+                            .flat_map(|(ref_table, ref_fields)| ref_fields.iter().map(move |ref_field| (ref_table.to_owned(), ref_field.to_owned())))
+                            .collect::<Vec<(String, String)>>())
+                        .unwrap_or_default();
 
                     referenced_columns.sort_unstable();
                     if !referenced_columns.is_empty() {

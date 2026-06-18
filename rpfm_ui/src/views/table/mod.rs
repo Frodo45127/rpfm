@@ -932,7 +932,8 @@ impl TableView {
             &table_data,
             &packed_file_table_view.timer_delayed_updates,
             packed_file_table_view.get_data_source(),
-            &packed_file_table_view.vanilla_hashed_tables.read().unwrap()
+            &packed_file_table_view.vanilla_hashed_tables.read().unwrap(),
+            &packed_file_table_view.reference_map
         );
 
         // Before applying the profile, check the relevant sidebar checks.
@@ -1282,7 +1283,8 @@ impl TableView {
             &data,
             &self.timer_delayed_updates,
             self.get_data_source(),
-            &self.vanilla_hashed_tables.read().unwrap()
+            &self.vanilla_hashed_tables.read().unwrap(),
+            &self.reference_map
         );
 
         // Before applying the profile, check the relevant sidebar checks.
