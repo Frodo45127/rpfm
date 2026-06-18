@@ -214,6 +214,7 @@ impl UI {
     ) {
         // Load the settings cache from the server.
         load_settings_cache_from_server();
+        reload_theme(app_ui);
 
         // Now that the server has replied with telemetry settings, honour them.
         rpfm_telemetry::set_usage_telemetry_enabled(settings_bool(ENABLE_USAGE_TELEMETRY));
