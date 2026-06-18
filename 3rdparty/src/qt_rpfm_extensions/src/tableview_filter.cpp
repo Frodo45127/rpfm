@@ -193,122 +193,36 @@ bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMod
             }
 
             int column = columns.at(match);
-            bool use_regex = regex.at(match) == 1;
-            bool use_nott = nott.at(match) == 1;
-            Qt::CaseSensitivity case_sensitivity = static_cast<Qt::CaseSensitivity>(case_sensitive.at(match));
-            bool show_blank_cells_in_column = show_blank_cells.at(match) == 1;
-            bool show_edited_cells_in_column = show_edited_cells.at(match) == 1;
-            int comparison_op = cached_comparison_ops.at(match);
-            double comparison_val = cached_comparison_vals.at(match);
-            const QList<int>& variants = cached_variants.at(match);
 
-            QModelIndex currntIndex = model->index(source_row, column, source_parent);
-            if (!currntIndex.isValid()) {
-                continue;
-            }
-
-            QStandardItem *currntData = model->itemFromIndex(currntIndex);
-
-            // Only fetch role 24 when the flag that actually consults it is on.
-            if (show_edited_cells_in_column) {
-                QVariant modifiedVariant = currntData->data(24);
-                if (!modifiedVariant.isNull() && modifiedVariant.toBool()) {
+            // A match satisfies the row when its target cell matches. "Any column"
+            // (column -1) is satisfied when at least one column of the row matches.
+            bool matched;
+            if (column < 0) {
+                matched = false;
+                int col_count = model->columnCount(source_parent);
+                for (int c = 0; c < col_count; ++c) {
+                    QModelIndex idx = model->index(source_row, c, source_parent);
+                    if (idx.isValid() && evalCell(model->itemFromIndex(idx), match) == CELL_MATCH) {
+                        matched = true;
+                        break;
+                    }
+                }
+            } else {
+                QModelIndex currntIndex = model->index(source_row, column, source_parent);
+                if (!currntIndex.isValid()) {
                     continue;
                 }
+
+                CellResult result = evalCell(model->itemFromIndex(currntIndex), match);
+                if (result == CELL_SKIP) {
+                    continue;
+                }
+                matched = result == CELL_MATCH;
             }
 
-            // Checkbox matches.
-            //
-            // NOTE: isCheckable is broken if the cell is not editable.
-            if (currntData->data(Qt::CheckStateRole).isValid()) {
-                QString pattern_lower = pattern.toLower();
-                bool isChecked = currntData->checkState() == Qt::CheckState::Checked;
-
-                if (use_nott) {
-                    isChecked = !isChecked;
-                }
-
-                if (
-                    ((pattern_lower == "true" || pattern_lower == "1") && !isChecked) ||
-                    ((pattern_lower == "false" || pattern_lower == "0") && isChecked)) {
-                    is_group_valid = false;
-                    break;
-                }
-            }
-
-            // In case of text, if it's empty we let it pass the filters.
-            else if (show_blank_cells_in_column && currntData->data(2).toString().isEmpty()) {
-                continue;
-            }
-
-            // Numeric comparison (>, <, >=, <=, =, !=). The cell's source value (role 2) is
-            // numeric for number columns; a non-numeric cell never matches a comparison.
-            else if (comparison_op != CMP_NONE) {
-                bool ok = false;
-                double cell_val = currntData->data(2).toDouble(&ok);
-                bool matches = false;
-                if (ok) {
-                    switch (comparison_op) {
-                        case CMP_EQ: matches = cell_val == comparison_val; break;
-                        case CMP_NE: matches = cell_val != comparison_val; break;
-                        case CMP_GT: matches = cell_val > comparison_val; break;
-                        case CMP_GE: matches = cell_val >= comparison_val; break;
-                        case CMP_LT: matches = cell_val < comparison_val; break;
-                        case CMP_LE: matches = cell_val <= comparison_val; break;
-                    }
-                }
-
-                if (use_nott) {
-                    matches = !matches;
-                }
-
-                if (!matches) {
-                    is_group_valid = false;
-                    break;
-                }
-            }
-
-            // Text matches via the cached, pre-compiled regex.
-            else if (use_regex) {
-                const QRegularExpression& re = cached_regex.at(match);
-                if (re.isValid()) {
-                    for (int v : variants) {
-                        QRegularExpressionMatch m = re.match(currntData->data(v).toString());
-                        if (!m.hasMatch()) {
-                            is_group_valid = false;
-                            break;
-                        }
-                    }
-
-                    if (!is_group_valid) {
-                        break;
-                    }
-                }
-            }
-            else {
-                if (use_nott) {
-                    for (int v : variants) {
-                        if (currntData->data(v).toString().contains(pattern, case_sensitivity)) {
-                            is_group_valid = false;
-                            break;
-                        }
-                    }
-
-                    if (!is_group_valid) {
-                        break;
-                    }
-                } else {
-                    for (int v : variants) {
-                        if (!currntData->data(v).toString().contains(pattern, case_sensitivity)) {
-                            is_group_valid = false;
-                            break;
-                        }
-                    }
-
-                    if (!is_group_valid) {
-                        break;
-                    }
-                }
+            if (!matched) {
+                is_group_valid = false;
+                break;
             }
         }
 
@@ -318,6 +232,113 @@ bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMod
     }
 
     return false;
+}
+
+// Test a single match (predicate) against a single cell, returning whether the cell is
+// irrelevant to this match, satisfies it, or fails it. Pulled out of `filterAcceptsRow`
+// so the "Any column" path can reuse the exact same matching rules across every column.
+QTableViewSortFilterProxyModel::CellResult QTableViewSortFilterProxyModel::evalCell(QStandardItem *currntData, int match) const {
+
+    if (!currntData) {
+        return CELL_SKIP;
+    }
+
+    const QString& pattern = patterns.at(match);
+    bool use_regex = regex.at(match) == 1;
+    bool use_nott = nott.at(match) == 1;
+    Qt::CaseSensitivity case_sensitivity = static_cast<Qt::CaseSensitivity>(case_sensitive.at(match));
+    bool show_blank_cells_in_column = show_blank_cells.at(match) == 1;
+    bool show_edited_cells_in_column = show_edited_cells.at(match) == 1;
+    int comparison_op = cached_comparison_ops.at(match);
+    double comparison_val = cached_comparison_vals.at(match);
+    const QList<int>& variants = cached_variants.at(match);
+
+    // Only fetch role 24 when the flag that actually consults it is on.
+    if (show_edited_cells_in_column) {
+        QVariant modifiedVariant = currntData->data(24);
+        if (!modifiedVariant.isNull() && modifiedVariant.toBool()) {
+            return CELL_SKIP;
+        }
+    }
+
+    // Checkbox matches.
+    //
+    // NOTE: isCheckable is broken if the cell is not editable.
+    if (currntData->data(Qt::CheckStateRole).isValid()) {
+        QString pattern_lower = pattern.toLower();
+        bool isChecked = currntData->checkState() == Qt::CheckState::Checked;
+
+        if (use_nott) {
+            isChecked = !isChecked;
+        }
+
+        if (
+            ((pattern_lower == "true" || pattern_lower == "1") && !isChecked) ||
+            ((pattern_lower == "false" || pattern_lower == "0") && isChecked)) {
+            return CELL_NOMATCH;
+        }
+        return CELL_MATCH;
+    }
+
+    // In case of text, if it's empty we let it pass the filters.
+    else if (show_blank_cells_in_column && currntData->data(2).toString().isEmpty()) {
+        return CELL_SKIP;
+    }
+
+    // Numeric comparison (>, <, >=, <=, =, !=). The cell's source value (role 2) is
+    // numeric for number columns; a non-numeric cell never matches a comparison.
+    else if (comparison_op != CMP_NONE) {
+        bool ok = false;
+        double cell_val = currntData->data(2).toDouble(&ok);
+        bool matches = false;
+        if (ok) {
+            switch (comparison_op) {
+                case CMP_EQ: matches = cell_val == comparison_val; break;
+                case CMP_NE: matches = cell_val != comparison_val; break;
+                case CMP_GT: matches = cell_val > comparison_val; break;
+                case CMP_GE: matches = cell_val >= comparison_val; break;
+                case CMP_LT: matches = cell_val < comparison_val; break;
+                case CMP_LE: matches = cell_val <= comparison_val; break;
+            }
+        }
+
+        if (use_nott) {
+            matches = !matches;
+        }
+
+        return matches ? CELL_MATCH : CELL_NOMATCH;
+    }
+
+    // Text matches via the cached, pre-compiled regex.
+    else if (use_regex) {
+        const QRegularExpression& re = cached_regex.at(match);
+        if (re.isValid()) {
+            for (int v : variants) {
+                QRegularExpressionMatch m = re.match(currntData->data(v).toString());
+                if (!m.hasMatch()) {
+                    return CELL_NOMATCH;
+                }
+            }
+        }
+        return CELL_MATCH;
+    }
+    else {
+        if (use_nott) {
+            for (int v : variants) {
+                if (currntData->data(v).toString().contains(pattern, case_sensitivity)) {
+                    return CELL_NOMATCH;
+                }
+            }
+            return CELL_MATCH;
+        } else {
+            for (int v : variants) {
+                if (!currntData->data(v).toString().contains(pattern, case_sensitivity)) {
+                    return CELL_NOMATCH;
+                }
+            }
+            return CELL_MATCH;
+        }
+    }
 }
 
 // Function called when the filter changes.

@@ -56,6 +56,14 @@ protected:
 
 private:
 
+    // Outcome of testing a single match against a single cell: the cell is irrelevant
+    // and should be ignored (skip), satisfies the predicate (match), or fails it.
+    enum CellResult { CELL_SKIP, CELL_MATCH, CELL_NOMATCH };
+
+    // Evaluate match `match` against one cell. Called per-column, and once per column of
+    // the row when the match targets "Any column" (column index -1).
+    CellResult evalCell(QStandardItem *item, int match) const;
+
 signals:
 
 };

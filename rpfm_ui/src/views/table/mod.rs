@@ -1648,8 +1648,8 @@ impl TableView {
             }
 
             // Resolve column index -> table model column. A column_index of -1 means
-            // "any column"; we represent that to the proxy with -1 so it matches the
-            // existing C++ "no column scope" behavior.
+            // "any column": the C++ proxy scans every column and keeps the row if any
+            // of them matches the predicate.
             if state.column_index < 0 {
                 columns.push(-1);
             } else {
