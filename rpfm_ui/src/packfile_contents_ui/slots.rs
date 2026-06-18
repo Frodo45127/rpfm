@@ -1809,7 +1809,7 @@ impl PackFileContentsSlots {
             pack_file_contents_ui => move |_| {
                 rpfm_telemetry::track_action("Save Pack");
 
-                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first();
+                let pack_key = pack_file_contents_ui.pack_key_from_selection();
                 if let Err(error) = AppUI::save_packfile_by_key(&app_ui, &pack_file_contents_ui, pack_key, false) {
                     show_dialog(app_ui.main_window(), error, false);
                 }
@@ -1821,7 +1821,7 @@ impl PackFileContentsSlots {
             pack_file_contents_ui => move |_| {
                 rpfm_telemetry::track_action("Save Pack As");
 
-                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first();
+                let pack_key = pack_file_contents_ui.pack_key_from_selection();
                 if let Err(error) = AppUI::save_packfile_by_key(&app_ui, &pack_file_contents_ui, pack_key, true) {
                     show_dialog(app_ui.main_window(), error, false);
                 }
@@ -1834,7 +1834,7 @@ impl PackFileContentsSlots {
             global_search_ui => move |_| {
                 rpfm_telemetry::track_action("Save Pack For Release");
 
-                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first();
+                let pack_key = pack_file_contents_ui.pack_key_from_selection();
 
                 // Let the user review/adjust optimizer options before the release save.
                 // Cancel in the dialog aborts the whole Save For Release.

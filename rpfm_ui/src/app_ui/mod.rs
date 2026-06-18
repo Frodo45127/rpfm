@@ -1259,7 +1259,7 @@ impl AppUI {
 
     /// This function is used to save a specific `PackFile` to disk, identified by pack key.
     ///
-    /// If `target_pack_key` is `None`, it uses the selected/first pack.
+    /// If `target_pack_key` is `None`, it uses the pack of the dock tree's current selection.
     /// If the PackFile doesn't exist or we pass `save_as = true`,
     /// it opens a dialog asking for a path.
     pub unsafe fn save_packfile_by_key(
@@ -1273,12 +1273,26 @@ impl AppUI {
         app_ui.toggle_main_window(false);
 
         // Resolve the pack key once, up front.
-        let pack_key = match target_pack_key.or_else(|| pack_file_contents_ui.pack_key_from_selection_or_first()) {
+        let pack_key = match target_pack_key.or_else(|| pack_file_contents_ui.pack_key_from_selection()) {
             Some(key) => key,
             None => {
                 app_ui.toggle_main_window(true);
                 return Err(anyhow!("No pack is open."));
             }
+        };
+
+        // Locates the tree root node for the pack we're saving. Never blindly use item 0: that's
+        // just the first open pack, so Save As would relabel the wrong pack's node.
+        let root_item_for_pack = |key: &str| {
+            let model = pack_file_contents_ui.packfile_contents_tree_model();
+            for row in 0..model.row_count_0a() {
+                let item = model.item_1a(row);
+                let variant = item.data_1a(rpfm_ui_common::ITEM_PACK_KEY);
+                if variant.is_valid() && !variant.is_null() && variant.to_string().to_std_string() == key {
+                    return item;
+                }
+            }
+            model.item_1a(0)
         };
 
         // First, we need to save all open `PackedFiles` to the backend. If one fails, we want to know what one.
@@ -1323,7 +1337,7 @@ impl AppUI {
                 match send_ipc_command_result_async(Command::SavePackAs(pack_key.clone(), path), response_extractor!(Response::ContainerInfo)) {
                     Ok(pack_file_info) => {
                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile, &pack_key);
-                        let packfile_item = pack_file_contents_ui.packfile_contents_tree_model().item_1a(0);
+                        let packfile_item = root_item_for_pack(&pack_key);
                         packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
                         packfile_item.set_text(&QString::from_std_str(file_name));
 
@@ -1341,7 +1355,7 @@ impl AppUI {
             match send_ipc_command_result_async(Command::SavePack(pack_key.clone()), response_extractor!(Response::ContainerInfo)) {
                 Ok(pack_file_info) => {
                     pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile, &pack_key);
-                    let packfile_item = pack_file_contents_ui.packfile_contents_tree_model().item_1a(0);
+                    let packfile_item = root_item_for_pack(&pack_key);
                     packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
                     UI_STATE.set_is_modified(false, app_ui, pack_file_contents_ui);
                 }
@@ -3495,7 +3509,7 @@ impl AppUI {
             GlobalSearchUI::clear(global_search_ui);
 
             let pack_key = target_pack_key
-                .or_else(|| pack_file_contents_ui.pack_key_from_selection_or_first())
+                .or_else(|| pack_file_contents_ui.pack_key_from_selection())
                 .unwrap_or_default();
             let options = optimizer_options();
             let (response_1, response_2) = send_ipc_command_result_async(Command::OptimizePackFile(pack_key.clone(), options), response_extractor!(Response::HashSetStringHashSetString, v1, v2))?;
