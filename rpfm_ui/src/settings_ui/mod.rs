@@ -32,6 +32,7 @@ use qt_core::QByteArray;
 use qt_core::QEasingCurve;
 use qt_core::q_easing_curve;
 use qt_core::QFlags;
+use qt_core::QLocale;
 use qt_core::QObject;
 use qt_core::QPoint;
 use qt_core::QPropertyAnimation;
@@ -65,7 +66,7 @@ use rpfm_ui_common::utils::create_grid_layout;
 use crate::app_ui::AppUI;
 use crate::ffi::*;
 use crate::SUPPORTED_GAMES;
-use crate::settings_ui::backend::{config_path, custom_config_path, set_custom_config_path, settings_get_all, settings_set_bool, settings_set_i32, settings_set_string};
+use crate::settings_ui::backend::{backup_autosave_path, config_path, custom_config_path, set_custom_config_path, settings_get_all, settings_set_bool, settings_set_i32, settings_set_string};
 use crate::updater_ui::{BETA, STABLE, update_channel, UpdateChannel};
 use crate::utils::{tr, qtr, qtre};
 
@@ -169,6 +170,7 @@ pub struct SettingsUI {
     //-------------------------------------------------------------------------------//
     debug_clear_dependencies_cache_folder_button: QBox<QPushButton>,
     debug_clear_autosave_folder_button: QBox<QPushButton>,
+    debug_clear_autosave_folder_size_label: QBox<QLabel>,
     debug_clear_schema_folder_button: QBox<QPushButton>,
     debug_clear_layout_settings_button: QBox<QPushButton>,
     debug_add_rpfm_to_runcher_tools_button: QBox<QPushButton>,
@@ -471,7 +473,7 @@ impl SettingsUI {
 
         // Buttons: text goes in a label (col 0), button gets a short action label (col 1).
         let debug_clear_dependencies_cache_folder_button = new_setting_button(&debug_vbox, &debug_frame, "settings_debug_clear_dependencies_cache_folder", "tt_settings_debug_clear_dependencies_cache_folder", "settings_action_clear");
-        let debug_clear_autosave_folder_button = new_setting_button(&debug_vbox, &debug_frame, "settings_debug_clear_autosave_folder", "tt_settings_debug_clear_autosave_folder", "settings_action_clear");
+        let (debug_clear_autosave_folder_button, debug_clear_autosave_folder_size_label) = new_setting_button_with_value(&debug_vbox, &debug_frame, "settings_debug_clear_autosave_folder", "tt_settings_debug_clear_autosave_folder", "settings_action_clear");
         let debug_clear_schema_folder_button = new_setting_button(&debug_vbox, &debug_frame, "settings_debug_clear_schema_folder", "tt_settings_debug_clear_schema_folder", "settings_action_clear");
         let debug_clear_layout_settings_button = new_setting_button(&debug_vbox, &debug_frame, "settings_debug_clear_layout_settings", "tt_settings_debug_clear_layout_settings", "settings_action_clear");
         let debug_add_rpfm_to_runcher_tools_button = new_setting_button(&debug_vbox, &debug_frame, "settings_add_rpfm_to_runcher_tools", "tt_settings_add_rpfm_to_runcher_tools_tip", "settings_action_add");
@@ -762,6 +764,7 @@ impl SettingsUI {
             //-------------------------------------------------------------------------------//
             debug_clear_dependencies_cache_folder_button,
             debug_clear_autosave_folder_button,
+            debug_clear_autosave_folder_size_label,
             debug_clear_schema_folder_button,
             debug_clear_layout_settings_button,
             debug_add_rpfm_to_runcher_tools_button,
@@ -857,6 +860,9 @@ impl SettingsUI {
         // Load spinboxes.
         self.extra_packfile_autosave_amount_spinbox.set_value(get_int(AUTOSAVE_AMOUNT));
         self.extra_packfile_autosave_interval_spinbox.set_value(get_int(AUTOSAVE_INTERVAL));
+
+        // Show the current autosave folder size beside its "Clear" button.
+        self.debug_clear_autosave_folder_size_label.set_text(&QString::from_std_str(autosave_folder_size_text()));
 
         // Load all checkboxes from their backend keys.
         for (key, checkbox) in &self.checkboxes {
@@ -1190,6 +1196,38 @@ unsafe fn new_setting_button(
     let button = QPushButton::from_q_string_q_widget(&qtr(button_key), container);
     setting_row!(vbox, container, label, button);
     button
+}
+
+/// Like [`new_setting_button`], but with a read-only value (e.g. a folder size) shown right
+/// before the button. Returns `(button, value_label)`; set the value via `value_label.set_text`.
+unsafe fn new_setting_button_with_value(
+    vbox: &QBox<QVBoxLayout>,
+    container: &QBox<QWidget>,
+    label_key: &str,
+    tip_key: &str,
+    button_key: &str,
+) -> (QBox<QPushButton>, QBox<QLabel>) {
+    let label = new_setting_label(container, label_key, tip_key);
+    let value_label = QLabel::from_q_string_q_widget(&QString::from_std_str(""), container);
+    let button = QPushButton::from_q_string_q_widget(&qtr(button_key), container);
+
+    let pair = QWidget::new_1a(container);
+    let lay = create_grid_layout(pair.static_upcast());
+    lay.set_contents_margins_4a(0, 0, 0, 0);
+    lay.set_spacing(8);
+    lay.add_widget_5a(&value_label, 0, 0, 1, 1);
+    lay.add_widget_5a(&button, 0, 1, 1, 1);
+    setting_row!(vbox, container, label, pair);
+
+    (button, value_label)
+}
+
+/// Returns the current autosave folder size as a localized human-readable string (empty on error).
+pub(crate) fn autosave_folder_size_text() -> String {
+    backup_autosave_path().ok()
+        .and_then(|path| fs_extra::dir::get_size(path).ok())
+        .map(|bytes| unsafe { QLocale::system().formatted_data_size_1a(bytes as i64).to_std_string() })
+        .unwrap_or_default()
 }
 
 /// Creates a path row inside a QGridLayout at a specific row: label + line edit + "..." button.

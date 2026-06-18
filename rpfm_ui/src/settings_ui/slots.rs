@@ -205,7 +205,10 @@ impl SettingsUISlots {
             rpfm_telemetry::track_action("Settings: Clear Autosaves");
             match backup_autosave_path() {
                 Ok(path) => match settings_clear_path(&path) {
-                    Ok(_) => show_dialog(&ui.dialog, tr("autosaves_cleared"), true),
+                    Ok(_) => {
+                        ui.debug_clear_autosave_folder_size_label.set_text(&QString::from_std_str(super::autosave_folder_size_text()));
+                        show_dialog(&ui.dialog, tr("autosaves_cleared"), true);
+                    }
                     Err(error) => show_dialog(&ui.dialog, error, false),
                 }
                 Err(error) => show_dialog(&ui.dialog, error, false)
