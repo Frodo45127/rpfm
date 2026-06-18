@@ -1198,7 +1198,10 @@ impl AppUI {
         // Rebuild parent packs in the dependencies so they reflect the newly opened pack.
         Self::rebuild_parent_packs(app_ui, pack_file_contents_ui, dependencies_ui);
 
-        if additive {
+        // Opening a pack isn't an edit, so don't flag the session as modified for it. The only
+        // exception is adding a pack *alongside* already-open ones, which changes the open set;
+        // opening the first pack (nothing was open before) is a plain open and stays pristine.
+        if additive && !open_packs.is_empty() {
             UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
         } else {
             UI_STATE.set_is_modified(false, app_ui, pack_file_contents_ui);
