@@ -1515,6 +1515,12 @@ impl TableView {
             return;
         }
 
+        // Don't trigger this when we're on the key deletes table.
+        if view.table_name().as_ref().is_some_and(|x| x == KEY_DELETES_TABLE_NAME) {
+            view.context_menu_add_to_twad_key_deletes_m.clear();
+            return;
+        }
+
         let paths = match send_ipc_command_result(Command::GetTablesByTableName(pack_key, KEY_DELETES_TABLE_NAME.to_owned()), response_extractor!(Response::VecString)) {
             Ok(paths) => paths,
             Err(_) => return,
