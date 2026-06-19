@@ -376,6 +376,23 @@ pub fn new_command_palette_safe(parent: &Ptr<QWidget>) -> QBox<QWidget> {
     unsafe { QBox::from_raw(new_command_palette(parent.as_mut_raw_ptr())) }
 }
 
+// A QWidget that emits `resized(int width)` on every geometry change. Used to make the
+// filter bar reflow its chips when it gets too narrow.
+extern "C" { fn new_responsive_widget(parent: *mut QWidget) -> *mut QWidget; }
+pub fn new_responsive_widget_safe(parent: &Ptr<QWidget>) -> QBox<QWidget> {
+    unsafe { QBox::from_raw(new_responsive_widget(parent.as_mut_raw_ptr())) }
+}
+
+// Signal emitted by a `ResponsiveWidget` when resized. The argument is the new width.
+pub fn responsive_widget_resized_signal(widget: QPtr<QObject>) -> Signal<(i32,)> {
+    unsafe {
+        Signal::new(
+            ::cpp_core::Ref::from_raw(widget.as_raw_ptr()).expect("attempted to construct a null Ref"),
+            c"2resized(int)",
+        )
+    }
+}
+
 extern "C" { fn command_palette_show(palette: *mut QWidget); }
 pub unsafe fn command_palette_show_safe(palette: &QPtr<QWidget>) {
     command_palette_show(palette.as_mut_raw_ptr())

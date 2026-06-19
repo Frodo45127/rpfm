@@ -266,18 +266,22 @@ QTableViewSortFilterProxyModel::CellResult QTableViewSortFilterProxyModel::evalC
     // NOTE: isCheckable is broken if the cell is not editable.
     if (currntData->data(Qt::CheckStateRole).isValid()) {
         QString pattern_lower = pattern.toLower();
+        bool wants_checked = pattern_lower == "true" || pattern_lower == "1";
+        bool wants_unchecked = pattern_lower == "false" || pattern_lower == "0";
+
+        // A checkbox holds a boolean, not text: only a boolean pattern can match it. Any other
+        // pattern is treated as "not contained" (so it never matches under an Any-column scan,
+        // and a negated search still keeps the row).
+        if (!wants_checked && !wants_unchecked) {
+            return use_nott ? CELL_MATCH : CELL_NOMATCH;
+        }
+
         bool isChecked = currntData->checkState() == Qt::CheckState::Checked;
-
+        bool matches = wants_checked ? isChecked : !isChecked;
         if (use_nott) {
-            isChecked = !isChecked;
+            matches = !matches;
         }
-
-        if (
-            ((pattern_lower == "true" || pattern_lower == "1") && !isChecked) ||
-            ((pattern_lower == "false" || pattern_lower == "0") && isChecked)) {
-            return CELL_NOMATCH;
-        }
-        return CELL_MATCH;
+        return matches ? CELL_MATCH : CELL_NOMATCH;
     }
 
     // In case of text, if it's empty we let it pass the filters.

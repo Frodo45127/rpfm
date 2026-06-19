@@ -52,6 +52,7 @@ SOURCES += \
     src/combobox_item_delegate.cpp \
     src/qt_long_long_spinbox.cpp \
     src/resizable_label.cpp \
+    src/responsive_widget.cpp \
     src/spinbox_item_delegate.cpp \
     src/doublespinbox_item_delegate.cpp \
     src/eliding_check_box.cpp \
@@ -97,6 +98,7 @@ HEADERS += \
     include/search_match_item_delegate.h \
     include/packed_file_model.h \
     include/resizable_label.h \
+    include/responsive_widget.h \
     include/q_main_window_custom.h \
     include/spoiler.h \
     include/kcolor_combo.h \

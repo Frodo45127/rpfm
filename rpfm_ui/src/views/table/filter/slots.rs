@@ -16,6 +16,7 @@
 
 use qt_core::QBox;
 use qt_core::SlotNoArgs;
+use qt_core::SlotOfInt;
 use qt_core::SlotOfQString;
 
 use qt_gui::SlotOfQAction;
@@ -42,6 +43,7 @@ pub struct FilterBarSlots {
     pub add_button_clicked: QBox<SlotNoArgs>,
     pub columns_button_clicked: QBox<SlotNoArgs>,
     pub help_button_clicked: QBox<SlotNoArgs>,
+    pub bar_resized: QBox<SlotOfInt>,
 }
 
 /// Per-chip slots; owned by the chip so they're released alongside the chip widget.
@@ -154,6 +156,15 @@ impl FilterBarSlots {
             }
         ));
 
+        // The container reports its width on every resize; reflow the chips inline vs. stacked
+        // based on how many chips currently need room.
+        let bar_resized = SlotOfInt::new(bar.root(), clone!(
+            bar,
+            view => move |width| {
+                bar.apply_responsive_layout(width, view.filter_chips().len() as i32);
+            }
+        ));
+
         Self {
             input_text_changed,
             input_returned,
@@ -161,6 +172,7 @@ impl FilterBarSlots {
             add_button_clicked,
             columns_button_clicked,
             help_button_clicked,
+            bar_resized,
         }
     }
 }

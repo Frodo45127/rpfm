@@ -1086,6 +1086,9 @@ impl TableView {
                 bar.chips_container().layout().remove_widget(chip.main_widget().as_ptr());
                 chip.main_widget().hide();
             }
+
+            // No chips left, so fold the (now empty) chips area back inline.
+            bar.apply_responsive_layout(bar.root().width(), 0);
         }
     }
 
