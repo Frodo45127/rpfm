@@ -570,6 +570,14 @@ impl Dependencies {
         // Trick: before doing this, we modify the definition to include any lookup from any reference,
         // so we are actually able to catch recursive-like lookups without reading multiple tables.
         let mut definition = definition.clone();
+
+        // `Definition::patches` is `#[serde(skip)]`, so a definition that came across the IPC
+        // boundary arrives with empty patches. Repopulate them from the schema's patch set or
+        // every patch-defined lookup (incl. `lookup_hardcoded`, e.g. the names tables) is lost.
+        if let Some(table_patches) = schema.patches_for_table(local_table_name) {
+            definition.set_patches(table_patches.clone());
+        }
+
         self.add_recursive_lookups_to_definition(schema, &mut definition, local_table_name);
 
         let patches = Some(definition.patches());
@@ -1598,6 +1606,14 @@ impl Dependencies {
         // Trick: before doing this, we modify the definition to include any lookup from any reference,
         // so we are actually able to catch recursive-like lookups without reading multiple tables.
         let mut definition = definition.clone();
+
+        // `Definition::patches` is `#[serde(skip)]`, so a definition that came across the IPC
+        // boundary arrives with empty patches. Repopulate them from the schema's patch set or
+        // every patch-defined lookup (incl. `lookup_hardcoded`, e.g. the names tables) is lost.
+        if let Some(table_patches) = schema.patches_for_table(table_name) {
+            definition.set_patches(table_patches.clone());
+        }
+
         self.add_recursive_lookups_to_definition(schema, &mut definition, table_name);
 
         let patches = Some(definition.patches());
