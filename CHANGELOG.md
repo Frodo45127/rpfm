@@ -6,6 +6,27 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [5.0.3]
+### Added
+- Added optional toolbar for table views.
+- Added size counter of autosave folder to settings.
+- Added single pack mode.
+- Added `Add from Pack`.
+
+### Changed
+- Redesigned table views to mainly reduce space used for filters.
+- Redesigned global search panel to improve readability of results.
+
+### Fixed
+- Fixed a couple of issues in the CEO Build and CEO Builder features, by [@Ironic](https://github.com/Ironictw2st).
+- Fixed incorrect description for autosave setting.
+- Fixed global search panel not remembering the last source/file type selected.
+- Fixed db tooltips not working correctly.
+- Fixed packs being marked as modified when they're just opened.
+- Fixed packs not being renamed correctly when using `Save As...`.
+- Attempt at fixing crashes when filtering in twad_keys_deletes_tables.
+- Fixed missing lookups on tables.
+
 ## [5.0.2]
 ### Added
 - Added temporal `Clean UI` setting to hide the new welcome page. This setting may be removed in a future version.
@@ -1895,7 +1916,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v5.0.2...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v5.0.3...HEAD
+[5.0.3]: https://github.com/Frodo45127/rpfm/compare/v5.0.2...v5.0.3
 [5.0.2]: https://github.com/Frodo45127/rpfm/compare/v5.0.1...v5.0.2
 [5.0.1]: https://github.com/Frodo45127/rpfm/compare/v5.0.0...v5.0.1
 [5.0.0]: https://github.com/Frodo45127/rpfm/compare/v4.7.4...v5.0.0
