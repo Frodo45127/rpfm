@@ -18,6 +18,7 @@ If you're looking for the changes included in the latest beta (against the lates
 - Redesigned global search panel to improve readability of results.
 
 ### Fixed
+- Fixed a couple of issues in the CEO Build and CEO Builder features, by [@Ironic](https://github.com/Ironictw2st).
 - Fixed incorrect description for autosave setting.
 - Fixed global search panel not remembering the last source/file type selected.
 - Fixed db tooltips not working correctly.
