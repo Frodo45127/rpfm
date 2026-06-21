@@ -3,6 +3,8 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPalette>
+#include <QStyle>
+#include <QStyleOptionHeader>
 
 namespace {
     // Size of the funnel glyph, in header pixels.
@@ -10,6 +12,10 @@ namespace {
 
     // Sections narrower than this get no funnel, so it never collides with the label.
     const int MIN_SECTION = FUNNEL_SIZE + 28;
+
+    // Width reserved on the right for the funnel, so the label and the sort indicator drawn by
+    // the base class land to its left instead of underneath it. A few px past the glyph give a gap.
+    const int FUNNEL_RESERVE = FUNNEL_SIZE + 4;
 }
 
 QFilterHeaderView::QFilterHeaderView(Qt::Orientation orientation, QWidget *parent)
@@ -49,14 +55,29 @@ int QFilterHeaderView::sectionAtFunnel(const QPoint &pos) const {
 
 void QFilterHeaderView::paintSection(QPainter *painter, const QRect &rect, int logicalIndex) const {
 
-    // Let the base class draw the label, background and sort indicator first.
-    painter->save();
-    QHeaderView::paintSection(painter, rect, logicalIndex);
-    painter->restore();
+    const bool showFunnel = rect.width() >= MIN_SECTION && !isSectionHidden(logicalIndex);
 
-    if (rect.width() < MIN_SECTION || isSectionHidden(logicalIndex)) {
+    // Without a funnel there's nothing to clear, so let the base class paint the full section.
+    if (!showFunnel) {
+        painter->save();
+        QHeaderView::paintSection(painter, rect, logicalIndex);
+        painter->restore();
         return;
     }
+
+    // Paint the themed section background across the full width first, then let the base draw the
+    // label and sort indicator into a rect narrowed on the right. That keeps the background under
+    // the funnel intact while shifting the sort indicator left so it no longer overlaps the glyph.
+    painter->save();
+    QStyleOptionHeader opt;
+    initStyleOptionForIndex(&opt, logicalIndex);
+    opt.rect = rect;
+    style()->drawControl(QStyle::CE_HeaderSection, &opt, painter, this);
+    painter->restore();
+
+    painter->save();
+    QHeaderView::paintSection(painter, rect.adjusted(0, 0, -FUNNEL_RESERVE, 0), logicalIndex);
+    painter->restore();
 
     QRect iconRect = funnelRect(rect);
 
