@@ -383,6 +383,13 @@ pub fn new_responsive_widget_safe(parent: &Ptr<QWidget>) -> QBox<QWidget> {
     unsafe { QBox::from_raw(new_responsive_widget(parent.as_mut_raw_ptr())) }
 }
 
+// A QLayout that arranges its items left-to-right and wraps onto a new line when they no
+// longer fit. Installs itself on `parent`, so `parent.layout()` returns it afterwards.
+extern "C" { fn new_flow_layout(parent: *mut QWidget) -> *mut QLayout; }
+pub fn new_flow_layout_safe(parent: &Ptr<QWidget>) -> QPtr<QLayout> {
+    unsafe { QPtr::from_raw(new_flow_layout(parent.as_mut_raw_ptr())) }
+}
+
 // Signal emitted by a `ResponsiveWidget` when resized. The argument is the new width.
 pub fn responsive_widget_resized_signal(widget: QPtr<QObject>) -> Signal<(i32,)> {
     unsafe {

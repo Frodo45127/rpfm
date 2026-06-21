@@ -57,6 +57,7 @@ SOURCES += \
     src/doublespinbox_item_delegate.cpp \
     src/eliding_check_box.cpp \
     src/filter_header_view.cpp \
+    src/flow_layout.cpp \
     src/spoiler.cpp \
     src/tableview_command_palette.cpp \
     src/tableview_filter.cpp \
@@ -89,6 +90,7 @@ HEADERS += \
     include/doublespinbox_item_delegate.h \
     include/eliding_check_box.h \
     include/filter_header_view.h \
+    include/flow_layout.h \
     include/text_editor.h \
     include/tips_item_delegate.h \
     include/tree_item_delegate.h \

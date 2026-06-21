@@ -18,7 +18,6 @@
 
 use qt_widgets::QHBoxLayout;
 use qt_widgets::QLineEdit;
-use qt_widgets::QScrollArea;
 use qt_widgets::QToolButton;
 use qt_widgets::QVBoxLayout;
 use qt_widgets::QWidget;
@@ -36,7 +35,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use rpfm_ipc::settings_keys::*;
 use rpfm_ui_common::utils::{find_widget, load_template};
 
-use crate::ffi::new_responsive_widget_safe;
+use crate::ffi::{new_flow_layout_safe, new_responsive_widget_safe};
 use crate::settings_ui::backend::settings_bool;
 use crate::utils::qtr;
 use crate::views::table::clean_column_names;
@@ -89,8 +88,9 @@ pub struct FilterBar {
 
     columns_button: QPtr<QToolButton>,
     flagged_rows_button: QPtr<QToolButton>,
-    #[getset(skip)]
-    _chips_scroll: QPtr<QScrollArea>,
+
+    /// Holds the chips in a wrapping `FlowLayout`; moved whole between the controls row
+    /// (inline) and its own full-width row (stacked) by `apply_responsive_layout`.
     chips_container: QPtr<QWidget>,
     input_line_edit: QPtr<QLineEdit>,
     add_button: QPtr<QToolButton>,
@@ -145,8 +145,13 @@ impl FilterBar {
 
         let columns_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "columns_button")?;
         let flagged_rows_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "flagged_rows_button")?;
-        let chips_scroll: QPtr<QScrollArea> = find_widget(&main_widget.static_upcast(), "chips_scroll")?;
         let chips_container: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "chips_container")?;
+
+        // A wrapping flow layout lets chips move onto a new line instead of overflowing to the
+        // right, so the filter section never needs (and never gets) a horizontal scrollbar.
+        let chips_layout = new_flow_layout_safe(&chips_container.as_ptr());
+        chips_layout.set_contents_margins_4a(0, 0, 0, 0);
+        chips_layout.set_spacing(4);
         let input_line_edit: QPtr<QLineEdit> = find_widget(&main_widget.static_upcast(), "input_line_edit")?;
         let add_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "add_button")?;
         let help_button: QPtr<QToolButton> = find_widget(&main_widget.static_upcast(), "help_button")?;
@@ -187,7 +192,6 @@ impl FilterBar {
             main_widget,
             columns_button,
             flagged_rows_button,
-            _chips_scroll: chips_scroll,
             chips_container,
             input_line_edit,
             add_button,
@@ -215,13 +219,12 @@ impl FilterBar {
     pub unsafe fn add_chip(&self, view: &Arc<TableView>, state: FilterChipState) -> Result<Arc<Chip>> {
         let chip = Arc::new(Chip::new(&self.main_widget, &self.column_names, &self.logical_indices, &state)?);
 
-        // Insert the chip's widget at the end of the chips layout, before any trailing stretch.
+        // Append the chip to the flow layout; it wraps onto a new line if the row is full.
         let layout = self.chips_container.layout();
         if layout.is_null() {
-            return Err(anyhow!("chips_container has no layout; .ui template is malformed"));
+            return Err(anyhow!("chips_container has no layout; flow layout was not installed"));
         }
-        let hlayout: QPtr<QHBoxLayout> = layout.static_downcast();
-        hlayout.add_widget(chip.main_widget());
+        layout.add_widget(chip.main_widget());
 
         connections::set_connections_chip(&chip, &self.main_widget, view);
 
@@ -266,10 +269,10 @@ impl FilterBar {
 
     /// Reflow the chips depending on the bar's available `width` and how many chips there are.
     ///
-    /// The chips share the controls row only while their full content fits beside the controls
-    /// (with the input shrunk to its minimum); otherwise they move to their own full-width row
-    /// so the filter section never needs a horizontal scrollbar. Hysteresis around the threshold
-    /// avoids thrashing on small resizes.
+    /// The chips share the controls row only while they all fit on a single line beside the
+    /// controls (with the input shrunk to its minimum); otherwise they move to their own
+    /// full-width row, where the flow layout wraps them onto as many lines as needed. Hysteresis
+    /// around the threshold avoids thrashing on small resizes.
     pub unsafe fn apply_responsive_layout(&self, width: i32, chip_count: i32) {
         let stacked = self.chips_stacked.load(Ordering::Relaxed);
 
@@ -277,15 +280,14 @@ impl FilterBar {
             false
         } else {
             // Width the non-chip controls need, with the input at its minimum, plus the chips'
-            // real content width. If that doesn't fit, the chips would otherwise scroll.
-            self.chips_container.layout().activate();
+            // single-line width. If that doesn't fit, the chips move to their own row to wrap.
             let controls = self.columns_button.size_hint().width()
                 + self.flagged_rows_button.size_hint().width()
                 + self.input_line_edit.minimum_width()
                 + self.add_button.size_hint().width()
                 + self.help_button.size_hint().width()
                 + self.row_counter_label.size_hint().width();
-            let threshold = controls + self.chips_container.size_hint().width() + CHIPS_FIT_SLACK;
+            let threshold = controls + self.chips_single_line_width() + CHIPS_FIT_SLACK;
 
             if stacked {
                 width < threshold + STACK_WIDTH_HYSTERESIS
@@ -298,25 +300,38 @@ impl FilterBar {
             return;
         }
 
-        let chips_widget = self._chips_scroll.static_upcast::<QWidget>();
         let bar_layout: QPtr<QHBoxLayout> = self.main_widget.layout().static_downcast();
         let outer_layout: QPtr<QVBoxLayout> = self.root.layout().static_downcast();
 
         if should_stack {
-            bar_layout.remove_widget(chips_widget.as_ptr());
-            outer_layout.add_widget(chips_widget.as_ptr());
-
-            // On its own row the scroll area gets spare vertical space and (being
-            // widgetResizable) stretches its content to fill it, making the chips grow
-            // taller. Pin it to a single chip-row height so they keep their normal size.
-            self._chips_scroll.set_maximum_height(self.chips_container.size_hint().height());
+            bar_layout.remove_widget(self.chips_container.as_ptr());
+            outer_layout.add_widget(self.chips_container.as_ptr());
         } else {
-            self._chips_scroll.set_maximum_height(16777215);
-            outer_layout.remove_widget(chips_widget.as_ptr());
-            bar_layout.insert_widget_2a(CHIPS_INLINE_INDEX, chips_widget.as_ptr());
+            outer_layout.remove_widget(self.chips_container.as_ptr());
+            bar_layout.insert_widget_2a(CHIPS_INLINE_INDEX, self.chips_container.as_ptr());
         }
 
         self.chips_stacked.store(should_stack, Ordering::Relaxed);
+    }
+
+    /// Total width the chips would occupy laid out on a single line (sum of each chip's
+    /// preferred width plus the inter-chip spacing). Used to decide whether they still fit
+    /// inline; the flow layout's own `sizeHint` only reports the widest single chip.
+    unsafe fn chips_single_line_width(&self) -> i32 {
+        let layout = self.chips_container.layout();
+        layout.activate();
+        let count = layout.count();
+        let mut width = 0;
+        for index in 0..count {
+            let item = layout.item_at(index);
+            if !item.is_null() {
+                width += item.size_hint().width();
+            }
+        }
+        if count > 1 {
+            width += layout.spacing() * (count - 1);
+        }
+        width
     }
 
     /// Parse the text in the input line edit into a `FilterChipState`. Always succeeds

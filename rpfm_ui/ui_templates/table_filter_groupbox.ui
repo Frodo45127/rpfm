@@ -44,26 +44,13 @@
     </widget>
    </item>
    <item>
-    <widget class="QScrollArea" name="chips_scroll">
-     <property name="widgetResizable"><bool>true</bool></property>
-     <property name="frameShape"><enum>QFrame::NoFrame</enum></property>
-     <property name="horizontalScrollBarPolicy"><enum>Qt::ScrollBarAsNeeded</enum></property>
-     <property name="verticalScrollBarPolicy"><enum>Qt::ScrollBarAlwaysOff</enum></property>
+    <widget class="QWidget" name="chips_container">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
        <horstretch>1</horstretch>
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
-     <widget class="QWidget" name="chips_container">
-      <layout class="QHBoxLayout" name="chips_layout">
-       <property name="leftMargin"><number>0</number></property>
-       <property name="topMargin"><number>0</number></property>
-       <property name="rightMargin"><number>0</number></property>
-       <property name="bottomMargin"><number>0</number></property>
-       <property name="spacing"><number>4</number></property>
-      </layout>
-     </widget>
     </widget>
    </item>
    <item>
@@ -105,5 +92,3 @@
  <resources/>
  <connections/>
 </ui>
-</content>
-</invoke>
