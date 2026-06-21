@@ -267,8 +267,13 @@ impl PackTranslation {
         translations.translations_mut().par_iter_mut().for_each(|(tr_key, tr)| {
             if !tr.removed {
 
+                // Fix incorrectly translated lines.
+                if !tr.value_original().trim().is_empty() && tr.value_translated().trim().is_empty() && !tr.needs_retranslation() {
+                    tr.needs_retranslation = true;
+                }
+
                 // Mark empty lines as translated.
-                if tr.value_original().trim().is_empty() && tr.value_translated().trim().is_empty() {
+                else if tr.value_original().trim().is_empty() && tr.value_translated().trim().is_empty() {
                     tr.value_translated = tr.value_original.to_owned();
                     tr.needs_retranslation = false;
                 }
@@ -278,10 +283,10 @@ impl PackTranslation {
                 // NOTE: This is really a patch for packs not using optimizing pass, because the optimizer actually removes these entries.
                 else if let Some(vanilla_data) = base_english.get(tr_key) {
                     if tr.value_original() == vanilla_data {
-                        if let Some(vanilla_data) = base_local_fixes.get(tr_key) {
+                        if let Some(vanilla_data) = base_local_fixes.get(tr_key).filter(|v| !v.trim().is_empty()) {
                             tr.value_translated = vanilla_data.to_owned();
                             tr.needs_retranslation = false;
-                        } else if let Some(vanilla_data) = base_local_tr.get(tr_key) {
+                        } else if let Some(vanilla_data) = base_local_tr.get(tr_key).filter(|v| !v.trim().is_empty()) {
                             tr.value_translated = vanilla_data.to_owned();
                             tr.needs_retranslation = false;
                         }
@@ -293,15 +298,15 @@ impl PackTranslation {
                 // Note that this is prone to give wrong translations as it doesn't have any context, so we only do it for lines that are not yet translated.
                 else if tr.value_translated().trim().is_empty() || *tr.needs_retranslation() {
                     if let Some((key, _)) = base_english.iter().find(|(_, value)| *value == tr.value_original()) {
-                        if let Some(value_tr) = base_local_fixes.get(key) {
+                        if let Some(value_tr) = base_local_fixes.get(key).filter(|v| !v.trim().is_empty()) {
                             tr.value_translated = value_tr.to_owned();
                             tr.needs_retranslation = false;
-                        } else if let Some(value_tr) = base_local_tr.get(key) {
+                        } else if let Some(value_tr) = base_local_tr.get(key).filter(|v| !v.trim().is_empty()) {
                             tr.value_translated = value_tr.to_owned();
                             tr.needs_retranslation = false;
                         }
                     } else if let Some((_, value_tr)) = tr_copy.iter()
-                        .find(|(_, tr_copy)| *tr_copy.value_original() == *tr.value_original() && !*tr_copy.needs_retranslation() && *tr.needs_retranslation()) {
+                        .find(|(_, tr_copy)| *tr_copy.value_original() == *tr.value_original() && !*tr_copy.needs_retranslation() && *tr.needs_retranslation() && !tr_copy.value_translated().trim().is_empty()) {
                         tr.value_translated = value_tr.value_translated().to_owned();
                         tr.needs_retranslation = false;
                     }
