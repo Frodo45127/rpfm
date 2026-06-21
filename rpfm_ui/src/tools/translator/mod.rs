@@ -26,6 +26,7 @@ use qt_core::QItemSelection;
 use qt_core::q_item_selection_model::SelectionFlag;
 use qt_core::QModelIndex;
 use qt_core::QPtr;
+use qt_core::QSignalBlocker;
 use qt_core::QString;
 
 use cpp_core::CppBox;
@@ -990,6 +991,10 @@ impl ToolTranslator {
             let mut locs = pack.files_by_type(&[FileType::Loc]);
 
             let merged_loc = PackTranslation::sort_and_merge_locs_for_translation(&mut locs)?;
+
+            // Block signals to avoid slow per-line updates.
+            let _blocker = QSignalBlocker::from_q_object(self.table().table_model());
+
             for data in merged_loc.data().iter() {
                 let key = data[0].data_to_string();
                 let value = data[1].data_to_string();
