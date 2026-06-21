@@ -1341,6 +1341,10 @@ impl AppUI {
                         packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
                         packfile_item.set_text(&QString::from_std_str(file_name));
 
+                        // The pack's display name changed; refresh the open tabs' titles so their
+                        // pack-name prefixes reflect the new name without needing a reopen.
+                        app_ui.update_views_names();
+
                         // Register the new path in the recent file list.
                         Self::add_path_to_recent_files(&recent_path);
 
@@ -3549,6 +3553,12 @@ impl AppUI {
         let mut names = HashMap::new();
         let open_packedfiles = UI_STATE.get_open_packedfiles();
 
+        // Resolve each pack's current display name from the backend, keyed by its (stable) pack key.
+        let pack_name_by_key: HashMap<String, String> = send_ipc_command(Command::ListOpenPacks, response_extractor!(Response::VecStringContainerInfo))
+            .into_iter()
+            .map(|(key, info)| (key, info.file_name().to_owned()))
+            .collect();
+
         // Collect distinct pack keys among PackFile-sourced open tabs. When more than one pack
         // contributes a tab the user can't tell tabs apart by filename alone, so we prefix the
         // pack file name (e.g. `pack_a.pack: my_table`) to disambiguate them.
@@ -3601,10 +3611,13 @@ impl AppUI {
                 if show_pack_prefix && file_view.data_source() == DataSource::PackFile {
                     let pack_key = file_view.pack_key_copy();
                     if !pack_key.is_empty() {
-                        let pack_name = std::path::Path::new(&pack_key)
-                            .file_name()
-                            .map(|n| n.to_string_lossy().to_string())
-                            .unwrap_or(pack_key);
+                        // Prefer the pack's live display name; fall back to the key's file name.
+                        let pack_name = pack_name_by_key.get(&pack_key).cloned().unwrap_or_else(||
+                            std::path::Path::new(&pack_key)
+                                .file_name()
+                                .map(|n| n.to_string_lossy().to_string())
+                                .unwrap_or_else(|| pack_key.clone())
+                        );
                         name.push_str(&pack_name);
                         name.push_str(": ");
                     }
