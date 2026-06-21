@@ -16,6 +16,9 @@ QFilterHeaderView::QFilterHeaderView(Qt::Orientation orientation, QWidget *paren
     : QHeaderView(orientation, parent), hoveredSection(-1) {
     funnelIcon = QIcon::fromTheme("view-filter");
 
+    // Set the header clickable so it can be sorted.
+    setSectionsClickable(true);
+
     // Mouse tracking lets us repaint the hover tint without a button held down.
     setMouseTracking(true);
 }
