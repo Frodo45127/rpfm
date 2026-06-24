@@ -977,7 +977,6 @@ impl TableViewSlots {
                 if let Some(bar) = view.filter_bar_arc() {
                     let state = FilterChipState {
                         column_index: logical_index,
-                        regex: true,
                         ..FilterChipState::default()
                     };
                     if bar.add_chip(&view, state, true).is_ok() {

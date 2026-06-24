@@ -112,7 +112,7 @@ impl FilterBarSlots {
                 rpfm_telemetry::track_action("Table Filter: Add Chip");
                 let raw = bar.input_line_edit().text().to_std_string();
                 let state = if raw.trim().is_empty() {
-                    FilterChipState { regex: true, ..FilterChipState::default() }
+                    FilterChipState::default()
                 } else {
                     bar.parse_input(&raw)
                 };

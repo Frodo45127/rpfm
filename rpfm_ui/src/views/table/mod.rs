@@ -368,7 +368,7 @@ pub struct TableViewProfile {
 }
 
 /// Serializable form of a single filter chip, used to restore chip-bar state from a profile.
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FilterChipState {
     pub column_index: i32,
     pub pattern: String,
@@ -4145,6 +4145,22 @@ impl Clone for TableOperations {
                     ).collect()
                 )).collect()),
             _ => unimplemented!()
+        }
+    }
+}
+
+impl Default for FilterChipState {
+    fn default() -> Self {
+        Self {
+            column_index: -1,
+            pattern: String::new(),
+            not: false,
+            regex: true,
+            case_sensitive: false,
+            show_blank: true,
+            show_edited: false,
+            variant: 0,
+            group: 0,
         }
     }
 }

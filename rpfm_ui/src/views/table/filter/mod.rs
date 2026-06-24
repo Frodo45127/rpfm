@@ -357,17 +357,7 @@ impl FilterBar {
 /// `column_names` and `logical_indices` are parallel slices; entry `i` in `logical_indices`
 /// is the logical model column index for the display name at `column_names[i]`.
 fn parse_predicate(raw: &str, column_names: &[String], logical_indices: &[i32]) -> FilterChipState {
-    let mut state = FilterChipState {
-        column_index: -1,
-        pattern: String::new(),
-        not: false,
-        regex: true,           // matches the legacy default of "regex on"
-        case_sensitive: false,
-        show_blank: false,
-        show_edited: false,
-        variant: 0,
-        group: 0,
-    };
+    let mut state = FilterChipState::default();
 
     let trimmed = raw.trim();
     if trimmed.is_empty() {
