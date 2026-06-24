@@ -141,7 +141,7 @@ impl FilterBar {
         let row_counter_label: QPtr<qt_widgets::QLabel> = find_widget(&main_widget.static_upcast(), "row_counter_label")?;
 
         input_line_edit.set_placeholder_text(&qtr("filter_bar_placeholder"));
-        input_line_edit.set_clear_button_enabled(true);
+        //input_line_edit.set_clear_button_enabled(true);
         add_button.set_tool_tip(&qtr("filter_bar_add_chip"));
         columns_button.set_tool_tip(&qtr("columns_popover_open"));
         help_button.set_tool_tip(&qtr("filter_bar_help"));
