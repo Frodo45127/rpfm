@@ -226,6 +226,10 @@ impl FilterBar {
         }
 
         layout.add_widget(chip.main_widget());
+        chip.main_widget().show();
+        layout.invalidate();
+        self.chips_container.update_geometry();
+
         connections::set_connections_chip(&chip, &self.main_widget, view);
 
         if focus {
@@ -253,8 +257,11 @@ impl FilterBar {
         let pos = chips.iter().position(|c| c.main_widget().as_ptr().as_raw_ptr() == target);
         if let Some(pos) = pos {
             let removed = chips.remove(pos);
-            self.chips_container.layout().remove_widget(removed.main_widget().as_ptr());
+            let layout = self.chips_container.layout();
+            layout.remove_widget(removed.main_widget().as_ptr());
             removed.main_widget().hide();
+            layout.invalidate();
+            self.chips_container.update_geometry();
 
             // One fewer chip lowers the width the bar needs; fold back inline if it now fits.
             let count = chips.len() as i32;
