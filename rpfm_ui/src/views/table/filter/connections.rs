@@ -16,7 +16,6 @@ use std::sync::Arc;
 
 use qt_widgets::QWidget;
 
-use crate::ffi::responsive_widget_resized_signal;
 
 use super::FilterBar;
 use super::TableView;
@@ -31,7 +30,6 @@ pub unsafe fn set_connections_filter_bar(bar: &Arc<FilterBar>, slots: &FilterBar
     bar.add_button().released().connect(&slots.add_button_clicked);
     bar.columns_button().released().connect(&slots.columns_button_clicked);
     bar.help_button().released().connect(&slots.help_button_clicked);
-    responsive_widget_resized_signal(bar.root().static_upcast()).connect(&slots.bar_resized);
 }
 
 /// Wire one chip's widgets and stash its slot bundle on the view so the slots survive.

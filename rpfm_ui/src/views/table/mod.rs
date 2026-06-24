@@ -1087,8 +1087,8 @@ impl TableView {
                 chip.main_widget().hide();
             }
 
-            // No chips left, so fold the (now empty) chips area back inline.
-            bar.apply_responsive_layout(bar.root().width(), 0);
+            // No chips left, so hide the chips area.
+            bar.apply_responsive_layout(0);
         }
     }
 
