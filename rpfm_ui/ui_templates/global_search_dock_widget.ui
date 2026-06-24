@@ -38,7 +38,7 @@
       <property name="checkable">
        <bool>false</bool>
       </property>
-      <layout class="QGridLayout" name="gridLayout_3" columnstretch="0,1">
+      <layout class="QGridLayout" name="gridLayout_3" columnstretch="0">
        <property name="leftMargin">
         <number>2</number>
        </property>
@@ -79,93 +79,167 @@
      </widget>
     </item>
     <item row="0" column="0" colspan="2">
-     <widget class="QWidget" name="search_groupbox">
-      <layout class="QGridLayout" name="gridLayout_2">
-       <property name="leftMargin"><number>2</number></property>
-       <property name="topMargin"><number>1</number></property>
-       <property name="rightMargin"><number>2</number></property>
-       <property name="bottomMargin"><number>1</number></property>
-       <property name="horizontalSpacing"><number>4</number></property>
-       <property name="verticalSpacing"><number>3</number></property>
-
-       <item row="0" column="0">
-        <widget class="KLineEdit" name="search_line_edit">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-           <horstretch>1</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="clearButtonEnabled"><bool>true</bool></property>
-         <property name="trapEnterKeyEvent" stdset="0"><bool>true</bool></property>
-        </widget>
-       </item>
-       <item row="0" column="1">
-        <widget class="QToolButton" name="case_sensitive_search_button">
-         <property name="text"><string notr="true">Aa</string></property>
-         <property name="checkable"><bool>true</bool></property>
-         <property name="autoRaise"><bool>true</bool></property>
-        </widget>
-       </item>
-       <item row="0" column="2">
-        <widget class="QToolButton" name="regex_button">
-         <property name="text"><string notr="true">.*</string></property>
-         <property name="checkable"><bool>true</bool></property>
-         <property name="autoRaise"><bool>true</bool></property>
-        </widget>
-       </item>
-       <item row="0" column="3" rowspan="2">
-        <widget class="Line" name="sep_search_options">
-         <property name="orientation"><enum>Qt::Vertical</enum></property>
-        </widget>
-       </item>
-       <item row="0" column="4">
-        <widget class="QToolButton" name="search_button">
-         <property name="text"><string/></property>
-         <property name="icon"><iconset theme="search"/></property>
-         <property name="iconSize"><size><width>16</width><height>16</height></size></property>
-         <property name="autoRaise"><bool>true</bool></property>
-        </widget>
-       </item>
-       <item row="0" column="5">
-        <widget class="QToolButton" name="clear_button">
-         <property name="text"><string/></property>
-         <property name="icon"><iconset theme="edit-clear-all"/></property>
-         <property name="iconSize"><size><width>16</width><height>16</height></size></property>
-         <property name="autoRaise"><bool>true</bool></property>
-        </widget>
-       </item>
-
-       <item row="1" column="0">
-        <widget class="KLineEdit" name="replace_line_edit">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-           <horstretch>1</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="clearButtonEnabled"><bool>true</bool></property>
-         <property name="trapEnterKeyEvent" stdset="0"><bool>true</bool></property>
-        </widget>
-       </item>
-       <item row="1" column="4">
-        <widget class="QToolButton" name="replace_button">
-         <property name="text"><string/></property>
-         <property name="icon"><iconset theme="edit-find-replace"/></property>
-         <property name="iconSize"><size><width>16</width><height>16</height></size></property>
-         <property name="autoRaise"><bool>true</bool></property>
-        </widget>
-       </item>
-       <item row="1" column="5">
-        <widget class="QToolButton" name="replace_all_button">
-         <property name="text"><string/></property>
-         <property name="icon"><iconset theme="document-replace"/></property>
-         <property name="iconSize"><size><width>16</width><height>16</height></size></property>
-         <property name="autoRaise"><bool>true</bool></property>
-        </widget>
-       </item>
-      </layout>
-     </widget>
+     <layout class="QGridLayout" name="gridLayout_2">
+      <property name="leftMargin">
+       <number>2</number>
+      </property>
+      <property name="topMargin">
+       <number>1</number>
+      </property>
+      <property name="rightMargin">
+       <number>2</number>
+      </property>
+      <property name="bottomMargin">
+       <number>1</number>
+      </property>
+      <property name="horizontalSpacing">
+       <number>4</number>
+      </property>
+      <property name="verticalSpacing">
+       <number>3</number>
+      </property>
+      <item row="0" column="0">
+       <widget class="KLineEdit" name="search_line_edit">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+          <horstretch>1</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="clearButtonEnabled">
+         <bool>true</bool>
+        </property>
+        <property name="trapEnterKeyEvent" stdset="0">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="2">
+       <widget class="QToolButton" name="regex_button">
+        <property name="text">
+         <string notr="true">.*</string>
+        </property>
+        <property name="checkable">
+         <bool>true</bool>
+        </property>
+        <property name="autoRaise">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="3" rowspan="2">
+       <widget class="Line" name="sep_search_options">
+        <property name="orientation">
+         <enum>Qt::Orientation::Vertical</enum>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="4">
+       <widget class="QToolButton" name="search_button">
+        <property name="text">
+         <string/>
+        </property>
+        <property name="icon">
+         <iconset theme="search"/>
+        </property>
+        <property name="iconSize">
+         <size>
+          <width>16</width>
+          <height>16</height>
+         </size>
+        </property>
+        <property name="autoRaise">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="5">
+       <widget class="QToolButton" name="clear_button">
+        <property name="text">
+         <string/>
+        </property>
+        <property name="icon">
+         <iconset theme="edit-clear-all"/>
+        </property>
+        <property name="iconSize">
+         <size>
+          <width>16</width>
+          <height>16</height>
+         </size>
+        </property>
+        <property name="autoRaise">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="KLineEdit" name="replace_line_edit">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+          <horstretch>1</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="clearButtonEnabled">
+         <bool>true</bool>
+        </property>
+        <property name="trapEnterKeyEvent" stdset="0">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="4">
+       <widget class="QToolButton" name="replace_button">
+        <property name="text">
+         <string/>
+        </property>
+        <property name="icon">
+         <iconset theme="edit-find-replace"/>
+        </property>
+        <property name="iconSize">
+         <size>
+          <width>16</width>
+          <height>16</height>
+         </size>
+        </property>
+        <property name="autoRaise">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="5">
+       <widget class="QToolButton" name="replace_all_button">
+        <property name="text">
+         <string/>
+        </property>
+        <property name="icon">
+         <iconset theme="document-replace"/>
+        </property>
+        <property name="iconSize">
+         <size>
+          <width>16</width>
+          <height>16</height>
+         </size>
+        </property>
+        <property name="autoRaise">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="2">
+       <widget class="QToolButton" name="case_sensitive_search_button">
+        <property name="text">
+         <string notr="true">Aa</string>
+        </property>
+        <property name="checkable">
+         <bool>true</bool>
+        </property>
+        <property name="autoRaise">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
     </item>
     <item row="1" column="0" colspan="2">
      <widget class="QGroupBox" name="search_on_groupbox">
@@ -311,10 +385,10 @@
     <item row="3" column="0" colspan="2">
      <widget class="QTabWidget" name="results_tab_widget">
       <property name="tabPosition">
-       <enum>QTabWidget::North</enum>
+       <enum>QTabWidget::TabPosition::North</enum>
       </property>
       <property name="tabShape">
-       <enum>QTabWidget::Rounded</enum>
+       <enum>QTabWidget::TabShape::Rounded</enum>
       </property>
       <property name="currentIndex">
        <number>0</number>
@@ -347,9 +421,15 @@
         </property>
         <item row="1" column="1">
          <widget class="QToolButton" name="table_and_text_filter_case_sensitive_button">
-          <property name="text"><string notr="true">Aa</string></property>
-          <property name="checkable"><bool>true</bool></property>
-          <property name="autoRaise"><bool>true</bool></property>
+          <property name="text">
+           <string notr="true">Aa</string>
+          </property>
+          <property name="checkable">
+           <bool>true</bool>
+          </property>
+          <property name="autoRaise">
+           <bool>true</bool>
+          </property>
          </widget>
         </item>
         <item row="1" column="0">
@@ -360,7 +440,9 @@
             <verstretch>0</verstretch>
            </sizepolicy>
           </property>
-          <property name="clearButtonEnabled" stdset="0"><bool>true</bool></property>
+          <property name="clearButtonEnabled">
+           <bool>true</bool>
+          </property>
          </widget>
         </item>
         <item row="1" column="2">
@@ -376,16 +458,16 @@
         <item row="0" column="0" colspan="3">
          <widget class="QTreeView" name="table_and_text_tree_view">
           <property name="contextMenuPolicy">
-           <enum>Qt::CustomContextMenu</enum>
+           <enum>Qt::ContextMenuPolicy::CustomContextMenu</enum>
           </property>
           <property name="alternatingRowColors">
            <bool>true</bool>
           </property>
           <property name="selectionMode">
-           <enum>QAbstractItemView::ExtendedSelection</enum>
+           <enum>QAbstractItemView::SelectionMode::ExtendedSelection</enum>
           </property>
           <property name="selectionBehavior">
-           <enum>QAbstractItemView::SelectItems</enum>
+           <enum>QAbstractItemView::SelectionBehavior::SelectItems</enum>
           </property>
           <property name="uniformRowHeights">
            <bool>true</bool>
@@ -432,16 +514,16 @@
         <item row="0" column="0" colspan="3">
          <widget class="QTreeView" name="schema_tree_view">
           <property name="contextMenuPolicy">
-           <enum>Qt::CustomContextMenu</enum>
+           <enum>Qt::ContextMenuPolicy::CustomContextMenu</enum>
           </property>
           <property name="alternatingRowColors">
            <bool>true</bool>
           </property>
           <property name="selectionMode">
-           <enum>QAbstractItemView::ExtendedSelection</enum>
+           <enum>QAbstractItemView::SelectionMode::ExtendedSelection</enum>
           </property>
           <property name="selectionBehavior">
-           <enum>QAbstractItemView::SelectItems</enum>
+           <enum>QAbstractItemView::SelectionBehavior::SelectItems</enum>
           </property>
           <property name="uniformRowHeights">
            <bool>true</bool>
@@ -471,14 +553,22 @@
             <verstretch>0</verstretch>
            </sizepolicy>
           </property>
-          <property name="clearButtonEnabled" stdset="0"><bool>true</bool></property>
+          <property name="clearButtonEnabled">
+           <bool>true</bool>
+          </property>
          </widget>
         </item>
         <item row="1" column="1">
          <widget class="QToolButton" name="schema_filter_case_sensitive_button">
-          <property name="text"><string notr="true">Aa</string></property>
-          <property name="checkable"><bool>true</bool></property>
-          <property name="autoRaise"><bool>true</bool></property>
+          <property name="text">
+           <string notr="true">Aa</string>
+          </property>
+          <property name="checkable">
+           <bool>true</bool>
+          </property>
+          <property name="autoRaise">
+           <bool>true</bool>
+          </property>
          </widget>
         </item>
         <item row="1" column="2">
