@@ -1021,7 +1021,7 @@ impl TableView {
         self.clone().clear_filter_chips();
         if let Some(bar) = self.filter_bar_arc() {
             for state in chips_to_apply {
-                let _ = bar.add_chip(&self, state);
+                let _ = bar.add_chip(&self, state, false);
             }
         }
         self.filter_table();

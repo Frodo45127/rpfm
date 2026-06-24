@@ -403,7 +403,7 @@ impl ToolTranslator {
                 regex: false,
                 ..FilterChipState::default()
             };
-            let _ = bar.add_chip(&table, state);
+            let _ = bar.add_chip(&table, state, false);
             table.filter_table();
         }
         let key_label: QPtr<QLabel> = tool.find_widget("key_label")?;

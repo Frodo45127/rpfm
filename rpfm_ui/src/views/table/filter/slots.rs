@@ -78,7 +78,7 @@ impl FilterBarSlots {
                 let raw = bar.input_line_edit().text().to_std_string();
                 if raw.trim().is_empty() { return; }
                 let state = bar.parse_input(&raw);
-                match bar.add_chip(&view, state) {
+                match bar.add_chip(&view, state, false) {
                     Ok(_) => {
                         bar.input_line_edit().clear();
                         view.filter_table();
@@ -116,7 +116,7 @@ impl FilterBarSlots {
                 } else {
                     bar.parse_input(&raw)
                 };
-                match bar.add_chip(&view, state) {
+                match bar.add_chip(&view, state, false) {
                     Ok(_) => {
                         bar.input_line_edit().clear();
                         view.filter_table();

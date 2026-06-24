@@ -980,8 +980,7 @@ impl TableViewSlots {
                         regex: true,
                         ..FilterChipState::default()
                     };
-                    if let Ok(chip) = bar.add_chip(&view, state) {
-                        chip.value_edit().set_focus_0a();
+                    if bar.add_chip(&view, state, true).is_ok() {
                         view.filter_table();
                     }
                 }

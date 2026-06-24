@@ -216,7 +216,7 @@ impl FilterBar {
     ///
     /// The new chip on success. Triggers no filter pass on its own — the caller (a slot)
     /// will call `view.filter_table()` once it has installed the chip.
-    pub unsafe fn add_chip(&self, view: &Arc<TableView>, state: FilterChipState) -> Result<Arc<Chip>> {
+    pub unsafe fn add_chip(&self, view: &Arc<TableView>, state: FilterChipState, focus: bool) -> Result<()> {
         let chip = Arc::new(Chip::new(&self.main_widget, &self.column_names, &self.logical_indices, &state)?);
 
         // Append the chip to the flow layout; it wraps onto a new line if the row is full.
@@ -224,15 +224,19 @@ impl FilterBar {
         if layout.is_null() {
             return Err(anyhow!("chips_container has no layout; flow layout was not installed"));
         }
-        layout.add_widget(chip.main_widget());
 
+        layout.add_widget(chip.main_widget());
         connections::set_connections_chip(&chip, &self.main_widget, view);
 
-        view.filter_chips_mut().push(chip.clone());
+        if focus {
+            chip.value_edit().set_focus_0a();
+        }
+
+        view.filter_chips_mut().push(chip);
 
         // One more chip raises the width the bar needs; restack if it no longer fits.
         self.apply_responsive_layout(self.root.width(), view.filter_chips().len() as i32);
-        Ok(chip)
+        Ok(())
     }
 
     /// Remove the chip whose widget pointer matches `chip`, returning whether anything
