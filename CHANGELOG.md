@@ -6,6 +6,19 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [5.0.4]
+### Changed
+- Improved widget arrangement in Global Search panel.
+- Improved widget arrangement in table filters.
+- Improved ram usage when searching on large text files.
+
+### Fixed
+- Fixed translator marking certain empty lines as translated.
+- Fixed extremely slow behavior when importing translations in the translator.
+- Fixed sorting not working on tables.
+- Fixed multiple issues with the new filter system.
+- Fixed more instances of pack names not changing after using Save As on them.
+
 ## [5.0.3]
 ### Added
 - Added optional toolbar for table views.
@@ -1916,7 +1929,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v5.0.3...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v5.0.4...HEAD
+[5.0.4]: https://github.com/Frodo45127/rpfm/compare/v5.0.3...v5.0.4
 [5.0.3]: https://github.com/Frodo45127/rpfm/compare/v5.0.2...v5.0.3
 [5.0.2]: https://github.com/Frodo45127/rpfm/compare/v5.0.1...v5.0.2
 [5.0.1]: https://github.com/Frodo45127/rpfm/compare/v5.0.0...v5.0.1
