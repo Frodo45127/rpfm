@@ -1799,7 +1799,8 @@ impl GlobalSearchUI {
                         let start = Self::new_item();
                         let end = Self::new_item();
 
-                        Self::set_match_text(&text, match_row.text(), *match_row.start(), *match_row.end());
+                        let matched_text = &match_text.matches_strings()[*match_row.text_index()];
+                        Self::set_match_text(&text, matched_text, *match_row.start(), *match_row.end());
                         row.set_data_2a(&QVariant::from_ulonglong(match_row.row() + 1), 2);
                         start.set_data_2a(&QVariant::from_uint(*match_row.start() as u32), 2);
                         end.set_data_2a(&QVariant::from_uint(*match_row.end() as u32), 2);
@@ -2409,7 +2410,7 @@ impl GlobalSearchUI {
                                 }
                             };
 
-                            let match_entry = TextMatch::new(row_number as u64, start, end, text);
+                            let match_entry = TextMatch::new(row_number as u64, start, end, 0);
 
                             if !match_file.matches_mut().contains(&match_entry) {
                                 match_file.matches_mut().push(match_entry);
@@ -2725,7 +2726,7 @@ impl GlobalSearchUI {
                                 let text = item.child_2a(row, 0).text().to_std_string();
                                 let start = item.child_2a(row, 4).text().to_std_string().parse::<usize>().unwrap();
                                 let end = item.child_2a(row, 5).text().to_std_string().parse::<usize>().unwrap();
-                                let match_entry = TextMatch::new(row_number as u64, start, end, text);
+                                let match_entry = TextMatch::new(row_number as u64, start, end, 0);
                                 match_file.matches_mut().push(match_entry);
                             }
                         }
@@ -3029,7 +3030,7 @@ impl GlobalSearchUI {
 
         // Amount of context kept before the match, and the cap on the context kept after it.
         const LEFT_CONTEXT: usize = 40;
-        const RIGHT_CONTEXT_MAX: usize = 1000;
+        const RIGHT_CONTEXT_MAX: usize = 500;
 
         let (prefix, window_start) = if start > LEFT_CONTEXT {
             ("...", closest_valid_char_byte(text, start - LEFT_CONTEXT))

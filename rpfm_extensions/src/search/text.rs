@@ -44,6 +44,9 @@ pub struct TextMatches {
 
     /// The list of matches within the file.
     matches: Vec<TextMatch>,
+
+    /// List of matched strings, so they can be shared between matches to reduce ram usage.
+    matches_strings: Vec<String>,
 }
 
 /// This struct represents a match on a piece of text within a Text PackedFile.
@@ -60,8 +63,8 @@ pub struct TextMatch {
     /// Byte where the match ends.
     end: usize,
 
-    /// Line of text containing the match.
-    text: String,
+    /// Index of the line of text containing the match.
+    text_index: usize,
 }
 
 //-------------------------------------------------------------------------------//
@@ -75,6 +78,8 @@ impl Searchable for Text {
         let mut matches = TextMatches::new(file_path);
 
         for (row, data) in self.contents().lines().enumerate() {
+            let mut added = false;
+
             match matching_mode {
                 MatchingMode::Regex(regex) => {
                     for match_data in regex.find_iter(data) {
@@ -83,9 +88,18 @@ impl Searchable for Text {
                                 row as u64,
                                 match_data.start(),
                                 match_data.end(),
-                                data.to_owned()
+                                if !added {
+                                    matches.matches_strings.len()
+                                } else {
+                                    matches.matches_strings.len() - 1
+                                },
                             )
                         );
+
+                        if !added {
+                            matches.matches_strings.push(data.to_owned());
+                            added = true;
+                        }
                     }
                 }
 
@@ -97,9 +111,18 @@ impl Searchable for Text {
                                 row as u64,
                                 *start,
                                 *end,
-                                data.to_owned()
+                                if !added {
+                                    matches.matches_strings.len()
+                                } else {
+                                    matches.matches_strings.len() - 1
+                                },
                             )
                         );
+
+                        if !added {
+                            matches.matches_strings.push(data.to_owned());
+                            added = true;
+                        }
                     }
                 }
             }
@@ -131,6 +154,7 @@ impl TextMatches {
         Self {
             path: path.to_owned(),
             matches: vec![],
+            matches_strings: vec![],
             source: SearchSource::default(),
             container_name: String::new(),
         }
@@ -140,12 +164,12 @@ impl TextMatches {
 impl TextMatch {
 
     /// This function creates a new `TextMatch` with the provided data.
-    pub fn new(row: u64, start: usize, end: usize, text: String) -> Self {
+    pub fn new(row: u64, start: usize, end: usize, text_index: usize) -> Self {
         Self {
             row,
             start,
             end,
-            text,
+            text_index,
         }
     }
 
