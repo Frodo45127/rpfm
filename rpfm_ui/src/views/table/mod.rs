@@ -3289,9 +3289,11 @@ impl TableView {
         // Re-sort and re-filter the table, as it's not automatically done.
         self.table_filter.set_dynamic_sort_filter(false);
         self.table_filter.set_dynamic_sort_filter(true);
-
         self.table_filter.invalidate();
-        self.filter_table();
+
+        if let Some(bar) = self.filter_bar_arc() {
+            bar.timer_input_debounce().start_1a(0);
+        }
 
         self.table_view.viewport().repaint();
         update_frozen_view_geometry_safe(&self.table_view_ptr());
