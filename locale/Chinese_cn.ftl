@@ -1743,3 +1743,262 @@ rigid_model_editor_texture_list_title = 纹理列表
 rigid_model_editor_export_to_gltf = 导出为 GLTF
 extract_gltf = 导出 GLTF 文件
 settings_use_debug_view_unit_variant = 为单位变体 (Unit Variants) 使用调试视图:
+
+### Table Search
+
+table_search_search_placeholder = 搜索…
+table_search_replace_placeholder = 替换为…
+table_search_all_columns = 所有列
+table_search_case_sensitive = 区分大小写
+table_search_regex = 使用正则表达式
+table_search_search = 搜索
+table_search_prev_match = 上一个匹配
+table_search_next_match = 下一个匹配
+table_search_replace = 替换
+table_search_replace_all = 全部替换
+table_search_close = 关闭搜索
+table_search_no_matches = 未找到匹配项。
+table_search_matches_filter = 当前筛选中 {"{"}{"}"} 个（共 {"{"}{"}"} 个）
+table_search_matches_position = 当前筛选中第 {"{"}{"}"}/{"{"}{"}"} 个（共 {"{"}{"}"} 个）
+
+### Filter Bar
+
+filter_bar_placeholder = 输入过滤条件并按 Enter（例如 列名:值）
+filter_bar_add_chip = 将输入内容添加为新的过滤芯片
+filter_bar_settings = 过滤器设置
+filter_bar_help = 过滤语法帮助
+filter_help_title = 过滤语法
+filter_help_body = <p>在输入框中输入过滤条件，然后按 <b>Enter</b>（或 <b>+</b> 按钮）将其转换为可移除的过滤芯片。</p>
+    <p>语法规则（值之后的所有内容都是可选的）：</p>
+    <pre>[!] [列名:]值 [/i] [/r] [/s] [/n] [/source|/lookup|/both] [@组号]</pre>
+    <p><b>示例</b></p>
+    <ul>
+    <li><code>ork</code> — 匹配任意列中包含 "ork" 的文本（不区分大小写的正则表达式）</li>
+    <li><code>faction:ork</code> — 仅在 "Faction" 列中匹配</li>
+    <li><code>!faction:ork</code> — 排除 Faction 列中包含 "ork" 的行</li>
+    <li><code>cost:^1\d+$ /s</code> — 在 Cost 列中使用区分大小写的正则表达式</li>
+    <li><code>name:foo /n</code> — 精确匹配文本 "foo"，不使用正则表达式</li>
+    <li><code>name:dwarf /lookup</code> — 匹配查找解析后的值，而非原始值</li>
+    <li><code>faction:ork @1</code> — 将此芯片分配到第 1 组</li>
+    <li><code>cost:&gt;100</code> — 数值比较：Cost 大于 100</li>
+    <li><code>cost:&lt;=50</code> — 数值比较：Cost 小于或等于 50</li>
+    </ul>
+    <p><b>数值比较</b>：在数字列上，值可以以 <code>&gt;</code>、<code>&lt;</code>、<code>&gt;=</code>、<code>&lt;=</code>、<code>=</code> 或 <code>!=</code> 开头，后跟数字（例如 <code>&gt;1</code>、<code>=5</code>、<code>!=0</code>）。芯片将仅保留满足比较条件的行。</p>
+    <p><b>分组</b>：相同 <code>@N</code> 的芯片以 AND 组合；不同分组以 OR 组合。默认分组为 0。</p>
+    <p>您也可以在创建芯片后通过点击其<b>齿轮</b>按钮来微调芯片的各项设置。</p>
+filter_chip_remove = 移除此过滤
+filter_chip_options = 过滤选项
+filter_chip_not = 取反 (NOT)
+filter_chip_regex = 使用正则表达式
+filter_chip_case_sensitive = 区分大小写
+filter_chip_show_blank = 仅空白单元格
+filter_chip_show_edited = 仅已编辑单元格
+filter_chip_variant_source = 匹配源值
+filter_chip_variant_lookup = 匹配查找值
+filter_chip_variant_both = 匹配两者
+filter_chip_group_label = 分组
+filter_chip_column_any = 任意列
+filter_group_and = 与 (AND)
+filter_group_or = 或 (OR)
+filter_by_this_column = 按此列过滤…
+
+### Column Management
+
+column_header_filter = 按此列过滤
+column_header_hide = 隐藏列
+column_header_freeze = 冻结列
+columns_popover_title = 列管理
+columns_popover_search = 搜索列…
+columns_popover_hide = 隐藏
+columns_popover_freeze = 冻结
+columns_popover_show_all = 显示全部
+columns_popover_hide_all = 隐藏全部
+columns_popover_open = 管理列
+columns_popover_move_up = 上移列
+columns_popover_move_down = 下移列
+
+### Welcome Page
+
+welcome_quick_actions = <b>快速操作</b>
+welcome_recent_files = <b>最近文件</b>
+welcome_no_recent_files = 暂无最近文件
+welcome_new_pack = 新建 Pack
+welcome_open_pack = 打开 Pack
+welcome_new_mymod = 新建 MyMod
+welcome_settings = 设置
+welcome_manual = 使用手册
+welcome_send_feedback = 发送反馈
+welcome_command_palette_tip = 提示：按 Ctrl+Shift+P 打开命令面板，或按 Ctrl+P 快速跳转到文件。
+welcome_server_status_connected = 服务器：已连接，会话：#{"{"}{"}"}
+welcome_server_status_disconnected = 服务器：未连接
+
+### Settings - New UI
+
+settings_search_placeholder = 搜索设置…
+settings_action_clear = 清除
+settings_action_add = 添加
+settings_hint_restart = * 需重启程序后完全生效。
+settings_hint_game_switch = ** 需切换所选游戏后完全生效。
+settings_theme = 主题
+settings_theme_os = 跟随系统
+settings_theme_light = 浅色主题
+settings_theme_dark = 深色主题
+settings_telemetry_title = 遥测设置
+settings_enable_usage_telemetry = 启用在用情况遥测
+settings_enable_crash_reports = 启用崩溃报告
+settings_clean_ui = 简洁 UI 模式
+settings_single_pack_mode = 单 Pack 模式
+settings_paths_config = 配置文件夹*
+settings_paths_config_ph = RPFM 配置数据的自定义文件夹。留空则使用默认系统配置文件夹。已有数据不会自动迁移。
+tt_settings_clean_ui_tip = 勾选此项以隐藏 UI 中的非必要部分。
+tt_settings_single_pack_mode_tip = 勾选此项以同时只保持一个 Pack 打开。打开新 Pack 时会先关闭已打开的 Pack。
+
+### Settings - Colours
+
+settings_colour_added = 已添加行标记颜色（浅色/深色主题）：
+settings_colour_modified = 已修改行标记颜色（浅色/深色主题）：
+settings_colour_error = 错误单元格标记颜色（浅色/深色主题）：
+settings_colour_warning = 警告单元格标记颜色（浅色/深色主题）：
+settings_colour_info = 信息单元格标记颜色（浅色/深色主题）：
+tt_settings_colour_added = 用于高亮表格中新添加行的背景色。左侧按钮为浅色主题，右侧为深色主题。
+tt_settings_colour_modified = 用于高亮表格中已修改行的背景色。左侧按钮为浅色主题，右侧为深色主题。
+tt_settings_colour_error = 用于高亮诊断错误单元格的背景色。左侧按钮为浅色主题，右侧为深色主题。
+tt_settings_colour_warning = 用于高亮诊断警告单元格的背景色。左侧按钮为浅色主题，右侧为深色主题。
+tt_settings_colour_info = 用于高亮诊断信息单元格的背景色。左侧按钮为浅色主题，右侧为深色主题。
+
+### Settings - Tips
+
+tt_settings_ui_language_tip = 选择 RPFM 界面的显示语言。
+tt_settings_theme_tip = 选择 UI 主题。"跟随系统" 将跟随您系统的浅色/深色设置；"浅色"/"深色" 则强制使用对应方案。
+tt_settings_default_game_tip = 选择 RPFM 启动时默认使用的全面战争游戏。
+tt_settings_update_channel_tip = 在稳定版（推荐）和测试版更新通道之间选择。
+tt_settings_autosave_interval_tip = 打开 PackFile 的自动保存间隔时间（分钟）。设为 0 禁用。
+tt_settings_check_lua_autogen_updates_on_start_tip = 启用后，RPFM 将在启动时检查 Lua 自动生成数据更新，用于辅助 lua 脚本开发。
+tt_settings_check_old_ak_updates_on_start_tip = 启用后，RPFM 将在启动时检查旧版 Assembly Kit 更新，用于改善帝国和拿破仑的错误检查与引用解析。
+tt_settings_table_resize_on_edit_tip = 启用后，编辑单元格时列宽将自动调整。
+tt_settings_tables_use_old_column_order_tip = 启用后，DB 数据表的键列将默认置于表首。
+tt_settings_tables_use_old_column_order_for_tsv_tip = 启用后，导出的 TSV 文件将把键列置于文件开头。
+tt_settings_enable_lookups_tip = 启用后，表格中的引用列将在键旁边显示查找值（通常是该键对应的 Loc 文本或相关值）。
+tt_settings_enable_icons_tip = 启用后，指向图像/图标的单元格中将显示图标预览。
+tt_settings_enable_diff_markers_tip = 启用后，与原版/父文件值不同的单元格将被视觉标记。
+tt_settings_enable_debug_menu_tip = 在菜单栏中启用调试菜单，提供高级故障排除选项。
+tt_settings_enable_renderer_tip = 启用实验性 3D 模型渲染器，用于预览 RigidModel 文件。
+tt_settings_add_rpfm_to_runcher_tools_tip = 在 Runcher 配置中将 RPFM 注册为外部工具。
+
+### Settings - Extra Descriptions
+
+settings_game_paths_description = 设置每款全面战争游戏及其 Assembly Kit 的安装文件夹。这些路径通常会自动检测，用于定位游戏文件、生成依赖缓存以及启用特定游戏功能。Assembly Kit 路径为可选项，仅特定功能需要。
+settings_extra_paths_description = 设置 RPFM 不同功能所使用的各个文件夹。
+tt_enable_usage_telemetry_tip = 启用此项以发送匿名使用遥测数据（您使用的操作），帮助改进 RPFM。不收集任何个人数据。
+tt_enable_crash_reports_tip = 启用此项以在 RPFM 崩溃时自动上传崩溃报告和错误追踪至 Sentry，帮助我们更快发现和修复 Bug。不收集任何个人数据。
+tt_settings_enable_esf_editor_tip = 启用实验性 ESF 编辑器，用于编辑以下文件类型：
+    - 战役存档（.save、.save_multiplayer）
+    - 战役起始位置（startpos）
+    - 角色存档文件（.twc）
+    - 复合场景文件（.csc）
+    - 战役效果对象文件（.ccd）
+    - 通用 ESF 数据（.esf）
+tt_settings_use_debug_view_unit_variant_tip = 为单位变体编辑器使用调试视图而非可视化视图。
+settings_ui_show_table_toolbar_label = 显示表格操作工具栏
+tt_settings_ui_show_table_toolbar_tip = 在每个表格视图顶部显示工具栏，将右键菜单操作以按钮形式呈现。新打开的表格视图会应用更改；已打开的视图需重新打开。
+
+### Table Filter Flags
+
+table_filter_show_flagged_rows = 仅显示已标记行
+table_filter_show_flagged_rows_tip = 仅显示匹配所选标记的行。点击选择要过滤的标记。
+table_filter_flag_added = 已添加
+table_filter_flag_modified = 已修改
+table_filter_flag_added_vs_vanilla = 相对原版新增
+table_filter_flag_modified_vs_vanilla = 相对原版已修改
+table_filter_flag_error = 诊断错误
+table_filter_flag_warning = 诊断警告
+table_filter_flag_info = 诊断信息
+
+### Session Management
+
+session_dialog_title = 选择会话
+session_dialog_loading = 正在加载会话…
+session_dialog_group_title = 可用会话
+session_dialog_no_sessions = 未找到活动会话。
+session_dialog_found_sessions = 找到 {"{"}{"}"} 个活动会话。选择一个连接：
+session_dialog_load_error = 加载会话失败：{"{"}{"}"}
+session_dialog_reconnect_error = 重新连接会话失败。连接超时。
+session_status_bar_switching = 正在切换到会话 #{"{"}{"}"}…
+session_status_bar_switched = 已切换到会话 #{"{"}{"}"}。
+
+### Context Menu - New
+
+context_menu_cut = 剪切
+context_menu_duplicate = 复制副本
+context_menu_save_pack = 保存 Pack
+context_menu_save_pack_as = 另存 Pack 为…
+context_menu_close_pack = 关闭 Pack
+context_menu_add_from_pack = 从 Pack 添加…
+context_menu_run_script = 运行脚本
+context_menu_run_script_no_scripts = 未找到脚本
+copy_success = 文件已复制到剪贴板。
+cut_success = 文件已剪切到剪贴板。
+
+### Table Toolbar
+
+table_toolbar_clone_submenu = 克隆
+table_toolbar_copy_submenu = 复制
+table_toolbar_go_to_submenu = 转到
+table_toolbar_profiles_submenu = 配置文件
+
+### Pack Menu - Updated
+
+open_packs = 打开 Pack
+open_and_merge_packs = 打开并合并 Pack
+close_pack_menu = 关闭 Pack…
+save_pack_menu = 保存 Pack…
+save_pack_as_menu = 另存 Pack 为…
+save_all = 保存所有 Pack
+select_session = 选择会话
+mymod_import_all = 导入所有已打开的 MyMod
+mymod_export_all = 导出所有已打开的 MyMod
+
+### Diagnostics - Extra Columns
+
+diagnostics_colum_column_names = 列名
+diagnostics_colum_pack = Pack
+
+### CEO Builder
+
+tools_ceo_builder = CEO 构建器
+special_stuff_build_ceo = 构建 CEO
+build_ceo = 构建 CEO
+build_ceo_instructions = <p>说明：</p>
+    <ul>
+        <li>仅在 Windows 下经过测试。</li>
+        <li>在设置中正确配置 Assembly Kit 路径。</li>
+        <li>在 RPFM 中从 Assembly Kit 依赖项导入所有必要的 CEO 文件。</li>
+        <li>进行所需更改，然后点击 <b>构建 CEO (Build CEO)</b> 按钮。这将打开 BOB——如果构建成功，BOB 将关闭；如果 CEO 中存在错误，BOB 将保持打开。</li>
+        <li>完成后，点击 <b>导入 CCD (Import CCD)</b>，它会将 <b>ceo_data.ccd</b> 导入到 <b>campaigns/</b> 文件夹中。</li>
+    </ul>
+build_ceo_import = 导入 CCD
+build_ceo_done = BOB 完成 - 导入 CCD
+
+### Optimizer - Extra
+
+optimizer_pack_apply_compression = 压缩 Pack
+optimizer_pack_remove_duplicated_files = 删除重复文件
+
+### Feedback Dialog
+
+feedback_dialog_title = 发送反馈
+feedback_dialog_explanation = <p>告诉作者哪些功能好用、哪些有问题、开个玩笑，或者您希望看到什么。</p>
+feedback_dialog_placeholder = 在此输入您的反馈…
+feedback_empty = 反馈内容不能为空。
+feedback_sent = 感谢！您的反馈已发送。
+
+### Extra Missing Keys
+
+game_selected_generate_dependencies_cache = 生成依赖缓存
+context_menu_save_pack_for_release = 保存 Pack 以供发布…
+
+### Final Missing Keys
+
+save_pack_for_release = 保存 Pack 以供发布…
+tt_mymod_import_all = 对所有已打开的 MyMod Pack 执行<i>导入</i>。
+tt_mymod_export_all = 对所有已打开的 MyMod Pack 执行<i>导出</i>。
