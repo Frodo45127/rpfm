@@ -88,6 +88,7 @@ use crate::packedfile_views::{View, ViewType};
 use crate::references_ui::ReferencesUI;
 use crate::TREEVIEW_ICONS;
 use crate::UI_STATE;
+use crate::settings_ui::backend::settings_bool;
 use crate::settings_ui::backend::settings_i32;
 use crate::utils::{qtr, show_dialog};
 use crate::views::table::utils::open_subtable;
@@ -624,8 +625,11 @@ impl GlobalSearchUI {
 
                 // Render the file results as a grouped flat list: expand every file so its matches
                 // are visible without manual clicking, and span each file row into a banner header.
+                // The expansion is skipped when the user opts to keep results collapsed by default.
                 self.matches_table_and_text_tree_view.set_animated(false);
-                self.matches_table_and_text_tree_view.expand_all();
+                if !settings_bool(GLOBAL_SEARCH_COLLAPSE_RESULTS) {
+                    self.matches_table_and_text_tree_view.expand_all();
+                }
                 self.matches_table_and_text_tree_view.set_animated(true);
                 self.span_result_headers();
 

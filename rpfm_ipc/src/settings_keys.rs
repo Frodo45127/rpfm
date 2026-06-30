@@ -70,6 +70,7 @@ pub const ENABLE_MULTIFOLDER_FILEPICKER: &str = "enable_multifolder_filepicker";
 pub const ENABLE_PACK_CONTENTS_DRAG_AND_DROP: &str = "enable_pack_contents_drag_and_drop";
 pub const CLEAN_UI: &str = "clean_ui";
 pub const SINGLE_PACK_MODE: &str = "single_pack_mode";
+pub const GLOBAL_SEARCH_COLLAPSE_RESULTS: &str = "global_search_collapse_results";
 
 // Hidden/migration settings.
 pub const IMPORT_FROM_QT: &str = "import_from_qt";

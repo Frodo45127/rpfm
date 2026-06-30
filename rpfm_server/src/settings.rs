@@ -257,6 +257,7 @@ impl Settings {
         settings.initialize_bool(ENABLE_PACK_CONTENTS_DRAG_AND_DROP, true);
         settings.initialize_bool(CLEAN_UI, false);
         settings.initialize_bool(SINGLE_PACK_MODE, true);
+        settings.initialize_bool(GLOBAL_SEARCH_COLLAPSE_RESULTS, false);
 
         // Table Settings.
         settings.initialize_bool(ADJUST_COLUMNS_TO_CONTENT, true);
