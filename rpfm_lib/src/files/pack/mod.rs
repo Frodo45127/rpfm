@@ -393,13 +393,13 @@ impl Container for Pack {
         let path_container = file.path_in_container();
         let path = file.path_in_container_raw();
         if path == RESERVED_NAME_NOTES_EXTRACTED {
-            self.notes = PackNotes::load(&file.encode(&None, false, false, true)?.unwrap())?;
+            self.notes = PackNotes::load(&file.encode(&None, false, false, true)?.unwrap()).unwrap_or_default();
             Ok(None)
         } else if path == RESERVED_NAME_SETTINGS_EXTRACTED {
-            self.settings = PackSettings::load(&file.encode(&None, false, false, true)?.unwrap())?;
+            self.settings = PackSettings::load(&file.encode(&None, false, false, true)?.unwrap()).unwrap_or_default();
             Ok(None)
         } else if path == RESERVED_NAME_DEPENDENCIES_MANAGER_V2 {
-            self.dependencies = from_slice(&file.encode(&None, false, false, true)?.unwrap())?;
+            self.dependencies = from_slice(&file.encode(&None, false, false, true)?.unwrap()).unwrap_or_default();
             Ok(None)
         }
 

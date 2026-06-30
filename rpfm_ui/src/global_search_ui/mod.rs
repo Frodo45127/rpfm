@@ -88,6 +88,7 @@ use crate::packedfile_views::{View, ViewType};
 use crate::references_ui::ReferencesUI;
 use crate::TREEVIEW_ICONS;
 use crate::UI_STATE;
+use crate::settings_ui::backend::settings_bool;
 use crate::settings_ui::backend::settings_i32;
 use crate::utils::{qtr, show_dialog};
 use crate::views::table::utils::open_subtable;
@@ -624,8 +625,11 @@ impl GlobalSearchUI {
 
                 // Render the file results as a grouped flat list: expand every file so its matches
                 // are visible without manual clicking, and span each file row into a banner header.
+                // The expansion is skipped when the user opts to keep results collapsed by default.
                 self.matches_table_and_text_tree_view.set_animated(false);
-                self.matches_table_and_text_tree_view.expand_all();
+                if !settings_bool(GLOBAL_SEARCH_COLLAPSE_RESULTS) {
+                    self.matches_table_and_text_tree_view.expand_all();
+                }
                 self.matches_table_and_text_tree_view.set_animated(true);
                 self.span_result_headers();
 
@@ -2397,7 +2401,6 @@ impl GlobalSearchUI {
                         FileType::SoundBank => todo!(),
                         FileType::Text | FileType::VMD | FileType::WSModel => {
                             let row_number = parent.child_2a(item.row(), 2).text().to_std_string().parse::<i64>().unwrap() - 1;
-                            let text = parent.child_2a(item.row(), 0).text().to_std_string();
                             let start = parent.child_2a(item.row(), 4).text().to_std_string().parse::<usize>().unwrap();
                             let end = parent.child_2a(item.row(), 5).text().to_std_string().parse::<usize>().unwrap();
 
@@ -2723,7 +2726,6 @@ impl GlobalSearchUI {
                             // For the individual matches, we have to get them from the view, so the filtered out items are not added.
                             for row in 0..item.row_count() {
                                 let row_number = item.child_2a(row, 2).text().to_std_string().parse::<i64>().unwrap() - 1;
-                                let text = item.child_2a(row, 0).text().to_std_string();
                                 let start = item.child_2a(row, 4).text().to_std_string().parse::<usize>().unwrap();
                                 let end = item.child_2a(row, 5).text().to_std_string().parse::<usize>().unwrap();
                                 let match_entry = TextMatch::new(row_number as u64, start, end, 0);
