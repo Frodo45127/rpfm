@@ -2401,7 +2401,6 @@ impl GlobalSearchUI {
                         FileType::SoundBank => todo!(),
                         FileType::Text | FileType::VMD | FileType::WSModel => {
                             let row_number = parent.child_2a(item.row(), 2).text().to_std_string().parse::<i64>().unwrap() - 1;
-                            let text = parent.child_2a(item.row(), 0).text().to_std_string();
                             let start = parent.child_2a(item.row(), 4).text().to_std_string().parse::<usize>().unwrap();
                             let end = parent.child_2a(item.row(), 5).text().to_std_string().parse::<usize>().unwrap();
 
@@ -2727,7 +2726,6 @@ impl GlobalSearchUI {
                             // For the individual matches, we have to get them from the view, so the filtered out items are not added.
                             for row in 0..item.row_count() {
                                 let row_number = item.child_2a(row, 2).text().to_std_string().parse::<i64>().unwrap() - 1;
-                                let text = item.child_2a(row, 0).text().to_std_string();
                                 let start = item.child_2a(row, 4).text().to_std_string().parse::<usize>().unwrap();
                                 let end = item.child_2a(row, 5).text().to_std_string().parse::<usize>().unwrap();
                                 let match_entry = TextMatch::new(row_number as u64, start, end, 0);
