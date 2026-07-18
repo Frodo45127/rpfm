@@ -2324,26 +2324,39 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
             Command::GoToDefinition(pack_key, ref_table, mut ref_column, ref_data) => {
                 let table_name = format!("{ref_table}_tables");
                 let table_folder = format!("db/{table_name}");
-                let Some(pack) = get_pack(&packs, &pack_key, &sender) else { continue 'background_loop; };
-                let packed_files = pack.files_by_path(&ContainerPath::Folder(table_folder.to_owned()), true);
                 let mut found = false;
-                for packed_file in &packed_files {
-                    if let Ok(RFileDecoded::DB(data)) = packed_file.decoded() {
 
-                        // If the column is a loc column, we need to search in the first key column instead.
-                        if data.definition().localised_fields().iter().any(|x| x.name() == ref_column) {
-                            if let Some(first_key_index) = data.definition().localised_key_order().first() {
-                                if let Some(first_key_field) = data.definition().fields_processed().get(*first_key_index as usize) {
-                                    ref_column = first_key_field.name().to_owned();
+                // Search first in the pack that sent the request (if still open), then in the rest of the open packs.
+                let mut packs_to_search: Vec<&Pack> = Vec::with_capacity(packs.len());
+                if let Some(pack) = packs.get(&pack_key) {
+                    packs_to_search.push(pack);
+                }
+                packs_to_search.extend(packs.iter().filter(|kv| kv.0 != &pack_key).map(|kv| kv.1));
+
+                for pack in packs_to_search {
+                    let packed_files = pack.files_by_path(&ContainerPath::Folder(table_folder.to_owned()), true);
+                    for packed_file in &packed_files {
+                        if let Ok(RFileDecoded::DB(data)) = packed_file.decoded() {
+
+                            // If the column is a loc column, we need to search in the first key column instead.
+                            if data.definition().localised_fields().iter().any(|x| x.name() == ref_column) {
+                                if let Some(first_key_index) = data.definition().localised_key_order().first() {
+                                    if let Some(first_key_field) = data.definition().fields_processed().get(*first_key_index as usize) {
+                                        ref_column = first_key_field.name().to_owned();
+                                    }
                                 }
                             }
-                        }
 
-                        if let Some((column_index, row_index)) = data.table().rows_containing_data(&ref_column, &ref_data[0]) {
-                            CentralCommand::send_back(&sender, Response::DataSourceStringUsizeUsize(DataSource::PackFile, packed_file.path_in_container_raw().to_owned(), column_index, row_index[0]));
-                            found = true;
-                            break;
+                            if let Some((column_index, row_index)) = data.table().rows_containing_data(&ref_column, &ref_data[0]) {
+                                CentralCommand::send_back(&sender, Response::DataSourceStringUsizeUsize(DataSource::PackFile, packed_file.path_in_container_raw().to_owned(), column_index, row_index[0]));
+                                found = true;
+                                break;
+                            }
                         }
+                    }
+
+                    if found {
+                        break;
                     }
                 }
 
