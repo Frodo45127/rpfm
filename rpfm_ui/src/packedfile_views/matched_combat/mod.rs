@@ -45,6 +45,7 @@ impl FileMatchedCombatDebugView {
             file_view.main_widget(),
             RFileDecoded::MatchedCombat(data),
             file_view.path_raw(),
+            file_view.pack_key().clone(),
         )?;
 
         let view = Self {

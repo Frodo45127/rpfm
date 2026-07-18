@@ -45,6 +45,7 @@ pub struct DebugView {
     save_button: QBox<QPushButton>,
     packed_file_type: FileType,
     path: Arc<RwLock<String>>,
+    pack_key: Arc<RwLock<String>>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -58,7 +59,8 @@ impl DebugView {
     pub unsafe fn new_view(
         parent: &QBox<QWidget>,
         packed_file: RFileDecoded,
-        packed_file_path: Arc<RwLock<String>>
+        packed_file_path: Arc<RwLock<String>>,
+        pack_key: Arc<RwLock<String>>,
     ) -> Result<Arc<Self>> {
         let layout: QPtr<QGridLayout> = parent.layout().static_downcast();
 
@@ -85,6 +87,7 @@ impl DebugView {
             save_button,
             packed_file_type,
             path: packed_file_path,
+            pack_key,
         });
 
         let packed_file_debug_view_slots = DebugViewSlots::new(&packed_file_debug_view);

@@ -45,6 +45,7 @@ impl FileAnimsTableDebugView {
             file_view.main_widget(),
             RFileDecoded::AnimsTable(data),
             file_view.path_raw(),
+            file_view.pack_key().clone(),
         )?;
 
         let view = Self {
