@@ -979,16 +979,18 @@ impl AppUISlots {
                     // If there is no problem, ere we go.
                     app_ui.toggle_main_window(false);
 
-                    let wait_dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
+                    let wait_dialog = QMessageBox::from_icon2_q_string(
                         q_message_box::Icon::Information,
                         &qtr("rpfm_title"),
-                        &qtr("generate_dependencies_cache_in_progress_message"),
-                        QFlags::from(0),
-                        &app_ui.main_window,
+                        &qtr("generate_dependencies_cache_in_progress_message")
                     );
 
                     wait_dialog.set_modal(true);
-                    wait_dialog.set_standard_buttons(QFlags::from(0));
+                    wait_dialog.set_standard_buttons(q_message_box::StandardButton::NoButton.into());
+                    wait_dialog.set_parent(&app_ui.main_window);
+
+                    // Without this, platforms with native dialog integration (e.g. KDE) add their own default button, ignoring the empty StandardButtons above.
+                    wait_dialog.set_option_2a(q_message_box::Option::DontUseNativeDialog, true);
                     wait_dialog.show();
 
                     let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GenerateDependenciesCache);
