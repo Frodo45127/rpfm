@@ -1794,11 +1794,22 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                     Some(pack) => {
                 match pack.file_mut(&internal_path, false) {
                     Some(file) => {
+                        // Preserve the original table GUID, as set_decoded would replace it with a fresh
+                        // one from the imported table, making the import non-idempotent for DB tables.
+                        let original_guid = if let Ok(RFileDecoded::DB(table)) = file.decoded() {
+                            Some(table.guid().to_owned())
+                        } else {
+                            None
+                        };
+
                         match RFile::tsv_import_from_path(&external_path, &schema) {
                             Ok(imported) => {
-                                let decoded = imported.decoded().unwrap();
+                                let mut decoded = imported.decoded().unwrap().clone();
+                                if let (RFileDecoded::DB(table), Some(guid)) = (&mut decoded, original_guid) {
+                                    table.set_guid(guid);
+                                }
                                 file.set_decoded(decoded.clone()).unwrap();
-                                CentralCommand::send_back(&sender, Response::RFileDecoded(decoded.clone()))
+                                CentralCommand::send_back(&sender, Response::RFileDecoded(decoded))
                             },
                             Err(error) =>  CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                         }

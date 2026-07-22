@@ -427,6 +427,11 @@ impl DB {
         self.table.set_data(data)
     }
 
+    /// Overwrites this table's GUID with the provided one.
+    pub fn set_guid(&mut self, guid: String) {
+        self.guid = guid;
+    }
+
     /// Creates a new row with default values from the table definition.
     pub fn new_row(&self) -> Vec<DecodedData> {
         self.table().new_row()
