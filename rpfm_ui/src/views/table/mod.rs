@@ -4162,7 +4162,7 @@ impl Default for FilterChipState {
             show_blank: true,
             show_edited: false,
             variant: 0,
-            group: 0,
+            group: -1,
         }
     }
 }

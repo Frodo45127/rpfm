@@ -198,9 +198,13 @@ impl FilterBar {
     ///
     /// The new chip on success. Triggers no filter pass on its own — the caller (a slot)
     /// will call `view.filter_table()` once it has installed the chip.
-    pub unsafe fn add_chip(&self, view: &Arc<TableView>, state: FilterChipState, focus: bool) -> Result<()> {
+    pub unsafe fn add_chip(&self, view: &Arc<TableView>, mut state: FilterChipState, focus: bool) -> Result<()> {
         if self.chips_container().is_hidden() {
             self.chips_container().show();
+        }
+
+        if state.group < 0 {
+            state.group = view.filter_chips().iter().map(|chip| chip.current_state().group).max().map_or(0, |max| max + 1);
         }
 
         let chip = Arc::new(Chip::new(&self.main_widget, &self.column_names, &self.logical_indices, &state)?);
