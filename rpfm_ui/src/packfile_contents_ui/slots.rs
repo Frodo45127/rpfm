@@ -944,7 +944,13 @@ impl PackFileContentsSlots {
                                         let mut second_path = folder_path.to_path_buf();
                                         second_path.pop();
 
-                                        if base_path != second_path {
+                                        // Windows filesystems are case-insensitive, so the parent of two folders can differ only by case despite being the same folder.
+                                        #[cfg(target_os = "windows")]
+                                        let are_different = base_path.to_string_lossy().to_lowercase() != second_path.to_string_lossy().to_lowercase();
+                                        #[cfg(not(target_os = "windows"))]
+                                        let are_different = base_path != second_path;
+
+                                        if are_different {
                                             return show_dialog(app_ui.main_window(), "Error: adding multiple folders from different parent folders is not supported.".to_string(), false);
                                         }
                                     }
