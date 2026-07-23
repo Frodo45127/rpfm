@@ -364,6 +364,8 @@ impl Logger {
         let mut explanation = String::new();
         if let Some(payload) = panic_info.payload().downcast_ref::<&str>() {
             explanation.push_str(&format!("Cause: {}\n", &payload));
+        } else if let Some(payload) = panic_info.payload().downcast_ref::<String>() {
+            explanation.push_str(&format!("Cause: {}\n", payload));
         }
 
         match panic_info.location() {
