@@ -633,6 +633,13 @@ impl GlobalSearchUI {
                 self.matches_table_and_text_tree_view.set_animated(true);
                 self.span_result_headers();
 
+                // Columns 1 and 2 were auto-sized to their content while loading results. Switch them
+                // to Interactive now so the user can drag-resize them; column 0 stays Stretch to fill the rest.
+                let header = self.matches_table_and_text_tree_view.header();
+                header.set_section_resize_mode_2a(0, ResizeMode::Interactive);
+                header.set_section_resize_mode_2a(1, ResizeMode::Interactive);
+                header.set_section_resize_mode_2a(2, ResizeMode::Interactive);
+
                 UI_STATE.set_global_search(&global_search);
                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile, &pack_key);
             },
