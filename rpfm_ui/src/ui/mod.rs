@@ -123,6 +123,28 @@ impl UI {
         let dependencies_ui = Rc::new(DependenciesUI::new(&app_ui)?);
         let references_ui = Rc::new(ReferencesUI::new(app_ui.main_window())?);
 
+        // Apply last ui state before the window is ever shown, so the first paint already
+        // matches it instead of flashing Qt's defaults until the settings restore later.
+        app_ui.main_window().restore_geometry(&QByteArray::from_slice(&settings_raw_data(GEOMETRY)));
+        app_ui.main_window().restore_state_1a(&QByteArray::from_slice(&settings_raw_data(WINDOW_STATE)));
+
+        // Apply the font only if we have one set.
+        let font_name = settings_string(FONT_NAME);
+        let font_size = settings_i32(FONT_SIZE);
+        if !font_name.is_empty() && font_size > 0 {
+            let font = QFont::from_q_string_int(&QString::from_std_str(&font_name), font_size);
+            QApplication::set_font_1a(&font);
+        }
+
+        UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
+
+        if settings_bool(START_MAXIMIZED) {
+            app_ui.main_window().set_window_state(QFlags::from(WindowState::WindowMaximized));
+        }
+
+        reload_theme(&app_ui);
+        global_search_ui.reload_style();
+
         // Show the main-window skeleton as soon as it exists.
         log_to_status_bar("Loading interface...");
         app_ui.toggle_main_window(false);
@@ -157,28 +179,6 @@ impl UI {
 
         diagnostics_ui::connections::set_connections(&diagnostics_ui, &diagnostics_slots);
         references_ui::connections::set_connections(&references_ui, &references_slots);
-
-        // Apply last ui state. The settings cache is loaded from disk in
-        // `main()`, so these reads are non-blocking.
-        app_ui.main_window().restore_geometry(&QByteArray::from_slice(&settings_raw_data(GEOMETRY)));
-        app_ui.main_window().restore_state_1a(&QByteArray::from_slice(&settings_raw_data(WINDOW_STATE)));
-
-        // Apply the font only if we have one set.
-        let font_name = settings_string(FONT_NAME);
-        let font_size = settings_i32(FONT_SIZE);
-        if !font_name.is_empty() && font_size > 0 {
-            let font = QFont::from_q_string_int(&QString::from_std_str(&font_name), font_size);
-            QApplication::set_font_1a(&font);
-        }
-
-        UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
-
-        if settings_bool(START_MAXIMIZED) {
-            app_ui.main_window().set_window_state(QFlags::from(WindowState::WindowMaximized));
-        }
-
-        reload_theme(&app_ui);
-        global_search_ui.reload_style();
 
         // Clean up folders from previous updates while we wait for the
         // WebSocket. Filesystem-only, no IPC dependency.
