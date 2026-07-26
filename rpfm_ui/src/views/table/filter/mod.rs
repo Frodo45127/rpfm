@@ -69,7 +69,8 @@ const INPUT_DEBOUNCE_MS: i32 = 250;
 #[getset(get = "pub")]
 pub struct FilterBar {
     /// Container holding both rows. This is what gets added to the table view's layout.
-    root: QBox<QWidget>,
+    #[getset(skip)]
+    _root: QBox<QWidget>,
 
     /// Controls row: columns button, flagged-rows button, separator, input, +/? buttons,
     /// row counter.
@@ -171,7 +172,7 @@ impl FilterBar {
         };
 
         let filter_bar = Arc::new(Self {
-            root,
+            _root: root,
             main_widget,
             columns_button,
             flagged_rows_button,

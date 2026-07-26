@@ -144,7 +144,7 @@ pub enum View {
     GroupFormationsDebug(Arc<FileGroupFormationsDebugView>),
     Image(PackedFileImageView),
     MatchedCombatDebug(Arc<FileMatchedCombatDebugView>),
-    PackFile(Arc<PackFileExtraView>),
+    #[allow(dead_code)] PackFile(Arc<PackFileExtraView>),
     PackSettings(Arc<PackFileSettingsView>),
     PortraitSettings(Arc<PortraitSettingsView>),
     RigidModel(Arc<RigidModelView>),

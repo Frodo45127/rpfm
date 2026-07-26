@@ -390,16 +390,6 @@ pub fn new_flow_layout_safe(parent: &Ptr<QWidget>) -> QPtr<QLayout> {
     unsafe { QPtr::from_raw(new_flow_layout(parent.as_mut_raw_ptr())) }
 }
 
-// Signal emitted by a `ResponsiveWidget` when resized. The argument is the new width.
-pub fn responsive_widget_resized_signal(widget: QPtr<QObject>) -> Signal<(i32,)> {
-    unsafe {
-        Signal::new(
-            ::cpp_core::Ref::from_raw(widget.as_raw_ptr()).expect("attempted to construct a null Ref"),
-            c"2resized(int)",
-        )
-    }
-}
-
 extern "C" { fn command_palette_show(palette: *mut QWidget); }
 pub unsafe fn command_palette_show_safe(palette: &QPtr<QWidget>) {
     command_palette_show(palette.as_mut_raw_ptr())
