@@ -396,8 +396,11 @@ impl Logger {
     ///
     /// Returns [`Ok`] if the report was saved successfully, or an error if file I/O fails.
     pub fn save(&self, path: &Path) -> Result<()> {
-        let current_time = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
-        let file_path = path.join(format!("error-report-{}.toml", current_time));
+
+        // Use thread id to avoid colliding filenames when multiple panics occur concurrently
+        let current_time = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
+        let thread_id = format!("{:?}", std::thread::current().id()).replace(|c: char| !c.is_ascii_alphanumeric(), "");
+        let file_path = path.join(format!("error-report-{current_time}-{thread_id}.toml"));
         let mut file = BufWriter::new(File::create(file_path)?);
         file.write_all(toml::to_string_pretty(&self)?.as_bytes())?;
         Ok(())
