@@ -1593,12 +1593,12 @@ impl McpServer {
         send_and_respond!(self, "get_table_version_from_dependency_pack_file", Command::GetTableVersionFromDependencyPackFile(params.0.value))
     }
 
-    #[tool(description = "Get the definition of a table from the dependency database.")]
+    #[tool(description = "Get the definition of a table from the dependency database. NOTE: the returned `fields` list is the raw on-disk field layout, not what row data looks like (e.g. colour columns are split into separate r/g/b fields here). Pass the definition to `fields_processed` to get the field list/count that rows must actually match.")]
     pub async fn get_table_definition_from_dependency_pack_file(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
         send_and_respond!(self, "get_table_definition_from_dependency_pack_file", Command::GetTableDefinitionFromDependencyPackFile(params.0.value))
     }
 
-    #[tool(description = "Get table data from dependencies by table name.")]
+    #[tool(description = "Get table data from dependencies by table name. NOTE: each returned file's decoded `data` rows are shaped per the PROCESSED fields (colour groups merged, bitwise/enum expanded), but the `definition.fields` bundled in the same file is the RAW on-disk layout and will have a different length/order — do not zip row cells against `definition.fields`. Call `fields_processed` on that definition to get the field list that actually lines up with `data`.")]
     pub async fn get_tables_from_dependencies(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
         send_and_respond!(self, "get_tables_from_dependencies", Command::GetTablesFromDependencies(params.0.value))
     }
@@ -1711,12 +1711,12 @@ impl McpServer {
         send_and_respond!(self, "get_schema", Command::Schema)
     }
 
-    #[tool(description = "Get all definitions for a table name.")]
+    #[tool(description = "Get all definitions for a table name. NOTE: the returned `fields` list is the raw on-disk field layout, not what row data looks like (e.g. colour columns are split into separate r/g/b fields here). Pass the definition to `fields_processed` to get the field list/count that rows must actually match.")]
     pub async fn definitions_by_table_name(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
         send_and_respond!(self, "definitions_by_table_name", Command::DefinitionsByTableName(params.0.value))
     }
 
-    #[tool(description = "Get a specific definition by table name and version.")]
+    #[tool(description = "Get a specific definition by table name and version. NOTE: the returned `fields` list is the raw on-disk field layout, not what row data looks like (e.g. colour columns are split into separate r/g/b fields here). Do not use `fields.len()` to size a row for saving — pass this definition to `fields_processed` first to get the field list/count and types that rows must actually match.")]
     pub async fn definition_by_table_name_and_version(&self, params: Parameters<StringI32Args>) -> Result<CallToolResult, McpError> {
         send_and_respond!(self, "definition_by_table_name_and_version", Command::DefinitionByTableNameAndVersion(params.0.name, params.0.version))
     }
@@ -1732,7 +1732,7 @@ impl McpServer {
         send_and_respond!(self, "referencing_columns_for_definition", Command::ReferencingColumnsForDefinition(params.0.table_name, def))
     }
 
-    #[tool(description = "Get the processed fields from a definition with bitwise expansion and enum conversions applied (useful for display). The `definition` is a Definition JSON (as returned by `get_table_definition_from_dependency_pack_file`).")]
+    #[tool(description = "Get the processed fields from a definition, with bitwise expansion, enum conversions, and colour-group merging applied. Call this before building or validating row data: table rows must have exactly as many entries as `fields_processed` returns, NOT as many as the raw `fields` list on the Definition (e.g. `definition_by_table_name_and_version`/`definitions_by_table_name` return raw fields, where a colour split into r/g/b counts as 3 fields instead of the 1 merged field rows actually use). Saving a row built against the raw field count/types will fail. The `definition` is a Definition JSON (as returned by `get_table_definition_from_dependency_pack_file`).")]
     pub async fn fields_processed(&self, params: Parameters<DefinitionArg>) -> Result<CallToolResult, McpError> {
         let def = parse_json!(&params.0.definition);
         send_and_respond!(self, "fields_processed", Command::FieldsProcessed(def))
@@ -2229,7 +2229,11 @@ Workflow:
 6. **Save the pack** – Call `save_packfile` (or `save_pack_as` for a new path).
 
 Tips:
-- Use `get_table_definition_from_dependency_pack_file` to see the expected column schema.
+- Use `get_table_definition_from_dependency_pack_file` to see the table's definition, but
+  always run it through `fields_processed` before using its field list/count — the
+  definition's raw `fields` do NOT match row shape (e.g. a colour column is split into
+  separate r/g/b fields there); rows must match `fields_processed` exactly or saving
+  will fail with a field-count or type error.
 - Use `get_reference_data_from_definition` to discover valid values for referenced columns.
 - After saving, you can run `diagnostics_check` to validate the pack.
 ",
@@ -2344,6 +2348,11 @@ Tips:
 - Use `get_packed_files_names_starting_with_path_from_all_sources` to discover files
   under a given path prefix across all sources.
 - `set_dependency_pack_files_list` lets you mark other mods as dependencies of your pack.
+- The `definition` bundled in each file from `get_tables_from_dependencies` (and from
+  `get_table_definition_from_dependency_pack_file`) lists RAW on-disk fields, which can
+  have a different length/order than the actual decoded rows (e.g. colour columns are
+  split into separate r/g/b fields there). Run it through `fields_processed` before
+  matching it up against row cells or reusing it to build new rows.
 ",
         )]
     }
@@ -2409,7 +2418,12 @@ Workflow:
    specific version.
 
 4. **See processed fields** – `fields_processed` takes a Definition JSON and returns
-   fields with bitwise expansion and enum conversions applied (useful for display).
+   fields with bitwise expansion, enum conversions, and colour-group merging applied.
+   This is required, not just cosmetic: `definitions_by_table_name` and
+   `definition_by_table_name_and_version` return the raw on-disk field list (e.g. a
+   colour column split into separate r/g/b fields), which has a different length/order
+   than actual row data. Always call `fields_processed` before using a definition's
+   field list/count to build or validate rows for saving.
 
 5. **Find referencing columns** – `referencing_columns_for_definition` shows which
    other tables reference a given table's columns.
