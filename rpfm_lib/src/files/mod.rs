@@ -2759,7 +2759,7 @@ impl RFile {
         let file = match file?.unwrap() {
             RFileDecoded::DB(table) => table.tsv_export(&mut writer, self.path_in_container_raw(), keys_first),
             RFileDecoded::Loc(table) => table.tsv_export(&mut writer, self.path_in_container_raw()),
-            _ => unimplemented!()
+            _ => Err(RLibError::ExportTSVUnsupportedFileType),
         };
 
         // If the tsv export failed, delete the tsv file.

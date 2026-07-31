@@ -215,6 +215,10 @@ pub enum RLibError {
     #[error("This file has an unknown/unsupported version: {0}.")]
     DecodingAnimsTableUnknownVersion(i32),
 
+    /// Unknown/unresearched Group Formations block type.
+    #[error("Unknown/unsupported Group Formations block type: {0}.")]
+    DecodingGroupFormationsUnknownBlockType(u32),
+
     /// File is not CA_VP8 or IVF format.
     #[error("This file is neither a CA_VP8 nor an IVF file.")]
     DecodingCAVP8UnsupportedFormat,
@@ -586,6 +590,10 @@ pub enum RLibError {
     /// TSV file missing or invalid path.
     #[error("This TSV file has an invalid or missing file path value at line 1.")]
     ImportTSVInvalidOrMissingPath,
+
+    /// TSV export requested for a file type that isn't DB or Loc.
+    #[error("TSV export is only supported for DB and Loc files.")]
+    ExportTSVUnsupportedFileType,
 
     // File Merge Errors
 
