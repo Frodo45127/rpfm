@@ -1062,7 +1062,7 @@ impl Dependencies {
                 self.vanilla_loose_files.remove(path).map(|file| (path.to_owned(), file))
             }).collect::<Vec<_>>();
 
-            files.par_iter_mut().for_each(|(_, file)| {.
+            files.par_iter_mut().for_each(|(_, file)| {
                 let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| file.decode(&extra_data, true, false)));
             });
 
