@@ -1062,8 +1062,8 @@ impl Dependencies {
                 self.vanilla_loose_files.remove(path).map(|file| (path.to_owned(), file))
             }).collect::<Vec<_>>();
 
-            files.par_iter_mut().for_each(|(_, file)| {
-                let _ = file.decode(&extra_data, true, false);
+            files.par_iter_mut().for_each(|(_, file)| {.
+                let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| file.decode(&extra_data, true, false)));
             });
 
             self.vanilla_loose_files.par_extend(files);
@@ -1074,7 +1074,7 @@ impl Dependencies {
             }).collect::<Vec<_>>();
 
             files.par_iter_mut().for_each(|(_, file)| {
-                let _ = file.decode(&extra_data, true, false);
+                let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| file.decode(&extra_data, true, false)));
             });
 
             self.vanilla_files.par_extend(files);
@@ -1085,7 +1085,7 @@ impl Dependencies {
             }).collect::<Vec<_>>();
 
             files.par_iter_mut().for_each(|(_, file)| {
-                let _ = file.decode(&extra_data, true, false);
+                let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| file.decode(&extra_data, true, false)));
             });
 
             self.parent_files.par_extend(files);
