@@ -362,7 +362,7 @@ pub enum RLibError {
     // Table Encoding Errors
 
     /// Table row field count mismatch.
-    #[error("Error while trying to save a row from a table: We expected a row with \"{0}\" fields, but we got a row with \"{1}\" fields instead.")]
+    #[error("Error while trying to save a row from a table: We expected a row with \"{0}\" fields, but we got a row with \"{1}\" fields instead. Rows must match Definition::fields_processed() (bitwise/enum/colour groups collapsed), not the raw Definition::fields() layout.")]
     TableRowWrongFieldCount(usize, usize),
 
     /// Table field type mismatch.

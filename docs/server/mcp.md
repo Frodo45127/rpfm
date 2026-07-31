@@ -170,6 +170,8 @@ The MCP interface exposes **150 tools** organized by category. Each tool accepts
 | `remove_local_schema_patches_for_table_and_field` | Remove patches for a field | `key`, `value` |
 | `import_schema_patch` | Import a schema patch | `patches` |
 
+> **Raw vs. processed fields:** `definitions_by_table_name`, `definition_by_table_name_and_version`, and `get_table_definition_from_dependency_pack_file` all return a `Definition` whose `fields` list is the **raw on-disk layout** — e.g. a colour column is split into three separate `_r`/`_g`/`_b` fields there. Table row data (whether built by hand for saving, or returned by `get_tables_from_dependencies`) is shaped according to the **processed** field list instead, where such groups are merged/expanded. Always call `fields_processed` on a `Definition` before using its field count or order to build, validate, or line up row data — using the raw `fields` list will produce rows of the wrong length/types and saving will fail with `TableRowWrongFieldCount`.
+
 ### Table Operations
 
 | Tool | Description | Key Arguments |
