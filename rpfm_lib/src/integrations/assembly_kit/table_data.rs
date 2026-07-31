@@ -238,7 +238,12 @@ impl RawTable {
             // Version 2 is Rome 2+. Version 1 is Shogun 2. Almost the same format, but we have to
             // provide a different path for Shogun 2, so it has his own version.
             // Version 0 is Napoleon and Empire. These two don't have an assembly kit, but CA released years ago their table files.
-            0..=2 => Ok(definitions.par_iter().filter_map(|definition| Self::read(definition, raw_tables_folder, version).ok()).collect()),
+            // `catch_unwind` because a handful of Assembly Kit XML files trip a panic deep in the
+            // XML parser we depend on, not just an `Err`: without it, one bad file would break the
+            // "individual failures are silently skipped" contract documented above.
+            0..=2 => Ok(definitions.par_iter()
+                .filter_map(|definition| std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| Self::read(definition, raw_tables_folder, version))).ok().and_then(|result| result.ok()))
+                .collect()),
             _ => Err(RLibError::AssemblyKitUnsupportedVersion(version))
         }
     }
