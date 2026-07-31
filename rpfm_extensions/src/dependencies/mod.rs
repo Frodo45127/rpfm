@@ -1874,7 +1874,7 @@ impl Dependencies {
                                                     if index < ref_lookup_steps.len() - 1 {
                                                         if let Some(source_lookup_column) = fields_processed.iter().position(|x| x.name() == lookup_ref_lookup) {
                                                             let cache = db.data().iter()
-                                                                .map(|row| (row[source_key_column].data_to_string().to_string(), row[source_lookup_column].data_to_string().to_string()))
+                                                                .filter_map(|row| Some((row.get(source_key_column)?.data_to_string().to_string(), row.get(source_lookup_column)?.data_to_string().to_string())))
                                                                 .collect::<HashMap<_,_>>();
 
                                                             table_data_cache.insert(table_data_column_cache_key.clone(), cache);
@@ -1884,10 +1884,12 @@ impl Dependencies {
                                                     // Locs are already pre-cached. We only need the final part of their key.
                                                     else if is_loc {
                                                         let cache = db.data().iter()
-                                                            .map(|row| {
+                                                            .filter_map(|row| {
                                                                 let mut loc_key = loc_key.to_owned();
-                                                                loc_key.push_str(&localised_order.iter().map(|pos| row[*pos as usize].data_to_string()).join(""));
-                                                                (row[source_key_column].data_to_string().to_string(), loc_key)
+                                                                for pos in localised_order.iter() {
+                                                                    loc_key.push_str(&row.get(*pos as usize)?.data_to_string());
+                                                                }
+                                                                Some((row.get(source_key_column)?.data_to_string().to_string(), loc_key))
                                                             })
                                                             .collect::<HashMap<_,_>>();
                                                         table_data_cache.insert(table_data_column_cache_key.clone(), cache);
@@ -1895,7 +1897,7 @@ impl Dependencies {
 
                                                     else {
                                                         let cache = db.data().iter()
-                                                            .map(|row| (row[source_key_column].data_to_string().to_string(), row[col_pos].data_to_string().to_string()))
+                                                            .filter_map(|row| Some((row.get(source_key_column)?.data_to_string().to_string(), row.get(col_pos)?.data_to_string().to_string())))
                                                             .collect::<HashMap<_,_>>();
 
                                                         table_data_cache.insert(table_data_column_cache_key.clone(), cache);
