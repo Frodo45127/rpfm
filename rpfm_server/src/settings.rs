@@ -337,7 +337,9 @@ impl Settings {
 
         settings.set_block_write(false);
 
-        settings.write()?;
+        if let Err(error) = settings.write() {
+            rpfm_telemetry::warn!("Failed to persist settings file, continuing with in-memory settings. Error: {error}");
+        }
 
         Ok(settings)
     }

@@ -229,7 +229,10 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
 
     // Load settings from disk or use defaults.
     let _ = init_config_path();
-    let mut settings = Settings::init(false).unwrap();
+    let mut settings = Settings::init(false).unwrap_or_else(|error| {
+        rpfm_telemetry::warn!("Failed to initialize settings, falling back to defaults. Error: {error}");
+        Settings::default()
+    });
     let mut backup_settings = settings.clone();
 
     // Sync the telemetry toggles with this session's on-disk settings.
