@@ -200,7 +200,10 @@ impl Session {
     pub fn send(&self, command: Command) -> UnboundedReceiver<Response> {
         let (sender_back, receiver_back) = unbounded_channel();
         if let Err(error) = self.sender.send((sender_back, command)) {
-            panic!("{SESSION_SENDER_ERROR}: {error}");
+            let message = format!("{SESSION_SENDER_ERROR}: {error}");
+            info!("{message}");
+            let (sender_back, _) = error.0;
+            let _ = sender_back.send(Response::Error(message));
         }
         receiver_back
     }
@@ -412,6 +415,9 @@ impl SessionManager {
 pub async fn recv_response(receiver: &mut UnboundedReceiver<Response>) -> Response {
     match receiver.recv().await {
         Some(response) => response,
-        None => panic!("Session response channel closed unexpectedly"),
+        None => {
+            info!("Session response channel closed unexpectedly.");
+            Response::Error("Session response channel closed unexpectedly".to_owned())
+        },
     }
 }
