@@ -418,7 +418,7 @@ impl TableView {
 
         // Get the dependency data of this Table.
         let table_name_for_ref = if let Some(name) = table_name { name.to_owned() } else { "".to_owned() };
-        let dependency_data = get_reference_data(packed_file_type, &table_name_for_ref, &table_definition, false, &**pack_key.read().unwrap())?;
+        let dependency_data = get_reference_data(packed_file_type, &table_name_for_ref, &table_definition, false, &pack_key.read().unwrap())?;
 
         // Do not bother getting hashed data for tables that are not modded.
         let vanilla_hashed_tables = {
@@ -990,7 +990,7 @@ impl TableView {
             let visual_index = header.visual_index(*logical_index);
             header.move_section(visual_index, dest_index as i32);
 
-            if let Some(sidebar_idx) = sidebar_index_by_logical.get(&logical_index).copied() {
+            if let Some(sidebar_idx) = sidebar_index_by_logical.get(logical_index).copied() {
                 if let Some(checkbox) = self.sidebar_hide_checkboxes().get(sidebar_idx) {
                     checkbox.set_checked(profile.columns_hidden.contains(logical_index));
                 }
@@ -1147,7 +1147,7 @@ impl TableView {
         let sidebar_index_by_logical = self.sidebar_index_by_logical_map();
         let mut logical_by_sidebar: Vec<i32> = vec![-1; self.sidebar_freeze_checkboxes().len()];
         for (logical, sidebar_pos) in sidebar_index_by_logical {
-            if (sidebar_pos as usize) < logical_by_sidebar.len() {
+            if (sidebar_pos) < logical_by_sidebar.len() {
                 logical_by_sidebar[sidebar_pos] = logical;
             }
         }
