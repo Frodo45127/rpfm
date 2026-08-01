@@ -33,6 +33,8 @@ use std::fs::{copy, remove_dir_all, remove_file, DirBuilder};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
+use rpfm_extensions::merge::MergeOptions;
+
 use rpfm_ipc::helpers::DataSource;
 use rpfm_ipc::settings_keys::*;
 
@@ -659,7 +661,7 @@ impl PackFileContentsSlots {
                     pack_file_contents_ui.context_menu_optimize_packfile.set_visible(true);
                     pack_file_contents_ui.context_menu_rescue_packfile.set_visible(true);
                     pack_file_contents_ui.context_menu_build_starpos.set_visible(true);
-                    pack_file_contents_ui.context_menu_build_ceo.set_visible(true);   
+                    pack_file_contents_ui.context_menu_build_ceo.set_visible(true);
 
                     // Game-specific actions.
                     let game_key = GAME_SELECTED.read().unwrap().key().to_owned();
@@ -721,7 +723,7 @@ impl PackFileContentsSlots {
                     pack_file_contents_ui.context_menu_optimize_packfile.set_visible(false);
                     pack_file_contents_ui.context_menu_rescue_packfile.set_visible(false);
                     pack_file_contents_ui.context_menu_build_starpos.set_visible(false);
-                    pack_file_contents_ui.context_menu_build_ceo.set_visible(false);   
+                    pack_file_contents_ui.context_menu_build_ceo.set_visible(false);
                     pack_file_contents_ui.context_menu_patch_siege_ai.set_visible(false);
                     pack_file_contents_ui.context_menu_live_export.set_visible(false);
                     pack_file_contents_ui.context_menu_pack_map.set_visible(false);
@@ -1674,7 +1676,7 @@ impl PackFileContentsSlots {
             if (loc_pass || db_pass) && !(loc_pass && db_pass) {
 
                 // Get the info for the merged file.
-                if let Some((mut name, delete_source_files)) = AppUI::merge_tables_dialog(&app_ui, &pack_file_contents_ui) {
+                if let Some((mut name, delete_source_files, delta_merge)) = AppUI::merge_tables_dialog(&app_ui, &pack_file_contents_ui) {
 
                     // If it's a loc file and the name doesn't end in a ".loc" termination, call it ".loc".
                     if loc_pass && !name.to_lowercase().ends_with(".loc") {
@@ -1686,7 +1688,7 @@ impl PackFileContentsSlots {
                     {
                         let open_packedfiles = UI_STATE.set_open_packedfiles();
                         for path in open_packedfiles.iter().filter(|x| x.data_source() == DataSource::PackFile).map(|x| x.path_read())  {
-                            if selected_paths.contains(&path) {
+                            if (selected_paths.contains(&path) && delete_source_files) || path.ends_with(&name) {
                                 paths_to_close.push(ContainerPath::File(path.to_owned()));
                             }
                         }
@@ -1704,22 +1706,43 @@ impl PackFileContentsSlots {
 
                     let selected_paths_cont = selected_paths.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<_>>();
                     let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    match send_ipc_command_result(Command::MergeFiles(pack_key.clone(), selected_paths_cont.to_vec(), path_to_add, delete_source_files), response_extractor!(Response::String)) {
-                        Ok(path_to_add) => {
 
-                            // If we want to delete the sources, do it now. Oh, and close them manually first, or the autocleanup will try to save them and fail miserably.
-                            if delete_source_files {
-                                selected_paths.iter().for_each(|x| { let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, x, DataSource::PackFile, false); });
-                                let paths_to_delete = selected_paths_cont.iter().filter(|path| path.path_raw() != path_to_add).cloned().collect::<Vec<_>>();
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(paths_to_delete, true), DataSource::PackFile, &pack_key);
+                    let mut options = MergeOptions::default();
+                    options.set_delta_merge(delta_merge);
+
+                    // Delta merge may need a few round trips: the backend reports any conflicts it can't
+                    // resolve on its own, we ask the user to pick a value for each, then retry with those
+                    // resolutions filled in.
+                    loop {
+                        let command = Command::MergeFiles(pack_key.clone(), selected_paths_cont.to_vec(), path_to_add.clone(), delete_source_files, options.clone());
+                        match send_ipc_command(command, |response| response) {
+                            Response::String(path_to_add) => {
+
+                                // If we want to delete the sources, do it now. Oh, and close them manually first, or the autocleanup will try to save them and fail miserably.
+                                if delete_source_files {
+                                    selected_paths.iter().for_each(|x| { let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, x, DataSource::PackFile, false); });
+                                    let paths_to_delete = selected_paths_cont.iter().filter(|path| path.path_raw() != path_to_add).cloned().collect::<Vec<_>>();
+                                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(paths_to_delete, true), DataSource::PackFile, &pack_key);
+                                }
+
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![ContainerPath::File(path_to_add); 1]), DataSource::PackFile, &pack_key);
+
+                                UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+                                break;
                             }
 
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![ContainerPath::File(path_to_add); 1]), DataSource::PackFile, &pack_key);
+                            Response::MergeConflicts(conflicts) => match AppUI::merge_conflicts_dialog(&app_ui, &conflicts) {
+                                Some(resolutions) => { options.set_resolutions(resolutions); },
+                                None => break,
+                            },
 
-                            UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+                            Response::Error(error) => {
+                                show_dialog(app_ui.main_window(), error, false);
+                                break;
+                            }
+
+                            _ => break,
                         }
-
-                        Err(error) => show_dialog(app_ui.main_window(), error, false),
                     }
                 }
             }

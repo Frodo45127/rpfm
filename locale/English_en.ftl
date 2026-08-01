@@ -186,6 +186,10 @@ table_filter = Type here to filter the table. Works with Regex too!
 merge_tables = Merge Tables
 merge_tables_new_name = Write the name of the new file here.
 merge_tables_delete_option = Delete original tables
+merge_tables_delta_merge = Delta merge (combine changes by row key instead of concatenating rows)
+merge_conflicts_title = Resolve Merge Conflicts
+merge_conflicts_info = The following rows were changed differently by more than one of the tables you're merging. Pick which value to keep for each one.
+merge_conflicts_keep_all_from = Keep all from {"{"}{"}"}
 
 ## External FileDialog
 

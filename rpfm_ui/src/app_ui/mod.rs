@@ -34,6 +34,8 @@ use qt_widgets::{q_message_box, QMessageBox};
 use qt_widgets::QScrollArea;
 use qt_widgets::QPushButton;
 use qt_widgets::QTabWidget;
+use qt_widgets::QTableWidget;
+use qt_widgets::QTableWidgetItem;
 use qt_widgets::QTreeView;
 use qt_widgets::QToolButton;
 use qt_widgets::QWidget;
@@ -74,6 +76,8 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{atomic::Ordering, RwLock};
 use std::time::Instant;
+
+use rpfm_extensions::merge::{MergeConflict, MergeResolution};
 
 use rpfm_ipc::settings_keys::*;
 use rpfm_ipc::helpers::{ContainerInfo, DataSource, NewFile};
@@ -123,6 +127,9 @@ const NEW_FILE_VIEW_RELEASE: &str = "ui/new_file_dialog.ui";
 
 const PACK_MAP_VIEW_DEBUG: &str = "rpfm_ui/ui_templates/pack_map_dialog.ui";
 const PACK_MAP_VIEW_RELEASE: &str = "ui/pack_map_dialog.ui";
+
+const MERGE_CONFLICTS_VIEW_DEBUG: &str = "rpfm_ui/ui_templates/merge_conflicts_dialog.ui";
+const MERGE_CONFLICTS_VIEW_RELEASE: &str = "ui/merge_conflicts_dialog.ui";
 
 const BUILD_STARPOS_VIEW_DEBUG: &str = "rpfm_ui/ui_templates/build_starpos_view.ui";
 const BUILD_STARPOS_VIEW_RELEASE: &str = "ui/build_starpos_view.ui";
@@ -3117,7 +3124,7 @@ impl AppUI {
     }
 
     /// This function creates the entire "Merge Tables" dialog. It returns the stuff set in it.
-    pub unsafe fn merge_tables_dialog(app_ui: &Rc<Self>, pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Option<(String, bool)> {
+    pub unsafe fn merge_tables_dialog(app_ui: &Rc<Self>, pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Option<(String, bool, bool)> {
 
         let dialog = QDialog::new_1a(&app_ui.main_window);
         dialog.set_window_title(&qtr("merge_tables"));
@@ -3142,11 +3149,13 @@ impl AppUI {
         name_line_edit.set_text(&QString::from_std_str(packfile_name));
 
         let delete_source_tables = QCheckBox::from_q_string(&qtr("merge_tables_delete_option"));
+        let delta_merge = QCheckBox::from_q_string(&qtr("merge_tables_delta_merge"));
 
         let accept_button = QPushButton::from_q_string(&qtr("gen_loc_accept"));
         main_grid.add_widget_5a(&name_line_edit, 0, 0, 1, 1);
         main_grid.add_widget_5a(&delete_source_tables, 1, 0, 1, 1);
-        main_grid.add_widget_5a(&accept_button, 2, 0, 1, 1);
+        main_grid.add_widget_5a(&delta_merge, 2, 0, 1, 1);
+        main_grid.add_widget_5a(&accept_button, 3, 0, 1, 1);
 
         // What happens when we hit the "Search" button.
         accept_button.released().connect(dialog.slot_accept());
@@ -3155,12 +3164,91 @@ impl AppUI {
         if dialog.exec() == 1 {
             let text = name_line_edit.text().to_std_string();
             let delete_source_tables = delete_source_tables.is_checked();
-            if !text.is_empty() { Some((text, delete_source_tables)) }
+            let delta_merge = delta_merge.is_checked();
+            if !text.is_empty() { Some((text, delete_source_tables, delta_merge)) }
             else { None }
         }
 
         // Otherwise, return None.
         else { None }
+    }
+
+    /// This function creates the "Merge Conflicts" dialog, letting the user pick which source's value
+    /// to keep for each delta-merge conflict.
+    ///
+    /// Returns the chosen resolutions, or `None` if the dialog was canceled (aborting the whole merge).
+    pub unsafe fn merge_conflicts_dialog(app_ui: &Rc<Self>, conflicts: &[MergeConflict]) -> Option<Vec<MergeResolution>> {
+
+        let template_path = if cfg!(debug_assertions) { MERGE_CONFLICTS_VIEW_DEBUG } else { MERGE_CONFLICTS_VIEW_RELEASE };
+        let main_widget = load_template(app_ui.main_window(), template_path).ok()?;
+        let dialog = main_widget.static_downcast::<QDialog>();
+
+        let info_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "info_label").ok()?;
+        let bulk_actions_widget: QPtr<QWidget> = find_widget(&main_widget.static_upcast(), "bulk_actions_widget").ok()?;
+        let conflicts_table: QPtr<QTableWidget> = find_widget(&main_widget.static_upcast(), "conflicts_table").ok()?;
+        let button_box: QPtr<QDialogButtonBox> = find_widget(&main_widget.static_upcast(), "button_box").ok()?;
+
+        dialog.set_window_title(&qtr("merge_conflicts_title"));
+        info_label.set_text(&qtr("merge_conflicts_info"));
+
+        // One row and one candidate combo box per conflict, the combo listing each candidate value
+        // tagged with the source(s) that proposed it.
+        conflicts_table.set_row_count(conflicts.len() as i32);
+        let combos = conflicts.iter().enumerate().map(|(row, conflict)| {
+            let row_item = QTableWidgetItem::from_q_string(&QString::from_std_str(conflict.row_key.join(", ")));
+            let field_item = QTableWidgetItem::from_q_string(&QString::from_std_str(&conflict.field_name));
+            conflicts_table.set_item(row as i32, 0, row_item.into_ptr());
+            conflicts_table.set_item(row as i32, 1, field_item.into_ptr());
+
+            let combo = QComboBox::new_1a(&conflicts_table);
+            for candidate in &conflict.candidates {
+                let sources = candidate.source_paths.iter().map(|path| path.rsplit('/').next().unwrap_or(path)).join(", ");
+                combo.add_item_q_string(&QString::from_std_str(format!("{} ({sources})", candidate.value)));
+            }
+
+            conflicts_table.set_cell_widget(row as i32, 2, &combo);
+            combo
+        }).collect::<Vec<_>>();
+
+        // One "keep all from <source>" button per distinct source path, to bulk-fill every row that
+        // has a candidate from that source.
+        let mut source_paths = conflicts.iter()
+            .flat_map(|conflict| conflict.candidates.iter().flat_map(|candidate| candidate.source_paths.iter().cloned()))
+            .collect::<Vec<_>>();
+        source_paths.sort();
+        source_paths.dedup();
+
+        let conflicts = conflicts.to_vec();
+        let _bulk_slots = source_paths.iter().map(|source_path| {
+            let source_name = source_path.rsplit('/').next().unwrap_or(source_path);
+            let button = QPushButton::from_q_string(&qtre("merge_conflicts_keep_all_from", &[source_name]));
+            bulk_actions_widget.layout().add_widget(&button);
+
+            let combo_ptrs = combos.iter().map(|combo| combo.as_ptr()).collect::<Vec<_>>();
+            let conflicts = conflicts.clone();
+            let source_path = source_path.clone();
+            let slot = SlotNoArgs::new(&dialog, move || {
+                for (index, conflict) in conflicts.iter().enumerate() {
+                    if let Some(candidate_index) = conflict.candidates.iter().position(|candidate| candidate.source_paths.contains(&source_path)) {
+                        combo_ptrs[index].set_current_index(candidate_index as i32);
+                    }
+                }
+            });
+
+            button.released().connect(&slot);
+            (button, slot)
+        }).collect::<Vec<_>>();
+
+        button_box.button(StandardButton::Ok).released().connect(dialog.slot_accept());
+
+        if dialog.exec() == 1 {
+            Some(conflicts.iter().zip(combos.iter()).map(|(conflict, combo)| {
+                let candidate = &conflict.candidates[combo.current_index() as usize];
+                MergeResolution { row_key: conflict.row_key.clone(), field_name: conflict.field_name.clone(), chosen_value: candidate.value.clone() }
+            }).collect())
+        } else {
+            None
+        }
     }
 
     /// This function creates the "Pack Map" dialog.

@@ -80,6 +80,7 @@ use std::{sync::{mpsc::Sender, Arc, LazyLock, RwLock}, thread::JoinHandle};
 pub mod dependencies;
 pub mod diagnostics;
 pub mod gltf;
+pub mod merge;
 pub mod optimizer;
 pub mod search;
 pub mod translator;

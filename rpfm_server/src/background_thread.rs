@@ -46,6 +46,7 @@ use std::time::SystemTime;
 use rpfm_extensions::dependencies::*;
 use rpfm_extensions::diagnostics::Diagnostics;
 use rpfm_extensions::gltf::{gltf_from_rigid, save_gltf_to_disk};
+use rpfm_extensions::merge::{db_baseline, delta_merge_db, delta_merge_loc, loc_baseline, MergeConflict, MergeResolution};
 use rpfm_extensions::optimizer::OptimizableContainer;
 use rpfm_extensions::translator::PackTranslation;
 
@@ -101,6 +102,12 @@ const DEFAULT_PACK_STEM: &str = "new_pack";
 /// Extension appended to [`DEFAULT_PACK_STEM`] when materialising a new
 /// Pack's filename.
 const DEFAULT_PACK_EXT: &str = ".pack";
+
+/// Outcome of a delta merge attempt: either a finished file ready to insert, or the conflicts blocking it.
+enum DeltaMergeOutcome {
+    Merged(RFile),
+    Conflicts(Vec<MergeConflict>),
+}
 
 /// Extracts the variant name (e.g. `"NewPack"`) from a [`Command`] for telemetry.
 ///
@@ -1646,12 +1653,19 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
             }
 
             // In case we want to merge DB or Loc Tables from a PackFile...
-            Command::MergeFiles(pack_key, paths, merged_path, delete_source_files) => {
+            Command::MergeFiles(pack_key, paths, merged_path, delete_source_files, options) => {
                 match packs.get_mut(&pack_key) {
                     Some(pack) => {
                         let files_to_merge = pack.files_by_paths(&paths, false);
-                        match RFile::merge(&files_to_merge, &merged_path) {
-                            Ok(file) => {
+
+                        let merge_result: Result<DeltaMergeOutcome> = if *options.delta_merge() {
+                            delta_merge_files(&files_to_merge, &merged_path, &dependencies.read().unwrap(), options.resolutions())
+                        } else {
+                            RFile::merge(&files_to_merge, &merged_path).map(DeltaMergeOutcome::Merged).map_err(|error| anyhow!(error.to_string()))
+                        };
+
+                        match merge_result {
+                            Ok(DeltaMergeOutcome::Merged(file)) => {
                                 let _ = pack.insert(file);
 
                                 // Make sure to only delete the files if they're not the destination file.
@@ -1663,6 +1677,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
 
                                 CentralCommand::send_back(&sender, Response::String(merged_path.to_string()));
                             },
+                            Ok(DeltaMergeOutcome::Conflicts(conflicts)) => CentralCommand::send_back(&sender, Response::MergeConflicts(conflicts)),
                             Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                         }
                     }
@@ -4142,6 +4157,44 @@ fn container_path_from_disk_path(disk_path: &std::path::Path, base_folder: &std:
         })
         .collect::<Vec<_>>()
         .join("/")
+}
+
+/// Delta-merges the decoded DB or Loc `sources` (same type/table) against the vanilla/parent baseline,
+/// applying any already-known `resolutions`. See [`rpfm_extensions::merge`] for the merge rules.
+fn delta_merge_files(sources: &[&RFile], merged_path: &str, dependencies: &Dependencies, resolutions: &[MergeResolution]) -> Result<DeltaMergeOutcome> {
+    if sources.len() < 2 {
+        return Err(anyhow!("Not enough tables provided to merge."));
+    }
+
+    match sources[0].decoded()? {
+        RFileDecoded::DB(_) => {
+            let tables = sources.iter()
+                .filter_map(|file| if let Ok(RFileDecoded::DB(table)) = file.decoded() { Some((file.path_in_container_raw(), table)) } else { None })
+                .collect::<Vec<_>>();
+
+            let baseline = db_baseline(dependencies, tables[0].1.table_name());
+            let (merged, conflicts) = delta_merge_db(&tables, baseline.as_ref(), resolutions)?;
+            if conflicts.is_empty() {
+                Ok(DeltaMergeOutcome::Merged(RFile::new_from_decoded(&RFileDecoded::DB(merged), current_time()?, merged_path)))
+            } else {
+                Ok(DeltaMergeOutcome::Conflicts(conflicts))
+            }
+        },
+        RFileDecoded::Loc(_) => {
+            let tables = sources.iter()
+                .filter_map(|file| if let Ok(RFileDecoded::Loc(table)) = file.decoded() { Some((file.path_in_container_raw(), table)) } else { None })
+                .collect::<Vec<_>>();
+
+            let baseline = loc_baseline(dependencies);
+            let (merged, conflicts) = delta_merge_loc(&tables, baseline.as_ref(), resolutions)?;
+            if conflicts.is_empty() {
+                Ok(DeltaMergeOutcome::Merged(RFile::new_from_decoded(&RFileDecoded::Loc(merged), current_time()?, merged_path)))
+            } else {
+                Ok(DeltaMergeOutcome::Conflicts(conflicts))
+            }
+        },
+        _ => Err(anyhow!("Delta merge is only supported for DB and Loc tables.")),
+    }
 }
 
 // TODO: what do we do with this?

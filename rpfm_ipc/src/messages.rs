@@ -60,6 +60,7 @@ use std::path::PathBuf;
 
 use rpfm_extensions::dependencies::TableReferences;
 use rpfm_extensions::diagnostics::Diagnostics;
+use rpfm_extensions::merge::{MergeConflict, MergeOptions};
 use rpfm_extensions::optimizer::OptimizerOptions;
 use rpfm_extensions::search::{GlobalSearch, MatchHolder};
 use rpfm_extensions::translator::PackTranslation;
@@ -527,12 +528,17 @@ pub enum Command {
     GetTableDefinitionFromDependencyPackFile(String),
 
     /// Merge multiple compatible tables into one in a specific pack.
-    /// First field is the pack key, then paths to merge, merged file path, delete source flag.
+    /// First field is the pack key, then paths to merge, merged file path, delete source flag, merge options.
+    ///
+    /// If [`MergeOptions::delta_merge`] is set and merging by key leaves unresolved conflicts, nothing is
+    /// written and the conflicts are returned instead; call this again with the same arguments plus
+    /// [`MergeOptions::resolutions`] filled in to finish the merge.
     ///
     /// Response:
     /// - [`Response::String`] (merged path) on success.
+    /// - [`Response::MergeConflicts`] if delta merging left unresolved conflicts.
     /// - [`Response::Error`] on failure.
-    MergeFiles(String, Vec<ContainerPath>, String, bool),
+    MergeFiles(String, Vec<ContainerPath>, String, bool, MergeOptions),
 
     /// Update a table to a newer version in a specific pack.
     /// First field is the pack key, second is the container path.
@@ -1431,6 +1437,7 @@ pub enum Response {
     ImageRFileInfo(Image, RFileInfo),
     LocRFileInfo(Loc, RFileInfo),
     MatchedCombatRFileInfo(MatchedCombat, RFileInfo),
+    MergeConflicts(Vec<MergeConflict>),
     Note(Note),
     OperationalMode(OperationalMode),
     OptimizerOptions(OptimizerOptions),

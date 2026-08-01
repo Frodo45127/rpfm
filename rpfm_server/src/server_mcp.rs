@@ -54,6 +54,8 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 use std::path::PathBuf;
 
+use rpfm_extensions::merge::MergeOptions;
+
 use rpfm_ipc::helpers::DataSource;
 use rpfm_ipc::messages::{Command, Response};
 use rpfm_lib::files::{ContainerPath, RFile, RFileDecoded};
@@ -587,6 +589,11 @@ pub struct MergeFilesArgs {
     pub merged_path: String,
     /// Whether to delete source files after merging.
     pub delete_source: bool,
+    /// Merge rows by key instead of concatenating them. If some rows can't be reconciled
+    /// automatically, nothing is written and the response is `Response::MergeConflicts` instead.
+    /// Defaults to false.
+    #[serde(default)]
+    pub delta_merge: bool,
 }
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
@@ -1764,10 +1771,12 @@ impl McpServer {
     // Table Operations
     //-----------------------------------------------------------------------//
 
-    #[tool(description = "Merge multiple compatible tables into one in the pack identified by `pack_key`. The `paths` is a JSON array of ContainerPath for the tables to merge, e.g. [{\"File\": \"db/land_units_tables/table1\"}, {\"File\": \"db/land_units_tables/table2\"}]. The `merged_path` is the destination path. Set `delete_source` to true to remove the original files.")]
+    #[tool(description = "Merge multiple compatible tables into one in the pack identified by `pack_key`. The `paths` is a JSON array of ContainerPath for the tables to merge, e.g. [{\"File\": \"db/land_units_tables/table1\"}, {\"File\": \"db/land_units_tables/table2\"}]. The `merged_path` is the destination path. Set `delete_source` to true to remove the original files. DB Tables can also be enabled for Delta Merging (if two or more tables edit the same row, it merges their changes into a single row).")]
     pub async fn merge_files(&self, params: Parameters<MergeFilesArgs>) -> Result<CallToolResult, McpError> {
         let paths: Vec<ContainerPath> = parse_json!(&params.0.paths);
-        send_and_respond!(self, "merge_files", Command::MergeFiles(params.0.pack_key, paths, params.0.merged_path, params.0.delete_source))
+        let mut options = MergeOptions::default();
+        options.set_delta_merge(params.0.delta_merge);
+        send_and_respond!(self, "merge_files", Command::MergeFiles(params.0.pack_key, paths, params.0.merged_path, params.0.delete_source, options))
     }
 
     #[tool(description = "Update a table to the latest schema version in the pack identified by `pack_key`. The `value` is a ContainerPath JSON, e.g. {\"File\": \"db/land_units_tables/my_mod\"}.")]
