@@ -1116,7 +1116,8 @@ impl AppUI {
         let open_packs = send_ipc_command(Command::ListOpenPacks, response_extractor!(Response::VecStringContainerInfo));
         for path in pack_file_paths {
             let pack_key = path.to_string_lossy().to_string();
-            if open_packs.iter().any(|(k, _)| k == &pack_key) {
+            let normalized = pack_key.replace('\\', "/");
+            if open_packs.iter().any(|(_, info)| info.file_path() == &normalized) {
                 return Err(anyhow!("Pack '{}' is already open. Close it first if you want to reopen it.", pack_key));
             }
         }

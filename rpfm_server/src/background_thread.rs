@@ -157,6 +157,31 @@ fn pack_key_from_path(path: &std::path::Path) -> String {
     path.to_string_lossy().to_string()
 }
 
+/// Generate an unique pack key that does not conflict with any existing open packs.
+fn unique_pack_key(key: &str, packs: &BTreeMap<String, Pack>) -> String {
+    if !packs.contains_key(key) {
+        return key.to_string();
+    }
+
+    let path = std::path::Path::new(key);
+    let parent = path.parent().map(|parent| parent.to_path_buf()).unwrap_or_default();
+    let stem = path.file_stem().map(|stem| stem.to_string_lossy().to_string()).unwrap_or_else(|| key.to_string());
+    let ext = path.extension().map(|ext| ext.to_string_lossy().to_string());
+
+    let mut suffix = 2;
+    loop {
+        let candidate_name = match &ext {
+            Some(ext) => format!("{stem} ({suffix}).{ext}"),
+            None => format!("{stem} ({suffix})"),
+        };
+        let candidate = parent.join(candidate_name).to_string_lossy().to_string();
+        if !packs.contains_key(&candidate) {
+            return candidate;
+        }
+        suffix += 1;
+    }
+}
+
 /// Expand selected paths into file path entries for the clipboard.
 ///
 /// Returns `(file_path, base_path, source_pack_key)` per file. Only paths are stored,
@@ -349,7 +374,12 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                     format!("{}{}", DEFAULT_PACK_STEM, DEFAULT_PACK_EXT)
                 };
 
-                if packs.contains_key(&key) {
+                let already_open = paths.first().is_some_and(|first_path| {
+                    let normalized = first_path.to_string_lossy().replace('\\', "/");
+                    packs.values().any(|pack| pack.disk_file_path() == normalized.as_str())
+                });
+
+                if already_open {
                     CentralCommand::send_back(&sender, Response::Error(format!(
                         "Pack '{}' is already open. Close it first if you want to reopen it.", key
                     )));
@@ -369,6 +399,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                                 });
                             }
 
+                            let key = unique_pack_key(&key, &packs);
                             session.add_pack_name(&key);
 
                             let info = ContainerInfo::from(&pack);
