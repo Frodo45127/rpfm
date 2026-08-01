@@ -6,6 +6,38 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [5.0.6]
+### Added
+- Improved documentation for AI Agents to more easely decode tables, by [@ChaosRobie](https://github.com/robert-d-schultz).
+- Implemented delta-merging for tables (merge changes between multiple copies from the same row into a single one, with conflict resolution).
+
+### Changed
+- Global search result headers are now resizable.
+- New table filters are now put in separate groups when created, like in 4.X.
+
+### Removed
+- Removed button added by Qt6 to the generating dependencies cache dialog.
+
+### Fixed
+- Fixed debug views (views in json format with a save button at the bottom) failing to save.
+- Fixed Go To Definition failing to work with "Pack not found" errors.
+- Fixed crash reports not logging their cause.
+- Fixed Add Folder failing to work under windows in some situations.
+- Fixed settings loading too late in the startup process, causing flashing when the UI had different theming settings from the default ones.
+- Fixed TSV Import command not being idempotent.
+- Fixed CTD when two crash reports are generated in quick succession.
+- Fixed missing reason when a crash report fails to be generated.
+- Fixed CTD when parsing certain AK files.
+- Fixed CTD when decoding groupformation files.
+- Fixed CTD when trying to export as TSV a file that doesn't support exporting as TSV.
+- Fixed CTD when fetching reference data from multiple tables with different definitions.
+- Fixed CTD when a single table fails to decode when loading dependencies.
+- Fixed CTD when the settings file fails to load.
+- Fixed CTD when the settings file fails to save.
+- Fixed CTD when there is a session error.
+- Fixed Save As causing the original pack to not be openable.
+- Fixed pack key collisions causing inconsistent behavior when opening packs with the same name.
+
 ## [5.0.5]
 ### Added
 - Added setting to show global search results closed by default.
@@ -1940,7 +1972,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v5.0.5...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v5.0.6...HEAD
+[5.0.6]: https://github.com/Frodo45127/rpfm/compare/v5.0.5...v5.0.6
 [5.0.5]: https://github.com/Frodo45127/rpfm/compare/v5.0.4...v5.0.5
 [5.0.4]: https://github.com/Frodo45127/rpfm/compare/v5.0.3...v5.0.4
 [5.0.3]: https://github.com/Frodo45127/rpfm/compare/v5.0.2...v5.0.3
