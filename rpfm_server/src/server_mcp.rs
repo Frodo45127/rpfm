@@ -38,16 +38,15 @@
 use rmcp::ErrorData as McpError;
 use rmcp::handler::server::{router::prompt::PromptRouter, tool::ToolRouter, wrapper::Parameters};
 use rmcp::model::{
-    Annotated, CallToolResult, CompletionInfo, CompleteRequestParams, CompleteResult,
-    Content, ErrorCode, GetPromptRequestParams, GetPromptResult,
-    ListPromptsResult, ListResourcesResult, ListResourceTemplatesResult,
-    PaginatedRequestParams, PromptMessage, PromptMessageRole,
-    RawResource, ReadResourceRequestParams, ReadResourceResult,
-    ResourceContents, ServerCapabilities, ServerInfo, SetLevelRequestParams,
+    CallToolResult, CompletionInfo, CompleteRequestParams, CompleteResult,
+    ContentBlock, ErrorCode, ListResourcesResult, ListResourceTemplatesResult,
+    PaginatedRequestParams, PromptMessage,
+    ReadResourceRequestParams, ReadResourceResult, ReadResourceResponse,
+    Resource, ResourceContents, Role, ServerCapabilities, ServerInfo,
 };
-use rmcp::schemars::JsonSchema;
 use rmcp::service::RequestContext;
 use rmcp::{prompt, prompt_handler, prompt_router, tool, tool_handler, tool_router, RoleServer};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -98,19 +97,18 @@ macro_rules! send_and_respond {
         })?;
 
         if is_error {
-            Ok(CallToolResult::error(vec![Content::text(json)]))
+            Ok(CallToolResult::error(vec![ContentBlock::text(json)]))
         } else {
-            Ok(CallToolResult::success(vec![Content::text(json)]))
+            Ok(CallToolResult::success(vec![ContentBlock::text(json)]))
         }
     }};
 }
 
-/// Build an Annotated<RawResource> with common fields set.
-fn resource(uri: &str, name: &str, description: &str, mime_type: &str) -> Annotated<RawResource> {
-    let mut raw = RawResource::new(uri, name);
-    raw.description = Some(description.into());
-    raw.mime_type = Some(mime_type.into());
-    Annotated { raw, annotations: None }
+/// Build a `Resource` with common fields set.
+fn resource(uri: &str, name: &str, description: &str, mime_type: &str) -> Resource {
+    Resource::new(uri, name)
+        .with_description(description)
+        .with_mime_type(mime_type)
 }
 
 /// Parse a JSON string into the expected type, returning a tool-level error on failure.
@@ -122,7 +120,7 @@ macro_rules! parse_json {
     ($input:expr) => {
         match serde_json::from_str($input) {
             Ok(v) => v,
-            Err(e) => return Ok(CallToolResult::error(vec![Content::text(format!("Invalid JSON parameter: {e}"))])),
+            Err(e) => return Ok(CallToolResult::error(vec![ContentBlock::text(format!("Invalid JSON parameter: {e}"))])),
         }
     };
 }
@@ -813,7 +811,6 @@ impl rmcp::ServerHandler for McpServer {
             .enable_prompts()
             .enable_resources()
             .enable_completions()
-            .enable_logging()
             .build();
 
         // `ServerInfo` is `#[non_exhaustive]` in rmcp, so it must be built through its constructor instead of a struct literal.
@@ -925,7 +922,7 @@ All tool responses are JSON-serialized. On failure, an error message is returned
         &self,
         request: ReadResourceRequestParams,
         _context: RequestContext<RoleServer>,
-    ) -> Result<ReadResourceResult, McpError> {
+    ) -> Result<ReadResourceResponse, McpError> {
         let uri = &request.uri;
         let content = match uri.as_str() {
             "rpfm://games" => serde_json::json!({
@@ -1203,7 +1200,7 @@ Maps:
             }
         };
 
-        Ok(ReadResourceResult::new(vec![ResourceContents::text(content, uri.clone())]))
+        Ok(ReadResourceResult::new(vec![ResourceContents::text(content, uri.clone())]).into())
     }
 
     //-----------------------------------------------------------------------//
@@ -1266,27 +1263,17 @@ Maps:
         let values: Vec<String> = candidates.into_iter().take(100).collect();
         let has_more = total > 100;
 
-        Ok(CompleteResult::new(CompletionInfo {
+        Ok(CompleteResult::new(CompletionInfo::with_pagination(
             values,
-            total: Some(total),
-            has_more: Some(has_more),
-        }))
+            Some(total),
+            has_more,
+        ).map_err(|e| McpError {
+            code: ErrorCode::INTERNAL_ERROR,
+            message: format!("Failed to build completion info: {e}").into(),
+            data: None,
+        })?))
     }
 
-    //-----------------------------------------------------------------------//
-    // Logging
-    //-----------------------------------------------------------------------//
-
-    async fn set_level(
-        &self,
-        _request: SetLevelRequestParams,
-        _context: RequestContext<RoleServer>,
-    ) -> Result<(), McpError> {
-        // Acknowledge the logging level request. RPFM uses its own logging
-        // infrastructure (rpfm_telemetry/sentry), so we accept the request but
-        // don't change the internal log level.
-        Ok(())
-    }
 }
 
 #[tool_router]
@@ -2186,7 +2173,7 @@ impl McpServer {
     #[prompt(name = "open_and_inspect_pack", description = "Walk through opening a PackFile and inspecting its contents.")]
     pub async fn open_and_inspect_pack(&self) -> Vec<PromptMessage> {
         vec![PromptMessage::new_text(
-            PromptMessageRole::User,
+            Role::User,
             "\
 You are an assistant helping the user inspect a Total War PackFile using the RPFM MCP server.
 
@@ -2219,7 +2206,7 @@ Important notes:
     #[prompt(name = "edit_db_table", description = "Guide for reading, modifying, and saving a DB table inside a pack.")]
     pub async fn edit_db_table(&self) -> Vec<PromptMessage> {
         vec![PromptMessage::new_text(
-            PromptMessageRole::User,
+            Role::User,
             "\
 You are an assistant helping the user edit a DB table inside a Total War PackFile.
 
@@ -2252,7 +2239,7 @@ Tips:
     #[prompt(name = "create_new_mod", description = "Step-by-step guide for creating a new mod PackFile from scratch.")]
     pub async fn create_new_mod(&self) -> Vec<PromptMessage> {
         vec![PromptMessage::new_text(
-            PromptMessageRole::User,
+            Role::User,
             "\
 You are an assistant helping the user create a new Total War mod from scratch.
 
@@ -2289,7 +2276,7 @@ Optional steps:
     #[prompt(name = "search_and_replace", description = "Find and replace values across all files in a pack.")]
     pub async fn search_and_replace(&self) -> Vec<PromptMessage> {
         vec![PromptMessage::new_text(
-            PromptMessageRole::User,
+            Role::User,
             "\
 You are an assistant helping the user search for and replace data across a PackFile.
 
@@ -2323,7 +2310,7 @@ Related tools:
     #[prompt(name = "manage_dependencies", description = "Set up and work with game dependencies and vanilla data.")]
     pub async fn manage_dependencies(&self) -> Vec<PromptMessage> {
         vec![PromptMessage::new_text(
-            PromptMessageRole::User,
+            Role::User,
             "\
 You are an assistant helping the user work with dependency data (vanilla game files).
 
@@ -2369,7 +2356,7 @@ Tips:
     #[prompt(name = "run_diagnostics", description = "Validate a pack and fix common issues.")]
     pub async fn run_diagnostics(&self) -> Vec<PromptMessage> {
         vec![PromptMessage::new_text(
-            PromptMessageRole::User,
+            Role::User,
             "\
 You are an assistant helping the user validate a Total War mod PackFile.
 
@@ -2411,7 +2398,7 @@ Workflow:
     #[prompt(name = "schema_operations", description = "Work with table schemas: inspect, update, and patch definitions.")]
     pub async fn schema_operations(&self) -> Vec<PromptMessage> {
         vec![PromptMessage::new_text(
-            PromptMessageRole::User,
+            Role::User,
             "\
 You are an assistant helping the user manage RPFM table schemas.
 
@@ -2457,7 +2444,7 @@ Workflow:
     #[prompt(name = "file_operations", description = "Add, remove, rename, extract, and move files within packs.")]
     pub async fn file_operations(&self) -> Vec<PromptMessage> {
         vec![PromptMessage::new_text(
-            PromptMessageRole::User,
+            Role::User,
             "\
 You are an assistant helping the user manage files inside a Total War PackFile.
 
@@ -2514,7 +2501,7 @@ Always call `save_packfile` or `save_pack_as` when done to persist changes.
     #[prompt(name = "troubleshooting", description = "Diagnose and fix common issues with RPFM and PackFiles.")]
     pub async fn troubleshooting(&self) -> Vec<PromptMessage> {
         vec![PromptMessage::new_text(
-            PromptMessageRole::User,
+            Role::User,
             "\
 You are an assistant helping the user troubleshoot common RPFM and PackFile issues.
 
@@ -2574,7 +2561,7 @@ You are an assistant helping the user troubleshoot common RPFM and PackFile issu
     #[prompt(name = "tsv_workflow", description = "Import and export tables as TSV files for batch editing in spreadsheets.")]
     pub async fn tsv_workflow(&self) -> Vec<PromptMessage> {
         vec![PromptMessage::new_text(
-            PromptMessageRole::User,
+            Role::User,
             "\
 You are an assistant helping the user work with TSV (Tab-Separated Values) files for batch editing \
 Total War mod data in spreadsheets.
@@ -2624,7 +2611,7 @@ Total War mod data in spreadsheets.
     #[prompt(name = "translation_workflow", description = "Work with localisation and translation data in PackFiles.")]
     pub async fn translation_workflow(&self) -> Vec<PromptMessage> {
         vec![PromptMessage::new_text(
-            PromptMessageRole::User,
+            Role::User,
             "\
 You are an assistant helping the user work with localisation (translation) data in Total War mods.
 
