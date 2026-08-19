@@ -1012,7 +1012,7 @@ impl Dependencies {
 
             // First check in /data. If we have packs there, do not bother checking for external Packs.
             if let Some(path) = data_paths.iter().find(|x| x.file_name().unwrap().to_string_lossy() == pack_name) {
-                if let Ok(pack) = Pack::read_and_merge(&[path.to_path_buf()], game_info, true, false, false) {
+                if let Ok(pack) = Pack::read_and_merge(std::slice::from_ref(path), game_info, true, false, false) {
                     already_loaded.push(pack_name.to_owned());
                     pack.dependencies().iter().for_each(|(_, pack_name)| self.load_parent_pack(pack_name, already_loaded, data_paths, secondary_paths, content_paths, game_info));
                     self.parent_files.extend(pack.files().clone());
@@ -1024,7 +1024,7 @@ impl Dependencies {
             // Then check in /secondary. If we have packs there, do not bother checking for content Packs.
             if let Some(ref paths) = secondary_paths {
                 if let Some(path) = paths.iter().find(|x| x.file_name().unwrap().to_string_lossy() == pack_name) {
-                    if let Ok(pack) = Pack::read_and_merge(&[path.to_path_buf()], game_info, true, false, false) {
+                    if let Ok(pack) = Pack::read_and_merge(std::slice::from_ref(path), game_info, true, false, false) {
                         already_loaded.push(pack_name.to_owned());
                         pack.dependencies().iter().for_each(|(_, pack_name)| self.load_parent_pack(pack_name, already_loaded, data_paths, secondary_paths, content_paths, game_info));
                         self.parent_files.extend(pack.files().clone());
@@ -1037,7 +1037,7 @@ impl Dependencies {
             // If nothing else works, check in content.
             if let Some(ref paths) = content_paths {
                 if let Some(path) = paths.iter().find(|x| x.file_name().unwrap().to_string_lossy() == pack_name) {
-                    if let Ok(pack) = Pack::read_and_merge(&[path.to_path_buf()], game_info, true, false, false) {
+                    if let Ok(pack) = Pack::read_and_merge(std::slice::from_ref(path), game_info, true, false, false) {
                         already_loaded.push(pack_name.to_owned());
                         pack.dependencies().iter().for_each(|(_, pack_name)| self.load_parent_pack(pack_name, already_loaded, data_paths, secondary_paths, content_paths, game_info));
                         self.parent_files.extend(pack.files().clone());

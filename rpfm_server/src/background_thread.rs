@@ -1210,8 +1210,8 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
 
             // In case we want to decode a RigidModel PackedFile...
             Command::DecodePackedFile(pack_key, path, data_source) => {
-                info!("Trying to decode a file. Path: {}", &path);
-                info!("Trying to decode a file. Data Source: {}", &data_source);
+                info!("Trying to decode a file. Path: {}", path);
+                info!("Trying to decode a file. Data Source: {}", data_source);
 
                 match data_source {
                     DataSource::PackFile => {
@@ -2481,7 +2481,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                         }
 
                         if let Some((column_index, row_index)) = data.table().rows_containing_data(&ref_column, &ref_data[0]) {
-                            let path = format!("{}/ak_data", &table_folder);
+                            let path = format!("{}/ak_data", table_folder);
                             CentralCommand::send_back(&sender, Response::DataSourceStringUsizeUsize(DataSource::AssKitFiles, path, column_index, row_index[0]));
                             found = true;
                         }
