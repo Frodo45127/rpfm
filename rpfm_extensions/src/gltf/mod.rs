@@ -602,11 +602,23 @@ fn align_to_multiple_of_four(n: &mut usize) {
     *n = (*n + 3) & !3;
 }*/
 
+/// Reinterprets a `Vec<T>` as a `Vec<u8>`, zero-padded to a multiple of four bytes
+/// so we can hand it off as a glTF buffer view.
+///
+/// Heads up: the `Vec::from_raw_parts` call below reuses the original `Box<[T]>`
+/// allocation as if it were a `Vec<u8>`. When the returned vector drops it will
+/// deallocate with a `[u8]` layout instead of the `[T]` layout it was allocated
+/// with, which is technically UB per the `alloc` contract. In practice the
+/// default allocators don't care, and this is exactly what the `gltf-rs` export
+/// example does. Still, worth swapping for `bytemuck::cast_slice` or an
+/// explicit byte copy at some point.
 fn to_padded_byte_vector<T>(vec: Vec<T>) -> Vec<u8> {
     let byte_length = vec.len() * mem::size_of::<T>();
     let byte_capacity = vec.capacity() * mem::size_of::<T>();
     let alloc = vec.into_boxed_slice();
     let ptr = Box::<[T]>::into_raw(alloc) as *mut u8;
+    // SAFETY: `ptr` came from the `Box<[T]>` we just leaked above; see the doc
+    // comment for the (tolerated) drop-time layout mismatch.
     let mut new_vec = unsafe { Vec::from_raw_parts(ptr, byte_length, byte_capacity) };
     while new_vec.len() % 4 != 0 {
         new_vec.push(0); // pad to multiple of four bytes
