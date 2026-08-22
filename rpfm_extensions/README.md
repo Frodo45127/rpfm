@@ -59,7 +59,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rpfm_extensions = "4.7"
+rpfm_extensions = "5"
 ```
 
 ### Running diagnostics

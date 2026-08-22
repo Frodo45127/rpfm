@@ -74,7 +74,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rpfm_lib = "4.7"
+rpfm_lib = "5"
 ```
 
 ### Reading a Pack
