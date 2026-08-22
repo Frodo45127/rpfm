@@ -116,7 +116,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(pack_tree_actions, "extract", "Extract", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+E"), "archive-extract");
     new_action(pack_tree_actions, "rename", "Rename", Qt::ShortcutContext::WidgetShortcut, {QKeySequence("Ctrl+R"), QKeySequence("F2")}, "edit-move");
     new_action(pack_tree_actions, "copy_path", "Copy Path", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString(""), "edit-copy-path");
-    new_action(pack_tree_actions, "copy", "Copy", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+C"), "edit-copy");
+    new_action(pack_tree_actions, "copy", "Copy", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+Shift+C"), "edit-copy");
     new_action(pack_tree_actions, "cut", "Cut", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+X"), "edit-cut");
     new_action(pack_tree_actions, "paste", "Paste", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+V"), "edit-paste");
     new_action(pack_tree_actions, "duplicate", "Duplicate", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+Shift+D"), "edit-copy");
