@@ -1116,7 +1116,7 @@ pub trait Container {
                 tsv_imported = true;
                 let rfile = RFile::tsv_import_from_path(source_path, schema);
                 if let Err(error) = rfile {
-                    warn!("File with path {} failed to import as TSV. Importing it as binary. If you're using the CLI - did you forget to provide schema with --tsv-as-binary flag? Error was: {}", &source_path.to_string_lossy(), error);
+                    warn!("File with path {} failed to import as TSV. Importing it as binary. If you're using the CLI - did you forget to provide schema with --tsv-as-binary flag? Error was: {}", source_path.to_string_lossy(), error);
 
                     tsv_imported = false;
                     RFile::new_from_file_path(source_path)
@@ -1229,7 +1229,7 @@ pub trait Container {
                     tsv_imported = true;
                     let rfile = RFile::tsv_import_from_path(&file_path, schema);
                     if let Err(error) = rfile {
-                        warn!("File with path {} failed to import as TSV. Importing it as binary. If you're using the CLI - did you forget to provide schema with --tsv-as-binary flag? Error was: {}", &file_path.to_string_lossy(), error);
+                        warn!("File with path {} failed to import as TSV. Importing it as binary. If you're using the CLI - did you forget to provide schema with --tsv-as-binary flag? Error was: {}", file_path.to_string_lossy(), error);
 
                         tsv_imported = false;
                         RFile::new_from_file_path(&file_path)
