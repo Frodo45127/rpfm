@@ -1143,6 +1143,8 @@ fn escape_special_chars(data: &mut String) {
             }
         }
 
+        // SAFETY: we only copy bytes from a valid UTF-8 `String` and push ASCII escape
+        // sequences on top, so `output` is still valid UTF-8 when we write it back.
         unsafe { *data.as_mut_vec() = output };
     }
 }
