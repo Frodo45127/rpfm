@@ -13,7 +13,6 @@
 //! Textures define the visual properties of terrain surfaces including
 //! reflectivity, smoothness, and blending parameters.
 
-use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
 use crate::binary::{ReadBytes, WriteBytes};

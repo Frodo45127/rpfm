@@ -69,7 +69,6 @@
 //! - [`flags`] - Flag definitions
 //! - [`properties`] - Property data structures
 
-use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
 use std::ops::Sub;

@@ -252,7 +252,7 @@ impl SettingsUISlots {
         }));
 
         let mut select_colour = BTreeMap::new();
-        for (key, _button) in ui.colour_buttons().iter() {
+        for key in ui.colour_buttons().keys() {
             let key_clone = key.clone();
             select_colour.insert(key.clone(), SlotNoArgs::new(&ui.dialog, clone!(
                 ui => move || {

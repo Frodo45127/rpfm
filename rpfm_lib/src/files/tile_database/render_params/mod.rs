@@ -13,7 +13,6 @@
 //! Contains settings that affect how terrain is rendered including
 //! height scales, detail levels, normal mapping, and water properties.
 
-use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
 use crate::binary::{ReadBytes, WriteBytes};

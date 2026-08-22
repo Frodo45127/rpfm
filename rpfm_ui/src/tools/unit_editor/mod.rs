@@ -45,7 +45,6 @@ use qt_core::SortOrder;
 
 use cpp_core::Ref;
 
-use getset::*;
 use itertools::Itertools;
 
 use std::collections::HashMap;

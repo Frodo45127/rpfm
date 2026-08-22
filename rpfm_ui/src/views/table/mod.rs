@@ -466,7 +466,7 @@ impl TableView {
             let warning_message = QLabel::from_q_string_q_widget(&qtr("dependency_packfile_list_label"), parent);
             layout.add_widget_5a(&warning_message, 1, 0, 1, 4);
         } else if let TableType::DB(ref db) = table_data {
-            banned_table = GAME_SELECTED.read().unwrap().is_file_banned(&format!("db/{}", &table_name_for_ref));
+            banned_table = GAME_SELECTED.read().unwrap().is_file_banned(&format!("db/{}", table_name_for_ref));
             if banned_table {
                 let warning_message = QLabel::from_q_string_q_widget(&qtr("banned_tables_warning"), parent);
                 layout.add_widget_5a(&warning_message, 1, 0, 1, 4);

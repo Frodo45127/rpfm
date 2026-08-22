@@ -13,7 +13,6 @@
 //! This module contains the [`TileLinkTarget`] struct, which specifies the destination
 //! of a tile link. It identifies which tile set and position a link points to.
 
-use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
 use crate::binary::{ReadBytes, WriteBytes};

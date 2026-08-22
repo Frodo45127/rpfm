@@ -33,7 +33,6 @@ use std::rc::Rc;
 use std::sync::{Arc, atomic::Ordering, RwLock};
 
 use rpfm_ipc::helpers::DataSource;
-use rpfm_ipc::settings_keys::*;
 
 use rpfm_lib::files::{ContainerPath, RFileDecoded};
 
@@ -43,7 +42,6 @@ use rpfm_ui_common::utils::{atomic_from_ptr, ref_from_atomic};
 use crate::app_ui::AppUI;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
-use crate::ffi::*;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::utils::set_modified;
@@ -52,7 +50,6 @@ use crate::settings_ui::backend::settings_bool;
 use crate::UI_STATE;
 use crate::utils::{show_dialog, log_to_status_bar, qtr};
 
-use super::utils::*;
 use super::*;
 
 //-------------------------------------------------------------------------------//

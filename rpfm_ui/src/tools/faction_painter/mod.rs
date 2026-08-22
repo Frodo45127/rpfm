@@ -40,9 +40,7 @@ use qt_core::QVariant;
 
 use cpp_core::Ref;
 
-use getset::*;
 use itertools::Itertools;
-use rayon::prelude::*;
 
 use std::collections::HashMap;
 
@@ -50,7 +48,6 @@ use rpfm_lib::files::{ContainerPath, db::DB, RFileDecoded, table::DecodedData};
 use rpfm_lib::games::supported_games::*;
 
 use crate::communications::{Command, Response, send_ipc_command};
-use crate::ffi::*;
 
 use self::slots::ToolFactionPainterSlots;
 use super::*;

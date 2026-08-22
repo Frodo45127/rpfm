@@ -14,7 +14,6 @@
 //! variations for tiles. Variations allow the terrain system to add diversity to terrain
 //! appearance through different textures, colors, and rendering parameters.
 
-use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
 use crate::binary::{ReadBytes, WriteBytes};

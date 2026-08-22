@@ -33,7 +33,6 @@ use crate::pack_tree::PackTree;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::QString;
 use crate::references_ui::ReferencesUI;
-use crate::utils::*;
 
 use super::*;
 

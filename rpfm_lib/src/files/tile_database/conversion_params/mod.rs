@@ -13,7 +13,6 @@
 //! Contains settings for converting and processing terrain tiles including
 //! triangle density and decimation factors.
 
-use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
 use crate::binary::{ReadBytes, WriteBytes};

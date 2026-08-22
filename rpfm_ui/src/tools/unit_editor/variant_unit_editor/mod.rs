@@ -38,7 +38,6 @@ use qt_core::QVariant;
 use cpp_core::Ref;
 
 use anyhow::Result;
-use getset::*;
 use itertools::Itertools;
 
 use std::collections::HashMap;
@@ -618,7 +617,7 @@ impl SubToolVariantUnitEditor {
 
                 let faction_key = self.faction_list_model.data_1a(&index).to_string().to_std_string();
                 let data = data.iter().map(|(key, value)| {
-                    let key = if !key.ends_with("_definition") { format!("{}|{}", key, &faction_key) } else { key.to_owned() };
+                    let key = if !key.ends_with("_definition") { format!("{}|{}", key, faction_key) } else { key.to_owned() };
                     (key, value.to_owned())
                 }).collect::<HashMap<String, String>>();
 

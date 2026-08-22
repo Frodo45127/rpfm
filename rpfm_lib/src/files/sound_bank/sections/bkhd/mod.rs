@@ -8,7 +8,6 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
 use std::io::Write;

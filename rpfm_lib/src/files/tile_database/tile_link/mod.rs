@@ -14,7 +14,6 @@
 //! tiles within the terrain system. Links allow tiles to reference and blend with
 //! other tiles, creating seamless transitions across terrain boundaries.
 
-use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
 use crate::binary::{ReadBytes, WriteBytes};

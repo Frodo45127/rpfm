@@ -65,7 +65,6 @@
 //! - `text`/`expression` → `StringU8`/`StringU16` (or optional variants)
 
 use itertools::Itertools;
-use rayon::prelude::*;
 use serde_derive::Deserialize;
 use serde_xml_rs::from_reader;
 

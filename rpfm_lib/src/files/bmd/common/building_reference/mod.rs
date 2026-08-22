@@ -27,7 +27,6 @@
 //! println!("Building index: {}", reference.building_index());
 //! ```
 
-use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
 use crate::binary::{ReadBytes, WriteBytes};

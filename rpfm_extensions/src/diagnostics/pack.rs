@@ -11,7 +11,6 @@
 //! Module with the structs and functions specific for `Pack` diagnostics.
 
 use getset::{Getters, MutGetters};
-use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 
 use std::{fmt, fmt::Display};

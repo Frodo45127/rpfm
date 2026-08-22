@@ -48,7 +48,6 @@ use std::sync::{atomic::AtomicPtr, RwLock};
 
 use rpfm_extensions::dependencies::TableReferences;
 
-use rpfm_ipc::settings_keys::*;
 
 use rpfm_lib::binary::WriteBytes;
 use rpfm_lib::files::{ContainerPath, RFileDecoded, rigidmodel::materials::TextureType, table::Table};
@@ -56,7 +55,6 @@ use rpfm_lib::schema::{Definition, DefinitionPatch, Field, FieldType};
 
 use rpfm_ui_common::utils::{atomic_from_ptr, create_grid_layout, ptr_from_atomic, ref_from_atomic};
 
-use crate::ffi::*;
 use crate::QVARIANT_TRUE;
 use crate::QVARIANT_FALSE;
 use crate::settings_ui::backend::{schemas_path, settings_bool};

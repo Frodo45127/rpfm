@@ -14,7 +14,6 @@
 //! position in the tile map. When a battle occurs at that position on the campaign
 //! map, the corresponding tile is loaded as the battle terrain.
 
-use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
 use crate::binary::{ReadBytes, WriteBytes};

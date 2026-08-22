@@ -246,7 +246,7 @@ unsafe fn replace_jumplines_with_pipes(line_edit: &QPtr<QLineEdit>, text: &str) 
         return;
     }
 
-    let replaced = text.replace("\r\n", "|").replace('\n', "|").replace('\t', "|");
+    let replaced = text.replace("\r\n", "|").replace(['\n', '\t'], "|");
     line_edit.block_signals(true);
     line_edit.undo();
     line_edit.select_all();

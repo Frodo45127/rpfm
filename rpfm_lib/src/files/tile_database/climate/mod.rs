@@ -13,7 +13,6 @@
 //! Climates define environmental variations for terrain (e.g., temperate, desert, snow).
 //! Each climate has associated textures and colour modifiers that affect how tiles appear.
 
-use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
 use crate::binary::{ReadBytes, WriteBytes};

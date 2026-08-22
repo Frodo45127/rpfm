@@ -13,7 +13,6 @@
 //! Tile sets group related tiles together and define shared properties
 //! like linking behaviour and geometry references.
 
-use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
 use crate::binary::{ReadBytes, WriteBytes};

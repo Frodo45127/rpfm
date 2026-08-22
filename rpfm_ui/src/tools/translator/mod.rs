@@ -35,7 +35,6 @@ use cpp_core::CppDeletable;
 use anyhow::anyhow;
 use base64::{Engine, engine::general_purpose::STANDARD};
 use deepl::{DeepLApi, Lang, ModelType, TagHandling};
-use getset::*;
 use regex::{Captures, Regex};
 use serde_json::{json, Value};
 

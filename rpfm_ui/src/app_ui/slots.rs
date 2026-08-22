@@ -1195,7 +1195,7 @@ impl AppUISlots {
                             <li><b>CA</b>, for being a mod-friendly company.</li>
                             <li><b>CnC discord guys</b>, for asking for features, helping with testing from time to time, etc...</li>
                         </ul>
-                        ", &VERSION, &VERSION_SUBTITLE, &only_for_the_brave, get_feature_flags()))
+                        ", VERSION, VERSION_SUBTITLE, only_for_the_brave, get_feature_flags()))
                     );
             }
         ));
