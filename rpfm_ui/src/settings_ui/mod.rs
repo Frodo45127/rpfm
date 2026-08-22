@@ -442,6 +442,7 @@ impl SettingsUI {
         new_setting_checkbox(&mut checkboxes, &ui_table_vbox, &ui_table_view_frame, ENABLE_ICONS, "settings_enable_icons", "tt_settings_enable_icons_tip");
         new_setting_checkbox(&mut checkboxes, &ui_table_vbox, &ui_table_view_frame, ENABLE_DIFF_MARKERS, "settings_enable_diff_markers", "tt_settings_enable_diff_markers_tip");
         new_setting_checkbox(&mut checkboxes, &ui_table_vbox, &ui_table_view_frame, SHOW_TABLE_TOOLBAR, "settings_ui_show_table_toolbar_label", "tt_settings_ui_show_table_toolbar_tip");
+        new_setting_checkbox(&mut checkboxes, &ui_table_vbox, &ui_table_view_frame, TABLE_FILTER_NEW_CHIPS_SHARE_GROUP, "settings_ui_table_filter_new_chips_share_group_label", "tt_settings_ui_table_filter_new_chips_share_group_tip");
         // new_setting_checkbox(&mut checkboxes, &ui_table_vbox, &ui_table_view_frame, HIDE_UNUSED_COLUMNS, "hide_unused_columns", "settings_hide_unused_columns");
 
         // Colour pairs.

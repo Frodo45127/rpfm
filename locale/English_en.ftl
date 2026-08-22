@@ -1725,7 +1725,7 @@ filter_help_body = <p>Type a filter in the input field and press <b>Enter</b> (o
     <li><code>cost:&lt;=50</code> — numeric comparison: Cost less than or equal to 50</li>
     </ul>
     <p><b>Numeric comparisons</b>: on number columns the value may start with <code>&gt;</code>, <code>&lt;</code>, <code>&gt;=</code>, <code>&lt;=</code>, <code>=</code> or <code>!=</code> followed by a number (e.g. <code>&gt;1</code>, <code>=5</code>, <code>!=0</code>). The chip then keeps only rows whose value satisfies the comparison.</p>
-    <p><b>Groups</b>: chips with the same <code>@N</code> are AND-combined; different groups are OR-combined. The default group is 0.</p>
+    <p><b>Groups</b>: chips with the same <code>@N</code> are AND-combined; different groups are OR-combined. By default new chips get their own group (OR); enable "New filter chips join the previous group by default" in Settings to have them AND with the last chip instead.</p>
     <p>You can also fine-tune any chip's flags through its <b>gear</b> button after creating it.</p>
 filter_chip_remove = Remove this filter
 filter_chip_options = Filter options
@@ -1769,6 +1769,8 @@ table_search_matches_position = {"{"}{"}"} of {"{"}{"}"} in current filter ({"{"
 
 settings_ui_show_table_toolbar_label = Show table action toolbar
 tt_settings_ui_show_table_toolbar_tip = Show a toolbar at the top of each table view exposing the right-click context-menu actions as buttons. Newly-opened table views pick up the change; already-open views need to be reopened.
+settings_ui_table_filter_new_chips_share_group_label = New filter chips join the previous group by default
+tt_settings_ui_table_filter_new_chips_share_group_tip = When enabled, a new filter chip (added without an explicit @group) joins the same group as the most recently added chip, so it is AND-combined with it. When disabled (default), each new chip gets its own group and is OR-combined with the others. Either way, this can be overridden per-chip with the @N suffix or the group option in its gear menu.
 
 table_toolbar_clone_submenu = Clone
 table_toolbar_copy_submenu = Copy

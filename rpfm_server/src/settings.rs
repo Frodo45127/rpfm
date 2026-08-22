@@ -272,6 +272,7 @@ impl Settings {
         settings.initialize_bool(ENABLE_DIFF_MARKERS, true);
         settings.initialize_bool(HIDE_UNUSED_COLUMNS, true);
         settings.initialize_bool(SHOW_TABLE_TOOLBAR, false);
+        settings.initialize_bool(TABLE_FILTER_NEW_CHIPS_SHARE_GROUP, false);
 
         // Debug Settings.
         settings.initialize_bool(CHECK_FOR_MISSING_TABLE_DEFINITIONS, false);

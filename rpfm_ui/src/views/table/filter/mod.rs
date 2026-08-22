@@ -205,7 +205,14 @@ impl FilterBar {
         }
 
         if state.group < 0 {
-            state.group = view.filter_chips().iter().map(|chip| chip.current_state().group).max().map_or(0, |max| max + 1);
+            let existing_max_group = view.filter_chips().iter().map(|chip| chip.current_state().group).max();
+            state.group = match existing_max_group {
+                // Sharing the previous chip's group AND-combines this chip with it; a fresh
+                // group OR-combines it instead. Controlled by TABLE_FILTER_NEW_CHIPS_SHARE_GROUP.
+                Some(max) if settings_bool(TABLE_FILTER_NEW_CHIPS_SHARE_GROUP) => max,
+                Some(max) => max + 1,
+                None => 0,
+            };
         }
 
         let chip = Arc::new(Chip::new(&self.main_widget, &self.column_names, &self.logical_indices, &state)?);

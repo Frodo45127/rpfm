@@ -88,6 +88,7 @@ pub const ENABLE_ICONS: &str = "enable_icons";
 pub const ENABLE_DIFF_MARKERS: &str = "enable_diff_markers";
 pub const HIDE_UNUSED_COLUMNS: &str = "hide_unused_columns";
 pub const SHOW_TABLE_TOOLBAR: &str = "show_table_toolbar";
+pub const TABLE_FILTER_NEW_CHIPS_SHARE_GROUP: &str = "table_filter_new_chips_share_group";
 
 // Debug settings.
 pub const CHECK_FOR_MISSING_TABLE_DEFINITIONS: &str = "check_for_missing_table_definitions";
