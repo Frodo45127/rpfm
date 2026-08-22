@@ -14,11 +14,15 @@
 //! the view itself. Each chip carries its own slots in `ChipSlots`, which are stored on
 //! the chip so they're dropped when the chip is removed.
 
-use qt_core::QBox;
-use qt_core::SlotNoArgs;
-use qt_core::SlotOfQString;
+use qt_widgets::QLineEdit;
 
 use qt_gui::SlotOfQAction;
+
+use qt_core::QBox;
+use qt_core::QPtr;
+use qt_core::QString;
+use qt_core::SlotNoArgs;
+use qt_core::SlotOfQString;
 
 use std::sync::Arc;
 
@@ -64,7 +68,8 @@ impl FilterBarSlots {
         // Typing into the input restarts the debounce timer. We don't refilter live
         // off the input itself — the chip only materialises on Enter or button press.
         let input_text_changed = SlotOfQString::new(bar.main_widget(), clone!(
-            bar => move |_| {
+            bar => move |text| {
+                replace_jumplines_with_pipes(bar.input_line_edit(), &text.to_std_string());
                 bar.restart_input_debounce();
             }
         ));
@@ -172,7 +177,8 @@ impl ChipSlots {
     pub unsafe fn new(chip: &Arc<Chip>, view: &Arc<TableView>) -> Self {
 
         let value_text_changed = SlotOfQString::new(chip.main_widget(), clone!(
-            chip => move |_| {
+            chip => move |text| {
+                replace_jumplines_with_pipes(chip.value_edit(), &text.to_std_string());
                 chip.restart_debounce();
             }
         ));
@@ -227,4 +233,23 @@ impl ChipSlots {
             remove_clicked,
         }
     }
+}
+
+/// If `text` contains embedded newlines or tabs (e.g. pasted from a table or text file),
+/// collapse them into `|` (the filter's OR separator) in-place on `line_edit`.
+///
+/// This goes through `undo`/`select_all`/`insert` rather than `set_text` so the paste
+/// that triggered it remains a single, cleanly undoable step instead of wiping the
+/// line edit's undo stack.
+unsafe fn replace_jumplines_with_pipes(line_edit: &QPtr<QLineEdit>, text: &str) {
+    if !text.contains('\n') {
+        return;
+    }
+
+    let replaced = text.replace("\r\n", "|").replace('\n', "|").replace('\t', "|");
+    line_edit.block_signals(true);
+    line_edit.undo();
+    line_edit.select_all();
+    line_edit.insert(&QString::from_std_str(&replaced));
+    line_edit.block_signals(false);
 }
