@@ -3034,7 +3034,7 @@ impl Dependencies {
     ///
     /// After this ends, remember to call the post one!
     #[allow(clippy::too_many_arguments)]
-    pub fn build_starpos_pre(&self, packs: &mut BTreeMap<String, Pack>, pack_key: Option<&str>, game: &GameInfo, game_path: &Path, campaign_id: &str, process_hlp_spd_data: bool, sub_start_pos: &str) -> Result<()> {
+    pub fn build_starpos_pre(&self, packs: &mut BTreeMap<String, Pack>, pack_key: Option<&str>, game: &GameInfo, game_path: &Path, asskit_path: Option<PathBuf>, campaign_id: &str, process_hlp_spd_data: bool, sub_start_pos: &str) -> Result<()> {
 
         // Pre-fetch data we need before taking mutable borrows.
         let map_names = if process_hlp_spd_data {
@@ -3127,9 +3127,10 @@ impl Dependencies {
         // Due to how the starpos is generated, if we generate it on vanilla campaigns it'll overwrite existing files if it's generated on /data.
         // So we must backup the vanilla files, then restore them after.
         //
-        // Only needed from Warhammer 1 onwards, and in Rome 2 due to how is generated there.
+        // Only needed from Warhammer 1 onwards.
         if game.key() != KEY_THRONES_OF_BRITANNIA &&
             game.key() != KEY_ATTILA &&
+            game.key() != KEY_ROME_2 &&
             game.key() != KEY_SHOGUN_2 {
 
             let sub_start_pos_suffix = if sub_start_pos.is_empty() {
@@ -3143,6 +3144,20 @@ impl Dependencies {
                 let starpos_path_bak = game_data_path.join(format!("campaigns/{campaign_id}/startpos{sub_start_pos_suffix}.esf.bak"));
                 std::fs::copy(&starpos_path, starpos_path_bak)?;
                 std::fs::remove_file(starpos_path)?;
+            }
+        }
+
+        // Rome 2 writes its startpos to the assembly kit's working_data folder. We just need to remove any
+        // leftover file from a previous build so a failed generation can't make us silently pick up stale data afterward.
+        else if game.key() == KEY_ROME_2 {
+            match asskit_path {
+                Some(ref asskit_path) => {
+                    let starpos_path = asskit_path.join(format!("working_data/campaigns/{campaign_id}/startpos.esf"));
+                    if starpos_path.is_file() {
+                        std::fs::remove_file(starpos_path)?;
+                    }
+                },
+                None => return Err(RLibError::BuildStartposError("Assembly Kit path not provided.".to_owned())),
             }
         }
 
@@ -3461,11 +3476,12 @@ impl Dependencies {
 
         // Restore the old starpos if there was one, and delete the new one if it has already been added.
         //
-        // Only needed from Warhammer 1 onwards, and for Rome 2, Napoleon and Empire. Other games generate the startpos outside that folder.
+        // Only needed from Warhammer 1 onwards, and for Napoleon and Empire.
         //
         // 3K uses 2 startpos, so we need to restore them both.
         if game.key() != KEY_THRONES_OF_BRITANNIA &&
             game.key() != KEY_ATTILA &&
+            game.key() != KEY_ROME_2 &&
             game.key() != KEY_SHOGUN_2 {
 
             for starpos_path in &starpos_paths {

@@ -3313,18 +3313,19 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
             Command::BuildStarpos(pack_key, campaign_id, process_hlp_spd_data) => {
                 let dependencies = dependencies.read().unwrap();
                 let game_path = settings.path_buf(game.key());
+                let asskit_path = Some(settings.path_buf(&(game.key().to_owned() + ASSEMBLY_KIT_SUFFIX)));
 
                 // 3K needs two passes, one per startpos, and there are two per campaign.
                 if game.key() == KEY_THREE_KINGDOMS {
-                    match dependencies.build_starpos_pre(&mut packs, Some(&pack_key), game, &game_path, &campaign_id, process_hlp_spd_data, "historical") {
-                        Ok(_) => match dependencies.build_starpos_pre(&mut packs, Some(&pack_key), game, &game_path, &campaign_id, false, "romance") {
+                    match dependencies.build_starpos_pre(&mut packs, Some(&pack_key), game, &game_path, asskit_path.clone(), &campaign_id, process_hlp_spd_data, "historical") {
+                        Ok(_) => match dependencies.build_starpos_pre(&mut packs, Some(&pack_key), game, &game_path, asskit_path, &campaign_id, false, "romance") {
                             Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                             Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                         }
                         Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                     }
                 } else {
-                    match dependencies.build_starpos_pre(&mut packs, Some(&pack_key), game, &game_path, &campaign_id, process_hlp_spd_data, "") {
+                    match dependencies.build_starpos_pre(&mut packs, Some(&pack_key), game, &game_path, asskit_path, &campaign_id, process_hlp_spd_data, "") {
                         Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                         Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                     }
