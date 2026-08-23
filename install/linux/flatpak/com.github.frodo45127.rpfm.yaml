@@ -18,6 +18,13 @@ finish-args:
   - --share=network
   - --filesystem=host
 
+  # host doesn't include the data folders of other Flatpak apps, so games installed
+  # through a Flatpak store need their store's folder to be granted explicitly.
+  - --filesystem=~/.var/app/com.valvesoftware.Steam
+  - --filesystem=~/.var/app/com.heroicgameslauncher.hgl
+  - --filesystem=~/.var/app/net.lutris.Lutris
+  - --filesystem=~/.var/app/com.usebottles.bottles
+
   # Additional permissions
   - --device=dri
 

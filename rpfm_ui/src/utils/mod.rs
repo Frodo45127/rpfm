@@ -16,7 +16,7 @@ use qt_widgets::QApplication;
 use qt_widgets::QDialog;
 use qt_widgets::QLabel;
 use qt_widgets::QMenu;
-use qt_widgets::{QMessageBox, q_message_box::{Icon, StandardButton}};
+use qt_widgets::{QMessageBox, q_message_box::{ButtonRole, Icon, StandardButton}};
 use qt_widgets::QMainWindow;
 use qt_widgets::QPushButton;
 use qt_widgets::QTextEdit;
@@ -278,6 +278,39 @@ pub unsafe fn show_dialog_decode_button<T: Display>(parent: Ptr<QWidget>, text: 
 
     // Disable sending tables until I implement a more robust way to stop the spam.
     send_table_button.set_enabled(false);
+
+    dialog.exec();
+}
+
+/// This function creates a modal dialog explaining that the Flatpak sandbox is blocking our access
+/// to the provided paths, with a button to copy the commands that grant us access to them.
+///
+/// It requires:
+/// - parent: a pointer to the widget that'll be the parent of the dialog.
+/// - blocked_paths: list of paths we cannot read, each one with the command that grants access to it.
+pub unsafe fn show_dialog_flatpak_permissions(parent: impl cpp_core::CastInto<Ptr<QWidget>>, blocked_paths: &[(String, String)]) {
+    let paths = blocked_paths.iter().map(|(path, _)| format!("<li>{path}</li>")).collect::<String>();
+
+    // Multiple paths within the same app share the same command, so we only keep one of each.
+    let mut commands = blocked_paths.iter().map(|(_, command)| command.to_owned()).collect::<Vec<_>>();
+    commands.sort();
+    commands.dedup();
+
+    let dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
+        Icon::Warning,
+        &qtr("title_flatpak_permissions"),
+        &qtre("flatpak_permissions_missing", &[&paths, &commands.join("<br/>")]),
+        QFlags::from(0),
+        parent.cast_into(),
+    );
+
+    let copy_button = dialog.add_button_q_string_button_role(&qtr("flatpak_permissions_copy"), ButtonRole::ActionRole);
+    dialog.add_button_standard_button(StandardButton::Ok);
+
+    let copy_slot = SlotNoArgs::new(&dialog, move || {
+        QGuiApplication::clipboard().set_text_1a(&QString::from_std_str(commands.join("\n")));
+    });
+    copy_button.released().connect(&copy_slot);
 
     dialog.exec();
 }

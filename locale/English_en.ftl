@@ -632,6 +632,14 @@ settings_font_title = Font Settings
 
 title_success = Success!
 title_error = Error!
+title_flatpak_permissions = Missing Flatpak Permissions
+
+flatpak_permissions_missing = <p>RPFM is running as a Flatpak, and the following paths belong to another Flatpak app:</p>
+    <ul>{"{"}{"}"}</ul>
+    <p>Flatpak's <i>host</i> filesystem permission doesn't include the data folders of other Flatpak apps, so RPFM cannot read those paths, even if the file dialog let you select them.</p>
+    <p>To grant RPFM access to them, close RPFM, run this on a terminal (or set the same paths with Flatseal), then start RPFM again:</p>
+    <p><code>{"{"}{"}"}</code></p>
+flatpak_permissions_copy = Copy Command
 
 rename_move_instructions = <p>It's easy peasy:</p>
     <ul>

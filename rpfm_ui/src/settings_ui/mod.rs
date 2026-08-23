@@ -58,8 +58,11 @@ use rpfm_ipc::settings_keys::*;
 
 use rpfm_lib::games::supported_games::*;
 
+use rpfm_telemetry::{info, warn};
+
 use rpfm_ui_common::ASSETS_PATH;
 use rpfm_ui_common::locale::Locale;
+use rpfm_ui_common::sandbox;
 use rpfm_ui_common::tools::{Tool, Tools};
 use rpfm_ui_common::utils::create_grid_layout;
 
@@ -68,7 +71,7 @@ use crate::ffi::*;
 use crate::SUPPORTED_GAMES;
 use crate::settings_ui::backend::{backup_autosave_path, config_path, custom_config_path, set_custom_config_path, settings_get_all, settings_set_bool, settings_set_i32, settings_set_string};
 use crate::updater_ui::{BETA, STABLE, update_channel, UpdateChannel};
-use crate::utils::{tr, qtr, qtre};
+use crate::utils::{show_dialog_flatpak_permissions, tr, qtr, qtre};
 
 use self::slots::SettingsUISlots;
 
@@ -962,7 +965,42 @@ impl SettingsUI {
         }
         q_settings.sync();
 
+        self.warn_about_paths_blocked_by_sandbox();
+
         Ok(())
+    }
+
+    /// This function warns the user about configured paths that we cannot read because the Flatpak
+    /// sandbox is blocking them, and tells them how to grant us access to those paths.
+    ///
+    /// Only paths belonging to other Flatpak apps are checked, as those are the ones our `host`
+    /// filesystem permission doesn't cover. Any other unreadable path is just a wrong path.
+    unsafe fn warn_about_paths_blocked_by_sandbox(&self) {
+        if !sandbox::is_sandboxed() {
+            return;
+        }
+
+        let mut paths = vec![
+            self.paths_config_line_edit.text().to_std_string(),
+            self.paths_mymod_line_edit.text().to_std_string(),
+            self.paths_secondary_line_edit.text().to_std_string(),
+        ];
+
+        paths.extend(self.paths_games_line_edits.values().map(|line_edit| line_edit.text().to_std_string()));
+        paths.extend(self.paths_asskit_line_edits.values().map(|line_edit| line_edit.text().to_std_string()));
+
+        let blocked_paths = paths.iter()
+            .filter(|path| !path.is_empty() && sandbox::owner_app_data_path(Path::new(path)).is_some())
+            .filter_map(|path| sandbox::missing_permission_command(Path::new(path)).map(|command| (path.to_owned(), command)))
+            .collect::<Vec<_>>();
+
+        if !blocked_paths.is_empty() {
+            for (path, _) in &blocked_paths {
+                warn!("The Flatpak sandbox is blocking our access to the configured path: {path}.");
+            }
+
+            show_dialog_flatpak_permissions(&self.dialog, &blocked_paths);
+        }
     }
 
     /// This function updates the path you have for the provided game (or mymod, if you pass it `None`)
@@ -1031,6 +1069,11 @@ impl SettingsUI {
 
             // Add the Path to the LineEdit.
             line_edit.set_text(path);
+
+            if sandbox::is_sandboxed() {
+                let path = path.to_std_string();
+                info!("Path returned by the file dialog while sandboxed: {path} (readable: {}).", sandbox::is_path_readable(Path::new(&path)));
+            }
         }
     }
 

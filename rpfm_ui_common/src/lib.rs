@@ -15,8 +15,11 @@ use std::sync::{Arc, LazyLock, RwLock};
 
 pub mod icons;
 pub mod locale;
+pub mod sandbox;
 pub mod tools;
 pub mod utils;
+
+#[cfg(test)] mod sandbox_test;
 
 /// This macro is used to clone the variables into the closures without the compiler complaining.
 ///
