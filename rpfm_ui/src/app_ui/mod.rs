@@ -1938,6 +1938,11 @@ impl AppUI {
                         }
 
                         app_ui.tab_bar_packed_file.set_current_widget(tab_widget.main_widget());
+
+                        if !is_preview {
+                            tab_widget.set_focus();
+                        }
+
                         Self::update_views_names(app_ui);
                         return;
                     }
@@ -2537,6 +2542,12 @@ impl AppUI {
                     app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
                     let mut open_list = UI_STATE.set_open_packedfiles();
                     open_list.push(tab);
+                }
+
+                if !is_preview {
+                    if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| is_same_file(x)) {
+                        file_view.set_focus();
+                    }
                 }
             }
         }

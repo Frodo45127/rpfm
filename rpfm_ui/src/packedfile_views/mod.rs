@@ -281,6 +281,44 @@ impl FileView {
         &mut self.view_type
     }
 
+    /// This function moves keyboard focus to this view's main interactive widget (its table,
+    /// tree or text editor), so it can receive input right after being opened or activated.
+    ///
+    /// View types with no single obvious focus target (media players, static viewers, forms
+    /// with no canonical first field) fall back to focusing the tab's container widget.
+    pub unsafe fn set_focus(&self) {
+        match &self.view_type {
+            ViewType::Internal(view) => match view {
+                View::AnimFragmentBattle(view) => view.table().table_view().set_focus_0a(),
+                View::AnimPack(view) => view.anim_pack_tree_view().set_focus_0a(),
+                View::AnimsTableDebug(_) => self.main_widget.set_focus_0a(),
+                View::Audio(_) => self.main_widget.set_focus_0a(),
+                View::Bmd(view) => view.get_mut_editor().set_focus_0a(),
+                View::Decoder(view) => view.table_view().set_focus_0a(),
+                View::DependenciesManager(view) => view.get_ref_table().table_view().set_focus_0a(),
+                View::Esf(_) => self.main_widget.set_focus_0a(),
+                View::GroupFormationsDebug(_) => self.main_widget.set_focus_0a(),
+                View::Image(_) => self.main_widget.set_focus_0a(),
+                View::MatchedCombatDebug(_) => self.main_widget.set_focus_0a(),
+                View::PackFile(view) => view.tree_view().set_focus_0a(),
+                View::PackSettings(_) => self.main_widget.set_focus_0a(),
+                View::PortraitSettings(view) => view.main_list_view().set_focus_0a(),
+                View::RigidModel(view) => view.lod_tree_view().set_focus_0a(),
+                View::Table(view) => view.get_ref_table().table_view().set_focus_0a(),
+                View::Text(view) => view.get_mut_editor().set_focus_0a(),
+                #[cfg(feature = "support_uic")]
+                View::UIC(view) => view.viewer().set_focus_0a(),
+                View::UnitVariant(view) => view.main_list_view().set_focus_0a(),
+                View::UnitVariantDebug(_) => self.main_widget.set_focus_0a(),
+                View::Video(_) => self.main_widget.set_focus_0a(),
+                View::VMD(view) => view.get_mut_editor().set_focus_0a(),
+                View::WSModel(view) => view.get_mut_editor().set_focus_0a(),
+                View::None => self.main_widget.set_focus_0a(),
+            },
+            ViewType::External(_) => self.main_widget.set_focus_0a(),
+        }
+    }
+
     /// This function returns a mutable pointer to the `Widget` of the `FileView`.
     pub fn main_widget(&self) -> &QBox<QWidget> {
         &self.main_widget
