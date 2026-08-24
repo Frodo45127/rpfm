@@ -17,27 +17,6 @@ use crate::binary::ReadBytes;
 use crate::files::*;
 
 use super::DB;
-/*
-#[test]
-fn test_generate_table() {
-    use crate::files::table::Table;
-    use crate::files::table::TableData;
-
-    let definition = DB::test_definition();
-    let mut table: DB = From::from(Table::new(&definition, "test_decode_db", false));
-    let row_1 = table.new_row(None, None);
-    let row_2 = table.new_row(None, None);
-    let row_3 = table.new_row(None, None);
-
-    let table_data = TableData::Local(vec![row_1, row_2, row_3]);
-    table.table.set_table_data(table_data);
-
-    let mut after = vec![];
-    table.encode(&mut after, None).unwrap();
-    let mut writer = BufWriter::new(File::create("../test_files/test_decode_db").unwrap());
-    writer.write_all(&after).unwrap();
-    panic!();
-}*/
 
 #[test]
 fn test_encode_db_no_sqlite() {
