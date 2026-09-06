@@ -3604,26 +3604,18 @@ impl Dependencies {
 
     /// This function imports a specific table from the data it has in the AK.
     ///
-    /// Tables generated with this are VALID.
+    /// The schema version that keeps the most AK columns is used, so tables generated with this are VALID.
     pub fn import_from_ak(&self, table_name: &str, schema: &Schema) -> Result<DB> {
-        let definition = if let Some(definitions) = schema.definitions_by_table_name_cloned(table_name) {
-            if !definitions.is_empty() {
-                definitions[0].clone()
-            } else {
-                return Err(RLibError::DecodingDBNoDefinitionsFound)
-            }
-        } else {
-            return Err(RLibError::DecodingDBNoDefinitionsFound)
-        };
+        let ak_file = self.asskit_only_db_tables().get(table_name).ok_or_else(|| RLibError::AssemblyKitTableNotFound(table_name.to_owned()))?;
+
+        let ak_fields = ak_file.definition().fields_processed();
+        let ak_field_names = ak_fields.iter().map(|field| field.name()).collect::<Vec<_>>();
+        let definition = schema.definition_by_name_and_fields(table_name, &ak_field_names).ok_or(RLibError::DecodingDBNoDefinitionsFound)?;
 
         // Create the new table according to the schema, and import its data from the AK.
-        if let Some(ak_file) = self.asskit_only_db_tables().get(table_name) {
-            let mut real_table = ak_file.clone();
-            real_table.set_definition(&definition);
-            Ok(real_table)
-        } else {
-            Err(RLibError::AssemblyKitTableNotFound(table_name.to_owned()))
-        }
+        let mut real_table = ak_file.clone();
+        real_table.set_definition(definition);
+        Ok(real_table)
     }
 
     //-----------------------------------//
