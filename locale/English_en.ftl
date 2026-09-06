@@ -1663,6 +1663,7 @@ build_ceo_instructions = <p>Instructions:</p>
         <li>Tested only under Windows.</li>
         <li>Have your Assembly Kit path configured correctly in Settings.</li>
         <li>Import all of the necessary CEO files from the Assembly Kit dependencies within RPFM.</li>
+        <li>CEO tables must be under the <b>ceo_db/</b> folder of the pack. Tables under <b>db/</b> are ignored by the build.</li>
         <li>Make any changes, then hit the <b>Build CEO</b> button. This will open BOB — BOB will close if the build is successful, and stay open if there is an error in your CEOs.</li>
         <li>Once that is done, hit <b>Import CCD</b> and it will import <b>ceo_data.ccd</b> into the <b>campaigns/</b> folder.</li>
     </ul>
