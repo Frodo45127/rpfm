@@ -1758,7 +1758,7 @@ impl Dependencies {
 
         let files = match packs {
             Some(packs) => {
-                let mut files: Vec<&RFile> = packs.values().flat_map(|pack| pack.files_by_path(&ContainerPath::Folder(format!("db/{ref_table_full}")), true)).collect();
+                let mut files: Vec<&RFile> = packs.values().flat_map(|pack| pack.files_by_paths(&ContainerPath::db_table_folders(&ref_table_full), true)).collect();
                 files.append(&mut self.db_data(&ref_table_full, true, true).unwrap_or_else(|_| vec![]));
                 files
             },
@@ -1794,7 +1794,7 @@ impl Dependencies {
 
                                     if let Some(packs) = packs {
                                         for pack in packs.values() {
-                                            files.append(&mut pack.files_by_path(&ContainerPath::Folder(format!("db/{lookup_ref_table_long}")), true));
+                                            files.append(&mut pack.files_by_paths(&ContainerPath::db_table_folders(&lookup_ref_table_long), true));
                                         }
                                     }
 
@@ -2202,7 +2202,7 @@ impl Dependencies {
 
         if let Some(packs) = packs {
             for pack in packs.values() {
-                let files = pack.files_by_path(&ContainerPath::Folder(format!("db/{table_name}")), true);
+                let files = pack.files_by_paths(&ContainerPath::db_table_folders(table_name), true);
                 values.extend(files.par_iter().filter_map(|file| {
                     if let Ok(RFileDecoded::DB(table)) = file.decoded() {
                         table.definition().column_position_by_name(column_name).map(|column| table.data().par_iter().map(|row| row[column].data_to_string().to_string()).collect::<Vec<_>>())
@@ -2230,7 +2230,7 @@ impl Dependencies {
 
         if let Some(packs) = packs {
             for pack in packs.values() {
-                let files = pack.files_by_path(&ContainerPath::Folder(format!("db/{table_name}")), true);
+                let files = pack.files_by_paths(&ContainerPath::db_table_folders(table_name), true);
                 values.extend(files.par_iter().filter_map(|file| {
                     if let Ok(RFileDecoded::DB(table)) = file.decoded() {
                         if let Some(column) = table.definition().column_position_by_name(key_column_name) {
