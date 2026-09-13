@@ -1,6 +1,6 @@
-app-id: com.github.frodo45127.rpfm
+app-id: io.github.frodo45127.rpfm
 runtime: org.kde.Platform
-runtime-version: '6.10'
+runtime-version: '6.11'
 sdk: org.kde.Sdk
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.rust-stable
@@ -29,7 +29,7 @@ finish-args:
   - --device=dri
 
 build-options:
-  append-path: /usr/lib/sdk/rust-stable/bin
+  append-path: /usr/lib/sdk/rust-stable/bin:/run/build/rpfm/cargo/bin
   env:
     CARGO_HOME: /run/build/rpfm/cargo
     CARGO_NET_OFFLINE: 'true'
@@ -59,6 +59,11 @@ modules:
       - rm -rf 3rdparty/src/qt_rpfm_extensions/Makefile
       - rm -rf target/qt_rpfm_extensions
 
+      # vendored ritual build scripts hardcode the qmake6 name in favour of qmake so,
+      # until we get time to update ritual, we have to symlink qmake6 to qmake.
+      - mkdir -p ${CARGO_HOME}/bin
+      - ln -sf "$(command -v qmake)" ${CARGO_HOME}/bin/qmake6
+
       - |
         set -a
         [ -f .env ] && . ./.env
@@ -70,7 +75,7 @@ modules:
       - install -Dm755 target/release/rpfm_ui /app/bin/rpfm_ui
 
       # Install the main icon
-      - install -Dm644 icons/rpfm.png /app/share/icons/hicolor/256x256/apps/com.github.frodo45127.rpfm.png
+      - install -Dm644 icons/rpfm.png /app/share/icons/hicolor/512x512/apps/io.github.frodo45127.rpfm.png
 
       # Install all icons to the app data directory
       - mkdir -p /app/share/rpfm/icons
@@ -85,13 +90,13 @@ modules:
       - cp -r rpfm_ui/ui_templates/* /app/share/rpfm/ui/
 
       # Install the desktop file
-      - install -Dm644 install/linux/flatpak/com.github.frodo45127.rpfm.desktop /app/share/applications/com.github.frodo45127.rpfm.desktop
+      - install -Dm644 install/linux/flatpak/io.github.frodo45127.rpfm.desktop /app/share/applications/io.github.frodo45127.rpfm.desktop
 
       # Install the metainfo file (license and version info)
-      - install -Dm644 install/linux/flatpak/com.github.frodo45127.rpfm.metainfo.xml /app/share/metainfo/com.github.frodo45127.rpfm.metainfo.xml
+      - install -Dm644 install/linux/flatpak/io.github.frodo45127.rpfm.metainfo.xml /app/share/metainfo/io.github.frodo45127.rpfm.metainfo.xml
 
       # Install the license file
-      - install -Dm644 LICENSE /app/share/licenses/com.github.frodo45127.rpfm/LICENSE
+      - install -Dm644 LICENSE /app/share/licenses/io.github.frodo45127.rpfm/LICENSE
 
     sources:
       # For testing with the local repo.
@@ -102,6 +107,7 @@ modules:
         url: https://github.com/Frodo45127/rpfm.git
         tag: v5.0.6
         disable-submodules: true
+        commit: c049cfad79c003b61c530da4c5e67fb4aeff74cf
 
       - type: git
         url: https://github.com/Frodo45127/ritual.git

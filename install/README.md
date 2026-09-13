@@ -20,9 +20,9 @@ install/
 │   │   ├── rpfm-git/                     Source build package (clones and compiles from git)
 │   │   └── rpfm.desktop                  Desktop entry for application menu integration
 │   └── flatpak/                          Flatpak containerized build
-│       ├── com.github.frodo45127.rpfm.yaml          Flatpak manifest
-│       ├── com.github.frodo45127.rpfm.desktop       Desktop entry for Flatpak
-│       ├── com.github.frodo45127.rpfm.metainfo.xml  AppStream metadata (license, version)
+│       ├── io.github.frodo45127.rpfm.yaml           Flatpak manifest
+│       ├── io.github.frodo45127.rpfm.desktop        Desktop entry for Flatpak
+│       ├── io.github.frodo45127.rpfm.metainfo.xml   AppStream metadata (license, version)
 │       ├── cargo-sources.json                       Vendored dependency manifest
 │       └── README.md                                Flatpak-specific build notes
 ├── macos/                            macOS placeholder

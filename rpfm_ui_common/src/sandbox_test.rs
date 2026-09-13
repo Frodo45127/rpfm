@@ -16,14 +16,14 @@ use crate::sandbox::*;
 
 #[test]
 fn test_app_id_from_info() {
-    let info = "[Application]\nname=com.github.frodo45127.rpfm\nruntime=runtime/org.kde.Platform/x86_64/6.10\n\n[Context]\nfilesystems=host;\n";
-    assert_eq!(app_id_from_info(info), Some("com.github.frodo45127.rpfm".to_owned()));
+    let info = "[Application]\nname=io.github.frodo45127.rpfm\nruntime=runtime/org.kde.Platform/x86_64/6.10\n\n[Context]\nfilesystems=host;\n";
+    assert_eq!(app_id_from_info(info), Some("io.github.frodo45127.rpfm".to_owned()));
 }
 
 #[test]
 fn test_app_id_from_info_ignores_other_groups() {
-    let info = "[Instance]\nname=not-an-app-id\n\n[Application]\nname=com.github.frodo45127.rpfm\n";
-    assert_eq!(app_id_from_info(info), Some("com.github.frodo45127.rpfm".to_owned()));
+    let info = "[Instance]\nname=not-an-app-id\n\n[Application]\nname=io.github.frodo45127.rpfm\n";
+    assert_eq!(app_id_from_info(info), Some("io.github.frodo45127.rpfm".to_owned()));
 }
 
 #[test]

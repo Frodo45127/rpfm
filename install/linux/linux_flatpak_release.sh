@@ -24,12 +24,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 FLATPAK_DIR="$SCRIPT_DIR/flatpak"
-MANIFEST="$FLATPAK_DIR/com.github.frodo45127.rpfm.yaml"
+MANIFEST="$FLATPAK_DIR/io.github.frodo45127.rpfm.yaml"
 CARGO_SOURCES="$FLATPAK_DIR/cargo-sources.json"
 BUILD_DIR="$REPO_ROOT/flatpak-build-dir"
 REPO_DIR="$REPO_ROOT/flatpak-repo"
 BUNDLE="$REPO_ROOT/rpfm.flatpak"
-METAINFO="$FLATPAK_DIR/com.github.frodo45127.rpfm.metainfo.xml"
+METAINFO="$FLATPAK_DIR/io.github.frodo45127.rpfm.metainfo.xml"
 
 SKIP_CARGO_SOURCES=false
 for arg in "$@"; do
@@ -132,7 +132,7 @@ flatpak-builder --force-clean --repo="$REPO_DIR" "$BUILD_DIR" "$MANIFEST"
 
 # Export as a redistributable bundle.
 echo "Creating redistributable bundle: ${BUNDLE}"
-flatpak build-bundle "$REPO_DIR" "$BUNDLE" com.github.frodo45127.rpfm
+flatpak build-bundle "$REPO_DIR" "$BUNDLE" io.github.frodo45127.rpfm
 
 echo "Done. Bundle created at: ${BUNDLE}"
 echo "Install with: flatpak install --user rpfm.flatpak"

@@ -41,12 +41,12 @@ Use `--skip-cargo-sources` to skip regenerating `cargo-sources.json` if `Cargo.l
 2.  **Build and install the Flatpak**:
     ```bash
     cd /path/to/rpfm
-    flatpak-builder --force-clean --install --user build-dir install/linux/flatpak/com.github.frodo45127.rpfm.yaml
+    flatpak-builder --force-clean --install --user build-dir install/linux/flatpak/io.github.frodo45127.rpfm.yaml
     ```
 
 3.  **Run RPFM**:
     ```bash
-    flatpak run com.github.frodo45127.rpfm
+    flatpak run io.github.frodo45127.rpfm
     ```
 
 ## Troubleshooting
@@ -54,5 +54,5 @@ Use `--skip-cargo-sources` to skip regenerating `cargo-sources.json` if `Cargo.l
 - If the build fails with network errors, ensure `cargo-sources.json` is up to date with the current `Cargo.lock`.
 - For debugging, you can enter the build environment with:
   ```bash
-  flatpak-builder --run build-dir install/linux/flatpak/com.github.frodo45127.rpfm.yaml bash
+  flatpak-builder --run build-dir install/linux/flatpak/io.github.frodo45127.rpfm.yaml bash
   ```
