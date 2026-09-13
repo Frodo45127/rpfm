@@ -591,7 +591,7 @@ pub trait ReadBytes: Read + Seek {
         let mut data = vec![0; size];
         self.read_exact(&mut data)?;
 
-        let size_no_zeros = data.iter().position(|x| *x == 0).map_or(size, |x| x);
+        let size_no_zeros = data.iter().position(|x| *x == 0).unwrap_or(size);
         String::from_utf8(data[..size_no_zeros].to_vec()).map_err(From::from)
     }
 
@@ -800,7 +800,7 @@ pub trait ReadBytes: Read + Seek {
         let mut data = vec![0; size];
         self.read_exact(&mut data)?;
 
-        let size_no_zeros = (0..size.wrapping_div(2)).position(|x| data[x * 2] == 0).map_or(size.wrapping_div(2), |x| x);
+        let size_no_zeros = (0..size.wrapping_div(2)).position(|x| data[x * 2] == 0).unwrap_or(size.wrapping_div(2));
         Ok(UTF_16LE.decode(&data[..size_no_zeros * 2]).0.to_string())
     }
 
