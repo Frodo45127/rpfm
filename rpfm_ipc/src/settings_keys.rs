@@ -71,6 +71,7 @@ pub const ENABLE_PACK_CONTENTS_DRAG_AND_DROP: &str = "enable_pack_contents_drag_
 pub const CLEAN_UI: &str = "clean_ui";
 pub const SINGLE_PACK_MODE: &str = "single_pack_mode";
 pub const GLOBAL_SEARCH_COLLAPSE_RESULTS: &str = "global_search_collapse_results";
+pub const GLOBAL_SEARCH_AUTO_SELECT_OPEN_PACKS: &str = "global_search_auto_select_open_packs";
 
 // Hidden/migration settings.
 pub const IMPORT_FROM_QT: &str = "import_from_qt";

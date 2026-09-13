@@ -417,6 +417,7 @@ impl SettingsUI {
         new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, CLEAN_UI, "settings_clean_ui", "tt_settings_clean_ui_tip");
         new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, SINGLE_PACK_MODE, "settings_single_pack_mode", "tt_settings_single_pack_mode_tip");
         new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, GLOBAL_SEARCH_COLLAPSE_RESULTS, "settings_global_search_collapse_results", "tt_settings_global_search_collapse_results_tip");
+        new_setting_checkbox(&mut checkboxes, &general_vbox, &general_frame, GLOBAL_SEARCH_AUTO_SELECT_OPEN_PACKS, "settings_global_search_auto_select_open_packs", "tt_settings_global_search_auto_select_open_packs_tip");
 
         content_layout.add_widget_1a(&general_header);
         content_layout.add_widget_1a(&general_frame);

@@ -696,7 +696,7 @@ impl GlobalSearchUI {
                     if !key.is_empty() {
                         let name = item.text().to_std_string();
                         let checkbox = new_eliding_check_box_safe(&QString::from_std_str(&name).as_ptr(), &group_box_widget);
-                        checkbox.set_checked(true);
+                        checkbox.set_checked(settings_bool(GLOBAL_SEARCH_AUTO_SELECT_OPEN_PACKS));
                         checkbox.set_property(c"pack_key".as_ptr().cast(), &QVariant::from_q_string(&QString::from_std_str(&key)));
                         layout.add_widget_5a(&checkbox, next_row, 1, 1, 1);
                         next_row += 1;
