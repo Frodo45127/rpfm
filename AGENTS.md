@@ -72,6 +72,7 @@ Per `CONTRIBUTING.md`: **explain what your code does** and **no black magic code
 - Comments should describe intent and rationale, not restate what the code obviously does.
 - Minimize comments inside function bodies and don't overexplain: add one only where the code isn't self-evident.
 - Keep comments up to date with code changes. Delete stale ones.
+- Comments and doc comments describe the code's current behavior, not its history. Don't write "X used to be Y, now it's Z" or otherwise justify a change by referencing what came before — git log/blame and the PR description are where that belongs.
 
 ## Documentation
 
