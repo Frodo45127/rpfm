@@ -111,6 +111,13 @@ pub fn load_settings_cache_from_server() {
     *SETTINGS_CACHE.write().unwrap() = Some(snapshot);
 }
 
+/// Replace the cached snapshot with one pushed unsolicited by the server.
+///
+/// This may happen when another connected UI instance changes a setting.
+pub fn apply_settings_snapshot(snapshot: SettingsSnapshot) {
+    *SETTINGS_CACHE.write().unwrap() = Some(snapshot);
+}
+
 //-------------------------------------------------------------------------------//
 //                         Setting-related functions
 //-------------------------------------------------------------------------------//

@@ -22,10 +22,13 @@ use directories::ProjectDirs;
 use ron::ser::{PrettyConfig, to_string_pretty};
 use serde_derive::{Serialize, Deserialize};
 
+use tokio::sync::broadcast;
+
 use std::collections::HashMap;
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::fs::{DirBuilder, File};
 use std::path::{Path, PathBuf};
+use std::sync::{LazyLock, RwLock};
 
 use rpfm_extensions::optimizer::OptimizerOptions;
 
@@ -116,6 +119,37 @@ pub struct Settings {
     pub raw_data: HashMap<String, Vec<u8>>,
     /// Lists-of-strings settings.
     pub vec_string: HashMap<String, Vec<String>>
+}
+
+//-------------------------------------------------------------------------------//
+//                              Shared state
+//-------------------------------------------------------------------------------//
+
+/// The single [`Settings`] instance for this server process.
+///
+/// One server process serves every locally-running `rpfm_ui` instance, each
+/// getting its own [`crate::session::Session`]. All sessions read and write
+/// through this one lock, so every session in the process sees the same
+/// values.
+pub static SETTINGS: LazyLock<RwLock<Settings>> = LazyLock::new(|| {
+    RwLock::new(Settings::init(false).unwrap_or_else(|error| {
+        rpfm_telemetry::warn!("Failed to initialize settings, falling back to defaults. Error: {error}");
+        Settings::default()
+    }))
+});
+
+/// Broadcasts the [`SettingsSnapshot`] resulting from every successful write to
+/// [`SETTINGS`], so every connected session can push it to its own client and
+/// keep their settings caches in sync without requiring a reconnect.
+pub static SETTINGS_CHANGED: LazyLock<broadcast::Sender<SettingsSnapshot>> = LazyLock::new(|| broadcast::channel(16).0);
+
+/// Applies a mutation to the shared [`SETTINGS`] store and broadcasts the
+/// resulting snapshot on [`SETTINGS_CHANGED`] if it succeeds.
+pub fn mutate_settings<T>(mutator: impl FnOnce(&mut Settings) -> Result<T>) -> Result<T> {
+    let mut settings = SETTINGS.write().unwrap();
+    let result = mutator(&mut settings)?;
+    let _ = SETTINGS_CHANGED.send(settings.snapshot());
+    Ok(result)
 }
 
 //-------------------------------------------------------------------------------//
@@ -407,6 +441,18 @@ impl Settings {
     /// Read a `Vec<String>` setting; returns an empty `Vec` if `setting` isn't set.
     pub fn vec_string(&self, setting: &str) -> Vec<String> {
         self.vec_string.get(setting).map(|x| x.to_vec()).unwrap_or_default()
+    }
+
+    /// Build a [`SettingsSnapshot`] of every currently persisted setting.
+    pub fn snapshot(&self) -> SettingsSnapshot {
+        SettingsSnapshot {
+            bool: self.bool.clone(),
+            i32: self.i32.clone(),
+            f32: self.f32.clone(),
+            string: self.string.clone(),
+            raw_data: self.raw_data.clone(),
+            vec_string: self.vec_string.clone(),
+        }
     }
 
     /// Set a `bool` setting and persist to disk (subject to `block_write`).

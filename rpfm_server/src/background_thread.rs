@@ -14,8 +14,9 @@
 //! Each [`Session`] spawns one task running [`background_loop`]. The loop
 //! pulls `(reply_sender, Command)` pairs off the session's mpsc channel,
 //! handles the command synchronously against the session's in-memory state
-//! (open packs, dependency cache, settings cache, schema), and ships every
-//! response back over the per-request `reply_sender`.
+//! (open packs, dependency cache, schema) and the process-wide
+//! [`crate::settings::SETTINGS`] store, and ships every response back over
+//! the per-request `reply_sender`.
 //!
 //! Running commands serially per session is what keeps state consistent
 //! across many concurrent requests in the same session: a `SavePack`
@@ -259,17 +260,13 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
     // Preload the default game's dependencies.
     let mut dependencies = Arc::new(RwLock::new(Dependencies::default()));
 
-    // Load settings from disk or use defaults.
-    let _ = init_config_path();
-    let mut settings = Settings::init(false).unwrap_or_else(|error| {
-        rpfm_telemetry::warn!("Failed to initialize settings, falling back to defaults. Error: {error}");
-        Settings::default()
-    });
-    let mut backup_settings = settings.clone();
+    // Snapshot of SETTINGS backed up by the "Restore Defaults" flow in the settings
+    // dialog, so a cancel can put things back the way they were.
+    let mut backup_settings = SETTINGS.read().unwrap().clone();
 
-    // Sync the telemetry toggles with this session's on-disk settings.
-    rpfm_telemetry::set_usage_telemetry_enabled(settings.bool(ENABLE_USAGE_TELEMETRY));
-    rpfm_telemetry::set_crash_reports_enabled(settings.bool(ENABLE_CRASH_REPORTS));
+    // Sync the telemetry toggles with the current settings.
+    rpfm_telemetry::set_usage_telemetry_enabled(SETTINGS.read().unwrap().bool(ENABLE_USAGE_TELEMETRY));
+    rpfm_telemetry::set_crash_reports_enabled(SETTINGS.read().unwrap().bool(ENABLE_CRASH_REPORTS));
 
     // Load all the tips we have.
     //let mut tips = if let Ok(tips) = Tips::load() { tips } else { Tips::default() };
@@ -279,6 +276,10 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
     //---------------------------------------------------------------------------------------//
     info!("Background Thread looping around…");
     'background_loop: while let Some((sender, response)) = receiver.recv().await {
+
+        // Snapshot of the shared settings store, refreshed on every command so
+        // business logic below always sees changes made through other sessions.
+        let settings = SETTINGS.read().unwrap().clone();
 
         // Record the action for telemetry, skipping lifecycle commands so we only
         // measure real user-facing work. Counters are dropped silently when disabled.
@@ -3795,7 +3796,8 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 }
             }
 
-            // Settings IPC handlers - all settings are now managed locally in background_loop
+            // Settings IPC handlers. Reads are picked from the local copy of the settings.
+            // Writes go through the settings lock, so every connected UI instance stays in sync.
             Command::SettingsGetBool(key) => {
                 CentralCommand::send_back(&sender, Response::Bool(settings.bool(&key)));
             }
@@ -3818,17 +3820,10 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 CentralCommand::send_back(&sender, Response::VecU8(settings.raw_data(&key)));
             }
             Command::SettingsGetAll => {
-                CentralCommand::send_back(&sender, Response::SettingsAll(SettingsSnapshot {
-                    bool: settings.bool.clone(),
-                    i32: settings.i32.clone(),
-                    f32: settings.f32.clone(),
-                    string: settings.string.clone(),
-                    raw_data: settings.raw_data.clone(),
-                    vec_string: settings.vec_string.clone(),
-                }));
+                CentralCommand::send_back(&sender, Response::SettingsAll(settings.snapshot()));
             }
             Command::SettingsSetBool(key, value) => {
-                match settings.set_bool(&key, value) {
+                match mutate_settings(|settings| settings.set_bool(&key, value)) {
                     Ok(_) => {
                         match key.as_str() {
                             ENABLE_USAGE_TELEMETRY => rpfm_telemetry::set_usage_telemetry_enabled(value),
@@ -3841,37 +3836,37 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 }
             }
             Command::SettingsSetI32(key, value) => {
-                match settings.set_i32(&key, value) {
+                match mutate_settings(|settings| settings.set_i32(&key, value)) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                     Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
                 }
             }
             Command::SettingsSetF32(key, value) => {
-                match settings.set_f32(&key, value) {
+                match mutate_settings(|settings| settings.set_f32(&key, value)) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                     Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
                 }
             }
             Command::SettingsSetString(key, value) => {
-                match settings.set_string(&key, &value) {
+                match mutate_settings(|settings| settings.set_string(&key, &value)) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                     Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
                 }
             }
             Command::SettingsSetPathBuf(key, value) => {
-                match settings.set_path_buf(&key, &value) {
+                match mutate_settings(|settings| settings.set_path_buf(&key, &value)) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                     Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
                 }
             }
             Command::SettingsSetVecString(key, value) => {
-                match settings.set_vec_string(&key, &value) {
+                match mutate_settings(|settings| settings.set_vec_string(&key, &value)) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                     Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
                 }
             }
             Command::SettingsSetVecRaw(key, value) => {
-                match settings.set_raw_data(&key, &value) {
+                match mutate_settings(|settings| settings.set_raw_data(&key, &value)) {
                     Ok(_) => CentralCommand::send_back(&sender, Response::Success),
                     Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
                 }
@@ -3948,13 +3943,18 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 CentralCommand::send_back(&sender, Response::Success);
             }
             Command::ClearSettings => match Settings::init(true) {
-                Ok(set) => {
-                    settings = set;
-                    CentralCommand::send_back(&sender, Response::Success);},
+                Ok(defaults) => {
+                    let snapshot = defaults.snapshot();
+                    *SETTINGS.write().unwrap() = defaults;
+                    let _ = SETTINGS_CHANGED.send(snapshot);
+                    CentralCommand::send_back(&sender, Response::Success);
+                },
                 Err(e) => CentralCommand::send_back(&sender, Response::Error(e.to_string())),
             },
             Command::RestoreBackupSettings => {
-                settings = backup_settings.clone();
+                let snapshot = backup_settings.snapshot();
+                *SETTINGS.write().unwrap() = backup_settings.clone();
+                let _ = SETTINGS_CHANGED.send(snapshot);
                 CentralCommand::send_back(&sender, Response::Success);
             }
             Command::OptimizerOptions => CentralCommand::send_back(&sender, Response::OptimizerOptions(settings.optimizer_options())),

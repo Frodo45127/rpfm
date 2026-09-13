@@ -14,7 +14,9 @@
 //! managed by a [`SessionManager`]. Sessions are isolated: open packs in one
 //! session aren't visible from another, and each one owns a dedicated
 //! background thread (see [`crate::background_thread`]) that processes its
-//! commands serially.
+//! commands serially. The one exception is application settings, which live
+//! in [`crate::settings::SETTINGS`], a single store shared by every session
+//! in this process.
 //!
 //! ## Lifecycle
 //!

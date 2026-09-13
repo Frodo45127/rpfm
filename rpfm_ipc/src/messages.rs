@@ -1402,6 +1402,10 @@ pub enum Response {
     /// Contains the session ID that the client is connected to.
     SessionConnected(u64),
 
+    /// Unsolicited push sent to every connected client whenever any session changes the
+    /// shared settings store, so other open UI instances can refresh their local settings cache.
+    SettingsChanged(SettingsSnapshot),
+
     #[allow(dead_code)]BmdRFileInfo(Box<Bmd>, RFileInfo),
     AnimFragmentBattleRFileInfo(AnimFragmentBattle, RFileInfo),
     AnimPackRFileInfo(Vec<RFileInfo>, RFileInfo),

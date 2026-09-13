@@ -36,7 +36,7 @@ use axum::{
 use futures::stream::StreamExt;
 use futures::sink::SinkExt;
 use serde::Deserialize;
-use tokio::sync::mpsc;
+use tokio::sync::{broadcast, mpsc};
 
 use std::sync::Arc;
 
@@ -44,6 +44,7 @@ use rpfm_ipc::messages::{Command, Message as IpcMessage, Response};
 use rpfm_telemetry::{info, warn};
 
 use crate::session::{DEFAULT_SESSION_TIMEOUT_SECS, SessionId, SessionManager, recv_response};
+use crate::settings::SETTINGS_CHANGED;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -127,6 +128,26 @@ async fn handle_socket(socket: WebSocket, session_manager: Arc<SessionManager>, 
         }
     });
 
+    // Task to forward settings changes made by any session to this client, so
+    // other open UI instances refresh without needing to reconnect.
+    let mut settings_changed_rx = SETTINGS_CHANGED.subscribe();
+    let settings_tx = tx.clone();
+    let settings_forward_task = tokio::spawn(async move {
+        loop {
+            match settings_changed_rx.recv().await {
+                Ok(snapshot) => {
+                    let msg = IpcMessage { id: 0, data: Response::SettingsChanged(snapshot) };
+                    let _ = settings_tx.send(msg);
+                }
+
+                // We missed some updates because we were too slow, but there's always a newer
+                // one coming right after, so just keep going instead of tearing down the task.
+                Err(broadcast::error::RecvError::Lagged(_)) => continue,
+                Err(broadcast::error::RecvError::Closed) => break,
+            }
+        }
+    });
+
     // Track whether the client requested a graceful disconnect.
     let mut graceful_disconnect = false;
 
@@ -197,6 +218,7 @@ async fn handle_socket(socket: WebSocket, session_manager: Arc<SessionManager>, 
     }
 
     sender_task.abort();
+    settings_forward_task.abort();
 
     // Client requested graceful disconnect - remove session immediately.
     if graceful_disconnect {

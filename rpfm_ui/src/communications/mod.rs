@@ -30,6 +30,7 @@ pub use rpfm_ipc::messages::{Command, Response, Message as IpcMessage};
 use rpfm_telemetry::*;
 
 use crate::CENTRAL_COMMAND;
+use crate::settings_ui::backend::apply_settings_snapshot;
 
 pub mod server;
 
@@ -355,6 +356,14 @@ pub async fn websocket_loop(mut receiver: UnboundedReceiver<(IpcMessage<Command>
                                             if let Response::SessionConnected(session_id) = &msg.data {
                                                 info!("Connected to session ID: {}", session_id);
                                                 *CURRENT_SESSION_ID.write().unwrap() = Some(*session_id);
+                                                continue;
+                                            }
+
+                                            // Unsolicited push: another session changed a setting.
+                                            //
+                                            // Refresh our local cache so this instance doesn't overwrite it with stale data.
+                                            if let Response::SettingsChanged(snapshot) = &msg.data {
+                                                apply_settings_snapshot(snapshot.clone());
                                                 continue;
                                             }
 
