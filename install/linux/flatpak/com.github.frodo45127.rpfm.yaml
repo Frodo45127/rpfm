@@ -94,8 +94,25 @@ modules:
       - install -Dm644 LICENSE /app/share/licenses/com.github.frodo45127.rpfm/LICENSE
 
     sources:
-      - type: dir
-        path: ../../..
+      # For testing with the local repo.
+      #- type: dir
+      #  path: ../../..
+      # Main checkout. Only the main repo and the submodules needed for building are fetched.
+      - type: git
+        url: https://github.com/Frodo45127/rpfm.git
+        tag: v5.0.6
+        disable-submodules: true
+
+      - type: git
+        url: https://github.com/Frodo45127/ritual.git
+        commit: 06f8c448648414dc2c24d110f926d779f4809977
+        dest: 3rdparty/src/ritual
+
+      - type: git
+        url: https://github.com/mr-phazer/QtRenderingWidget
+        commit: 23ac85f21a4220a1e7452c2288101ab7f5166fd4
+        dest: 3rdparty/src/qt_rendering_widget
+
       # How to generate cargo-sources.json:
       # flatpak-cargo-generator.py Cargo.lock -o install/linux/flatpak/cargo-sources.json
       - cargo-sources.json
