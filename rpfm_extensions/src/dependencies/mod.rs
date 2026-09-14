@@ -2845,10 +2845,8 @@ impl Dependencies {
                             .collect::<HashSet<String>>()
                         );
 
-                        // Debug message.
                         if !possible_relative_paths.is_empty() && (possible_relative_paths.len() > 1 || (possible_relative_paths.len() == 1 && possible_relative_paths.iter().collect::<Vec<_>>()[0] != "%")) {
                             info!("Checking table {}, field {} ...", table.table_name(), field.name());
-                            dbg!(&possible_relative_paths);
                         }
 
                         // This one has an incorrect relative path value that needs to be patched out.

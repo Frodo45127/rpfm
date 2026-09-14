@@ -11,7 +11,6 @@ members = [
 
     # Executables
     "rpfm_server",
-    #"rpfm_gpui",
     "rpfm_ui",
 ]
 
