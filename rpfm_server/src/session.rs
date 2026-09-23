@@ -33,6 +33,15 @@
 //! 5. **Empty manager → process exit.** When the last session is removed the
 //!    server process terminates, so no orphaned backend lingers in the
 //!    background.
+//!
+//! ## MCP sessions
+//!
+//! MCP clients have no disconnect signal the server can rely on: the MCP
+//! transport keeps a session registered until the client sends an HTTP
+//! DELETE, which many clients never send. Sessions created for MCP clients
+//! ([`SessionManager::create_mcp_session`]) are therefore never counted as
+//! connected; instead, the periodic cleanup task reaps them once no command
+//! has been sent through them for [`DEFAULT_SESSION_TIMEOUT_SECS`].
 
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::time::{Duration, Instant};
@@ -94,6 +103,20 @@ pub struct Session {
     /// Unique identifier for this session.
     id: SessionId,
 
+    /// Whether this session was created for an MCP client.
+    ///
+    /// MCP sessions have no disconnect signal (the MCP transport keeps the
+    /// session registered until the client sends an HTTP DELETE, which many
+    /// clients never do), so they are reaped based on command inactivity
+    /// instead of connection count.
+    is_mcp: bool,
+
+    /// Instant of the last command sent to this session's background thread.
+    ///
+    /// Only updated by [`Session::send`], so it reflects actual work, not
+    /// transport-level pings.
+    last_activity: Mutex<Instant>,
+
     /// Sender to communicate with this session's background thread.
     sender: UnboundedSender<(UnboundedSender<Response>, Command)>,
 
@@ -114,11 +137,16 @@ pub struct Session {
 impl Session {
 
     /// Create a new session with its own background thread.
-    pub fn new(id: SessionId) -> Arc<Self> {
+    ///
+    /// `is_mcp` marks sessions created for MCP clients, which are reaped by
+    /// inactivity instead of by connection count (see [`Session::is_mcp`]).
+    pub fn new(id: SessionId, is_mcp: bool) -> Arc<Self> {
         let (sender, receiver) = unbounded_channel();
 
         let session = Arc::new(Self {
             id,
+            is_mcp,
+            last_activity: Mutex::new(Instant::now()),
             sender,
             connection_count: AtomicU32::new(0),
             shutdown_requested: AtomicBool::new(false),
@@ -139,6 +167,21 @@ impl Session {
     /// Get the session ID.
     pub fn id(&self) -> SessionId {
         self.id
+    }
+
+    /// Whether this session was created for an MCP client.
+    pub fn is_mcp(&self) -> bool {
+        self.is_mcp
+    }
+
+    /// Record that a command was just sent to this session's background thread.
+    fn touch(&self) {
+        *self.last_activity.lock().unwrap() = Instant::now();
+    }
+
+    /// Get the instant of the last command sent to this session.
+    pub fn last_activity(&self) -> Instant {
+        *self.last_activity.lock().unwrap()
     }
 
     /// Increment the connection count.
@@ -198,6 +241,7 @@ impl Session {
     ///
     /// Returns a receiver to get the response.
     pub fn send(&self, command: Command) -> UnboundedReceiver<Response> {
+        self.touch();
         let (sender_back, receiver_back) = unbounded_channel();
         if let Err(error) = self.sender.send((sender_back, command)) {
             let message = format!("{SESSION_SENDER_ERROR}: {error}");
@@ -223,6 +267,20 @@ impl SessionManager {
 
     /// Create a new session and return a reference to it.
     pub fn create_session(&self) -> Arc<Session> {
+        self.create_session_internal(false)
+    }
+
+    /// Create a new session for an MCP client and return a reference to it.
+    ///
+    /// MCP sessions are never counted as connected: the MCP transport keeps
+    /// them registered until the client sends an HTTP DELETE, which many
+    /// clients never send. Instead, they are reaped by [`SessionManager::cleanup_expired_sessions`]
+    /// once no command has been sent through them for [`DEFAULT_SESSION_TIMEOUT_SECS`].
+    pub fn create_mcp_session(&self) -> Arc<Session> {
+        self.create_session_internal(true)
+    }
+
+    fn create_session_internal(&self, is_mcp: bool) -> Arc<Session> {
         let id = {
             let mut next_id = self.next_id.lock().unwrap();
             let id = *next_id;
@@ -230,15 +288,20 @@ impl SessionManager {
             id
         };
 
-        let session = Session::new(id);
-        session.connect();
+        let session = Session::new(id, is_mcp);
+
+        // MCP sessions start disconnected: their lifetime is governed by
+        // command inactivity, not by the connection count.
+        if !is_mcp {
+            session.connect();
+        }
 
         self.sessions.lock().unwrap().insert(id, ManagedSession {
             session: session.clone(),
             disconnected_at: None,
         });
 
-        info!("Created new session with ID: {}", id);
+        info!("Created new {} session with ID: {}", if is_mcp { "MCP" } else { "WebSocket" }, id);
         session
     }
 
@@ -308,13 +371,26 @@ impl SessionManager {
 
         tokio::spawn(async move {
             tokio::time::sleep(timeout).await;
-            info!("Session {} timeout check triggered (cleanup handled by manager)", id);
-            manager.remove_session(id);
 
-            // Check if this was the last session and shutdown the server if so.
-            if manager.session_count() == 0 {
-                info!("No more active sessions, shutting down server...");
-                std::process::exit(0);
+            // A client may have reconnected during the grace period. Only
+            // remove the session if it is still disconnected, otherwise the
+            // scheduled task would tear down a live session.
+            let still_disconnected = {
+                let sessions = manager.sessions.lock().unwrap();
+                sessions.get(&id).is_some_and(|managed| managed.session.connection_count() == 0)
+            };
+
+            if still_disconnected {
+                info!("Session {} timeout check triggered, removing session", id);
+                manager.remove_session(id);
+
+                // Check if this was the last session and shutdown the server if so.
+                if manager.session_count() == 0 {
+                    info!("No more active sessions, shutting down server...");
+                    std::process::exit(0);
+                }
+            } else {
+                info!("Session {} reconnected before timeout check, skipping cleanup", id);
             }
         });
     }
@@ -329,7 +405,14 @@ impl SessionManager {
         {
             let sessions = self.sessions.lock().unwrap();
             for (id, managed) in sessions.iter() {
-                if let Some(disconnected_at) = managed.disconnected_at {
+                if managed.session.is_mcp() {
+
+                    // MCP sessions have no disconnect signal, so they are reaped
+                    // by command inactivity instead of by connection count.
+                    if now.duration_since(managed.session.last_activity()) >= self.timeout {
+                        to_remove.push(*id);
+                    }
+                } else if let Some(disconnected_at) = managed.disconnected_at {
                     if now.duration_since(disconnected_at) >= self.timeout
                         && managed.session.connection_count() == 0
                     {

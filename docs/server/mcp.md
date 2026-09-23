@@ -11,6 +11,8 @@ POST http://127.0.0.1:45127/mcp
 ```
 
 Each MCP connection gets its own RPFM session, just like WebSocket connections.
+MCP sessions are reaped by the server after 5 minutes of command inactivity,
+because the MCP transport gives no reliable disconnect signal.
 
 ## How It Differs from WebSocket
 
@@ -19,7 +21,7 @@ Each MCP connection gets its own RPFM session, just like WebSocket connections.
 | Protocol          | Custom JSON messages with `id`/`data` envelope | Standard MCP (JSON-RPC 2.0)                       |
 | Transport         | WebSocket                                      | Streamable HTTP                                   |
 | Interaction model | Send `Command`, receive `Response`             | Call named **tools**, receive JSON results         |
-| Session control   | Manual via `?session_id=` and `ClientDisconnecting` | Managed automatically by the MCP transport  |
+| Session control   | Manual via `?session_id=` and `ClientDisconnecting` | Reaped by the server after 5 minutes of command inactivity |
 | Intended clients  | Custom scripts, GUIs                           | AI assistants and MCP-compatible tools             |
 
 Both interfaces expose the same underlying functionality — every MCP tool maps to an internal `Command` and returns its `Response` serialized as JSON.
