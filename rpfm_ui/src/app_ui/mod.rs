@@ -323,6 +323,9 @@ pub struct AppUI {
     connection_deadline: Rc<Cell<Instant>>,
     connection_finalized: Rc<Cell<bool>>,
 
+    /// When to warn that Windows may be blocking the unsigned server. Only set on Windows release builds.
+    server_blocked_warning_deadline: Rc<Cell<Option<Instant>>>,
+
     /// Single-shot timer that fires the deferred open-pack dispatcher.
     /// See `request_open_packfile` and the dispatcher slot in `slots.rs`.
     timer_open_pack_dispatch: QBox<QTimer>,
@@ -685,6 +688,13 @@ impl AppUI {
         timer_connection_check.start_0a();
         let connection_deadline = Rc::new(Cell::new(Instant::now() + std::time::Duration::from_secs(30)));
         let connection_finalized = Rc::new(Cell::new(false));
+        let server_blocked_warning_deadline = Rc::new(Cell::new(
+            if cfg!(all(target_os = "windows", not(debug_assertions))) {
+                Some(Instant::now() + std::time::Duration::from_secs(7))
+            } else {
+                None
+            }
+        ));
 
         // Single-shot timer used to defer open-pack work out of the slot that requested it.
         // Slots only enqueue a PendingOpenRequest and start the timer; the real work happens
@@ -832,6 +842,7 @@ impl AppUI {
             timer_connection_check,
             connection_deadline,
             connection_finalized,
+            server_blocked_warning_deadline,
 
             timer_open_pack_dispatch,
             pending_open_requests: Rc::new(RefCell::new(VecDeque::new())),

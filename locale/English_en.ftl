@@ -641,6 +641,11 @@ flatpak_permissions_missing = <p>RPFM is running as a Flatpak, and the following
     <p><code>{"{"}{"}"}</code></p>
 flatpak_permissions_copy = Copy Command
 
+title_server_blocked = rpfm_server Not Responding
+server_blocked_by_windows = <p>RPFM's backend (<b>rpfm_server.exe</b>) is taking too long to start.</p>
+    <p>This usually means Windows security or your antivirus blocked it because it's not signed.</p>
+    <p>To fix it, allow <b>rpfm_server.exe</b> (or RPFM's folder) in your security software, then restart RPFM.</p>
+
 rename_move_instructions = <p>It's easy peasy:</p>
     <ul>
         <li>Modes of operation:</li>

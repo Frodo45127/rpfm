@@ -39,6 +39,7 @@ use qt_core::QSignalBlocker;
 use qt_core::QString;
 use qt_core::QUrl;
 use qt_core::QVariant;
+use qt_core::WidgetAttribute;
 
 use std::collections::BTreeMap;
 use std::panic::{AssertUnwindSafe, catch_unwind};
@@ -1642,6 +1643,19 @@ impl AppUISlots {
                         app_ui.toggle_main_window(true);
                         log_to_status_bar("Initialization failed partway through. The error has been reported; some features may be unavailable until restart.");
                     }
+                } else if app_ui.server_blocked_warning_deadline.get().is_some_and(|deadline| Instant::now() >= deadline) {
+                    app_ui.server_blocked_warning_deadline.set(None);
+
+                    // Non-modal, so the connection check keeps running and finishes init if the server comes up later.
+                    let message_box = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
+                        q_message_box::Icon::Warning,
+                        &qtr("title_server_blocked"),
+                        &qtr("server_blocked_by_windows"),
+                        QFlags::from(q_message_box::StandardButton::Ok),
+                        &app_ui.main_window,
+                    );
+                    message_box.set_attribute_1a(WidgetAttribute::WADeleteOnClose);
+                    message_box.show();
                 } else if Instant::now() >= app_ui.connection_deadline.get() {
                     log_to_status_bar("rpfm_server is taking longer than expected to start. Check your installation if this persists.");
                     let next = Instant::now()
