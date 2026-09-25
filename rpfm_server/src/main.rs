@@ -191,7 +191,7 @@ async fn main() {
     let sm = session_manager.clone();
     let http_service = StreamableHttpService::new(
         move || {
-            let session = sm.create_session();
+            let session = sm.create_mcp_session();
             Ok(McpServer::new(session))
         },
         LocalSessionManager::default().into(),
