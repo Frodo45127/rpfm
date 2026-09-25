@@ -15,10 +15,14 @@ use qt_widgets::{QWidget, QPushButton, QDialogButtonBox, QLabel, QGroupBox};
 use qt_core::QBox;
 use qt_core::QEventLoop;
 use qt_core::QPtr;
+use qt_core::QTimer;
+use qt_core::SlotNoArgs;
 
 use anyhow::Result;
+use crossbeam::channel::Receiver;
 use getset::*;
 
+use std::cell::RefCell;
 use std::fmt::Display;
 use std::rc::Rc;
 
@@ -29,6 +33,7 @@ use rpfm_lib::integrations::git::GitResponse;
 
 use rpfm_telemetry::warn;
 
+use rpfm_ui_common::clone;
 use rpfm_ui_common::PROGRAM_PATH;
 use rpfm_ui_common::utils::*;
 
@@ -46,6 +51,9 @@ pub const BETA: &str = "Beta";
 
 const VIEW_DEBUG: &str = "rpfm_ui/ui_templates/updater_dialog.ui";
 const VIEW_RELEASE: &str = "ui/updater_dialog.ui";
+
+/// Interval, in milliseconds, between polls of the update checks launched on start.
+const PRECHECK_POLL_INTERVAL_MS: i32 = 250;
 
 mod slots;
 
@@ -65,6 +73,19 @@ pub struct UpdaterUI {
     cancel_button: QPtr<QPushButton>,
 }
 
+/// Update checks launched on start. Each receiver is dropped once its check answers or disconnects.
+#[derive(Default)]
+struct Precheck {
+    receiver_program: Option<Receiver<Response>>,
+    receiver_schema: Option<Receiver<Response>>,
+    receiver_twautogen: Option<Receiver<Response>>,
+    receiver_old_ak: Option<Receiver<Response>>,
+    program: Option<APIResponse>,
+    schema: Option<GitResponse>,
+    twautogen: Option<GitResponse>,
+    old_ak: Option<GitResponse>,
+}
+
 /// This enum controls the channels through where RPFM will try to update.
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum UpdateChannel {
@@ -76,139 +97,138 @@ pub enum UpdateChannel {
 //                              UI functions
 //---------------------------------------------------------------------------//
 
+impl Precheck {
+
+    /// Checks all pending receivers once, without blocking.
+    ///
+    /// # Returns
+    ///
+    /// `true` if all checks have finished, `false` otherwise.
+    fn poll(&mut self) -> bool {
+        poll_check(&mut self.receiver_program, &mut self.program, "program", |response| match response {
+            Response::APIResponse(response) => Some(response),
+            Response::Error(_) => None,
+            response => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+        });
+        poll_check(&mut self.receiver_schema, &mut self.schema, "schema", git_response);
+        poll_check(&mut self.receiver_twautogen, &mut self.twautogen, "TW autogen", git_response);
+        poll_check(&mut self.receiver_old_ak, &mut self.old_ak, "Empire/Napoleon AK", git_response);
+
+        self.is_finished()
+    }
+
+    /// Returns `true` if there are no checks waiting for an answer.
+    fn is_finished(&self) -> bool {
+        self.receiver_program.is_none() &&
+        self.receiver_schema.is_none() &&
+        self.receiver_twautogen.is_none() &&
+        self.receiver_old_ak.is_none()
+    }
+
+    /// Returns `true` if any of the finished checks found an update.
+    fn update_available(&self) -> bool {
+        matches!(self.program, Some(APIResponse::NewStableUpdate(_) | APIResponse::NewBetaUpdate(_) | APIResponse::NewUpdateHotfix(_))) ||
+        [&self.schema, &self.twautogen, &self.old_ak].iter().any(|response| matches!(response, Some(GitResponse::NoLocalFiles | GitResponse::NewUpdate | GitResponse::Diverged)))
+    }
+}
+
+/// Checks a pending receiver without blocking, storing its answer and dropping it once it's done.
+///
+/// # Arguments
+///
+/// * `receiver` - The receiver of the check. Set to `None` once the check answers or disconnects.
+/// * `result` - Where the answer of the check is stored.
+/// * `name` - Name of the check, used for logging.
+/// * `extract` - Turns the response into the answer of the check. `None` means the check failed.
+fn poll_check<T>(receiver: &mut Option<Receiver<Response>>, result: &mut Option<T>, name: &str, extract: fn(Response) -> Option<T>) {
+    let Some(pending) = receiver.as_ref() else { return };
+    match pending.try_recv() {
+        Ok(response) => {
+            *result = extract(response);
+            *receiver = None;
+        }
+        Err(error) => if error.is_disconnected() {
+            warn!("Update precheck ({name}) skipped: background channel disconnected.");
+            *receiver = None;
+        }
+    }
+}
+
+/// Extracts the answer of a git update check from its response.
+fn git_response(response: Response) -> Option<GitResponse> {
+    match response {
+        Response::APIResponseGit(response) => Some(response),
+        Response::Error(_) => None,
+        response => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+    }
+}
+
 impl UpdaterUI {
 
-    /// This function checks for updates, and if it find any update, it shows the update dialog.
-    pub unsafe fn new_with_precheck(app_ui: &Rc<AppUI>) -> Result<()> {
-        let mut update_available = false;
-
-        let mut receiver_updates = None;
-        let mut receiver_schema_updates = None;
-        let mut receiver_lua_autogen_updates = None;
-        let mut receiver_old_ak_updates = None;
+    /// Launches the update checks enabled for startup, and shows the update dialog if any of them finds an update.
+    ///
+    /// The checks are polled from a timer, so this returns immediately instead of blocking the startup.
+    ///
+    /// # Arguments
+    ///
+    /// * `app_ui` - The main UI, used as parent for the polling timer and the update dialog.
+    pub unsafe fn new_with_precheck(app_ui: &Rc<AppUI>) {
+        let mut precheck = Precheck::default();
 
         if !cfg!(target_os = "linux") && settings_bool(CHECK_UPDATES_ON_START) {
-            receiver_updates = Some(CENTRAL_COMMAND.read().unwrap().send(Command::CheckUpdates));
+            precheck.receiver_program = Some(CENTRAL_COMMAND.read().unwrap().send(Command::CheckUpdates));
         }
 
         if settings_bool(CHECK_SCHEMA_UPDATES_ON_START) {
-            receiver_schema_updates = Some(CENTRAL_COMMAND.read().unwrap().send(Command::CheckSchemaUpdates));
+            precheck.receiver_schema = Some(CENTRAL_COMMAND.read().unwrap().send(Command::CheckSchemaUpdates));
         }
 
         if settings_bool(CHECK_LUA_AUTOGEN_UPDATES_ON_START) {
-            receiver_lua_autogen_updates = Some(CENTRAL_COMMAND.read().unwrap().send(Command::CheckLuaAutogenUpdates));
+            precheck.receiver_twautogen = Some(CENTRAL_COMMAND.read().unwrap().send(Command::CheckLuaAutogenUpdates));
         }
 
         if settings_bool(CHECK_OLD_AK_UPDATES_ON_START) {
-            receiver_old_ak_updates = Some(CENTRAL_COMMAND.read().unwrap().send(Command::CheckEmpireAndNapoleonAKUpdates));
+            precheck.receiver_old_ak = Some(CENTRAL_COMMAND.read().unwrap().send(Command::CheckEmpireAndNapoleonAKUpdates));
         }
 
-        let updates_for_program = if let Some(receiver) = receiver_updates {
-            match CENTRAL_COMMAND.read().unwrap().recv_try_checked(&receiver) {
-                Some(Response::APIResponse(response)) => {
-                    match response {
-                        APIResponse::NewStableUpdate(_) |
-                        APIResponse::NewBetaUpdate(_) |
-                        APIResponse::NewUpdateHotfix(_) => {
-                            update_available |= true;
-                        }
-                        _ => {},
-                    }
-                    Some(response)
-                }
-
-                Some(Response::Error(_)) => None,
-                None => {
-                    warn!("Update precheck (program) skipped: background channel disconnected.");
-                    None
-                }
-                Some(response) => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-            }
-        } else {
-            None
-        };
-
-        let updates_for_schema = if let Some(receiver) = receiver_schema_updates {
-            match CENTRAL_COMMAND.read().unwrap().recv_try_checked(&receiver) {
-                Some(Response::APIResponseGit(response)) => {
-                    match response {
-                        GitResponse::NoLocalFiles |
-                        GitResponse::NewUpdate |
-                        GitResponse::Diverged => {
-                            update_available |= true;
-                        }
-                        _ => {},
-                    }
-                    Some(response)
-                }
-
-                Some(Response::Error(_)) => None,
-                None => {
-                    warn!("Update precheck (schema) skipped: background channel disconnected.");
-                    None
-                }
-                Some(response) => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-            }
-        } else {
-            None
-        };
-
-        let updates_for_twautogen = if let Some(receiver) = receiver_lua_autogen_updates {
-            match CENTRAL_COMMAND.read().unwrap().recv_try_checked(&receiver) {
-                Some(Response::APIResponseGit(response)) => {
-                    match response {
-                        GitResponse::NoLocalFiles |
-                        GitResponse::NewUpdate |
-                        GitResponse::Diverged => {
-                            update_available |= true;
-                        }
-                        _ => {},
-                    }
-                    Some(response)
-                }
-
-                Some(Response::Error(_)) => None,
-                None => {
-                    warn!("Update precheck (TW autogen) skipped: background channel disconnected.");
-                    None
-                }
-                Some(response) => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-            }
-        } else {
-            None
-        };
-
-        let updates_for_old_ak = if let Some(receiver) = receiver_old_ak_updates {
-            match CENTRAL_COMMAND.read().unwrap().recv_try_checked(&receiver) {
-                Some(Response::APIResponseGit(response)) => {
-                    match response {
-                        GitResponse::NoLocalFiles |
-                        GitResponse::NewUpdate |
-                        GitResponse::Diverged => {
-                            update_available |= true;
-                        }
-                        _ => {},
-                    }
-                    Some(response)
-                }
-
-                Some(Response::Error(_)) => None,
-                None => {
-                    warn!("Update precheck (Empire/Napoleon AK) skipped: background channel disconnected.");
-                    None
-                }
-                Some(response) => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-            }
-        } else {
-            None
-        };
-
-        // Only show the dialog if there are updates.
-        if update_available {
-            Self::new(app_ui, updates_for_program, updates_for_schema, updates_for_twautogen, updates_for_old_ak)?;
+        if precheck.is_finished() {
+            return;
         }
 
-        Ok(())
+        let timer = QTimer::new_1a(app_ui.main_window());
+        timer.set_interval(PRECHECK_POLL_INTERVAL_MS);
+
+        // The slot is a child of the timer, so the timer is alive whenever the slot runs.
+        let timer_ptr = timer.as_ptr();
+        let precheck = RefCell::new(precheck);
+        let slot = SlotNoArgs::new(&timer, clone!(
+            app_ui => move || {
+                let (program, schema, twautogen, old_ak) = {
+                    let mut precheck = precheck.borrow_mut();
+                    if !precheck.poll() {
+                        return;
+                    }
+
+                    timer_ptr.stop();
+                    if !precheck.update_available() {
+                        timer_ptr.delete_later();
+                        return;
+                    }
+
+                    (precheck.program.take(), precheck.schema.take(), precheck.twautogen.take(), precheck.old_ak.take())
+                };
+
+                if let Err(error) = Self::new(&app_ui, program, schema, twautogen, old_ak) {
+                    warn!("Failed to open the updater dialog: {error}");
+                }
+
+                // Deleting the timer also deletes this slot, so it must be the last thing done here.
+                timer_ptr.delete_later();
+            }
+        ));
+
+        timer.timeout().connect(&slot);
+        timer.start_0a();
     }
 
     pub unsafe fn new(app_ui: &Rc<AppUI>, precheck_program: Option<APIResponse>, precheck_schema: Option<GitResponse>, precheck_twautogen: Option<GitResponse>, precheck_old_ak: Option<GitResponse>) -> Result<()> {

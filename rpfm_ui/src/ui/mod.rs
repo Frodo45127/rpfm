@@ -308,8 +308,8 @@ impl UI {
             }
         }
 
-        // Check for updates, ignoring errors.
-        let _ = UpdaterUI::new_with_precheck(app_ui);
+        // Check for updates in the background. The dialog only shows up if an update is found.
+        UpdaterUI::new_with_precheck(app_ui);
 
         // Show the "only for the brave" alert for specially unstable builds.
         #[cfg(feature = "only_for_the_brave")] {
