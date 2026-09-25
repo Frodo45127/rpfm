@@ -13,18 +13,21 @@ use qt_widgets::QFileDialog;
 use qt_widgets::q_file_dialog::FileMode;
 use qt_widgets::QGroupBox;
 use qt_widgets::QInputDialog;
+use qt_widgets::QMenu;
 use qt_widgets::QMessageBox;
 use qt_widgets::QPushButton;
 use qt_widgets::q_message_box::{Icon, StandardButton};
 use qt_widgets::QRadioButton;
 use qt_widgets::QToolButton;
 use qt_widgets::q_abstract_item_view::{SelectionBehavior, SelectionMode};
+use qt_widgets::q_tool_button::ToolButtonPopupMode;
 use qt_widgets::QGridLayout;
 use qt_widgets::QTableView;
 
 use qt_gui::QAction;
 
 use qt_core::CheckState;
+use qt_core::QBox;
 use qt_core::QEventLoop;
 use qt_core::QFlags;
 use qt_core::QItemSelection;
@@ -135,6 +138,14 @@ const CSS_STYLE: &str = "
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
+/// Backend selector for the batch auto-translation menu.
+#[derive(Debug, Clone, Copy)]
+pub enum BatchTranslateMethod {
+    Deepl,
+    Ai,
+    Google,
+}
+
 #[derive(Getters, MutGetters)]
 #[getset(get = "pub", get_mut = "pub")]
 pub struct ToolTranslator {
@@ -191,6 +202,15 @@ pub struct ToolTranslator {
     copy_from_source: QPtr<QToolButton>,
     clear_translation: QPtr<QToolButton>,
     import_from_translated_pack: QPtr<QToolButton>,
+
+    // The batch translate button shows a popup menu. We keep the menu alive on the struct so
+    // it isn't dropped while still attached to the button.
+    batch_translate: QPtr<QToolButton>,
+    #[allow(dead_code)] batch_translate_menu: QBox<QMenu>,
+    batch_translate_deepl_action: QPtr<QAction>,
+    batch_translate_ai_action: QPtr<QAction>,
+    batch_translate_google_action: QPtr<QAction>,
+    batch_translate_overwrite_action: QPtr<QAction>,
 
     original_value_html: QPtr<QTextEdit>,
     original_value_textedit: QPtr<QTextEdit>,
@@ -539,6 +559,7 @@ impl ToolTranslator {
         let copy_from_source: QPtr<QToolButton> = tool.find_widget("copy_from_source")?;
         let clear_translation: QPtr<QToolButton> = tool.find_widget("clear_translation")?;
         let import_from_translated_pack: QPtr<QToolButton> = tool.find_widget("import_from_translated_pack")?;
+        let batch_translate: QPtr<QToolButton> = tool.find_widget("batch_translate")?;
         move_selection_up.set_tool_tip(&qtr("translator_move_selection_up"));
         move_selection_down.set_tool_tip(&qtr("translator_move_selection_down"));
         translate_with_deepl.set_tool_tip(&qtr("translator_translate_with_deepl"));
@@ -547,6 +568,17 @@ impl ToolTranslator {
         copy_from_source.set_tool_tip(&qtr("translator_copy_from_source"));
         clear_translation.set_tool_tip(&qtr("translator_clear_translation"));
         import_from_translated_pack.set_tool_tip(&qtr("translator_import_from_translated_pack"));
+        batch_translate.set_tool_tip(&qtr("translator_batch_translate"));
+        batch_translate.set_popup_mode(ToolButtonPopupMode::InstantPopup);
+
+        let batch_translate_menu = QMenu::from_q_widget(&batch_translate);
+        let batch_translate_deepl_action = batch_translate_menu.add_action_q_string(&qtr("translator_batch_translate_deepl"));
+        let batch_translate_ai_action = batch_translate_menu.add_action_q_string(&qtr("translator_batch_translate_ai"));
+        let batch_translate_google_action = batch_translate_menu.add_action_q_string(&qtr("translator_batch_translate_google"));
+        batch_translate_menu.add_separator();
+        let batch_translate_overwrite_action = batch_translate_menu.add_action_q_string(&qtr("translator_batch_translate_overwrite"));
+        batch_translate_overwrite_action.set_checkable(true);
+        batch_translate.set_menu(&batch_translate_menu);
 
         // Only allow AI translation if we have both a key and an endpoint URL configured.
         // The provider can be anything that speaks the OpenAI chat-completions wire format.
@@ -554,6 +586,7 @@ impl ToolTranslator {
             ai_radio_button.set_enabled(false);
             context_text_edit.set_enabled(false);
             translate_with_ai.set_enabled(false);
+            batch_translate_ai_action.set_enabled(false);
         } else {
             ai_radio_button.set_checked(true);
         }
@@ -561,6 +594,7 @@ impl ToolTranslator {
         if settings_string(DEEPL_API_KEY).is_empty() {
             deepl_radio_button.set_enabled(false);
             translate_with_deepl.set_enabled(false);
+            batch_translate_deepl_action.set_enabled(false);
         } else {
             deepl_radio_button.set_checked(true);
         }
@@ -633,6 +667,12 @@ impl ToolTranslator {
             copy_from_source,
             clear_translation,
             import_from_translated_pack,
+            batch_translate,
+            batch_translate_menu,
+            batch_translate_deepl_action,
+            batch_translate_ai_action,
+            batch_translate_google_action,
+            batch_translate_overwrite_action,
             original_value_html,
             original_value_textedit,
             translated_value_html,
@@ -1229,6 +1269,69 @@ impl ToolTranslator {
         }
 
         Ok(())
+    }
+
+    /// Auto-translate every row currently flagged as needing re-translation using the chosen
+    /// backend. Rows with an outdated translation are skipped unless the overwrite menu option
+    /// is checked. Successful translations clear `retr` (column 1) and set `aut` (column 3) so
+    /// the user can review them. Rows whose translation request fails are left untouched.
+    pub unsafe fn batch_translate_all(&self, method: BatchTranslateMethod) {
+        rpfm_telemetry::track_action("Translator: batch_translate_all");
+
+        // Take a snapshot of the radio button state in case we need it (AI needs the context).
+        let source_language_deepl = self.map_source_language_to_deepl();
+        let language_deepl = self.map_language_to_deepl();
+        let language_natural = self.map_language_to_natural();
+        let language_google = self.map_language_to_google();
+        let context = self.context_text_edit().to_plain_text().to_std_string();
+        let overwrite_outdated = self.batch_translate_overwrite_action().is_checked();
+
+        // Disable the buttons so the user can't double-trigger or change settings mid-batch.
+        self.batch_translate().set_enabled(false);
+        self.translated_value_textedit().set_enabled(false);
+        let event_loop = QEventLoop::new_0a();
+        event_loop.process_events();
+
+        let model = self.table().table_model();
+        let row_count = model.row_count_0a();
+        for row in 0..row_count {
+            let needs_retranslation_item = model.item_2a(row, 1);
+            if needs_retranslation_item.check_state() != CheckState::Checked {
+                continue;
+            }
+
+            // Outdated rows keep their previous translation so it can be fixed by hand, unless told otherwise.
+            if !overwrite_outdated && !model.item_2a(row, 5).text().trimmed().is_empty() {
+                continue;
+            }
+
+            // Translation backends operate on plain text — undo the on-disk escaping
+            // (||/\\n) before sending, then re-apply after we get the result back.
+            let source_text = model.item_2a(row, 4).text().to_std_string()
+                .replace("||", "\n||\n")
+                .replace("\\\\n", "\n");
+
+            let result = match method {
+                BatchTranslateMethod::Deepl => Self::ask_deepl(&source_text, source_language_deepl.clone(), language_deepl.clone()),
+                BatchTranslateMethod::Ai => Self::ask_ai(&source_text, &language_natural, &context),
+                BatchTranslateMethod::Google => Self::ask_google(&source_text, &language_google),
+            };
+
+            if let Ok(translation) = result {
+                let stored = translation
+                    .replace("\n||\n", "||")
+                    .replace("\n", "\\\\n");
+                model.item_2a(row, 5).set_text(&QString::from_std_str(&stored));
+                needs_retranslation_item.set_check_state(CheckState::Unchecked);
+                model.item_2a(row, 3).set_check_state(CheckState::Checked);
+            }
+
+            // Keep the UI responsive across long batches.
+            event_loop.process_events();
+        }
+
+        self.translated_value_textedit().set_enabled(true);
+        self.batch_translate().set_enabled(true);
     }
 
     /// Util to format a value into an html string we can use in the translator's UI.

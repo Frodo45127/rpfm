@@ -22,7 +22,7 @@ The JSON file also records its format `version`. `0` is the legacy format (compa
 ## The workflow
 
 1. **Auto-translate from vanilla.** For keys that exist in vanilla loc data and are unchanged, the Translator will auto-translate them using the vanilla translations, leaving the modded or altered lines to be translated.
-2. **Translate row by row**, or using one of the translation integrations.
+2. **Translate row by row**, or using one of the translation integrations. The batch button in the toolbar auto-translates every outdated line at once with DeepL, AI or Google Translate. By default it only fills lines with no translation; lines with an outdated translation are left for you to fix, unless **Overwrite existing outdated translations** is checked in its menu. Batch results are marked as auto-translated so you can review them.
 3. **Generate the translated loc.** When you save, the Translator writes a translated `.loc` file into the Pack at the right path: `text/!!!!!!translated_locs.loc` for Warhammer 1 and newer (except Thrones of Britannia), or `text/localisation.loc` for Thrones of Britannia and older games. The translation works in-game immediately.
 4. **Persist the translation as JSON.** The translation is also persisted to `<config>/translations_local/<game>/<pack>/<SOURCE>-<LANGUAGE>.json` (or `<LANGUAGE>.json` for format `0`). This is the file you contribute to the [Translation Hub](https://github.com/Frodo45127/total_war_translation_hub).
 

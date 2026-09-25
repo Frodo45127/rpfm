@@ -38,6 +38,9 @@ pub struct ToolTranslatorSlots {
     copy_from_source: QBox<SlotNoArgs>,
     clear_translation: QBox<SlotNoArgs>,
     import_from_translated_pack: QBox<SlotNoArgs>,
+    batch_translate_deepl: QBox<SlotNoArgs>,
+    batch_translate_ai: QBox<SlotNoArgs>,
+    batch_translate_google: QBox<SlotNoArgs>,
     toggle_help: QBox<SlotNoArgs>,
     toggle_preview: QBox<SlotNoArgs>,
     toggle_behavior: QBox<SlotNoArgs>,
@@ -171,6 +174,24 @@ impl ToolTranslatorSlots {
             }
         ));
 
+        let batch_translate_deepl = SlotNoArgs::new(ui.tool.main_widget(), clone!(
+            ui => move || {
+                ui.batch_translate_all(BatchTranslateMethod::Deepl);
+            }
+        ));
+
+        let batch_translate_ai = SlotNoArgs::new(ui.tool.main_widget(), clone!(
+            ui => move || {
+                ui.batch_translate_all(BatchTranslateMethod::Ai);
+            }
+        ));
+
+        let batch_translate_google = SlotNoArgs::new(ui.tool.main_widget(), clone!(
+            ui => move || {
+                ui.batch_translate_all(BatchTranslateMethod::Google);
+            }
+        ));
+
         // Visibility toggles for the collapsible sections. The QPushButtons are checkable, so
         // by the time `released` fires Qt has already flipped their checked state.
         let toggle_help = SlotNoArgs::new(ui.tool.main_widget(), clone!(
@@ -221,6 +242,9 @@ impl ToolTranslatorSlots {
             copy_from_source,
             clear_translation,
             import_from_translated_pack,
+            batch_translate_deepl,
+            batch_translate_ai,
+            batch_translate_google,
             toggle_help,
             toggle_preview,
             toggle_behavior,

@@ -34,6 +34,10 @@ pub unsafe fn set_connections(ui: &ToolTranslator, slots: &ToolTranslatorSlots) 
     ui.clear_translation().released().connect(slots.clear_translation());
     ui.import_from_translated_pack().released().connect(slots.import_from_translated_pack());
 
+    ui.batch_translate_deepl_action().triggered().connect(slots.batch_translate_deepl());
+    ui.batch_translate_ai_action().triggered().connect(slots.batch_translate_ai());
+    ui.batch_translate_google_action().triggered().connect(slots.batch_translate_google());
+
     ui.help_toggle().released().connect(slots.toggle_help());
     ui.preview_toggle().released().connect(slots.toggle_preview());
     ui.behavior_toggle().released().connect(slots.toggle_behavior());
