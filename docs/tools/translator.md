@@ -17,7 +17,7 @@ The Translator presents every translatable string in the Pack as a structured ro
 - **Removed** (`rem`) — boolean. Set when the key was once translated but the mod no longer contains it (the "unused" state). The translation is kept in the JSON so it can come back if the key reappears.
 - **Auto-translated** (`aut`) — boolean. Set when the Translator filled the row automatically (from vanilla loc data or a translation service) and the user hasn't reviewed it yet. Editing the translation clears the flag.
 
-The JSON file also records its format `version`. `0` is the legacy format (compatible with older Translation Hub tooling); `1` is the current format, which adds the `aut` flag and the source language (`src_lang`). It's selectable from the translator UI for English sources, and new translations default to `1`. Switching it rewrites the file in the chosen format on the next save.
+The JSON file also records its format `version`. `0` is the legacy format (compatible with older Translation Hub tooling); `1` is the current format, which adds the `aut` flag, the source language (`src_lang`) and the glossary. It's selectable from the translator UI for English sources, and new translations default to `1`. Switching it rewrites the file in the chosen format on the next save.
 
 ## The workflow
 
@@ -25,6 +25,14 @@ The JSON file also records its format `version`. `0` is the legacy format (compa
 2. **Translate row by row**, or using one of the translation integrations. The batch button in the toolbar auto-translates every outdated line at once with DeepL, AI or Google Translate. By default it only fills lines with no translation; lines with an outdated translation are left for you to fix, unless **Overwrite existing outdated translations** is checked in its menu. Batch results are marked as auto-translated so you can review them. A progress dialog shows how far along it is and lets you cancel it. Requests are spaced out, and when a service rate-limits them RPFM slows down and retries. DeepL gets up to 50 lines per request, so it needs far fewer requests; if one of those requests fails, all its lines are reported as failed. At the end, a results dialog shows how many lines were translated, failed, or were left unprocessed, with the failed lines and their errors in its details.
 3. **Generate the translated loc.** When you save, the Translator writes a translated `.loc` file into the Pack at the right path: `text/!!!!!!translated_locs.loc` for Warhammer 1 and newer (except Thrones of Britannia), or `text/localisation.loc` for Thrones of Britannia and older games. The translation works in-game immediately.
 4. **Persist the translation as JSON.** The translation is also persisted to `<config>/translations_local/<game>/<pack>/<SOURCE>-<LANGUAGE>.json` (or `<LANGUAGE>.json` for format `0`). This is the file you contribute to the [Translation Hub](https://github.com/Frodo45127/total_war_translation_hub).
+
+## Glossary
+
+The glossary is a per-translation list of source terms and the translation you want used for each one, like faction or unit names. Open it with the **Glossary** button: it opens over the right side of the translator, so the lines stay visible for reference, and its close button hides it again. Edit it like any other table, with its toolbar, right-click menu or shortcuts. Entries without a source term are ignored.
+
+When auto-translating, the whole glossary is sent along with the text: to the AI as part of the prompt, and to DeepL as context. Both treat it as a strong hint, not a rule, so review terms in the results. Google Translate doesn't support it.
+
+The glossary is saved with the translation, and only format `1` can store it. With format `0` the Glossary button is disabled.
 
 ## Translating from a language other than English
 

@@ -126,11 +126,11 @@ pub const VANILLA_LOC_NAME_EN: &str = "vanilla_english.tsv";
 /// on-disk formats, picked by the [`version`](Self::version) field:
 ///
 /// - `0` — legacy format. Per-entry `key`/`value_original`/`value_translated`/
-///   `needs_retranslation`/`removed`; no `aut`, and no `src_lang` or `version`
-///   at the root. The user can opt back into this format from the translator UI
-///   to share translations with older tooling.
-/// - `1` — current format. Adds `version`, `src_lang` and `aut`, and uses the
-///   shorter per-entry field names (`src`/`dst`/`retr`/`rem`/`aut`).
+///   `needs_retranslation`/`removed`; no `aut`, and no `src_lang`, `glossary` or
+///   `version` at the root. The user can opt back into this format from the
+///   translator UI to share translations with older tooling.
+/// - `1` — current format. Adds `version`, `src_lang`, `glossary` and `aut`, and
+///   uses the shorter per-entry field names (`src`/`dst`/`retr`/`rem`/`aut`).
 ///
 /// On load, files without a `version` field are treated as v0 — i.e. existing
 /// translation hubs and legacy local files keep their format unless the user
@@ -163,6 +163,13 @@ pub struct PackTranslation {
 
     /// Name of the pack these translations belong to.
     pack_name: String,
+
+    /// Per-pack glossary of preferred translations for specific source terms.
+    ///
+    /// Stored as a sorted map (source term → preferred translation) so the
+    /// JSON output is deterministic. v1+ only; dropped when saving as v0.
+    #[serde(default)]
+    glossary: BTreeMap<String, String>,
 
     /// Map of Loc keys to their translation data.
     ///
@@ -562,7 +569,7 @@ impl PackTranslation {
     /// This function loads a [PackTranslation] to memory from either a local json file, or a remote one.
     ///
     /// Files written in the old format (with `key`, `value_original`, `value_translated`,
-    /// `needs_retranslation`, `removed` and without `src_lang`/`aut`) are accepted
+    /// `needs_retranslation`, `removed` and without `src_lang`/`glossary`/`aut`) are accepted
     /// transparently via serde aliases and field defaults — no explicit version probing needed.
     ///
     /// On-disk layout:
@@ -637,7 +644,7 @@ impl PackTranslation {
     ///
     /// The on-disk format depends on [`Self::version`]: 0 writes the legacy shape, 1 (or higher)
     /// writes the current shape. Downgrading v1 → v0 drops fields that don't exist in v0
-    /// (`src_lang` and the per-entry `aut` flag).
+    /// (`src_lang`, `glossary` and the per-entry `aut` flag).
     ///
     /// The filename also depends on the version: v1+ uses `{src_lang}-{language}.json` so
     /// translations from different source languages live side-by-side; v0 keeps the legacy
@@ -765,6 +772,57 @@ impl PackTranslation {
         table.set_data(&data)?;
         Ok(table)
     }
+
+    /// Definition of the per-pack glossary table, used to drive the UI table view.
+    ///
+    /// The glossary is a flat two-column table: a source term (used as the key) and the
+    /// preferred translation for it.
+    pub fn glossary_definition() -> Definition {
+        let mut definition = Definition::default();
+        definition.fields_mut().push(Field { name: "source".to_string(), field_type: FieldType::StringU8, is_key: true, ..Default::default() });
+        definition.fields_mut().push(Field { name: "translation".to_string(), field_type: FieldType::StringU8, ..Default::default() });
+        definition
+    }
+
+    /// Materialize the glossary as an editable [`TableInMemory`] for the UI.
+    pub fn glossary_to_table(&self) -> Result<TableInMemory> {
+        let definition = Self::glossary_definition();
+        let mut table = TableInMemory::new(&definition, None, "");
+
+        // BTreeMap iteration is already sorted, which matches what we want in the UI.
+        let data = self.glossary()
+            .iter()
+            .map(|(src, dst)| vec![
+                DecodedData::StringU8(src.to_owned()),
+                DecodedData::StringU8(dst.to_owned()),
+            ]).collect::<Vec<_>>();
+
+        table.set_data(&data)?;
+        Ok(table)
+    }
+
+    /// Replace the glossary with the contents of `table`. Empty source cells are dropped so a
+    /// trailing blank row left over from the UI doesn't end up in the saved JSON.
+    pub fn glossary_from_table(&mut self, table: &TableInMemory) -> Result<()> {
+        self.glossary_mut().clear();
+
+        for row in table.data().iter() {
+            let src = match row.first() {
+                Some(DecodedData::StringU8(s)) => s.trim().to_owned(),
+                _ => continue,
+            };
+            if src.is_empty() {
+                continue;
+            }
+            let dst = match row.get(1) {
+                Some(DecodedData::StringU8(s)) => s.to_owned(),
+                _ => String::new(),
+            };
+            self.glossary_mut().insert(src, dst);
+        }
+
+        Ok(())
+    }
 }
 
 impl Default for PackTranslation {
@@ -774,6 +832,7 @@ impl Default for PackTranslation {
             language: String::new(),
             src_lang: default_src_lang(),
             pack_name: String::new(),
+            glossary: BTreeMap::new(),
             translations: HashMap::new(),
         }
     }

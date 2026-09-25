@@ -11,7 +11,9 @@
 use qt_core::QBox;
 use qt_core::QEventLoop;
 use qt_core::SlotNoArgs;
+use qt_core::SlotOfInt;
 use qt_core::SlotOfQItemSelectionQItemSelection;
+use qt_core::SlotOfQVariant;
 
 use std::rc::Rc;
 
@@ -41,6 +43,10 @@ pub struct ToolTranslatorSlots {
     batch_translate_deepl: QBox<SlotNoArgs>,
     batch_translate_ai: QBox<SlotNoArgs>,
     batch_translate_google: QBox<SlotNoArgs>,
+    toggle_glossary: QBox<SlotNoArgs>,
+    glossary_animation_step: QBox<SlotOfQVariant>,
+    glossary_animation_finished: QBox<SlotNoArgs>,
+    version_changed: QBox<SlotOfInt>,
     toggle_help: QBox<SlotNoArgs>,
     toggle_preview: QBox<SlotNoArgs>,
     toggle_behavior: QBox<SlotNoArgs>,
@@ -100,7 +106,8 @@ impl ToolTranslatorSlots {
                 let source_text = ui.original_value_textedit().to_plain_text().to_std_string();
                 let source_language = ui.map_source_language_to_deepl();
                 let language = ui.map_language_to_deepl();
-                let result = ToolTranslator::ask_deepl(&source_text, source_language, language);
+                let glossary = ui.glossary_snapshot();
+                let result = ToolTranslator::ask_deepl(&source_text, source_language, language, &glossary);
                 if let Ok(tr) = result {
                     ui.translated_value_textedit.set_text(&QString::from_std_str(tr));
                 }
@@ -120,7 +127,8 @@ impl ToolTranslatorSlots {
                 let source_text = ui.original_value_textedit().to_plain_text().to_std_string();
                 let language = ui.map_language_to_natural();
                 let context = ui.context_text_edit().to_plain_text().to_std_string();
-                let result = ToolTranslator::ask_ai(&source_text, &language, &context);
+                let glossary = ui.glossary_snapshot();
+                let result = ToolTranslator::ask_ai(&source_text, &language, &context, &glossary);
                 if let Ok(tr) = result {
                     ui.translated_value_textedit.set_text(&QString::from_std_str(tr));
                 }
@@ -192,6 +200,34 @@ impl ToolTranslatorSlots {
             }
         ));
 
+        let toggle_glossary = SlotNoArgs::new(ui.tool.main_widget(), clone!(
+            ui => move || {
+                rpfm_telemetry::track_action("Translator: toggle_glossary");
+                ui.toggle_glossary_pane();
+            }
+        ));
+
+        let glossary_animation_step = SlotOfQVariant::new(ui.tool.main_widget(), clone!(
+            ui => move |width| {
+                ui.glossary_pane().set_fixed_width(width.to_int_0a());
+            }
+        ));
+
+        // Once closed, hide the pane so it doesn't keep a zero-width widget around taking focus.
+        let glossary_animation_finished = SlotNoArgs::new(ui.tool.main_widget(), clone!(
+            ui => move || {
+                if !*ui.glossary_visible().read().unwrap() {
+                    ui.glossary_pane().hide();
+                }
+            }
+        ));
+
+        let version_changed = SlotOfInt::new(ui.tool.main_widget(), clone!(
+            ui => move |_| {
+                ui.update_glossary_availability();
+            }
+        ));
+
         // Visibility toggles for the collapsible sections. The QPushButtons are checkable, so
         // by the time `released` fires Qt has already flipped their checked state.
         let toggle_help = SlotNoArgs::new(ui.tool.main_widget(), clone!(
@@ -245,6 +281,10 @@ impl ToolTranslatorSlots {
             batch_translate_deepl,
             batch_translate_ai,
             batch_translate_google,
+            toggle_glossary,
+            glossary_animation_step,
+            glossary_animation_finished,
+            version_changed,
             toggle_help,
             toggle_preview,
             toggle_behavior,

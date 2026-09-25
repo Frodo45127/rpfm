@@ -1600,7 +1600,7 @@ public class Translation
 
 Translation data for a pack in a specific language. The on-disk format is versioned via
 the `version` field: `0` is the legacy shape (`value_original`, `value_translated`, …, no
-`aut` and no root-level `src_lang`/`version`) and `1` is the current shape. Files without a `version`
+`aut` and no root-level `src_lang`/`glossary`/`version`) and `1` is the current shape. Files without a `version`
 field are read as v0 and saved back in whichever format the user picks in the translator UI;
 new translations default to v1.
 
@@ -1610,6 +1610,7 @@ new translations default to v1.
 | `language`     | string                        | Target language code, as used by the game (e.g. `"SP"`, `"GE"`) |
 | `src_lang`     | string                        | Source language code these translations are based on (e.g. `"EN"`); defaults to `"EN"` when missing. v1 only |
 | `pack_name`    | string                        | Name of the pack                                            |
+| `glossary`     | Record<string, string>        | Source term → preferred translation. v1 only                |
 | `translations` | Record<string, Translation>   | Loc key to translation data                                 |
 
 <!-- langtabs-start -->
@@ -1619,6 +1620,7 @@ interface PackTranslation {
   language: string;
   src_lang: string;
   pack_name: string;
+  glossary: Record<string, string>;
   translations: Record<string, Translation>;
 }
 ```
@@ -1629,6 +1631,7 @@ public class PackTranslation
     public string Language { get; set; }
     public string SrcLang { get; set; }
     public string PackName { get; set; }
+    public Dictionary<string, string> Glossary { get; set; }
     public Dictionary<string, Translation> Translations { get; set; }
 }
 ```

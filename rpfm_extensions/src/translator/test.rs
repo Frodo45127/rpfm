@@ -28,6 +28,7 @@
 //! - [`PackTranslation::new`], which depends on `Pack` and `Dependencies`
 //!   instances we'd need to mock heavily for an integration-level test.
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -67,11 +68,16 @@ fn sample_v1() -> PackTranslation {
         aut: false,
     });
 
+    let mut glossary = BTreeMap::new();
+    glossary.insert("Empire".to_owned(), "Imperio".to_owned());
+    glossary.insert("Faction".to_owned(), "Faccion".to_owned());
+
     PackTranslation {
         version: CURRENT_VERSION,
         language: LANG.to_owned(),
         src_lang: DEFAULT_SRC_LANG.to_owned(),
         pack_name: PACK.to_owned(),
+        glossary,
         translations,
     }
 }
@@ -105,6 +111,7 @@ fn roundtrip_v1() {
     assert_eq!(loaded.language, original.language);
     assert_eq!(loaded.src_lang, original.src_lang);
     assert_eq!(loaded.pack_name, original.pack_name);
+    assert_eq!(loaded.glossary, original.glossary);
     assert_eq!(loaded.translations.len(), original.translations.len());
     for (key, tr) in &original.translations {
         let loaded_tr = loaded.translations.get(key).expect("entry missing after roundtrip");
@@ -132,6 +139,7 @@ fn roundtrip_v0() {
     assert_eq!(loaded.version, 0);
     assert_eq!(loaded.language, original.language);
     assert_eq!(loaded.pack_name, original.pack_name);
+    assert!(loaded.glossary.is_empty(), "v0 has no glossary");
 
     // The core translation data must survive intact, modulo the dropped `aut` flag.
     assert_eq!(loaded.translations.len(), original.translations.len());
@@ -158,6 +166,7 @@ fn v0_wire_shape_is_legacy() {
     let json: Value = serde_json::from_slice(&fs::read(translation_path(tmp.path(), PACK, 0, SRC_LANG, LANG)).unwrap()).unwrap();
     assert!(json.get("version").is_none(), "v0 must not write a version field");
     assert!(json.get("src_lang").is_none(), "v0 must not write src_lang");
+    assert!(json.get("glossary").is_none(), "v0 must not write glossary");
 
     let entry = json.pointer("/translations/greeting").expect("entry missing");
     assert_eq!(entry.get("key").and_then(Value::as_str), Some("greeting"));
@@ -178,6 +187,7 @@ fn v1_wire_shape_is_current() {
     let json: Value = serde_json::from_slice(&fs::read(translation_path(tmp.path(), PACK, original.version, &original.src_lang, LANG)).unwrap()).unwrap();
     assert_eq!(json.get("version").and_then(Value::as_u64), Some(CURRENT_VERSION as u64));
     assert_eq!(json.get("src_lang").and_then(Value::as_str), Some(DEFAULT_SRC_LANG));
+    assert_eq!(json.pointer("/glossary/Empire").and_then(Value::as_str), Some("Imperio"));
 
     let entry = json.pointer("/translations/greeting").expect("entry missing");
     assert_eq!(entry.get("src").and_then(Value::as_str), Some("Hello"));
@@ -338,6 +348,7 @@ fn default_is_current_version() {
     let pt = PackTranslation::default();
     assert_eq!(pt.version, CURRENT_VERSION);
     assert_eq!(pt.src_lang, DEFAULT_SRC_LANG);
+    assert!(pt.glossary.is_empty());
     assert!(pt.language.is_empty());
     assert!(pt.pack_name.is_empty());
     assert!(pt.translations.is_empty());
@@ -421,6 +432,7 @@ fn save_writes_dst_verbatim() {
         language: LANG.to_owned(),
         src_lang: DEFAULT_SRC_LANG.to_owned(),
         pack_name: PACK.to_owned(),
+        glossary: BTreeMap::new(),
         translations: HashMap::new(),
     };
     pt.translations.insert("newline".to_owned(), Translation {
@@ -499,4 +511,39 @@ fn locale_pack_paths_finds_linux_localisation_folder() {
         tmp.path().join("localisation/sp/local_sp.pack"),
         tmp.path().join("localisation/sp/local_sp_gc.pack"),
     ]);
+}
+
+/// The glossary survives a round-trip through its UI table.
+#[test]
+fn glossary_table_roundtrip() {
+    let original = sample_v1();
+    let table = original.glossary_to_table().unwrap();
+
+    let mut restored = sample_v1();
+    restored.glossary.clear();
+    restored.glossary_from_table(&table).unwrap();
+
+    assert_eq!(restored.glossary, original.glossary);
+}
+
+/// Reading the glossary from its UI table trims the source terms, skips rows without one
+/// (like a blank row the user added and never filled), and replaces the previous glossary.
+#[test]
+fn glossary_from_table_skips_empty_sources() {
+    let mut table = TableInMemory::new(&PackTranslation::glossary_definition(), None, "");
+    table.set_data(&[
+        vec![DecodedData::StringU8("  Empire ".to_owned()), DecodedData::StringU8("Imperio".to_owned())],
+        vec![DecodedData::StringU8("   ".to_owned()), DecodedData::StringU8("Nada".to_owned())],
+        vec![DecodedData::StringU8(String::new()), DecodedData::StringU8(String::new())],
+        vec![DecodedData::StringU8("Faction".to_owned()), DecodedData::StringU8(String::new())],
+    ]).unwrap();
+
+    let mut pt = sample_v1();
+    pt.glossary.insert("Stale".to_owned(), "Viejo".to_owned());
+    pt.glossary_from_table(&table).unwrap();
+
+    let mut expected = BTreeMap::new();
+    expected.insert("Empire".to_owned(), "Imperio".to_owned());
+    expected.insert("Faction".to_owned(), String::new());
+    assert_eq!(pt.glossary, expected);
 }

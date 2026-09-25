@@ -29,6 +29,8 @@ use qt_gui::QAction;
 
 use qt_core::CheckState;
 use qt_core::QBox;
+use qt_core::QEasingCurve;
+use qt_core::q_easing_curve;
 use qt_core::QEventLoop;
 use qt_core::QFlags;
 use qt_core::QItemSelection;
@@ -38,6 +40,9 @@ use qt_core::QListOfQString;
 use qt_core::QPtr;
 use qt_core::QSignalBlocker;
 use qt_core::QString;
+use qt_core::QVariant;
+use qt_core::QVariantAnimation;
+use qt_core::Orientation;
 use qt_core::WindowModality;
 
 use cpp_core::CastInto;
@@ -51,6 +56,7 @@ use deepl::{DeepLApi, Error as DeepLError, Lang, ModelType, TagHandling};
 use regex::{Captures, Regex};
 use serde_json::{json, Value};
 
+use std::collections::BTreeMap;
 use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::{Arc, LazyLock, RwLock};
@@ -203,6 +209,15 @@ pub struct ToolTranslator {
     help_toggle: QPtr<QPushButton>,
     preview_toggle: QPtr<QPushButton>,
     behavior_toggle: QPtr<QPushButton>,
+
+    // The glossary pane shares the splitter's layout cell, on top of it, so the layout keeps its height
+    // in sync with the dialog. Toggling it animates its width from the right edge.
+    glossary_table: Arc<TableView>,
+    glossary_pane: QPtr<QWidget>,
+    toggle_glossary: QPtr<QPushButton>,
+    glossary_hide: QPtr<QToolButton>,
+    glossary_animation: QBox<QVariantAnimation>,
+    glossary_visible: Arc<RwLock<bool>>,
 
     deepl_radio_button: QPtr<QRadioButton>,
     ai_radio_button: QPtr<QRadioButton>,
@@ -520,8 +535,11 @@ impl ToolTranslator {
         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
         let data = send_ipc_command_result(Command::GetPackTranslation(pack_key.clone(), src_lang.clone(), language), response_extractor!(Response::PackTranslation))?;
 
+        let pack_key_arc = Arc::new(RwLock::new(pack_key));
+        let ds_pack = Arc::new(RwLock::new(DataSource::PackFile));
+
         let table_data = TableType::TranslatorTable(data.to_table()?);
-        let table = TableView::new_view(&table_view_container, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile)), Arc::new(RwLock::new(pack_key)))?;
+        let table = TableView::new_view(&table_view_container, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, ds_pack.clone(), pack_key_arc.clone())?;
 
         let layout = tool.main_widget().layout().static_downcast::<QGridLayout>();
         layout.replace_widget_2a(table_view.as_ptr(), table.table_view().as_ptr());
@@ -550,6 +568,36 @@ impl ToolTranslator {
             let _ = bar.add_chip(&table, state, false);
             table.filter_table();
         }
+
+        // Glossary table. It reuses TableView, so filtering, sorting, copy/paste and row editing come for free.
+        // TableView fills the container's empty grid with its own toolbar, table and filter bar.
+        let glossary_pane: QPtr<QWidget> = tool.find_widget("glossary_pane")?;
+        let glossary_title_label: QPtr<QLabel> = tool.find_widget("glossary_title_label")?;
+        let glossary_table_container: QPtr<QWidget> = tool.find_widget("glossary_table_container")?;
+        let glossary_table_container = glossary_table_container.into_q_box();
+        let glossary_hide: QPtr<QToolButton> = tool.find_widget("glossary_hide")?;
+        glossary_title_label.set_text(&qtr("translator_glossary_title"));
+        glossary_hide.set_tool_tip(&qtr("translator_glossary_hide"));
+
+        let glossary_table_data = TableType::NormalTable(data.glossary_to_table()?);
+        let glossary_table = TableView::new_view(&glossary_table_container, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, glossary_table_data, None, ds_pack, pack_key_arc)?;
+
+        glossary_table.table_view().set_selection_behavior(SelectionBehavior::SelectRows);
+        glossary_table.table_view().set_column_width(0, 200);
+        glossary_table.table_view().set_column_width(1, 250);
+        glossary_table.table_model().set_header_data_3a(0, Orientation::Horizontal, &QVariant::from_q_string(&qtr("translator_glossary_source")));
+        glossary_table.table_model().set_header_data_3a(1, Orientation::Horizontal, &QVariant::from_q_string(&qtr("translator_glossary_translation")));
+
+        // The pane starts closed. The animation drives its width, and its value changes are applied in the slots.
+        glossary_pane.set_auto_fill_background(true);
+        glossary_pane.raise();
+        glossary_pane.hide();
+
+        let glossary_animation = QVariantAnimation::new_1a(&glossary_pane);
+        glossary_animation.set_duration(250);
+        let easing = QEasingCurve::new_0a();
+        easing.set_type(q_easing_curve::Type::OutCubic);
+        glossary_animation.set_easing_curve(&easing);
         let key_label: QPtr<QLabel> = tool.find_widget("key_label")?;
         let key_line_edit: QPtr<QLineEdit> = tool.find_widget("key_line_edit")?;
         key_label.set_text(&qtr("translator_key"));
@@ -575,6 +623,9 @@ impl ToolTranslator {
         preview_toggle.set_tool_tip(&qtr("translator_preview_toggle_tooltip"));
         behavior_toggle.set_text(&qtr("translator_behavior_toggle"));
         behavior_toggle.set_tool_tip(&qtr("translator_behavior_toggle_tooltip"));
+
+        let toggle_glossary: QPtr<QPushButton> = tool.find_widget("toggle_glossary")?;
+        toggle_glossary.set_text(&qtr("translator_glossary_toggle"));
 
         let move_selection_up: QPtr<QToolButton> = tool.find_widget("move_selection_up")?;
         let move_selection_down: QPtr<QToolButton> = tool.find_widget("move_selection_down")?;
@@ -672,6 +723,12 @@ impl ToolTranslator {
             help_toggle,
             preview_toggle,
             behavior_toggle,
+            glossary_table,
+            glossary_pane,
+            toggle_glossary,
+            glossary_hide,
+            glossary_animation,
+            glossary_visible: Arc::new(RwLock::new(false)),
             context_text_edit,
             deepl_radio_button,
             ai_radio_button,
@@ -706,6 +763,7 @@ impl ToolTranslator {
         // Build the slots and connect them to the view.
         let slots = ToolTranslatorSlots::new(&view);
         connections::set_connections(&view, &slots);
+        view.update_glossary_availability();
         view.tool.get_ref_dialog().resize_2a(1800, 800);
 
         // If we hit ok, save the data back to the Pack.
@@ -770,6 +828,9 @@ impl ToolTranslator {
         let version = self.version_combobox.current_index().max(0) as u32;
         pack_tr.set_version(version);
 
+        let glossary_table = get_table_from_view(&self.glossary_table().table_model_ptr().static_upcast(), &self.glossary_table().table_definition())?;
+        pack_tr.glossary_from_table(&glossary_table)?;
+
         Ok(pack_tr)
     }
 
@@ -798,14 +859,15 @@ impl ToolTranslator {
         // If the value needs a retrasnlation decide what to do depending on the behavior group.
         // Only do it if the text is empty. If there's a previous translation, keep it so it can be fixed.
         if needs_retranslation && self.translated_value_textedit().to_plain_text().is_empty() {
+            let glossary = self.glossary_snapshot();
             let auto_result = if self.deepl_radio_button().is_checked() {
                 let source_language = self.map_source_language_to_deepl();
                 let language = self.map_language_to_deepl();
-                Self::ask_deepl(&source_text, source_language, language).ok()
+                Self::ask_deepl(&source_text, source_language, language, &glossary).ok()
             } else if self.ai_radio_button().is_checked() {
                 let language = self.map_language_to_natural();
                 let context = self.context_text_edit().to_plain_text().to_std_string();
-                Self::ask_ai(&source_text, &language, &context).ok()
+                Self::ask_ai(&source_text, &language, &context, &glossary).ok()
             } else if self.google_translate_radio_button().is_checked() {
                 let language = self.map_language_to_google();
                 Self::ask_google(&source_text, &language).ok()
@@ -1140,7 +1202,7 @@ impl ToolTranslator {
     /// path works against OpenAI, Anthropic's OpenAI-compat endpoint, Gemini's
     /// `/v1beta/openai/`, OpenRouter, Ollama, vLLM, LM Studio, etc.
     #[tokio::main]
-    async fn ask_ai(string: &str, language: &str, context: &str) -> Result<String> {
+    async fn ask_ai(string: &str, language: &str, context: &str, glossary: &BTreeMap<String, String>) -> Result<String> {
         let api_url = settings_string(AI_API_URL);
         let api_key = settings_string(AI_API_KEY);
         let model = settings_string(AI_MODEL);
@@ -1156,10 +1218,19 @@ impl ToolTranslator {
         }
 
         let mut prompt = format!("Translate the sentence after #### to {language}, keeping the translation as close to the original in tone and style as you can.");
-        prompt.push_str(" Preserve the following parts of the text in the translation: any text delimited with '[[' and ']]', '||', jumplines and tabulations. ");
-        if !context.is_empty() {
-            prompt.push_str(&format!(" For context, use the following info: {context}. #### "));
+        prompt.push_str(" Preserve the following parts of the text in the translation: any text delimited with '[[' and ']]', '||', jumplines and tabulations.");
+
+        let glossary_hint = Self::format_glossary_hint(glossary);
+        if !glossary_hint.is_empty() {
+            prompt.push(' ');
+            prompt.push_str(&glossary_hint);
         }
+
+        if !context.is_empty() {
+            prompt.push_str(&format!(" For context, use the following info: {context}."));
+        }
+
+        prompt.push_str(" #### ");
         prompt.push_str(string);
 
         // Tokens are roughly 3/4 of a word; we use a generous approximation and double it to
@@ -1209,8 +1280,8 @@ impl ToolTranslator {
         Ok(response_text)
     }
 
-    fn ask_deepl(string: &str, source_language: Lang, language: Lang) -> Result<String> {
-        Self::ask_deepl_many(vec![string.to_owned()], source_language, language)?
+    fn ask_deepl(string: &str, source_language: Lang, language: Lang, glossary: &BTreeMap<String, String>) -> Result<String> {
+        Self::ask_deepl_many(vec![string.to_owned()], source_language, language, glossary)?
             .pop()
             .ok_or_else(|| anyhow!("DeepL returned no translation."))
     }
@@ -1222,6 +1293,7 @@ impl ToolTranslator {
     /// * `strings` - Texts to translate. DeepL translates each one independently.
     /// * `source_language` - Language of the texts.
     /// * `language` - Language to translate them to.
+    /// * `glossary` - Preferred translations for specific terms, sent as a hint in DeepL's `context`.
     ///
     /// # Returns
     ///
@@ -1232,7 +1304,7 @@ impl ToolTranslator {
     /// Returns a [`RateLimitedError`] if DeepL rate-limits the request, or a generic error if the request
     /// fails or doesn't return one translation per text.
     #[tokio::main]
-    async fn ask_deepl_many(strings: Vec<String>, source_language: Lang, language: Lang) -> Result<Vec<String>> {
+    async fn ask_deepl_many(strings: Vec<String>, source_language: Lang, language: Lang, glossary: &BTreeMap<String, String>) -> Result<Vec<String>> {
         let api_key = settings_string(DEEPL_API_KEY);
         if api_key.is_empty() {
             return Err(anyhow!("Missing DeepL API Key."))
@@ -1248,20 +1320,37 @@ impl ToolTranslator {
                 .replace("]]", "]]>"))
             .collect::<Vec<_>>();
 
-        let translated = api.translate_text(strings, language)
-            .source_lang(source_language)
-            .model_type(ModelType::PreferQualityOptimized)
-            .ignore_tags(vec![
-                "rgba".to_owned(),
-                "col".to_owned(),
-                "img".to_owned(),
-                "url".to_owned(),
-                "sl".to_owned(),
-                "sl_tooltip".to_owned(),
-                "tooltip".to_owned(),
-            ])
-            .tag_handling(TagHandling::Xml)
-            .await
+        let ignore_tags = vec![
+            "rgba".to_owned(),
+            "col".to_owned(),
+            "img".to_owned(),
+            "url".to_owned(),
+            "sl".to_owned(),
+            "sl_tooltip".to_owned(),
+            "tooltip".to_owned(),
+        ];
+
+        // The deepl crate's builder changes type when `.context()` is set, so it can't be added conditionally
+        // to a stored builder. The glossary goes there because `context` influences the translation without being translated.
+        let glossary_hint = Self::format_glossary_hint(glossary);
+        let translated = if glossary_hint.is_empty() {
+            api.translate_text(strings, language)
+                .source_lang(source_language)
+                .model_type(ModelType::PreferQualityOptimized)
+                .ignore_tags(ignore_tags)
+                .tag_handling(TagHandling::Xml)
+                .await
+        } else {
+            api.translate_text(strings, language)
+                .source_lang(source_language)
+                .model_type(ModelType::PreferQualityOptimized)
+                .ignore_tags(ignore_tags)
+                .tag_handling(TagHandling::Xml)
+                .context(glossary_hint)
+                .await
+        };
+
+        let translated = translated
             .map_err(|error| match error {
                 DeepLError::Network { status, message } if status.as_u16() == 429 => anyhow!(RateLimitedError(message)),
                 error => anyhow!(error),
@@ -1352,6 +1441,7 @@ impl ToolTranslator {
         let language_natural = self.map_language_to_natural();
         let language_google = self.map_language_to_google();
         let context = self.context_text_edit().to_plain_text().to_std_string();
+        let glossary = self.glossary_snapshot();
         let overwrite_outdated = self.batch_translate_overwrite_action().is_checked();
 
         // Outdated rows keep their previous translation so it can be fixed by hand, unless told otherwise.
@@ -1398,8 +1488,8 @@ impl ToolTranslator {
 
                 last_request = Some(Instant::now());
                 let result = match method {
-                    BatchTranslateMethod::Deepl => Self::ask_deepl_many(sources[group.clone()].to_vec(), source_language_deepl.clone(), language_deepl.clone()),
-                    BatchTranslateMethod::Ai => Self::ask_ai(&sources[group.start], &language_natural, &context).map(|translation| vec![translation]),
+                    BatchTranslateMethod::Deepl => Self::ask_deepl_many(sources[group.clone()].to_vec(), source_language_deepl.clone(), language_deepl.clone(), &glossary),
+                    BatchTranslateMethod::Ai => Self::ask_ai(&sources[group.start], &language_natural, &context, &glossary).map(|translation| vec![translation]),
                     BatchTranslateMethod::Google => Self::ask_google(&sources[group.start], &language_google).map(|translation| vec![translation]),
                 };
 
@@ -1450,6 +1540,72 @@ impl ToolTranslator {
             message_box.set_detailed_text(&QString::from_std_str(failed.join("\n")));
         }
         message_box.exec();
+    }
+
+    /// Snapshot of the glossary as the user currently has it in its table.
+    ///
+    /// Read from the table, not from `pack_tr`, so it includes edits not yet saved.
+    unsafe fn glossary_snapshot(&self) -> BTreeMap<String, String> {
+        let mut glossary = BTreeMap::new();
+        let model = self.glossary_table().table_model();
+        for row in 0..model.row_count_0a() {
+            let source = model.item_2a(row, 0).text().to_std_string().trim().to_owned();
+            if !source.is_empty() {
+                glossary.insert(source, model.item_2a(row, 1).text().to_std_string());
+            }
+        }
+
+        glossary
+    }
+
+    /// Render the glossary as a single sentence of context for the translation backends.
+    ///
+    /// # Returns
+    ///
+    /// The hint, or an empty string if the glossary is empty.
+    fn format_glossary_hint(glossary: &BTreeMap<String, String>) -> String {
+        if glossary.is_empty() {
+            return String::new();
+        }
+
+        let entries = glossary.iter()
+            .map(|(source, translation)| format!("\"{source}\" -> \"{translation}\""))
+            .join("; ");
+        format!("Use these specific translations for these terms when they appear: {entries}.")
+    }
+
+    /// Open or close the glossary pane, animating its width from the right edge of the dialog.
+    pub unsafe fn toggle_glossary_pane(&self) {
+        let mut visible = self.glossary_visible.write().unwrap();
+        *visible = !*visible;
+
+        let current_width = if self.glossary_pane.is_visible() { self.glossary_pane.width() } else { 0 };
+        let main_width = self.tool.main_widget().width();
+        let target_width = if *visible { (main_width / 3).clamp(360, 720).min(main_width) } else { 0 };
+
+        if *visible {
+            self.glossary_pane.set_fixed_width(current_width);
+            self.glossary_pane.show();
+            self.glossary_pane.raise();
+        }
+
+        self.glossary_animation.stop();
+        self.glossary_animation.set_start_value(&QVariant::from_int(current_width));
+        self.glossary_animation.set_end_value(&QVariant::from_int(target_width));
+        self.glossary_animation.start_0a();
+
+        self.toggle_glossary.set_checked(*visible);
+    }
+
+    /// Enable the glossary only while the format version supports it, closing it otherwise.
+    pub unsafe fn update_glossary_availability(&self) {
+        let supported = self.version_combobox.current_index() != 0;
+        self.toggle_glossary.set_enabled(supported);
+        self.toggle_glossary.set_tool_tip(&qtr(if supported { "translator_glossary_toggle_tooltip" } else { "translator_glossary_unsupported" }));
+
+        if !supported && *self.glossary_visible.read().unwrap() {
+            self.toggle_glossary_pane();
+        }
     }
 
     /// Split the texts of a batch auto-translation into the groups sent in each request.
