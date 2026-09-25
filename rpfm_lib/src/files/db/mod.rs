@@ -1231,8 +1231,8 @@ impl DB {
 
             // Order reversed vs dave schemas: ability + land_unit.
             "land_units_to_unit_abilites_junctions_tables" => {
-                let key_pos_0 = definition.column_position_by_name("ability").unwrap_or_default();
-                let key_pos_1 = definition.column_position_by_name("land_unit").unwrap_or_default();
+                let key_pos_0 = definition.column_position_by_name("land_unit").unwrap_or_default();
+                let key_pos_1 = definition.column_position_by_name("ability").unwrap_or_default();
 
                 keys.extend(self.data()
                     .iter()
