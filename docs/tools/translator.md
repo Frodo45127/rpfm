@@ -17,7 +17,7 @@ The Translator presents every translatable string in the Pack as a structured ro
 - **Removed** (`rem`) — boolean. Set when the key was once translated but the mod no longer contains it (the "unused" state). The translation is kept in the JSON so it can come back if the key reappears.
 - **Auto-translated** (`aut`) — boolean. Set when the Translator filled the row automatically (from vanilla loc data or a translation service) and the user hasn't reviewed it yet. Editing the translation clears the flag.
 
-The JSON file also records its format `version`. `0` is the legacy format (compatible with older Translation Hub tooling); `1` is the current format, which adds the `aut` flag, the source language (`src_lang`) and the glossary. It's selectable from the translator UI for English sources, and new translations default to `1`. Switching it rewrites the file in the chosen format on the next save.
+The JSON file also records its format `version`. `0` is the legacy format (compatible with older Translation Hub tooling); `1` is the current format, which adds the `aut` flag, the source language (`src_lang`), the list of `authors` (typed comma-separated in the **Authors** field) and the glossary. It's selectable from the translator UI for English sources, and new translations default to `1`. Switching it rewrites the file in the chosen format on the next save.
 
 ## The workflow
 

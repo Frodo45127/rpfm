@@ -224,7 +224,7 @@ impl ToolTranslatorSlots {
 
         let version_changed = SlotOfInt::new(ui.tool.main_widget(), clone!(
             ui => move |_| {
-                ui.update_glossary_availability();
+                ui.update_v1_only_widgets();
             }
         ));
 

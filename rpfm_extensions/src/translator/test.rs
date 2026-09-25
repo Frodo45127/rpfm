@@ -77,6 +77,7 @@ fn sample_v1() -> PackTranslation {
         language: LANG.to_owned(),
         src_lang: DEFAULT_SRC_LANG.to_owned(),
         pack_name: PACK.to_owned(),
+        authors: vec!["Alice".to_owned(), "Bob".to_owned()],
         glossary,
         translations,
     }
@@ -111,6 +112,7 @@ fn roundtrip_v1() {
     assert_eq!(loaded.language, original.language);
     assert_eq!(loaded.src_lang, original.src_lang);
     assert_eq!(loaded.pack_name, original.pack_name);
+    assert_eq!(loaded.authors, original.authors);
     assert_eq!(loaded.glossary, original.glossary);
     assert_eq!(loaded.translations.len(), original.translations.len());
     for (key, tr) in &original.translations {
@@ -139,6 +141,7 @@ fn roundtrip_v0() {
     assert_eq!(loaded.version, 0);
     assert_eq!(loaded.language, original.language);
     assert_eq!(loaded.pack_name, original.pack_name);
+    assert!(loaded.authors.is_empty(), "v0 has no authors");
     assert!(loaded.glossary.is_empty(), "v0 has no glossary");
 
     // The core translation data must survive intact, modulo the dropped `aut` flag.
@@ -166,6 +169,7 @@ fn v0_wire_shape_is_legacy() {
     let json: Value = serde_json::from_slice(&fs::read(translation_path(tmp.path(), PACK, 0, SRC_LANG, LANG)).unwrap()).unwrap();
     assert!(json.get("version").is_none(), "v0 must not write a version field");
     assert!(json.get("src_lang").is_none(), "v0 must not write src_lang");
+    assert!(json.get("authors").is_none(), "v0 must not write authors");
     assert!(json.get("glossary").is_none(), "v0 must not write glossary");
 
     let entry = json.pointer("/translations/greeting").expect("entry missing");
@@ -188,6 +192,7 @@ fn v1_wire_shape_is_current() {
     assert_eq!(json.get("version").and_then(Value::as_u64), Some(CURRENT_VERSION as u64));
     assert_eq!(json.get("src_lang").and_then(Value::as_str), Some(DEFAULT_SRC_LANG));
     assert_eq!(json.pointer("/glossary/Empire").and_then(Value::as_str), Some("Imperio"));
+    assert_eq!(json.pointer("/authors/0").and_then(Value::as_str), Some("Alice"));
 
     let entry = json.pointer("/translations/greeting").expect("entry missing");
     assert_eq!(entry.get("src").and_then(Value::as_str), Some("Hello"));
@@ -348,6 +353,7 @@ fn default_is_current_version() {
     let pt = PackTranslation::default();
     assert_eq!(pt.version, CURRENT_VERSION);
     assert_eq!(pt.src_lang, DEFAULT_SRC_LANG);
+    assert!(pt.authors.is_empty());
     assert!(pt.glossary.is_empty());
     assert!(pt.language.is_empty());
     assert!(pt.pack_name.is_empty());
@@ -432,6 +438,7 @@ fn save_writes_dst_verbatim() {
         language: LANG.to_owned(),
         src_lang: DEFAULT_SRC_LANG.to_owned(),
         pack_name: PACK.to_owned(),
+        authors: Vec::new(),
         glossary: BTreeMap::new(),
         translations: HashMap::new(),
     };

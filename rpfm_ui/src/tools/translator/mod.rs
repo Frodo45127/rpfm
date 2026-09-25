@@ -197,6 +197,7 @@ pub struct ToolTranslator {
     tagged_images: HashMap<String, String>,
     language_combobox: QPtr<QComboBox>,
     version_combobox: QPtr<QComboBox>,
+    authors_line_edit: QPtr<QLineEdit>,
 
     // Source language is picked from the pre-dialog before the translator opens, so inside the
     // translator it lives as a read-only label rather than an editable selector.
@@ -304,6 +305,10 @@ impl ToolTranslator {
         // combobox index as the version number, so keep these in sync with the file format.
         version_combobox.add_item_q_string(&qtr("translator_version_0"));
         version_combobox.add_item_q_string(&qtr("translator_version_1"));
+
+        let authors_label: QPtr<QLabel> = tool.find_widget("authors_label")?;
+        let authors_line_edit: QPtr<QLineEdit> = tool.find_widget("authors_line_edit")?;
+        authors_label.set_text(&qtr("translator_authors"));
 
         let behavior_groupbox: QPtr<QGroupBox> = tool.find_widget("behavior_groupbox")?;
         let behavior_label: QPtr<QLabel> = tool.find_widget("behavior_label")?;
@@ -699,6 +704,7 @@ impl ToolTranslator {
         // version numbers; anything else (unexpected) falls back to the current v1 entry.
         let version_index = (*data.version()).min(1) as i32;
         version_combobox.set_current_index(version_index);
+        authors_line_edit.set_text(&QString::from_std_str(data.authors().join(", ")));
 
         // v0 has no source language, so it's only valid for EN-sourced translations.
         if !is_default_src_lang {
@@ -717,6 +723,7 @@ impl ToolTranslator {
             tagged_images,
             language_combobox,
             version_combobox,
+            authors_line_edit,
             source_language_value,
             info_label,
             behavior_groupbox,
@@ -763,7 +770,7 @@ impl ToolTranslator {
         // Build the slots and connect them to the view.
         let slots = ToolTranslatorSlots::new(&view);
         connections::set_connections(&view, &slots);
-        view.update_glossary_availability();
+        view.update_v1_only_widgets();
         view.tool.get_ref_dialog().resize_2a(1800, 800);
 
         // If we hit ok, save the data back to the Pack.
@@ -830,6 +837,14 @@ impl ToolTranslator {
 
         let glossary_table = get_table_from_view(&self.glossary_table().table_model_ptr().static_upcast(), &self.glossary_table().table_definition())?;
         pack_tr.glossary_from_table(&glossary_table)?;
+
+        // Authors are typed as a comma-separated list. Blank names, like the ones from a trailing comma, are dropped.
+        let authors = self.authors_line_edit.text().to_std_string()
+            .split(',')
+            .map(|author| author.trim().to_owned())
+            .filter(|author| !author.is_empty())
+            .collect::<Vec<_>>();
+        pack_tr.set_authors(authors);
 
         Ok(pack_tr)
     }
@@ -1597,9 +1612,11 @@ impl ToolTranslator {
         self.toggle_glossary.set_checked(*visible);
     }
 
-    /// Enable the glossary only while the format version supports it, closing it otherwise.
-    pub unsafe fn update_glossary_availability(&self) {
+    /// Enable the authors and the glossary only while the format version supports them, closing the glossary otherwise.
+    pub unsafe fn update_v1_only_widgets(&self) {
         let supported = self.version_combobox.current_index() != 0;
+        self.authors_line_edit.set_enabled(supported);
+        self.authors_line_edit.set_tool_tip(&qtr(if supported { "translator_authors_tooltip" } else { "translator_authors_unsupported" }));
         self.toggle_glossary.set_enabled(supported);
         self.toggle_glossary.set_tool_tip(&qtr(if supported { "translator_glossary_toggle_tooltip" } else { "translator_glossary_unsupported" }));
 

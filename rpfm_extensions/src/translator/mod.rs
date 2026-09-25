@@ -126,11 +126,11 @@ pub const VANILLA_LOC_NAME_EN: &str = "vanilla_english.tsv";
 /// on-disk formats, picked by the [`version`](Self::version) field:
 ///
 /// - `0` — legacy format. Per-entry `key`/`value_original`/`value_translated`/
-///   `needs_retranslation`/`removed`; no `aut`, and no `src_lang`, `glossary` or
-///   `version` at the root. The user can opt back into this format from the
-///   translator UI to share translations with older tooling.
-/// - `1` — current format. Adds `version`, `src_lang`, `glossary` and `aut`, and
-///   uses the shorter per-entry field names (`src`/`dst`/`retr`/`rem`/`aut`).
+///   `needs_retranslation`/`removed`; no `aut`, and no `src_lang`, `authors`,
+///   `glossary` or `version` at the root. The user can opt back into this format
+///   from the translator UI to share translations with older tooling.
+/// - `1` — current format. Adds `version`, `src_lang`, `authors`, `glossary` and
+///   `aut`, and uses the shorter per-entry field names (`src`/`dst`/`retr`/`rem`/`aut`).
 ///
 /// On load, files without a `version` field are treated as v0 — i.e. existing
 /// translation hubs and legacy local files keep their format unless the user
@@ -163,6 +163,12 @@ pub struct PackTranslation {
 
     /// Name of the pack these translations belong to.
     pack_name: String,
+
+    /// Names of the translators who contributed to this translation.
+    ///
+    /// Missing from the old format; defaults to an empty list when loading legacy files.
+    #[serde(default)]
+    authors: Vec<String>,
 
     /// Per-pack glossary of preferred translations for specific source terms.
     ///
@@ -569,7 +575,7 @@ impl PackTranslation {
     /// This function loads a [PackTranslation] to memory from either a local json file, or a remote one.
     ///
     /// Files written in the old format (with `key`, `value_original`, `value_translated`,
-    /// `needs_retranslation`, `removed` and without `src_lang`/`glossary`/`aut`) are accepted
+    /// `needs_retranslation`, `removed` and without `src_lang`/`authors`/`glossary`/`aut`) are accepted
     /// transparently via serde aliases and field defaults — no explicit version probing needed.
     ///
     /// On-disk layout:
@@ -644,7 +650,7 @@ impl PackTranslation {
     ///
     /// The on-disk format depends on [`Self::version`]: 0 writes the legacy shape, 1 (or higher)
     /// writes the current shape. Downgrading v1 → v0 drops fields that don't exist in v0
-    /// (`src_lang`, `glossary` and the per-entry `aut` flag).
+    /// (`src_lang`, `authors`, `glossary` and the per-entry `aut` flag).
     ///
     /// The filename also depends on the version: v1+ uses `{src_lang}-{language}.json` so
     /// translations from different source languages live side-by-side; v0 keeps the legacy
@@ -832,6 +838,7 @@ impl Default for PackTranslation {
             language: String::new(),
             src_lang: default_src_lang(),
             pack_name: String::new(),
+            authors: Vec::new(),
             glossary: BTreeMap::new(),
             translations: HashMap::new(),
         }

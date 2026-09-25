@@ -245,7 +245,17 @@
           <item row="3" column="1">
            <widget class="KComboBox" name="version_combobox"/>
           </item>
-          <item row="4" column="0" colspan="2">
+          <item row="4" column="0">
+           <widget class="QLabel" name="authors_label">
+            <property name="text">
+             <string>TextLabel</string>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="1">
+           <widget class="QLineEdit" name="authors_line_edit"/>
+          </item>
+          <item row="5" column="0" colspan="2">
            <widget class="QWidget" name="info_action_strip" native="true">
             <layout class="QHBoxLayout" name="info_action_strip_layout">
              <property name="leftMargin">
@@ -306,7 +316,7 @@
             </layout>
            </widget>
           </item>
-          <item row="5" column="0" colspan="2">
+          <item row="6" column="0" colspan="2">
            <widget class="QGroupBox" name="behavior_groupbox">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Preferred" vsizetype="Minimum">

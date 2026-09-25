@@ -1604,9 +1604,12 @@ translator_vanilla_source_missing = RPFM couldn't find the {"{"}{"}"} texts of t
     To get them, change the game's language to {"{"}{"}"} in Steam (Properties → General → Language), wait for Steam to download it, then open the Translator again with {"{"}{"}"} as source language. RPFM will save those texts, so you can switch the game back to your language afterwards.
 translator_vanilla_source_generated = The vanilla {"{"}{"}"} texts have been saved. You can now switch the game back to your language in Steam and open the Translator again.
 translator_version = Format version:
-translator_version_tooltip = On-disk file format version. v0 is the legacy format (compatible with older tooling); v1 is the current format, with the source language and the auto-translated flag. Only v1 supports sources other than English. Changing this will rewrite the file in the chosen format on save.
+translator_version_tooltip = On-disk file format version. v0 is the legacy format (compatible with older tooling); v1 is the current format, with the source language, authors, glossary and the auto-translated flag. Only v1 supports sources other than English. Changing this will rewrite the file in the chosen format on save.
 translator_version_0 = 0 (legacy)
 translator_version_1 = 1 (current)
+translator_authors = Authors:
+translator_authors_tooltip = Comma-separated list of translators contributing to this translation.
+translator_authors_unsupported = The authors need format version 1. The legacy format can't store them.
 translator_glossary_title = Glossary
 translator_glossary_toggle = Glossary
 translator_glossary_toggle_tooltip = Show/hide the glossary: preferred translations for specific terms, used as a hint by DeepL and AI translations. Google Translate doesn't support it.
