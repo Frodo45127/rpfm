@@ -1585,6 +1585,10 @@ translator_move_selection_down = Move down
 translator_copy_from_source = Copy from source
 translator_import_from_translated_pack = Import from translated Pack
 translator_language = Language:
+translator_version = Format version:
+translator_version_tooltip = On-disk file format version. v0 is the legacy format (compatible with older tooling); v1 is the current format with the auto-translated flag. Changing this will rewrite the file in the chosen format on save.
+translator_version_0 = 0 (legacy)
+translator_version_1 = 1 (current)
 
 updater_title = Update Manager
 updater_info_title = Info

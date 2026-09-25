@@ -1560,51 +1560,61 @@ public class SettingsSnapshot
 
 ### Translation
 
-A single translation entry for a Loc key.
+A single translation entry for a Loc key. The map key in [`PackTranslation.translations`](#packtranslation) is the Loc key — it's not duplicated on the entry.
 
-| Field                | Type    | Description                                        |
-|----------------------|---------|----------------------------------------------------|
-| `key`                | string  | The Loc key identifying this string                |
-| `value_original`     | string  | Original text in the base language                 |
-| `value_translated`   | string  | Translated text in the target language             |
-| `needs_retranslation`| boolean | Whether the source text has changed since translation |
-| `removed`            | boolean | Whether this string has been removed from the source pack |
+| Field   | Type    | Description                                                                |
+|---------|---------|----------------------------------------------------------------------------|
+| `src`   | string  | Source text in the base language                                           |
+| `dst`   | string  | Translated text in the target language                                     |
+| `retr`  | boolean | Whether the source text has changed since translation (needs re-translation) |
+| `rem`   | boolean | Whether this string has been removed from the source pack                  |
+| `aut`   | boolean | Whether this translation was generated automatically and still needs review |
+
+Legacy (v0) files use `value_original`, `value_translated`, `needs_retranslation`, `removed`
+and a per-entry `key` field. The server reads those transparently, and keeps writing them in
+that format unless the user switches the translation to v1.
 
 <!-- langtabs-start -->
 ```typescript
 interface Translation {
-  key: string;
-  value_original: string;
-  value_translated: string;
-  needs_retranslation: boolean;
-  removed: boolean;
+  src: string;
+  dst: string;
+  retr: boolean;
+  rem: boolean;
+  aut: boolean;
 }
 ```
 ```csharp
 public class Translation
 {
-    public string Key { get; set; }
-    public string ValueOriginal { get; set; }
-    public string ValueTranslated { get; set; }
-    public bool NeedsRetranslation { get; set; }
-    public bool Removed { get; set; }
+    public string Src { get; set; }
+    public string Dst { get; set; }
+    public bool Retr { get; set; }
+    public bool Rem { get; set; }
+    public bool Aut { get; set; }
 }
 ```
 <!-- langtabs-end -->
 
 ### PackTranslation
 
-Translation data for a pack in a specific language.
+Translation data for a pack in a specific language. The on-disk format is versioned via
+the `version` field: `0` is the legacy shape (`value_original`, `value_translated`, …, no
+`aut` and no root-level `version`) and `1` is the current shape. Files without a `version`
+field are read as v0 and saved back in whichever format the user picks in the translator UI;
+new translations default to v1.
 
-| Field          | Type                          | Description                     |
-|----------------|-------------------------------|---------------------------------|
-| `language`     | string                        | Target language code (e.g. `"es"`, `"de"`) |
-| `pack_name`    | string                        | Name of the pack               |
-| `translations` | Record<string, Translation>   | Loc key to translation data    |
+| Field          | Type                          | Description                                                 |
+|----------------|-------------------------------|-------------------------------------------------------------|
+| `version`      | number                        | On-disk format version (0 = legacy, 1 = current). Absent in legacy v0 files |
+| `language`     | string                        | Target language code, as used by the game (e.g. `"SP"`, `"GE"`) |
+| `pack_name`    | string                        | Name of the pack                                            |
+| `translations` | Record<string, Translation>   | Loc key to translation data                                 |
 
 <!-- langtabs-start -->
 ```typescript
 interface PackTranslation {
+  version: number;
   language: string;
   pack_name: string;
   translations: Record<string, Translation>;
@@ -1613,6 +1623,7 @@ interface PackTranslation {
 ```csharp
 public class PackTranslation
 {
+    public uint Version { get; set; }
     public string Language { get; set; }
     public string PackName { get; set; }
     public Dictionary<string, Translation> Translations { get; set; }

@@ -137,9 +137,15 @@ pub struct ToolTranslator {
     // Item with the key being edited.
     current_key: Arc<RwLock<Option<CppBox<QModelIndex>>>>,
 
+    // Text auto-translation pushed into the textedit by load_to_detailed_view, when applicable.
+    // Used so save_from_detailed_view can mark the row as `aut` when the user accepted the
+    // auto-translation untouched, and clear `aut` when the user edited it.
+    current_auto_translation: Arc<RwLock<Option<String>>>,
+
     colors: HashMap<String, String>,
     tagged_images: HashMap<String, String>,
     language_combobox: QPtr<QComboBox>,
+    version_combobox: QPtr<QComboBox>,
 
     deepl_radio_button: QPtr<QRadioButton>,
     ai_radio_button: QPtr<QRadioButton>,
@@ -204,6 +210,15 @@ impl ToolTranslator {
         let language_label: QPtr<QLabel> = tool.find_widget("language_label")?;
         let language_combobox: QPtr<QComboBox> = tool.find_widget("language_combobox")?;
         language_label.set_text(&qtr("translator_language"));
+
+        let version_label: QPtr<QLabel> = tool.find_widget("version_label")?;
+        let version_combobox: QPtr<QComboBox> = tool.find_widget("version_combobox")?;
+        version_label.set_text(&qtr("translator_version"));
+        version_combobox.set_tool_tip(&qtr("translator_version_tooltip"));
+        // Populated in display order: index 0 = v0 (legacy), index 1 = v1 (current). We use the
+        // combobox index as the version number, so keep these in sync with the file format.
+        version_combobox.add_item_q_string(&qtr("translator_version_0"));
+        version_combobox.add_item_q_string(&qtr("translator_version_1"));
 
         let behavior_groupbox: QPtr<QGroupBox> = tool.find_widget("behavior_groupbox")?;
         let behavior_label: QPtr<QLabel> = tool.find_widget("behavior_label")?;
@@ -389,8 +404,9 @@ impl ToolTranslator {
         table.table_view().set_column_width(0, 300);
         table.table_view().set_column_width(1, 50);
         table.table_view().set_column_width(2, 50);
-        table.table_view().set_column_width(3, 400);
+        table.table_view().set_column_width(3, 50);
         table.table_view().set_column_width(4, 400);
+        table.table_view().set_column_width(5, 400);
         //table.table_view().sort_by_column_1a(0);
         //table.table_view().sort_by_column_1a(1);
 
@@ -465,15 +481,22 @@ impl ToolTranslator {
         original_value_html.document().set_default_style_sheet(&QString::from_std_str(CSS_STYLE));
         translated_value_html.document().set_default_style_sheet(&QString::from_std_str(CSS_STYLE));
 
+        // Select the version that matches what's stored on disk. Items 0 and 1 line up with the
+        // version numbers; anything else (unexpected) falls back to the current v1 entry.
+        let version_index = (*data.version()).min(1) as i32;
+        version_combobox.set_current_index(version_index);
+
         // Build the view itself.
         let view = Rc::new(Self {
             tool,
             pack_tr: Arc::new(data),
             table,
             current_key: Arc::new(RwLock::new(None)),
+            current_auto_translation: Arc::new(RwLock::new(None)),
             colors,
             tagged_images,
             language_combobox,
+            version_combobox,
             context_text_edit,
             deepl_radio_button,
             ai_radio_button,
@@ -525,19 +548,16 @@ impl ToolTranslator {
         self.change_selected_row(None, None);
 
         // Then save both, the updated translations to disk, and the translated locs to the pack.
-        let table = get_table_from_view(&self.table().table_model_ptr().static_upcast(), &self.table().table_definition())?;
-        let mut pack_tr = (**self.pack_tr()).clone();
-        pack_tr.from_table(&table)?;
-        pack_tr.set_language(self.language_combobox.current_text().to_std_string());
+        let mut pack_tr = self.snapshot_pack_translation()?;
         pack_tr.save(&translations_local_path()?, GAME_SELECTED.read().unwrap().key())?;
 
         let mut loc_file = Loc::new();
         let mut loc_data = vec![];
         for (key, tr) in pack_tr.translations() {
-            if !*tr.removed() {
+            if !*tr.rem() {
                 loc_data.push(vec![
                     DecodedData::StringU16(key.to_owned()),
-                    DecodedData::StringU16(if !tr.value_translated().is_empty() && !*tr.needs_retranslation() { tr.value_translated().to_owned() } else { tr.value_original().to_owned() }),
+                    DecodedData::StringU16(if !tr.dst().is_empty() && !*tr.retr() { tr.dst().to_owned() } else { tr.src().to_owned() }),
                     DecodedData::Boolean(false),
                 ]);
             }
@@ -553,11 +573,29 @@ impl ToolTranslator {
         self.tool.save(app_ui, pack_file_contents_ui, global_search_ui, dependencies_ui, &files_to_save)
     }
 
+    /// Build a fresh [`PackTranslation`] from the live UI state.
+    ///
+    /// Callers should call [`change_selected_row`](Self::change_selected_row) first to flush
+    /// the per-row editor's in-flight value into the model — this method only reads the model.
+    unsafe fn snapshot_pack_translation(&self) -> Result<PackTranslation> {
+        let table = get_table_from_view(&self.table().table_model_ptr().static_upcast(), &self.table().table_definition())?;
+        let mut pack_tr = (**self.pack_tr()).clone();
+        pack_tr.from_table(&table)?;
+        pack_tr.set_language(self.language_combobox.current_text().to_std_string());
+
+        // Combobox index maps directly to the file format version (0 / 1). Anything negative
+        // would mean nothing is selected, which shouldn't be possible — fall back to v1 then.
+        let version = self.version_combobox.current_index().max(0) as u32;
+        pack_tr.set_version(version);
+
+        Ok(pack_tr)
+    }
+
     /// This function loads the data of a faction into the detailed view.
     pub unsafe fn load_to_detailed_view(&self, index: &CppBox<QModelIndex>) {
         let key_item = self.table.table_model().item_from_index(index);
-        let original_value_item = self.table.table_model().item_from_index(&index.sibling_at_column(3));
-        let translated_value_item = self.table.table_model().item_from_index(&index.sibling_at_column(4));
+        let original_value_item = self.table.table_model().item_from_index(&index.sibling_at_column(4));
+        let translated_value_item = self.table.table_model().item_from_index(&index.sibling_at_column(5));
         let needs_retranslation = self.table.table_model().item_from_index(&index.sibling_at_column(1)).check_state() == CheckState::Checked;
 
         let mut source_text = original_value_item.text().to_std_string();
@@ -572,30 +610,33 @@ impl ToolTranslator {
         self.original_value_textedit.set_plain_text(&QString::from_std_str(&source_text));
         self.translated_value_textedit.set_plain_text(&QString::from_std_str(&translated_text));
 
+        // Start with no pending auto-translation; the branches below set it if they fire.
+        *self.current_auto_translation.write().unwrap() = None;
+
         // If the value needs a retrasnlation decide what to do depending on the behavior group.
         // Only do it if the text is empty. If there's a previous translation, keep it so it can be fixed.
         if needs_retranslation && self.translated_value_textedit().to_plain_text().is_empty() {
-            if self.deepl_radio_button().is_checked() {
+            let auto_result = if self.deepl_radio_button().is_checked() {
                 let language = self.map_language_to_deepl();
-                let result = Self::ask_deepl(&source_text, language);
-                if let Ok(tr) = result {
-                    self.translated_value_textedit.set_plain_text(&QString::from_std_str(tr));
-                }
+                Self::ask_deepl(&source_text, language).ok()
             } else if self.ai_radio_button().is_checked() {
                 let language = self.map_language_to_natural();
                 let context = self.context_text_edit().to_plain_text().to_std_string();
-                let result = Self::ask_ai(&source_text, &language, &context);
-                if let Ok(tr) = result {
-                    self.translated_value_textedit.set_plain_text(&QString::from_std_str(tr));
-                }
+                Self::ask_ai(&source_text, &language, &context).ok()
             } else if self.google_translate_radio_button().is_checked() {
                 let language = self.map_language_to_google();
-                let result = Self::ask_google(&source_text, &language);
-                if let Ok(tr) = result {
-                    self.translated_value_textedit.set_plain_text(&QString::from_std_str(tr));
-                }
+                Self::ask_google(&source_text, &language).ok()
             } else if self.copy_source_radio_button().is_checked() {
-                self.translated_value_textedit.set_plain_text(&self.original_value_textedit().to_plain_text());
+                Some(self.original_value_textedit().to_plain_text().to_std_string())
+            } else {
+                None
+            };
+
+            if let Some(tr) = auto_result {
+                self.translated_value_textedit.set_plain_text(&QString::from_std_str(&tr));
+                // Track the auto-filled text so save_from_detailed_view can mark the row as
+                // `aut` when the user accepts it untouched, and clear `aut` when the user edits it.
+                *self.current_auto_translation.write().unwrap() = Some(tr);
             }
         }
 
@@ -607,17 +648,26 @@ impl ToolTranslator {
     pub unsafe fn save_from_detailed_view(&self, old_key_index: &CppBox<QModelIndex>) {
         let current_row = old_key_index.row();
 
-        let old_value_item = self.table.table_model().item_2a(current_row, 4);
+        let old_value_item = self.table.table_model().item_2a(current_row, 5);
         let old_value = old_value_item.text().to_std_string();
         let mut new_value = self.translated_value_textedit.to_plain_text().to_std_string();
 
-        // If we have a new translation, save it and remove the "needs_retranslation" flag.
+        // If the textedit value still matches the auto-translation pushed by load_to_detailed_view,
+        // the user accepted it without touching it → flag the row as `aut`. If the user edited it,
+        // the values won't match → clear `aut`.
+        let from_auto = self.current_auto_translation.read().unwrap()
+            .as_ref()
+            .is_some_and(|auto| auto == &new_value);
+
+        // If we have a new translation, save it and update the retr/aut flags accordingly.
         if !new_value.is_empty() && new_value != old_value {
             new_value = new_value.replace("\n||\n", "||");
             new_value = new_value.replace("\n", "\\\\n");
 
+            let aut_state = if from_auto { CheckState::Checked } else { CheckState::Unchecked };
+
             // If there's any other translation which uses the same value, automatically translate it.
-            let original_value_item = self.table.table_model().item_2a(current_row, 3);
+            let original_value_item = self.table.table_model().item_2a(current_row, 4);
             let original_value_item_qstr = original_value_item.data_1a(2).to_string();
             for row in 0..self.table.table_model().row_count_0a() {
 
@@ -626,13 +676,14 @@ impl ToolTranslator {
                     let needs_retranslation_item = self.table.table_model().item_2a(row, 1);
                     let needs_retranslation = needs_retranslation_item.check_state() == CheckState::Checked;
                     if needs_retranslation || self.edit_all_same_values_radio_button().is_checked() {
-                        let og_value_item = self.table.table_model().item_2a(row, 3);
+                        let og_value_item = self.table.table_model().item_2a(row, 4);
                         if og_value_item.data_1a(2).to_string().compare_q_string(&original_value_item_qstr) == 0 {
-                            let translated_value_item = self.table.table_model().item_2a(row, 4);
+                            let translated_value_item = self.table.table_model().item_2a(row, 5);
                             translated_value_item.set_text(&QString::from_std_str(&new_value));
 
-                            // Unmark it from retranslations.
+                            // Propagated edits inherit the same aut state as the edited row.
                             needs_retranslation_item.set_check_state(CheckState::Unchecked);
+                            self.table.table_model().item_2a(row, 3).set_check_state(aut_state);
                         }
                     }
                 }
@@ -640,7 +691,11 @@ impl ToolTranslator {
 
             old_value_item.set_text(&QString::from_std_str(&new_value));
             self.table.table_model().item_2a(current_row, 1).set_check_state(CheckState::Unchecked);
+            self.table.table_model().item_2a(current_row, 3).set_check_state(aut_state);
         }
+
+        // Clear the tracker now that we've consumed it for this row.
+        *self.current_auto_translation.write().unwrap() = None;
     }
 
     unsafe fn change_selected_row(&self, new_index: Option<CppBox<QModelIndex>>, sibling_mode: Option<bool>) {
@@ -1000,14 +1055,16 @@ impl ToolTranslator {
 
                 // We check against the original pack_tr because it's faster than just searching on the table.
                 if let Some(tr) = self.pack_tr.translations().get(&*key) {
-                    if tr.value_original() != &value && tr.value_translated() != &value {
+                    if tr.src() != &value && tr.dst() != &value {
                         for row in 0..self.table().table_model().row_count_0a() {
                             let key_item = self.table().table_model().item_1a(row);
                             if key_item.text().to_std_string() == key {
                                 let needs_retranslation_item = self.table().table_model().item_2a(row, 1);
-                                let value_translated_item = self.table().table_model().item_2a(row, 4);
+                                let aut_item = self.table().table_model().item_2a(row, 3);
+                                let value_translated_item = self.table().table_model().item_2a(row, 5);
 
                                 needs_retranslation_item.set_check_state(CheckState::Unchecked);
+                                aut_item.set_check_state(CheckState::Unchecked);
                                 value_translated_item.set_text(&QString::from_std_str(&value));
                             }
                         }

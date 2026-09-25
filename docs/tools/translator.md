@@ -11,10 +11,13 @@ Open from **Tools → Translator** with a Pack open.
 The Translator presents every translatable string in the Pack as a structured row, with:
 
 - **Key** — the loc key.
-- **Source text** — the original (typically English) text.
-- **Translation** — your translated text.
-- **Needs retranslation** — boolean. Set when the source text changed since the translation was last saved (the "outdated" state).
-- **Removed** — boolean. Set when the key was once translated but the mod no longer contains it (the "unused" state). The translation is kept in the JSON so it can come back if the key reappears.
+- **Source text** (`src`) — the original (typically English) text.
+- **Translation** (`dst`) — your translated text.
+- **Needs retranslation** (`retr`) — boolean. Set when the source text changed since the translation was last saved (the "outdated" state).
+- **Removed** (`rem`) — boolean. Set when the key was once translated but the mod no longer contains it (the "unused" state). The translation is kept in the JSON so it can come back if the key reappears.
+- **Auto-translated** (`aut`) — boolean. Set when the Translator filled the row automatically (from vanilla loc data or a translation service) and the user hasn't reviewed it yet. Editing the translation clears the flag.
+
+The JSON file also records its format `version`. `0` is the legacy format (compatible with older Translation Hub tooling); `1` is the current format, which adds the `aut` flag. It's selectable from the translator UI, and new translations default to `1`. Switching it rewrites the file in the chosen format on the next save.
 
 ## The workflow
 

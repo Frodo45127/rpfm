@@ -90,6 +90,8 @@ use rpfm_lib::schema::*;
 
 use crate::dependencies::Dependencies;
 
+#[cfg(test)] mod test;
+
 /// Filename for the generated translated Loc file.
 ///
 /// The leading exclamation marks ensure this file loads before other Loc files,
@@ -111,21 +113,38 @@ pub const TRANSLATED_PATH_OLD: &str = "text/localisation.loc";
 /// Contains all translatable strings from a pack along with their translations
 /// and metadata about translation status.
 ///
-/// # Persistence
+/// # Persistence and Format Versioning
 ///
-/// This struct is serialized to JSON files for storage and can be loaded back
-/// when continuing translation work.
+/// This struct is serialized to JSON files for storage. There are currently two
+/// on-disk formats, picked by the [`version`](Self::version) field:
+///
+/// - `0` — legacy format. Per-entry `key`/`value_original`/`value_translated`/
+///   `needs_retranslation`/`removed`; no `aut` and no `version` at the root.
+///   The user can opt back into this format from the translator UI to share
+///   translations with older tooling.
+/// - `1` — current format. Adds `version` and `aut`, and uses the shorter
+///   per-entry field names (`src`/`dst`/`retr`/`rem`/`aut`).
+///
+/// On load, files without a `version` field are treated as v0 — i.e. existing
+/// translation hubs and legacy local files keep their format unless the user
+/// explicitly upgrades them.
 ///
 /// # Parent Translations
 ///
 /// When a pack has dependencies, translations from parent mods are also loaded
 /// and used for auto-translation, ensuring consistent terminology across
 /// dependent mods.
-#[derive(Debug, Clone, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[derive(Debug, Clone, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct PackTranslation {
 
-    /// Target language code for translations (e.g., "es", "de", "fr").
+    /// On-disk format version. See the struct-level docs for the meaning of
+    /// each value. New in-memory translations default to v1; legacy files
+    /// without this field are treated as v0.
+    #[serde(default)]
+    version: u32,
+
+    /// Target language code for translations (e.g., "ES", "DE", "FR").
     language: String,
 
     /// Name of the pack these translations belong to.
@@ -140,36 +159,73 @@ pub struct PackTranslation {
 
 /// Translation entry for a single localizable string.
 ///
-/// Tracks both the original and translated text, along with status flags
-/// indicating whether the translation is up-to-date.
+/// Tracks both the source and translated text, along with status flags
+/// indicating whether the translation is up-to-date, was generated
+/// automatically, or refers to a string no longer present in the pack.
+///
+/// Field names were shortened in the new format; serde aliases keep
+/// backwards-compatible deserialization of the old field names. The old
+/// per-entry `key` field is no longer stored — the map key in
+/// [`PackTranslation::translations`] is the authoritative identifier — and
+/// extra fields in legacy files are silently ignored.
 #[derive(Debug, Clone, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Translation {
 
-    /// The Loc key identifying this string.
-    key: String,
-
-    /// Original text in the base language (typically English).
+    /// Source text in the base language (typically English).
     ///
-    /// This is used to detect when the source text changes, requiring
-    /// re-translation.
-    value_original: String,
+    /// Used to detect when the source text changes, requiring re-translation.
+    #[serde(alias = "value_original")]
+    src: String,
 
     /// Translated text in the target language.
     ///
     /// May be empty if not yet translated.
-    value_translated: String,
+    #[serde(alias = "value_translated")]
+    dst: String,
 
-    /// Whether this translation needs review.
-    ///
-    /// Set to `true` when the original text changes after translation,
-    /// indicating the translation may be outdated.
-    needs_retranslation: bool,
+    /// Whether this translation needs review because the source text changed
+    /// after the previous translation.
+    #[serde(alias = "needs_retranslation")]
+    retr: bool,
 
     /// Whether this string has been removed from the source pack.
     ///
     /// Translations for removed strings are kept for reference but marked
     /// as removed. If the string reappears, it will be flagged for re-translation.
+    #[serde(alias = "removed")]
+    rem: bool,
+
+    /// Whether this translation was generated automatically (e.g. from vanilla
+    /// data) and still needs manual review.
+    ///
+    /// Missing from the old format; defaults to `false` when loading legacy files.
+    #[serde(default)]
+    aut: bool,
+}
+
+/// Current on-disk format version. New translations default to this; legacy
+/// files without a `version` field are still loaded as v0 and saved back as v0
+/// unless the user opts in to the new format from the UI.
+pub const CURRENT_VERSION: u32 = 1;
+
+/// Wire-format counterparts used when saving as legacy v0. We can't reuse the
+/// canonical structs because field names changed and the per-entry `key` field
+/// is no longer stored. Building these on save lets us write the old shape
+/// without polluting [`PackTranslation`] with version-specific serde glue.
+#[derive(Serialize)]
+struct PackTranslationV0Wire<'a> {
+    language: &'a str,
+    pack_name: &'a str,
+    translations: BTreeMap<String, TranslationV0Wire<'a>>,
+}
+
+#[derive(Serialize)]
+struct TranslationV0Wire<'a> {
+    key: String,
+    value_original: &'a str,
+    value_translated: &'a str,
+    needs_retranslation: bool,
     removed: bool,
 }
 
@@ -181,6 +237,8 @@ impl PackTranslation {
 
     pub fn new(paths: &[PathBuf], pack: &Pack, game_key: &str, language: &str, dependencies: &Dependencies, base_english: &HashMap<String, String>, base_local_fixes: &HashMap<String, String>) -> Result<Self> {
         let mut translations = Self::load(paths, &pack.disk_file_name(), game_key, language).unwrap_or_else(|_| {
+            // No existing file → new translation. `Default::default()` already gives us
+            // version=1; we stamp the language and pack name on top.
             Self {
                 language: language.to_owned(),
                 pack_name: pack.disk_file_name(),
@@ -209,16 +267,16 @@ impl PackTranslation {
         // Once we have the clean list of loc entries we have in our Pack, we need to update the translation with it.
         // First we do a pass to mark all removed translations as such. This is separated from the rest because this pass is way slower than the rest.
         for (tr_key, tr) in translations.translations_mut() {
-            let was_removed = tr.removed;
-            tr.removed = !merged_loc_hash.contains_key(&**tr_key);
+            let was_removed = tr.rem;
+            tr.rem = !merged_loc_hash.contains_key(&**tr_key);
 
             // If the line has been removed, unmark it for translation.
             // If the line has been re-added, only flag for retranslation if the original value changed or there's no translation yet.
-            if tr.removed {
-                tr.needs_retranslation = false;
+            if tr.rem {
+                tr.retr = false;
             } else if was_removed {
                 if let Some(current_value) = merged_loc_hash.get(&**tr_key) {
-                    tr.needs_retranslation = tr.value_translated.is_empty() || *current_value != tr.value_original;
+                    tr.retr = tr.dst.is_empty() || *current_value != tr.src;
                 }
             }
         }
@@ -230,19 +288,21 @@ impl PackTranslation {
 
             match translations.translations.get_mut(&*key) {
                 Some(tr) => {
-                    if value != tr.value_original {
-                        tr.value_original = value.to_string();
-                        tr.needs_retranslation = true;
+                    if value != tr.src {
+                        tr.src = value.to_string();
+                        tr.retr = true;
+                        // Source changed — any prior auto-translation is no longer trustworthy.
+                        tr.aut = false;
                     }
                 },
 
                 None => {
                     let tr = Translation {
-                        key: key.to_string(),
-                        value_original: value.to_string(),
-                        value_translated: String::new(),
-                        needs_retranslation: true,
-                        removed: false,
+                        src: value.to_string(),
+                        dst: String::new(),
+                        retr: true,
+                        rem: false,
+                        aut: false,
                     };
 
                     translations.translations.insert(key.to_string(), tr);
@@ -255,9 +315,9 @@ impl PackTranslation {
         let mut base_local_tr = dependencies.localisation_data().clone();
         for ptr in parent_tr {
             for (key, val) in ptr.translations() {
-                if !*val.needs_retranslation() && !val.value_translated().is_empty() {
+                if !*val.retr() && !val.dst().is_empty() {
                     if let Some(ptr_val) = base_local_tr.get_mut(key) {
-                        *ptr_val = val.value_translated().to_string();
+                        *ptr_val = val.dst().to_string();
                     }
                 }
             }
@@ -265,30 +325,34 @@ impl PackTranslation {
 
         let tr_copy = translations.translations().clone();
         translations.translations_mut().par_iter_mut().for_each(|(tr_key, tr)| {
-            if !tr.removed {
+            if !tr.rem {
 
                 // Fix incorrectly translated lines.
-                if !tr.value_original().trim().is_empty() && tr.value_translated().trim().is_empty() && !tr.needs_retranslation() {
-                    tr.needs_retranslation = true;
+                if !tr.src().trim().is_empty() && tr.dst().trim().is_empty() && !tr.retr() {
+                    tr.retr = true;
                 }
 
-                // Mark empty lines as translated.
-                else if tr.value_original().trim().is_empty() && tr.value_translated().trim().is_empty() {
-                    tr.value_translated = tr.value_original.to_owned();
-                    tr.needs_retranslation = false;
+                // Empty source/empty translation: trivially "translate" by copying. Not flagged
+                // as auto because it requires no manual review.
+                else if tr.src().trim().is_empty() && tr.dst().trim().is_empty() {
+                    tr.dst = tr.src.to_owned();
+                    tr.retr = false;
+                    tr.aut = false;
                 }
 
                 // If the value is unchanged from english, just copy the vanilla translation.
                 //
                 // NOTE: This is really a patch for packs not using optimizing pass, because the optimizer actually removes these entries.
                 else if let Some(vanilla_data) = base_english.get(tr_key) {
-                    if tr.value_original() == vanilla_data {
+                    if tr.src() == vanilla_data {
                         if let Some(vanilla_data) = base_local_fixes.get(tr_key).filter(|v| !v.trim().is_empty()) {
-                            tr.value_translated = vanilla_data.to_owned();
-                            tr.needs_retranslation = false;
+                            tr.dst = vanilla_data.to_owned();
+                            tr.retr = false;
+                            tr.aut = true;
                         } else if let Some(vanilla_data) = base_local_tr.get(tr_key).filter(|v| !v.trim().is_empty()) {
-                            tr.value_translated = vanilla_data.to_owned();
-                            tr.needs_retranslation = false;
+                            tr.dst = vanilla_data.to_owned();
+                            tr.retr = false;
+                            tr.aut = true;
                         }
                     }
                 }
@@ -296,19 +360,22 @@ impl PackTranslation {
                 // If the value is equal to another value in the english translation (but with a different key), we may be able to reuse it.
                 //
                 // Note that this is prone to give wrong translations as it doesn't have any context, so we only do it for lines that are not yet translated.
-                else if tr.value_translated().trim().is_empty() || *tr.needs_retranslation() {
-                    if let Some((key, _)) = base_english.iter().find(|(_, value)| *value == tr.value_original()) {
+                else if tr.dst().trim().is_empty() || *tr.retr() {
+                    if let Some((key, _)) = base_english.iter().find(|(_, value)| *value == tr.src()) {
                         if let Some(value_tr) = base_local_fixes.get(key).filter(|v| !v.trim().is_empty()) {
-                            tr.value_translated = value_tr.to_owned();
-                            tr.needs_retranslation = false;
+                            tr.dst = value_tr.to_owned();
+                            tr.retr = false;
+                            tr.aut = true;
                         } else if let Some(value_tr) = base_local_tr.get(key).filter(|v| !v.trim().is_empty()) {
-                            tr.value_translated = value_tr.to_owned();
-                            tr.needs_retranslation = false;
+                            tr.dst = value_tr.to_owned();
+                            tr.retr = false;
+                            tr.aut = true;
                         }
                     } else if let Some((_, value_tr)) = tr_copy.iter()
-                        .find(|(_, tr_copy)| *tr_copy.value_original() == *tr.value_original() && !*tr_copy.needs_retranslation() && *tr.needs_retranslation() && !tr_copy.value_translated().trim().is_empty()) {
-                        tr.value_translated = value_tr.value_translated().to_owned();
-                        tr.needs_retranslation = false;
+                        .find(|(_, tr_copy)| *tr_copy.src() == *tr.src() && !*tr_copy.retr() && *tr.retr() && !tr_copy.dst().trim().is_empty()) {
+                        tr.dst = value_tr.dst().to_owned();
+                        tr.retr = false;
+                        tr.aut = true;
                     }
                 }
             }
@@ -359,15 +426,19 @@ impl PackTranslation {
     }
 
     /// This function loads a [PackTranslation] to memory from either a local json file, or a remote one.
+    ///
+    /// Files written in the old format (with `key`, `value_original`, `value_translated`,
+    /// `needs_retranslation`, `removed` and without `aut`) are accepted transparently via
+    /// serde aliases and field defaults.
     pub fn load(paths: &[PathBuf], pack_name: &str, game_key: &str, language: &str) -> Result<Self> {
         for path in paths {
             match Self::load_json(path, pack_name, game_key, language) {
                 Ok(mut tr) => return {
                     for trad in tr.translations_mut() {
-                        trad.1.value_translated = trad.1.value_translated.replace("\n||\n", "||");
-                        trad.1.value_translated = trad.1.value_translated.replace("\r", "\\\\r");
-                        trad.1.value_translated = trad.1.value_translated.replace("\n", "\\\\n");
-                        trad.1.value_translated = trad.1.value_translated.replace("\t", "\\\\t");
+                        trad.1.dst = trad.1.dst.replace("\n||\n", "||");
+                        trad.1.dst = trad.1.dst.replace("\r", "\\\\r");
+                        trad.1.dst = trad.1.dst.replace("\n", "\\\\n");
+                        trad.1.dst = trad.1.dst.replace("\t", "\\\\t");
                     }
                     Ok(tr)
                 },
@@ -383,10 +454,22 @@ impl PackTranslation {
         let mut file = BufReader::new(File::open(path)?);
         let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
         file.read_to_end(&mut data)?;
-        serde_json::from_slice(&data).map_err(From::from)
+
+        // Peek at the JSON to determine the version before deserialising. We need a different
+        // default for "missing version field in file" (= v0, legacy) versus "freshly created
+        // in-memory PackTranslation" (= v1, current). Serde defaults can only express one of
+        // those, so we resolve it manually here.
+        let value: serde_json::Value = serde_json::from_slice(&data)?;
+        let version = value.get("version").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+        let mut pack_tr: Self = serde_json::from_value(value)?;
+        pack_tr.version = version;
+        Ok(pack_tr)
     }
 
     /// This function saves a [PackTranslation] from memory to a `.json` file with the provided path.
+    ///
+    /// The on-disk format depends on [`Self::version`]: 0 writes the legacy shape, 1 (or higher)
+    /// writes the current shape. Downgrading v1 → v0 drops the per-entry `aut` flag.
     pub fn save(&mut self, path: &Path, game_key: &str) -> Result<()> {
         let path = path.join(format!("{}/{}/{}.json", game_key, self.pack_name, self.language));
 
@@ -395,8 +478,32 @@ impl PackTranslation {
             DirBuilder::new().recursive(true).create(parent_folder)?;
         }
 
+        let json = if self.version == 0 {
+            // Materialize the v0 wire shape from current data. The per-entry `aut` flag is
+            // dropped silently — there's no corresponding concept in v0.
+            let translations = self.translations.iter()
+                .map(|(key, tr)| (key.clone(), TranslationV0Wire {
+                    key: key.clone(),
+                    value_original: tr.src(),
+                    value_translated: tr.dst(),
+                    needs_retranslation: *tr.retr(),
+                    removed: *tr.rem(),
+                }))
+                .collect::<BTreeMap<_, _>>();
+
+            let wire = PackTranslationV0Wire {
+                language: &self.language,
+                pack_name: &self.pack_name,
+                translations,
+            };
+
+            serde_json::to_string_pretty(&wire)?
+        } else {
+            serde_json::to_string_pretty(&self)?
+        };
+
         let mut file = BufWriter::new(File::create(&path)?);
-        file.write_all(serde_json::to_string_pretty(&self)?.as_bytes())?;
+        file.write_all(json.as_bytes())?;
         Ok(())
     }
 
@@ -405,10 +512,11 @@ impl PackTranslation {
 
         // We put the booleans first because they may act as a kind of filter.
         definition.fields_mut().push(Field { name: "key".to_string(), field_type: FieldType::StringU8, is_key: true, ..Default::default() });
-        definition.fields_mut().push(Field { name: "needs_retranslation".to_string(), field_type: FieldType::Boolean, ..Default::default() });
-        definition.fields_mut().push(Field { name: "removed".to_string(), field_type: FieldType::Boolean, ..Default::default() });
-        definition.fields_mut().push(Field { name: "value_original".to_string(), field_type: FieldType::StringU8, ..Default::default() });
-        definition.fields_mut().push(Field { name: "value_translated".to_string(), field_type: FieldType::StringU8, ..Default::default() });
+        definition.fields_mut().push(Field { name: "retr".to_string(), field_type: FieldType::Boolean, ..Default::default() });
+        definition.fields_mut().push(Field { name: "rem".to_string(), field_type: FieldType::Boolean, ..Default::default() });
+        definition.fields_mut().push(Field { name: "aut".to_string(), field_type: FieldType::Boolean, ..Default::default() });
+        definition.fields_mut().push(Field { name: "src".to_string(), field_type: FieldType::StringU8, ..Default::default() });
+        definition.fields_mut().push(Field { name: "dst".to_string(), field_type: FieldType::StringU8, ..Default::default() });
 
         definition
     }
@@ -418,28 +526,33 @@ impl PackTranslation {
 
         for row in table.data().iter() {
             let mut tr = Translation::default();
+            let mut key = String::new();
 
             if let DecodedData::StringU8(ref data) = row[0] {
-                tr.set_key(data.to_owned());
+                key = data.to_owned();
             }
 
             if let DecodedData::Boolean(data) = row[1] {
-                tr.set_needs_retranslation(data);
+                tr.set_retr(data);
             }
 
             if let DecodedData::Boolean(data) = row[2] {
-                tr.set_removed(data);
+                tr.set_rem(data);
             }
 
-            if let DecodedData::StringU8(ref data) = row[3] {
-                tr.set_value_original(data.to_owned());
+            if let DecodedData::Boolean(data) = row[3] {
+                tr.set_aut(data);
             }
 
             if let DecodedData::StringU8(ref data) = row[4] {
-                tr.set_value_translated(data.to_owned());
+                tr.set_src(data.to_owned());
             }
 
-            self.translations_mut().insert(tr.key.to_owned(), tr);
+            if let DecodedData::StringU8(ref data) = row[5] {
+                tr.set_dst(data.to_owned());
+            }
+
+            self.translations_mut().insert(key, tr);
         }
 
         Ok(())
@@ -452,18 +565,30 @@ impl PackTranslation {
         // Due to bugs in the table filters, we pre-sort the data by putting stuff that needs to be retranslated at the start.
         let data = self.translations()
             .iter()
-            .sorted_by(|(_, tr1), (_, tr2)| Ord::cmp(tr1.key(), tr2.key()))
-            .sorted_by(|(_, tr1), (_, tr2)| Ord::cmp(tr2.needs_retranslation(), tr1.needs_retranslation()))
-            .map(|(_, tr)| vec![
-                DecodedData::StringU8(tr.key().to_owned()),
-                DecodedData::Boolean(*tr.needs_retranslation()),
-                DecodedData::Boolean(*tr.removed()),
-                DecodedData::StringU8(tr.value_original().to_owned()),
-                DecodedData::StringU8(tr.value_translated().to_owned()),
+            .sorted_by(|(k1, _), (k2, _)| Ord::cmp(k1, k2))
+            .sorted_by(|(_, tr1), (_, tr2)| Ord::cmp(tr2.retr(), tr1.retr()))
+            .map(|(key, tr)| vec![
+                DecodedData::StringU8(key.to_owned()),
+                DecodedData::Boolean(*tr.retr()),
+                DecodedData::Boolean(*tr.rem()),
+                DecodedData::Boolean(*tr.aut()),
+                DecodedData::StringU8(tr.src().to_owned()),
+                DecodedData::StringU8(tr.dst().to_owned()),
             ]).collect::<Vec<_>>();
 
         table.set_data(&data)?;
         Ok(table)
+    }
+}
+
+impl Default for PackTranslation {
+    fn default() -> Self {
+        Self {
+            version: CURRENT_VERSION,
+            language: String::new(),
+            pack_name: String::new(),
+            translations: HashMap::new(),
+        }
     }
 }
 
