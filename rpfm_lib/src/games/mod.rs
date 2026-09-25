@@ -175,6 +175,10 @@ pub const TRANSLATIONS_REPO: &str = "https://github.com/Frodo45127/total_war_tra
 pub const TRANSLATIONS_REMOTE: &str = "origin";
 /// Git branch name for translations repository
 pub const TRANSLATIONS_BRANCH: &str = "master";
+/// GitHub owner of the translations repository
+pub const TRANSLATIONS_REPO_OWNER: &str = "Frodo45127";
+/// GitHub name of the translations repository
+pub const TRANSLATIONS_REPO_NAME: &str = "total_war_translation_hub";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs

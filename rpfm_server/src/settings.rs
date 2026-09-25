@@ -337,6 +337,7 @@ impl Settings {
         settings.initialize_string(DEEPL_API_KEY, "");
         settings.initialize_string(TRANSLATOR_SOURCE_LANGUAGE, DEFAULT_SRC_LANG);
         settings.initialize_bool(TRANSLATOR_USE_DEEPL_GLOSSARY, true);
+        settings.initialize_string(GITHUB_LOGIN, "");
 
         settings.initialize_vec_string(RECENT_FILE_LIST, &[]);
 

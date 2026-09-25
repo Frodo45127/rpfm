@@ -64,6 +64,7 @@ use rpfm_extensions::merge::{MergeConflict, MergeOptions};
 use rpfm_extensions::optimizer::OptimizerOptions;
 use rpfm_extensions::search::{GlobalSearch, MatchHolder};
 use rpfm_extensions::translator::PackTranslation;
+use rpfm_extensions::translator::hub::SubmissionResult;
 
 use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::files::{
@@ -75,6 +76,7 @@ use rpfm_lib::files::{
 };
 use rpfm_lib::games::pfh_file_type::PFHFileType;
 use rpfm_lib::integrations::git::GitResponse;
+use rpfm_lib::integrations::github::DeviceCode;
 use rpfm_lib::notes::Note;
 use rpfm_lib::schema::{Definition, DefinitionPatch, Field, Schema};
 
@@ -109,6 +111,26 @@ pub enum OperationalMode {
     Normal,
 }
 
+
+/// State of a GitHub sign-in, as reported to the frontend. The token itself never leaves the server.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum GitHubSignInState {
+
+    /// The user hasn't approved the sign-in yet.
+    Pending,
+
+    /// Polling too fast. Contains the new minimum seconds between polls.
+    SlowDown(u64),
+
+    /// Signed in. Contains the account's login.
+    SignedIn(String),
+
+    /// The code expired before the user approved it.
+    Expired,
+
+    /// The user rejected the sign-in.
+    Denied,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CeoEntryData {
@@ -1008,6 +1030,48 @@ pub enum Command {
     UpdateTranslations,
 
     //-----------------------------------------------------------------------//
+    // Translation Hub Commands
+    //-----------------------------------------------------------------------//
+
+    /// Start signing in to GitHub with the device flow.
+    ///
+    /// Response:
+    /// - [`Response::GitHubDeviceCode`] on success, with the code to show to the user.
+    /// - [`Response::Error`] on failure.
+    GitHubSignInStart,
+
+    /// Check whether the user approved a sign-in started with [`Command::GitHubSignInStart`].
+    /// The field is the device code. Once approved, the server keeps the token in the OS keyring.
+    ///
+    /// Response:
+    /// - [`Response::GitHubSignInState`] on success.
+    /// - [`Response::Error`] on failure.
+    GitHubSignInPoll(String),
+
+    /// Get the GitHub account the user is signed in as.
+    ///
+    /// Response:
+    /// - [`Response::OptionString`] with the account's login, or `None` if not signed in.
+    /// - [`Response::Error`] on failure.
+    GitHubAccount,
+
+    /// Sign out of GitHub, deleting the stored token.
+    ///
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] on failure.
+    GitHubSignOut,
+
+    /// Submit a saved translation to the Translation Hub as a pull request, or update its open one.
+    /// Fields are: pack name, source language code, target language code.
+    ///
+    /// Response:
+    /// - [`Response::SubmissionResult`] on success.
+    /// - [`Response::GitHubSignInRequired`] if not signed in, or if GitHub rejected the stored sign-in.
+    /// - [`Response::Error`] on failure.
+    SubmitTranslation(String, String, String),
+
+    //-----------------------------------------------------------------------//
     // Starpos Commands
     //-----------------------------------------------------------------------//
 
@@ -1435,6 +1499,9 @@ pub enum Response {
     Diagnostics(Diagnostics),
     ESFRFileInfo(ESF, RFileInfo),
     F32(f32),
+    GitHubDeviceCode(DeviceCode),
+    GitHubSignInRequired,
+    GitHubSignInState(GitHubSignInState),
     GlobalSearchVecRFileInfo(Box<GlobalSearch>, Vec<RFileInfo>),
     GroupFormationsRFileInfo(GroupFormations, RFileInfo),
     HashMapDataSourceHashMapStringRFile(HashMap<DataSource, HashMap<String, RFile>>),
@@ -1455,6 +1522,7 @@ pub enum Response {
     OptimizerOptions(OptimizerOptions),
     OptionContainerPath(Option<ContainerPath>),
     OptionRFileInfo(Option<RFileInfo>),
+    OptionString(Option<String>),
     OptionStringStringVecString(Option<(String, String, Vec<String>)>),
     PackSettings(PackSettings),
     PackTranslation(PackTranslation),
@@ -1466,6 +1534,7 @@ pub enum Response {
     String(String),
     StringVecContainerPath(String, Vec<ContainerPath>),
     StringVecPathBuf(String, Vec<PathBuf>),
+    SubmissionResult(SubmissionResult),
     Text(Text),
     TextRFileInfo(Text, RFileInfo),
     UICRFileInfo(UIC, RFileInfo),

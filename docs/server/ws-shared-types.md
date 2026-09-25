@@ -1640,6 +1640,83 @@ public class PackTranslation
 ```
 <!-- langtabs-end -->
 
+### DeviceCode
+
+Codes of a GitHub device flow sign-in, returned by `GitHubSignInStart`.
+
+| Field              | Type   | Description                                         |
+|--------------------|--------|-----------------------------------------------------|
+| `device_code`      | string | Code to poll with `GitHubSignInPoll`. Not meant for the user |
+| `user_code`        | string | Code the user has to enter on GitHub                |
+| `verification_uri` | string | Page where the user enters the code                 |
+| `expires_in`       | number | Seconds until the codes expire                      |
+| `interval`         | number | Minimum seconds between polls                       |
+
+<!-- langtabs-start -->
+```typescript
+interface DeviceCode {
+  device_code: string;
+  user_code: string;
+  verification_uri: string;
+  expires_in: number;
+  interval: number;
+}
+```
+```csharp
+public class DeviceCode
+{
+    public string DeviceCode { get; set; }
+    public string UserCode { get; set; }
+    public string VerificationUri { get; set; }
+    public ulong ExpiresIn { get; set; }
+    public ulong Interval { get; set; }
+}
+```
+<!-- langtabs-end -->
+
+### GitHubSignInState
+
+State of a GitHub sign-in, returned by `GitHubSignInPoll`.
+
+| Variant    | Data   | Description                                          |
+|------------|--------|------------------------------------------------------|
+| `Pending`  |        | The user hasn't approved the sign-in yet             |
+| `SlowDown` | number | Polling too fast: new minimum seconds between polls  |
+| `SignedIn` | string | Signed in, as the account with this login            |
+| `Expired`  |        | The code expired before the user approved it         |
+| `Denied`   |        | The user rejected the sign-in                        |
+
+<!-- langtabs-start -->
+```typescript
+type GitHubSignInState = "Pending" | { SlowDown: number } | { SignedIn: string } | "Expired" | "Denied";
+```
+<!-- langtabs-end -->
+
+### SubmissionResult
+
+Result of `SubmitTranslation`.
+
+| Field     | Type    | Description                                                 |
+|-----------|---------|-------------------------------------------------------------|
+| `url`     | string  | Web page of the pull request                                |
+| `created` | boolean | Whether a new pull request was opened (`false`: an open one was updated) |
+
+<!-- langtabs-start -->
+```typescript
+interface SubmissionResult {
+  url: string;
+  created: boolean;
+}
+```
+```csharp
+public class SubmissionResult
+{
+    public string Url { get; set; }
+    public bool Created { get; set; }
+}
+```
+<!-- langtabs-end -->
+
 ---
 
 ## Diagnostics Types

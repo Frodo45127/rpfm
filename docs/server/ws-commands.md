@@ -3093,6 +3093,114 @@ public class GenerateVanillaTranslationSourceResponse
 
 ---
 
+## Translation Hub Commands
+
+These commands sign in to GitHub and submit translations to the [Translation Hub](https://github.com/Frodo45127/total_war_translation_hub) as pull requests. The GitHub token is kept in the OS keyring and never leaves the server; clients only see the sign-in state and the account's login.
+
+### GitHubSignInStart
+
+Start signing in to GitHub with the device flow. Show the returned `user_code` to the user and open `verification_uri`, then poll with `GitHubSignInPoll` every `interval` seconds until it's done or `expires_in` seconds pass. Fails if the server was built without a GitHub client ID.
+
+Response: `{ GitHubDeviceCode: DeviceCode }`
+
+<!-- langtabs-start -->
+```typescript
+type GitHubSignInStartRequest = "GitHubSignInStart";
+type GitHubSignInStartResponse = { GitHubDeviceCode: DeviceCode };
+```
+```csharp
+// Request: the string "GitHubSignInStart"
+public class GitHubSignInStartResponse
+{
+    public DeviceCode GitHubDeviceCode { get; set; }
+}
+```
+<!-- langtabs-end -->
+
+### GitHubSignInPoll
+
+Check whether the user approved a sign-in started with `GitHubSignInStart`. Once approved, the server stores the token.
+
+| Parameter     | Type   | Description                               |
+|---------------|--------|-------------------------------------------|
+| `device_code` | string | `device_code` returned by `GitHubSignInStart` |
+
+Response: `{ GitHubSignInState: GitHubSignInState }`
+
+<!-- langtabs-start -->
+```typescript
+type GitHubSignInPollRequest = { GitHubSignInPoll: string };
+type GitHubSignInPollResponse = { GitHubSignInState: GitHubSignInState };
+```
+```csharp
+public class GitHubSignInPollRequest
+{
+    public string GitHubSignInPoll { get; set; }
+}
+public class GitHubSignInPollResponse
+{
+    public GitHubSignInState GitHubSignInState { get; set; }
+}
+```
+<!-- langtabs-end -->
+
+### GitHubAccount
+
+Get the GitHub account the user is signed in as.
+
+Response: `{ OptionString: string | null }`: the account's login, or `null` if not signed in.
+
+<!-- langtabs-start -->
+```typescript
+type GitHubAccountRequest = "GitHubAccount";
+type GitHubAccountResponse = { OptionString: string | null };
+```
+```csharp
+// Request: the string "GitHubAccount"
+public class GitHubAccountResponse
+{
+    public string? OptionString { get; set; }
+}
+```
+<!-- langtabs-end -->
+
+### GitHubSignOut
+
+Sign out of GitHub, deleting the stored token.
+
+Response: `"Success"`
+
+### SubmitTranslation
+
+Submit a saved translation to the Translation Hub as a pull request, or update its open one. The server submits the translation's file as saved in the local translations folder: to the hub directly if the user can push to it, or through the user's fork otherwise (created if needed).
+
+| Parameter   | Type   | Description                         |
+|-------------|--------|-------------------------------------|
+| `pack_name` | string | Name of the pack the translation is for |
+| `src_lang`  | string | Source language code (e.g. `"EN"`)  |
+| `language`  | string | Target language code (e.g. `"SP"`)  |
+
+Response: `{ SubmissionResult: SubmissionResult }`, or `"GitHubSignInRequired"` if the user isn't signed in or GitHub rejected their sign-in (the server signs them out in that case).
+
+<!-- langtabs-start -->
+```typescript
+type SubmitTranslationRequest = { SubmitTranslation: [string, string, string] };
+type SubmitTranslationResponse = { SubmissionResult: SubmissionResult } | "GitHubSignInRequired";
+```
+```csharp
+public class SubmitTranslationRequest
+{
+    public Tuple<string, string, string> SubmitTranslation { get; set; }
+}
+public class SubmitTranslationResponse
+{
+    public SubmissionResult? SubmissionResult { get; set; }
+}
+```
+<!-- langtabs-end -->
+
+---
+
 ## Starpos Commands
 
 ### BuildStarpos

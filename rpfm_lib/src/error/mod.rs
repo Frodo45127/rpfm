@@ -459,6 +459,14 @@ pub enum RLibError {
     #[error("GitHub request to {0} failed ({1}): {2}")]
     GitHubApi(String, u16, String),
 
+    /// A GitHub repository doesn't exist, or the user can't see it.
+    #[error("The GitHub repository {0} doesn't exist, or you don't have access to it.")]
+    GitHubRepositoryNotFound(String),
+
+    /// A newly created fork didn't become usable in time.
+    #[error("GitHub is taking too long to create your fork of {0}. Please, try again in a few minutes.")]
+    GitHubForkNotReady(String),
+
     // Lazy Loading Errors
 
     /// File data changed on disk during lazy loading.

@@ -75,6 +75,7 @@ getset = "^0.1"
 image = "^0.25"
 itertools = "^0.14"
 log = { version = "^0.4", features = ["std"] }
+keyring = { version = "^3.6", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust", "vendored"] }
 open = "^5"
 qt_core = { path = "3rdparty/src/ritual/output/out/qt_core" }
 qt_gui = { path = "3rdparty/src/ritual/output/out/qt_gui" }

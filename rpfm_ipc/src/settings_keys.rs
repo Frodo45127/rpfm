@@ -126,6 +126,9 @@ pub const DEEPL_API_KEY: &str = "deepl_api_key";
 pub const TRANSLATOR_SOURCE_LANGUAGE: &str = "translator_source_language";
 pub const TRANSLATOR_USE_DEEPL_GLOSSARY: &str = "translator_use_deepl_glossary";
 
+// GitHub settings. The token itself lives in the OS keyring; only the account's login is kept here, for display.
+pub const GITHUB_LOGIN: &str = "github_login";
+
 // Optimizer settings.
 pub const PACK_REMOVE_ITM_FILES: &str = "pack_remove_itm_files";
 pub const PACK_APPLY_COMPRESSION: &str = "pack_apply_compression";

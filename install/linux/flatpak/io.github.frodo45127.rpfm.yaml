@@ -28,6 +28,9 @@ finish-args:
   # Additional permissions
   - --device=dri
 
+  # Secret Service, to keep the GitHub sign-in used to submit translations in the system's keyring.
+  - --talk-name=org.freedesktop.secrets
+
 build-options:
   append-path: /usr/lib/sdk/rust-stable/bin:/run/build/rpfm/cargo/bin
   env:

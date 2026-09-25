@@ -83,6 +83,7 @@ pub mod server_mcp;
 pub mod server_websocket;
 pub mod session;
 pub mod settings;
+pub mod translation_hub;
 pub mod updater;
 #[cfg(test)] mod updater_test;
 
@@ -104,6 +105,12 @@ const SENTRY_DSN_KEY: &str = match option_env!("RPFM_SERVER_SENTRY_DSN") {
 /// PostHog project API key used for telemetry and feedback.
 const POSTHOG_API_KEY_VALUE: &str = match option_env!("RPFM_SERVER_POSTHOG_API_KEY") {
     Some(key) => key,
+    None => "",
+};
+
+/// Client ID of RPFM's GitHub OAuth App, used to sign in to submit translations.
+pub const GITHUB_OAUTH_CLIENT_ID: &str = match option_env!("RPFM_SERVER_GITHUB_OAUTH_CLIENT_ID") {
+    Some(id) => id,
     None => "",
 };
 

@@ -3303,6 +3303,59 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 });
             }
 
+            Command::GitHubSignInStart => {
+                let sender = sender.clone();
+                tokio::spawn(async move {
+                    match tokio::task::spawn_blocking(translation_hub::sign_in_start).await.unwrap() {
+                        Ok(code) => CentralCommand::send_back(&sender, Response::GitHubDeviceCode(code)),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                    }
+                });
+            }
+
+            Command::GitHubSignInPoll(device_code) => {
+                let sender = sender.clone();
+                tokio::spawn(async move {
+                    match tokio::task::spawn_blocking(move || translation_hub::sign_in_poll(&device_code)).await.unwrap() {
+                        Ok(state) => CentralCommand::send_back(&sender, Response::GitHubSignInState(state)),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                    }
+                });
+            }
+
+            Command::GitHubAccount => {
+                let sender = sender.clone();
+                tokio::spawn(async move {
+                    match tokio::task::spawn_blocking(translation_hub::account).await.unwrap() {
+                        Ok(login) => CentralCommand::send_back(&sender, Response::OptionString(login)),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                    }
+                });
+            }
+
+            Command::GitHubSignOut => {
+                let sender = sender.clone();
+                tokio::spawn(async move {
+                    match tokio::task::spawn_blocking(translation_hub::sign_out).await.unwrap() {
+                        Ok(()) => CentralCommand::send_back(&sender, Response::Success),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                    }
+                });
+            }
+
+            Command::SubmitTranslation(pack_name, src_lang, language) => {
+                let sender = sender.clone();
+                let game_key = game.key().to_owned();
+                tokio::spawn(async move {
+                    let result = tokio::task::spawn_blocking(move || translation_hub::submit(&game_key, &pack_name, &src_lang, &language)).await.unwrap();
+                    match result {
+                        Ok(translation_hub::SubmitOutcome::Submitted(result)) => CentralCommand::send_back(&sender, Response::SubmissionResult(result)),
+                        Ok(translation_hub::SubmitOutcome::SignInRequired) => CentralCommand::send_back(&sender, Response::GitHubSignInRequired),
+                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                    }
+                });
+            }
+
             Command::BuildStarposGetCampaingIds(_pack_key) => {
                 let ids = dependencies.read().unwrap().db_values_from_table_name_and_column_name(Some(&packs), "campaigns_tables", "campaign_name", true, true);
                 CentralCommand::send_back(&sender, Response::HashSetString(ids));
