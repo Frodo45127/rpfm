@@ -2904,8 +2904,8 @@ impl OnDisk {
         file.read_exact(&mut data)?;
 
         // If the data is encrypted, decrypt it.
-        if self.is_encrypted.is_some() {
-            data = Cursor::new(data).decrypt()?;
+        if let Some(pfh_version) = self.is_encrypted {
+            data = Cursor::new(data).decrypt(pfh_version)?;
         }
 
         // If the data is compressed. decompress it.

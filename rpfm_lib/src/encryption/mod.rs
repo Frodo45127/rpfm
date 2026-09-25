@@ -19,7 +19,7 @@
 //! Total War games use a custom encryption scheme with different keys for different parts of the PackFile:
 //! - **Index String Key**: 64-byte key for decrypting file paths
 //! - **Index U32 Key**: [`u32`] key for decrypting file sizes
-//! - **Data Key**: [`u64`] key for decrypting file data
+//! - **Data Key**: [`u64`] key for decrypting file data (combined with a [`u32`] position in PFH4 and older Packs)
 //!
 //! # Historical Context
 //!
@@ -30,12 +30,13 @@
 //! [`Read`]: std::io::Read
 //! [`Seek`]: std::io::Seek
 
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-
 use std::io::{Read, Seek};
 
 use crate::error::Result;
 use crate::binary::ReadBytes;
+use crate::games::pfh_version::PFHVersion;
+
+#[cfg(test)] mod encryption_test;
 
 // Old 64-byte key used in Arena and all the way back to Shogun 2 for decrypting file paths.
 // This key is no longer used but is kept for reference and backwards compatibility with older PackFiles.
@@ -59,7 +60,8 @@ static INDEX_U32_KEY: u32 = 0xE10B_73F4;
 /// Current [`u64`] key used for decrypting PackedFile data.
 ///
 /// This key is used in 8-byte chunks to decrypt the actual file data. The decryption
-/// formula is: `decrypted = encrypted XOR (DATA_KEY * !position)`.
+/// formula is: `decrypted = encrypted XOR (DATA_KEY * !position)`, with `!position` computed
+/// as a [`u64`] in PFH5+ Packs and as a [`u32`] in PFH4 and older Packs.
 static DATA_KEY: u64 = 0x8FEB_2A67_40A6_920E;
 
 /// Trait for decrypting encrypted PackFile data.
@@ -79,56 +81,49 @@ pub trait Decryptable: ReadBytes + Read + Seek {
 
     /// Decrypts the data of an encrypted PackedFile.
     ///
-    /// This function decrypts data in 8-byte chunks using the DATA_KEY. The file is first
-    /// padded to a multiple of 8 bytes if needed, then decrypted chunk by chunk. Note that
-    /// the last chunk is NOT encrypted and is copied as-is.
+    /// Data is decrypted in 8-byte chunks using the DATA_KEY. Trailing bytes that don't fill a full chunk are not encrypted.
+    ///
+    /// # Arguments
+    ///
+    /// * `pfh_version` - The version of the Pack the data comes from. Determines the width of the position term in the key.
     ///
     /// # Returns
     ///
-    /// A [`Vec<u8>`] containing the decrypted data, or an error if decryption fails.
+    /// A [`Vec<u8>`] containing the decrypted data, or an error if reading fails.
     ///
     /// # Examples
     ///
     /// ```ignore
     /// use std::io::Cursor;
     /// use rpfm_lib::encryption::Decryptable;
+    /// use rpfm_lib::games::pfh_version::PFHVersion;
     ///
     /// let encrypted_data = vec![/* encrypted bytes */];
     /// let mut cursor = Cursor::new(encrypted_data);
-    /// let decrypted = cursor.decrypt()?;
+    /// let decrypted = cursor.decrypt(PFHVersion::PFH5)?;
     /// ```
-    fn decrypt(&mut self) -> Result<Vec<u8>> {
-
-        // First, make sure the file ends in a multiple of 8. If not, extend it with zeros.
-        // We need it because the decoding is done in packs of 8 bytes.
+    fn decrypt(&mut self, pfh_version: PFHVersion) -> Result<Vec<u8>> {
         let ciphertext_len = self.len()? as usize;
-        let mut ciphertext = self.read_slice(ciphertext_len, false)?;
-        let size = ciphertext.len();
-        let padding = 8 - (size % 8);
-        if padding < 8 {
-            ciphertext.resize(size + padding, 0);
-        }
+        let ciphertext = self.read_slice(ciphertext_len, false)?;
 
-        // Then decrypt the file in packs of 8. It's faster than in packs of 4.
+        // PFH4 and older games negate the position as a u32 before widening it to u64.
+        let wide_position = match pfh_version {
+            PFHVersion::PFH6 | PFHVersion::PFH5 => true,
+            PFHVersion::PFH4 | PFHVersion::PFH3 | PFHVersion::PFH2 | PFHVersion::PFH0 => false,
+        };
+
         let mut plaintext = Vec::with_capacity(ciphertext.len());
-        let mut edi: u64 = 0;
-        let chunks = ciphertext.len() / 8;
-        for i in 0..chunks {
-
-            // The last chunk is NOT ENCRYPTED.
-            let esi = edi as usize;
-            if i == chunks - 1 {
-                plaintext.extend_from_slice(&ciphertext[esi..esi + 8]);
-            } else {
-                let mut prod = DATA_KEY.wrapping_mul(!edi);
-                prod ^= (&ciphertext[esi..esi + 8]).read_u64::<LittleEndian>().unwrap();
-                plaintext.write_u64::<LittleEndian>(prod).unwrap();
-            }
-            edi += 8
+        let mut chunks = ciphertext.chunks_exact(8);
+        for (index, chunk) in chunks.by_ref().enumerate() {
+            let position = index as u64 * 8;
+            let negated_position = if wide_position { !position } else { u64::from(!(position as u32)) };
+            let key = DATA_KEY.wrapping_mul(negated_position);
+            let mut chunk_bytes = [0; 8];
+            chunk_bytes.copy_from_slice(chunk);
+            plaintext.extend_from_slice(&(u64::from_le_bytes(chunk_bytes) ^ key).to_le_bytes());
         }
 
-        // Remove the extra bytes we added in the first step.
-        plaintext.truncate(size);
+        plaintext.extend_from_slice(chunks.remainder());
         Ok(plaintext)
     }
 
