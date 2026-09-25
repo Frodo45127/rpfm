@@ -94,6 +94,7 @@ use rpfm_lib::utils::files_from_subdir;
 
 use crate::dependencies::Dependencies;
 
+pub mod hub;
 #[cfg(test)] mod test;
 
 /// Filename for the generated translated Loc file.

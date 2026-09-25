@@ -554,3 +554,84 @@ fn glossary_from_table_skips_empty_sources() {
     expected.insert("Faction".to_owned(), String::new());
     assert_eq!(pt.glossary, expected);
 }
+
+/// Line counts skip removed lines, and only count auto-translations among up-to-date lines.
+#[test]
+fn stats_counts_lines() {
+    let mut pt = sample_v1();
+    pt.translations.insert("new_line".to_owned(), Translation { src: "New".to_owned(), dst: String::new(), retr: true, rem: false, aut: false });
+    pt.translations.insert("auto_line".to_owned(), Translation { src: "Auto".to_owned(), dst: "Auto".to_owned(), retr: false, rem: false, aut: true });
+
+    // sample_v1: greeting (translated), farewell (pending, aut ignored), legacy_string (removed).
+    let stats = pt.stats();
+    assert_eq!(*stats.total(), 4);
+    assert_eq!(*stats.translated(), 2);
+    assert_eq!(*stats.pending(), 2);
+    assert_eq!(*stats.auto_translated(), 1);
+}
+
+/// A v1 EN-sourced translation replaces the legacy file of the same pack and language.
+#[test]
+fn hub_submission_v1_replaces_v0() {
+    let submission = sample_v1().hub_submission(GAME);
+    assert_eq!(submission.file_path(), &format!("{GAME}/{PACK}/{SRC_LANG}-{LANG}.json"));
+    assert_eq!(submission.replaced_path(), &Some(format!("{GAME}/{PACK}/{LANG}.json")));
+}
+
+/// A v0 translation replaces the v1 file, as saving does locally.
+#[test]
+fn hub_submission_v0_replaces_v1() {
+    let mut pt = sample_v1();
+    pt.version = 0;
+
+    let submission = pt.hub_submission(GAME);
+    assert_eq!(submission.file_path(), &format!("{GAME}/{PACK}/{LANG}.json"));
+    assert_eq!(submission.replaced_path(), &Some(format!("{GAME}/{PACK}/{SRC_LANG}-{LANG}.json")));
+}
+
+/// Non-EN sources never replace anything: `{lang}.json` belongs to the EN-sourced translation.
+#[test]
+fn hub_submission_non_en_replaces_nothing() {
+    let mut pt = sample_v1();
+    pt.src_lang = "GE".to_owned();
+
+    let submission = pt.hub_submission(GAME);
+    assert_eq!(submission.file_path(), &format!("{GAME}/{PACK}/GE-{LANG}.json"));
+    assert_eq!(submission.replaced_path(), &None);
+}
+
+/// The branch is the same for both formats, so switching formats updates the same pull request.
+#[test]
+fn hub_submission_branch_ignores_format() {
+    let v1 = sample_v1();
+    let mut v0 = sample_v1();
+    v0.version = 0;
+
+    assert_eq!(v1.hub_submission(GAME).branch(), "rpfm/warhammer_3/test_pack.pack/EN-ES");
+    assert_eq!(v0.hub_submission(GAME).branch(), v1.hub_submission(GAME).branch());
+}
+
+/// Pack names with characters git doesn't allow in branch names still give a valid branch.
+#[test]
+fn hub_submission_branch_is_sanitized() {
+    let mut pt = sample_v1();
+    pt.pack_name = "..My Mod  (v2)..lock".to_owned();
+    assert_eq!(pt.hub_submission(GAME).branch(), "rpfm/warhammer_3/My-Mod-v2-.lock_/EN-ES");
+
+    pt.pack_name = "???".to_owned();
+    assert_eq!(pt.hub_submission(GAME).branch(), "rpfm/warhammer_3/_/EN-ES");
+}
+
+/// The pull request names the pack and languages, and lists the authors and line counts.
+#[test]
+fn hub_submission_texts() {
+    let submission = sample_v1().hub_submission(GAME);
+    assert_eq!(submission.title(), &format!("[{GAME}] Translation for {PACK} (EN -> ES)"));
+    assert_eq!(submission.commit_message(), &format!("Update {PACK} translation (EN -> ES) [{GAME}]"));
+    assert!(submission.body().contains("- Authors: Alice, Bob"));
+    assert!(submission.body().contains("- Lines: 1 of 2 translated, 1 pending, 0 of the translated ones auto-translated and not reviewed."));
+
+    let mut anonymous = sample_v1();
+    anonymous.authors.clear();
+    assert!(anonymous.hub_submission(GAME).body().contains("- Authors: Not specified"));
+}
