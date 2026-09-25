@@ -51,6 +51,7 @@ use deepl::{DeepLApi, Error as DeepLError, Lang, ModelType, TagHandling};
 use regex::{Captures, Regex};
 use serde_json::{json, Value};
 
+use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::{Arc, LazyLock, RwLock};
 use std::time::{Duration, Instant};
@@ -75,6 +76,7 @@ use super::*;
 
 mod connections;
 mod slots;
+#[cfg(test)] mod test;
 
 /// Tool's ui template path.
 const VIEW_DEBUG: &str = "rpfm_ui/ui_templates/tool_translator_editor.ui";
@@ -149,6 +151,13 @@ const BATCH_MAX_INTERVAL: Duration = Duration::from_secs(5);
 
 /// Times a rate-limited request is retried before the line is reported as failed.
 const BATCH_MAX_RETRIES: u32 = 5;
+
+/// Maximum amount of texts sent to DeepL in a single batch request.
+const DEEPL_GROUP_MAX_TEXTS: usize = 50;
+
+/// Maximum size in bytes of the texts sent to DeepL in a single batch request. DeepL's limit is
+/// 128 KiB for the whole request, so this leaves room for the escaping and the rest of the request.
+const DEEPL_GROUP_MAX_BYTES: usize = 64 * 1024;
 
 /// Error for requests the translation service rejected for going over its rate limit.
 #[derive(Debug, thiserror::Error)]
@@ -1200,8 +1209,30 @@ impl ToolTranslator {
         Ok(response_text)
     }
 
+    fn ask_deepl(string: &str, source_language: Lang, language: Lang) -> Result<String> {
+        Self::ask_deepl_many(vec![string.to_owned()], source_language, language)?
+            .pop()
+            .ok_or_else(|| anyhow!("DeepL returned no translation."))
+    }
+
+    /// Translate several texts with DeepL in a single request.
+    ///
+    /// # Arguments
+    ///
+    /// * `strings` - Texts to translate. DeepL translates each one independently.
+    /// * `source_language` - Language of the texts.
+    /// * `language` - Language to translate them to.
+    ///
+    /// # Returns
+    ///
+    /// The translations, in the same order as `strings`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`RateLimitedError`] if DeepL rate-limits the request, or a generic error if the request
+    /// fails or doesn't return one translation per text.
     #[tokio::main]
-    async fn ask_deepl(string: &str, source_language: Lang, language: Lang) -> Result<String> {
+    async fn ask_deepl_many(strings: Vec<String>, source_language: Lang, language: Lang) -> Result<Vec<String>> {
         let api_key = settings_string(DEEPL_API_KEY);
         if api_key.is_empty() {
             return Err(anyhow!("Missing DeepL API Key."))
@@ -1209,12 +1240,15 @@ impl ToolTranslator {
 
         let api = DeepLApi::with(&api_key).new();
 
-        let string = string
-            .replace("[[", "<[[")
-            .replace("<[[/", "</[[")
-            .replace("]]", "]]>");
+        let count = strings.len();
+        let strings = strings.iter()
+            .map(|string| string
+                .replace("[[", "<[[")
+                .replace("<[[/", "</[[")
+                .replace("]]", "]]>"))
+            .collect::<Vec<_>>();
 
-        let translated = api.translate_text(string, language)
+        let translated = api.translate_text(strings, language)
             .source_lang(source_language)
             .model_type(ModelType::PreferQualityOptimized)
             .ignore_tags(vec![
@@ -1233,14 +1267,18 @@ impl ToolTranslator {
                 error => anyhow!(error),
             })?;
 
-        let translated_text = translated.translations.iter()
-            .map(|x| &x.text)
-            .join("\n")
-            .replace("</[[", "<[[/")
-            .replace("<[[", "[[")
-            .replace("]]>", "]]");
+        if translated.translations.len() != count {
+            return Err(anyhow!("DeepL returned {} translations for {} texts.", translated.translations.len(), count));
+        }
 
-        Ok(translated_text)
+        let translated_texts = translated.translations.iter()
+            .map(|x| x.text
+                .replace("</[[", "<[[/")
+                .replace("<[[", "[[")
+                .replace("]]>", "]]"))
+            .collect();
+
+        Ok(translated_texts)
     }
 
     pub unsafe fn import_from_another_pack(&self) -> Result<()> {
@@ -1330,6 +1368,14 @@ impl ToolTranslator {
         progress.set_auto_close(false);
         progress.set_auto_reset(false);
 
+        // Translation backends operate on plain text — undo the on-disk escaping
+        // (||/\\n) before sending, then re-apply after we get the result back.
+        let sources = rows.iter()
+            .map(|row| model.item_2a(*row, 4).text().to_std_string()
+                .replace("||", "\n||\n")
+                .replace("\\\\n", "\n"))
+            .collect::<Vec<_>>();
+
         let event_loop = QEventLoop::new_0a();
         let mut interval = BATCH_MIN_INTERVAL;
         let mut last_request: Option<Instant> = None;
@@ -1337,30 +1383,24 @@ impl ToolTranslator {
         let mut translated = 0;
         let mut failed = vec![];
 
-        'rows: for (index, row) in rows.iter().enumerate() {
-            progress.set_label_text(&qtre("translator_batch_progress", &[&(index + 1).to_string(), &rows.len().to_string()]));
-            progress.set_value(index as i32);
-
-            // Translation backends operate on plain text — undo the on-disk escaping
-            // (||/\\n) before sending, then re-apply after we get the result back.
-            let source_text = model.item_2a(*row, 4).text().to_std_string()
-                .replace("||", "\n||\n")
-                .replace("\\\\n", "\n");
+        'groups: for group in Self::batch_groups(&sources, method) {
+            progress.set_label_text(&qtre("translator_batch_progress", &[&processed.to_string(), &rows.len().to_string()]));
+            progress.set_value(processed as i32);
 
             let mut retries = 0;
             let result = loop {
                 if let Some(last_request) = last_request {
                     let wait = (last_request + interval).saturating_duration_since(Instant::now());
                     if !Self::wait_for_batch(&progress, &event_loop, wait) {
-                        break 'rows;
+                        break 'groups;
                     }
                 }
 
                 last_request = Some(Instant::now());
                 let result = match method {
-                    BatchTranslateMethod::Deepl => Self::ask_deepl(&source_text, source_language_deepl.clone(), language_deepl.clone()),
-                    BatchTranslateMethod::Ai => Self::ask_ai(&source_text, &language_natural, &context),
-                    BatchTranslateMethod::Google => Self::ask_google(&source_text, &language_google),
+                    BatchTranslateMethod::Deepl => Self::ask_deepl_many(sources[group.clone()].to_vec(), source_language_deepl.clone(), language_deepl.clone()),
+                    BatchTranslateMethod::Ai => Self::ask_ai(&sources[group.start], &language_natural, &context).map(|translation| vec![translation]),
+                    BatchTranslateMethod::Google => Self::ask_google(&sources[group.start], &language_google).map(|translation| vec![translation]),
                 };
 
                 // Being rate-limited means we're going too fast: slow down for the rest of the batch, and back off before retrying.
@@ -1369,25 +1409,30 @@ impl ToolTranslator {
                         retries += 1;
                         interval = (interval * 2).min(BATCH_MAX_INTERVAL);
                         if !Self::wait_for_batch(&progress, &event_loop, Duration::from_secs(1 << retries)) {
-                            break 'rows;
+                            break 'groups;
                         }
                     }
                     result => break result,
                 }
             };
 
-            processed += 1;
+            processed += group.len();
+            let group_rows = &rows[group];
             match result {
-                Ok(translation) => {
-                    let stored = translation
-                        .replace("\n||\n", "||")
-                        .replace("\n", "\\\\n");
-                    model.item_2a(*row, 5).set_text(&QString::from_std_str(&stored));
-                    model.item_2a(*row, 1).set_check_state(CheckState::Unchecked);
-                    model.item_2a(*row, 3).set_check_state(CheckState::Checked);
-                    translated += 1;
+                Ok(translations) => {
+                    for (row, translation) in group_rows.iter().zip(translations) {
+                        let stored = translation
+                            .replace("\n||\n", "||")
+                            .replace("\n", "\\\\n");
+                        model.item_2a(*row, 5).set_text(&QString::from_std_str(&stored));
+                        model.item_2a(*row, 1).set_check_state(CheckState::Unchecked);
+                        model.item_2a(*row, 3).set_check_state(CheckState::Checked);
+                        translated += 1;
+                    }
                 }
-                Err(error) => failed.push(format!("{}: {error}", model.item_2a(*row, 0).text().to_std_string())),
+
+                // A failed request fails every line in its group.
+                Err(error) => failed.extend(group_rows.iter().map(|row| format!("{}: {error}", model.item_2a(*row, 0).text().to_std_string()))),
             }
         }
 
@@ -1405,6 +1450,47 @@ impl ToolTranslator {
             message_box.set_detailed_text(&QString::from_std_str(failed.join("\n")));
         }
         message_box.exec();
+    }
+
+    /// Split the texts of a batch auto-translation into the groups sent in each request.
+    ///
+    /// DeepL accepts several texts per request, so its groups are as big as its limits allow. The other
+    /// backends take one text per request.
+    ///
+    /// # Arguments
+    ///
+    /// * `sources` - Texts to translate.
+    /// * `method` - Backend the texts are sent to.
+    ///
+    /// # Returns
+    ///
+    /// Consecutive, non-empty ranges of `sources` covering all of it.
+    fn batch_groups(sources: &[String], method: BatchTranslateMethod) -> Vec<Range<usize>> {
+        let (max_texts, max_bytes) = match method {
+            BatchTranslateMethod::Deepl => (DEEPL_GROUP_MAX_TEXTS, DEEPL_GROUP_MAX_BYTES),
+            BatchTranslateMethod::Ai | BatchTranslateMethod::Google => (1, usize::MAX),
+        };
+
+        let mut groups = vec![];
+        let mut start = 0;
+        let mut bytes = 0;
+        for (index, source) in sources.iter().enumerate() {
+
+            // A text bigger than the byte limit still goes alone in its own group.
+            if index > start && (index - start == max_texts || bytes + source.len() > max_bytes) {
+                groups.push(start..index);
+                start = index;
+                bytes = 0;
+            }
+
+            bytes += source.len();
+        }
+
+        if start < sources.len() {
+            groups.push(start..sources.len());
+        }
+
+        groups
     }
 
     /// Wait while keeping the UI responsive, so the batch progress dialog can still be cancelled.
