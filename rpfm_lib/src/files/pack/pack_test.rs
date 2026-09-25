@@ -347,3 +347,17 @@ fn test_save_repoints_lazy_files() {
 
     let _ = remove_file(path_2);
 }
+
+#[test]
+fn test_db_table_folders_matches_db_and_ceo_db() {
+    let mut pack = Pack::default();
+    pack.insert(RFile::new_from_vec(&[], FileType::DB, 0, "db/foo_tables/data__")).unwrap();
+    pack.insert(RFile::new_from_vec(&[], FileType::DB, 0, "ceo_db/foo_tables/data__")).unwrap();
+    pack.insert(RFile::new_from_vec(&[], FileType::DB, 0, "db/bar_tables/data__")).unwrap();
+
+    let files = pack.files_by_paths(&ContainerPath::db_table_folders("foo_tables"), true);
+    let mut paths = files.iter().map(|file| file.path_in_container_raw().to_owned()).collect::<Vec<_>>();
+    paths.sort();
+
+    assert_eq!(paths, vec!["ceo_db/foo_tables/data__".to_owned(), "db/foo_tables/data__".to_owned()]);
+}

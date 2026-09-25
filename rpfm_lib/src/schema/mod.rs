@@ -803,6 +803,23 @@ impl Schema {
         self.definitions.get(table_name)?.iter().find(|definition| *definition.version() == table_version)
     }
 
+    /// Returns the definition of a table that keeps the most of the provided field names.
+    ///
+    /// Ties go to the first (newest) definition.
+    pub fn definition_by_name_and_fields(&self, table_name: &str, field_names: &[&str]) -> Option<&Definition> {
+        self.definitions.get(table_name)?.iter()
+            .map(|definition| {
+                let fields = definition.fields_processed();
+                let kept = field_names.iter().filter(|name| fields.iter().any(|field| field.name() == **name)).count();
+                (definition, kept)
+            })
+            .fold(None, |best: Option<(&Definition, usize)>, candidate| match best {
+                Some((_, best_kept)) if best_kept >= candidate.1 => best,
+                _ => Some(candidate),
+            })
+            .map(|(definition, _)| definition)
+    }
+
     /// Returns a mutable reference to a specific table definition by name and version.
     ///
     /// # Arguments
@@ -2321,4 +2338,29 @@ fn ordered_map_definitions<S>(value: &HashMap<String, Vec<Definition>>, serializ
 fn ordered_map_patches<S>(value: &HashMap<String, HashMap<String, HashMap<String, String>>>, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer, {
     let ordered: BTreeMap<_, BTreeMap<_, BTreeMap<_, _>>> = value.iter().map(|(a, x)| (a, x.iter().map(|(b, y)| (b, y.iter().collect())).collect())).collect();
     ordered.serialize(serializer)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn field(name: &str) -> Field {
+        Field { name: name.to_owned(), field_type: FieldType::StringU8, is_key: true, ..Default::default() }
+    }
+
+    #[test]
+    fn test_definition_by_name_and_fields_prefers_version_keeping_most_columns() {
+        let table = "ceo_initial_datas_tables";
+        let mut schema = Schema::default();
+        schema.add_definition(table, &Definition::new_with_fields(1, &[field("key")], &[], None));
+        schema.add_definition(table, &Definition::new_with_fields(0, &[field("key"), field("template_manager")], &[], None));
+
+        let two_columns = schema.definition_by_name_and_fields(table, &["key", "template_manager"]).unwrap();
+        assert_eq!(*two_columns.version(), 0);
+
+        let one_column = schema.definition_by_name_and_fields(table, &["key"]).unwrap();
+        assert_eq!(*one_column.version(), 1);
+
+        assert!(schema.definition_by_name_and_fields("missing_tables", &["key"]).is_none());
+    }
 }

@@ -2383,7 +2383,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
 
             Command::GoToDefinition(pack_key, ref_table, mut ref_column, ref_data) => {
                 let table_name = format!("{ref_table}_tables");
-                let table_folder = format!("db/{table_name}");
+                let table_folders = ContainerPath::db_table_folders(&table_name);
                 let mut found = false;
 
                 // Search first in the pack that sent the request (if still open), then in the rest of the open packs.
@@ -2394,7 +2394,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 packs_to_search.extend(packs.iter().filter(|kv| kv.0 != &pack_key).map(|kv| kv.1));
 
                 for pack in packs_to_search {
-                    let packed_files = pack.files_by_path(&ContainerPath::Folder(table_folder.to_owned()), true);
+                    let packed_files = pack.files_by_paths(&table_folders, true);
                     for packed_file in &packed_files {
                         if let Ok(RFileDecoded::DB(data)) = packed_file.decoded() {
 
@@ -2481,7 +2481,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                         }
 
                         if let Some((column_index, row_index)) = data.table().rows_containing_data(&ref_column, &ref_data[0]) {
-                            let path = format!("{}/ak_data", &table_folder);
+                            let path = format!("db/{table_name}/ak_data");
                             CentralCommand::send_back(&sender, Response::DataSourceStringUsizeUsize(DataSource::AssKitFiles, path, column_index, row_index[0]));
                             found = true;
                         }
@@ -2494,7 +2494,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
             },
 
             Command::SearchReferences(pack_key, reference_map, value) => {
-                let paths = reference_map.keys().map(|x| ContainerPath::Folder(format!("db/{x}"))).collect::<Vec<ContainerPath>>();
+                let paths = reference_map.keys().flat_map(|x| ContainerPath::db_table_folders(x)).collect::<Vec<ContainerPath>>();
                 let Some(pack) = get_pack(&packs, &pack_key, &sender) else { continue 'background_loop; };
                 let files = pack.files_by_paths(&paths, true);
 
@@ -3492,7 +3492,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                     .filter(|p| {
                         let mut parts = p.splitn(3, '/');
                         let prefix = parts.next().unwrap_or("");
-                        if prefix != "db" && prefix != "ceo_db" {
+                        if prefix != "ceo_db" {
                             return false;
                         }
                         parts.next()
@@ -3506,8 +3506,8 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 if ceo_table_paths.is_empty() {
                     for (orig, bak) in &xml_backups { let _ = std::fs::rename(bak, orig); }
                     CentralCommand::send_back(&sender, Response::Error(
-                        "No CEO tables found in the pack (looked in db/ and ceo_db/ folders). \
-                         Import CEO tables from the Assembly Kit.".into()
+                        "No CEO tables found in the pack (only the ceo_db/ folder is scanned). \
+                         Import CEO tables from the Assembly Kit, or move any CEO tables under db/ to ceo_db/.".into()
                     ));
                     continue 'background_loop;
                 }
@@ -3547,7 +3547,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 // db tables (e.g. data__, data__01) are combined into one XML.
                 let mut xml_groups: std::collections::BTreeMap<String, Vec<String>> = std::collections::BTreeMap::new();
                 for table_path in &ceo_table_paths {
-                    // "db/ceos_tables/data__" -> folder="ceos_tables" -> xml="ceos.xml"
+                    // "ceo_db/ceos_tables/data__" -> folder="ceos_tables" -> xml="ceos.xml"
                     let parts: Vec<&str> = table_path.split('/').collect();
                     if parts.len() < 2 { continue; }
                     let folder = parts[1];

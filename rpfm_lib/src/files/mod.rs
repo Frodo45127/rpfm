@@ -2963,6 +2963,16 @@ impl ContainerPath {
         }
     }
 
+    /// This function returns the `db/` and `ceo_db/` folder paths for the provided *table_name*.
+    ///
+    /// Use it with `files_by_paths` instead of hardcoding the `db/` prefix.
+    pub fn db_table_folders(table_name: &str) -> Vec<ContainerPath> {
+        vec![
+            ContainerPath::Folder(format!("db/{table_name}")),
+            ContainerPath::Folder(format!("ceo_db/{table_name}")),
+        ]
+    }
+
     /// This function returns the path of the parent folder of the provided [ContainerPath].
     ///
     /// If the provided [ContainerPath] corresponds to a Container root, the path returned will be the current one.
