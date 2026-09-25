@@ -22,7 +22,7 @@ The JSON file also records its format `version`. `0` is the legacy format (compa
 ## The workflow
 
 1. **Auto-translate from vanilla.** For keys that exist in vanilla loc data and are unchanged, the Translator will auto-translate them using the vanilla translations, leaving the modded or altered lines to be translated.
-2. **Translate row by row**, or using one of the translation integrations. The batch button in the toolbar auto-translates every outdated line at once with DeepL, AI or Google Translate. By default it only fills lines with no translation; lines with an outdated translation are left for you to fix, unless **Overwrite existing outdated translations** is checked in its menu. Batch results are marked as auto-translated so you can review them. A progress dialog shows how far along it is and lets you cancel it. Requests are spaced out, and when a service rate-limits them RPFM slows down and retries. DeepL gets up to 50 lines per request, so it needs far fewer requests; if one of those requests fails, all its lines are reported as failed. At the end, a results dialog shows how many lines were translated, failed, or were left unprocessed, with the failed lines and their errors in its details.
+2. **Translate row by row**, or using one of the translation integrations. AI translations are told which game the mod is for, and to prefer the game's official translations for its terms and names. The batch button in the toolbar auto-translates every outdated line at once with DeepL, AI or Google Translate. By default it only fills lines with no translation; lines with an outdated translation are left for you to fix, unless **Overwrite existing outdated translations** is checked in its menu. Batch results are marked as auto-translated so you can review them. A progress dialog shows how far along it is and lets you cancel it. Requests are spaced out, and when a service rate-limits them RPFM slows down and retries. DeepL gets up to 50 lines per request, so it needs far fewer requests; if one of those requests fails, all its lines are reported as failed. At the end, a results dialog shows how many lines were translated, failed, or were left unprocessed, with the failed lines and their errors in its details.
 3. **Generate the translated loc.** When you save, the Translator writes a translated `.loc` file into the Pack at the right path: `text/!!!!!!translated_locs.loc` for Warhammer 1 and newer (except Thrones of Britannia), or `text/localisation.loc` for Thrones of Britannia and older games. The translation works in-game immediately.
 4. **Persist the translation as JSON.** The translation is also persisted to `<config>/translations_local/<game>/<pack>/<SOURCE>-<LANGUAGE>.json` (or `<LANGUAGE>.json` for format `0`). This is the file you contribute to the [Translation Hub](https://github.com/Frodo45127/total_war_translation_hub).
 
@@ -30,7 +30,13 @@ The JSON file also records its format `version`. `0` is the legacy format (compa
 
 The glossary is a per-translation list of source terms and the translation you want used for each one, like faction or unit names. Open it with the **Glossary** button: it opens over the right side of the translator, so the lines stay visible for reference, and its close button hides it again. Edit it like any other table, with its toolbar, right-click menu or shortcuts. Entries without a source term are ignored.
 
-When auto-translating, the whole glossary is sent along with the text: to the AI as part of the prompt, and to DeepL as context. Both treat it as a strong hint, not a rule, so review terms in the results. Google Translate doesn't support it.
+When auto-translating, the glossary is used like this:
+
+- **DeepL**: with the **Use a DeepL glossary** toolbar button enabled (the default), RPFM stores the glossary in your DeepL account and DeepL enforces its terms. There's one per Pack and language pair, named `RPFM <game>/<pack> <source>-<target> <fingerprint>`; it's reused while the glossary doesn't change, and replaced when it does. Entries without a translation are left out of it. If it can't be stored, or the button is disabled, the glossary is sent as a hint instead.
+- **AI**: the glossary is included in the prompt, as a hint.
+- **Google Translate**: doesn't support it.
+
+Review glossary terms in hint-based results, as the service may not always follow them.
 
 The glossary is saved with the translation, and only format `1` can store it. With format `0` the Glossary button is disabled.
 

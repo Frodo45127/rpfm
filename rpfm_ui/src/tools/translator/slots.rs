@@ -11,6 +11,7 @@
 use qt_core::QBox;
 use qt_core::QEventLoop;
 use qt_core::SlotNoArgs;
+use qt_core::SlotOfBool;
 use qt_core::SlotOfInt;
 use qt_core::SlotOfQItemSelectionQItemSelection;
 use qt_core::SlotOfQVariant;
@@ -47,6 +48,7 @@ pub struct ToolTranslatorSlots {
     glossary_animation_step: QBox<SlotOfQVariant>,
     glossary_animation_finished: QBox<SlotNoArgs>,
     version_changed: QBox<SlotOfInt>,
+    use_deepl_glossary_toggled: QBox<SlotOfBool>,
     toggle_help: QBox<SlotNoArgs>,
     toggle_preview: QBox<SlotNoArgs>,
     toggle_behavior: QBox<SlotNoArgs>,
@@ -107,7 +109,8 @@ impl ToolTranslatorSlots {
                 let source_language = ui.map_source_language_to_deepl();
                 let language = ui.map_language_to_deepl();
                 let glossary = ui.glossary_snapshot();
-                let result = ToolTranslator::ask_deepl(&source_text, source_language, language, &glossary);
+                let (deepl_glossary, _) = ui.deepl_glossary(&glossary, &source_language, &language);
+                let result = ToolTranslator::ask_deepl(&source_text, source_language, language, &deepl_glossary);
                 if let Ok(tr) = result {
                     ui.translated_value_textedit.set_text(&QString::from_std_str(tr));
                 }
@@ -228,6 +231,10 @@ impl ToolTranslatorSlots {
             }
         ));
 
+        let use_deepl_glossary_toggled = SlotOfBool::new(ui.tool.main_widget(), move |enabled| {
+            let _ = settings_set_bool(TRANSLATOR_USE_DEEPL_GLOSSARY, enabled);
+        });
+
         // Visibility toggles for the collapsible sections. The QPushButtons are checkable, so
         // by the time `released` fires Qt has already flipped their checked state.
         let toggle_help = SlotNoArgs::new(ui.tool.main_widget(), clone!(
@@ -285,6 +292,7 @@ impl ToolTranslatorSlots {
             glossary_animation_step,
             glossary_animation_finished,
             version_changed,
+            use_deepl_glossary_toggled,
             toggle_help,
             toggle_preview,
             toggle_behavior,

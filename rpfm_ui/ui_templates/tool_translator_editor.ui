@@ -609,6 +609,29 @@
               </widget>
              </item>
              <item row="11" column="0">
+              <widget class="QToolButton" name="use_deepl_glossary">
+               <property name="minimumSize">
+                <size>
+                 <width>30</width>
+                 <height>30</height>
+                </size>
+               </property>
+               <property name="icon">
+                <iconset theme="format-list-unordered">
+                 <normaloff>.</normaloff>.</iconset>
+               </property>
+               <property name="iconSize">
+                <size>
+                 <width>22</width>
+                 <height>22</height>
+                </size>
+               </property>
+               <property name="checkable">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+             <item row="12" column="0">
               <widget class="QWidget" name="widget_6" native="true"/>
              </item>
              <item row="1" column="0">

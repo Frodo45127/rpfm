@@ -43,6 +43,7 @@ pub unsafe fn set_connections(ui: &ToolTranslator, slots: &ToolTranslatorSlots) 
     ui.glossary_animation().value_changed().connect(slots.glossary_animation_step());
     ui.glossary_animation().finished().connect(slots.glossary_animation_finished());
     ui.version_combobox().current_index_changed().connect(slots.version_changed());
+    ui.use_deepl_glossary().toggled().connect(slots.use_deepl_glossary_toggled());
 
     ui.help_toggle().released().connect(slots.toggle_help());
     ui.preview_toggle().released().connect(slots.toggle_preview());

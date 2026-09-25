@@ -53,12 +53,15 @@ use cpp_core::Ptr;
 use anyhow::anyhow;
 use base64::{Engine, engine::general_purpose::STANDARD};
 use deepl::{DeepLApi, Error as DeepLError, Lang, ModelType, TagHandling};
+use deepl::glossary::GlossaryLanguage;
 use regex::{Captures, Regex};
 use serde_json::{json, Value};
 
 use std::collections::BTreeMap;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::ops::Range;
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::sync::{Arc, LazyLock, RwLock};
 use std::time::{Duration, Instant};
 
@@ -73,9 +76,11 @@ use rpfm_lib::integrations::git::GitResponse;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR, send_ipc_command, send_ipc_command_result};
 use crate::references_ui::ReferencesUI;
-use crate::settings_ui::backend::{settings_path_buf, settings_set_string, settings_string, translations_local_path};
+use crate::settings_ui::backend::{settings_bool, settings_path_buf, settings_set_bool, settings_set_string, settings_string, translations_local_path};
 use crate::views::table::{FilterChipState, TableType, TableView, utils::get_table_from_view};
 use crate::utils::show_dialog;
+
+use rpfm_telemetry::warn;
 
 use self::slots::ToolTranslatorSlots;
 use super::*;
@@ -170,6 +175,16 @@ const DEEPL_GROUP_MAX_BYTES: usize = 64 * 1024;
 #[error("The translation service is rate-limiting requests: {0}")]
 struct RateLimitedError(String);
 
+/// How the glossary is passed to DeepL.
+enum DeepLGlossary {
+
+    /// Id of a glossary stored in DeepL, which DeepL enforces.
+    Stored(String),
+
+    /// Hint sent in the request's `context`, which only influences the translation. Empty if there's no glossary.
+    Hint(String),
+}
+
 /// Backend selector for the batch auto-translation menu.
 #[derive(Debug, Clone, Copy)]
 pub enum BatchTranslateMethod {
@@ -252,6 +267,11 @@ pub struct ToolTranslator {
     batch_translate_ai_action: QPtr<QAction>,
     batch_translate_google_action: QPtr<QAction>,
     batch_translate_overwrite_action: QPtr<QAction>,
+
+    // Whether the glossary is synced to a glossary stored in DeepL, instead of sent as a hint.
+    // The cache holds the name and id of the last synced one, so it's only checked again when the glossary changes.
+    use_deepl_glossary: QPtr<QToolButton>,
+    deepl_glossary_cache: Arc<RwLock<Option<(String, String)>>>,
 
     original_value_html: QPtr<QTextEdit>,
     original_value_textedit: QPtr<QTextEdit>,
@@ -641,6 +661,9 @@ impl ToolTranslator {
         let clear_translation: QPtr<QToolButton> = tool.find_widget("clear_translation")?;
         let import_from_translated_pack: QPtr<QToolButton> = tool.find_widget("import_from_translated_pack")?;
         let batch_translate: QPtr<QToolButton> = tool.find_widget("batch_translate")?;
+        let use_deepl_glossary: QPtr<QToolButton> = tool.find_widget("use_deepl_glossary")?;
+        use_deepl_glossary.set_tool_tip(&qtr("translator_use_deepl_glossary"));
+        use_deepl_glossary.set_checked(settings_bool(TRANSLATOR_USE_DEEPL_GLOSSARY));
         move_selection_up.set_tool_tip(&qtr("translator_move_selection_up"));
         move_selection_down.set_tool_tip(&qtr("translator_move_selection_down"));
         translate_with_deepl.set_tool_tip(&qtr("translator_translate_with_deepl"));
@@ -676,6 +699,7 @@ impl ToolTranslator {
             deepl_radio_button.set_enabled(false);
             translate_with_deepl.set_enabled(false);
             batch_translate_deepl_action.set_enabled(false);
+            use_deepl_glossary.set_enabled(false);
         } else {
             deepl_radio_button.set_checked(true);
         }
@@ -761,6 +785,8 @@ impl ToolTranslator {
             batch_translate_ai_action,
             batch_translate_google_action,
             batch_translate_overwrite_action,
+            use_deepl_glossary,
+            deepl_glossary_cache: Arc::new(RwLock::new(None)),
             original_value_html,
             original_value_textedit,
             translated_value_html,
@@ -878,7 +904,8 @@ impl ToolTranslator {
             let auto_result = if self.deepl_radio_button().is_checked() {
                 let source_language = self.map_source_language_to_deepl();
                 let language = self.map_language_to_deepl();
-                Self::ask_deepl(&source_text, source_language, language, &glossary).ok()
+                let (deepl_glossary, _) = self.deepl_glossary(&glossary, &source_language, &language);
+                Self::ask_deepl(&source_text, source_language, language, &deepl_glossary).ok()
             } else if self.ai_radio_button().is_checked() {
                 let language = self.map_language_to_natural();
                 let context = self.context_text_edit().to_plain_text().to_std_string();
@@ -1232,6 +1259,9 @@ impl ToolTranslator {
             return Err(anyhow!("Missing AI model name. Set it in Preferences > AI Settings."));
         }
 
+        let game = GAME_SELECTED.read().unwrap().display_name().to_owned();
+        let system_prompt = format!("You are a translator translating mods for Total War games. You are translating a mod for {game}, so your translations should use the game's official translations for its terms and names whenever possible.");
+
         let mut prompt = format!("Translate the sentence after #### to {language}, keeping the translation as close to the original in tone and style as you can.");
         prompt.push_str(" Preserve the following parts of the text in the translation: any text delimited with '[[' and ']]', '||', jumplines and tabulations.");
 
@@ -1257,6 +1287,7 @@ impl ToolTranslator {
             "temperature": 0.2,
             "max_tokens": max_tokens,
             "messages": [
+                { "role": "system", "content": system_prompt },
                 { "role": "user", "content": prompt }
             ],
         });
@@ -1295,7 +1326,7 @@ impl ToolTranslator {
         Ok(response_text)
     }
 
-    fn ask_deepl(string: &str, source_language: Lang, language: Lang, glossary: &BTreeMap<String, String>) -> Result<String> {
+    fn ask_deepl(string: &str, source_language: Lang, language: Lang, glossary: &DeepLGlossary) -> Result<String> {
         Self::ask_deepl_many(vec![string.to_owned()], source_language, language, glossary)?
             .pop()
             .ok_or_else(|| anyhow!("DeepL returned no translation."))
@@ -1308,7 +1339,7 @@ impl ToolTranslator {
     /// * `strings` - Texts to translate. DeepL translates each one independently.
     /// * `source_language` - Language of the texts.
     /// * `language` - Language to translate them to.
-    /// * `glossary` - Preferred translations for specific terms, sent as a hint in DeepL's `context`.
+    /// * `glossary` - How to pass the glossary: as a glossary stored in DeepL, or as a hint.
     ///
     /// # Returns
     ///
@@ -1319,7 +1350,7 @@ impl ToolTranslator {
     /// Returns a [`RateLimitedError`] if DeepL rate-limits the request, or a generic error if the request
     /// fails or doesn't return one translation per text.
     #[tokio::main]
-    async fn ask_deepl_many(strings: Vec<String>, source_language: Lang, language: Lang, glossary: &BTreeMap<String, String>) -> Result<Vec<String>> {
+    async fn ask_deepl_many(strings: Vec<String>, source_language: Lang, language: Lang, glossary: &DeepLGlossary) -> Result<Vec<String>> {
         let api_key = settings_string(DEEPL_API_KEY);
         if api_key.is_empty() {
             return Err(anyhow!("Missing DeepL API Key."))
@@ -1335,37 +1366,27 @@ impl ToolTranslator {
                 .replace("]]", "]]>"))
             .collect::<Vec<_>>();
 
-        let ignore_tags = vec![
-            "rgba".to_owned(),
-            "col".to_owned(),
-            "img".to_owned(),
-            "url".to_owned(),
-            "sl".to_owned(),
-            "sl_tooltip".to_owned(),
-            "tooltip".to_owned(),
-        ];
+        let mut request = api.translate_text(strings, language);
+        request.source_lang(source_language)
+            .model_type(ModelType::PreferQualityOptimized)
+            .ignore_tags(vec![
+                "rgba".to_owned(),
+                "col".to_owned(),
+                "img".to_owned(),
+                "url".to_owned(),
+                "sl".to_owned(),
+                "sl_tooltip".to_owned(),
+                "tooltip".to_owned(),
+            ])
+            .tag_handling(TagHandling::Xml);
 
-        // The deepl crate's builder changes type when `.context()` is set, so it can't be added conditionally
-        // to a stored builder. The glossary goes there because `context` influences the translation without being translated.
-        let glossary_hint = Self::format_glossary_hint(glossary);
-        let translated = if glossary_hint.is_empty() {
-            api.translate_text(strings, language)
-                .source_lang(source_language)
-                .model_type(ModelType::PreferQualityOptimized)
-                .ignore_tags(ignore_tags)
-                .tag_handling(TagHandling::Xml)
-                .await
-        } else {
-            api.translate_text(strings, language)
-                .source_lang(source_language)
-                .model_type(ModelType::PreferQualityOptimized)
-                .ignore_tags(ignore_tags)
-                .tag_handling(TagHandling::Xml)
-                .context(glossary_hint)
-                .await
-        };
+        match glossary {
+            DeepLGlossary::Stored(id) => { request.glossary_id(id.to_owned()); },
+            DeepLGlossary::Hint(hint) if !hint.is_empty() => { request.context(hint.to_owned()); },
+            DeepLGlossary::Hint(_) => {},
+        }
 
-        let translated = translated
+        let translated = request.await
             .map_err(|error| match error {
                 DeepLError::Network { status, message } if status.as_u16() == 429 => anyhow!(RateLimitedError(message)),
                 error => anyhow!(error),
@@ -1482,6 +1503,18 @@ impl ToolTranslator {
             .collect::<Vec<_>>();
 
         let event_loop = QEventLoop::new_0a();
+
+        // Syncing the DeepL glossary may take a few requests, so do it once, with the progress dialog already up.
+        let (deepl_glossary, deepl_glossary_error) = match method {
+            BatchTranslateMethod::Deepl => {
+                progress.set_label_text(&qtr("translator_batch_deepl_glossary"));
+                progress.set_value(0);
+                event_loop.process_events();
+                self.deepl_glossary(&glossary, &source_language_deepl, &language_deepl)
+            }
+            BatchTranslateMethod::Ai | BatchTranslateMethod::Google => (DeepLGlossary::Hint(String::new()), None),
+        };
+
         let mut interval = BATCH_MIN_INTERVAL;
         let mut last_request: Option<Instant> = None;
         let mut processed = 0;
@@ -1503,7 +1536,7 @@ impl ToolTranslator {
 
                 last_request = Some(Instant::now());
                 let result = match method {
-                    BatchTranslateMethod::Deepl => Self::ask_deepl_many(sources[group.clone()].to_vec(), source_language_deepl.clone(), language_deepl.clone(), &glossary),
+                    BatchTranslateMethod::Deepl => Self::ask_deepl_many(sources[group.clone()].to_vec(), source_language_deepl.clone(), language_deepl.clone(), &deepl_glossary),
                     BatchTranslateMethod::Ai => Self::ask_ai(&sources[group.start], &language_natural, &context, &glossary).map(|translation| vec![translation]),
                     BatchTranslateMethod::Google => Self::ask_google(&sources[group.start], &language_google).map(|translation| vec![translation]),
                 };
@@ -1549,12 +1582,159 @@ impl ToolTranslator {
             text.push_str(&tr("translator_batch_results_failed"));
         }
 
+        if let Some(error) = deepl_glossary_error {
+            text.push_str(&tre("translator_batch_results_deepl_glossary_failed", &[&error]));
+        }
+
         let icon = if failed.is_empty() && not_processed == 0 { Icon::Information } else { Icon::Warning };
         let message_box = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(icon, &qtr("translator_batch_results_title"), &QString::from_std_str(text), QFlags::from(StandardButton::Ok), self.tool.main_widget());
         if !failed.is_empty() {
             message_box.set_detailed_text(&QString::from_std_str(failed.join("\n")));
         }
         message_box.exec();
+    }
+
+    /// Decide how to pass the glossary to DeepL, syncing it to a glossary stored in DeepL if that's enabled.
+    ///
+    /// If syncing fails, the glossary is sent as a hint instead, and the error is logged.
+    ///
+    /// # Arguments
+    ///
+    /// * `glossary` - Glossary to pass.
+    /// * `source_language` - Language translated from.
+    /// * `language` - Language translated to.
+    ///
+    /// # Returns
+    ///
+    /// How to pass the glossary, and the error if syncing it to DeepL failed.
+    unsafe fn deepl_glossary(&self, glossary: &BTreeMap<String, String>, source_language: &Lang, language: &Lang) -> (DeepLGlossary, Option<String>) {
+        let hint = DeepLGlossary::Hint(Self::format_glossary_hint(glossary));
+        if !self.use_deepl_glossary.is_checked() {
+            return (hint, None);
+        }
+
+        // DeepL rejects entries without a translation, and its TSV entry format can't hold tabs or line breaks.
+        let entries = glossary.iter()
+            .filter(|(source, translation)| !translation.trim().is_empty() && ![source, translation].iter().any(|text| text.contains(['\t', '\n', '\r'])))
+            .collect::<Vec<_>>();
+
+        if entries.is_empty() {
+            return (hint, None);
+        }
+
+        match self.stored_deepl_glossary(&entries, source_language, language) {
+            Ok(id) => (DeepLGlossary::Stored(id), None),
+            Err(error) => {
+                warn!("Couldn't use a DeepL glossary, sending the glossary as a hint instead: {error}");
+                (hint, Some(error.to_string()))
+            }
+        }
+    }
+
+    /// Get the id of the glossary stored in DeepL for this pack and language pair, creating or replacing it if needed.
+    ///
+    /// # Arguments
+    ///
+    /// * `entries` - Glossary entries to store.
+    /// * `source_language` - Language translated from.
+    /// * `language` - Language translated to.
+    ///
+    /// # Returns
+    ///
+    /// The id of the stored glossary.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the languages aren't supported by DeepL glossaries, or if any DeepL request fails.
+    fn stored_deepl_glossary(&self, entries: &[(&String, &String)], source_language: &Lang, language: &Lang) -> Result<String> {
+        let source = Self::deepl_glossary_language(source_language)?;
+        let target = Self::deepl_glossary_language(language)?;
+
+        // The name identifies the pack and language pair, and ends with a fingerprint of the entries, so a changed glossary
+        // gets a new name. DefaultHasher may change between Rust versions, which only means the glossary gets recreated once.
+        let prefix = format!("RPFM {}/{} {source}-{target} ", GAME_SELECTED.read().unwrap().key(), self.pack_tr.pack_name());
+        let mut hasher = DefaultHasher::new();
+        entries.hash(&mut hasher);
+        let name = format!("{prefix}{:016x}", hasher.finish());
+
+        if let Some((cached_name, id)) = &*self.deepl_glossary_cache.read().unwrap() {
+            if *cached_name == name {
+                return Ok(id.to_owned());
+            }
+        }
+
+        let id = Self::sync_deepl_glossary(&prefix, &name, source, target, entries)?;
+        *self.deepl_glossary_cache.write().unwrap() = Some((name, id.to_owned()));
+        Ok(id)
+    }
+
+    /// Find the glossary stored in DeepL called `name`, or create it, deleting any other one whose name starts with `prefix`.
+    ///
+    /// DeepL glossaries can't be edited, so a changed glossary replaces the previous one.
+    ///
+    /// # Arguments
+    ///
+    /// * `prefix` - Start of the names of the glossaries for this pack and language pair.
+    /// * `name` - Full name of the glossary with the current entries.
+    /// * `source` - Glossary source language.
+    /// * `target` - Glossary target language.
+    /// * `entries` - Glossary entries.
+    ///
+    /// # Returns
+    ///
+    /// The id of the stored glossary.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any DeepL request fails, or if a new glossary doesn't become ready in time.
+    #[tokio::main]
+    async fn sync_deepl_glossary(prefix: &str, name: &str, source: GlossaryLanguage, target: GlossaryLanguage, entries: &[(&String, &String)]) -> Result<String> {
+        let api_key = settings_string(DEEPL_API_KEY);
+        if api_key.is_empty() {
+            return Err(anyhow!("Missing DeepL API Key."))
+        };
+
+        let api = DeepLApi::with(&api_key).new();
+
+        let mut stored_id = None;
+        for glossary in api.list_all_glossaries().await?.into_iter().filter(|glossary| glossary.name.starts_with(prefix)) {
+            if glossary.name == name && stored_id.is_none() {
+                stored_id = Some(glossary.glossary_id);
+            } else {
+                api.delete_glossary(glossary.glossary_id).await?;
+            }
+        }
+
+        if let Some(id) = stored_id {
+            return Ok(id);
+        }
+
+        let created = api.create_glossary(name)
+            .source_lang(source)
+            .target_lang(target)
+            .entries(entries.iter().map(|(source, translation)| (source.as_str(), translation.as_str())))
+            .send()
+            .await?;
+
+        // New glossaries can take a moment before they're usable in translations.
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let mut ready = created.ready;
+        while !ready {
+            if Instant::now() >= deadline {
+                return Err(anyhow!("The DeepL glossary wasn't ready in time."));
+            }
+
+            tokio::time::sleep(Duration::from_millis(500)).await;
+            ready = api.retrieve_glossary_details(&created.glossary_id).await?.ready;
+        }
+
+        Ok(created.glossary_id)
+    }
+
+    /// Map a DeepL translation language to its glossary language. Glossaries use base codes, without regional variants.
+    fn deepl_glossary_language(language: &Lang) -> Result<GlossaryLanguage> {
+        let code = language.as_ref().split('-').next().unwrap_or_default().to_lowercase();
+        GlossaryLanguage::from_str(&code).map_err(|error| anyhow!(error))
     }
 
     /// Snapshot of the glossary as the user currently has it in its table.

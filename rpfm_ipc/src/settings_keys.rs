@@ -124,6 +124,7 @@ pub const DEEPL_API_KEY: &str = "deepl_api_key";
 
 // Translator settings.
 pub const TRANSLATOR_SOURCE_LANGUAGE: &str = "translator_source_language";
+pub const TRANSLATOR_USE_DEEPL_GLOSSARY: &str = "translator_use_deepl_glossary";
 
 // Optimizer settings.
 pub const PACK_REMOVE_ITM_FILES: &str = "pack_remove_itm_files";

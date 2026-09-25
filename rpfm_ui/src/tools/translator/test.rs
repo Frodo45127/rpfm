@@ -52,3 +52,18 @@ fn batch_groups_deepl_byte_limit() {
 fn batch_groups_empty() {
     assert!(ToolTranslator::batch_groups(&[], BatchTranslateMethod::Deepl).is_empty());
 }
+
+/// DeepL glossaries take base language codes, so regional variants of the translation languages are collapsed.
+#[test]
+fn deepl_glossary_language_collapses_variants() {
+    for (language, expected) in [
+        (Lang::EN_GB, GlossaryLanguage::En),
+        (Lang::PT_BR, GlossaryLanguage::Pt),
+        (Lang::ZH_HANS, GlossaryLanguage::Zh),
+        (Lang::ZH_HANT, GlossaryLanguage::Zh),
+        (Lang::DE, GlossaryLanguage::De),
+        (Lang::TR, GlossaryLanguage::Tr),
+    ] {
+        assert_eq!(ToolTranslator::deepl_glossary_language(&language).unwrap(), expected);
+    }
+}
