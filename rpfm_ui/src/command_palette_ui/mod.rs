@@ -104,6 +104,7 @@ pub unsafe fn show_file_palette(
                 false,
                 false,
                 DataSource::PackFile,
+                app_ui.active_pane().get(),
             );
         }
     }
@@ -142,7 +143,7 @@ pub unsafe fn show_command_palette(
     collect_actions_from_menu(&tab_context_menu, "File Tab", &mut actions, &palette_ptr);
 
     // Collect actions from the currently active file view's context menu (if any).
-    let current_widget = app_ui.tab_bar_packed_file().current_widget();
+    let current_widget = app_ui.active_tab_widget().current_widget();
     if !current_widget.is_null() {
         for file_view in crate::UI_STATE.get_open_packedfiles().iter() {
             if file_view.main_widget().as_mut_raw_ptr() == current_widget.as_mut_raw_ptr() {

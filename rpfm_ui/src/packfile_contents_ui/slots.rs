@@ -247,13 +247,16 @@ impl PackFileContentsSlots {
                                 let position = open_packedfiles.iter().position(|x| *x.path_read() == *path_before && x.data_source() == DataSource::PackFile).unwrap();
                                 let data = open_packedfiles.remove(position);
                                 let widget = data.main_widget();
-                                let index = app_ui.tab_bar_packed_file().index_of(widget);
-                                let path_split_before = path_before.split('/').collect::<Vec<_>>();
-                                let path_split_after = path_after.split('/').collect::<Vec<_>>();
-                                let old_name = path_split_before.last().unwrap();
-                                let new_name = path_split_after.last().unwrap();
-                                if old_name != new_name {
-                                    app_ui.tab_bar_packed_file().set_tab_text(index, &QString::from_std_str(new_name));
+                                if let Some(pane) = app_ui.pane_of(widget) {
+                                    let tab_widget = app_ui.tab_widget(pane);
+                                    let index = tab_widget.index_of(widget);
+                                    let path_split_before = path_before.split('/').collect::<Vec<_>>();
+                                    let path_split_after = path_after.split('/').collect::<Vec<_>>();
+                                    let old_name = path_split_before.last().unwrap();
+                                    let new_name = path_split_after.last().unwrap();
+                                    if old_name != new_name {
+                                        tab_widget.set_tab_text(index, &QString::from_std_str(new_name));
+                                    }
                                 }
 
                                 data.set_path(path_after);
@@ -284,7 +287,7 @@ impl PackFileContentsSlots {
             dependencies_ui,
             references_ui => move || {
             rpfm_telemetry::track_action("Open PackedFile Preview");
-            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, None, true, false, DataSource::PackFile);
+            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, None, true, false, DataSource::PackFile, app_ui.active_pane().get());
         }));
 
         // Slot to open the selected PackedFile as a permanent view.
@@ -296,7 +299,7 @@ impl PackFileContentsSlots {
             dependencies_ui,
             references_ui => move || {
             rpfm_telemetry::track_action("Open PackedFile Full");
-            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, None, false, false, DataSource::PackFile);
+            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, None, false, false, DataSource::PackFile, app_ui.active_pane().get());
         }));
 
         // What happens when we trigger one of the filter events for the PackFile Contents TreeView.
@@ -1293,18 +1296,21 @@ impl PackFileContentsSlots {
                                             let position = open_packedfiles.iter().position(|x| *x.path_read() == *path_before && x.data_source() == DataSource::PackFile).unwrap();
                                             let data = open_packedfiles.remove(position);
                                             let widget = data.main_widget();
-                                            let index = app_ui.tab_bar_packed_file().index_of(widget);
-                                            let path_split_before = path_before.split('/').collect::<Vec<_>>();
-                                            let path_split_after = path_after.split('/').collect::<Vec<_>>();
-                                            let old_name = path_split_before.last().unwrap();
-                                            let new_name = path_split_after.last().unwrap();
-                                            if old_name != new_name {
-                                                let mut new_name = new_name.to_string();
-                                                if data.is_preview() {
-                                                    new_name.push_str(" (Preview)");
-                                                }
+                                            if let Some(pane) = app_ui.pane_of(widget) {
+                                                let tab_widget = app_ui.tab_widget(pane);
+                                                let index = tab_widget.index_of(widget);
+                                                let path_split_before = path_before.split('/').collect::<Vec<_>>();
+                                                let path_split_after = path_after.split('/').collect::<Vec<_>>();
+                                                let old_name = path_split_before.last().unwrap();
+                                                let new_name = path_split_after.last().unwrap();
+                                                if old_name != new_name {
+                                                    let mut new_name = new_name.to_string();
+                                                    if data.is_preview() {
+                                                        new_name.push_str(" (Preview)");
+                                                    }
 
-                                                app_ui.tab_bar_packed_file().set_tab_text(index, &QString::from_std_str(new_name));
+                                                    tab_widget.set_tab_text(index, &QString::from_std_str(new_name));
+                                                }
                                             }
 
                                             data.set_path(path_after);
@@ -1599,7 +1605,7 @@ impl PackFileContentsSlots {
             dependencies_ui,
             references_ui => move |_| {
             rpfm_telemetry::track_action("Open In External Program");
-            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, None, false, true, DataSource::PackFile);
+            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, None, false, true, DataSource::PackFile, app_ui.active_pane().get());
         }));
 
         let contextual_menu_open_packfile_settings = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
@@ -1622,7 +1628,7 @@ impl PackFileContentsSlots {
             dependencies_ui,
             references_ui => move |_| {
             rpfm_telemetry::track_action("Open Notes");
-            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, Some(RESERVED_NAME_NOTES.to_owned()), false, false, DataSource::PackFile);
+            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, Some(RESERVED_NAME_NOTES.to_owned()), false, false, DataSource::PackFile, app_ui.active_pane().get());
         }));
 
         // What happens when we trigger the "Merge Tables" action in the Contextual Menu.

@@ -127,6 +127,7 @@ impl UI {
         // matches it instead of flashing Qt's defaults until the settings restore later.
         app_ui.main_window().restore_geometry(&QByteArray::from_slice(&settings_raw_data(GEOMETRY)));
         app_ui.main_window().restore_state_1a(&QByteArray::from_slice(&settings_raw_data(WINDOW_STATE)));
+        app_ui.tab_bar_packed_file_splitter().restore_state(&QByteArray::from_slice(&settings_raw_data(SPLIT_VIEW_SPLITTER_STATE)));
 
         // Apply the font only if we have one set.
         let font_name = settings_string(FONT_NAME);
@@ -296,7 +297,7 @@ impl UI {
                     if !rfiles.is_empty() {
                         for file in &rfiles {
                             let path = file.to_string_lossy().to_string();
-                            AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path), false, false, DataSource::PackFile);
+                            AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path), false, false, DataSource::PackFile, app_ui.active_pane().get());
                         }
                     }
 

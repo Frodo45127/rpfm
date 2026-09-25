@@ -14,6 +14,10 @@ Module with all the code to connect `AppUI` signals with their corresponding slo
 This module is, and should stay, private, as it's only glue between the `AppUI` and `AppUISlots` structs.
 !*/
 
+use qt_widgets::QApplication;
+
+use qt_core::QCoreApplication;
+
 use std::rc::Rc;
 
 use crate::ffi::{main_window_drop_pack_signal, main_window_theme_changed_signal};
@@ -121,9 +125,13 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     //-----------------------------------------------//
     // `FileView` connections.
     //-----------------------------------------------//
-    app_ui.tab_bar_packed_file.tab_close_requested().connect(&slots.packed_file_hide);
-    app_ui.tab_bar_packed_file.current_changed().connect(&slots.packed_file_update);
-    app_ui.tab_bar_packed_file.tab_bar_double_clicked().connect(&slots.packed_file_unpreview);
+    app_ui.tab_bar_packed_file.tab_close_requested().connect(&slots.packed_file_hide_primary);
+    app_ui.tab_bar_packed_file.current_changed().connect(&slots.packed_file_update_primary);
+    app_ui.tab_bar_packed_file.tab_bar_double_clicked().connect(&slots.packed_file_unpreview_primary);
+    app_ui.tab_bar_packed_file_2.tab_close_requested().connect(&slots.packed_file_hide_secondary);
+    app_ui.tab_bar_packed_file_2.current_changed().connect(&slots.packed_file_update_secondary);
+    app_ui.tab_bar_packed_file_2.tab_bar_double_clicked().connect(&slots.packed_file_unpreview_secondary);
+    QCoreApplication::instance().dynamic_cast::<QApplication>().focus_changed().connect(&slots.pane_focus_changed);
 
     //-----------------------------------------------//
     // `Generic` connections.
@@ -133,7 +141,8 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.timer_connection_check.timeout().connect(&slots.connection_check);
     app_ui.timer_open_pack_dispatch.timeout().connect(&slots.open_pack_dispatch);
 
-    app_ui.tab_bar_packed_file.custom_context_menu_requested().connect(&slots.tab_bar_packed_file_context_menu_show);
+    app_ui.tab_bar_packed_file.custom_context_menu_requested().connect(&slots.tab_bar_packed_file_context_menu_show_primary);
+    app_ui.tab_bar_packed_file_2.custom_context_menu_requested().connect(&slots.tab_bar_packed_file_context_menu_show_secondary);
     app_ui.tab_bar_packed_file_close.triggered().connect(&slots.tab_bar_packed_file_close);
     app_ui.tab_bar_packed_file_close_all.triggered().connect(&slots.tab_bar_packed_file_close_all);
     app_ui.tab_bar_packed_file_close_all_other.triggered().connect(&slots.tab_bar_packed_file_close_all_other);
@@ -143,6 +152,8 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.tab_bar_packed_file_next.triggered().connect(&slots.tab_bar_packed_file_next);
     app_ui.tab_bar_packed_file_import_from_dependencies.triggered().connect(&slots.tab_bar_packed_file_import_from_dependencies);
     app_ui.tab_bar_packed_file_toggle_quick_notes.triggered().connect(&slots.tab_bar_packed_file_toggle_quick_notes);
+    app_ui.tab_bar_packed_file_open_in_other_pane.triggered().connect(&slots.tab_bar_packed_file_open_in_other_pane);
+    app_ui.tab_bar_packed_file_merge_panes.triggered().connect(&slots.tab_bar_packed_file_merge_panes);
 
     main_window_drop_pack_signal(app_ui.main_window.static_upcast()).connect(&slots.open_pack_drop);
     main_window_theme_changed_signal(app_ui.main_window.static_upcast()).connect(&slots.theme_changed);

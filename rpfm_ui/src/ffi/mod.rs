@@ -782,6 +782,11 @@ unsafe fn save_main_window_state(main_window: *mut QMainWindow) {
     let window = main_window.as_ref().unwrap();
     let _ = settings_set_raw_data(GEOMETRY, &window.save_geometry().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
     let _ = settings_set_raw_data(WINDOW_STATE, &window.save_state_0a().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
+
+    let splitter = crate::TAB_SPLITTER.load(std::sync::atomic::Ordering::SeqCst);
+    if let Some(splitter) = splitter.as_ref() {
+        let _ = settings_set_raw_data(SPLIT_VIEW_SPLITTER_STATE, &splitter.save_state().as_slice().iter().map(|x| *x as u8).collect::<Vec<_>>());
+    }
 }
 
 /// This function allow us to create a dialog when trying to close another dialog.

@@ -1290,6 +1290,8 @@ new_tip = New Quick Note
 tip_edit = Edit Quick Note
 tip_delete = Delete Quick Note
 toggle_quick_notes = Toggle Quick Notes
+open_in_other_pane = Move to Other Pane
+merge_panes = Merge Panes
 
 debug_colour_light_label = Light Theme
 debug_colour_dark_label = Dark Theme

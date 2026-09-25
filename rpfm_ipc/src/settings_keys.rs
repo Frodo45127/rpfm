@@ -150,6 +150,7 @@ pub const GEOMETRY: &str = "geometry";
 pub const WINDOW_STATE: &str = "windowState";
 pub const ORIGINAL_GEOMETRY: &str = "originalGeometry";
 pub const ORIGINAL_WINDOW_STATE: &str = "originalWindowState";
+pub const SPLIT_VIEW_SPLITTER_STATE: &str = "splitViewSplitterState";
 
 // QSettings colour keys (used by both Rust and C++ sides).
 pub const COLOUR_LIGHT_TABLE_ADDED: &str = "colour_light_table_added";

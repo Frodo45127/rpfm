@@ -3819,7 +3819,7 @@ impl TableView {
                         }
 
                         // Open the table and select the cell.
-                        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path.to_owned()), true, false, data_source);
+                        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path.to_owned()), true, false, data_source, app_ui.active_pane().get());
                         if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.path_read() == path && x.data_source() == data_source) {
                             if let ViewType::Internal(View::Table(view)) = file_view.view_type() {
                                 let table_view = view.get_ref_table();
@@ -3962,7 +3962,7 @@ impl TableView {
 
                     // If we have a file and its data source, open it.
                     if let Some((data_source, path)) = file {
-                        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path.to_owned()), true, false, data_source);
+                        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path.to_owned()), true, false, data_source, app_ui.active_pane().get());
                     }
                 } else {
                     error_message = tr("file_for_field_not_found");
@@ -4060,7 +4060,7 @@ impl TableView {
                         }
 
                         // Open the table and select the cell.
-                        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui,Some(path.to_owned()), true, false, data_source);
+                        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path.to_owned()), true, false, data_source, app_ui.active_pane().get());
                         if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.path_read() == path && x.data_source() == data_source) {
                             if let ViewType::Internal(View::Table(view)) = file_view.view_type() {
                                 let table_view = view.get_ref_table();

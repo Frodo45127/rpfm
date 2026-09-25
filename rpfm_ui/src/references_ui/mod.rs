@@ -249,7 +249,7 @@ impl ReferencesUI {
 
         // Open the table and select the cell. The selection update above places the right pack at
         // the focus, so open_packedfile picks the correct pack when creating the tab.
-        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui,Some(reference_path.to_owned()), true, false, reference_data_source);
+        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(reference_path.to_owned()), true, false, reference_data_source, app_ui.active_pane().get());
 
         // Match the just-opened tab by pack key for PackFile sources, so we don't pick up a tab
         // from a different pack with the same path. Use the pack key that came back with the

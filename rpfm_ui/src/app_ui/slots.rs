@@ -21,6 +21,7 @@ use qt_widgets::QPushButton;
 use qt_widgets::QTextEdit;
 use qt_widgets::SlotOfQPoint;
 use qt_widgets::SlotOfQListOfQString;
+use qt_widgets::SlotOfQWidgetQWidget;
 
 use qt_gui::QCursor;
 use qt_gui::QDesktopServices;
@@ -57,7 +58,7 @@ use rpfm_telemetry::*;
 use rpfm_ui_common::clone;
 use rpfm_ui_common::utils::{create_grid_layout, ref_from_atomic};
 
-use crate::app_ui::AppUI;
+use crate::app_ui::{AppUI, Pane};
 use crate::CENTRAL_COMMAND;
 use crate::communications::{RECONNECT_COMPLETE, THREADS_COMMUNICATION_ERROR, Command, Response, send_ipc_command, send_ipc_command_result, send_ipc_command_result_async, send_ipc_command_async};
 use crate::dependencies_ui::DependenciesUI;
@@ -178,9 +179,13 @@ pub struct AppUISlots {
     //-----------------------------------------------//
     // `FileView` slots.
     //-----------------------------------------------//
-    pub packed_file_hide: QBox<SlotOfInt>,
-    pub packed_file_update: QBox<SlotOfInt>,
-    pub packed_file_unpreview: QBox<SlotOfInt>,
+    pub packed_file_hide_primary: QBox<SlotOfInt>,
+    pub packed_file_hide_secondary: QBox<SlotOfInt>,
+    pub packed_file_update_primary: QBox<SlotOfInt>,
+    pub packed_file_update_secondary: QBox<SlotOfInt>,
+    pub packed_file_unpreview_primary: QBox<SlotOfInt>,
+    pub packed_file_unpreview_secondary: QBox<SlotOfInt>,
+    pub pane_focus_changed: QBox<SlotOfQWidgetQWidget>,
 
     //-----------------------------------------------//
     // `Generic` slots.
@@ -189,7 +194,8 @@ pub struct AppUISlots {
     pub server_status_update: QBox<SlotNoArgs>,
     pub connection_check: QBox<SlotNoArgs>,
 
-    pub tab_bar_packed_file_context_menu_show: QBox<SlotOfQPoint>,
+    pub tab_bar_packed_file_context_menu_show_primary: QBox<SlotOfQPoint>,
+    pub tab_bar_packed_file_context_menu_show_secondary: QBox<SlotOfQPoint>,
     pub tab_bar_packed_file_close: QBox<SlotNoArgs>,
     pub tab_bar_packed_file_close_all: QBox<SlotNoArgs>,
     pub tab_bar_packed_file_close_all_other: QBox<SlotNoArgs>,
@@ -199,6 +205,8 @@ pub struct AppUISlots {
     pub tab_bar_packed_file_next: QBox<SlotNoArgs>,
     pub tab_bar_packed_file_import_from_dependencies: QBox<SlotNoArgs>,
     pub tab_bar_packed_file_toggle_quick_notes: QBox<SlotNoArgs>,
+    pub tab_bar_packed_file_open_in_other_pane: QBox<SlotNoArgs>,
+    pub tab_bar_packed_file_merge_panes: QBox<SlotNoArgs>,
 
     pub open_pack_drop: QBox<SlotOfQListOfQString>,
 
@@ -222,6 +230,238 @@ pub struct AppUITempSlots {}
 //-------------------------------------------------------------------------------//
 //                             Implementations
 //-------------------------------------------------------------------------------//
+
+/// Shared body for the `currentChanged` signal of either tab pane.
+///
+/// Refreshes dependency data/lookups/icons for the newly-focused table and pauses rendering
+/// on any other open rigid-model-like view, regardless of which pane it's parked in.
+unsafe fn handle_tab_current_changed(app_ui: &Rc<AppUI>, pane: Pane, index: i32) {
+    app_ui.toggle_welcome_visibility();
+
+    if index == -1 || NEW_FILE_VIEW_CREATED.load(std::sync::atomic::Ordering::SeqCst) {
+        NEW_FILE_VIEW_CREATED.store(false, std::sync::atomic::Ordering::SeqCst);
+        return;
+    }
+
+    app_ui.active_pane.set(pane);
+    let tab_widget = app_ui.tab_widget(pane);
+
+    for file_view in UI_STATE.get_open_packedfiles().iter() {
+        let widget = file_view.main_widget();
+        if tab_widget.index_of(widget) == index {
+
+            // Reload the quick notes view, in case we added notes on another path that affects this one.
+            file_view.notes_view().load_data();
+            if let ViewType::Internal(View::Table(table)) = file_view.view_type() {
+
+                // For tables, we have to update the dependency data, reload its profiles and reset the dropdown's data.
+                let table = table.get_ref_table();
+                let table_name = if let Some(name) = table.table_name() { name.to_owned() } else { "".to_owned() };
+                if let Ok(data) = get_reference_data(*table.get_packed_file_type(), &table_name, &table.table_definition(), false, &file_view.pack_key_copy()) {
+                    table.set_dependency_data(&data);
+                    table.table_model().block_signals(true);
+
+                    let definition = table.table_definition();
+
+                    // Update the delegates so they pick the most recent values from the settings.
+                    setup_item_delegates(
+                        &table.table_view().static_upcast(),
+                        &definition,
+                        &data,
+                        table.timer_delayed_updates()
+                    );
+
+                    let fields_processed = definition.fields_processed();
+                    let patches = Some(definition.patches());
+
+                    let table_data = get_table_from_view(&table.table_model().static_upcast(), &definition);
+                    for (column, field) in fields_processed.iter().enumerate() {
+
+                        // Update lookups pointing to other tables/locs. We don't need to update self-referencing lookups, as those update on edit.
+                        if settings_bool(ENABLE_LOOKUPS) && field.lookup(patches).is_some() {
+                            if let Some(column_data) = data.get(&(column as i32)) {
+                                let column_data = column_data.data();
+                                if !column_data.is_empty() {
+
+                                    for row in 0..table.table_model().row_count_0a() {
+                                        let item = table.table_model().item_2a(row, column as i32);
+                                        match column_data.get(&item.text().to_std_string()) {
+                                            Some(lookup) => item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(lookup)), ITEM_SUB_DATA),
+                                            None => item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str("")), ITEM_SUB_DATA),
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Update icons.
+                        if settings_bool(ENABLE_ICONS) && field.is_filename(patches) {
+                            let mut icons = BTreeMap::new();
+                            if let Ok(ref table_data) = table_data {
+
+                                if request_backend_files(&table_data.data(), column, field, patches, &mut icons).is_ok() {
+                                    if let Some(column_data) = icons.get(&(column as i32)) {
+                                        for row in 0..table.table_model().row_count_0a() {
+                                            let item = table.table_model().item_2a(row, column as i32);
+                                            let cell_data = item.text().to_std_string().replace('\\', "/");
+
+                                            // For paths, we need to fix the ones in older games starting with / or data/.
+                                            let mut start_offset = 0;
+                                            if cell_data.starts_with("/") {
+                                                start_offset += 1;
+                                            }
+                                            if cell_data.starts_with("data/") {
+                                                start_offset += 5;
+                                            }
+                                            let paths_join = column_data.0.replace('%', &cell_data[start_offset..]).to_lowercase();
+                                            let paths_split = paths_join.split(';');
+
+                                            let mut found = false;
+                                            for path in paths_split {
+                                                if let Some(icon) = column_data.1.get(path) {
+                                                    let icon = ref_from_atomic(icon);
+                                                    item.set_icon(icon);
+                                                    item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(path)), ITEM_ICON_PATH);
+                                                    found = true;
+                                                    break;
+                                                }
+                                            }
+
+                                            if !found {
+                                                item.set_icon(&QIcon::new());
+                                                item.set_data_2a(&QVariant::new(), ITEM_ICON_PATH);
+                                            }
+
+                                            // For tooltips, we just nuke all the catched pngs. It's simpler than trying to go one by one and finding the ones that need updating.
+                                            item.set_data_2a(&QVariant::new(), ITEM_ICON_CACHE);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    table.table_model().block_signals(false);
+
+                    let _ = table.load_table_view_profiles();
+
+                    setup_item_delegates(
+                        &table.table_view_ptr(),
+                        &table.table_definition(),
+                        &data,
+                        table.timer_delayed_updates()
+                    );
+                }
+            }
+
+            // If the view is a rigidmodel, resume rendering.
+            #[cfg(feature = "support_model_renderer")] {
+                if let ViewType::Internal(View::RigidModel(view)) = file_view.view_type() {
+                    crate::ffi::resume_rendering(&view.renderer().as_ptr());
+                }
+
+                else if let ViewType::Internal(View::VMD(view)) = file_view.view_type() {
+                    crate::ffi::resume_rendering(&view.renderer().as_ptr());
+                }
+
+                else if let ViewType::Internal(View::WSModel(view)) = file_view.view_type() {
+                    crate::ffi::resume_rendering(&view.renderer().as_ptr());
+                }
+            }
+
+            // In normal compilation, stop here the loop.
+            #[cfg(not(feature = "support_model_renderer"))] break;
+        }
+
+        // For other views, if they're a rigid view, we need to pause their rendering.
+        #[cfg(feature = "support_model_renderer")] if tab_widget.index_of(widget) != index {
+            if let ViewType::Internal(View::RigidModel(view)) = file_view.view_type() {
+                crate::ffi::pause_rendering(&view.renderer().as_ptr());
+            }
+        }
+    }
+
+    // We also have to check for colliding packedfile names, so we can use their full path instead.
+    app_ui.update_views_names();
+
+    // Update the background icon.
+    GameSelectedIcons::set_game_selected_icon(app_ui);
+}
+
+/// Shared body for the `tabBarDoubleClicked` signal of either tab pane.
+///
+/// Converts a preview tab into a permanent one and re-syncs the relevant source tree's
+/// selection to the double-clicked file.
+unsafe fn handle_tab_unpreview(app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>, dependencies_ui: &Rc<DependenciesUI>, pane: Pane, index: i32) {
+    if index == -1 { return; }
+
+    let tab_widget = app_ui.tab_widget(pane);
+    for file_view in UI_STATE.get_open_packedfiles().iter() {
+        let widget = file_view.main_widget();
+        if tab_widget.index_of(widget) == index {
+            if file_view.is_preview() {
+                file_view.set_is_preview(false);
+                let path = file_view.path_read();
+                let path_split = path.split('/').collect::<Vec<_>>();
+
+                let name = path_split.last().unwrap().to_owned();
+                tab_widget.set_tab_text(index, &QString::from_std_str(name));
+            }
+
+            // Find it in the relevant TreeView and select it.
+            match file_view.data_source() {
+                DataSource::PackFile => {
+                    let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&file_view.path_read(), DataSource::PackFile, &file_view.pack_key_copy());
+
+                    // Manually select the open PackedFile, then open it. This means we can open PackedFiles nor in out filter.
+                    UI_STATE.set_packfile_contents_read_only(true);
+
+                    if let Some(ref tree_index) = tree_index {
+                        if tree_index.is_valid() {
+                            pack_file_contents_ui.packfile_contents_tree_view().scroll_to_1a(tree_index.as_ref().unwrap());
+                            pack_file_contents_ui.packfile_contents_tree_view().selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+                        }
+                    }
+
+                    UI_STATE.set_packfile_contents_read_only(false);
+                },
+
+                DataSource::ParentFiles => {
+                    let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&file_view.path_read(), DataSource::ParentFiles, "");
+                    if let Some(ref tree_index) = tree_index {
+                        if tree_index.is_valid() {
+                            let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());
+                            dependencies_ui.dependencies_tree_view().scroll_to_1a(tree_index.as_ref().unwrap());
+                            dependencies_ui.dependencies_tree_view().selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+                        }
+                    }
+                },
+                DataSource::GameFiles => {
+                    let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&file_view.path_read(), DataSource::GameFiles, "");
+                    if let Some(ref tree_index) = tree_index {
+                        if tree_index.is_valid() {
+                            let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());
+                            dependencies_ui.dependencies_tree_view().scroll_to_1a(tree_index.as_ref().unwrap());
+                            dependencies_ui.dependencies_tree_view().selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+                        }
+                    }
+                },
+                DataSource::AssKitFiles => {
+                    let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&file_view.path_read(), DataSource::AssKitFiles, "");
+                    if let Some(ref tree_index) = tree_index {
+                        if tree_index.is_valid() {
+                            let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());
+                            dependencies_ui.dependencies_tree_view().scroll_to_1a(tree_index.as_ref().unwrap());
+                            dependencies_ui.dependencies_tree_view().selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
+                        }
+                    }
+                },
+                DataSource::ExternalFile => {},
+            };
+            break;
+        }
+    }
+}
 
 /// Implementation of `AppUISlots`.
 impl AppUISlots {
@@ -364,7 +604,7 @@ impl AppUISlots {
             app_ui,
             pack_file_contents_ui => move |_| {
                 let pack_key = {
-                    let current_widget = app_ui.tab_bar_packed_file.current_widget();
+                    let current_widget = app_ui.active_tab_widget().current_widget();
                     if current_widget.is_null() {
                         None
                     } else {
@@ -1287,239 +1527,48 @@ impl AppUISlots {
         //-----------------------------------------------//
         // `FileView` logic.
         //-----------------------------------------------//
-        let packed_file_hide = SlotOfInt::new(&app_ui.main_window, clone!(
+        let packed_file_hide_primary = SlotOfInt::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui => move |index| {
-                AppUI::file_view_hide(&app_ui, &pack_file_contents_ui, &[index]);
+                AppUI::file_view_hide(&app_ui, &pack_file_contents_ui, &[(Pane::Primary, index)]);
                 app_ui.toggle_welcome_visibility();
             }
         ));
 
-        let packed_file_update = SlotOfInt::new(&app_ui.main_window, clone!(
+        let packed_file_hide_secondary = SlotOfInt::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui => move |index| {
+                AppUI::file_view_hide(&app_ui, &pack_file_contents_ui, &[(Pane::Secondary, index)]);
                 app_ui.toggle_welcome_visibility();
-
-                if index == -1 || NEW_FILE_VIEW_CREATED.load(std::sync::atomic::Ordering::SeqCst) {
-                    NEW_FILE_VIEW_CREATED.store(false, std::sync::atomic::Ordering::SeqCst);
-                    return;
-                }
-
-                for file_view in UI_STATE.get_open_packedfiles().iter() {
-                    let widget = file_view.main_widget();
-                    if app_ui.tab_bar_packed_file.index_of(widget) == index {
-
-                        // Reload the quick notes view, in case we added notes on another path that affects this one.
-                        file_view.notes_view().load_data();
-                        if let ViewType::Internal(View::Table(table)) = file_view.view_type() {
-
-                            // For tables, we have to update the dependency data, reload its profiles and reset the dropdown's data.
-                            let table = table.get_ref_table();
-                            let table_name = if let Some(name) = table.table_name() { name.to_owned() } else { "".to_owned() };
-                            if let Ok(data) = get_reference_data(*table.get_packed_file_type(), &table_name, &table.table_definition(), false, &file_view.pack_key_copy()) {
-                                table.set_dependency_data(&data);
-                                table.table_model().block_signals(true);
-
-                                let definition = table.table_definition();
-
-                                // Update the delegates so they pick the most recent values from the settings.
-                                setup_item_delegates(
-                                    &table.table_view().static_upcast(),
-                                    &definition,
-                                    &data,
-                                    table.timer_delayed_updates()
-                                );
-
-                                let fields_processed = definition.fields_processed();
-                                let patches = Some(definition.patches());
-
-                                let table_data = get_table_from_view(&table.table_model().static_upcast(), &definition);
-                                for (column, field) in fields_processed.iter().enumerate() {
-
-                                    // Update lookups pointing to other tables/locs. We don't need to update self-referencing lookups, as those update on edit.
-                                    if settings_bool(ENABLE_LOOKUPS) && field.lookup(patches).is_some() {
-                                        if let Some(column_data) = data.get(&(column as i32)) {
-                                            let column_data = column_data.data();
-                                            if !column_data.is_empty() {
-
-                                                for row in 0..table.table_model().row_count_0a() {
-                                                    let item = table.table_model().item_2a(row, column as i32);
-                                                    match column_data.get(&item.text().to_std_string()) {
-                                                        Some(lookup) => item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(lookup)), ITEM_SUB_DATA),
-                                                        None => item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str("")), ITEM_SUB_DATA),
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    // Update icons.
-                                    if settings_bool(ENABLE_ICONS) && field.is_filename(patches) {
-                                        let mut icons = BTreeMap::new();
-                                        if let Ok(ref table_data) = table_data {
-
-                                            if request_backend_files(&table_data.data(), column, field, patches, &mut icons).is_ok() {
-                                                if let Some(column_data) = icons.get(&(column as i32)) {
-                                                    for row in 0..table.table_model().row_count_0a() {
-                                                        let item = table.table_model().item_2a(row, column as i32);
-                                                        let cell_data = item.text().to_std_string().replace('\\', "/");
-
-                                                        // For paths, we need to fix the ones in older games starting with / or data/.
-                                                        let mut start_offset = 0;
-                                                        if cell_data.starts_with("/") {
-                                                            start_offset += 1;
-                                                        }
-                                                        if cell_data.starts_with("data/") {
-                                                            start_offset += 5;
-                                                        }
-                                                        let paths_join = column_data.0.replace('%', &cell_data[start_offset..]).to_lowercase();
-                                                        let paths_split = paths_join.split(';');
-
-                                                        let mut found = false;
-                                                        for path in paths_split {
-                                                            if let Some(icon) = column_data.1.get(path) {
-                                                                let icon = ref_from_atomic(icon);
-                                                                item.set_icon(icon);
-                                                                item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(path)), ITEM_ICON_PATH);
-                                                                found = true;
-                                                                break;
-                                                            }
-                                                        }
-
-                                                        if !found {
-                                                            item.set_icon(&QIcon::new());
-                                                            item.set_data_2a(&QVariant::new(), ITEM_ICON_PATH);
-                                                        }
-
-                                                        // For tooltips, we just nuke all the catched pngs. It's simpler than trying to go one by one and finding the ones that need updating.
-                                                        item.set_data_2a(&QVariant::new(), ITEM_ICON_CACHE);
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-
-                                table.table_model().block_signals(false);
-
-                                let _ = table.load_table_view_profiles();
-
-                                setup_item_delegates(
-                                    &table.table_view_ptr(),
-                                    &table.table_definition(),
-                                    &data,
-                                    table.timer_delayed_updates()
-                                );
-                            }
-                        }
-
-                        // If the view is a rigidmodel, resume rendering.
-                        #[cfg(feature = "support_model_renderer")] {
-                            if let ViewType::Internal(View::RigidModel(view)) = file_view.view_type() {
-                                crate::ffi::resume_rendering(&view.renderer().as_ptr());
-                            }
-
-                            else if let ViewType::Internal(View::VMD(view)) = file_view.view_type() {
-                                crate::ffi::resume_rendering(&view.renderer().as_ptr());
-                            }
-
-                            else if let ViewType::Internal(View::WSModel(view)) = file_view.view_type() {
-                                crate::ffi::resume_rendering(&view.renderer().as_ptr());
-                            }
-                        }
-
-                        // In normal compilation, stop here the loop.
-                        #[cfg(not(feature = "support_model_renderer"))] break;
-                    }
-
-                    // For other views, if they're a rigid view, we need to pause their rendering.
-                    #[cfg(feature = "support_model_renderer")] if app_ui.tab_bar_packed_file.index_of(widget) != index {
-                        if let ViewType::Internal(View::RigidModel(view)) = file_view.view_type() {
-                            crate::ffi::pause_rendering(&view.renderer().as_ptr());
-                        }
-                    }
-                }
-
-                // We also have to check for colliding packedfile names, so we can use their full path instead.
-                app_ui.update_views_names();
-
-                // Update the background icon.
-                GameSelectedIcons::set_game_selected_icon(&app_ui);
             }
         ));
 
-        let packed_file_unpreview = SlotOfInt::new(&app_ui.main_window, clone!(
+        let pane_focus_changed = SlotOfQWidgetQWidget::new(&app_ui.main_window, clone!(
+            app_ui => move |_old, now| {
+                if let Some(pane) = app_ui.pane_containing(&now) {
+                    app_ui.active_pane.set(pane);
+                }
+            }
+        ));
+
+        let packed_file_update_primary = SlotOfInt::new(&app_ui.main_window, clone!(
+            app_ui => move |index| { handle_tab_current_changed(&app_ui, Pane::Primary, index); }
+        ));
+
+        let packed_file_update_secondary = SlotOfInt::new(&app_ui.main_window, clone!(
+            app_ui => move |index| { handle_tab_current_changed(&app_ui, Pane::Secondary, index); }
+        ));
+
+        let packed_file_unpreview_primary = SlotOfInt::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui,
-            dependencies_ui => move |index| {
-                if index == -1 { return; }
+            dependencies_ui => move |index| { handle_tab_unpreview(&app_ui, &pack_file_contents_ui, &dependencies_ui, Pane::Primary, index); }
+        ));
 
-                for file_view in UI_STATE.get_open_packedfiles().iter() {
-                    let widget = file_view.main_widget();
-                    if app_ui.tab_bar_packed_file.index_of(widget) == index {
-                        if file_view.is_preview() {
-                            file_view.set_is_preview(false);
-                            let path = file_view.path_read();
-                            let path_split = path.split('/').collect::<Vec<_>>();
-
-                            let name = path_split.last().unwrap().to_owned();
-                            app_ui.tab_bar_packed_file.set_tab_text(index, &QString::from_std_str(name));
-                        }
-
-                        // Find it in the relevant TreeView and select it.
-                        match file_view.data_source() {
-                            DataSource::PackFile => {
-                                let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&file_view.path_read(), DataSource::PackFile, &file_view.pack_key_copy());
-
-                                // Manually select the open PackedFile, then open it. This means we can open PackedFiles nor in out filter.
-                                UI_STATE.set_packfile_contents_read_only(true);
-
-                                if let Some(ref tree_index) = tree_index {
-                                    if tree_index.is_valid() {
-                                        pack_file_contents_ui.packfile_contents_tree_view().scroll_to_1a(tree_index.as_ref().unwrap());
-                                        pack_file_contents_ui.packfile_contents_tree_view().selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
-                                    }
-                                }
-
-                                UI_STATE.set_packfile_contents_read_only(false);
-                            },
-
-                            DataSource::ParentFiles => {
-                                let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&file_view.path_read(), DataSource::ParentFiles, "");
-                                if let Some(ref tree_index) = tree_index {
-                                    if tree_index.is_valid() {
-                                        let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());
-                                        dependencies_ui.dependencies_tree_view().scroll_to_1a(tree_index.as_ref().unwrap());
-                                        dependencies_ui.dependencies_tree_view().selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
-                                    }
-                                }
-                            },
-                            DataSource::GameFiles => {
-                                let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&file_view.path_read(), DataSource::GameFiles, "");
-                                if let Some(ref tree_index) = tree_index {
-                                    if tree_index.is_valid() {
-                                        let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());
-                                        dependencies_ui.dependencies_tree_view().scroll_to_1a(tree_index.as_ref().unwrap());
-                                        dependencies_ui.dependencies_tree_view().selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
-                                    }
-                                }
-                            },
-                            DataSource::AssKitFiles => {
-                                let tree_index = dependencies_ui.dependencies_tree_view().expand_treeview_to_item(&file_view.path_read(), DataSource::AssKitFiles, "");
-                                if let Some(ref tree_index) = tree_index {
-                                    if tree_index.is_valid() {
-                                        let _blocker = QSignalBlocker::from_q_object(dependencies_ui.dependencies_tree_view().static_upcast::<QObject>());
-                                        dependencies_ui.dependencies_tree_view().scroll_to_1a(tree_index.as_ref().unwrap());
-                                        dependencies_ui.dependencies_tree_view().selection_model().select_q_model_index_q_flags_selection_flag(tree_index.as_ref().unwrap(), QFlags::from(SelectionFlag::ClearAndSelect));
-                                    }
-                                }
-                            },
-                            DataSource::ExternalFile => {},
-                        };
-                        break;
-                    }
-                }
-            }
+        let packed_file_unpreview_secondary = SlotOfInt::new(&app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            dependencies_ui => move |index| { handle_tab_unpreview(&app_ui, &pack_file_contents_ui, &dependencies_ui, Pane::Secondary, index); }
         ));
 
         // Autosave slot.
@@ -1604,8 +1653,15 @@ impl AppUISlots {
         ));
 
         // When we want to show the context menu.
-        let tab_bar_packed_file_context_menu_show = SlotOfQPoint::new(&app_ui.main_window, clone!(
+        let tab_bar_packed_file_context_menu_show_primary = SlotOfQPoint::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
+            app_ui.active_pane.set(Pane::Primary);
+            app_ui.tab_bar_packed_file_context_menu.exec_1a_mut(&QCursor::pos_0a());
+        }));
+
+        let tab_bar_packed_file_context_menu_show_secondary = SlotOfQPoint::new(&app_ui.main_window, clone!(
+            app_ui => move |_| {
+            app_ui.active_pane.set(Pane::Secondary);
             app_ui.tab_bar_packed_file_context_menu.exec_1a_mut(&QCursor::pos_0a());
         }));
 
@@ -1613,22 +1669,25 @@ impl AppUISlots {
             app_ui,
             pack_file_contents_ui => move || {
             rpfm_telemetry::track_action("Close Tab");
-            let index = app_ui.tab_bar_packed_file.current_index();
-            AppUI::file_view_hide(&app_ui, &pack_file_contents_ui, &[index]);
+            let pane = app_ui.active_pane.get();
+            let index = app_ui.tab_widget(pane).current_index();
+            AppUI::file_view_hide(&app_ui, &pack_file_contents_ui, &[(pane, index)]);
         }));
 
         let tab_bar_packed_file_close_all = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui => move || {
             rpfm_telemetry::track_action("Close All Tabs");
+            let pane = app_ui.active_pane.get();
+            let active_tab_widget = app_ui.tab_widget(pane);
             let indexes = UI_STATE.get_open_packedfiles().iter().filter_map(|file_view| {
-                let index_to_check = app_ui.tab_bar_packed_file.index_of(file_view.main_widget());
+                let index_to_check = active_tab_widget.index_of(file_view.main_widget());
                 if index_to_check != -1 {
-                    Some(index_to_check)
+                    Some((pane, index_to_check))
                 } else {
                     None
                 }
-            }).collect::<Vec<i32>>();
+            }).collect::<Vec<(Pane, i32)>>();
 
             AppUI::file_view_hide(&app_ui, &pack_file_contents_ui, &indexes);
         }));
@@ -1637,15 +1696,17 @@ impl AppUISlots {
             app_ui,
             pack_file_contents_ui => move || {
             rpfm_telemetry::track_action("Close Other Tabs");
-            let index = app_ui.tab_bar_packed_file.current_index();
+            let pane = app_ui.active_pane.get();
+            let active_tab_widget = app_ui.tab_widget(pane);
+            let index = active_tab_widget.current_index();
             let indexes = UI_STATE.get_open_packedfiles().iter().filter_map(|file_view| {
-                let index_to_check = app_ui.tab_bar_packed_file.index_of(file_view.main_widget());
+                let index_to_check = active_tab_widget.index_of(file_view.main_widget());
                 if index_to_check != index && index_to_check != -1 {
-                    Some(index_to_check)
+                    Some((pane, index_to_check))
                 } else {
                     None
                 }
-            }).collect::<Vec<i32>>();
+            }).collect::<Vec<(Pane, i32)>>();
 
             AppUI::file_view_hide(&app_ui, &pack_file_contents_ui, &indexes);
         }));
@@ -1654,15 +1715,17 @@ impl AppUISlots {
             app_ui,
             pack_file_contents_ui => move || {
             rpfm_telemetry::track_action("Close Tabs Left");
-            let index = app_ui.tab_bar_packed_file.current_index();
+            let pane = app_ui.active_pane.get();
+            let active_tab_widget = app_ui.tab_widget(pane);
+            let index = active_tab_widget.current_index();
             let indexes = UI_STATE.get_open_packedfiles().iter().filter_map(|file_view| {
-                let index_to_check = app_ui.tab_bar_packed_file.index_of(file_view.main_widget());
-                if index_to_check < index {
-                    Some(index_to_check)
+                let index_to_check = active_tab_widget.index_of(file_view.main_widget());
+                if index_to_check != -1 && index_to_check < index {
+                    Some((pane, index_to_check))
                 } else {
                     None
                 }
-            }).collect::<Vec<i32>>();
+            }).collect::<Vec<(Pane, i32)>>();
             AppUI::file_view_hide(&app_ui, &pack_file_contents_ui, &indexes);
         }));
 
@@ -1670,32 +1733,36 @@ impl AppUISlots {
             app_ui,
             pack_file_contents_ui => move || {
             rpfm_telemetry::track_action("Close Tabs Right");
-            let index = app_ui.tab_bar_packed_file.current_index();
+            let pane = app_ui.active_pane.get();
+            let active_tab_widget = app_ui.tab_widget(pane);
+            let index = active_tab_widget.current_index();
             let indexes = UI_STATE.get_open_packedfiles().iter().filter_map(|file_view| {
-                let index_to_check = app_ui.tab_bar_packed_file.index_of(file_view.main_widget());
+                let index_to_check = active_tab_widget.index_of(file_view.main_widget());
                 if index_to_check > index {
-                    Some(index_to_check)
+                    Some((pane, index_to_check))
                 } else {
                     None
                 }
-            }).collect::<Vec<i32>>();
+            }).collect::<Vec<(Pane, i32)>>();
             AppUI::file_view_hide(&app_ui, &pack_file_contents_ui, &indexes);
         }));
 
         let tab_bar_packed_file_prev = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui => move || {
-                let index = app_ui.tab_bar_packed_file.current_index();
+                let active_tab_widget = app_ui.active_tab_widget();
+                let index = active_tab_widget.current_index();
                 if index != -1 {
-                    app_ui.tab_bar_packed_file.set_current_index(index - 1);
+                    active_tab_widget.set_current_index(index - 1);
                 }
             }
         ));
 
         let tab_bar_packed_file_next = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui => move || {
-                let index = app_ui.tab_bar_packed_file.current_index();
+                let active_tab_widget = app_ui.active_tab_widget();
+                let index = active_tab_widget.current_index();
                 if index != -1 {
-                    app_ui.tab_bar_packed_file.set_current_index(index + 1);
+                    active_tab_widget.set_current_index(index + 1);
                 }
             }
         ));
@@ -1713,11 +1780,12 @@ impl AppUISlots {
                     // - Get the data source and path of the open file.
                     // - Import it into our mod.
                     // - Change the data source of the view to PackFile, so we can reuse the view.
-                    let index = app_ui.tab_bar_packed_file.current_index();
+                    let active_tab_widget = app_ui.active_tab_widget();
+                    let index = active_tab_widget.current_index();
                     if index != -1 {
                         let mut paths_by_source = BTreeMap::new();
                         let data_source_and_path = if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().find(|file_view| {
-                            index == app_ui.tab_bar_packed_file.index_of(file_view.main_widget())
+                            index == active_tab_widget.index_of(file_view.main_widget())
                         }) {
                             let path = file_view.path_read();
                             let data_source = file_view.data_source();
@@ -1750,12 +1818,13 @@ impl AppUISlots {
         let tab_bar_packed_file_toggle_quick_notes = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui => move || {
                 rpfm_telemetry::track_action("Toggle Quick Notes");
-                let index = app_ui.tab_bar_packed_file.current_index();
+                let active_tab_widget = app_ui.active_tab_widget();
+                let index = active_tab_widget.current_index();
                 if index == -1 { return; }
 
                 for file_view in UI_STATE.get_open_packedfiles().iter() {
                     let widget = file_view.main_widget();
-                    if app_ui.tab_bar_packed_file.index_of(widget) == index {
+                    if active_tab_widget.index_of(widget) == index {
 
                         // Re-add the widget with the correct row span before making it visible.
                         if !file_view.notes_widget().is_visible() {
@@ -1767,6 +1836,42 @@ impl AppUISlots {
 
                         file_view.notes_widget().set_visible(!file_view.notes_widget().is_visible());
                         break;
+                    }
+                }
+            }
+        ));
+
+        let tab_bar_packed_file_open_in_other_pane = SlotNoArgs::new(&app_ui.main_window, clone!(
+            app_ui => move || {
+                rpfm_telemetry::track_action("Move Tab to Other Pane");
+                let source_pane = app_ui.active_pane.get();
+                let active_tab_widget = app_ui.tab_widget(source_pane);
+                let index = active_tab_widget.current_index();
+                if index == -1 { return; }
+
+                let target_pane = match source_pane {
+                    Pane::Primary => Pane::Secondary,
+                    Pane::Secondary => Pane::Primary,
+                };
+
+                for file_view in UI_STATE.get_open_packedfiles().iter() {
+                    if active_tab_widget.index_of(file_view.main_widget()) == index {
+                        AppUI::move_file_view_to_pane(&app_ui, file_view, target_pane);
+                        break;
+                    }
+                }
+            }
+        ));
+
+        let tab_bar_packed_file_merge_panes = SlotNoArgs::new(&app_ui.main_window, clone!(
+            app_ui => move || {
+                rpfm_telemetry::track_action("Merge Panes");
+                while app_ui.tab_bar_packed_file_2.count() > 0 {
+                    let widget = app_ui.tab_bar_packed_file_2.widget(0);
+                    let open_packedfiles = UI_STATE.get_open_packedfiles();
+                    match open_packedfiles.iter().find(|file_view| file_view.main_widget().as_mut_raw_ptr() == widget.as_mut_raw_ptr()) {
+                        Some(file_view) => AppUI::move_file_view_to_pane(&app_ui, file_view, Pane::Primary),
+                        None => break,
                     }
                 }
             }
@@ -1936,9 +2041,13 @@ impl AppUISlots {
             //-----------------------------------------------//
             // `FileView` slots.
             //-----------------------------------------------//
-            packed_file_hide,
-            packed_file_update,
-            packed_file_unpreview,
+            packed_file_hide_primary,
+            packed_file_hide_secondary,
+            packed_file_update_primary,
+            packed_file_update_secondary,
+            packed_file_unpreview_primary,
+            packed_file_unpreview_secondary,
+            pane_focus_changed,
 
             //-----------------------------------------------//
             // `Generic` slots.
@@ -1947,7 +2056,8 @@ impl AppUISlots {
             server_status_update,
             connection_check,
 
-            tab_bar_packed_file_context_menu_show,
+            tab_bar_packed_file_context_menu_show_primary,
+            tab_bar_packed_file_context_menu_show_secondary,
             tab_bar_packed_file_close,
             tab_bar_packed_file_close_all,
             tab_bar_packed_file_close_all_other,
@@ -1957,6 +2067,8 @@ impl AppUISlots {
             tab_bar_packed_file_next,
             tab_bar_packed_file_import_from_dependencies,
             tab_bar_packed_file_toggle_quick_notes,
+            tab_bar_packed_file_open_in_other_pane,
+            tab_bar_packed_file_merge_panes,
 
             open_pack_drop,
             open_pack_dispatch,

@@ -93,6 +93,8 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(file_tab_actions, "next_tab", "Next Tab", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+Tab"), "go-previous-symbolic-rtl");
     new_action(file_tab_actions, "import_from_dependencies", "Import From Dependencies", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "document-import-ocal");
     new_action(file_tab_actions, "toggle_quick_notes", "Toggle Quick Notes", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "visibility");
+    new_action(file_tab_actions, "open_in_other_pane", "Move to Other Pane", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "view-split-left-right");
+    new_action(file_tab_actions, "merge_panes", "Merge Panes", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "view-restore");
     file_tab_actions->readSettings();
 
     // Pack Tree Context actions.

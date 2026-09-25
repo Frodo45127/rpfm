@@ -942,7 +942,7 @@ impl GlobalSearchUI {
             _ => DataSource::PackFile,
         };
 
-        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path.to_owned()), false, false, data_source);
+        AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path.to_owned()), false, false, data_source, app_ui.active_pane().get());
 
         if is_match {
             // For PackFile matches, disambiguate by pack key so we don't grab a same-named tab from another pack.

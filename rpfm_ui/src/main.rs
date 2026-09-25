@@ -33,6 +33,7 @@
 #![windows_subsystem = "windows"]
 
 use qt_widgets::QApplication;
+use qt_widgets::QSplitter;
 use qt_widgets::QStatusBar;
 
 use qt_gui::QFont;
@@ -136,6 +137,9 @@ static UI_STATE: LazyLock<UIState> = LazyLock::new(UIState::default);
 
 /// Pointer to the status bar of the Main Window, for logging purpouses.
 static STATUS_BAR: LazyLock<AtomicPtr<QStatusBar>> = LazyLock::new(|| unsafe { atomic_from_q_box(QStatusBar::new_0a()) });
+
+/// Pointer to the splitter that holds the two file-view tab panes, so its layout can be persisted on close.
+static TAB_SPLITTER: LazyLock<AtomicPtr<QSplitter>> = LazyLock::new(|| unsafe { atomic_from_q_box(QSplitter::new()) });
 
 /// Monospace font, just in case we need it.
 static FONT_MONOSPACE: LazyLock<AtomicPtr<QFont>> = LazyLock::new(|| unsafe { atomic_from_cpp_box(QFontDatabase::system_font(SystemFont::FixedFont)) });

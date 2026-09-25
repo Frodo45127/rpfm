@@ -87,7 +87,7 @@ impl DependenciesUISlots {
             dependencies_ui,
             references_ui => move || {
             rpfm_telemetry::track_action("Open Dependency PackedFile (Preview)");
-            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, None, true, false, DataSource::GameFiles);
+            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, None, true, false, DataSource::GameFiles, app_ui.active_pane().get());
         }));
 
         // Slot to open the selected PackedFile as a permanent view.
@@ -99,7 +99,7 @@ impl DependenciesUISlots {
             dependencies_ui,
             references_ui => move || {
             rpfm_telemetry::track_action("Open Dependency PackedFile (Full)");
-            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, None, false, false, DataSource::GameFiles);
+            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &dependencies_ui, &references_ui, None, false, false, DataSource::GameFiles, app_ui.active_pane().get());
         }));
 
         // What happens when we trigger one of the filter events for the Dependencies TreeView.

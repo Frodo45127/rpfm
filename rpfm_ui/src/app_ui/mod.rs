@@ -33,6 +33,7 @@ use qt_widgets::QSpinBox;
 use qt_widgets::{q_message_box, QMessageBox};
 use qt_widgets::QScrollArea;
 use qt_widgets::QPushButton;
+use qt_widgets::QSplitter;
 use qt_widgets::QTabWidget;
 use qt_widgets::QTableWidget;
 use qt_widgets::QTableWidgetItem;
@@ -51,6 +52,7 @@ use qt_core::QTimer;
 use qt_core::ContextMenuPolicy;
 use qt_core::QBox;
 use qt_core::QEventLoop;
+use qt_core::QListOfInt;
 use qt_core::QListOfQObject;
 use qt_core::QPointerOfQObject;
 use qt_core::QPtr;
@@ -108,6 +110,7 @@ use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::references_ui::ReferencesUI;
 use crate::STATUS_BAR;
 use crate::SUPPORTED_GAMES;
+use crate::TAB_SPLITTER;
 use crate::TREEVIEW_ICONS;
 use crate::UI_STATE;
 use crate::settings_ui::backend::*;
@@ -153,6 +156,15 @@ pub mod tips;
 /// Open-pack slots enqueue one of these and trigger `timer_open_pack_dispatch`;
 /// the dispatcher slot drains the queue from a clean call stack so we never
 /// re-enter `open_packfile` from inside another in-flight blocking IPC.
+/// Identifies one of the two independent tab strips shown when split view is enabled.
+///
+/// A given file can only be open in one pane at a time; see `AppUI::open_packedfile`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Pane {
+    Primary,
+    Secondary,
+}
+
 #[derive(Debug, Clone)]
 pub struct PendingOpenRequest {
     pub paths: Vec<PathBuf>,
@@ -172,7 +184,11 @@ pub struct AppUI {
     // Main Window.
     //-------------------------------------------------------------------------------//
     main_window: QBox<QMainWindow>,
+    tab_bar_packed_file_splitter: QBox<QSplitter>,
     tab_bar_packed_file: QBox<QTabWidget>,
+    tab_bar_packed_file_2: QBox<QTabWidget>,
+    /// Pane new file views open in. Follows keyboard focus, and keeps its value while focus is outside both panes.
+    active_pane: Cell<Pane>,
     welcome_page_ui: crate::welcome_page_ui::WelcomePageUI,
     shortcuts: CppBox<QListOfQObject>,
     message_widget: QPtr<QWidget>,
@@ -323,6 +339,8 @@ pub struct AppUI {
     tab_bar_packed_file_next: QPtr<QAction>,
     tab_bar_packed_file_import_from_dependencies: QPtr<QAction>,
     tab_bar_packed_file_toggle_quick_notes: QPtr<QAction>,
+    tab_bar_packed_file_open_in_other_pane: QPtr<QAction>,
+    tab_bar_packed_file_merge_panes: QPtr<QAction>,
 
     /// Holds a `QPointer` to the last focused widget at the moment the main window is
     /// disabled, so we can restore focus when it's re-enabled.
@@ -357,19 +375,32 @@ impl AppUI {
         let menu_bar = main_window.menu_bar();
         let status_bar = main_window.status_bar();
         let message_widget = kmessage_widget_new_safe(&widget.as_ptr());
-        let tab_bar_packed_file = QTabWidget::new_1a(&widget);
-        tab_bar_packed_file.set_tabs_closable(true);
-        tab_bar_packed_file.set_movable(true);
-        tab_bar_packed_file.set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
-        status_bar.set_size_grip_enabled(false);
-        layout.add_widget_5a(&tab_bar_packed_file, 0, 0, 1, 1);
+
+        // The splitter hosts both tab panes side by side. Each pane is only shown while it has
+        // tabs open (see `toggle_welcome_visibility`), so pane 2 starts hidden.
+        let tab_bar_packed_file_splitter = QSplitter::from_q_widget(&widget);
+        TAB_SPLITTER.store(tab_bar_packed_file_splitter.as_mut_raw_ptr(), Ordering::SeqCst);
+        layout.add_widget_5a(&tab_bar_packed_file_splitter, 0, 0, 1, 1);
         layout.add_widget_5a(&message_widget, 1, 0, 1, 1);
         layout.set_row_stretch(0, 10);
 
-        // Welcome widget, shown when no tabs are open.
+        let tab_bar_packed_file = QTabWidget::new_1a(&tab_bar_packed_file_splitter);
+        tab_bar_packed_file.set_tabs_closable(true);
+        tab_bar_packed_file.set_movable(true);
+        tab_bar_packed_file.set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
+
+        let tab_bar_packed_file_2 = QTabWidget::new_1a(&tab_bar_packed_file_splitter);
+        tab_bar_packed_file_2.set_tabs_closable(true);
+        tab_bar_packed_file_2.set_movable(true);
+        tab_bar_packed_file_2.set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
+        tab_bar_packed_file_2.hide();
+
+        status_bar.set_size_grip_enabled(false);
+
+        // Welcome widget, shown when no tabs are open in either pane.
         let welcome_page_ui = crate::welcome_page_ui::WelcomePageUI::new(&widget);
         layout.add_widget_5a(welcome_page_ui.welcome_widget(), 0, 0, 1, 1);
-        tab_bar_packed_file.hide();
+        tab_bar_packed_file_splitter.hide();
         welcome_page_ui.welcome_widget().show();
 
         STATUS_BAR.store(status_bar.as_mut_raw_ptr(), Ordering::SeqCst);
@@ -390,6 +421,8 @@ impl AppUI {
         let tab_bar_packed_file_next = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "next_tab", "next_tab", Some(tab_bar_packed_file.static_upcast::<qt_widgets::QWidget>()));
         let tab_bar_packed_file_import_from_dependencies = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "import_from_dependencies", "import_from_dependencies", Some(tab_bar_packed_file.static_upcast::<qt_widgets::QWidget>()));
         let tab_bar_packed_file_toggle_quick_notes = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "toggle_quick_notes", "toggle_quick_notes", Some(tab_bar_packed_file.static_upcast::<qt_widgets::QWidget>()));
+        let tab_bar_packed_file_open_in_other_pane = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "open_in_other_pane", "open_in_other_pane", Some(tab_bar_packed_file.static_upcast::<qt_widgets::QWidget>()));
+        let tab_bar_packed_file_merge_panes = add_action_to_menu(&tab_bar_packed_file_context_menu.static_upcast(), shortcuts.as_ref(), "file_tab", "merge_panes", "merge_panes", Some(tab_bar_packed_file.static_upcast::<qt_widgets::QWidget>()));
 
         tab_bar_packed_file_close.set_enabled(true);
         tab_bar_packed_file_close_all.set_enabled(true);
@@ -400,9 +433,12 @@ impl AppUI {
         tab_bar_packed_file_next.set_enabled(true);
         tab_bar_packed_file_import_from_dependencies.set_enabled(true);
         tab_bar_packed_file_toggle_quick_notes.set_enabled(true);
+        tab_bar_packed_file_open_in_other_pane.set_enabled(true);
+        tab_bar_packed_file_merge_panes.set_enabled(true);
 
         tab_bar_packed_file_context_menu.insert_separator(&tab_bar_packed_file_prev);
         tab_bar_packed_file_context_menu.insert_separator(&tab_bar_packed_file_import_from_dependencies);
+        tab_bar_packed_file_context_menu.insert_separator(&tab_bar_packed_file_open_in_other_pane);
 
         //-----------------------------------------------//
         // Menu bar.
@@ -665,7 +701,10 @@ impl AppUI {
             // Main Window.
             //-------------------------------------------------------------------------------//
             main_window,
+            tab_bar_packed_file_splitter,
             tab_bar_packed_file,
+            tab_bar_packed_file_2,
+            active_pane: Cell::new(Pane::Primary),
             welcome_page_ui,
             shortcuts,
             message_widget,
@@ -808,15 +847,119 @@ impl AppUI {
             tab_bar_packed_file_next,
             tab_bar_packed_file_import_from_dependencies,
             tab_bar_packed_file_toggle_quick_notes,
+            tab_bar_packed_file_open_in_other_pane,
+            tab_bar_packed_file_merge_panes,
 
             focused_widget: Rc::new(RwLock::new(None)),
             disabled_counter: Rc::new(RwLock::new(0)),
         }
     }
 
-    /// This function toggles visibility between the welcome widget and the tab widget.
+    /// This function toggles visibility between the welcome widget and the tab widget(s).
+    ///
+    /// Each pane is only visible while it has tabs open. The primary pane stays visible when both are empty.
     pub unsafe fn toggle_welcome_visibility(&self) {
-        self.welcome_page_ui.toggle_visibility(&self.tab_bar_packed_file);
+        self.welcome_page_ui.toggle_visibility(&self.tab_bar_packed_file_splitter, &self.tab_bar_packed_file, &self.tab_bar_packed_file_2);
+
+        let primary_count = self.tab_bar_packed_file.count();
+        let secondary_count = self.tab_bar_packed_file_2.count();
+
+        self.tab_bar_packed_file.set_visible(primary_count > 0 || secondary_count == 0);
+        self.tab_bar_packed_file_2.set_visible(secondary_count > 0);
+
+        // A pane with tabs must never stay collapsed, which can happen after restoring a splitter state saved with pane 2 hidden.
+        if primary_count > 0 && secondary_count > 0 {
+            let current_sizes = self.tab_bar_packed_file_splitter.sizes();
+            if (0..current_sizes.count()).any(|index| *current_sizes.at(index) == 0) {
+                let sizes = QListOfInt::new_0a();
+                sizes.append_int(&1);
+                sizes.append_int(&1);
+                self.tab_bar_packed_file_splitter.set_sizes(&sizes);
+            }
+        }
+
+        // Don't leave a hidden pane as the target for newly opened files.
+        let active_pane = self.active_pane.get();
+        if self.tab_widget(active_pane).count() == 0 {
+            let other_pane = match active_pane {
+                Pane::Primary => Pane::Secondary,
+                Pane::Secondary => Pane::Primary,
+            };
+
+            if self.tab_widget(other_pane).count() > 0 {
+                self.active_pane.set(other_pane);
+            }
+        }
+    }
+
+    /// Returns the tab widget for the given pane.
+    pub unsafe fn tab_widget(&self, pane: Pane) -> &QBox<QTabWidget> {
+        match pane {
+            Pane::Primary => &self.tab_bar_packed_file,
+            Pane::Secondary => &self.tab_bar_packed_file_2,
+        }
+    }
+
+    /// Resolves which pane currently hosts `widget`, if any.
+    pub unsafe fn pane_of(&self, widget: &QBox<QWidget>) -> Option<Pane> {
+        if self.tab_bar_packed_file.index_of(widget) != -1 {
+            Some(Pane::Primary)
+        } else if self.tab_bar_packed_file_2.index_of(widget) != -1 {
+            Some(Pane::Secondary)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the tab widget of the active pane.
+    pub unsafe fn active_tab_widget(&self) -> &QBox<QTabWidget> {
+        self.tab_widget(self.active_pane.get())
+    }
+
+    /// Resolves which pane contains `widget`, at any depth.
+    ///
+    /// # Arguments
+    ///
+    /// * `widget` - Widget to look for, usually the one that just received keyboard focus.
+    ///
+    /// # Returns
+    ///
+    /// The pane containing the widget, or `None` if it's outside both panes (or null).
+    pub unsafe fn pane_containing(&self, widget: &QPtr<QWidget>) -> Option<Pane> {
+        if widget.is_null() {
+            None
+        } else if self.tab_bar_packed_file.is_ancestor_of(widget) {
+            Some(Pane::Primary)
+        } else if self.tab_bar_packed_file_2.is_ancestor_of(widget) {
+            Some(Pane::Secondary)
+        } else {
+            None
+        }
+    }
+
+    /// Moves an already-open file view from its current pane into `target_pane`.
+    ///
+    /// Does nothing if the view is already in `target_pane`, or isn't open in any pane.
+    pub unsafe fn move_file_view_to_pane(app_ui: &Rc<Self>, file_view: &FileView, target_pane: Pane) {
+        let widget = file_view.main_widget();
+        let source_pane = match app_ui.pane_of(widget) {
+            Some(pane) if pane != target_pane => pane,
+            _ => return,
+        };
+
+        let source_tab_widget = app_ui.tab_widget(source_pane);
+        let target_tab_widget = app_ui.tab_widget(target_pane);
+        let source_index = source_tab_widget.index_of(widget);
+        let tab_text = source_tab_widget.tab_text(source_index);
+        let icon_type = IconType::File(file_view.path_copy());
+        let icon = TREEVIEW_ICONS.icon(icon_type);
+
+        target_tab_widget.add_tab_3a(widget, icon, &tab_text);
+        target_tab_widget.set_current_widget(widget);
+        source_tab_widget.remove_tab(source_index);
+        app_ui.active_pane.set(target_pane);
+
+        app_ui.update_views_names();
     }
 
     /// Function to toggle the main window on and off, while keeping the stupid focus from breaking.
@@ -969,9 +1112,12 @@ impl AppUI {
                 file_view.save(app_ui, pack_file_contents_ui)?;
             }
             let widget = file_view.main_widget();
-            let index = app_ui.tab_bar_packed_file.index_of(widget);
-            if index != -1 {
-                app_ui.tab_bar_packed_file.remove_tab(index);
+            if let Some(pane) = app_ui.pane_of(widget) {
+                let tab_widget = app_ui.tab_widget(pane);
+                let index = tab_widget.index_of(widget);
+                if index != -1 {
+                    tab_widget.remove_tab(index);
+                }
             }
         }
 
@@ -1006,9 +1152,12 @@ impl AppUI {
                     file_view.save(app_ui, pack_file_contents_ui)?;
                 }
                 let widget = file_view.main_widget();
-                let index = app_ui.tab_bar_packed_file.index_of(widget);
-                if index != -1 {
-                    app_ui.tab_bar_packed_file.remove_tab(index);
+                if let Some(pane) = app_ui.pane_of(widget) {
+                    let tab_widget = app_ui.tab_widget(pane);
+                    let index = tab_widget.index_of(widget);
+                    if index != -1 {
+                        tab_widget.remove_tab(index);
+                    }
                 }
 
                 delete_indexes.push(file_index);
@@ -1060,9 +1209,12 @@ impl AppUI {
                     did_it_worked = file_view.save(app_ui, pack_file_contents_ui);
                 }
                 let widget = file_view.main_widget();
-                let index = app_ui.tab_bar_packed_file.index_of(widget);
-                if index != -1 {
-                    app_ui.tab_bar_packed_file.remove_tab(index);
+                if let Some(pane) = app_ui.pane_of(widget) {
+                    let tab_widget = app_ui.tab_widget(pane);
+                    let index = tab_widget.index_of(widget);
+                    if index != -1 {
+                        tab_widget.remove_tab(index);
+                    }
                 }
             }
 
@@ -1402,27 +1554,22 @@ impl AppUI {
         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::RemovePack(pack_key.to_string()), DataSource::PackFile, pack_key);
         global_search_ui.update_pack_sources(pack_file_contents_ui);
 
-        // Close any open file views belonging to this pack.
+        // Close any open file views belonging to this pack, in whichever pane they're in.
         let mut tabs_to_close = vec![];
         {
             let open_packedfiles = UI_STATE.get_open_packedfiles();
             for file_view in open_packedfiles.iter() {
                 if file_view.pack_key_copy() == pack_key {
                     let widget = file_view.main_widget();
-                    let index = app_ui.tab_bar_packed_file.index_of(widget);
-                    if index != -1 {
-                        tabs_to_close.push(index);
+                    if let Some(pane) = app_ui.pane_of(widget) {
+                        let index = app_ui.tab_widget(pane).index_of(widget);
+                        tabs_to_close.push((pane, index));
                     }
                 }
             }
         }
 
-        tabs_to_close.sort_unstable();
-        tabs_to_close.reverse();
-
-        for index in tabs_to_close {
-            app_ui.tab_bar_packed_file.remove_tab(index);
-        }
+        AppUI::file_view_hide(app_ui, pack_file_contents_ui, &tabs_to_close);
 
         // Also remove them from the open file views list.
         UI_STATE.set_open_packedfiles().retain(|v| v.pack_key_copy() != pack_key);
@@ -1837,6 +1984,7 @@ impl AppUI {
         is_preview: bool,
         is_external: bool,
         mut data_source: DataSource,
+        target_pane: Pane,
     ) {
 
         // Conditions to open:
@@ -1888,9 +2036,12 @@ impl AppUI {
                         && (data_source != DataSource::PackFile || fv.pack_key_copy() == target_pack_key)
                 };
 
-                // Close all preview views except the file we're opening.
+                let target_tab_widget = app_ui.tab_widget(target_pane);
+
+                // Close all preview views in the target pane except the file we're opening. Each
+                // pane keeps its own independent preview tab, so this never touches the other pane.
                 for file_view in UI_STATE.get_open_packedfiles().iter() {
-                    let index = app_ui.tab_bar_packed_file.index_of(file_view.main_widget());
+                    let index = target_tab_widget.index_of(file_view.main_widget());
                     if !is_same_file(file_view) && file_view.is_preview() && index != -1 {
 
                         // If they're a rigid view, we need to pause their rendering.
@@ -1905,7 +2056,7 @@ impl AppUI {
 
                         }
 
-                        app_ui.tab_bar_packed_file.remove_tab(index);
+                        target_tab_widget.remove_tab(index);
                     }
                 }
 
@@ -1913,7 +2064,13 @@ impl AppUI {
                 // If it was a preview, then we mark it as full. Index == -1 means it's not in a tab.
                 if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().find(|x| is_same_file(x)) {
                     if !is_external {
-                        let index = app_ui.tab_bar_packed_file.index_of(tab_widget.main_widget());
+
+                        // Focus it in whichever pane it's already open in, if any, rather than the
+                        // target pane, so re-opening a file never creates a second tab for it.
+                        let owning_tab_widget = app_ui.pane_of(tab_widget.main_widget())
+                            .map(|pane| app_ui.tab_widget(pane))
+                            .unwrap_or(target_tab_widget);
+                        let index = owning_tab_widget.index_of(tab_widget.main_widget());
 
                         // If we're trying to open as preview something already open as full, we don't do anything.
                         if !(index != -1 && is_preview && !tab_widget.is_preview()) {
@@ -1923,7 +2080,7 @@ impl AppUI {
                         if index == -1 {
                             let icon_type = IconType::File(path.to_owned());
                             let icon = TREEVIEW_ICONS.icon(icon_type);
-                            app_ui.tab_bar_packed_file.add_tab_3a(tab_widget.main_widget(), icon, &QString::from_std_str(""));
+                            target_tab_widget.add_tab_3a(tab_widget.main_widget(), icon, &QString::from_std_str(""));
                         }
 
                         // If they're a rigid view, we need to pause their rendering.
@@ -1937,7 +2094,7 @@ impl AppUI {
                             }
                         }
 
-                        app_ui.tab_bar_packed_file.set_current_widget(tab_widget.main_widget());
+                        owning_tab_widget.set_current_widget(tab_widget.main_widget());
 
                         if !is_preview {
                             tab_widget.set_focus();
@@ -1957,7 +2114,7 @@ impl AppUI {
 
                 let pack_key = target_pack_key.clone();
                 let mut tab = FileView::new(path, &pack_key);
-                tab.main_widget().set_parent(&app_ui.tab_bar_packed_file);
+                tab.main_widget().set_parent(target_tab_widget);
                 tab.main_widget().set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
 
                 // Any table banned or from out of our PackFile should not be editable.
@@ -1982,7 +2139,7 @@ impl AppUI {
 
                     // If we're here, it's always a new file view. The line next to this one disables the variable.
                     NEW_FILE_VIEW_CREATED.store(true, std::sync::atomic::Ordering::SeqCst);
-                    let tab_index = app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
+                    let tab_index = target_tab_widget.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
                     let response = CentralCommand::recv(&receiver);
                     match response {
 
@@ -1992,7 +2149,7 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
+                                    target_tab_widget.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
                                     let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
@@ -2005,7 +2162,7 @@ impl AppUI {
                                     }
                                 },
                                 Err(error) => {
-                                    app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                    target_tab_widget.remove_tab(tab_index);
                                     return show_dialog(&app_ui.main_window, error, false);
                                 }
                             }
@@ -2016,7 +2173,7 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
+                                    target_tab_widget.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
                                     let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
@@ -2030,7 +2187,7 @@ impl AppUI {
                                 },
 
                                 Err(error) => {
-                                    app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                    target_tab_widget.remove_tab(tab_index);
                                     return show_dialog(&app_ui.main_window, error, false);
                                 }
                             }
@@ -2042,7 +2199,7 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
+                                    target_tab_widget.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
                                     let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
@@ -2055,7 +2212,7 @@ impl AppUI {
                                     }
                                 },
                                 Err(error) => {
-                                    app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                    target_tab_widget.remove_tab(tab_index);
                                     return show_dialog(&app_ui.main_window, error, false);
                                 }
                             }
@@ -2067,7 +2224,7 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
+                                    target_tab_widget.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
                                     let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
@@ -2080,7 +2237,7 @@ impl AppUI {
                                     }
                                 },
                                 Err(error) => {
-                                    app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                    target_tab_widget.remove_tab(tab_index);
                                     return show_dialog(&app_ui.main_window, error, false);
                                 }
                             }
@@ -2091,7 +2248,7 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
+                                    target_tab_widget.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
                                     let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
@@ -2105,7 +2262,7 @@ impl AppUI {
                                     }
                                 }
                                 Err(error) => {
-                                    app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                    target_tab_widget.remove_tab(tab_index);
                                     return show_dialog(&app_ui.main_window, error, false);
                                 }
                             }
@@ -2116,7 +2273,7 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
+                                    target_tab_widget.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
                                     let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
@@ -2130,7 +2287,7 @@ impl AppUI {
                                     }
                                 }
                                 Err(error) => {
-                                    app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                    target_tab_widget.remove_tab(tab_index);
                                     return show_dialog(&app_ui.main_window, error, false);
                                 }
                             }
@@ -2143,7 +2300,7 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
+                                    target_tab_widget.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
                                     let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
@@ -2156,7 +2313,7 @@ impl AppUI {
                                     }
                                 },
                                 Err(error) => {
-                                    app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                    target_tab_widget.remove_tab(tab_index);
 
                                     // Try to get the data of the table to send it for decoding.
                                     /*let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackedFileRawData(path.to_owned()));
@@ -2177,7 +2334,7 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
+                                    target_tab_widget.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
                                     let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
@@ -2191,7 +2348,7 @@ impl AppUI {
                                     }
                                 },
                                 Err(error) => {
-                                    app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                    target_tab_widget.remove_tab(tab_index);
                                     return show_dialog(&app_ui.main_window, error, false);
                                 }
                             }
@@ -2203,7 +2360,7 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
+                                    target_tab_widget.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
                                     let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
@@ -2216,7 +2373,7 @@ impl AppUI {
                                     }
                                 },
                                 Err(error) => {
-                                    app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                    target_tab_widget.remove_tab(tab_index);
                                     return show_dialog(&app_ui.main_window, error, false);
                                 }
                             }
@@ -2228,7 +2385,7 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
+                                    target_tab_widget.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
                                     let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
@@ -2242,7 +2399,7 @@ impl AppUI {
                                     }
                                 }
                                 Err(error) => {
-                                    app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                    target_tab_widget.remove_tab(tab_index);
                                     return show_dialog(&app_ui.main_window, error, false);
                                 }
                             }
@@ -2255,7 +2412,7 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
+                                    target_tab_widget.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
                                     let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
@@ -2268,7 +2425,7 @@ impl AppUI {
                                     }
                                 },
                                 Err(error) => {
-                                    app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                    target_tab_widget.remove_tab(tab_index);
                                     return show_dialog(&app_ui.main_window, error, false);
                                 }
                             }
@@ -2280,7 +2437,7 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
+                                    target_tab_widget.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
                                     let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
@@ -2293,7 +2450,7 @@ impl AppUI {
                                     }
                                 },
                                 Err(error) => {
-                                    app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                    target_tab_widget.remove_tab(tab_index);
                                     return show_dialog(&app_ui.main_window, error, false);
                                 }
                             }
@@ -2304,7 +2461,7 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
+                                    target_tab_widget.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
                                     let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
@@ -2317,7 +2474,7 @@ impl AppUI {
                                     }
                                 },
                                 Err(error) => {
-                                    app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                    target_tab_widget.remove_tab(tab_index);
                                     return show_dialog(&app_ui.main_window, error, false);
                                 }
                             }
@@ -2329,7 +2486,7 @@ impl AppUI {
                                 Ok(_) => {
 
                                    // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
+                                    target_tab_widget.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
                                     let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
@@ -2343,7 +2500,7 @@ impl AppUI {
                                     }
                                 },
                                 Err(error) => {
-                                    app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                    target_tab_widget.remove_tab(tab_index);
                                     return show_dialog(&app_ui.main_window, error, false);
                                 }
                             }
@@ -2354,7 +2511,7 @@ impl AppUI {
                             PackedFileTextView::new_view(&mut tab, app_ui, pack_file_contents_ui, &data);
 
                             // Add the file to the 'Currently open' list and make it visible.
-                            app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
+                            target_tab_widget.set_current_widget(tab.main_widget());
 
                             // Fix the quick notes view.
                             let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
@@ -2373,7 +2530,7 @@ impl AppUI {
                             PackedFileTextView::new_view(&mut tab, app_ui, pack_file_contents_ui, &data);
 
                             // Add the file to the 'Currently open' list and make it visible.
-                            app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
+                            target_tab_widget.set_current_widget(tab.main_widget());
 
                             // Fix the quick notes view.
                             let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
@@ -2389,7 +2546,7 @@ impl AppUI {
                                     Ok(_) => {
 
                                         // Add the file to the 'Currently open' list and make it visible.
-                                        app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
+                                        target_tab_widget.set_current_widget(tab.main_widget());
 
                                         // Fix the quick notes view.
                                         let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
@@ -2402,7 +2559,7 @@ impl AppUI {
                                         }
                                     },
                                     Err(error) => {
-                                        app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                        target_tab_widget.remove_tab(tab_index);
                                         return show_dialog(&app_ui.main_window, error, false);
                                     }
                                 }
@@ -2411,7 +2568,7 @@ impl AppUI {
                                     Ok(_) => {
 
                                         // Add the file to the 'Currently open' list and make it visible.
-                                        app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
+                                        target_tab_widget.set_current_widget(tab.main_widget());
 
                                         // Fix the quick notes view.
                                         let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
@@ -2424,7 +2581,7 @@ impl AppUI {
                                         }
                                     },
                                     Err(error) => {
-                                        app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                        target_tab_widget.remove_tab(tab_index);
                                         return show_dialog(&app_ui.main_window, error, false);
                                     }
                                 }
@@ -2437,7 +2594,7 @@ impl AppUI {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
+                                    target_tab_widget.set_current_widget(tab.main_widget());
 
                                     // Fix the quick notes view.
                                     let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
@@ -2450,20 +2607,20 @@ impl AppUI {
                                     }
                                 },
                                 Err(error) => {
-                                    app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                                    target_tab_widget.remove_tab(tab_index);
                                     return show_dialog(&app_ui.main_window, error, false);
                                 }
                             }
                         }
 
-                        Response::Unknown => app_ui.tab_bar_packed_file.remove_tab(tab_index),
+                        Response::Unknown => target_tab_widget.remove_tab(tab_index),
 
                         // If the file is a CA_VP8 PackedFile...
                         Response::VideoInfoRFileInfo(data, file_info) => {
                             PackedFileVideoView::new_view(&mut tab, app_ui, pack_file_contents_ui, &data);
 
                             // Add the file to the 'Currently open' list and make it visible.
-                            app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
+                            target_tab_widget.set_current_widget(tab.main_widget());
 
                             // Fix the quick notes view.
                             let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
@@ -2480,7 +2637,7 @@ impl AppUI {
                             FileVMDView::new_view(&mut tab, app_ui, pack_file_contents_ui, &data, FileType::VMD);
 
                             // Add the file to the 'Currently open' list and make it visible.
-                            app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
+                            target_tab_widget.set_current_widget(tab.main_widget());
 
                             // Fix the quick notes view.
                             let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
@@ -2498,7 +2655,7 @@ impl AppUI {
                             FileVMDView::new_view(&mut tab, app_ui, pack_file_contents_ui, &data, FileType::WSModel);
 
                             // Add the file to the 'Currently open' list and make it visible.
-                            app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
+                            target_tab_widget.set_current_widget(tab.main_widget());
 
                             // Fix the quick notes view.
                             let layout = tab.main_widget().layout().static_downcast::<QGridLayout>();
@@ -2513,7 +2670,7 @@ impl AppUI {
                         },
 
                         Response::Error(error) => {
-                            app_ui.tab_bar_packed_file.remove_tab(tab_index);
+                            target_tab_widget.remove_tab(tab_index);
                             return show_dialog(&app_ui.main_window, error, false);
                         }
                         _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
@@ -2538,8 +2695,8 @@ impl AppUI {
                     PackedFileExternalView::new_view(&path, app_ui, &mut tab, pack_file_contents_ui, &external_path);
 
                     // Add the file to the 'Currently open' list and make it visible.
-                    app_ui.tab_bar_packed_file.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
-                    app_ui.tab_bar_packed_file.set_current_widget(tab.main_widget());
+                    target_tab_widget.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
+                    target_tab_widget.set_current_widget(tab.main_widget());
                     let mut open_list = UI_STATE.set_open_packedfiles();
                     open_list.push(tab);
                 }
@@ -2612,7 +2769,13 @@ impl AppUI {
             if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter()
                 .filter(|x| x.data_source() == DataSource::PackFile)
                 .find(|x| *x.path_read() == path && x.pack_key_copy() == target_pack_key) {
-                let index = app_ui.tab_bar_packed_file.index_of(tab_widget.main_widget());
+
+                // Focus it in whichever pane it's already open in (e.g. it may have been moved
+                // there via "Move to Other Pane"), rather than always the primary one.
+                let owning_tab_widget = app_ui.pane_of(tab_widget.main_widget())
+                    .map(|pane| app_ui.tab_widget(pane))
+                    .unwrap_or(&app_ui.tab_bar_packed_file);
+                let index = owning_tab_widget.index_of(tab_widget.main_widget());
 
                 if index == -1 {
                     let icon_type = IconType::Pack(true);
@@ -2620,7 +2783,7 @@ impl AppUI {
                     app_ui.tab_bar_packed_file.add_tab_3a(tab_widget.main_widget(), icon, &name);
                 }
 
-                app_ui.tab_bar_packed_file.set_current_widget(tab_widget.main_widget());
+                owning_tab_widget.set_current_widget(tab_widget.main_widget());
                 return;
             }
 
@@ -3665,7 +3828,7 @@ impl AppUI {
         let mut distinct_packs: std::collections::HashSet<String> = std::collections::HashSet::new();
         for file_view in open_packedfiles.iter() {
             if file_view.data_source() == DataSource::PackFile
-                && self.tab_bar_packed_file.index_of(file_view.main_widget()) != -1 {
+                && self.pane_of(file_view.main_widget()).is_some() {
                 let pack_key = file_view.pack_key_copy();
                 if !pack_key.is_empty() {
                     distinct_packs.insert(pack_key);
@@ -3676,7 +3839,7 @@ impl AppUI {
 
         for file_view in open_packedfiles.iter() {
             let widget = file_view.main_widget();
-            if self.tab_bar_packed_file.index_of(widget) != -1 {
+            if self.pane_of(widget).is_some() {
 
                 // Reserved PackedFiles should have special names.
                 let path = file_view.path_read();
@@ -3694,6 +3857,10 @@ impl AppUI {
 
         for file_view in open_packedfiles.iter() {
             let widget = file_view.main_widget();
+            let pane = match self.pane_of(widget) {
+                Some(pane) => pane,
+                None => continue,
+            };
             let path = file_view.path_read();
             let path_split = path.split('/').collect::<Vec<_>>();
             let widget_name = if *path == RESERVED_NAME_NOTES {
@@ -3751,8 +3918,9 @@ impl AppUI {
                     name.push_str(" (Preview)");
                 }
 
-                let index = self.tab_bar_packed_file.index_of(widget);
-                self.tab_bar_packed_file.set_tab_text(index, &QString::from_std_str(&name));
+                let tab_widget = self.tab_widget(pane);
+                let index = tab_widget.index_of(widget);
+                tab_widget.set_tab_text(index, &QString::from_std_str(&name));
             }
         }
     }
@@ -3761,21 +3929,29 @@ impl AppUI {
     pub unsafe fn file_view_hide(
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        indexes: &[i32]
+        indexes: &[(Pane, i32)]
     ) {
 
-        let mut indexes = indexes.to_vec();
-        indexes.sort_unstable();
-        indexes.dedup();
-        indexes.reverse();
+        let mut indexes_primary = indexes.iter().filter(|(pane, _)| *pane == Pane::Primary).map(|(_, index)| *index).collect::<Vec<i32>>();
+        let mut indexes_secondary = indexes.iter().filter(|(pane, _)| *pane == Pane::Secondary).map(|(_, index)| *index).collect::<Vec<i32>>();
+        for indexes in [&mut indexes_primary, &mut indexes_secondary] {
+            indexes.sort_unstable();
+            indexes.dedup();
+            indexes.reverse();
+        }
 
         // PackFile and Decoder Views must be deleted on close, so get them apart if we find one.
         let mut purge_on_delete = vec![];
 
         for file_view in UI_STATE.get_open_packedfiles().iter() {
             let widget = file_view.main_widget();
-            let index_widget = app_ui.tab_bar_packed_file.index_of(widget);
-            if indexes.contains(&index_widget) {
+            let is_targeted = match app_ui.pane_of(widget) {
+                Some(Pane::Primary) => indexes_primary.contains(&app_ui.tab_bar_packed_file.index_of(widget)),
+                Some(Pane::Secondary) => indexes_secondary.contains(&app_ui.tab_bar_packed_file_2.index_of(widget)),
+                None => false,
+            };
+
+            if is_targeted {
                 let path = file_view.path_read();
                 if !path.is_empty() {
                     if path.starts_with(RESERVED_NAME_EXTRA_PACKFILE) {
@@ -3794,7 +3970,8 @@ impl AppUI {
             }
         }
 
-        indexes.iter().for_each(|x| app_ui.tab_bar_packed_file.remove_tab(*x));
+        indexes_primary.iter().for_each(|x| app_ui.tab_bar_packed_file.remove_tab(*x));
+        indexes_secondary.iter().for_each(|x| app_ui.tab_bar_packed_file_2.remove_tab(*x));
 
         // This is for cleaning up open PackFiles.
         purge_on_delete.iter().for_each(|x| { let _ = Self::purge_that_one_specifically(app_ui, pack_file_contents_ui, x, DataSource::ExternalFile, false); });

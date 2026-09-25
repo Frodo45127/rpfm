@@ -13,6 +13,8 @@
 use qt_widgets::QLabel;
 use qt_widgets::QPushButton;
 use qt_widgets::QScrollArea;
+use qt_widgets::QSplitter;
+use qt_widgets::QTabWidget;
 use qt_widgets::QWidget;
 
 use qt_gui::QIcon;
@@ -395,18 +397,18 @@ impl WelcomePageUI {
         }
     }
 
-    /// This function toggles visibility between the welcome widget and the tab widget.
+    /// This function toggles visibility between the welcome widget and the tab panes.
     ///
     /// When the `CLEAN_UI` setting is enabled, the welcome page is never shown.
-    pub unsafe fn toggle_visibility(&self, tab_bar: &QBox<qt_widgets::QTabWidget>) {
-        if tab_bar.count() == 0 && !settings_bool(CLEAN_UI) {
-            tab_bar.hide();
+    pub unsafe fn toggle_visibility(&self, splitter: &QBox<QSplitter>, tab_bar_1: &QBox<QTabWidget>, tab_bar_2: &QBox<QTabWidget>) {
+        if tab_bar_1.count() == 0 && tab_bar_2.count() == 0 && !settings_bool(CLEAN_UI) {
+            splitter.hide();
             self.build_logo();
             self.update_server_status();
             self.welcome_widget.show();
         } else {
             self.welcome_widget.hide();
-            tab_bar.show();
+            splitter.show();
         }
     }
 }

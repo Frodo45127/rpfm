@@ -1024,7 +1024,7 @@ impl DiagnosticsUI {
             }
 
             UI_STATE.set_packfile_contents_read_only(false);
-            AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path.to_owned()), false, false, DataSource::PackFile);
+            AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path.to_owned()), false, false, DataSource::PackFile, app_ui.active_pane().get());
         }
 
         // If it's a table, focus on the matched cell.
@@ -1260,7 +1260,7 @@ impl DiagnosticsUI {
         let pack = diagnostic.pack();
 
         if let Some(view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).find(|view| &view.path_copy() == path && (pack.is_empty() || view.pack_key_copy() == pack)) {
-            if app_ui.tab_bar_packed_file().index_of(view.main_widget()) != -1 {
+            if app_ui.pane_of(view.main_widget()).is_some() {
 
                 // In case of tables, we have to get the logical row/column of the match and select it.
                 let internal_table_view = if let ViewType::Internal(View::Table(view)) = view.view_type() { view.get_ref_table() }
@@ -1441,7 +1441,7 @@ impl DiagnosticsUI {
         for view in UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile) {
 
             // Only update the visible tables.
-            if app_ui.tab_bar_packed_file().index_of(view.main_widget()) != -1 {
+            if app_ui.pane_of(view.main_widget()).is_some() {
 
                 // In case of tables, we have to get the logical row/column of the match and select it.
                 if let ViewType::Internal(View::Table(view)) = view.view_type() {
@@ -1550,7 +1550,7 @@ impl DiagnosticsUI {
         if diagnostics_ui.diagnostics_button_only_current_packed_file.is_checked() {
             let open_packedfiles = UI_STATE.get_open_packedfiles();
             let open_packedfiles_ref = open_packedfiles.iter()
-                .filter(|x| x.data_source() == DataSource::PackFile && app_ui.tab_bar_packed_file().index_of(x.main_widget()) != -1)
+                .filter(|x| x.data_source() == DataSource::PackFile && app_ui.pane_of(x.main_widget()).is_some())
                 .collect::<Vec<&FileView>>();
             let mut pattern = String::new();
             for open_packedfile in &open_packedfiles_ref {
