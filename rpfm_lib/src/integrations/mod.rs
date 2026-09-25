@@ -55,3 +55,4 @@
 
 #[cfg(feature = "integration_assembly_kit")] pub mod assembly_kit;
 #[cfg(feature = "integration_git")] pub mod git;
+#[cfg(feature = "integration_github")] pub mod github;

@@ -59,7 +59,7 @@
 //! - [`compression`]: LZ4, ZStd, and LZMA compression support
 //! - [`encryption`]: Pack file encryption/decryption
 //! - [`error`]: Error types and result handling
-//! - [`integrations`]: Optional Assembly Kit and Git integration
+//! - [`integrations`]: Optional Assembly Kit, Git and GitHub integration
 //!
 //! # Feature Flags
 //!

@@ -449,6 +449,16 @@ pub enum RLibError {
     #[error("No updates available for the following git repository: {0}.")]
     GitErrorNoUpdatesAvailable(String),
 
+    // GitHub Errors
+
+    /// GitHub rejected the token, so the user has to sign in again.
+    #[error("GitHub rejected the sign-in. Please, sign in again.")]
+    GitHubUnauthorized,
+
+    /// A GitHub request failed. Contains the endpoint, the HTTP status and GitHub's message.
+    #[error("GitHub request to {0} failed ({1}): {2}")]
+    GitHubApi(String, u16, String),
+
     // Lazy Loading Errors
 
     /// File data changed on disk during lazy loading.
@@ -689,6 +699,11 @@ pub enum RLibError {
     #[cfg(feature = "integration_git")]
     #[error(transparent)]
     GitError(#[from] git2::Error),
+
+    /// Wrapper for [`reqwest::Error`] errors.
+    #[cfg(feature = "integration_github")]
+    #[error(transparent)]
+    ReqwestError(#[from] reqwest::Error),
 
     /// Wrapper for [`ron::Error`] errors.
     #[error(transparent)]
