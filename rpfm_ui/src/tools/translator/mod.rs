@@ -12,6 +12,9 @@ use qt_widgets::QButtonGroup;
 use qt_widgets::QFileDialog;
 use qt_widgets::q_file_dialog::FileMode;
 use qt_widgets::QGroupBox;
+use qt_widgets::QInputDialog;
+use qt_widgets::QMessageBox;
+use qt_widgets::q_message_box::{Icon, StandardButton};
 use qt_widgets::QRadioButton;
 use qt_widgets::QToolButton;
 use qt_widgets::q_abstract_item_view::{SelectionBehavior, SelectionMode};
@@ -22,15 +25,19 @@ use qt_gui::QAction;
 
 use qt_core::CheckState;
 use qt_core::QEventLoop;
+use qt_core::QFlags;
 use qt_core::QItemSelection;
 use qt_core::q_item_selection_model::SelectionFlag;
 use qt_core::QModelIndex;
+use qt_core::QListOfQString;
 use qt_core::QPtr;
 use qt_core::QSignalBlocker;
 use qt_core::QString;
 
+use cpp_core::CastInto;
 use cpp_core::CppBox;
 use cpp_core::CppDeletable;
+use cpp_core::Ptr;
 
 use anyhow::anyhow;
 use base64::{Engine, engine::general_purpose::STANDARD};
@@ -52,7 +59,7 @@ use rpfm_lib::integrations::git::GitResponse;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR, send_ipc_command, send_ipc_command_result};
 use crate::references_ui::ReferencesUI;
-use crate::settings_ui::backend::{settings_path_buf, settings_string, translations_local_path};
+use crate::settings_ui::backend::{settings_path_buf, settings_set_string, settings_string, translations_local_path};
 use crate::views::table::{FilterChipState, TableType, TableView, utils::get_table_from_view};
 use crate::utils::show_dialog;
 
@@ -147,6 +154,10 @@ pub struct ToolTranslator {
     language_combobox: QPtr<QComboBox>,
     version_combobox: QPtr<QComboBox>,
 
+    // Source language is picked from the pre-dialog before the translator opens, so inside the
+    // translator it lives as a read-only label rather than an editable selector.
+    source_language_value: QPtr<QLabel>,
+
     deepl_radio_button: QPtr<QRadioButton>,
     ai_radio_button: QPtr<QRadioButton>,
     google_translate_radio_button: QPtr<QRadioButton>,
@@ -209,7 +220,10 @@ impl ToolTranslator {
 
         let language_label: QPtr<QLabel> = tool.find_widget("language_label")?;
         let language_combobox: QPtr<QComboBox> = tool.find_widget("language_combobox")?;
+        let source_language_label: QPtr<QLabel> = tool.find_widget("source_language_label")?;
+        let source_language_value: QPtr<QLabel> = tool.find_widget("source_language_value")?;
         language_label.set_text(&qtr("translator_language"));
+        source_language_label.set_text(&qtr("translator_source_language"));
 
         let version_label: QPtr<QLabel> = tool.find_widget("version_label")?;
         let version_combobox: QPtr<QComboBox> = tool.find_widget("version_combobox")?;
@@ -263,6 +277,70 @@ impl ToolTranslator {
         // For language, we try to get it from the game folder. If we can't, we fallback to whatever local files we have.
         let game = GAME_SELECTED.read().unwrap().clone();
         let game_path = settings_path_buf(game.key());
+
+        // Target candidates come from the game's installed locale packs. EN is always included as a
+        // fallback because most modders write in English and the Translation Hub's vanilla data is keyed on EN.
+        let mut candidates = vec!["EN".to_owned()];
+        if let Ok(ca_packs) = game.ca_packs_paths(&game_path) {
+            for code in ca_packs.iter()
+                .filter_map(|path| path.file_stem())
+                .filter(|name| name.to_string_lossy().starts_with("local_"))
+                .map(|name| name.to_string_lossy().split_at(6).1.to_uppercase())
+            {
+                if code.chars().count() == 2 && !candidates.contains(&code) {
+                    candidates.push(code);
+                }
+            }
+        }
+        candidates.sort();
+
+        // Source candidates include languages not installed, as their vanilla texts may have been generated earlier.
+        let mut src_candidates = [BRAZILIAN, SIMPLIFIED_CHINESE, CZECH, ENGLISH, FRENCH, GERMAN, ITALIAN, KOREAN, POLISH, RUSSIAN, SPANISH, TURKISH, TRADITIONAL_CHINESE]
+            .iter()
+            .map(|code| code.to_uppercase())
+            .collect::<Vec<_>>();
+        src_candidates.sort();
+
+        // Source language pre-dialog. The full translator dialog isn't visible yet (we haven't
+        // called exec() on it), so this small picker shows over the main window. Cancelling
+        // aborts the tool — the user can re-open it to pick again.
+        let src_items = QListOfQString::new_0a();
+        for code in &src_candidates {
+            src_items.append_q_string(&QString::from_std_str(code));
+        }
+        let last_src_lang = settings_string(TRANSLATOR_SOURCE_LANGUAGE);
+        let default_src_idx = src_candidates.iter()
+            .position(|c| c.eq_ignore_ascii_case(&last_src_lang))
+            .or_else(|| src_candidates.iter().position(|c| c == DEFAULT_SRC_LANG))
+            .unwrap_or(0) as i32;
+        let mut src_ok = false;
+        let src_chosen = QInputDialog::get_item_7a(
+            app_ui.main_window(),
+            &qtr("translator_source_language_dialog_title"),
+            &qtr("translator_source_language_dialog_label"),
+            &src_items,
+            default_src_idx,
+            false,
+            &mut src_ok as *mut bool,
+        );
+        if !src_ok {
+            return Ok(());
+        }
+        let src_lang = src_chosen.to_std_string();
+        source_language_value.set_text(&QString::from_std_str(&src_lang));
+        let _ = settings_set_string(TRANSLATOR_SOURCE_LANGUAGE, &src_lang);
+
+        // The Translation Hub only has English vanilla texts, so other languages have to come from the game files.
+        let is_default_src_lang = src_lang.eq_ignore_ascii_case(DEFAULT_SRC_LANG);
+        if !is_default_src_lang {
+            let available = send_ipc_command_result(Command::GenerateVanillaTranslationSource(src_lang.clone()), response_extractor!(Response::Bool))?;
+            if !available {
+                show_message(app_ui.main_window(), Icon::Warning, &qtr("translator_vanilla_source_title"), &qtre("translator_vanilla_source_missing", &[&src_lang, &src_lang, &src_lang]));
+            }
+        }
+
+        // Target language: use the game's configured locale when present, otherwise let the
+        // user pick from the same candidate list we built above.
         let locale = game.game_locale_from_file(&game_path)?;
         let language = match locale {
             Some(locale) => {
@@ -272,33 +350,28 @@ impl ToolTranslator {
                 language
             },
             None => {
-                if let Ok(ca_packs) = game.ca_packs_paths(&game_path) {
-                    let mut languages = ca_packs.iter()
-                        .filter_map(|path| path.file_stem())
-                        .filter(|name| name.to_string_lossy().starts_with("local_"))
-                        .map(|name| name.to_string_lossy().split_at(6).1.to_uppercase())
-                        .collect::<Vec<_>>();
-
-                    // Sort, and remove anything longer than 2 characters to avoid duplicates.
-                    languages.retain(|lang| lang.chars().count() == 2);
-                    languages.sort();
-
-                    for (index, language) in languages.iter().enumerate() {
-                        language_combobox.insert_item_int_q_string(index as i32, &QString::from_std_str(language));
-                    }
-
-                    // If there's more than 1 possible language, allow to alter the language.
-                    if languages.len() > 1 {
-                        language_combobox.set_enabled(true);
-                    }
-
-                    language_combobox.set_current_index(0);
-                    languages[0].to_owned()
-                } else {
+                // Drop the locked-in source so the target list doesn't offer translating to itself.
+                let mut targets: Vec<_> = candidates.iter().filter(|c| **c != src_lang).cloned().collect();
+                if targets.is_empty() {
                     return Err(anyhow!("The translator couldn't figure out what languages you have for the game."));
                 }
+                targets.sort();
+                for (index, lang) in targets.iter().enumerate() {
+                    language_combobox.insert_item_int_q_string(index as i32, &QString::from_std_str(lang));
+                }
+                if targets.len() > 1 {
+                    language_combobox.set_enabled(true);
+                }
+                language_combobox.set_current_index(0);
+                targets[0].to_owned()
             }
         };
+
+        // A game running in the source language means the user switched it just to get its vanilla texts, which are now saved.
+        if !is_default_src_lang && language.eq_ignore_ascii_case(&src_lang) {
+            show_message(app_ui.main_window(), Icon::Information, &qtr("translator_vanilla_source_title"), &qtre("translator_vanilla_source_generated", &[&src_lang]));
+            return Ok(());
+        }
 
         // Get the list of colours supported by the game. They're in the ui_colours table in the modern games.
         let mut colors = HashMap::new();
@@ -389,7 +462,7 @@ impl ToolTranslator {
 
         // Unlike other tools, data is loaded here, because we need it to generate the table widget.
         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-        let data = send_ipc_command_result(Command::GetPackTranslation(pack_key.clone(), language), response_extractor!(Response::PackTranslation))?;
+        let data = send_ipc_command_result(Command::GetPackTranslation(pack_key.clone(), src_lang.clone(), language), response_extractor!(Response::PackTranslation))?;
 
         let table_data = TableType::TranslatorTable(data.to_table()?);
         let table = TableView::new_view(&table_view_container, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, table_data, None, Arc::new(RwLock::new(DataSource::PackFile)), Arc::new(RwLock::new(pack_key)))?;
@@ -486,6 +559,12 @@ impl ToolTranslator {
         let version_index = (*data.version()).min(1) as i32;
         version_combobox.set_current_index(version_index);
 
+        // v0 has no source language, so it's only valid for EN-sourced translations.
+        if !is_default_src_lang {
+            version_combobox.set_current_index(CURRENT_VERSION as i32);
+            version_combobox.set_enabled(false);
+        }
+
         // Build the view itself.
         let view = Rc::new(Self {
             tool,
@@ -497,6 +576,7 @@ impl ToolTranslator {
             tagged_images,
             language_combobox,
             version_combobox,
+            source_language_value,
             context_text_edit,
             deepl_radio_button,
             ai_radio_button,
@@ -617,8 +697,9 @@ impl ToolTranslator {
         // Only do it if the text is empty. If there's a previous translation, keep it so it can be fixed.
         if needs_retranslation && self.translated_value_textedit().to_plain_text().is_empty() {
             let auto_result = if self.deepl_radio_button().is_checked() {
+                let source_language = self.map_source_language_to_deepl();
                 let language = self.map_language_to_deepl();
-                Self::ask_deepl(&source_text, language).ok()
+                Self::ask_deepl(&source_text, source_language, language).ok()
             } else if self.ai_radio_button().is_checked() {
                 let language = self.map_language_to_natural();
                 let context = self.context_text_edit().to_plain_text().to_std_string();
@@ -859,8 +940,21 @@ impl ToolTranslator {
     }
 
     unsafe fn map_language_to_deepl(&self) -> Lang {
-        let lang = self.language_combobox().current_text().to_std_string().to_lowercase();
-        match &*lang {
+        Self::game_language_to_deepl(&self.language_combobox().current_text().to_std_string())
+    }
+
+    /// DeepL only accepts base language codes as source, so regional variants are collapsed.
+    unsafe fn map_source_language_to_deepl(&self) -> Lang {
+        match Self::game_language_to_deepl(&self.source_language_value().text().to_std_string()) {
+            Lang::PT_BR => Lang::PT,
+            Lang::ZH_HANS | Lang::ZH_HANT => Lang::ZH,
+            Lang::EN_GB => Lang::EN,
+            lang => lang,
+        }
+    }
+
+    fn game_language_to_deepl(lang: &str) -> Lang {
+        match &*lang.to_lowercase() {
             BRAZILIAN => Lang::PT_BR,
             SIMPLIFIED_CHINESE => Lang::ZH_HANS,
             CZECH => Lang::CS,
@@ -982,7 +1076,7 @@ impl ToolTranslator {
     }
 
     #[tokio::main]
-    async fn ask_deepl(string: &str, language: Lang) -> Result<String> {
+    async fn ask_deepl(string: &str, source_language: Lang, language: Lang) -> Result<String> {
         let api_key = settings_string(DEEPL_API_KEY);
         if api_key.is_empty() {
             return Err(anyhow!("Missing DeepL API Key."))
@@ -996,7 +1090,7 @@ impl ToolTranslator {
             .replace("]]", "]]>");
 
         let translated = api.translate_text(string, language)
-            .source_lang(Lang::EN)
+            .source_lang(source_language)
             .model_type(ModelType::PreferQualityOptimized)
             .ignore_tags(vec![
                 "rgba".to_owned(),
@@ -1169,4 +1263,10 @@ impl ToolTranslator {
 
         html
     }
+}
+
+/// Show a message box with a custom icon and title.
+unsafe fn show_message(parent: impl CastInto<Ptr<QWidget>>, icon: Icon, title: &CppBox<QString>, text: &CppBox<QString>) {
+    let message_box = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(icon, title, text, QFlags::from(StandardButton::Ok), parent);
+    message_box.exec();
 }

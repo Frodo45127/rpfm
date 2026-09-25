@@ -1584,9 +1584,16 @@ translator_move_selection_up = Move up
 translator_move_selection_down = Move down
 translator_copy_from_source = Copy from source
 translator_import_from_translated_pack = Import from translated Pack
-translator_language = Language:
+translator_language = Target language:
+translator_source_language = Source language:
+translator_source_language_dialog_title = Translation source
+translator_source_language_dialog_label = Pick the language you are translating from:
+translator_vanilla_source_title = Vanilla texts for the source language
+translator_vanilla_source_missing = RPFM couldn't find the {"{"}{"}"} texts of the game, so lines unchanged from vanilla will not be auto-translated.<br/><br/>
+    To get them, change the game's language to {"{"}{"}"} in Steam (Properties → General → Language), wait for Steam to download it, then open the Translator again with {"{"}{"}"} as source language. RPFM will save those texts, so you can switch the game back to your language afterwards.
+translator_vanilla_source_generated = The vanilla {"{"}{"}"} texts have been saved. You can now switch the game back to your language in Steam and open the Translator again.
 translator_version = Format version:
-translator_version_tooltip = On-disk file format version. v0 is the legacy format (compatible with older tooling); v1 is the current format with the auto-translated flag. Changing this will rewrite the file in the chosen format on save.
+translator_version_tooltip = On-disk file format version. v0 is the legacy format (compatible with older tooling); v1 is the current format, with the source language and the auto-translated flag. Only v1 supports sources other than English. Changing this will rewrite the file in the chosen format on save.
 translator_version_0 = 0 (legacy)
 translator_version_1 = 1 (current)
 

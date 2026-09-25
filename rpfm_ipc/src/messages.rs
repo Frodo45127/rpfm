@@ -978,12 +978,20 @@ pub enum Command {
     //-----------------------------------------------------------------------//
 
     /// Get pack translation data for a language from a specific pack.
-    /// First field is the pack key, second is the language.
+    /// Fields are: pack key, source language code, target language code.
     ///
     /// Response:
     /// - [`Response::PackTranslation`] on success.
     /// - [`Response::Error`] on failure.
-    GetPackTranslation(String, String),
+    GetPackTranslation(String, String, String),
+
+    /// Generate the vanilla texts of a source language from the game's locale packs, if the game has them.
+    /// The field is the source language code.
+    ///
+    /// Response:
+    /// - [`Response::Bool`] on success: whether vanilla texts for that language are available.
+    /// - [`Response::Error`] on failure.
+    GenerateVanillaTranslationSource(String),
 
     /// Check for translation updates.
     ///

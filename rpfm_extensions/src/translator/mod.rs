@@ -60,7 +60,8 @@
 //!     &[translations_path],
 //!     &pack,
 //!     "warhammer_3",
-//!     "es",  // Spanish
+//!     "EN",  // Source language
+//!     "ES",  // Target language (Spanish)
 //!     &dependencies,
 //!     &english_base,
 //!     &local_fixes,
@@ -73,6 +74,7 @@
 //! let loc_file = translation.generate_loc()?;
 //! ```
 
+use csv::{QuoteStyle, WriterBuilder};
 use getset::{Getters, MutGetters, Setters};
 use itertools::Itertools;
 use rayon::prelude::*;
@@ -80,13 +82,15 @@ use serde::{Serialize as SerdeSerialize, Serializer};
 use serde_derive::{Serialize, Deserialize};
 
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::fs::{DirBuilder, File};
+use std::fs::{self, DirBuilder, File};
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 
 use rpfm_lib::error::{Result, RLibError};
 use rpfm_lib::files::{Container, FileType, loc::Loc, pack::Pack, RFile, RFileDecoded, table::{DecodedData, local::TableInMemory, Table}};
+use rpfm_lib::games::GameInfo;
 use rpfm_lib::schema::*;
+use rpfm_lib::utils::files_from_subdir;
 
 use crate::dependencies::Dependencies;
 
@@ -104,6 +108,9 @@ pub const TRANSLATED_PATH: &str = "text/!!!!!!translated_locs.loc";
 /// Legacy path for translated Loc files (for backwards compatibility).
 pub const TRANSLATED_PATH_OLD: &str = "text/localisation.loc";
 
+/// Name of the Translation Hub's TSV with the vanilla English texts.
+pub const VANILLA_LOC_NAME_EN: &str = "vanilla_english.tsv";
+
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
@@ -119,11 +126,11 @@ pub const TRANSLATED_PATH_OLD: &str = "text/localisation.loc";
 /// on-disk formats, picked by the [`version`](Self::version) field:
 ///
 /// - `0` — legacy format. Per-entry `key`/`value_original`/`value_translated`/
-///   `needs_retranslation`/`removed`; no `aut` and no `version` at the root.
-///   The user can opt back into this format from the translator UI to share
-///   translations with older tooling.
-/// - `1` — current format. Adds `version` and `aut`, and uses the shorter
-///   per-entry field names (`src`/`dst`/`retr`/`rem`/`aut`).
+///   `needs_retranslation`/`removed`; no `aut`, and no `src_lang` or `version`
+///   at the root. The user can opt back into this format from the translator UI
+///   to share translations with older tooling.
+/// - `1` — current format. Adds `version`, `src_lang` and `aut`, and uses the
+///   shorter per-entry field names (`src`/`dst`/`retr`/`rem`/`aut`).
 ///
 /// On load, files without a `version` field are treated as v0 — i.e. existing
 /// translation hubs and legacy local files keep their format unless the user
@@ -146,6 +153,13 @@ pub struct PackTranslation {
 
     /// Target language code for translations (e.g., "ES", "DE", "FR").
     language: String,
+
+    /// Source language code these translations are based on (e.g., "EN").
+    ///
+    /// Missing from the old format; defaults to [`DEFAULT_SRC_LANG`] when loading
+    /// legacy files.
+    #[serde(default = "default_src_lang")]
+    src_lang: String,
 
     /// Name of the pack these translations belong to.
     pack_name: String,
@@ -209,6 +223,16 @@ pub struct Translation {
 /// unless the user opts in to the new format from the UI.
 pub const CURRENT_VERSION: u32 = 1;
 
+/// Two-letter source-language code assumed when none is recorded on disk.
+///
+/// Translations have always been authored against the English base, so legacy
+/// files (which predate the `src_lang` field) and freshly created translations
+/// both end up with this value. Uppercase to match how `language` is stored
+/// elsewhere in the translator; not the same thing as `rpfm_lib::games::ENGLISH`,
+/// which is the lowercase identifier used for game data file naming
+/// (e.g. `local_en.pack`).
+pub const DEFAULT_SRC_LANG: &str = "EN";
+
 /// Wire-format counterparts used when saving as legacy v0. We can't reuse the
 /// canonical structs because field names changed and the per-entry `key` field
 /// is no longer stored. Building these on save lets us write the old shape
@@ -235,22 +259,30 @@ struct TranslationV0Wire<'a> {
 
 impl PackTranslation {
 
-    pub fn new(paths: &[PathBuf], pack: &Pack, game_key: &str, language: &str, dependencies: &Dependencies, base_english: &HashMap<String, String>, base_local_fixes: &HashMap<String, String>) -> Result<Self> {
-        let mut translations = Self::load(paths, &pack.disk_file_name(), game_key, language).unwrap_or_else(|_| {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(paths: &[PathBuf], pack: &Pack, game_key: &str, src_lang: &str, language: &str, dependencies: &Dependencies, base_english: &HashMap<String, String>, base_local_fixes: &HashMap<String, String>) -> Result<Self> {
+        let mut translations = Self::load(paths, &pack.disk_file_name(), game_key, src_lang, language).unwrap_or_else(|_| {
             // No existing file → new translation. `Default::default()` already gives us
-            // version=1; we stamp the language and pack name on top.
+            // version=1; we stamp the language, source language and pack name on top.
             Self {
                 language: language.to_owned(),
+                src_lang: src_lang.to_owned(),
                 pack_name: pack.disk_file_name(),
                 ..Default::default()
             }
         });
 
+        // Legacy files written before `src_lang` existed come through with an empty value.
+        // Stamp the caller's choice so the saved file always carries a meaningful source language.
+        if translations.src_lang.is_empty() {
+            translations.src_lang = src_lang.to_owned();
+        }
+
         // If the pack has dependencies, we have to try to load their translations too, then patch the live dependencies with them.
         // Otherwise, we'll have a situation where data is compared and imported from the wrong language.
         let mut parent_tr = vec![];
         for (_, pack_name) in pack.dependencies() {
-            if let Ok(ptr) = Self::load(paths, pack_name, game_key, language) {
+            if let Ok(ptr) = Self::load(paths, pack_name, game_key, src_lang, language) {
                 parent_tr.push(ptr);
             }
         }
@@ -420,6 +452,108 @@ impl PackTranslation {
         Ok(merged_loc)
     }
 
+    /// Name of the TSV with the vanilla texts of a source language.
+    ///
+    /// # Arguments
+    ///
+    /// * `src_lang` - Source language code (e.g. "EN", "SP").
+    ///
+    /// # Returns
+    ///
+    /// [`VANILLA_LOC_NAME_EN`] for English, `vanilla_{src_lang}.tsv` for any other language.
+    pub fn vanilla_loc_file_name(src_lang: &str) -> String {
+        if src_lang.eq_ignore_ascii_case(DEFAULT_SRC_LANG) {
+            VANILLA_LOC_NAME_EN.to_owned()
+        } else {
+            format!("vanilla_{}.tsv", src_lang.to_lowercase())
+        }
+    }
+
+    /// Generates the vanilla texts TSV of a language from the game's locale packs.
+    ///
+    /// The file is kept so it can still be used after the game stops shipping that language,
+    /// and it's only regenerated when the locale packs are newer than it.
+    ///
+    /// # Arguments
+    ///
+    /// * `game` - Game the locale packs belong to.
+    /// * `game_path` - Path of the game's installation.
+    /// * `src_lang` - Language code of the locale packs to read (e.g. "SP").
+    /// * `dest_folder` - Folder where the TSV is written.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the game has locale packs for the language (so the TSV is up to date), `false` otherwise.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the game's data folder can't be read, or if the packs can't be read or the TSV written.
+    pub fn generate_vanilla_loc(game: &GameInfo, game_path: &Path, src_lang: &str, dest_folder: &Path) -> Result<bool> {
+        let packs = Self::locale_pack_paths(&game.data_path(game_path)?, src_lang)?;
+        if packs.is_empty() {
+            return Ok(false);
+        }
+
+        let dest_path = dest_folder.join(Self::vanilla_loc_file_name(src_lang));
+        if let Ok(generated) = fs::metadata(&dest_path).and_then(|meta| meta.modified()) {
+            let newest_pack = packs.iter()
+                .filter_map(|path| fs::metadata(path).and_then(|meta| meta.modified()).ok())
+                .max();
+
+            if newest_pack.is_some_and(|newest_pack| newest_pack <= generated) {
+                return Ok(true);
+            }
+        }
+
+        let mut pack = Pack::read_and_merge(&packs, game, true, false, false)?;
+        pack.files_by_type_mut(&[FileType::Loc]).par_iter_mut().for_each(|file| {
+            let _ = file.decode(&None, true, false);
+        });
+
+        let mut locs = pack.files_by_type(&[FileType::Loc]);
+        let merged_loc = Self::sort_and_merge_locs_for_translation(&mut locs)?;
+
+        // Written to a temp file first, so an interrupted write can't leave a truncated TSV that looks up to date.
+        DirBuilder::new().recursive(true).create(dest_folder)?;
+        let temp_path = dest_path.with_extension("tsv.tmp");
+        let mut writer = WriterBuilder::new()
+            .delimiter(b'\t')
+            .quote_style(QuoteStyle::Never)
+            .has_headers(false)
+            .flexible(true)
+            .from_path(&temp_path)?;
+
+        merged_loc.tsv_export(&mut writer, TRANSLATED_PATH_OLD)?;
+        drop(writer);
+        fs::rename(&temp_path, &dest_path)?;
+
+        Ok(true)
+    }
+
+    /// Paths of the game's locale packs for a language (`local_{lang}.pack`, `local_{lang}_*.pack`), sorted.
+    ///
+    /// Linux ports keep them in `localisation/{lang}/` instead of directly in the data folder.
+    fn locale_pack_paths(data_path: &Path, lang: &str) -> Result<Vec<PathBuf>> {
+        let lang = lang.to_lowercase();
+        let prefix = format!("local_{lang}");
+        let mut files = files_from_subdir(data_path, false)?;
+
+        let localisation_path = data_path.join("localisation").join(&lang);
+        if localisation_path.is_dir() {
+            files.extend(files_from_subdir(&localisation_path, false)?);
+        }
+
+        let mut paths = files.into_iter()
+            .filter(|path| {
+                let name = path.file_name().map(|name| name.to_string_lossy().to_lowercase()).unwrap_or_default();
+                name.ends_with(".pack") && name.strip_prefix(&prefix).is_some_and(|rest| rest.starts_with('.') || rest.starts_with('_'))
+            })
+            .collect::<Vec<_>>();
+
+        paths.sort();
+        Ok(paths)
+    }
+
     /// This function applies a [PackTranslation] to a Pack.
     pub fn apply(&self, _pack: &mut Pack) -> Result<()> {
         todo!()
@@ -428,11 +562,19 @@ impl PackTranslation {
     /// This function loads a [PackTranslation] to memory from either a local json file, or a remote one.
     ///
     /// Files written in the old format (with `key`, `value_original`, `value_translated`,
-    /// `needs_retranslation`, `removed` and without `aut`) are accepted transparently via
-    /// serde aliases and field defaults.
-    pub fn load(paths: &[PathBuf], pack_name: &str, game_key: &str, language: &str) -> Result<Self> {
+    /// `needs_retranslation`, `removed` and without `src_lang`/`aut`) are accepted
+    /// transparently via serde aliases and field defaults — no explicit version probing needed.
+    ///
+    /// On-disk layout:
+    /// - v1+ → `{game_key}/{pack_name}/{src_lang}-{language}.json`.
+    /// - v0  → `{game_key}/{pack_name}/{language}.json` (no source language in the path, since
+    ///   v0 implicitly assumed English).
+    ///
+    /// `load_json` will probe both paths in that order so users who upgrade RPFM keep finding
+    /// their existing translations even if they were saved before this refactor.
+    pub fn load(paths: &[PathBuf], pack_name: &str, game_key: &str, src_lang: &str, language: &str) -> Result<Self> {
         for path in paths {
-            match Self::load_json(path, pack_name, game_key, language) {
+            match Self::load_json(path, pack_name, game_key, src_lang, language) {
                 Ok(mut tr) => return {
                     for trad in tr.translations_mut() {
                         trad.1.dst = trad.1.dst.replace("\n||\n", "||");
@@ -449,9 +591,21 @@ impl PackTranslation {
         Err(RLibError::TranslatorCouldNotLoadTranslation)
     }
 
-    fn load_json(path: &Path, pack_name: &str, game_key: &str, language: &str) -> Result<Self> {
-        let path = path.join(format!("{game_key}/{pack_name}/{language}.json"));
-        let mut file = BufReader::new(File::open(path)?);
+    fn load_json(path: &Path, pack_name: &str, game_key: &str, src_lang: &str, language: &str) -> Result<Self> {
+        // v1 layout encodes both source and target language in the filename. v0 layout, which
+        // predates non-EN sources, only used the target language. Probe v1 first; fall back to
+        // v0 only when sourcing from EN, since a v0 file can't possibly carry a non-EN source.
+        let v1_path = path.join(format!("{game_key}/{pack_name}/{src_lang}-{language}.json"));
+        let v0_path = path.join(format!("{game_key}/{pack_name}/{language}.json"));
+        let chosen = if v1_path.is_file() {
+            v1_path
+        } else if src_lang.eq_ignore_ascii_case("EN") && v0_path.is_file() {
+            v0_path
+        } else {
+            return Err(RLibError::TranslatorCouldNotLoadTranslation);
+        };
+
+        let mut file = BufReader::new(File::open(chosen)?);
         let mut data = Vec::with_capacity(file.get_ref().metadata()?.len() as usize);
         file.read_to_end(&mut data)?;
 
@@ -466,16 +620,48 @@ impl PackTranslation {
         Ok(pack_tr)
     }
 
+    /// Name of the file this translation is saved as, which depends on its format version.
+    ///
+    /// # Returns
+    ///
+    /// `{src_lang}-{language}.json` for v1+, or the legacy `{language}.json` for v0.
+    pub fn file_name(&self) -> String {
+        if self.version == 0 {
+            format!("{}.json", self.language)
+        } else {
+            format!("{}-{}.json", self.src_lang, self.language)
+        }
+    }
+
     /// This function saves a [PackTranslation] from memory to a `.json` file with the provided path.
     ///
     /// The on-disk format depends on [`Self::version`]: 0 writes the legacy shape, 1 (or higher)
-    /// writes the current shape. Downgrading v1 → v0 drops the per-entry `aut` flag.
+    /// writes the current shape. Downgrading v1 → v0 drops fields that don't exist in v0
+    /// (`src_lang` and the per-entry `aut` flag).
+    ///
+    /// The filename also depends on the version: v1+ uses `{src_lang}-{language}.json` so
+    /// translations from different source languages live side-by-side; v0 keeps the legacy
+    /// `{language}.json` because the old format had no concept of source language.
     pub fn save(&mut self, path: &Path, game_key: &str) -> Result<()> {
-        let path = path.join(format!("{}/{}/{}.json", game_key, self.pack_name, self.language));
+        let folder = path.join(format!("{}/{}", game_key, self.pack_name));
+        let path = folder.join(self.file_name());
 
         // Make sure the path exists to avoid problems with updating schemas.
-        if let Some(parent_folder) = path.parent() {
-            DirBuilder::new().recursive(true).create(parent_folder)?;
+        DirBuilder::new().recursive(true).create(&folder)?;
+
+        // Switching between v0 and v1 moves an EN-sourced translation between the two filenames, so remove
+        // the stale one. Non-EN sources never have a v0 file, and `{language}.json` belongs to the EN one.
+        if self.src_lang.eq_ignore_ascii_case(DEFAULT_SRC_LANG) {
+            let other_filename = if self.version == 0 {
+                format!("{}-{}.json", self.src_lang, self.language)
+            } else {
+                format!("{}.json", self.language)
+            };
+
+            let other_path = folder.join(other_filename);
+            if other_path.is_file() {
+                std::fs::remove_file(&other_path)?;
+            }
         }
 
         let json = if self.version == 0 {
@@ -586,10 +772,19 @@ impl Default for PackTranslation {
         Self {
             version: CURRENT_VERSION,
             language: String::new(),
+            src_lang: default_src_lang(),
             pack_name: String::new(),
             translations: HashMap::new(),
         }
     }
+}
+
+/// Default source language used when loading translation files that don't
+/// declare one (i.e. files written before `src_lang` existed). Exists as a
+/// function rather than a `&str` because `#[serde(default = "...")]` takes a
+/// function path; the actual value lives in [`DEFAULT_SRC_LANG`].
+fn default_src_lang() -> String {
+    DEFAULT_SRC_LANG.to_owned()
 }
 
 /// Special serializer function to sort the translations HashMap before serializing.

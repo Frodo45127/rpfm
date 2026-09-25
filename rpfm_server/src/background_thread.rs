@@ -74,23 +74,12 @@ use crate::updater;
 
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
-/// Filename of the per-game vanilla English Loc TSV bundled in the
-/// [Total War Translation Hub][tlh] repo. The translator compares mod loc
-/// entries against this file to detect rows that match vanilla and can be
-/// auto-translated from the official localisation.
-///
-/// Lives under [`crate::settings::translations_remote_path`] once the Hub
-/// has been cloned locally.
-///
-/// [tlh]: https://github.com/Frodo45127/total_war_translation_hub
-pub const VANILLA_LOC_NAME: &str = "vanilla_english.tsv";
-
 /// Filename prefix for community-maintained vanilla loc fix TSVs in the
 /// [Total War Translation Hub][tlh] repo (e.g. `vanilla_fixes_es.tsv`).
 /// Each one carries fixes for vanilla loc bugs in a specific language;
 /// the suffix is the language code.
 ///
-/// Discovered alongside [`VANILLA_LOC_NAME`] under
+/// Discovered alongside the vanilla English TSV under
 /// [`crate::settings::translations_remote_path`].
 ///
 /// [tlh]: https://github.com/Frodo45127/total_war_translation_hub
@@ -3230,7 +3219,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 });
             }
 
-            Command::GetPackTranslation(pack_key, language) => {
+            Command::GetPackTranslation(pack_key, src_lang, language) => {
                 let game_key = game.key();
                 match translations_local_path() {
                     Ok(local_path) => {
@@ -3240,8 +3229,12 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                         match translations_remote_path() {
                             Ok(remote_path) => {
 
-                                let vanilla_loc_path = remote_path.join(format!("{}/{}", game.key(), VANILLA_LOC_NAME));
-                                if let Ok(mut vanilla_loc) = RFile::tsv_import_from_path(&vanilla_loc_path, &None) {
+                                // Vanilla texts generated from the game files live in the local folder. The Hub only ships English ones.
+                                let vanilla_loc_name = PackTranslation::vanilla_loc_file_name(&src_lang);
+                                let vanilla_loc = [&local_path, &remote_path].iter()
+                                    .find_map(|path| RFile::tsv_import_from_path(&path.join(game_key).join(&vanilla_loc_name), &None).ok());
+
+                                if let Some(mut vanilla_loc) = vanilla_loc {
                                     let _ = vanilla_loc.guess_file_type();
                                     if let Ok(RFileDecoded::Loc(vanilla_loc)) = vanilla_loc.decoded() {
 
@@ -3262,7 +3255,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                                 let dependencies = dependencies.read().unwrap();
                                 let paths = vec![local_path, remote_path];
                                 let Some(pack_ref) = get_pack(&packs, &pack_key, &sender) else { continue 'background_loop; };
-                                match PackTranslation::new(&paths, pack_ref, game_key, &language, &dependencies, &base_english, &base_local_fixes) {
+                                match PackTranslation::new(&paths, pack_ref, game_key, &src_lang, &language, &dependencies, &base_english, &base_local_fixes) {
                                     Ok(tr) => CentralCommand::send_back(&sender, Response::PackTranslation(tr)),
                                     Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                                 }
@@ -3271,6 +3264,22 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                         }
                     },
                     Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                }
+            }
+
+            Command::GenerateVanillaTranslationSource(src_lang) => {
+                match (translations_local_path(), translations_remote_path()) {
+                    (Ok(local_path), Ok(remote_path)) => {
+                        let game_path = settings.path_buf(game.key());
+                        if let Err(error) = PackTranslation::generate_vanilla_loc(game, &game_path, &src_lang, &local_path.join(game.key())) {
+                            warn!("Failed to generate the vanilla {src_lang} texts from the game files: {error}");
+                        }
+
+                        let vanilla_loc_name = PackTranslation::vanilla_loc_file_name(&src_lang);
+                        let available = [local_path, remote_path].iter().any(|path| path.join(game.key()).join(&vanilla_loc_name).is_file());
+                        CentralCommand::send_back(&sender, Response::Bool(available));
+                    }
+                    (Err(error), _) | (_, Err(error)) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                 }
             }
 

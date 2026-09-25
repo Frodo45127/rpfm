@@ -31,6 +31,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, RwLock};
 
 use rpfm_extensions::optimizer::OptimizerOptions;
+use rpfm_extensions::translator::DEFAULT_SRC_LANG;
 
 use rpfm_ipc::settings_keys::*;
 
@@ -334,6 +335,7 @@ impl Settings {
         settings.initialize_string(AI_API_KEY, "");
         settings.initialize_string(AI_MODEL, "gpt-4o-mini");
         settings.initialize_string(DEEPL_API_KEY, "");
+        settings.initialize_string(TRANSLATOR_SOURCE_LANGUAGE, DEFAULT_SRC_LANG);
 
         settings.initialize_vec_string(RECENT_FILE_LIST, &[]);
 

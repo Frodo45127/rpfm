@@ -4202,6 +4202,7 @@ dependencies = [
  "base64 0.22.1",
  "bitcode",
  "caseless",
+ "csv",
  "getset",
  "gltf",
  "gltf-json",

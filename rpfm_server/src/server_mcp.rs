@@ -54,6 +54,7 @@ use std::sync::Arc;
 use std::path::PathBuf;
 
 use rpfm_extensions::merge::MergeOptions;
+use rpfm_extensions::translator::DEFAULT_SRC_LANG;
 
 use rpfm_ipc::helpers::DataSource;
 use rpfm_ipc::messages::{Command, Response};
@@ -794,8 +795,21 @@ pub struct SetVideoFormatArgs {
 pub struct GetPackTranslationArgs {
     /// The key of the target pack.
     pub pack_key: String,
-    /// The language code.
+    /// The source language code these translations are based on (e.g. "EN").
+    #[serde(default = "default_src_lang")]
+    pub src_lang: String,
+    /// The target language code.
     pub language: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema, Serialize)]
+pub struct SrcLangArg {
+    /// The source language code (e.g. "SP").
+    pub src_lang: String,
+}
+
+fn default_src_lang() -> String {
+    DEFAULT_SRC_LANG.to_owned()
 }
 
 //-------------------------------------------------------------------------------//
@@ -2093,7 +2107,12 @@ impl McpServer {
 
     #[tool(description = "Get pack translation data for a language from the pack identified by `pack_key`.")]
     pub async fn get_pack_translation(&self, params: Parameters<GetPackTranslationArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_pack_translation", Command::GetPackTranslation(params.0.pack_key, params.0.language))
+        send_and_respond!(self, "get_pack_translation", Command::GetPackTranslation(params.0.pack_key, params.0.src_lang, params.0.language))
+    }
+
+    #[tool(description = "Generate the vanilla texts of a source language from the game's locale packs. Returns whether vanilla texts for that language are available.")]
+    pub async fn generate_vanilla_translation_source(&self, params: Parameters<SrcLangArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, "generate_vanilla_translation_source", Command::GenerateVanillaTranslationSource(params.0.src_lang))
     }
 
     #[tool(description = "Get campaign IDs for starpos building in the pack identified by `pack_key`.")]

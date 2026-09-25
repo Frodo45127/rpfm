@@ -91,8 +91,9 @@ impl ToolTranslatorSlots {
                 event_loop.process_events();
 
                 let source_text = ui.original_value_textedit().to_plain_text().to_std_string();
+                let source_language = ui.map_source_language_to_deepl();
                 let language = ui.map_language_to_deepl();
-                let result = ToolTranslator::ask_deepl(&source_text, language);
+                let result = ToolTranslator::ask_deepl(&source_text, source_language, language);
                 if let Ok(tr) = result {
                     ui.translated_value_textedit.set_text(&QString::from_std_str(tr));
                 }

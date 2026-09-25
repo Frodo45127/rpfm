@@ -38,6 +38,7 @@ use super::*;
 
 const GAME: &str = "warhammer_3";
 const PACK: &str = "test_pack.pack";
+const SRC_LANG: &str = "EN";
 const LANG: &str = "ES";
 
 /// Build an in-memory [`PackTranslation`] populated with a small but realistic
@@ -69,6 +70,7 @@ fn sample_v1() -> PackTranslation {
     PackTranslation {
         version: CURRENT_VERSION,
         language: LANG.to_owned(),
+        src_lang: DEFAULT_SRC_LANG.to_owned(),
         pack_name: PACK.to_owned(),
         translations,
     }
@@ -76,8 +78,17 @@ fn sample_v1() -> PackTranslation {
 
 /// Resolve where [`PackTranslation::save`] will drop the JSON for a given
 /// base directory, so tests can read the raw on-disk bytes back.
-fn translation_path(base: &Path, pack: &str, lang: &str) -> PathBuf {
-    base.join(format!("{GAME}/{pack}/{lang}.json"))
+///
+/// v1 files live under `{base}/{game}/{pack}/{src_lang}-{lang}.json`; v0 files keep the
+/// legacy `{base}/{game}/{pack}/{lang}.json` layout because the old format had no source
+/// language in the filename.
+fn translation_path(base: &Path, pack: &str, version: u32, src_lang: &str, lang: &str) -> PathBuf {
+    let filename = if version == 0 {
+        format!("{lang}.json")
+    } else {
+        format!("{src_lang}-{lang}.json")
+    };
+    base.join(format!("{GAME}/{pack}/{filename}"))
 }
 
 /// Roundtripping a v1 translation through disk should preserve every field,
@@ -88,10 +99,11 @@ fn roundtrip_v1() {
     let mut original = sample_v1();
 
     original.save(tmp.path(), GAME).unwrap();
-    let loaded = PackTranslation::load(&[tmp.path().to_path_buf()], PACK, GAME, LANG).unwrap();
+    let loaded = PackTranslation::load(&[tmp.path().to_path_buf()], PACK, GAME, SRC_LANG, LANG).unwrap();
 
     assert_eq!(loaded.version, CURRENT_VERSION);
     assert_eq!(loaded.language, original.language);
+    assert_eq!(loaded.src_lang, original.src_lang);
     assert_eq!(loaded.pack_name, original.pack_name);
     assert_eq!(loaded.translations.len(), original.translations.len());
     for (key, tr) in &original.translations {
@@ -114,7 +126,7 @@ fn roundtrip_v0() {
     original.version = 0;
 
     original.save(tmp.path(), GAME).unwrap();
-    let loaded = PackTranslation::load(&[tmp.path().to_path_buf()], PACK, GAME, LANG).unwrap();
+    let loaded = PackTranslation::load(&[tmp.path().to_path_buf()], PACK, GAME, SRC_LANG, LANG).unwrap();
 
     // Version stays at 0 so the next save keeps writing the legacy shape.
     assert_eq!(loaded.version, 0);
@@ -143,8 +155,9 @@ fn v0_wire_shape_is_legacy() {
     original.version = 0;
     original.save(tmp.path(), GAME).unwrap();
 
-    let json: Value = serde_json::from_slice(&fs::read(translation_path(tmp.path(), PACK, LANG)).unwrap()).unwrap();
+    let json: Value = serde_json::from_slice(&fs::read(translation_path(tmp.path(), PACK, 0, SRC_LANG, LANG)).unwrap()).unwrap();
     assert!(json.get("version").is_none(), "v0 must not write a version field");
+    assert!(json.get("src_lang").is_none(), "v0 must not write src_lang");
 
     let entry = json.pointer("/translations/greeting").expect("entry missing");
     assert_eq!(entry.get("key").and_then(Value::as_str), Some("greeting"));
@@ -162,8 +175,9 @@ fn v1_wire_shape_is_current() {
     let mut original = sample_v1();
     original.save(tmp.path(), GAME).unwrap();
 
-    let json: Value = serde_json::from_slice(&fs::read(translation_path(tmp.path(), PACK, LANG)).unwrap()).unwrap();
+    let json: Value = serde_json::from_slice(&fs::read(translation_path(tmp.path(), PACK, original.version, &original.src_lang, LANG)).unwrap()).unwrap();
     assert_eq!(json.get("version").and_then(Value::as_u64), Some(CURRENT_VERSION as u64));
+    assert_eq!(json.get("src_lang").and_then(Value::as_str), Some(DEFAULT_SRC_LANG));
 
     let entry = json.pointer("/translations/greeting").expect("entry missing");
     assert_eq!(entry.get("src").and_then(Value::as_str), Some("Hello"));
@@ -177,7 +191,7 @@ fn v1_wire_shape_is_current() {
 #[test]
 fn load_handwritten_legacy_v0() {
     let tmp = TempDir::new().unwrap();
-    let path = translation_path(tmp.path(), PACK, LANG);
+    let path = translation_path(tmp.path(), PACK, 0, SRC_LANG, LANG);
     fs::create_dir_all(path.parent().unwrap()).unwrap();
 
     let legacy = json!({
@@ -202,8 +216,9 @@ fn load_handwritten_legacy_v0() {
     });
     fs::write(&path, serde_json::to_vec_pretty(&legacy).unwrap()).unwrap();
 
-    let loaded = PackTranslation::load(&[tmp.path().to_path_buf()], PACK, GAME, LANG).unwrap();
+    let loaded = PackTranslation::load(&[tmp.path().to_path_buf()], PACK, GAME, SRC_LANG, LANG).unwrap();
     assert_eq!(loaded.version, 0, "missing version field must be treated as v0");
+    assert_eq!(loaded.src_lang, default_src_lang());
 
     let greeting = loaded.translations.get("greeting").expect("greeting missing");
     assert_eq!(greeting.src, "Hello");
@@ -225,15 +240,17 @@ fn convert_v0_to_v1() {
     original.version = 0;
     original.save(tmp.path(), GAME).unwrap();
 
-    let mut upgraded = PackTranslation::load(&[tmp.path().to_path_buf()], PACK, GAME, LANG).unwrap();
+    let mut upgraded = PackTranslation::load(&[tmp.path().to_path_buf()], PACK, GAME, SRC_LANG, LANG).unwrap();
     assert_eq!(upgraded.version, 0);
     upgraded.version = CURRENT_VERSION;
     upgraded.save(tmp.path(), GAME).unwrap();
 
-    let json: Value = serde_json::from_slice(&fs::read(translation_path(tmp.path(), PACK, LANG)).unwrap()).unwrap();
+    // After saving as v1 the file moves from `{lang}.json` to `{src_lang}-{lang}.json`.
+    assert!(!translation_path(tmp.path(), PACK, 0, SRC_LANG, LANG).is_file(), "the v0 file must be removed");
+    let json: Value = serde_json::from_slice(&fs::read(translation_path(tmp.path(), PACK, CURRENT_VERSION, &upgraded.src_lang, LANG)).unwrap()).unwrap();
     assert_eq!(json.get("version").and_then(Value::as_u64), Some(CURRENT_VERSION as u64));
 
-    let reloaded = PackTranslation::load(&[tmp.path().to_path_buf()], PACK, GAME, LANG).unwrap();
+    let reloaded = PackTranslation::load(&[tmp.path().to_path_buf()], PACK, GAME, SRC_LANG, LANG).unwrap();
     assert_eq!(reloaded.version, CURRENT_VERSION);
     assert_eq!(reloaded.translations.len(), original.translations.len());
     for (key, tr) in &original.translations {
@@ -257,20 +274,23 @@ fn convert_v1_to_v0() {
     original.translations.get_mut("greeting").unwrap().aut = true;
     original.save(tmp.path(), GAME).unwrap();
 
-    let mut downgraded = PackTranslation::load(&[tmp.path().to_path_buf()], PACK, GAME, LANG).unwrap();
+    let mut downgraded = PackTranslation::load(&[tmp.path().to_path_buf()], PACK, GAME, SRC_LANG, LANG).unwrap();
     assert_eq!(downgraded.version, CURRENT_VERSION);
     downgraded.version = 0;
     downgraded.save(tmp.path(), GAME).unwrap();
 
-    // Wire-level: the on-disk file must look like v0 — no `version`, no `aut`, old field names.
-    let json: Value = serde_json::from_slice(&fs::read(translation_path(tmp.path(), PACK, LANG)).unwrap()).unwrap();
+    // Wire-level: the on-disk file must look like v0 — no `version`, no `aut`/`src_lang`, old
+    // field names. Downgrading also moves the file back to the legacy `{lang}.json` location.
+    assert!(!translation_path(tmp.path(), PACK, CURRENT_VERSION, SRC_LANG, LANG).is_file(), "the v1 file must be removed");
+    let json: Value = serde_json::from_slice(&fs::read(translation_path(tmp.path(), PACK, 0, SRC_LANG, LANG)).unwrap()).unwrap();
     assert!(json.get("version").is_none());
+    assert!(json.get("src_lang").is_none());
     let entry = json.pointer("/translations/greeting").expect("entry missing");
     assert!(entry.get("aut").is_none(), "aut must be dropped when downgrading to v0");
     assert_eq!(entry.get("value_original").and_then(Value::as_str), Some("Hello"));
 
     // Reload-level: data still round-trips, just without `aut`.
-    let reloaded = PackTranslation::load(&[tmp.path().to_path_buf()], PACK, GAME, LANG).unwrap();
+    let reloaded = PackTranslation::load(&[tmp.path().to_path_buf()], PACK, GAME, SRC_LANG, LANG).unwrap();
     assert_eq!(reloaded.version, 0);
     for (key, tr) in &original.translations {
         let r = reloaded.translations.get(key).expect("entry missing after downgrade");
@@ -282,12 +302,42 @@ fn convert_v1_to_v0() {
     }
 }
 
+/// Saving a v1 translation from a non-EN source must not delete the legacy
+/// `{lang}.json`, because that file is the EN-sourced translation, not a stale copy.
+#[test]
+fn save_non_en_source_keeps_en_v0_file() {
+    let tmp = TempDir::new().unwrap();
+    let mut en_v0 = sample_v1();
+    en_v0.version = 0;
+    en_v0.save(tmp.path(), GAME).unwrap();
+
+    let mut de_v1 = sample_v1();
+    de_v1.src_lang = "DE".to_owned();
+    de_v1.save(tmp.path(), GAME).unwrap();
+
+    assert!(translation_path(tmp.path(), PACK, 0, SRC_LANG, LANG).is_file());
+    assert!(translation_path(tmp.path(), PACK, CURRENT_VERSION, "DE", LANG).is_file());
+}
+
+/// A v0 file is only a valid fallback for EN sources, since v0 predates non-EN sources.
+#[test]
+fn load_v0_only_for_en_source() {
+    let tmp = TempDir::new().unwrap();
+    let mut en_v0 = sample_v1();
+    en_v0.version = 0;
+    en_v0.save(tmp.path(), GAME).unwrap();
+
+    assert!(PackTranslation::load(&[tmp.path().to_path_buf()], PACK, GAME, SRC_LANG, LANG).is_ok());
+    assert!(PackTranslation::load(&[tmp.path().to_path_buf()], PACK, GAME, "DE", LANG).is_err());
+}
+
 /// [`PackTranslation::Default`] must produce a fresh-but-current translation.
 /// This is what [`PackTranslation::new`] uses when no prior translation file exists.
 #[test]
 fn default_is_current_version() {
     let pt = PackTranslation::default();
     assert_eq!(pt.version, CURRENT_VERSION);
+    assert_eq!(pt.src_lang, DEFAULT_SRC_LANG);
     assert!(pt.language.is_empty());
     assert!(pt.pack_name.is_empty());
     assert!(pt.translations.is_empty());
@@ -300,7 +350,7 @@ fn default_is_current_version() {
 #[test]
 fn load_substitutes_special_chars_in_dst() {
     let tmp = TempDir::new().unwrap();
-    let path = translation_path(tmp.path(), PACK, LANG);
+    let path = translation_path(tmp.path(), PACK, CURRENT_VERSION, SRC_LANG, LANG);
     fs::create_dir_all(path.parent().unwrap()).unwrap();
 
     // Hand-built so we control the on-disk bytes exactly. Each entry exercises
@@ -308,6 +358,7 @@ fn load_substitutes_special_chars_in_dst() {
     let on_disk = json!({
         "version": CURRENT_VERSION,
         "language": LANG,
+        "src_lang": DEFAULT_SRC_LANG,
         "pack_name": PACK,
         "translations": {
             "newline": {
@@ -334,7 +385,7 @@ fn load_substitutes_special_chars_in_dst() {
     });
     fs::write(&path, serde_json::to_vec_pretty(&on_disk).unwrap()).unwrap();
 
-    let loaded = PackTranslation::load(&[tmp.path().to_path_buf()], PACK, GAME, LANG).unwrap();
+    let loaded = PackTranslation::load(&[tmp.path().to_path_buf()], PACK, GAME, SRC_LANG, LANG).unwrap();
 
     // `\n` (one char) → `\\n` (two chars: backslash, backslash, n). The
     // replacement string in the source is `"\\\\n"`, which is two literal
@@ -368,6 +419,7 @@ fn save_writes_dst_verbatim() {
     let mut pt = PackTranslation {
         version: CURRENT_VERSION,
         language: LANG.to_owned(),
+        src_lang: DEFAULT_SRC_LANG.to_owned(),
         pack_name: PACK.to_owned(),
         translations: HashMap::new(),
     };
@@ -386,7 +438,7 @@ fn save_writes_dst_verbatim() {
 
     // Parse the file ourselves so we see exactly what serde_json wrote, with
     // no further processing on top.
-    let raw: Value = serde_json::from_slice(&fs::read(translation_path(tmp.path(), PACK, LANG)).unwrap()).unwrap();
+    let raw: Value = serde_json::from_slice(&fs::read(translation_path(tmp.path(), PACK, pt.version, &pt.src_lang, LANG)).unwrap()).unwrap();
 
     // `\n` survives as a real newline character in the parsed JSON — i.e.
     // save didn't pre-escape it into `\\n`, which is what `load` would later do.
@@ -402,7 +454,49 @@ fn save_writes_dst_verbatim() {
     // Sanity-check the asymmetry end-to-end: feeding that same file back
     // through `load` reapplies the substitutions, so the in-memory value
     // diverges from what we just saved.
-    let reloaded = PackTranslation::load(&[tmp.path().to_path_buf()], PACK, GAME, LANG).unwrap();
+    let reloaded = PackTranslation::load(&[tmp.path().to_path_buf()], PACK, GAME, SRC_LANG, LANG).unwrap();
     assert_eq!(reloaded.translations.get("newline").unwrap().dst, r"linea\\nrota");
     assert_eq!(reloaded.translations.get("sandwich").unwrap().dst, "antes||despues");
+}
+
+/// English keeps the Translation Hub's file name; other languages use their own code.
+#[test]
+fn vanilla_loc_file_name_per_language() {
+    assert_eq!(PackTranslation::vanilla_loc_file_name("EN"), VANILLA_LOC_NAME_EN);
+    assert_eq!(PackTranslation::vanilla_loc_file_name("SP"), "vanilla_sp.tsv");
+}
+
+/// Only packs for the requested language are picked, including split ones like
+/// `local_sp_2.pack`, without matching other codes that share a prefix.
+#[test]
+fn locale_pack_paths_matches_language_only() {
+    let tmp = TempDir::new().unwrap();
+    for name in ["local_sp.pack", "local_sp_2.pack", "LOCAL_SP_3.PACK", "local_spx.pack", "local_en.pack", "local_sp.txt", "data.pack"] {
+        fs::write(tmp.path().join(name), b"").unwrap();
+    }
+
+    let names = PackTranslation::locale_pack_paths(tmp.path(), "SP").unwrap()
+        .iter()
+        .map(|path| path.file_name().unwrap().to_string_lossy().to_string())
+        .collect::<Vec<_>>();
+
+    assert_eq!(names, vec!["LOCAL_SP_3.PACK", "local_sp.pack", "local_sp_2.pack"]);
+}
+
+/// Linux ports keep locale packs in `localisation/{lang}/`, and other languages' folders must be ignored.
+#[test]
+fn locale_pack_paths_finds_linux_localisation_folder() {
+    let tmp = TempDir::new().unwrap();
+    for (folder, name) in [("sp", "local_sp.pack"), ("sp", "local_sp_gc.pack"), ("en", "local_en.pack")] {
+        let folder = tmp.path().join("localisation").join(folder);
+        fs::create_dir_all(&folder).unwrap();
+        fs::write(folder.join(name), b"").unwrap();
+    }
+
+    let paths = PackTranslation::locale_pack_paths(tmp.path(), "SP").unwrap();
+
+    assert_eq!(paths, vec![
+        tmp.path().join("localisation/sp/local_sp.pack"),
+        tmp.path().join("localisation/sp/local_sp_gc.pack"),
+    ]);
 }

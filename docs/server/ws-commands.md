@@ -3032,28 +3032,61 @@ public class SetPackOperationalModeRequest
 
 ### GetPackTranslation
 
-Get pack translation data for a language from a specific pack.
+Get pack translation data for a language pair from a specific pack. The server uses the
+`src_lang`/`language` pair to locate the on-disk JSON for the translation (v1 layout is
+`<game>/<pack>/<src_lang>-<language>.json`; v0 layout `<game>/<pack>/<language>.json` is
+still accepted when `src_lang` is `"EN"`).
 
-| Parameter  | Type   | Description      |
-|------------|--------|------------------|
-| `pack_key` | string | Pack to query    |
-| `language` | string | Language code    |
+| Parameter  | Type   | Description                                                         |
+|------------|--------|---------------------------------------------------------------------|
+| `pack_key` | string | Pack to query                                                       |
+| `src_lang` | string | Source language code (e.g. `"EN"`). v1 only; ignored when reading v0 files |
+| `language` | string | Target language code                                                |
 
 Response: `{ PackTranslation: PackTranslation }`
 
 <!-- langtabs-start -->
 ```typescript
-type GetPackTranslationRequest = { GetPackTranslation: [string, string] };
+type GetPackTranslationRequest = { GetPackTranslation: [string, string, string] };
 type GetPackTranslationResponse = { PackTranslation: PackTranslation };
 ```
 ```csharp
 public class GetPackTranslationRequest
 {
-    public Tuple<string, string> GetPackTranslation { get; set; }
+    public Tuple<string, string, string> GetPackTranslation { get; set; }
 }
 public class GetPackTranslationResponse
 {
     public PackTranslation PackTranslation { get; set; }
+}
+```
+<!-- langtabs-end -->
+
+### GenerateVanillaTranslationSource
+
+Generate the vanilla texts of a source language (`<game>/vanilla_<src_lang>.tsv` in the local
+translations folder) from the game's `local_<src_lang>*.pack` files. The file is kept after the game
+stops shipping that language, and is only regenerated when the packs are newer than it.
+
+| Parameter  | Type   | Description                         |
+|------------|--------|-------------------------------------|
+| `src_lang` | string | Source language code (e.g. `"SP"`)  |
+
+Response: `{ Bool: boolean }`: whether vanilla texts for that language are available, either generated or from the Translation Hub.
+
+<!-- langtabs-start -->
+```typescript
+type GenerateVanillaTranslationSourceRequest = { GenerateVanillaTranslationSource: string };
+type GenerateVanillaTranslationSourceResponse = { Bool: boolean };
+```
+```csharp
+public class GenerateVanillaTranslationSourceRequest
+{
+    public string GenerateVanillaTranslationSource { get; set; }
+}
+public class GenerateVanillaTranslationSourceResponse
+{
+    public bool Bool { get; set; }
 }
 ```
 <!-- langtabs-end -->

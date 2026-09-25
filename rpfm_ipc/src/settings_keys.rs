@@ -122,6 +122,9 @@ pub const AI_API_KEY: &str = "ai_api_key";
 pub const AI_MODEL: &str = "ai_model";
 pub const DEEPL_API_KEY: &str = "deepl_api_key";
 
+// Translator settings.
+pub const TRANSLATOR_SOURCE_LANGUAGE: &str = "translator_source_language";
+
 // Optimizer settings.
 pub const PACK_REMOVE_ITM_FILES: &str = "pack_remove_itm_files";
 pub const PACK_APPLY_COMPRESSION: &str = "pack_apply_compression";

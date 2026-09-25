@@ -52,6 +52,9 @@ base64.workspace = true
 # Support for open files in a native way.
 open.workspace = true
 
+# Writing TSV files.
+csv.workspace = true
+
 [dev-dependencies]
 
 # Temporary directories for filesystem round-trip tests.
