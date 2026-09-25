@@ -15,6 +15,7 @@ use qt_widgets::QGroupBox;
 use qt_widgets::QInputDialog;
 use qt_widgets::QMenu;
 use qt_widgets::QMessageBox;
+use qt_widgets::QProgressDialog;
 use qt_widgets::QPushButton;
 use qt_widgets::q_message_box::{Icon, StandardButton};
 use qt_widgets::QRadioButton;
@@ -37,6 +38,7 @@ use qt_core::QListOfQString;
 use qt_core::QPtr;
 use qt_core::QSignalBlocker;
 use qt_core::QString;
+use qt_core::WindowModality;
 
 use cpp_core::CastInto;
 use cpp_core::CppBox;
@@ -45,12 +47,13 @@ use cpp_core::Ptr;
 
 use anyhow::anyhow;
 use base64::{Engine, engine::general_purpose::STANDARD};
-use deepl::{DeepLApi, Lang, ModelType, TagHandling};
+use deepl::{DeepLApi, Error as DeepLError, Lang, ModelType, TagHandling};
 use regex::{Captures, Regex};
 use serde_json::{json, Value};
 
 use std::path::PathBuf;
 use std::sync::{Arc, LazyLock, RwLock};
+use std::time::{Duration, Instant};
 
 use rpfm_extensions::translator::*;
 
@@ -138,6 +141,20 @@ const CSS_STYLE: &str = "
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
+/// Minimum time between two requests of a batch auto-translation.
+const BATCH_MIN_INTERVAL: Duration = Duration::from_millis(250);
+
+/// Maximum time between two requests of a batch auto-translation, once the service starts rate-limiting us.
+const BATCH_MAX_INTERVAL: Duration = Duration::from_secs(5);
+
+/// Times a rate-limited request is retried before the line is reported as failed.
+const BATCH_MAX_RETRIES: u32 = 5;
+
+/// Error for requests the translation service rejected for going over its rate limit.
+#[derive(Debug, thiserror::Error)]
+#[error("The translation service is rate-limiting requests: {0}")]
+struct RateLimitedError(String);
+
 /// Backend selector for the batch auto-translation menu.
 #[derive(Debug, Clone, Copy)]
 pub enum BatchTranslateMethod {
@@ -205,7 +222,6 @@ pub struct ToolTranslator {
 
     // The batch translate button shows a popup menu. We keep the menu alive on the struct so
     // it isn't dropped while still attached to the button.
-    batch_translate: QPtr<QToolButton>,
     #[allow(dead_code)] batch_translate_menu: QBox<QMenu>,
     batch_translate_deepl_action: QPtr<QAction>,
     batch_translate_ai_action: QPtr<QAction>,
@@ -667,7 +683,6 @@ impl ToolTranslator {
             copy_from_source,
             clear_translation,
             import_from_translated_pack,
-            batch_translate,
             batch_translate_menu,
             batch_translate_deepl_action,
             batch_translate_ai_action,
@@ -1086,7 +1101,12 @@ impl ToolTranslator {
                 .replace(">", "%3E");
 
             let url = format!("https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={language}&dt=t&q={string}");
-            let response = reqwest::get(&url).await?.text().await?;
+            let response = reqwest::get(&url).await?;
+            if response.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
+                return Err(anyhow!(RateLimitedError(response.text().await.unwrap_or_default())));
+            }
+
+            let response = response.text().await?;
             let translated_text: String = if let Some(data) = serde_json::from_str::<Value>(&response)?[0].as_array() {
                 let mut string = String::new();
                 for item in data {
@@ -1157,6 +1177,10 @@ impl ToolTranslator {
         if !response.status().is_success() {
             let status = response.status();
             let text = response.text().await.unwrap_or_default();
+            if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
+                return Err(anyhow!(RateLimitedError(text)));
+            }
+
             return Err(anyhow!("AI request failed ({status}): {text}"));
         }
 
@@ -1203,7 +1227,11 @@ impl ToolTranslator {
                 "tooltip".to_owned(),
             ])
             .tag_handling(TagHandling::Xml)
-            .await?;
+            .await
+            .map_err(|error| match error {
+                DeepLError::Network { status, message } if status.as_u16() == 429 => anyhow!(RateLimitedError(message)),
+                error => anyhow!(error),
+            })?;
 
         let translated_text = translated.translations.iter()
             .map(|x| &x.text)
@@ -1271,10 +1299,12 @@ impl ToolTranslator {
         Ok(())
     }
 
-    /// Auto-translate every row currently flagged as needing re-translation using the chosen
-    /// backend. Rows with an outdated translation are skipped unless the overwrite menu option
-    /// is checked. Successful translations clear `retr` (column 1) and set `aut` (column 3) so
-    /// the user can review them. Rows whose translation request fails are left untouched.
+    /// Auto-translate every row currently flagged as needing re-translation using the chosen backend.
+    ///
+    /// Rows with an outdated translation are skipped unless the overwrite menu option is checked. Requests
+    /// are throttled, and retried with backoff when the service rate-limits them. Successful translations
+    /// clear `retr` (column 1) and set `aut` (column 3) so the user can review them. Failed rows are left
+    /// untouched, and listed in the results dialog shown at the end.
     pub unsafe fn batch_translate_all(&self, method: BatchTranslateMethod) {
         rpfm_telemetry::track_action("Translator: batch_translate_all");
 
@@ -1286,52 +1316,117 @@ impl ToolTranslator {
         let context = self.context_text_edit().to_plain_text().to_std_string();
         let overwrite_outdated = self.batch_translate_overwrite_action().is_checked();
 
-        // Disable the buttons so the user can't double-trigger or change settings mid-batch.
-        self.batch_translate().set_enabled(false);
-        self.translated_value_textedit().set_enabled(false);
-        let event_loop = QEventLoop::new_0a();
-        event_loop.process_events();
-
+        // Outdated rows keep their previous translation so it can be fixed by hand, unless told otherwise.
         let model = self.table().table_model();
-        let row_count = model.row_count_0a();
-        for row in 0..row_count {
-            let needs_retranslation_item = model.item_2a(row, 1);
-            if needs_retranslation_item.check_state() != CheckState::Checked {
-                continue;
-            }
+        let rows = (0..model.row_count_0a())
+            .filter(|row| model.item_2a(*row, 1).check_state() == CheckState::Checked)
+            .filter(|row| overwrite_outdated || model.item_2a(*row, 5).text().trimmed().is_empty())
+            .collect::<Vec<_>>();
 
-            // Outdated rows keep their previous translation so it can be fixed by hand, unless told otherwise.
-            if !overwrite_outdated && !model.item_2a(row, 5).text().trimmed().is_empty() {
-                continue;
-            }
+        let progress = QProgressDialog::new_5a(&QString::new(), &qtr("translator_batch_cancel"), 0, rows.len() as i32, self.tool.main_widget());
+        progress.set_window_title(&qtr("translator_batch_translate"));
+        progress.set_window_modality(WindowModality::WindowModal);
+        progress.set_minimum_duration(0);
+        progress.set_auto_close(false);
+        progress.set_auto_reset(false);
+
+        let event_loop = QEventLoop::new_0a();
+        let mut interval = BATCH_MIN_INTERVAL;
+        let mut last_request: Option<Instant> = None;
+        let mut processed = 0;
+        let mut translated = 0;
+        let mut failed = vec![];
+
+        'rows: for (index, row) in rows.iter().enumerate() {
+            progress.set_label_text(&qtre("translator_batch_progress", &[&(index + 1).to_string(), &rows.len().to_string()]));
+            progress.set_value(index as i32);
 
             // Translation backends operate on plain text — undo the on-disk escaping
             // (||/\\n) before sending, then re-apply after we get the result back.
-            let source_text = model.item_2a(row, 4).text().to_std_string()
+            let source_text = model.item_2a(*row, 4).text().to_std_string()
                 .replace("||", "\n||\n")
                 .replace("\\\\n", "\n");
 
-            let result = match method {
-                BatchTranslateMethod::Deepl => Self::ask_deepl(&source_text, source_language_deepl.clone(), language_deepl.clone()),
-                BatchTranslateMethod::Ai => Self::ask_ai(&source_text, &language_natural, &context),
-                BatchTranslateMethod::Google => Self::ask_google(&source_text, &language_google),
+            let mut retries = 0;
+            let result = loop {
+                if let Some(last_request) = last_request {
+                    let wait = (last_request + interval).saturating_duration_since(Instant::now());
+                    if !Self::wait_for_batch(&progress, &event_loop, wait) {
+                        break 'rows;
+                    }
+                }
+
+                last_request = Some(Instant::now());
+                let result = match method {
+                    BatchTranslateMethod::Deepl => Self::ask_deepl(&source_text, source_language_deepl.clone(), language_deepl.clone()),
+                    BatchTranslateMethod::Ai => Self::ask_ai(&source_text, &language_natural, &context),
+                    BatchTranslateMethod::Google => Self::ask_google(&source_text, &language_google),
+                };
+
+                // Being rate-limited means we're going too fast: slow down for the rest of the batch, and back off before retrying.
+                match result {
+                    Err(error) if error.is::<RateLimitedError>() && retries < BATCH_MAX_RETRIES => {
+                        retries += 1;
+                        interval = (interval * 2).min(BATCH_MAX_INTERVAL);
+                        if !Self::wait_for_batch(&progress, &event_loop, Duration::from_secs(1 << retries)) {
+                            break 'rows;
+                        }
+                    }
+                    result => break result,
+                }
             };
 
-            if let Ok(translation) = result {
-                let stored = translation
-                    .replace("\n||\n", "||")
-                    .replace("\n", "\\\\n");
-                model.item_2a(row, 5).set_text(&QString::from_std_str(&stored));
-                needs_retranslation_item.set_check_state(CheckState::Unchecked);
-                model.item_2a(row, 3).set_check_state(CheckState::Checked);
+            processed += 1;
+            match result {
+                Ok(translation) => {
+                    let stored = translation
+                        .replace("\n||\n", "||")
+                        .replace("\n", "\\\\n");
+                    model.item_2a(*row, 5).set_text(&QString::from_std_str(&stored));
+                    model.item_2a(*row, 1).set_check_state(CheckState::Unchecked);
+                    model.item_2a(*row, 3).set_check_state(CheckState::Checked);
+                    translated += 1;
+                }
+                Err(error) => failed.push(format!("{}: {error}", model.item_2a(*row, 0).text().to_std_string())),
             }
-
-            // Keep the UI responsive across long batches.
-            event_loop.process_events();
         }
 
-        self.translated_value_textedit().set_enabled(true);
-        self.batch_translate().set_enabled(true);
+        progress.close();
+
+        let not_processed = rows.len() - processed;
+        let mut text = tre("translator_batch_results", &[&translated.to_string(), &failed.len().to_string(), &not_processed.to_string()]);
+        if !failed.is_empty() {
+            text.push_str(&tr("translator_batch_results_failed"));
+        }
+
+        let icon = if failed.is_empty() && not_processed == 0 { Icon::Information } else { Icon::Warning };
+        let message_box = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(icon, &qtr("translator_batch_results_title"), &QString::from_std_str(text), QFlags::from(StandardButton::Ok), self.tool.main_widget());
+        if !failed.is_empty() {
+            message_box.set_detailed_text(&QString::from_std_str(failed.join("\n")));
+        }
+        message_box.exec();
+    }
+
+    /// Wait while keeping the UI responsive, so the batch progress dialog can still be cancelled.
+    ///
+    /// # Returns
+    ///
+    /// `false` if the user cancelled the batch while waiting, `true` otherwise.
+    unsafe fn wait_for_batch(progress: &QBox<QProgressDialog>, event_loop: &QBox<QEventLoop>, duration: Duration) -> bool {
+        let deadline = Instant::now() + duration;
+        loop {
+            event_loop.process_events();
+            if progress.was_canceled() {
+                return false;
+            }
+
+            let now = Instant::now();
+            if now >= deadline {
+                return true;
+            }
+
+            std::thread::sleep((deadline - now).min(Duration::from_millis(50)));
+        }
     }
 
     /// Util to format a value into an html string we can use in the translator's UI.
