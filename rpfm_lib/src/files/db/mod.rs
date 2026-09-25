@@ -600,8 +600,7 @@ impl DB {
         let mut table_name = table_name.to_owned();
         while let Some((ref_table, ref_column)) = field.is_reference(patches.as_ref()) {
             let ref_table_name = format!("{ref_table}_tables");
-            let table_folder = format!("db/{ref_table_name}");
-            let parent_files = pack.files_by_type_and_paths_mut(&[FileType::DB], &[ContainerPath::Folder(table_folder.to_owned())], true);
+            let parent_files = pack.files_by_type_and_paths_mut(&[FileType::DB], &ContainerPath::db_table_folders(&ref_table_name), true);
             if !parent_files.is_empty() {
                 if let Ok(RFileDecoded::DB(table)) = parent_files[0].decoded() {
                     if let Some(index) = table.definition().column_position_by_name(&ref_column) {
@@ -624,7 +623,7 @@ impl DB {
         // Add the source table and column to the list to edit.
         ref_table_data.insert(table_name, vec![field.name().to_owned()]);
 
-        let container_paths = ref_table_data.keys().map(|ref_table_name| ContainerPath::Folder("db/".to_owned() + ref_table_name)).collect::<Vec<_>>();
+        let container_paths = ref_table_data.keys().flat_map(|ref_table_name| ContainerPath::db_table_folders(ref_table_name)).collect::<Vec<_>>();
         let mut files = pack.files_by_paths_mut(&container_paths, true);
         let mut loc_keys: Vec<(String, String)> = vec![];
 
