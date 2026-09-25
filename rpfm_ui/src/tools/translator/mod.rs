@@ -14,6 +14,7 @@ use qt_widgets::q_file_dialog::FileMode;
 use qt_widgets::QGroupBox;
 use qt_widgets::QInputDialog;
 use qt_widgets::QMessageBox;
+use qt_widgets::QPushButton;
 use qt_widgets::q_message_box::{Icon, StandardButton};
 use qt_widgets::QRadioButton;
 use qt_widgets::QToolButton;
@@ -158,6 +159,14 @@ pub struct ToolTranslator {
     // translator it lives as a read-only label rather than an editable selector.
     source_language_value: QPtr<QLabel>,
 
+    // Widgets that we hide by default to keep the dialog compact. The toggle buttons next to
+    // them flip their visibility so the controls are still discoverable.
+    info_label: QPtr<QLabel>,
+    behavior_groupbox: QPtr<QGroupBox>,
+    help_toggle: QPtr<QPushButton>,
+    preview_toggle: QPtr<QPushButton>,
+    behavior_toggle: QPtr<QPushButton>,
+
     deepl_radio_button: QPtr<QRadioButton>,
     ai_radio_button: QPtr<QRadioButton>,
     google_translate_radio_button: QPtr<QRadioButton>,
@@ -171,6 +180,7 @@ pub struct ToolTranslator {
     action_move_up: QPtr<QAction>,
     action_move_down: QPtr<QAction>,
     action_copy_from_source: QPtr<QAction>,
+    action_clear_translation: QPtr<QAction>,
     action_import_from_translated_pack: QPtr<QAction>,
 
     move_selection_up: QPtr<QToolButton>,
@@ -179,6 +189,7 @@ pub struct ToolTranslator {
     translate_with_ai: QPtr<QToolButton>,
     translate_with_google: QPtr<QToolButton>,
     copy_from_source: QPtr<QToolButton>,
+    clear_translation: QPtr<QToolButton>,
     import_from_translated_pack: QPtr<QToolButton>,
 
     original_value_html: QPtr<QTextEdit>,
@@ -510,12 +521,23 @@ impl ToolTranslator {
         info_label.set_text(&qtr("translator_info"));
         info_label.set_open_external_links(true);
 
+        let help_toggle: QPtr<QPushButton> = tool.find_widget("help_toggle")?;
+        let preview_toggle: QPtr<QPushButton> = tool.find_widget("preview_toggle")?;
+        let behavior_toggle: QPtr<QPushButton> = tool.find_widget("behavior_toggle")?;
+        help_toggle.set_text(&qtr("translator_help_toggle"));
+        help_toggle.set_tool_tip(&qtr("translator_help_toggle_tooltip"));
+        preview_toggle.set_text(&qtr("translator_preview_toggle"));
+        preview_toggle.set_tool_tip(&qtr("translator_preview_toggle_tooltip"));
+        behavior_toggle.set_text(&qtr("translator_behavior_toggle"));
+        behavior_toggle.set_tool_tip(&qtr("translator_behavior_toggle_tooltip"));
+
         let move_selection_up: QPtr<QToolButton> = tool.find_widget("move_selection_up")?;
         let move_selection_down: QPtr<QToolButton> = tool.find_widget("move_selection_down")?;
         let translate_with_deepl: QPtr<QToolButton> = tool.find_widget("translate_with_deepl")?;
         let translate_with_ai: QPtr<QToolButton> = tool.find_widget("translate_with_ai")?;
         let translate_with_google: QPtr<QToolButton> = tool.find_widget("translate_with_google")?;
         let copy_from_source: QPtr<QToolButton> = tool.find_widget("copy_from_source")?;
+        let clear_translation: QPtr<QToolButton> = tool.find_widget("clear_translation")?;
         let import_from_translated_pack: QPtr<QToolButton> = tool.find_widget("import_from_translated_pack")?;
         move_selection_up.set_tool_tip(&qtr("translator_move_selection_up"));
         move_selection_down.set_tool_tip(&qtr("translator_move_selection_down"));
@@ -523,6 +545,7 @@ impl ToolTranslator {
         translate_with_ai.set_tool_tip(&qtr("translator_translate_with_ai"));
         translate_with_google.set_tool_tip(&qtr("translator_translate_with_google"));
         copy_from_source.set_tool_tip(&qtr("translator_copy_from_source"));
+        clear_translation.set_tool_tip(&qtr("translator_clear_translation"));
         import_from_translated_pack.set_tool_tip(&qtr("translator_import_from_translated_pack"));
 
         // Only allow AI translation if we have both a key and an endpoint URL configured.
@@ -545,6 +568,7 @@ impl ToolTranslator {
         let action_move_up = add_action_to_widget(app_ui.shortcuts().as_ref(), "translator", "move_up", Some(table.table_view().static_upcast()));
         let action_move_down = add_action_to_widget(app_ui.shortcuts().as_ref(), "translator", "move_down", Some(table.table_view().static_upcast()));
         let action_copy_from_source = add_action_to_widget(app_ui.shortcuts().as_ref(), "translator", "copy_from_source", Some(table.table_view().static_upcast()));
+        let action_clear_translation = add_action_to_widget(app_ui.shortcuts().as_ref(), "translator", "clear_translation", Some(table.table_view().static_upcast()));
         let action_import_from_translated_pack = add_action_to_widget(app_ui.shortcuts().as_ref(), "translator", "import_from_translated_pack", Some(table.table_view().static_upcast()));
 
         let original_value_html: QPtr<QTextEdit> = tool.find_widget("original_value_html")?;
@@ -553,6 +577,13 @@ impl ToolTranslator {
         let translated_value_textedit: QPtr<QTextEdit> = tool.find_widget("translated_value_textedit")?;
         original_value_html.document().set_default_style_sheet(&QString::from_std_str(CSS_STYLE));
         translated_value_html.document().set_default_style_sheet(&QString::from_std_str(CSS_STYLE));
+
+        // Collapse the help, the auto-translation settings and the previews by default, so the initial view
+        // is just the metadata, the source and the translation editor. Each one has a toggle in the info strip.
+        info_label.set_visible(false);
+        behavior_groupbox.set_visible(false);
+        original_value_html.set_visible(false);
+        translated_value_html.set_visible(false);
 
         // Select the version that matches what's stored on disk. Items 0 and 1 line up with the
         // version numbers; anything else (unexpected) falls back to the current v1 entry.
@@ -577,6 +608,11 @@ impl ToolTranslator {
             language_combobox,
             version_combobox,
             source_language_value,
+            info_label,
+            behavior_groupbox,
+            help_toggle,
+            preview_toggle,
+            behavior_toggle,
             context_text_edit,
             deepl_radio_button,
             ai_radio_button,
@@ -587,6 +623,7 @@ impl ToolTranslator {
             action_move_up,
             action_move_down,
             action_copy_from_source,
+            action_clear_translation,
             action_import_from_translated_pack,
             move_selection_up,
             move_selection_down,
@@ -594,6 +631,7 @@ impl ToolTranslator {
             translate_with_ai,
             translate_with_google,
             copy_from_source,
+            clear_translation,
             import_from_translated_pack,
             original_value_html,
             original_value_textedit,
@@ -888,6 +926,29 @@ impl ToolTranslator {
         }
 
         self.table().filter_table();
+    }
+
+    /// Reset the currently-selected row back to an "untranslated" state: empty `dst`,
+    /// `retr` checked, `aut` cleared. We write straight to the model rather than going
+    /// through `save_from_detailed_view`, which short-circuits on empty values.
+    pub unsafe fn clear_selected_translation(&self) {
+        let current_index = self.current_key.read().unwrap().as_ref().map(|i| i.row());
+        let Some(current_row) = current_index else { return };
+
+        let translated_value_item = self.table.table_model().item_2a(current_row, 5);
+        translated_value_item.set_text(&QString::new());
+
+        let needs_retranslation_item = self.table.table_model().item_2a(current_row, 1);
+        needs_retranslation_item.set_check_state(CheckState::Checked);
+
+        let auto_translated_item = self.table.table_model().item_2a(current_row, 3);
+        auto_translated_item.set_check_state(CheckState::Unchecked);
+
+        // Mirror the change in the detail pane and forget any pending auto-translation
+        // tracker so the next save doesn't re-flag the cleared row as `aut`.
+        self.translated_value_textedit.clear();
+        self.translated_value_html.clear();
+        *self.current_auto_translation.write().unwrap() = None;
     }
 
     unsafe fn clear_selected_field_data(&self) {

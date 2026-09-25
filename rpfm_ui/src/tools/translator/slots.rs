@@ -36,7 +36,11 @@ pub struct ToolTranslatorSlots {
     translate_with_ai: QBox<SlotNoArgs>,
     translate_with_google: QBox<SlotNoArgs>,
     copy_from_source: QBox<SlotNoArgs>,
+    clear_translation: QBox<SlotNoArgs>,
     import_from_translated_pack: QBox<SlotNoArgs>,
+    toggle_help: QBox<SlotNoArgs>,
+    toggle_preview: QBox<SlotNoArgs>,
+    toggle_behavior: QBox<SlotNoArgs>,
     update_preview_original: QBox<SlotNoArgs>,
     update_preview_translated: QBox<SlotNoArgs>,
 }
@@ -150,6 +154,13 @@ impl ToolTranslatorSlots {
             }
         ));
 
+        let clear_translation = SlotNoArgs::new(ui.tool.main_widget(), clone!(
+            ui => move || {
+                rpfm_telemetry::track_action("Translator: clear_translation");
+                ui.clear_selected_translation();
+            }
+        ));
+
         let import_from_translated_pack = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
                 rpfm_telemetry::track_action("Translator: import_from_translated_pack");
@@ -157,6 +168,28 @@ impl ToolTranslatorSlots {
                 if let Err(error) = ui.import_from_another_pack() {
                     show_dialog(ui.tool.main_widget(), error, false);
                 }
+            }
+        ));
+
+        // Visibility toggles for the collapsible sections. The QPushButtons are checkable, so
+        // by the time `released` fires Qt has already flipped their checked state.
+        let toggle_help = SlotNoArgs::new(ui.tool.main_widget(), clone!(
+            ui => move || {
+                ui.info_label().set_visible(ui.help_toggle().is_checked());
+            }
+        ));
+
+        let toggle_preview = SlotNoArgs::new(ui.tool.main_widget(), clone!(
+            ui => move || {
+                let visible = ui.preview_toggle().is_checked();
+                ui.original_value_html().set_visible(visible);
+                ui.translated_value_html().set_visible(visible);
+            }
+        ));
+
+        let toggle_behavior = SlotNoArgs::new(ui.tool.main_widget(), clone!(
+            ui => move || {
+                ui.behavior_groupbox().set_visible(ui.behavior_toggle().is_checked());
             }
         ));
 
@@ -186,7 +219,11 @@ impl ToolTranslatorSlots {
             translate_with_ai,
             translate_with_google,
             copy_from_source,
+            clear_translation,
             import_from_translated_pack,
+            toggle_help,
+            toggle_preview,
+            toggle_behavior,
             update_preview_original,
             update_preview_translated,
         }

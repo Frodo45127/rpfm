@@ -240,6 +240,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(translator_actions, "move_up", "Move Up", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+Up"), "go-up");
     new_action(translator_actions, "move_down", "Move Down", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+Down"), "go-down");
     new_action(translator_actions, "copy_from_source", "Copy from source", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "edit-copy");
+    new_action(translator_actions, "clear_translation", "Clear translation", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString(""), "edit-clear");
     new_action(translator_actions, "import_from_translated_pack", "Import from translated Pack", Qt::ShortcutContext::ApplicationShortcut, QKeySequence::listFromString("Ctrl+I"), "document-import-ocal");
     translator_actions->readSettings();
 

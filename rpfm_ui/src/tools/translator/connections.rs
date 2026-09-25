@@ -31,11 +31,17 @@ pub unsafe fn set_connections(ui: &ToolTranslator, slots: &ToolTranslatorSlots) 
     ui.translate_with_ai().released().connect(slots.translate_with_ai());
     ui.translate_with_google().released().connect(slots.translate_with_google());
     ui.copy_from_source().released().connect(slots.copy_from_source());
+    ui.clear_translation().released().connect(slots.clear_translation());
     ui.import_from_translated_pack().released().connect(slots.import_from_translated_pack());
+
+    ui.help_toggle().released().connect(slots.toggle_help());
+    ui.preview_toggle().released().connect(slots.toggle_preview());
+    ui.behavior_toggle().released().connect(slots.toggle_behavior());
 
     ui.action_move_up().triggered().connect(slots.move_selection_up());
     ui.action_move_down().triggered().connect(slots.move_selection_down());
     ui.action_copy_from_source().triggered().connect(slots.copy_from_source());
+    ui.action_clear_translation().triggered().connect(slots.clear_translation());
     ui.action_import_from_translated_pack().triggered().connect(slots.import_from_translated_pack());
 
     ui.original_value_textedit().text_changed().connect(slots.update_preview_original());
