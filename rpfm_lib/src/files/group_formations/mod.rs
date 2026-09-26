@@ -76,6 +76,8 @@ use super::DecodeableExtraData;
 /// Fixed path to the Group Formations file.
 pub const PATH: &str = "groupformations.bin";
 
+pub mod edit;
+pub mod layout;
 pub mod validation;
 pub mod versions;
 

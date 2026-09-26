@@ -299,6 +299,26 @@ pub enum RLibError {
     #[error("Unknown group formations {0} value: {1}.")]
     DecodingGroupFormationsUnknownEnumValue(String, u32),
 
+    /// Group Formations block not found in its formation.
+    #[error("There is no block with id {0} in this formation.")]
+    GroupFormationsBlockNotFound(u32),
+
+    /// Group Formations operation that only applies to containers, used on a span.
+    #[error("Block {0} is a span, and this operation only works with containers.")]
+    GroupFormationsBlockIsNotAContainer(u32),
+
+    /// Group Formations operation that only applies to spans, used on a container.
+    #[error("Block {0} is a container, and this operation only works with spans.")]
+    GroupFormationsBlockIsNotASpan(u32),
+
+    /// Group Formations block without a position, due to broken references.
+    #[error("Block {0} can't be positioned, because it depends on missing blocks or on itself.")]
+    GroupFormationsBlockNotPlaceable(u32),
+
+    /// Group Formations reference that would make blocks depend on each other in a loop.
+    #[error("Block {0} can't depend on block {1}, because block {1} already depends on block {0}.")]
+    GroupFormationsCyclicReference(u32, u32),
+
     /// Group Formations value of a version not used by the game being encoded.
     #[error("A group formations {0} value doesn't match the version used by the selected game.")]
     EncodingGroupFormationsMismatchedVersion(String),
