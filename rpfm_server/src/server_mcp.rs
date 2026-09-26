@@ -1176,6 +1176,8 @@ Scripts:
     script/<path>.lua
     script/campaign/mod/<script_name>.lua
     Example: script/campaign/mod/my_mod_script.lua
+    After editing a script, run `diagnostics_check`: it reports Lua syntax errors, invalid DB keys, unknown methods,
+    wrong argument counts and unknown events (all but syntax errors need the game's Assembly Kit installed).
 
 UI Images:
     ui/<path>.png

@@ -65,7 +65,7 @@ use rpfm_ui_common::utils::{atomic_from_cpp_box, find_widget, load_template, ref
 use crate::app_ui::AppUI;
 use crate::communications::{Command, Response, send_ipc_command_async};
 use crate::dependencies_ui::DependenciesUI;
-use crate::ffi::{new_tableview_filter_safe, scroll_to_pos_and_select_safe, trigger_tableview_filter_safe};
+use crate::ffi::{add_text_diagnostic_safe, clear_text_diagnostics_safe, new_tableview_filter_safe, scroll_to_pos_and_select_safe, trigger_tableview_filter_safe};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::pack_tree::*;
 use crate::packedfile_views::{FileView, View, ViewType, SpecialView};
@@ -181,6 +181,10 @@ pub struct DiagnosticsUI {
     checkbox_meta_file_path_not_found: QBox<QCheckBox>,
     checkbox_snd_file_path_not_found: QBox<QCheckBox>,
     checkbox_lua_invalid_key: QBox<QCheckBox>,
+    checkbox_lua_syntax_error: QBox<QCheckBox>,
+    checkbox_lua_unknown_method: QBox<QCheckBox>,
+    checkbox_lua_wrong_argument_count: QBox<QCheckBox>,
+    checkbox_lua_unknown_event: QBox<QCheckBox>,
     checkbox_missing_loc_data_file_detected: QBox<QCheckBox>,
     checkbox_invalid_file_name: QBox<QCheckBox>,
     checkbox_file_itm: QBox<QCheckBox>,
@@ -337,6 +341,10 @@ impl DiagnosticsUI {
         let checkbox_meta_file_path_not_found = QCheckBox::from_q_string_q_widget(&qtr("label_meta_file_path_not_found"), &sidebar_scroll_area);
         let checkbox_snd_file_path_not_found = QCheckBox::from_q_string_q_widget(&qtr("label_snd_file_path_not_found"), &sidebar_scroll_area);
         let checkbox_lua_invalid_key = QCheckBox::from_q_string_q_widget(&qtr("label_lua_invalid_key"), &sidebar_scroll_area);
+        let checkbox_lua_syntax_error = QCheckBox::from_q_string_q_widget(&qtr("label_lua_syntax_error"), &sidebar_scroll_area);
+        let checkbox_lua_unknown_method = QCheckBox::from_q_string_q_widget(&qtr("label_lua_unknown_method"), &sidebar_scroll_area);
+        let checkbox_lua_wrong_argument_count = QCheckBox::from_q_string_q_widget(&qtr("label_lua_wrong_argument_count"), &sidebar_scroll_area);
+        let checkbox_lua_unknown_event = QCheckBox::from_q_string_q_widget(&qtr("label_lua_unknown_event"), &sidebar_scroll_area);
         let checkbox_missing_loc_data_file_detected = QCheckBox::from_q_string_q_widget(&qtr("label_missing_loc_data_file_detected"), &sidebar_scroll_area);
         let checkbox_invalid_file_name = QCheckBox::from_q_string_q_widget(&qtr("label_invalid_file_name"), &sidebar_scroll_area);
         let checkbox_file_itm = QCheckBox::from_q_string_q_widget(&qtr("label_file_itm"), &sidebar_scroll_area);
@@ -381,6 +389,10 @@ impl DiagnosticsUI {
         checkbox_meta_file_path_not_found.set_checked(true);
         checkbox_snd_file_path_not_found.set_checked(true);
         checkbox_lua_invalid_key.set_checked(true);
+        checkbox_lua_syntax_error.set_checked(true);
+        checkbox_lua_unknown_method.set_checked(true);
+        checkbox_lua_wrong_argument_count.set_checked(true);
+        checkbox_lua_unknown_event.set_checked(true);
         checkbox_missing_loc_data_file_detected.set_checked(true);
         checkbox_invalid_file_name.set_checked(true);
         checkbox_file_itm.set_checked(true);
@@ -425,6 +437,10 @@ impl DiagnosticsUI {
         sidebar_grid.add_widget_1a(&checkbox_meta_file_path_not_found);
         sidebar_grid.add_widget_1a(&checkbox_snd_file_path_not_found);
         sidebar_grid.add_widget_1a(&checkbox_lua_invalid_key);
+        sidebar_grid.add_widget_1a(&checkbox_lua_syntax_error);
+        sidebar_grid.add_widget_1a(&checkbox_lua_unknown_method);
+        sidebar_grid.add_widget_1a(&checkbox_lua_wrong_argument_count);
+        sidebar_grid.add_widget_1a(&checkbox_lua_unknown_event);
         sidebar_grid.add_widget_1a(&checkbox_missing_loc_data_file_detected);
         sidebar_grid.add_widget_1a(&checkbox_invalid_file_name);
         sidebar_grid.add_widget_1a(&checkbox_file_itm);
@@ -507,6 +523,10 @@ impl DiagnosticsUI {
             checkbox_meta_file_path_not_found,
             checkbox_snd_file_path_not_found,
             checkbox_lua_invalid_key,
+            checkbox_lua_syntax_error,
+            checkbox_lua_unknown_method,
+            checkbox_lua_wrong_argument_count,
+            checkbox_lua_unknown_event,
             checkbox_missing_loc_data_file_detected,
             checkbox_invalid_file_name,
             checkbox_file_itm,
@@ -843,9 +863,8 @@ impl DiagnosticsUI {
                                 level.set_text(result_type);
                                 diag_type.set_text(&QString::from_std_str(diagnostic_type.to_string()));
 
-                                let data_affected_string = match result.report_type() {
-                                    TextDiagnosticReportType::InvalidKey(start, end,_,_,_) => format!("{},{},{},{}", start.0, start.1, end.0, end.1),
-                                };
+                                let (start, end) = result.report_type().range();
+                                let data_affected_string = format!("{},{},{},{}", start.0, start.1, end.0, end.1);
 
                                 data_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(data_affected_string)), 2);
                                 Self::set_pack_item(&pack, diagnostic_type.pack());
@@ -981,7 +1000,14 @@ impl DiagnosticsUI {
 
             // After that, check if the table is open, and paint the results into it.
             for diagnostic_type in diagnostics {
-                Self::paint_diagnostics_to_table(app_ui, diagnostic_type);
+                Self::paint_diagnostics_to_view(app_ui, diagnostic_type);
+            }
+        }
+
+        // Scripts may have been edited since their docs were requested, so refresh them too.
+        for view in UI_STATE.get_open_packedfiles().iter() {
+            if let ViewType::Internal(View::Text(text_view)) = view.view_type() {
+                text_view.refresh_lua_hovers();
             }
         }
     }
@@ -1244,7 +1270,7 @@ impl DiagnosticsUI {
     }
 
     /// This function tries to paint the results from the provided diagnostics into their file view, if the file is open.
-    pub unsafe fn paint_diagnostics_to_table(
+    pub unsafe fn paint_diagnostics_to_view(
         app_ui: &Rc<AppUI>,
         diagnostic: &DiagnosticType,
     ) {
@@ -1254,6 +1280,7 @@ impl DiagnosticsUI {
             DiagnosticType::DB(ref diagnostic) |
             DiagnosticType::Loc(ref diagnostic) => diagnostic.path(),
             DiagnosticType::Dependency(ref diagnostic) => diagnostic.path(),
+            DiagnosticType::Text(ref diagnostic) => diagnostic.path(),
             _ => return,
         };
 
@@ -1261,6 +1288,21 @@ impl DiagnosticsUI {
 
         if let Some(view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).find(|view| &view.path_copy() == path && (pack.is_empty() || view.pack_key_copy() == pack)) {
             if app_ui.pane_of(view.main_widget()).is_some() {
+
+                // Text files get their diagnostics underlined in the editor, like an LSP would.
+                if let (DiagnosticType::Text(diagnostic), ViewType::Internal(View::Text(text_view))) = (diagnostic, view.view_type()) {
+                    let editor = text_view.get_mut_editor().as_ptr();
+                    for result in diagnostic.results() {
+                        let level = match result.level() {
+                            DiagnosticLevel::Info => 0,
+                            DiagnosticLevel::Warning => 1,
+                            DiagnosticLevel::Error => 2,
+                        };
+
+                        add_text_diagnostic_safe(&editor, result.report_type().range(), level, &QString::from_std_str(result.message()).as_ptr());
+                    }
+                    return;
+                }
 
                 // In case of tables, we have to get the logical row/column of the match and select it.
                 let internal_table_view = if let ViewType::Internal(View::Table(view)) = view.view_type() { view.get_ref_table() }
@@ -1443,6 +1485,10 @@ impl DiagnosticsUI {
             // Only update the visible tables.
             if app_ui.pane_of(view.main_widget()).is_some() {
 
+                if let ViewType::Internal(View::Text(text_view)) = view.view_type() {
+                    clear_text_diagnostics_safe(&text_view.get_mut_editor().as_ptr());
+                }
+
                 // In case of tables, we have to get the logical row/column of the match and select it.
                 if let ViewType::Internal(View::Table(view)) = view.view_type() {
                     let table_view = view.get_ref_table().table_view();
@@ -1621,6 +1667,10 @@ impl DiagnosticsUI {
         diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_snd_file_path_not_found, AnimFragmentBattleDiagnosticReportType::SndFilePathNotFound(String::new()));
 
         diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_lua_invalid_key, TextDiagnosticReportType::InvalidKey((0,0), (0,0), String::new(), String::new(), String::new()));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_lua_syntax_error, TextDiagnosticReportType::LuaSyntaxError((0,0), (0,0), String::new()));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_lua_unknown_method, TextDiagnosticReportType::UnknownMethod((0,0), (0,0), String::new(), String::new()));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_lua_wrong_argument_count, TextDiagnosticReportType::WrongArgumentCount((0,0), (0,0), String::new(), 0, None, 0));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_lua_unknown_event, TextDiagnosticReportType::UnknownEvent((0,0), (0,0), String::new()));
 
         diagnostic_type_pattern.pop();
 
@@ -1792,6 +1842,10 @@ impl DiagnosticsUI {
     pub unsafe fn set_tooltips_text(items: &[&CppBox<QStandardItem>], report_type: &TextDiagnosticReportType) {
         let tool_tip = match report_type {
             TextDiagnosticReportType::InvalidKey(_,_,_,_,_) => qtr("text_invalid_key_explanation"),
+            TextDiagnosticReportType::LuaSyntaxError(_,_,_) => qtr("text_lua_syntax_error_explanation"),
+            TextDiagnosticReportType::UnknownMethod(_,_,_,_) => qtr("text_lua_unknown_method_explanation"),
+            TextDiagnosticReportType::WrongArgumentCount(_,_,_,_,_,_) => qtr("text_lua_wrong_argument_count_explanation"),
+            TextDiagnosticReportType::UnknownEvent(_,_,_) => qtr("text_lua_unknown_event_explanation"),
         };
 
         for item in items {
@@ -1904,6 +1958,10 @@ impl DiagnosticsUI {
         diag_ignored!(self, diagnostics_ignored, checkbox_snd_file_path_not_found, AnimFragmentBattleDiagnosticReportType::SndFilePathNotFound(String::new()));
 
         diag_ignored!(self, diagnostics_ignored, checkbox_lua_invalid_key, TextDiagnosticReportType::InvalidKey((0,0), (0,0), String::new(), String::new(), String::new()));
+        diag_ignored!(self, diagnostics_ignored, checkbox_lua_syntax_error, TextDiagnosticReportType::LuaSyntaxError((0,0), (0,0), String::new()));
+        diag_ignored!(self, diagnostics_ignored, checkbox_lua_unknown_method, TextDiagnosticReportType::UnknownMethod((0,0), (0,0), String::new(), String::new()));
+        diag_ignored!(self, diagnostics_ignored, checkbox_lua_wrong_argument_count, TextDiagnosticReportType::WrongArgumentCount((0,0), (0,0), String::new(), 0, None, 0));
+        diag_ignored!(self, diagnostics_ignored, checkbox_lua_unknown_event, TextDiagnosticReportType::UnknownEvent((0,0), (0,0), String::new()));
 
         diagnostics_ignored
     }

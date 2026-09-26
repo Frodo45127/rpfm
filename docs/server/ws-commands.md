@@ -2549,6 +2549,33 @@ public class DiagnosticsUpdateResponse
 ```
 <!-- langtabs-end -->
 
+### LuaHovers
+
+Get the docs of the documented functions, accessors and events used in a Lua script, for showing them on hover. Needs the game's Assembly Kit; without it the list is empty.
+
+| Parameter | Type   | Description        |
+|-----------|--------|--------------------|
+| `source`  | string | Code of the script |
+
+Response: `{ VecU64U64U64U64String: [number, number, number, number, string][] }`, with the range of each use (start line, start column, end line, end column, all 0-based) and its docs as Qt rich text.
+
+<!-- langtabs-start -->
+```typescript
+type LuaHoversRequest = { LuaHovers: string };
+type LuaHoversResponse = { VecU64U64U64U64String: [number, number, number, number, string][] };
+```
+```csharp
+public class LuaHoversRequest
+{
+    public string LuaHovers { get; set; }
+}
+public class LuaHoversResponse
+{
+    public List<Tuple<ulong, ulong, ulong, ulong, string>> VecU64U64U64U64String { get; set; }
+}
+```
+<!-- langtabs-end -->
+
 ### AddLineToPackIgnoredDiagnostics
 
 Add a line to a specific pack's ignored diagnostics list.

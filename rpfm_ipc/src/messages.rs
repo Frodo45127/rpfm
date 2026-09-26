@@ -718,6 +718,13 @@ pub enum Command {
     /// Response: [`Response::Diagnostics`].
     DiagnosticsUpdate(Diagnostics, Vec<ContainerPath>, bool),
 
+    /// Get the docs of the documented functions, accessors and events used in a Lua script, for showing them on hover.
+    /// The field is the code of the script.
+    ///
+    /// Response: [`Response::VecU64U64U64U64String`], with the range of each use (start line, start column,
+    /// end line, end column, all 0-based) and its docs as Qt rich text. Empty if the game's Lua API is not available.
+    LuaHovers(String),
+
     //-----------------------------------------------------------------------//
     // Pack Settings Commands
     //-----------------------------------------------------------------------//
@@ -1498,6 +1505,7 @@ pub enum Response {
     VecStringTuples(Vec<(String, String)>),
     VecStringContainerInfo(Vec<(String, ContainerInfo)>),
     VecU8(Vec<u8>),
+    VecU64U64U64U64String(Vec<(u64, u64, u64, u64, String)>),
     VideoInfoRFileInfo(VideoInfo, RFileInfo),
     VMDRFileInfo(Text, RFileInfo),
     WSModelRFileInfo(Text, RFileInfo),

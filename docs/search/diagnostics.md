@@ -16,7 +16,7 @@ Diagnostics is grouped internally by check category (one variant of `DiagnosticT
 | **Pack-level**         | Invalid Pack name, invalid file names, missing loc data for referenced keys, ITM (identical-to-master) files, files overwriting vanilla unintentionally, duplicate files. |
 | **Portrait Settings**  | Art sets / variants not declared in the corresponding tables, missing texture references, datacored portrait_settings files. |
 | **AnimFragmentBattle** | Missing locomotion graphs, missing animation files, missing sound files, missing metadata file. |
-| **Text**               | Invalid loc-key references in scripts. |
+| **Text**               | Lua scripts: syntax errors, invalid DB keys (in `--@db`-annotated tables and in arguments of documented functions), unknown methods on `cm`, `core` and game interfaces, wrong argument counts, and listeners for events that don't exist. Everything past syntax errors needs the game's Assembly Kit, whose scripting docs describe the API. |
 | **Dependencies**       | Pack declares a parent that doesn't exist on disk. |
 | **Config**             | Missing or outdated dependency cache, dependency cache failed to load, wrong game path. |
 

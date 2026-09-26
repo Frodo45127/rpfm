@@ -2724,7 +2724,7 @@ impl AppUI {
 
         // Try to paint the diagnostics results, if any.
         for diagnostic_type in UI_STATE.get_diagnostics().results() {
-            DiagnosticsUI::paint_diagnostics_to_table(app_ui, diagnostic_type);
+            DiagnosticsUI::paint_diagnostics_to_view(app_ui, diagnostic_type);
         }
 
         // This forces the UI to process the events related to making the file view's visible before returning,

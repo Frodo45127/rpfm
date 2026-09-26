@@ -47,6 +47,8 @@ use std::time::SystemTime;
 use rpfm_extensions::dependencies::*;
 use rpfm_extensions::diagnostics::Diagnostics;
 use rpfm_extensions::gltf::{gltf_from_rigid, save_gltf_to_disk};
+use rpfm_extensions::lua::{ASSEMBLY_KIT_SCRIPT_DOCS_PATH, LuaApi};
+use rpfm_extensions::lua::check::{check_script, LuaDefinitions};
 use rpfm_extensions::merge::{db_baseline, delta_merge_db, delta_merge_loc, loc_baseline, MergeConflict, MergeResolution};
 use rpfm_extensions::optimizer::OptimizableContainer;
 use rpfm_extensions::translator::PackTranslation;
@@ -282,6 +284,9 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
 
     // Preload the default game's dependencies.
     let mut dependencies = Arc::new(RwLock::new(Dependencies::default()));
+
+    // Lua scripting API of the current game, built on first use. See `cached_lua_api`.
+    let mut lua_api_cache: Option<LuaApiCache> = None;
 
     // Snapshot of SETTINGS backed up by the "Restore Defaults" flow in the settings
     // dialog, so a cancel can put things back the way they were.
@@ -2251,7 +2256,9 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 *diagnostics.diagnostics_ignored_mut() = diagnostics_ignored;
 
                 if let Some(ref schema) = schema {
-                    diagnostics.check(&mut packs, &mut dependencies.write().unwrap(), schema, game, &game_path, &[], check_ak_only_refs);
+                    let mut dependencies = dependencies.write().unwrap();
+                    let lua_api = cached_lua_api(&mut lua_api_cache, game, &settings, &dependencies);
+                    diagnostics.check(&mut packs, &mut dependencies, schema, game, &game_path, &[], check_ak_only_refs, lua_api);
                 }
 
                 info!("Checking diagnostics: done.");
@@ -2263,12 +2270,29 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 let game_path = settings.path_buf(game.key());
 
                 if let Some(ref schema) = schema {
-                    diagnostics.check(&mut packs, &mut dependencies.write().unwrap(), schema, game, &game_path, &path_types, check_ak_only_refs);
+                    let mut dependencies = dependencies.write().unwrap();
+                    let lua_api = cached_lua_api(&mut lua_api_cache, game, &settings, &dependencies);
+                    diagnostics.check(&mut packs, &mut dependencies, schema, game, &game_path, &path_types, check_ak_only_refs, lua_api);
                 }
 
                 info!("Checking diagnostics (update): done.");
 
                 CentralCommand::send_back(&sender, Response::Diagnostics(diagnostics));
+            }
+
+            Command::LuaHovers(source) => {
+                let dependencies = dependencies.read().unwrap();
+                let hovers = match cached_lua_api(&mut lua_api_cache, game, &settings, &dependencies) {
+                    Some(lua_api) => check_script(&source, Some(lua_api), &LuaDefinitions::default()).hovers().iter()
+                        .filter_map(|hover| {
+                            let ((start_line, start_column), (end_line, end_column)) = *hover.range();
+                            lua_api.hover_html(hover.target()).map(|html| (start_line, start_column, end_line, end_column, html))
+                        })
+                        .collect(),
+                    None => vec![],
+                };
+
+                CentralCommand::send_back(&sender, Response::VecU64U64U64U64String(hovers));
             }
 
             // In case we want to get the open PackFile's Settings...
@@ -4027,6 +4051,46 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
 }
 
 /// Function to simplify logic for changing game selected.
+/// Cached Lua scripting API: the docs path and dependencies build date it was built from, and the API itself.
+type LuaApiCache = (PathBuf, u64, Option<LuaApi>);
+
+/// This function returns the Lua scripting API of a game, rebuilding the cached one if it's outdated.
+///
+/// The API is rebuilt when the game or its Assembly Kit path change, or when the dependencies cache is regenerated.
+///
+/// # Arguments
+///
+/// * `cache` - Cached API, updated if outdated.
+/// * `game` - Game whose API to return.
+/// * `settings` - Settings, to find the game's Assembly Kit.
+/// * `dependencies` - Dependencies cache with the vanilla scripts of the game.
+///
+/// # Returns
+///
+/// The API, or `None` if the game's Assembly Kit has no scripting docs.
+fn cached_lua_api<'a>(cache: &'a mut Option<LuaApiCache>, game: &GameInfo, settings: &Settings, dependencies: &Dependencies) -> Option<&'a LuaApi> {
+    let docs_path = settings.path_buf(&format!("{}_assembly_kit", game.key())).join(ASSEMBLY_KIT_SCRIPT_DOCS_PATH);
+    let build_date = *dependencies.build_date();
+    let outdated = cache.as_ref().is_none_or(|(path, date, _)| *path != docs_path || *date != build_date);
+
+    if outdated {
+        let api = match LuaApi::from_assembly_kit(&docs_path) {
+            Ok(mut api) => {
+                api.add_vanilla_scripts(dependencies);
+                Some(api)
+            }
+            Err(error) => {
+                info!("Lua scripting API not available, Lua scripts will only get their syntax checked: {error}");
+                None
+            }
+        };
+
+        *cache = Some((docs_path, build_date, api));
+    }
+
+    cache.as_ref().and_then(|(_, _, api)| api.as_ref())
+}
+
 fn load_schema(schema: &mut Option<Schema>, packs: &mut BTreeMap<String, Pack>, game: &GameInfo, settings: &Settings) {
 
     // Before loading the schema, make sure we don't have tables with definitions from the current schema.

@@ -21,6 +21,8 @@ use rpfm_lib::utils::*;
 
 use crate::dependencies::Dependencies;
 use crate::diagnostics::*;
+use crate::lua::LuaApi;
+use crate::lua::check::{check_script, LuaDefinitions, LuaIssueKind, LuaKeyReference};
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -45,6 +47,19 @@ pub struct TextDiagnosticReport {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TextDiagnosticReportType {
     InvalidKey((u64, u64), (u64, u64), String, String, String),
+
+    /// Lua code that can't be parsed. Contains the parser's message.
+    LuaSyntaxError((u64, u64), (u64, u64), String),
+
+    /// Method not documented for the type it's called on. Contains the type and the method.
+    UnknownMethod((u64, u64), (u64, u64), String, String),
+
+    /// Documented function called with the wrong amount of arguments. Contains the function,
+    /// the minimum and maximum (if any) amount of arguments it takes, and the amount passed.
+    WrongArgumentCount((u64, u64), (u64, u64), String, usize, Option<usize>, usize),
+
+    /// Listener for an event that doesn't exist. Contains the event.
+    UnknownEvent((u64, u64), (u64, u64), String),
 }
 
 //-------------------------------------------------------------------------------//
@@ -63,12 +78,46 @@ impl DiagnosticReport for TextDiagnosticReport {
     fn message(&self) -> String {
         match &self.report_type {
             TextDiagnosticReportType::InvalidKey(_,_, table, column, key) => "Invalid Key: \"".to_string() + key + "\" is not in table \"" + table + "\", column \"" + column + "\".",
+            TextDiagnosticReportType::LuaSyntaxError(_,_, message) => format!("Syntax Error: {message}"),
+            TextDiagnosticReportType::UnknownMethod(_,_, owner, method) => format!("Unknown Method: \"{method}\" is not documented for \"{owner}\"."),
+            TextDiagnosticReportType::WrongArgumentCount(_,_, function, minimum, maximum, found) => {
+                let expected = match maximum {
+                    Some(maximum) if maximum == minimum => minimum.to_string(),
+                    Some(maximum) => format!("{minimum} to {maximum}"),
+                    None => format!("at least {minimum}"),
+                };
+
+                format!("Wrong Argument Count: \"{function}\" takes {expected} arguments, but {found} were passed.")
+            }
+            TextDiagnosticReportType::UnknownEvent(_,_, event) => format!("Unknown Event: \"{event}\" is not triggered by the game nor by any open script."),
         }
     }
 
     fn level(&self) -> DiagnosticLevel {
         match self.report_type {
             TextDiagnosticReportType::InvalidKey(_,_,_,_,_) => DiagnosticLevel::Error,
+            TextDiagnosticReportType::LuaSyntaxError(_,_,_) => DiagnosticLevel::Error,
+            TextDiagnosticReportType::UnknownMethod(_,_,_,_) => DiagnosticLevel::Error,
+            TextDiagnosticReportType::WrongArgumentCount(_,_,_,_,_,_) => DiagnosticLevel::Warning,
+            TextDiagnosticReportType::UnknownEvent(_,_,_) => DiagnosticLevel::Warning,
+        }
+    }
+}
+
+impl TextDiagnosticReportType {
+
+    /// This function returns the range of text the report applies to.
+    ///
+    /// # Returns
+    ///
+    /// The range, as `((start line, start column), (end line, end column))`. All values are 0-based.
+    pub fn range(&self) -> ((u64, u64), (u64, u64)) {
+        match self {
+            Self::InvalidKey(start, end,_,_,_) |
+            Self::LuaSyntaxError(start, end,_) |
+            Self::UnknownMethod(start, end,_,_) |
+            Self::WrongArgumentCount(start, end,_,_,_,_) |
+            Self::UnknownEvent(start, end,_) => (*start, *end),
         }
     }
 }
@@ -77,6 +126,10 @@ impl Display for TextDiagnosticReportType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Display::fmt(match self {
             Self::InvalidKey(_,_,_,_,_) => "InvalidKey",
+            Self::LuaSyntaxError(_,_,_) => "LuaSyntaxError",
+            Self::UnknownMethod(_,_,_,_) => "UnknownMethod",
+            Self::WrongArgumentCount(_,_,_,_,_,_) => "WrongArgumentCount",
+            Self::UnknownEvent(_,_,_) => "UnknownEvent",
         }, f)
     }
 }
@@ -101,6 +154,8 @@ impl TextDiagnostic {
         ignored_fields: &[String],
         ignored_diagnostics: &HashSet<String>,
         ignored_diagnostics_for_fields: &HashMap<String, Vec<String>>,
+        lua_api: Option<&LuaApi>,
+        lua_definitions: &LuaDefinitions,
     ) -> Option<DiagnosticType> {
 
         if let Ok(RFileDecoded::Text(text)) = file.decoded() {
@@ -348,9 +403,94 @@ impl TextDiagnostic {
                 }
             }
 
+            let is_ignored = |report_type: &TextDiagnosticReportType| Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some(&report_type.to_string()), ignored_fields, ignored_diagnostics, ignored_diagnostics_for_fields);
+            let result = check_script(text, lua_api, lua_definitions);
+            for issue in result.issues() {
+                let (start, end) = *issue.range();
+                let report_type = match issue.kind().clone() {
+                    LuaIssueKind::SyntaxError(message) => TextDiagnosticReportType::LuaSyntaxError(start, end, message),
+                    LuaIssueKind::UnknownMethod(owner, method) => TextDiagnosticReportType::UnknownMethod(start, end, owner, method),
+                    LuaIssueKind::WrongArgumentCount(function, minimum, maximum, found) => TextDiagnosticReportType::WrongArgumentCount(start, end, function, minimum, maximum, found),
+                    LuaIssueKind::UnknownEvent(event) => TextDiagnosticReportType::UnknownEvent(start, end, event),
+                };
+
+                if !is_ignored(&report_type) {
+                    diagnostic.results_mut().push(TextDiagnosticReport::new(report_type));
+                }
+            }
+
+            for report_type in Self::invalid_keys(result.key_references(), packs, dependencies) {
+                if !is_ignored(&report_type) {
+                    diagnostic.results_mut().push(TextDiagnosticReport::new(report_type));
+                }
+            }
+
             if !diagnostic.results().is_empty() {
                 Some(DiagnosticType::Text(diagnostic))
             } else { None }
         } else { None }
+    }
+
+    /// This function returns the reports for the keys used by a script that are not in their DB tables.
+    ///
+    /// Keys are checked against the first key column of their table. Tables not found anywhere are skipped.
+    ///
+    /// # Arguments
+    ///
+    /// * `key_references` - Keys used by the script.
+    /// * `packs` - Open packs, whose tables are included in the check.
+    /// * `dependencies` - Dependencies cache, whose tables are included in the check.
+    ///
+    /// # Returns
+    ///
+    /// One [`TextDiagnosticReportType::InvalidKey`] per missing key.
+    fn invalid_keys(key_references: &[LuaKeyReference], packs: &BTreeMap<String, Pack>, dependencies: &Dependencies) -> Vec<TextDiagnosticReportType> {
+        let mut keys_by_table: HashMap<&str, Option<(String, HashSet<String>)>> = HashMap::new();
+        let mut reports = vec![];
+
+        for reference in key_references {
+            let table_keys = keys_by_table.entry(reference.table())
+                .or_insert_with(|| Self::db_keys(reference.table(), packs, dependencies));
+
+            if let Some((column, keys)) = table_keys {
+                if !keys.contains(reference.key()) {
+                    let (start, end) = *reference.range();
+                    reports.push(TextDiagnosticReportType::InvalidKey(start, end, reference.table().to_owned(), column.to_owned(), reference.key().to_owned()));
+                }
+            }
+        }
+
+        reports
+    }
+
+    /// This function returns the name and values of the first key column of a DB table.
+    ///
+    /// # Arguments
+    ///
+    /// * `table_name` - Name of the table, with the `_tables` suffix.
+    /// * `packs` - Open packs, whose tables are included.
+    /// * `dependencies` - Dependencies cache, whose tables are included.
+    ///
+    /// # Returns
+    ///
+    /// The column name and its values, or `None` if the table isn't found or has no key column.
+    fn db_keys(table_name: &str, packs: &BTreeMap<String, Pack>, dependencies: &Dependencies) -> Option<(String, HashSet<String>)> {
+        let key_column_name = |file: &RFile| match file.decoded() {
+            Ok(RFileDecoded::DB(table)) => {
+                let definition = table.definition();
+                let fields = definition.fields_processed();
+                definition.key_column_positions().first().and_then(|position| fields.get(*position)).map(|field| field.name().to_owned())
+            }
+            _ => None,
+        };
+
+        let column = dependencies.db_data(table_name, true, true).ok()
+            .and_then(|files| files.into_iter().find_map(key_column_name))
+            .or_else(|| packs.values()
+                .flat_map(|pack| pack.files_by_paths(&ContainerPath::db_table_folders(table_name), true))
+                .find_map(key_column_name))?;
+
+        let keys = dependencies.db_values_from_table_name_and_column_name(Some(packs), table_name, &column, true, true);
+        Some((column, keys))
     }
 }

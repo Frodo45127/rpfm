@@ -84,6 +84,7 @@
 //!     game_path,
 //!     &[],  // Check all paths
 //!     false, // Don't check AK-only references
+//!     None,  // No Lua API, so Lua scripts only get their syntax checked
 //! );
 //!
 //! for result in diagnostics.results() {
@@ -108,6 +109,8 @@ use rpfm_lib::schema::{FieldType, Schema};
 use rpfm_lib::utils::path_to_absolute_string;
 
 use crate::dependencies::Dependencies;
+use crate::lua::LuaApi;
+use crate::lua::check::LuaDefinitions;
 
 use self::anim_fragment_battle::*;
 use self::config::*;
@@ -124,6 +127,8 @@ pub mod pack;
 pub mod portrait_settings;
 pub mod table;
 pub mod text;
+
+#[cfg(test)] mod tests;
 
 //-------------------------------------------------------------------------------//
 //                              Trait definitions
@@ -287,7 +292,7 @@ impl Diagnostics {
 
     /// This function performs a search over the parts of the provided Packs, storing his results.
     #[allow(clippy::too_many_arguments)]
-    pub fn check(&mut self, packs: &mut BTreeMap<String, Pack>, dependencies: &mut Dependencies, schema: &Schema, game_info: &GameInfo, game_path: &Path, paths_to_check: &[ContainerPath], check_ak_only_refs: bool) {
+    pub fn check(&mut self, packs: &mut BTreeMap<String, Pack>, dependencies: &mut Dependencies, schema: &Schema, game_info: &GameInfo, game_path: &Path, paths_to_check: &[ContainerPath], check_ak_only_refs: bool, lua_api: Option<&LuaApi>) {
 
         // Clear the diagnostics first if we're doing a full check, or only the config ones and the ones for the path to update if we're doing a partial check.
         if paths_to_check.is_empty() {
@@ -452,6 +457,29 @@ impl Diagnostics {
             variant_filenames = dependencies.db_values_from_table_name_and_column_name(Some(packs), "variants_tables", "variant_name", true, true);
         }
 
+        // Scripts can use what any other open script defines, so definitions come from all of them, not only the checked ones.
+        let lua_definitions = if files_split.contains_key("lua") {
+            packs.values()
+                .flat_map(|pack| pack.files_by_type(&[FileType::Text]))
+                .filter(|file| file.path_in_container_raw().ends_with(".lua"))
+                .collect::<Vec<_>>()
+                .par_iter()
+                .filter_map(|file| match file.decoded() {
+                    Ok(RFileDecoded::Text(text)) => Some(text.contents()),
+                    _ => None,
+                })
+                .fold(LuaDefinitions::default, |mut definitions, source| {
+                    definitions.add_script(source);
+                    definitions
+                })
+                .reduce(LuaDefinitions::default, |mut definitions, other| {
+                    definitions.extend(other);
+                    definitions
+                })
+        } else {
+            LuaDefinitions::default()
+        };
+
         // Process the files in batches.
         self.results.append(&mut files_split.par_iter().filter_map(|(_, files)| {
             let mut diagnostics = Vec::with_capacity(files.len());
@@ -500,7 +528,7 @@ impl Diagnostics {
                                     local_file_path_list,
                                 ),
 
-                                FileType::Text => TextDiagnostic::check(pack_key, file, packs, dependencies, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields),
+                                FileType::Text => TextDiagnostic::check(pack_key, file, packs, dependencies, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields, lua_api, &lua_definitions),
                                 FileType::PortraitSettings => PortraitSettingsDiagnostic::check(pack_key, file, &art_set_ids, &variant_filenames, dependencies, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields, local_file_path_list),
                                 _ => None,
                             };

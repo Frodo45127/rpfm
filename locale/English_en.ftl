@@ -1801,6 +1801,15 @@ text_invalid_key_explanation = In a lua table that has been marked as using valu
 
     This means if you end up using those values assuming all exists in the table, the script may break.
 
+label_lua_syntax_error = Lua Syntax Error
+text_lua_syntax_error_explanation = The Lua script cannot be parsed. The game will fail to load it, and nothing in it will run.
+label_lua_unknown_method = Unknown Lua Method
+text_lua_unknown_method_explanation = A method is called on an object whose type is known, but the scripting docs of the Assembly Kit don't list that method for it, and no open script defines it. This is usually a typo, and the script will error when it reaches that line.
+label_lua_wrong_argument_count = Wrong Lua Argument Count
+text_lua_wrong_argument_count_explanation = A documented function is called with more arguments than it takes, or fewer than it needs, according to the scripting docs of the Assembly Kit.
+label_lua_unknown_event = Unknown Lua Event
+text_lua_unknown_event_explanation = A listener is registered for an event that the game doesn't trigger and that no open script triggers either, so the listener will never run.
+
 translation_download_error = Error while trying to download the latest mod translations: {"{"}{"}"}.
 
 reload_renderer = Reload 3D Renderer

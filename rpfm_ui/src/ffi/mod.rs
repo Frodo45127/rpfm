@@ -465,6 +465,35 @@ pub fn scroll_to_pos_and_select_safe(parent: &Ptr<QWidget>, start_row: u64, star
     unsafe { scroll_to_pos_and_select(parent.as_mut_raw_ptr(), start_row, start_column, end_row, end_column) }
 }
 
+// This function adds a diagnostic to a KTextEditor, underlining its range and showing its message on hover.
+// The level is 0 for info, 1 for warning and 2 for error.
+extern "C" { fn add_text_diagnostic(view: *mut QWidget, start_row: i32, start_column: i32, end_row: i32, end_column: i32, level: i32, message: *mut QString); }
+pub fn add_text_diagnostic_safe(view: &Ptr<QWidget>, range: ((u64, u64), (u64, u64)), level: i32, message: &Ptr<QString>) {
+    let ((start_row, start_column), (end_row, end_column)) = range;
+    let clamp = |value: u64| i32::try_from(value).unwrap_or(i32::MAX);
+    unsafe { add_text_diagnostic(view.as_mut_raw_ptr(), clamp(start_row), clamp(start_column), clamp(end_row), clamp(end_column), level, message.as_mut_raw_ptr()) }
+}
+
+// This function removes all diagnostics from a KTextEditor.
+extern "C" { fn clear_text_diagnostics(view: *mut QWidget); }
+pub fn clear_text_diagnostics_safe(view: &Ptr<QWidget>) {
+    unsafe { clear_text_diagnostics(view.as_mut_raw_ptr()) }
+}
+
+// This function adds docs to a range of a KTextEditor, shown as rich text when hovering the range.
+extern "C" { fn add_text_hover(view: *mut QWidget, start_row: i32, start_column: i32, end_row: i32, end_column: i32, html: *mut QString); }
+pub fn add_text_hover_safe(view: &Ptr<QWidget>, range: ((u64, u64), (u64, u64)), html: &Ptr<QString>) {
+    let ((start_row, start_column), (end_row, end_column)) = range;
+    let clamp = |value: u64| i32::try_from(value).unwrap_or(i32::MAX);
+    unsafe { add_text_hover(view.as_mut_raw_ptr(), clamp(start_row), clamp(start_column), clamp(end_row), clamp(end_column), html.as_mut_raw_ptr()) }
+}
+
+// This function removes all docs from a KTextEditor.
+extern "C" { fn clear_text_hovers(view: *mut QWidget); }
+pub fn clear_text_hovers_safe(view: &Ptr<QWidget>) {
+    unsafe { clear_text_hovers(view.as_mut_raw_ptr()) }
+}
+
 //---------------------------------------------------------------------------//
 // KColorCombo stuff.
 //---------------------------------------------------------------------------//
