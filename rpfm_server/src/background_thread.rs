@@ -715,6 +715,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
             // In case we want to update the Schema for our Game Selected...
             Command::UpdateCurrentSchemaFromAssKit => {
                 let ignore_game_files_in_ak = settings.bool("ignore_game_files_in_ak");
+                let mut schema_saved = false;
 
                 if let Some(ref mut schema) = schema {
                     match settings.assembly_kit_path(game) {
@@ -722,89 +723,98 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                             let schema_path = schemas_path().unwrap().join(game.schema_file_name());
 
                             let dependencies = dependencies.read().unwrap();
-                            if let Ok(mut tables_to_check) = dependencies.db_and_loc_data(true, false, true, false) {
+                            match dependencies.db_and_loc_data(true, false, true, false) {
+                                Ok(mut tables_to_check) => {
 
-                                // If there are packs open, also add the packs' tables to it. That way we can treat some special tables, like starpos tables.
-                                for pack in packs.values() {
-                                    if !pack.disk_file_path().is_empty() {
-                                        tables_to_check.append(&mut pack.files_by_type(&[FileType::DB]));
+                                    // If there are packs open, also add the packs' tables to it. That way we can treat some special tables, like starpos tables.
+                                    for pack in packs.values() {
+                                        if !pack.disk_file_path().is_empty() {
+                                            tables_to_check.append(&mut pack.files_by_type(&[FileType::DB]));
+                                        }
                                     }
-                                }
 
-                                // Split the tables to check by table name.
-                                let mut tables_to_check_split: HashMap<String, Vec<DB>> = HashMap::new();
-                                for table_to_check in tables_to_check {
-                                    if let Ok(RFileDecoded::DB(table)) = table_to_check.decoded() {
-                                        match tables_to_check_split.get_mut(table.table_name()) {
-                                            Some(tables) => {
+                                    // Split the tables to check by table name.
+                                    let mut tables_to_check_split: HashMap<String, Vec<DB>> = HashMap::new();
+                                    for table_to_check in tables_to_check {
+                                        if let Ok(RFileDecoded::DB(table)) = table_to_check.decoded() {
+                                            match tables_to_check_split.get_mut(table.table_name()) {
+                                                Some(tables) => {
 
-                                                // Merge tables of the same name and version, so we got more chances of loc data being found.
-                                                match tables.iter_mut().find(|x| x.definition().version() == table.definition().version()) {
-                                                    Some(db_source) => *db_source = DB::merge(&[db_source, table]).unwrap(),
-                                                    None => tables.push((table.clone()).clone()),
+                                                    // Merge tables of the same name and version, so we got more chances of loc data being found.
+                                                    match tables.iter_mut().find(|x| x.definition().version() == table.definition().version()) {
+                                                        Some(db_source) => *db_source = DB::merge(&[db_source, table]).unwrap(),
+                                                        None => tables.push((table.clone()).clone()),
+                                                    }
                                                 }
-                                            }
-                                            None => {
-                                                tables_to_check_split.insert(table.table_name().to_owned(), vec![table.clone()]);
+                                                None => {
+                                                    tables_to_check_split.insert(table.table_name().to_owned(), vec![table.clone()]);
+                                                }
                                             }
                                         }
                                     }
-                                }
 
-                                let tables_to_skip = if ignore_game_files_in_ak {
-                                    dependencies.vanilla_loose_tables().keys().chain(dependencies.vanilla_tables().keys()).map(|x| &**x).collect::<Vec<_>>()
-                                } else {
-                                    vec![]
-                                };
+                                    let tables_to_skip = if ignore_game_files_in_ak {
+                                        dependencies.vanilla_loose_tables().keys().chain(dependencies.vanilla_tables().keys()).map(|x| &**x).collect::<Vec<_>>()
+                                    } else {
+                                        vec![]
+                                    };
 
-                                match update_schema_from_raw_files(schema, game, &asskit_path, &schema_path, &tables_to_skip, &tables_to_check_split) {
-                                    Ok(possible_loc_fields) => {
+                                    match update_schema_from_raw_files(schema, game, &asskit_path, &schema_path, &tables_to_skip, &tables_to_check_split) {
+                                        Ok(possible_loc_fields) => {
 
-                                        // NOTE: This deletes all loc fields first, so we need to get the loc fields AGAIN after this from the TExc_LocalisableFields.xml, if said file exists and it's readable.
-                                        // That's why it does the update again, to re-populate the loc fields list with the ones not bruteforced. It's ineficient, but gets the job done.
-                                        // Use the open packs for bruteforce, or None if no packs open.
-                                        let local_packs = if packs.is_empty() { None } else { Some(&packs) };
-                                        if dependencies.bruteforce_loc_key_order(schema, possible_loc_fields, local_packs, None).is_ok() {
+                                            // NOTE: This deletes all loc fields first, so we need to get the loc fields AGAIN after this from the TExc_LocalisableFields.xml, if said file exists and it's readable.
+                                            // That's why it does the update again, to re-populate the loc fields list with the ones not bruteforced. It's ineficient, but gets the job done.
+                                            // Use the open packs for bruteforce, or None if no packs open.
+                                            let local_packs = if packs.is_empty() { None } else { Some(&packs) };
+                                            if dependencies.bruteforce_loc_key_order(schema, possible_loc_fields, local_packs, None).is_ok() {
 
-                                            // Note: this shows the list of "missing" fields.
-                                            let _ = update_schema_from_raw_files(schema, game, &asskit_path, &schema_path, &tables_to_skip, &tables_to_check_split);
+                                                // Note: this shows the list of "missing" fields.
+                                                let _ = update_schema_from_raw_files(schema, game, &asskit_path, &schema_path, &tables_to_skip, &tables_to_check_split);
 
-                                            // This generates the automatic patches in the schema (like ".png are files" kinda patches).
-                                            if dependencies.generate_automatic_patches(schema, &packs).is_ok() {
+                                                // This generates the automatic patches in the schema (like ".png are files" kinda patches).
+                                                if dependencies.generate_automatic_patches(schema, &packs).is_ok() {
 
-                                                // Fix for old file relative paths using incorrect separators.
-                                                schema.definitions_mut().par_iter_mut().for_each(|x| {
-                                                    x.1.iter_mut().for_each(|y| {
-                                                        y.fields_mut().iter_mut().for_each(|z| {
-                                                            if let Some(path) = z.filename_relative_path(None) {
-                                                                if path.len() == 1 && path[0].contains(",") {
-                                                                    let new_paths = path[0].split(',').map(|x| x.trim()).join(";");
-                                                                    z.set_filename_relative_path(Some(new_paths));
+                                                    // Fix for old file relative paths using incorrect separators.
+                                                    schema.definitions_mut().par_iter_mut().for_each(|x| {
+                                                        x.1.iter_mut().for_each(|y| {
+                                                            y.fields_mut().iter_mut().for_each(|z| {
+                                                                if let Some(path) = z.filename_relative_path(None) {
+                                                                    if path.len() == 1 && path[0].contains(",") {
+                                                                        let new_paths = path[0].split(',').map(|x| x.trim()).join(";");
+                                                                        z.set_filename_relative_path(Some(new_paths));
+                                                                    }
                                                                 }
-                                                            }
+                                                            });
                                                         });
                                                     });
-                                                });
 
-                                                match schema.save(&schemas_path().unwrap().join(game.schema_file_name())) {
-                                                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                                                    match schema.save(&schemas_path().unwrap().join(game.schema_file_name())) {
+                                                        Ok(_) => schema_saved = true,
+                                                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                                                    }
+                                                } else {
+                                                    CentralCommand::send_back(&sender, Response::Success)
                                                 }
                                             } else {
                                                 CentralCommand::send_back(&sender, Response::Success)
                                             }
-                                        } else {
-                                            CentralCommand::send_back(&sender, Response::Success)
-                                        }
-                                    },
-                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                                        },
+                                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                                    }
                                 }
+                                Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                             }
                         }
                         Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                     }
                 } else {
                     CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected.").to_string()));
+                }
+
+                // The update clears the definitions' patches, so reload the saved schema to apply them again.
+                if schema_saved {
+                    load_schema(&mut schema, &mut packs, game, &settings);
+                    CentralCommand::send_back(&sender, Response::Success);
                 }
             }
 
