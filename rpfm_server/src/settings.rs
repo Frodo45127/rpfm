@@ -164,26 +164,13 @@ impl Settings {
     ///
     /// If `as_new` is `true` the on-disk file is ignored and a fully default
     /// settings struct is returned (still applying the per-key defaults).
-    /// If reading the on-disk file fails, the broken file is backed up to
-    /// `settings.json.bak` and defaults are used — protects against sporadic
-    /// read failures silently resetting every setting.
+    /// Otherwise the settings are loaded with [`Self::load_or_recover`].
     pub fn init(as_new: bool) -> Result<Self> {
         let mut settings = if !as_new {
-            match Settings::read() {
-                Ok(settings) => settings,
+            match config_path() {
+                Ok(config) => Self::load_or_recover(&config.join(SETTINGS_FILE_NAME)),
                 Err(error) => {
-
-                    // On read failure, try to backup the old settings file before overwriting it with defaults.
-                    // This protects against sporadic read failures that would otherwise silently reset all settings.
-                    if let Ok(config) = config_path() {
-                        let settings_path = config.join(SETTINGS_FILE_NAME);
-                        if settings_path.exists() {
-                            let backup_path = config.join(format!("{SETTINGS_FILE_NAME}.bak"));
-                            let _ = std::fs::copy(&settings_path, &backup_path);
-                        }
-                    }
-
-                    rpfm_telemetry::warn!("Failed to read settings file, using defaults. Error: {error}");
+                    rpfm_telemetry::warn!("Failed to find the settings folder, using defaults. Error: {error}");
                     Settings::default()
                 }
             }
@@ -389,11 +376,56 @@ impl Settings {
     /// Errors if the file is missing or cannot be parsed as JSON. Most callers
     /// want [`Self::init`] instead, which falls back to defaults on failure.
     pub fn read() -> Result<Self> {
+        Self::read_from(&config_path()?.join(SETTINGS_FILE_NAME))
+    }
+
+    /// Reads the settings from the provided file.
+    pub(crate) fn read_from(path: &Path) -> Result<Self> {
         let mut data = vec![];
-        let mut file = BufReader::new(File::open(config_path()?.join(SETTINGS_FILE_NAME))?);
+        let mut file = BufReader::new(File::open(path)?);
         file.read_to_end(&mut data)?;
 
         serde_json::from_slice(&data).map_err(From::from)
+    }
+
+    /// Loads the settings from the provided file, recovering from a missing, empty or broken one.
+    ///
+    /// A successful read refreshes `settings.json.bak` next to the file as the last good copy. If the read fails,
+    /// that backup is loaded instead. If the backup can't be loaded either, the unreadable file's contents are kept
+    /// in the backup for inspection (unless it's empty), and defaults are used.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path of the settings file.
+    ///
+    /// # Returns
+    ///
+    /// The loaded settings, the backup's, or the defaults.
+    pub(crate) fn load_or_recover(path: &Path) -> Self {
+        let backup_path = backup_path(path);
+        match Self::read_from(path) {
+            Ok(settings) => {
+                let _ = std::fs::copy(path, &backup_path);
+                settings
+            },
+            Err(error) => {
+                rpfm_telemetry::warn!("Failed to read settings file. Error: {error}");
+                match Self::read_from(&backup_path) {
+                    Ok(settings) => {
+                        rpfm_telemetry::warn!("Restored the settings from their backup.");
+                        settings
+                    },
+                    Err(_) => {
+                        if std::fs::metadata(path).is_ok_and(|metadata| metadata.len() > 0) {
+                            let _ = std::fs::copy(path, &backup_path);
+                        }
+
+                        rpfm_telemetry::warn!("Failed to read the settings backup, using defaults.");
+                        Settings::default()
+                    },
+                }
+            },
+        }
     }
 
     /// Writes the settings to disk. Does nothing if the block write flag is set.
@@ -402,8 +434,23 @@ impl Settings {
             return Ok(());
         }
 
-        let mut file = BufWriter::new(File::create(config_path()?.join(SETTINGS_FILE_NAME))?);
-        file.write_all(serde_json::to_string_pretty(self)?.as_bytes()).map_err(From::from)
+        self.write_to(&config_path()?.join(SETTINGS_FILE_NAME))
+    }
+
+    /// Writes the settings to the provided file, atomically.
+    ///
+    /// The settings are written to a temporary file, synced to disk, and then renamed over the target. A crash
+    /// or power loss leaves either the previous file or the new one, never a truncated one.
+    pub(crate) fn write_to(&self, path: &Path) -> Result<()> {
+        let temp_path = path.with_extension("json.tmp");
+        let mut file = BufWriter::new(File::create(&temp_path)?);
+        file.write_all(serde_json::to_string_pretty(self)?.as_bytes())?;
+
+        // `into_inner` flushes the buffer, reporting errors a drop would silently ignore.
+        let file = file.into_inner().map_err(|error| error.into_error())?;
+        file.sync_all()?;
+        std::fs::rename(&temp_path, path)?;
+        Ok(())
     }
 
     /// Disables save to disk when storing a setting. For batch operations.
@@ -621,6 +668,11 @@ pub fn default_config_path() -> Result<PathBuf> {
             None => Err(anyhow!("Failed to get the config path."))
         }
     }
+}
+
+/// Path of the backup of a settings file: the same file, with `.bak` appended.
+pub(crate) fn backup_path(path: &Path) -> PathBuf {
+    path.with_extension("json.bak")
 }
 
 /// This function returns the active config path: the user's custom folder if one is set, or the default otherwise.

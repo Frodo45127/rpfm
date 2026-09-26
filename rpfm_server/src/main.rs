@@ -83,6 +83,7 @@ pub mod server_mcp;
 pub mod server_websocket;
 pub mod session;
 pub mod settings;
+#[cfg(test)] mod settings_test;
 pub mod translation_hub;
 pub mod updater;
 #[cfg(test)] mod updater_test;

@@ -134,6 +134,8 @@ gh-token
 
 # New RPFM Config files. This one shouldn't be added either.
 settings.json
+settings.json.bak
+settings.json.tmp
 settings.ron
 shortcuts.ron
 
