@@ -409,7 +409,7 @@ impl TableView {
             TableType::AnimFragmentBattle(ref table) => (table.definition().clone(), None, FileType::AnimFragmentBattle, false),
             TableType::Atlas(ref table) => (table.definition().clone(), None, FileType::Atlas, false),
             TableType::DependencyManager(_) => (Self::dependency_manager_definition(), None, FileType::Unknown, false),
-            TableType::DB(ref table) => (table.definition().clone(), Some(table.table_name()), FileType::DB, false),
+            TableType::DB(ref table) => (Self::db_definition_with_patches(table), Some(table.table_name()), FileType::DB, false),
             TableType::Loc(ref table) => (table.definition().clone(), None, FileType::Loc, false),
             TableType::NormalTable(ref table) => (table.definition().clone(), None, FileType::Unknown, false),
             TableType::RigidTexturesTable(ref table) => (table.definition().clone(), None, FileType::RigidModel, false),
@@ -1266,7 +1266,7 @@ impl TableView {
         let table_definition = match data {
             TableType::AnimFragmentBattle(ref table) => table.definition().clone(),
             TableType::Atlas(ref table) => table.definition().clone(),
-            TableType::DB(ref table) => table.definition().clone(),
+            TableType::DB(ref table) => Self::db_definition_with_patches(table),
             TableType::Loc(ref table) => table.definition().clone(),
             TableType::NormalTable(ref table) => table.definition().clone(),
             TableType::RigidTexturesTable(ref table) => table.definition().clone(),
@@ -1349,6 +1349,18 @@ impl TableView {
 
     pub fn get_packed_file_type(&self) -> &FileType {
         &self.packed_file_type
+    }
+
+    /// Returns the definition of a DB table with its schema patches applied.
+    ///
+    /// Definitions lose their patches when serialized, so tables received from the server come without them.
+    fn db_definition_with_patches(table: &DB) -> Definition {
+        let mut definition = table.definition().clone();
+        if let Ok(patches) = definition_patches(table.table_name(), *definition.version()) {
+            definition.set_patches(patches);
+        }
+
+        definition
     }
 
     /// Synthetic [`Definition`] for the Dependency Manager pseudo-table.

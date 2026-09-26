@@ -4070,6 +4070,18 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 None => CentralCommand::send_back(&sender, Response::Error("There is no Schema for the Game Selected.".to_string())),
             },
 
+            // Definitions lose their patches when serialized, so clients need to request them separately.
+            Command::DefinitionPatches(name, version) => match schema {
+                Some(ref schema) => {
+                    let patches = match schema.definition_by_name_and_version(&name, version) {
+                        Some(def) => def.patches().clone(),
+                        None => schema.patches().get(&name).cloned().unwrap_or_default(),
+                    };
+                    CentralCommand::send_back(&sender, Response::DefinitionPatch(patches));
+                },
+                None => CentralCommand::send_back(&sender, Response::Error("There is no Schema for the Game Selected.".to_string())),
+            },
+
             Command::DeleteDefinition(name, version) => {
                 if let Some(ref mut schema) = schema {
                     schema.remove_definition(&name, version);

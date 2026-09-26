@@ -2255,6 +2255,36 @@ public class DefinitionByTableNameAndVersionResponse
 ```
 <!-- langtabs-end -->
 
+### DefinitionPatches
+
+Get the patches (including local ones) applied to a specific definition. Definitions returned by other commands do not include them.
+
+| Parameter    | Type   | Description      |
+|--------------|--------|------------------|
+| `table_name` | string | Table name       |
+| `version`    | number | Version number   |
+
+Response: `{ DefinitionPatch: Record<string, Record<string, string>> }`
+
+<!-- langtabs-start -->
+```typescript
+type DefinitionPatchesRequest = {
+  DefinitionPatches: [string, number]
+};
+type DefinitionPatchesResponse = { DefinitionPatch: Record<string, Record<string, string>> };
+```
+```csharp
+public class DefinitionPatchesRequest
+{
+    public Tuple<string, int> DefinitionPatches { get; set; }
+}
+public class DefinitionPatchesResponse
+{
+    public Dictionary<string, Dictionary<string, string>> DefinitionPatch { get; set; }
+}
+```
+<!-- langtabs-end -->
+
 ### DeleteDefinition
 
 Delete a definition by table name and version.

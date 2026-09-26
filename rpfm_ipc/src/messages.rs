@@ -1390,6 +1390,13 @@ pub enum Command {
     /// - [`Response::Error`] if not found or no schema.
     DefinitionByTableNameAndVersion(String, i32),
 
+    /// Get the patches (including local ones) applied to a specific definition by table name and version.
+    ///
+    /// Response:
+    /// - [`Response::DefinitionPatch`] on success.
+    /// - [`Response::Error`] if no schema.
+    DefinitionPatches(String, i32),
+
     /// Delete a definition by table name and version.
     ///
     /// Response: [`Response::Success`].
@@ -1456,6 +1463,7 @@ pub enum Response {
     DataSourceStringUsizeUsize(DataSource, String, usize, usize),
     DBRFileInfo(DB, RFileInfo),
     Definition(Definition),
+    DefinitionPatch(DefinitionPatch),
     DependenciesInfo(DependenciesInfo),
     Diagnostics(Diagnostics),
     ESFRFileInfo(ESF, RFileInfo),
