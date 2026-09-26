@@ -38,6 +38,7 @@ use rpfm_ui_common::clone;
 use crate::CENTRAL_COMMAND;
 use crate::app_ui::AppUI;
 use crate::ffi;
+use crate::github_ui;
 use crate::settings_ui::{backend::*, SettingsUI};
 use crate::utils::{show_dialog, tr};
 
@@ -63,6 +64,7 @@ pub struct SettingsUISlots {
     pub clear_schemas: QBox<SlotNoArgs>,
     pub clear_layout: QBox<SlotNoArgs>,
     pub add_rpfm_to_runcher_tools: QBox<SlotNoArgs>,
+    pub github_account: QBox<SlotNoArgs>,
 
     pub select_colour: BTreeMap<String, QBox<SlotNoArgs>>,
 }
@@ -263,6 +265,27 @@ impl SettingsUISlots {
             })));
         }
 
+        // Signs out if there's an account signed in, and in otherwise.
+        let github_account = SlotNoArgs::new(&ui.dialog, clone!(ui => move || {
+            let result = match github_ui::account() {
+                Ok(Some(_)) => {
+                    rpfm_telemetry::track_action("Settings: GitHub Sign Out");
+                    github_ui::sign_out()
+                },
+                Ok(None) => {
+                    rpfm_telemetry::track_action("Settings: GitHub Sign In");
+                    github_ui::sign_in(&ui.dialog).map(|_| ())
+                },
+                Err(error) => Err(error),
+            };
+
+            if let Err(error) = result {
+                show_dialog(&ui.dialog, error, false);
+            }
+
+            ui.refresh_github_account();
+        }));
+
         Self {
             restore_default,
             select_config_path,
@@ -278,6 +301,7 @@ impl SettingsUISlots {
             clear_schemas,
             clear_layout,
             add_rpfm_to_runcher_tools,
+            github_account,
             select_colour,
         }
 	}

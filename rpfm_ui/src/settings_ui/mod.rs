@@ -69,6 +69,7 @@ use rpfm_ui_common::utils::create_grid_layout;
 use crate::app_ui::AppUI;
 use crate::ffi::*;
 use crate::SUPPORTED_GAMES;
+use crate::github_ui;
 use crate::settings_ui::backend::{backup_autosave_path, config_path, custom_config_path, set_custom_config_path, settings_get_all, settings_set_bool, settings_set_i32, settings_set_string};
 use crate::updater_ui::{BETA, STABLE, update_channel, UpdateChannel};
 use crate::utils::{show_dialog_flatpak_permissions, tr, qtr, qtre};
@@ -160,6 +161,8 @@ pub struct SettingsUI {
     ai_api_key_line_edit: QBox<QLineEdit>,
     ai_model_line_edit: QBox<QLineEdit>,
     deepl_api_key_line_edit: QBox<QLineEdit>,
+    github_account_label: QBox<QLabel>,
+    github_account_button: QBox<QPushButton>,
     font_data: Rc<RefCell<(String, i32)>>,
 
     /// All boolean settings checkboxes, keyed by their backend settings key.
@@ -251,6 +254,7 @@ impl SettingsUI {
             "settings_diagnostics_title",
             "settings_telemetry_title",
             "settings_ai_title",
+            "settings_github_title",
         ];
         let mut nav_buttons: Vec<QBox<QPushButton>> = Vec::new();
         for key in &category_keys {
@@ -546,11 +550,26 @@ impl SettingsUI {
         content_layout.add_widget_1a(&ai_header);
         content_layout.add_widget_1a(&ai_frame);
 
+        //-------------------------------------------------------------------------------//
+        // `GitHub` section of the `Settings` dialog.
+        //-------------------------------------------------------------------------------//
+        let github_header = QLabel::from_q_string_q_widget(&qtr("settings_github_title"), &dialog);
+        github_header.set_style_sheet(&QString::from_std_str("font-weight: bold; font-size: 13px; padding: 8px 0 4px 0;"));
+        let github_frame = QWidget::new_1a(&dialog);
+        let github_vbox = QVBoxLayout::new_1a(&github_frame);
+        github_vbox.set_contents_margins_4a(4, 0, 4, 0);
+        github_vbox.set_spacing(2);
+
+        let (github_account_button, github_account_label) = new_setting_button_with_value(&github_vbox, &github_frame, "settings_github_account", "tt_settings_github_account", "settings_github_sign_in");
+
+        content_layout.add_widget_1a(&github_header);
+        content_layout.add_widget_1a(&github_frame);
+
         // Add stretch at the end so frames don't expand vertically.
         content_layout.add_stretch_1a(1);
 
         // Collect category headers (for scroll navigation) and sections (for filtering).
-        // Order must match nav_buttons: [Paths, General, Table, Debug, Diagnostics, Telemetry, AI]
+        // Order must match nav_buttons: [Paths, General, Table, Debug, Diagnostics, Telemetry, AI, GitHub]
         let category_headers: Vec<QBox<QLabel>> = vec![
             paths_header,
             general_header,
@@ -559,6 +578,7 @@ impl SettingsUI {
             diagnostics_header,
             telemetry_header,
             ai_header,
+            github_header,
         ];
         // Note: extra_paths is a sub-section of Paths, stored separately for the extra_paths_header.
         let category_sections: Vec<QBox<QWidget>> = vec![
@@ -569,6 +589,7 @@ impl SettingsUI {
             diagnostics_frame,
             telemetry_frame,
             ai_frame,
+            github_frame,
         ];
 
         // Wire nav buttons to smooth-scroll to corresponding category header.
@@ -762,6 +783,8 @@ impl SettingsUI {
             ai_api_key_line_edit,
             ai_model_line_edit,
             deepl_api_key_line_edit,
+            github_account_label,
+            github_account_button,
             font_data: Rc::new(RefCell::new((String::new(), -1))),
             checkboxes,
             colour_buttons,
@@ -789,6 +812,27 @@ impl SettingsUI {
     }
 
     /// This function loads the data from the provided `Settings` into our `SettingsUI`.
+    /// Show which GitHub account is signed in, and whether the button signs in or out.
+    pub unsafe fn refresh_github_account(&self) {
+        match github_ui::account() {
+            Ok(Some(login)) => {
+                self.github_account_label.set_text(&qtre("settings_github_signed_in_as", &[&login]));
+                self.github_account_label.set_tool_tip(&QString::new());
+                self.github_account_button.set_text(&qtr("settings_github_sign_out"));
+            },
+            Ok(None) => {
+                self.github_account_label.set_text(&qtr("settings_github_not_signed_in"));
+                self.github_account_label.set_tool_tip(&QString::new());
+                self.github_account_button.set_text(&qtr("settings_github_sign_in"));
+            },
+            Err(error) => {
+                self.github_account_label.set_text(&qtr("settings_github_unavailable"));
+                self.github_account_label.set_tool_tip(&QString::from_std_str(error.to_string()));
+                self.github_account_button.set_text(&qtr("settings_github_sign_in"));
+            },
+        }
+    }
+
     pub unsafe fn load(&self) -> Result<()> {
 
         // Fetch all settings in a single IPC call.
@@ -881,6 +925,8 @@ impl SettingsUI {
         self.ai_api_key_line_edit.set_text(&QString::from_std_str(get_str(AI_API_KEY)));
         self.ai_model_line_edit.set_text(&QString::from_std_str(get_str(AI_MODEL)));
         self.deepl_api_key_line_edit.set_text(&QString::from_std_str(get_str(DEEPL_API_KEY)));
+
+        self.refresh_github_account();
 
         // Load colours.
         let q_settings = QSettings::new();
