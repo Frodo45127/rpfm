@@ -313,6 +313,17 @@
                </property>
               </widget>
              </item>
+             <item>
+              <widget class="QPushButton" name="submit_to_hub">
+               <property name="text">
+                <string>Submit</string>
+               </property>
+               <property name="icon">
+                <iconset theme="document-send">
+                 <normaloff>.</normaloff>.</iconset>
+               </property>
+              </widget>
+             </item>
             </layout>
            </widget>
           </item>

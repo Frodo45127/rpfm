@@ -52,6 +52,7 @@ pub struct ToolTranslatorSlots {
     toggle_help: QBox<SlotNoArgs>,
     toggle_preview: QBox<SlotNoArgs>,
     toggle_behavior: QBox<SlotNoArgs>,
+    submit_to_hub: QBox<SlotNoArgs>,
     update_preview_original: QBox<SlotNoArgs>,
     update_preview_translated: QBox<SlotNoArgs>,
 }
@@ -257,6 +258,15 @@ impl ToolTranslatorSlots {
             }
         ));
 
+        let submit_to_hub = SlotNoArgs::new(ui.tool.main_widget(), clone!(
+            ui => move || {
+                rpfm_telemetry::track_action("Translator: submit_to_hub");
+                if let Err(error) = ui.submit_translation() {
+                    show_dialog(ui.tool.main_widget(), error, false);
+                }
+            }
+        ));
+
         let update_preview_original = SlotNoArgs::new(ui.tool.main_widget(), clone!(
             ui => move || {
                 rpfm_telemetry::track_action("Translator: update_preview_original");
@@ -296,6 +306,7 @@ impl ToolTranslatorSlots {
             toggle_help,
             toggle_preview,
             toggle_behavior,
+            submit_to_hub,
             update_preview_original,
             update_preview_translated,
         }

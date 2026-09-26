@@ -91,11 +91,11 @@ Below the behaviour selectors: the **Original Value** (raw + formatted preview) 
 The pattern is: select a line, the right side loads it, you edit, you select the next line, repeat. When you're done, **Accept** writes the translation to two places:
 
 - **Inside the open Pack**, as `text/!!!!!!translated_locs.loc` (or `text/localisation.loc` for older games), so the translation works in-game immediately.
-- **On disk**, as `<RPFM config>/translations_local/<game>/<pack>/<LANGUAGE>.json`. This is the file you share.
+- **On disk**, as `<RPFM config>/translations_local/<game>/<pack>/<SOURCE>-<LANGUAGE>.json` (or `<LANGUAGE>.json` for format `0`). This is the file you share.
 
 ## Sharing a translation
 
-Submit the JSON to the [Total War Translation Hub](https://github.com/Frodo45127/total_war_translation_hub) as an issue or a PR.
+Click **Submit to the Translation Hub** in the translator. RPFM saves the translation, shows you a summary to confirm, and opens a pull request on the [Total War Translation Hub](https://github.com/Frodo45127/total_war_translation_hub) with it. The first time, it asks you to sign in with GitHub. See [the Translator's docs](../tools/translator.md#sharing-through-the-translation-hub) for the details.
 
 Why share?
 

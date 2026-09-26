@@ -76,7 +76,7 @@ use rpfm_lib::integrations::git::GitResponse;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR, send_ipc_command, send_ipc_command_result};
 use crate::references_ui::ReferencesUI;
-use crate::settings_ui::backend::{settings_bool, settings_path_buf, settings_set_bool, settings_set_string, settings_string, translations_local_path};
+use crate::settings_ui::backend::{settings_bool, settings_path_buf, settings_set_bool, settings_set_string, settings_string};
 use crate::views::table::{FilterChipState, TableType, TableView, utils::get_table_from_view};
 use crate::utils::show_dialog;
 
@@ -86,6 +86,7 @@ use self::slots::ToolTranslatorSlots;
 use super::*;
 
 mod connections;
+mod hub;
 mod slots;
 #[cfg(test)] mod test;
 
@@ -225,6 +226,7 @@ pub struct ToolTranslator {
     help_toggle: QPtr<QPushButton>,
     preview_toggle: QPtr<QPushButton>,
     behavior_toggle: QPtr<QPushButton>,
+    submit_to_hub: QPtr<QPushButton>,
 
     // The glossary pane shares the splitter's layout cell, on top of it, so the layout keeps its height
     // in sync with the dialog. Toggling it animates its width from the right edge.
@@ -649,6 +651,10 @@ impl ToolTranslator {
         behavior_toggle.set_text(&qtr("translator_behavior_toggle"));
         behavior_toggle.set_tool_tip(&qtr("translator_behavior_toggle_tooltip"));
 
+        let submit_to_hub: QPtr<QPushButton> = tool.find_widget("submit_to_hub")?;
+        submit_to_hub.set_text(&qtr("translator_submit_to_hub"));
+        submit_to_hub.set_tool_tip(&qtr("translator_submit_to_hub_tooltip"));
+
         let toggle_glossary: QPtr<QPushButton> = tool.find_widget("toggle_glossary")?;
         toggle_glossary.set_text(&qtr("translator_glossary_toggle"));
 
@@ -754,6 +760,7 @@ impl ToolTranslator {
             help_toggle,
             preview_toggle,
             behavior_toggle,
+            submit_to_hub,
             glossary_table,
             glossary_pane,
             toggle_glossary,
@@ -821,8 +828,7 @@ impl ToolTranslator {
         self.change_selected_row(None, None);
 
         // Then save both, the updated translations to disk, and the translated locs to the pack.
-        let mut pack_tr = self.snapshot_pack_translation()?;
-        pack_tr.save(&translations_local_path()?, GAME_SELECTED.read().unwrap().key())?;
+        let pack_tr = self.save_translation_file()?;
 
         let mut loc_file = Loc::new();
         let mut loc_data = vec![];

@@ -48,6 +48,7 @@ pub unsafe fn set_connections(ui: &ToolTranslator, slots: &ToolTranslatorSlots) 
     ui.help_toggle().released().connect(slots.toggle_help());
     ui.preview_toggle().released().connect(slots.toggle_preview());
     ui.behavior_toggle().released().connect(slots.toggle_behavior());
+    ui.submit_to_hub().released().connect(slots.submit_to_hub());
 
     ui.action_move_up().triggered().connect(slots.move_selection_up());
     ui.action_move_down().triggered().connect(slots.move_selection_down());

@@ -54,10 +54,11 @@ Many games only install the language they're set to. If the source language isn'
 
 ## Sharing through the Translation Hub
 
-Once you've finished a translation:
+Once you've finished a translation, click **Submit to the Translation Hub** in the translator:
 
-1. Find the JSON in `<config>/translations_local/<game>/<pack>/`.
-2. Submit it to the Translation Hub as an issue or PR.
-3. Once accepted, any Runcher user with **Enable Translations** turned on will get the translation automatically applied at launch — without altering the mod, and with `outdated` lines silently ignored. No more "I installed a translation pack but the mod was updated and now half the lines are wrong."
+1. RPFM saves the translation, and shows a summary: the pack, the languages, how many lines are translated, and warnings about lines still pending or auto-translated and not reviewed. Fill in the authors there if you haven't, so you get credited, and click **Submit**.
+2. The first time, RPFM asks you to sign in with GitHub. It opens GitHub in your browser and copies a code to your clipboard: paste it there and approve RPFM. You only need to do this once. RPFM keeps the sign-in in your system's keyring, and you can sign out from **Settings > GitHub**.
+3. RPFM opens a pull request on the Translation Hub with your translation, through your own fork of it, which it creates the first time. If you submit the same translation again while its pull request is open, the pull request is updated instead.
+4. Once the pull request is accepted, any Runcher user with **Enable Translations** turned on will get the translation automatically applied at launch — without altering the mod, and with `outdated` lines silently ignored. No more "I installed a translation pack but the mod was updated and now half the lines are wrong."
 
 For step-by-step instructions including screenshots, see the [Translating a mod tutorial](../tutorials/translating-a-mod.md).
