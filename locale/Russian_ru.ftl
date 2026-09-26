@@ -1204,9 +1204,9 @@ tt_change_packfile_type_other = { -changes-type } «{ -local-packfile_type_other
 -packfile-saving-not-supported =
     Сохранение подобных { -packfile(case: "genitive", number: "other", capitalization: "lower") } НЕ ПОДДЕРЖИВАЕТСЯ.
 
-tt_change_packfile_type_data_is_encrypted = { -if-checked }, данные { -packedfile(case: "genitive", number: "other", capitalization: "lower") } в этом { -packfile(case: "prepositional", capitalization: "lower") } зашифрованы. { -packfile-saving-not-supported }.
+tt_change_packfile_type_data_is_encrypted = { -if-checked }, данные { -packedfile(case: "genitive", number: "other", capitalization: "lower") } в этом { -packfile(case: "prepositional", capitalization: "lower") } зашифрованы.
 tt_change_packfile_type_index_includes_timestamp = { -if-checked }, индекс { -packedfile(case: "genitive", number: "other", capitalization: "lower") } в этом { -packfile(case: "prepositional", capitalization: "lower") } включает в себя временну́ю метку последнего изменения каждого { -packedfile(case: "genitive", capitalization: "lower") }. Учтите, что подобные { -packfile(number: "other", capitalization: "lower") } НЕ ПОЯВЯТСЯ в списке модов официального загрузчика.
-tt_change_packfile_type_index_is_encrypted = { -if-checked }, индекс { -packedfile(case: "genitive", number: "other", capitalization: "lower") } этого { -packfile(case: "genitive", capitalization: "lower") } зашифрован. { -packfile-saving-not-supported }.
+tt_change_packfile_type_index_is_encrypted = { -if-checked }, индекс { -packedfile(case: "genitive", number: "other", capitalization: "lower") } этого { -packfile(case: "genitive", capitalization: "lower") } зашифрован.
 tt_change_packfile_type_header_is_extended = { -if-checked }, заголовок этого { -packfile(case: "genitive", capitalization: "lower") } расширен на 20 байт. Наблюдается исключительно в зашифрованных { -packfile(case: "prepositional", number: "other", capitalization: "lower") } игры Arena. { -packfile-saving-not-supported }.
 tt_change_packfile_type_data_is_compressed = { -if-checked }, данные каждого { -packedfile(case: "genitive", capitalization: "lower") } в открытом { -packfile(case: "prepositional", capitalization: "lower") } будут сжаты во время сохранения. Если Вы хотите разжать этот { -packfile(capitalization: "lower") }, отключите опцию, а затем сохраните его.
 

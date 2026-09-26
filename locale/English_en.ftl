@@ -217,9 +217,9 @@ tt_change_packfile_type_mod = Changes the PackFile's Type to Mod. You should use
 tt_change_packfile_type_movie = Changes the PackFile's Type to Movie. You should use this for mods that'll always be active, and will not show up in the Mod Manager.
 tt_change_packfile_type_other = Changes the PackFile's Type to Other. This is for PackFiles without write support, so you should never use it.
 
-tt_change_packfile_type_data_is_encrypted = If checked, the data of the PackedFiles in this PackFile is encrypted. Saving this kind of PackFiles is NOT SUPPORTED.
+tt_change_packfile_type_data_is_encrypted = If checked, the data of the PackedFiles in this PackFile is encrypted.
 tt_change_packfile_type_index_includes_timestamp = If checked, the PackedFile Index of this PackFile includes the 'Last Modified' date of every PackedFile. Note that PackFiles with this enabled WILL NOT SHOW UP as mods in the official launcher.
-tt_change_packfile_type_index_is_encrypted = If checked, the PackedFile Index of this PackFile is encrypted. Saving this kind of PackFiles is NOT SUPPORTED.
+tt_change_packfile_type_index_is_encrypted = If checked, the PackedFile Index of this PackFile is encrypted.
 tt_change_packfile_type_header_is_extended = If checked, the header of this PackFile is extended by 20 bytes. Only seen in Arena PackFiles with encryption. Saving this kind of PackFiles is NOT SUPPORTED.
 tt_change_packfile_type_data_is_compressed = If checked, the data of each PackedFile in the open PackFile will be compressed on save. If you want to decompress a PackFile, disable this, then save it.
 
@@ -1984,6 +1984,7 @@ optimizer_pts_title = Portrait Settings Files
 
 optimizer_pack_remove_itm_files = Remove unchanged files
 optimizer_pack_apply_compression = Compress the Pack
+optimizer_pack_apply_encryption = Encrypt the Pack
 optimizer_pack_remove_duplicated_files = Remove duplicated files
 optimizer_db_import_datacores_into_twad_key_deletes = Import datacores into twad_key_deletes
 optimizer_db_optimize_datacored_tables = <b>NOT RECOMMENDED:</b> Optimize datacored tables

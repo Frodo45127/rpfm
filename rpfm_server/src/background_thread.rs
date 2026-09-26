@@ -222,6 +222,29 @@ fn get_pack<'a>(packs: &'a BTreeMap<String, Pack>, pack_key: &str, sender: &Unbo
     }
 }
 
+/// Sets or clears one of the encryption flags of a pack, sending the result back.
+///
+/// Enabling encryption is rejected on Packs whose version doesn't support it.
+fn change_encryption_flag(packs: &mut BTreeMap<String, Pack>, pack_key: &str, flag: PFHFlags, state: bool, sender: &UnboundedSender<Response>) {
+    let pack = match packs.get_mut(pack_key) {
+        Some(pack) => pack,
+        None => {
+            CentralCommand::send_back(sender, Response::Error(format!("Pack not found: {}", pack_key)));
+            return;
+        }
+    };
+
+    if state && !pack.pfh_version().supports_encryption() {
+        CentralCommand::send_back(sender, Response::Error(format!("Encryption is not supported in {} Packs.", pack.pfh_version().value())));
+        return;
+    }
+
+    let mut bitmask = pack.bitmask();
+    bitmask.set(flag, state);
+    pack.set_bitmask(bitmask);
+    CentralCommand::send_back(sender, Response::Success);
+}
+
 /// The per-session command dispatcher.
 ///
 /// Receives `(reply_sender, command)` pairs from the session's mpsc
@@ -832,6 +855,10 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                     None => CentralCommand::send_back(&sender, Response::Error(format!("Pack not found: {}", pack_key))),
                 }
             },
+
+            // In case we want to change the "Index Is Encrypted" or "Data Is Encrypted" setting of the PackFile...
+            Command::ChangeIndexIsEncrypted(pack_key, state) => change_encryption_flag(&mut packs, &pack_key, PFHFlags::HAS_ENCRYPTED_INDEX, state, &sender),
+            Command::ChangeDataIsEncrypted(pack_key, state) => change_encryption_flag(&mut packs, &pack_key, PFHFlags::HAS_ENCRYPTED_DATA, state, &sender),
 
             // In case we want to compress/decompress the PackedFiles of the currently open PackFile...
             Command::ChangeCompressionFormat(pack_key, cf) => {

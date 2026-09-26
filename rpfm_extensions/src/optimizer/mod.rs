@@ -26,6 +26,8 @@
 //!   whatever the pack had configured), so the next save actually compresses
 //!   the files. No-op if the game supports no compression formats. Intended
 //!   as a final step before release on a pack you've been editing uncompressed.
+//! - **Apply Encryption**: Turn on both the index and data encryption flags
+//!   of the pack, so the next save encrypts it. No-op on packs older than PFH4.
 //!
 //! ## Table Optimizations (DB/Loc)
 //!
@@ -86,7 +88,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use rpfm_lib::error::{RLibError, Result};
-use rpfm_lib::files::{Container, ContainerPath, db::DB, EncodeableExtraData, FileType, loc::Loc, pack::Pack, portrait_settings::PortraitSettings, RFile, RFileDecoded, table::DecodedData, text::TextFormat};
+use rpfm_lib::files::{Container, ContainerPath, db::DB, EncodeableExtraData, FileType, loc::Loc, pack::{Pack, PFHFlags}, portrait_settings::PortraitSettings, RFile, RFileDecoded, table::DecodedData, text::TextFormat};
 use rpfm_lib::games::{GameInfo, supported_games::KEY_WARHAMMER_3};
 use rpfm_lib::schema::Schema;
 
@@ -174,6 +176,11 @@ pub struct OptimizerOptions {
     /// that's been edited uncompressed. No-op if the active game supports no compression formats.
     pack_apply_compression: bool,
 
+    /// Allow the optimizer to enable both index and data encryption on the pack, so the next save encrypts it.
+    ///
+    /// No-op on packs whose version doesn't support encryption.
+    pack_apply_encryption: bool,
+
     /// Allow the optimizer to remove files that only differ from another file in their path's casing (what the FileDuplicated diagnostic flags).
     ///
     /// Only files with byte-for-byte identical contents are removed. When a group of such files is found the all-lowercase
@@ -242,6 +249,7 @@ impl Default for OptimizerOptions {
         Self {
             pack_remove_itm_files: true,
             pack_apply_compression: true,
+            pack_apply_encryption: false,
             pack_remove_duplicated_files: false,
             db_import_datacores_into_twad_key_deletes: false,
             db_optimize_datacored_tables: false,
@@ -287,6 +295,7 @@ impl OptimizableContainer for Pack {
     ///     - Remove files identical to parent/vanilla.
     ///     - Remove case-insensitively duplicated files with identical contents.
     ///     - Apply the most modern compression format the active game supports, so the next save compresses the files.
+    ///     - Enable index and data encryption, so the next save encrypts the pack.
     fn optimize(&mut self,
         paths_to_optimize: Option<Vec<ContainerPath>>,
         dependencies: &mut Dependencies,
@@ -511,6 +520,10 @@ impl OptimizableContainer for Pack {
         if options.pack_apply_compression {
             let cf = game.compression_formats_supported().first().cloned().unwrap_or_default();
             self.set_compression_format(cf, game);
+        }
+
+        if options.pack_apply_encryption && self.pfh_version().supports_encryption() {
+            self.set_bitmask(self.bitmask() | PFHFlags::HAS_ENCRYPTED_INDEX | PFHFlags::HAS_ENCRYPTED_DATA);
         }
 
         // Return the deleted files, so the caller can know what got removed.

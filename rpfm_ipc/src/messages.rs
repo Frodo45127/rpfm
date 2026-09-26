@@ -278,6 +278,22 @@ pub enum Command {
     /// Response: [`Response::Success`].
     ChangeIndexIncludesTimestamp(String, bool),
 
+    /// Change the `Index Is Encrypted` flag in a specific open Pack.
+    /// First field is the pack key, second is the flag value.
+    ///
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] if enabling it on a Pack older than PFH4.
+    ChangeIndexIsEncrypted(String, bool),
+
+    /// Change the `Data Is Encrypted` flag in a specific open Pack.
+    /// First field is the pack key, second is the flag value.
+    ///
+    /// Response:
+    /// - [`Response::Success`] on success.
+    /// - [`Response::Error`] if enabling it on a Pack older than PFH4.
+    ChangeDataIsEncrypted(String, bool),
+
     /// Change the compression format of a specific open Pack.
     /// First field is the pack key, second is the compression format.
     ///

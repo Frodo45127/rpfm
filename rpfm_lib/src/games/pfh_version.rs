@@ -148,6 +148,18 @@ impl PFHVersion {
         }
     }
 
+    /// Returns whether Packs of this format version can be saved with an encrypted index or data.
+    ///
+    /// # Returns
+    ///
+    /// `true` for PFH4 and newer versions, `false` otherwise.
+    pub fn supports_encryption(&self) -> bool {
+        match *self {
+            PFHVersion::PFH6 | PFHVersion::PFH5 | PFHVersion::PFH4 => true,
+            PFHVersion::PFH3 | PFHVersion::PFH2 | PFHVersion::PFH0 => false,
+        }
+    }
+
     /// Parses a preamble string into a format version.
     ///
     /// Converts a 4-byte preamble read from a PackFile header into the corresponding

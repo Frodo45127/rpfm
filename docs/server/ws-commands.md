@@ -498,6 +498,56 @@ public class ChangeIndexIncludesTimestampRequest
 ```
 <!-- langtabs-end -->
 
+### ChangeIndexIsEncrypted
+
+Toggle the "Index Is Encrypted" flag for a specific pack. When enabled, file paths, sizes and timestamps in the pack index are encrypted on save. Enabling it is only supported in PFH4 and newer packs.
+
+| Parameter  | Type    | Description   |
+|------------|---------|---------------|
+| `pack_key` | string  | Pack to modify|
+| `enabled`  | boolean | New flag value|
+
+Response: `"Success"`, or `{ "Error": string }` if enabling it on a pack older than PFH4.
+
+<!-- langtabs-start -->
+```typescript
+type ChangeIndexIsEncryptedRequest = { ChangeIndexIsEncrypted: [string, boolean] };
+type ChangeIndexIsEncryptedResponse = "Success" | { Error: string };
+```
+```csharp
+public class ChangeIndexIsEncryptedRequest
+{
+    public Tuple<string, bool> ChangeIndexIsEncrypted { get; set; }
+}
+// Response: the literal string "Success", or an object with an "Error" string.
+```
+<!-- langtabs-end -->
+
+### ChangeDataIsEncrypted
+
+Toggle the "Data Is Encrypted" flag for a specific pack. When enabled, the data of every file in the pack is encrypted on save. Enabling it is only supported in PFH4 and newer packs.
+
+| Parameter  | Type    | Description   |
+|------------|---------|---------------|
+| `pack_key` | string  | Pack to modify|
+| `enabled`  | boolean | New flag value|
+
+Response: `"Success"`, or `{ "Error": string }` if enabling it on a pack older than PFH4.
+
+<!-- langtabs-start -->
+```typescript
+type ChangeDataIsEncryptedRequest = { ChangeDataIsEncrypted: [string, boolean] };
+type ChangeDataIsEncryptedResponse = "Success" | { Error: string };
+```
+```csharp
+public class ChangeDataIsEncryptedRequest
+{
+    public Tuple<string, bool> ChangeDataIsEncrypted { get; set; }
+}
+// Response: the literal string "Success", or an object with an "Error" string.
+```
+<!-- langtabs-end -->
+
 ### ChangeCompressionFormat
 
 Change the compression format of a specific open Pack.

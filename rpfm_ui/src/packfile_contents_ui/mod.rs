@@ -338,8 +338,6 @@ impl PackFileContentsUI {
         context_menu_index_is_encrypted.set_checkable(true);
         context_menu_data_is_encrypted.set_checkable(true);
         context_menu_header_is_extended.set_enabled(false);
-        context_menu_index_is_encrypted.set_enabled(false);
-        context_menu_data_is_encrypted.set_enabled(false);
 
         // Compression Format submenu.
         let context_menu_compression_menu = packfile_contents_tree_view_context_menu.add_menu_q_string(&qtr("compression_format"));

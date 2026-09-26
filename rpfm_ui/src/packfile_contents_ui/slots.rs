@@ -128,6 +128,8 @@ pub struct PackFileContentsSlots {
     pub context_menu_change_packfile_type: QBox<SlotOfBool>,
     pub context_menu_change_compression_format: QBox<SlotOfBool>,
     pub context_menu_index_includes_timestamp: QBox<SlotOfBool>,
+    pub context_menu_index_is_encrypted: QBox<SlotOfBool>,
+    pub context_menu_data_is_encrypted: QBox<SlotOfBool>,
     pub context_menu_optimize_packfile: QBox<SlotOfBool>,
     pub context_menu_patch_siege_ai: QBox<SlotOfBool>,
     pub context_menu_live_export: QBox<SlotOfBool>,
@@ -712,6 +714,10 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_index_includes_timestamp.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS));
                             pack_file_contents_ui.context_menu_index_is_encrypted.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_ENCRYPTED_INDEX));
                             pack_file_contents_ui.context_menu_header_is_extended.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_EXTENDED_HEADER));
+
+                            let supports_encryption = ui_data.pfh_version().supports_encryption();
+                            pack_file_contents_ui.context_menu_index_is_encrypted.set_enabled(supports_encryption);
+                            pack_file_contents_ui.context_menu_data_is_encrypted.set_enabled(supports_encryption);
                         }
                     }
                 } else {
@@ -2069,6 +2075,26 @@ impl PackFileContentsSlots {
             }
         ));
 
+        let context_menu_index_is_encrypted = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+                let state = pack_file_contents_ui.context_menu_index_is_encrypted.is_checked();
+                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ChangeIndexIsEncrypted(pack_key, state));
+                UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+            }
+        ));
+
+        let context_menu_data_is_encrypted = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+                let state = pack_file_contents_ui.context_menu_data_is_encrypted.is_checked();
+                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ChangeDataIsEncrypted(pack_key, state));
+                UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+            }
+        ));
+
         let context_menu_optimize_packfile = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui,
@@ -2422,6 +2448,8 @@ impl PackFileContentsSlots {
             context_menu_change_packfile_type,
             context_menu_change_compression_format,
             context_menu_index_includes_timestamp,
+            context_menu_index_is_encrypted,
+            context_menu_data_is_encrypted,
             context_menu_optimize_packfile,
             context_menu_patch_siege_ai,
             context_menu_live_export,

@@ -1088,6 +1088,7 @@ All tool responses are JSON-serialized. On failure, an error message is returned
                 "example": {
                     "pack_remove_itm_files": true,
                     "pack_apply_compression": true,
+                    "pack_apply_encryption": false,
                     "pack_remove_duplicated_files": false,
                     "db_import_datacores_into_twad_key_deletes": false,
                     "db_optimize_datacored_tables": false,
@@ -1107,6 +1108,7 @@ All tool responses are JSON-serialized. On failure, an error message is returned
                 "field_descriptions": {
                     "pack_remove_itm_files": "Remove files identical to vanilla (Identical To Master).",
                     "pack_apply_compression": "Apply the most modern compression format the active game supports (overriding the pack's configured one), so the next save compresses the files.",
+                    "pack_apply_encryption": "Enable both index and data encryption, so the next save encrypts the pack. No-op on packs older than PFH4.",
                     "pack_remove_duplicated_files": "Remove case-insensitively duplicated files (same name ignoring casing) when their contents are identical, keeping the all-lowercase one or, failing that, the last one.",
                     "db_import_datacores_into_twad_key_deletes": "Import datacored tables into TWAD key deletes.",
                     "db_optimize_datacored_tables": "Optimize datacored tables.",
@@ -1360,6 +1362,16 @@ impl McpServer {
     #[tool(description = "Change whether the pack index includes timestamps for the pack identified by `pack_key`.")]
     pub async fn change_index_includes_timestamp(&self, params: Parameters<PackKeyBoolArg>) -> Result<CallToolResult, McpError> {
         send_and_respond!(self, "change_index_includes_timestamp", Command::ChangeIndexIncludesTimestamp(params.0.pack_key, params.0.value))
+    }
+
+    #[tool(description = "Change whether the pack index (file paths, sizes and timestamps) is encrypted for the pack identified by `pack_key`. Only PFH4 and newer packs support enabling it.")]
+    pub async fn change_index_is_encrypted(&self, params: Parameters<PackKeyBoolArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, "change_index_is_encrypted", Command::ChangeIndexIsEncrypted(params.0.pack_key, params.0.value))
+    }
+
+    #[tool(description = "Change whether the file data is encrypted for the pack identified by `pack_key`. Only PFH4 and newer packs support enabling it.")]
+    pub async fn change_data_is_encrypted(&self, params: Parameters<PackKeyBoolArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, "change_data_is_encrypted", Command::ChangeDataIsEncrypted(params.0.pack_key, params.0.value))
     }
 
     #[tool(description = "Get the file path of the pack identified by `pack_key`.")]

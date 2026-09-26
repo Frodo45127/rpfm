@@ -85,7 +85,7 @@ use rpfm_ipc::settings_keys::*;
 use rpfm_ipc::helpers::{ContainerInfo, DataSource, NewFile};
 
 use rpfm_lib::files::{animpack, ContainerPath, FileType, loc, text, pack::*, portrait_settings, text::TextFormat};
-use rpfm_lib::games::supported_games::*;
+use rpfm_lib::games::{pfh_file_type::PFHFileType, supported_games::*};
 use rpfm_telemetry::*;
 use rpfm_lib::utils::*;
 
@@ -3671,6 +3671,7 @@ impl AppUI {
 
         let pack_remove_itm_files_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "pack_remove_itm_files_checkbox")?;
         let pack_apply_compression_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "pack_apply_compression_checkbox")?;
+        let pack_apply_encryption_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "pack_apply_encryption_checkbox")?;
         let pack_remove_duplicated_files_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "pack_remove_duplicated_files_checkbox")?;
         let db_import_datacores_into_twad_key_deletes_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "db_import_datacores_into_twad_key_deletes_checkbox")?;
         let db_optimize_datacored_tables_checkbox: QPtr<QCheckBox> = find_widget(&main_widget.static_upcast(), "db_optimize_datacored_tables_checkbox")?;
@@ -3689,6 +3690,7 @@ impl AppUI {
 
         let pack_remove_itm_files_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "pack_remove_itm_files_label")?;
         let pack_apply_compression_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "pack_apply_compression_label")?;
+        let pack_apply_encryption_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "pack_apply_encryption_label")?;
         let pack_remove_duplicated_files_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "pack_remove_duplicated_files_label")?;
         let db_import_datacores_into_twad_key_deletes_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "db_import_datacores_into_twad_key_deletes_label")?;
         let db_optimize_datacored_tables_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "db_optimize_datacored_tables_label")?;
@@ -3716,6 +3718,7 @@ impl AppUI {
 
         pack_remove_itm_files_label.set_text(&qtr("optimizer_pack_remove_itm_files"));
         pack_apply_compression_label.set_text(&qtr("optimizer_pack_apply_compression"));
+        pack_apply_encryption_label.set_text(&qtr("optimizer_pack_apply_encryption"));
         pack_remove_duplicated_files_label.set_text(&qtr("optimizer_pack_remove_duplicated_files"));
         db_import_datacores_into_twad_key_deletes_label.set_text(&qtr("optimizer_db_import_datacores_into_twad_key_deletes"));
         db_optimize_datacored_tables_label.set_text(&qtr("optimizer_db_optimize_datacored_tables"));
@@ -3735,6 +3738,7 @@ impl AppUI {
         {
             pack_remove_itm_files_checkbox.set_checked(settings_bool(PACK_REMOVE_ITM_FILES));
             pack_apply_compression_checkbox.set_checked(settings_bool(PACK_APPLY_COMPRESSION));
+            pack_apply_encryption_checkbox.set_checked(settings_bool(PACK_APPLY_ENCRYPTION));
             pack_remove_duplicated_files_checkbox.set_checked(settings_bool(PACK_REMOVE_DUPLICATED_FILES));
             db_import_datacores_into_twad_key_deletes_checkbox.set_checked(settings_bool(DB_IMPORT_DATACORES_INTO_TWAD_KEY_DELETES));
             db_optimize_datacored_tables_checkbox.set_checked(settings_bool(DB_OPTIMIZE_DATACORED_TABLES));
@@ -3762,11 +3766,19 @@ impl AppUI {
             pack_apply_compression_label.set_enabled(false);
         }
 
+        // Disable the encryption checkbox if the active game's Packs don't support encryption.
+        if !GAME_SELECTED.read().unwrap().pfh_version_by_file_type(PFHFileType::Mod).supports_encryption() {
+            pack_apply_encryption_checkbox.set_checked(false);
+            pack_apply_encryption_checkbox.set_enabled(false);
+            pack_apply_encryption_label.set_enabled(false);
+        }
+
         button_box.button(StandardButton::Ok).released().connect(dialog.slot_accept());
 
         if dialog.exec() == 1 {
             let _ = settings_set_bool(PACK_REMOVE_ITM_FILES, pack_remove_itm_files_checkbox.is_checked());
             let _ = settings_set_bool(PACK_APPLY_COMPRESSION, pack_apply_compression_checkbox.is_checked());
+            let _ = settings_set_bool(PACK_APPLY_ENCRYPTION, pack_apply_encryption_checkbox.is_checked());
             let _ = settings_set_bool(PACK_REMOVE_DUPLICATED_FILES, pack_remove_duplicated_files_checkbox.is_checked());
             let _ = settings_set_bool(DB_IMPORT_DATACORES_INTO_TWAD_KEY_DELETES, db_import_datacores_into_twad_key_deletes_checkbox.is_checked());
             let _ = settings_set_bool(DB_OPTIMIZE_DATACORED_TABLES, db_optimize_datacored_tables_checkbox.is_checked());
@@ -3800,6 +3812,7 @@ impl AppUI {
         } else {
             let _ = settings_set_bool(PACK_REMOVE_ITM_FILES, pack_remove_itm_files_checkbox.is_checked());
             let _ = settings_set_bool(PACK_APPLY_COMPRESSION, pack_apply_compression_checkbox.is_checked());
+            let _ = settings_set_bool(PACK_APPLY_ENCRYPTION, pack_apply_encryption_checkbox.is_checked());
             let _ = settings_set_bool(PACK_REMOVE_DUPLICATED_FILES, pack_remove_duplicated_files_checkbox.is_checked());
             let _ = settings_set_bool(DB_IMPORT_DATACORES_INTO_TWAD_KEY_DELETES, db_import_datacores_into_twad_key_deletes_checkbox.is_checked());
             let _ = settings_set_bool(DB_OPTIMIZE_DATACORED_TABLES, db_optimize_datacored_tables_checkbox.is_checked());

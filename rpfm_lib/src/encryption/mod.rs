@@ -8,11 +8,14 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! This module contains the code to decrypt encrypted data in Total War PackFiles.
+//! This module contains the code to encrypt and decrypt data in Total War PackFiles.
 //!
 //! The [`Decryptable`] trait provides functions to decrypt various parts of encrypted PackFiles,
 //! including file data, file sizes, and file paths. An implementation for anything that implements
 //! [`ReadBytes`] + [`Read`] + [`Seek`] is provided.
+//!
+//! The [`Encryptable`] trait provides the inverse operations. An implementation for anything that
+//! implements [`WriteBytes`] is provided.
 //!
 //! # Encryption Scheme
 //!
@@ -33,7 +36,7 @@
 use std::io::{Read, Seek};
 
 use crate::error::Result;
-use crate::binary::ReadBytes;
+use crate::binary::{ReadBytes, WriteBytes};
 use crate::games::pfh_version::PFHVersion;
 
 #[cfg(test)] mod encryption_test;
@@ -46,18 +49,18 @@ use crate::games::pfh_version::PFHVersion;
 // This key is no longer used but is kept for reference and backwards compatibility with older PackFiles.
 // static INDEX_U32_KEY: u32 = 0x1509_1984;
 
-/// Current 64-byte key used for decrypting PackedFile paths in the encrypted index.
+/// Current 64-byte key used for encrypting and decrypting PackedFile paths in the encrypted index.
 ///
 /// This key rotates through its 64 bytes during the decryption process. Each character of the
 /// encrypted path is XORed with the corresponding byte from this key (wrapping around after 64 bytes).
 static INDEX_STRING_KEY: [u8; 64] = *b"#:AhppdV-!PEfz&}[]Nv?6w4guU%dF5.fq:n*-qGuhBJJBm&?2tPy!geW/+k#pG?";
 
-/// Current [`u32`] key used for decrypting PackedFile sizes in the encrypted index.
+/// Current [`u32`] key used for encrypting and decrypting PackedFile sizes in the encrypted index.
 ///
 /// This key is combined with a position-based secondary key during the XOR decryption process.
 static INDEX_U32_KEY: u32 = 0xE10B_73F4;
 
-/// Current [`u64`] key used for decrypting PackedFile data.
+/// Current [`u64`] key used for encrypting and decrypting PackedFile data.
 ///
 /// This key is used in 8-byte chunks to decrypt the actual file data. The decryption
 /// formula is: `decrypted = encrypted XOR (DATA_KEY * !position)`, with `!position` computed
@@ -105,25 +108,8 @@ pub trait Decryptable: ReadBytes + Read + Seek {
     fn decrypt(&mut self, pfh_version: PFHVersion) -> Result<Vec<u8>> {
         let ciphertext_len = self.len()? as usize;
         let ciphertext = self.read_slice(ciphertext_len, false)?;
-
-        // PFH4 and older games negate the position as a u32 before widening it to u64.
-        let wide_position = match pfh_version {
-            PFHVersion::PFH6 | PFHVersion::PFH5 => true,
-            PFHVersion::PFH4 | PFHVersion::PFH3 | PFHVersion::PFH2 | PFHVersion::PFH0 => false,
-        };
-
         let mut plaintext = Vec::with_capacity(ciphertext.len());
-        let mut chunks = ciphertext.chunks_exact(8);
-        for (index, chunk) in chunks.by_ref().enumerate() {
-            let position = index as u64 * 8;
-            let negated_position = if wide_position { !position } else { u64::from(!(position as u32)) };
-            let key = DATA_KEY.wrapping_mul(negated_position);
-            let mut chunk_bytes = [0; 8];
-            chunk_bytes.copy_from_slice(chunk);
-            plaintext.extend_from_slice(&(u64::from_le_bytes(chunk_bytes) ^ key).to_le_bytes());
-        }
-
-        plaintext.extend_from_slice(chunks.remainder());
+        apply_data_key(&ciphertext, pfh_version, &mut plaintext);
         Ok(plaintext)
     }
 
@@ -202,3 +188,99 @@ pub trait Decryptable: ReadBytes + Read + Seek {
 }
 
 impl<R: ReadBytes + Read + Seek> Decryptable for R {}
+
+/// Trait for encrypting PackFile data.
+///
+/// This trait provides the inverse operations of [`Decryptable`], writing the encrypted
+/// data into the implementor.
+///
+/// # Implementation
+///
+/// This trait is automatically implemented for any type that implements [`WriteBytes`].
+pub trait Encryptable: WriteBytes {
+
+    /// Encrypts the data of a PackedFile and writes it.
+    ///
+    /// Data is encrypted in 8-byte chunks using the DATA_KEY. Trailing bytes that don't fill a full chunk are written unencrypted.
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - The plain data to encrypt.
+    /// * `pfh_version` - The version of the Pack the data is for. Determines the width of the position term in the key.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if writing fails.
+    fn encrypt(&mut self, data: &[u8], pfh_version: PFHVersion) -> Result<()> {
+        let mut ciphertext = Vec::with_capacity(data.len());
+        apply_data_key(data, pfh_version, &mut ciphertext);
+        self.write_all(&ciphertext)?;
+        Ok(())
+    }
+
+    /// Encrypts a [`u32`] of a PackedFile's index entry (size or timestamp) and writes it.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The plain value to encrypt.
+    /// * `second_key` - The secondary key, the number of PackedFiles after this one in the index.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if writing fails.
+    fn encrypt_u32(&mut self, value: u32, second_key: u32) -> Result<()> {
+        self.write_u32(value ^ INDEX_U32_KEY ^ !second_key)
+    }
+
+    /// Encrypts the path of a PackedFile, including its null terminator, and writes it.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The plain path to encrypt.
+    /// * `second_key` - The secondary key, the lowest byte of the PackedFile's size in the Pack.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if writing fails.
+    fn encrypt_string(&mut self, path: &str, second_key: u8) -> Result<()> {
+        let ciphertext = path.bytes()
+            .chain(std::iter::once(0))
+            .enumerate()
+            .map(|(index, character)| character ^ INDEX_STRING_KEY[index % INDEX_STRING_KEY.len()] ^ !second_key)
+            .collect::<Vec<u8>>();
+        self.write_all(&ciphertext)?;
+        Ok(())
+    }
+}
+
+impl<W: WriteBytes> Encryptable for W {}
+
+/// XORs data with the DATA_KEY stream, appending the result to `output`.
+///
+/// The operation is its own inverse, so it's used for both encryption and decryption.
+///
+/// # Arguments
+///
+/// * `input` - The data to transform.
+/// * `pfh_version` - The version of the Pack the data belongs to. Determines the width of the position term in the key.
+/// * `output` - Buffer the transformed data is appended to.
+fn apply_data_key(input: &[u8], pfh_version: PFHVersion, output: &mut Vec<u8>) {
+
+    // PFH4 and older games negate the position as a u32 before widening it to u64.
+    let wide_position = match pfh_version {
+        PFHVersion::PFH6 | PFHVersion::PFH5 => true,
+        PFHVersion::PFH4 | PFHVersion::PFH3 | PFHVersion::PFH2 | PFHVersion::PFH0 => false,
+    };
+
+    let mut chunks = input.chunks_exact(8);
+    for (index, chunk) in chunks.by_ref().enumerate() {
+        let position = index as u64 * 8;
+        let negated_position = if wide_position { !position } else { u64::from(!(position as u32)) };
+        let key = DATA_KEY.wrapping_mul(negated_position);
+        let mut chunk_bytes = [0; 8];
+        chunk_bytes.copy_from_slice(chunk);
+        output.extend_from_slice(&(u64::from_le_bytes(chunk_bytes) ^ key).to_le_bytes());
+    }
+
+    output.extend_from_slice(chunks.remainder());
+}

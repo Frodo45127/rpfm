@@ -96,6 +96,8 @@ pub unsafe fn set_connections(ui: &PackFileContentsUI, slots: &PackFileContentsS
     ui.context_menu_packfile_type_mod.triggered().connect(&slots.context_menu_change_packfile_type);
     ui.context_menu_packfile_type_movie.triggered().connect(&slots.context_menu_change_packfile_type);
     ui.context_menu_index_includes_timestamp.triggered().connect(&slots.context_menu_index_includes_timestamp);
+    ui.context_menu_index_is_encrypted.triggered().connect(&slots.context_menu_index_is_encrypted);
+    ui.context_menu_data_is_encrypted.triggered().connect(&slots.context_menu_data_is_encrypted);
     ui.context_menu_compression_none.triggered().connect(&slots.context_menu_change_compression_format);
     ui.context_menu_compression_lzma1.triggered().connect(&slots.context_menu_change_compression_format);
     ui.context_menu_compression_lz4.triggered().connect(&slots.context_menu_change_compression_format);
