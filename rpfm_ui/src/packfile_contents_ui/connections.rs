@@ -55,6 +55,7 @@ pub unsafe fn set_connections(ui: &PackFileContentsUI, slots: &PackFileContentsS
     ui.context_menu_copy_to_pack.triggered().connect(&slots.contextual_menu_copy_to_pack);
     ui.context_menu_run_script.about_to_show().connect(&slots.contextual_menu_run_script_about_to_show);
     ui.context_menu_run_script.triggered().connect(&slots.contextual_menu_run_script);
+    ui.context_menu_run_lua_tests.triggered().connect(&slots.contextual_menu_run_lua_tests);
     ui.context_menu_delete.triggered().connect(&slots.contextual_menu_delete);
     ui.context_menu_extract.triggered().connect(&slots.contextual_menu_extract);
     ui.context_menu_rename.triggered().connect(&slots.contextual_menu_rename);
@@ -96,6 +97,8 @@ pub unsafe fn set_connections(ui: &PackFileContentsUI, slots: &PackFileContentsS
     ui.context_menu_packfile_type_mod.triggered().connect(&slots.context_menu_change_packfile_type);
     ui.context_menu_packfile_type_movie.triggered().connect(&slots.context_menu_change_packfile_type);
     ui.context_menu_index_includes_timestamp.triggered().connect(&slots.context_menu_index_includes_timestamp);
+    ui.context_menu_index_is_encrypted.triggered().connect(&slots.context_menu_index_is_encrypted);
+    ui.context_menu_data_is_encrypted.triggered().connect(&slots.context_menu_data_is_encrypted);
     ui.context_menu_compression_none.triggered().connect(&slots.context_menu_change_compression_format);
     ui.context_menu_compression_lzma1.triggered().connect(&slots.context_menu_change_compression_format);
     ui.context_menu_compression_lz4.triggered().connect(&slots.context_menu_change_compression_format);

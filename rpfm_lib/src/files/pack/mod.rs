@@ -142,7 +142,8 @@ bitflags! {
     /// This represents the bitmasks a Pack can have applied to his type.
     ///
     /// Keep in mind that this lib supports decoding Packs with any of these flags enabled,
-    /// but it only supports enconding for the `HAS_INDEX_WITH_TIMESTAMPS` flag.
+    /// but it only supports enconding for the `HAS_INDEX_WITH_TIMESTAMPS` flag, and for the
+    /// `HAS_ENCRYPTED_INDEX` and `HAS_ENCRYPTED_DATA` flags in PFH4 and newer Packs.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
     pub struct PFHFlags: u32 {
 

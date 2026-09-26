@@ -52,6 +52,7 @@ use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::communications::{Command, Response, send_ipc_command, send_ipc_command_result, send_ipc_command_result_async, send_ipc_command_async};
 use crate::global_search_ui::GlobalSearchUI;
+use crate::lua_tests_ui;
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::SpecialView;
@@ -90,6 +91,7 @@ pub struct PackFileContentsSlots {
     pub contextual_menu_copy_to_pack: QBox<SlotOfQAction>,
     pub contextual_menu_run_script_about_to_show: QBox<SlotNoArgs>,
     pub contextual_menu_run_script: QBox<SlotOfQAction>,
+    pub contextual_menu_run_lua_tests: QBox<SlotOfBool>,
     pub contextual_menu_delete: QBox<SlotOfBool>,
     pub contextual_menu_extract: QBox<SlotOfBool>,
     pub contextual_menu_rename: QBox<SlotOfBool>,
@@ -128,6 +130,8 @@ pub struct PackFileContentsSlots {
     pub context_menu_change_packfile_type: QBox<SlotOfBool>,
     pub context_menu_change_compression_format: QBox<SlotOfBool>,
     pub context_menu_index_includes_timestamp: QBox<SlotOfBool>,
+    pub context_menu_index_is_encrypted: QBox<SlotOfBool>,
+    pub context_menu_data_is_encrypted: QBox<SlotOfBool>,
     pub context_menu_optimize_packfile: QBox<SlotOfBool>,
     pub context_menu_patch_siege_ai: QBox<SlotOfBool>,
     pub context_menu_live_export: QBox<SlotOfBool>,
@@ -374,6 +378,7 @@ impl PackFileContentsSlots {
                     pack_file_contents_ui.context_menu_open_notes.set_enabled(false);
                     pack_file_contents_ui.context_menu_update_table.set_enabled(false);
                     pack_file_contents_ui.context_menu_run_script.menu_action().set_enabled(false);
+                    pack_file_contents_ui.context_menu_run_lua_tests.set_enabled(false);
                 } else {
                     match contents {
 
@@ -638,6 +643,12 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_generate_missing_loc_data.set_enabled(false);
                         pack_file_contents_ui.context_menu_run_script.menu_action().set_enabled(false);
                     }
+
+                    // Only Lua files can be run as test files.
+                    let only_lua_files = files > 0 && folders == 0 && <QPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui)
+                        .iter()
+                        .all(|path| matches!(path, ContainerPath::File(path) if path.ends_with(".lua")));
+                    pack_file_contents_ui.context_menu_run_lua_tests.set_enabled(only_lua_files);
                 }
 
                 // "Add from Pack" needs the same target-Pack context as "Copy to Pack", so keep them in sync.
@@ -712,6 +723,10 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_index_includes_timestamp.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS));
                             pack_file_contents_ui.context_menu_index_is_encrypted.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_ENCRYPTED_INDEX));
                             pack_file_contents_ui.context_menu_header_is_extended.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_EXTENDED_HEADER));
+
+                            let supports_encryption = ui_data.pfh_version().supports_encryption();
+                            pack_file_contents_ui.context_menu_index_is_encrypted.set_enabled(supports_encryption);
+                            pack_file_contents_ui.context_menu_data_is_encrypted.set_enabled(supports_encryption);
                         }
                     }
                 } else {
@@ -1166,6 +1181,15 @@ impl PackFileContentsSlots {
                 }
 
                 PackFileContentsUI::run_plugin_script(&app_ui, &pack_file_contents_ui, &script_path);
+            }
+        ));
+
+        // What happens when we trigger the "Run Lua Tests" action in the Contextual Menu.
+        let contextual_menu_run_lua_tests = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+                rpfm_telemetry::track_action("Run Lua Tests");
+                lua_tests_ui::run_selected_lua_tests(&app_ui, &pack_file_contents_ui);
             }
         ));
 
@@ -2069,6 +2093,26 @@ impl PackFileContentsSlots {
             }
         ));
 
+        let context_menu_index_is_encrypted = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+                let state = pack_file_contents_ui.context_menu_index_is_encrypted.is_checked();
+                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ChangeIndexIsEncrypted(pack_key, state));
+                UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+            }
+        ));
+
+        let context_menu_data_is_encrypted = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+                let state = pack_file_contents_ui.context_menu_data_is_encrypted.is_checked();
+                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ChangeDataIsEncrypted(pack_key, state));
+                UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+            }
+        ));
+
         let context_menu_optimize_packfile = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui,
@@ -2384,6 +2428,7 @@ impl PackFileContentsSlots {
             contextual_menu_copy_to_pack,
             contextual_menu_run_script_about_to_show,
             contextual_menu_run_script,
+            contextual_menu_run_lua_tests,
             contextual_menu_delete,
             contextual_menu_extract,
             contextual_menu_rename,
@@ -2422,6 +2467,8 @@ impl PackFileContentsSlots {
             context_menu_change_packfile_type,
             context_menu_change_compression_format,
             context_menu_index_includes_timestamp,
+            context_menu_index_is_encrypted,
+            context_menu_data_is_encrypted,
             context_menu_optimize_packfile,
             context_menu_patch_siege_ai,
             context_menu_live_export,

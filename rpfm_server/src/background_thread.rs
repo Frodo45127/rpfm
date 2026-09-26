@@ -47,6 +47,9 @@ use std::time::SystemTime;
 use rpfm_extensions::dependencies::*;
 use rpfm_extensions::diagnostics::Diagnostics;
 use rpfm_extensions::gltf::{gltf_from_rigid, save_gltf_to_disk};
+use rpfm_extensions::lua::{ASSEMBLY_KIT_SCRIPT_DOCS_PATH, LuaApi};
+use rpfm_extensions::lua::check::{check_script, LuaDefinitions};
+use rpfm_extensions::lua::harness::{run_tests, LuaScripts, LuaTestOptions};
 use rpfm_extensions::merge::{db_baseline, delta_merge_db, delta_merge_loc, loc_baseline, MergeConflict, MergeResolution};
 use rpfm_extensions::optimizer::OptimizableContainer;
 use rpfm_extensions::translator::PackTranslation;
@@ -211,6 +214,29 @@ fn get_pack<'a>(packs: &'a BTreeMap<String, Pack>, pack_key: &str, sender: &Unbo
     }
 }
 
+/// Sets or clears one of the encryption flags of a pack, sending the result back.
+///
+/// Enabling encryption is rejected on Packs whose version doesn't support it.
+fn change_encryption_flag(packs: &mut BTreeMap<String, Pack>, pack_key: &str, flag: PFHFlags, state: bool, sender: &UnboundedSender<Response>) {
+    let pack = match packs.get_mut(pack_key) {
+        Some(pack) => pack,
+        None => {
+            CentralCommand::send_back(sender, Response::Error(format!("Pack not found: {}", pack_key)));
+            return;
+        }
+    };
+
+    if state && !pack.pfh_version().supports_encryption() {
+        CentralCommand::send_back(sender, Response::Error(format!("Encryption is not supported in {} Packs.", pack.pfh_version().value())));
+        return;
+    }
+
+    let mut bitmask = pack.bitmask();
+    bitmask.set(flag, state);
+    pack.set_bitmask(bitmask);
+    CentralCommand::send_back(sender, Response::Success);
+}
+
 /// The per-session command dispatcher.
 ///
 /// Receives `(reply_sender, command)` pairs from the session's mpsc
@@ -248,6 +274,9 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
 
     // Preload the default game's dependencies.
     let mut dependencies = Arc::new(RwLock::new(Dependencies::default()));
+
+    // Lua scripting API of the current game, built on first use. See `cached_lua_api`.
+    let mut lua_api_cache: Option<LuaApiCache> = None;
 
     // Snapshot of SETTINGS backed up by the "Restore Defaults" flow in the settings
     // dialog, so a cancel can put things back the way they were.
@@ -675,6 +704,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
             // In case we want to update the Schema for our Game Selected...
             Command::UpdateCurrentSchemaFromAssKit => {
                 let ignore_game_files_in_ak = settings.bool("ignore_game_files_in_ak");
+                let mut schema_saved = false;
 
                 if let Some(ref mut schema) = schema {
                     match settings.assembly_kit_path(game) {
@@ -682,89 +712,98 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                             let schema_path = schemas_path().unwrap().join(game.schema_file_name());
 
                             let dependencies = dependencies.read().unwrap();
-                            if let Ok(mut tables_to_check) = dependencies.db_and_loc_data(true, false, true, false) {
+                            match dependencies.db_and_loc_data(true, false, true, false) {
+                                Ok(mut tables_to_check) => {
 
-                                // If there are packs open, also add the packs' tables to it. That way we can treat some special tables, like starpos tables.
-                                for pack in packs.values() {
-                                    if !pack.disk_file_path().is_empty() {
-                                        tables_to_check.append(&mut pack.files_by_type(&[FileType::DB]));
+                                    // If there are packs open, also add the packs' tables to it. That way we can treat some special tables, like starpos tables.
+                                    for pack in packs.values() {
+                                        if !pack.disk_file_path().is_empty() {
+                                            tables_to_check.append(&mut pack.files_by_type(&[FileType::DB]));
+                                        }
                                     }
-                                }
 
-                                // Split the tables to check by table name.
-                                let mut tables_to_check_split: HashMap<String, Vec<DB>> = HashMap::new();
-                                for table_to_check in tables_to_check {
-                                    if let Ok(RFileDecoded::DB(table)) = table_to_check.decoded() {
-                                        match tables_to_check_split.get_mut(table.table_name()) {
-                                            Some(tables) => {
+                                    // Split the tables to check by table name.
+                                    let mut tables_to_check_split: HashMap<String, Vec<DB>> = HashMap::new();
+                                    for table_to_check in tables_to_check {
+                                        if let Ok(RFileDecoded::DB(table)) = table_to_check.decoded() {
+                                            match tables_to_check_split.get_mut(table.table_name()) {
+                                                Some(tables) => {
 
-                                                // Merge tables of the same name and version, so we got more chances of loc data being found.
-                                                match tables.iter_mut().find(|x| x.definition().version() == table.definition().version()) {
-                                                    Some(db_source) => *db_source = DB::merge(&[db_source, table]).unwrap(),
-                                                    None => tables.push((table.clone()).clone()),
+                                                    // Merge tables of the same name and version, so we got more chances of loc data being found.
+                                                    match tables.iter_mut().find(|x| x.definition().version() == table.definition().version()) {
+                                                        Some(db_source) => *db_source = DB::merge(&[db_source, table]).unwrap(),
+                                                        None => tables.push((table.clone()).clone()),
+                                                    }
                                                 }
-                                            }
-                                            None => {
-                                                tables_to_check_split.insert(table.table_name().to_owned(), vec![table.clone()]);
+                                                None => {
+                                                    tables_to_check_split.insert(table.table_name().to_owned(), vec![table.clone()]);
+                                                }
                                             }
                                         }
                                     }
-                                }
 
-                                let tables_to_skip = if ignore_game_files_in_ak {
-                                    dependencies.vanilla_loose_tables().keys().chain(dependencies.vanilla_tables().keys()).map(|x| &**x).collect::<Vec<_>>()
-                                } else {
-                                    vec![]
-                                };
+                                    let tables_to_skip = if ignore_game_files_in_ak {
+                                        dependencies.vanilla_loose_tables().keys().chain(dependencies.vanilla_tables().keys()).map(|x| &**x).collect::<Vec<_>>()
+                                    } else {
+                                        vec![]
+                                    };
 
-                                match update_schema_from_raw_files(schema, game, &asskit_path, &schema_path, &tables_to_skip, &tables_to_check_split) {
-                                    Ok(possible_loc_fields) => {
+                                    match update_schema_from_raw_files(schema, game, &asskit_path, &schema_path, &tables_to_skip, &tables_to_check_split) {
+                                        Ok(possible_loc_fields) => {
 
-                                        // NOTE: This deletes all loc fields first, so we need to get the loc fields AGAIN after this from the TExc_LocalisableFields.xml, if said file exists and it's readable.
-                                        // That's why it does the update again, to re-populate the loc fields list with the ones not bruteforced. It's ineficient, but gets the job done.
-                                        // Use the open packs for bruteforce, or None if no packs open.
-                                        let local_packs = if packs.is_empty() { None } else { Some(&packs) };
-                                        if dependencies.bruteforce_loc_key_order(schema, possible_loc_fields, local_packs, None).is_ok() {
+                                            // NOTE: This deletes all loc fields first, so we need to get the loc fields AGAIN after this from the TExc_LocalisableFields.xml, if said file exists and it's readable.
+                                            // That's why it does the update again, to re-populate the loc fields list with the ones not bruteforced. It's ineficient, but gets the job done.
+                                            // Use the open packs for bruteforce, or None if no packs open.
+                                            let local_packs = if packs.is_empty() { None } else { Some(&packs) };
+                                            if dependencies.bruteforce_loc_key_order(schema, possible_loc_fields, local_packs, None).is_ok() {
 
-                                            // Note: this shows the list of "missing" fields.
-                                            let _ = update_schema_from_raw_files(schema, game, &asskit_path, &schema_path, &tables_to_skip, &tables_to_check_split);
+                                                // Note: this shows the list of "missing" fields.
+                                                let _ = update_schema_from_raw_files(schema, game, &asskit_path, &schema_path, &tables_to_skip, &tables_to_check_split);
 
-                                            // This generates the automatic patches in the schema (like ".png are files" kinda patches).
-                                            if dependencies.generate_automatic_patches(schema, &packs).is_ok() {
+                                                // This generates the automatic patches in the schema (like ".png are files" kinda patches).
+                                                if dependencies.generate_automatic_patches(schema, &packs).is_ok() {
 
-                                                // Fix for old file relative paths using incorrect separators.
-                                                schema.definitions_mut().par_iter_mut().for_each(|x| {
-                                                    x.1.iter_mut().for_each(|y| {
-                                                        y.fields_mut().iter_mut().for_each(|z| {
-                                                            if let Some(path) = z.filename_relative_path(None) {
-                                                                if path.len() == 1 && path[0].contains(",") {
-                                                                    let new_paths = path[0].split(',').map(|x| x.trim()).join(";");
-                                                                    z.set_filename_relative_path(Some(new_paths));
+                                                    // Fix for old file relative paths using incorrect separators.
+                                                    schema.definitions_mut().par_iter_mut().for_each(|x| {
+                                                        x.1.iter_mut().for_each(|y| {
+                                                            y.fields_mut().iter_mut().for_each(|z| {
+                                                                if let Some(path) = z.filename_relative_path(None) {
+                                                                    if path.len() == 1 && path[0].contains(",") {
+                                                                        let new_paths = path[0].split(',').map(|x| x.trim()).join(";");
+                                                                        z.set_filename_relative_path(Some(new_paths));
+                                                                    }
                                                                 }
-                                                            }
+                                                            });
                                                         });
                                                     });
-                                                });
 
-                                                match schema.save(&schemas_path().unwrap().join(game.schema_file_name())) {
-                                                    Ok(_) => CentralCommand::send_back(&sender, Response::Success),
-                                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                                                    match schema.save(&schemas_path().unwrap().join(game.schema_file_name())) {
+                                                        Ok(_) => schema_saved = true,
+                                                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                                                    }
+                                                } else {
+                                                    CentralCommand::send_back(&sender, Response::Success)
                                                 }
                                             } else {
                                                 CentralCommand::send_back(&sender, Response::Success)
                                             }
-                                        } else {
-                                            CentralCommand::send_back(&sender, Response::Success)
-                                        }
-                                    },
-                                    Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                                        },
+                                        Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                                    }
                                 }
+                                Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                             }
                         }
                         Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
                     }
                 } else {
                     CentralCommand::send_back(&sender, Response::Error(anyhow!("There is no Schema for the Game Selected.").to_string()));
+                }
+
+                // The update clears the definitions' patches, so reload the saved schema to apply them again.
+                if schema_saved {
+                    load_schema(&mut schema, &mut packs, game, &settings);
+                    CentralCommand::send_back(&sender, Response::Success);
                 }
             }
 
@@ -821,6 +860,10 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                     None => CentralCommand::send_back(&sender, Response::Error(format!("Pack not found: {}", pack_key))),
                 }
             },
+
+            // In case we want to change the "Index Is Encrypted" or "Data Is Encrypted" setting of the PackFile...
+            Command::ChangeIndexIsEncrypted(pack_key, state) => change_encryption_flag(&mut packs, &pack_key, PFHFlags::HAS_ENCRYPTED_INDEX, state, &sender),
+            Command::ChangeDataIsEncrypted(pack_key, state) => change_encryption_flag(&mut packs, &pack_key, PFHFlags::HAS_ENCRYPTED_DATA, state, &sender),
 
             // In case we want to compress/decompress the PackedFiles of the currently open PackFile...
             Command::ChangeCompressionFormat(pack_key, cf) => {
@@ -2213,7 +2256,9 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 *diagnostics.diagnostics_ignored_mut() = diagnostics_ignored;
 
                 if let Some(ref schema) = schema {
-                    diagnostics.check(&mut packs, &mut dependencies.write().unwrap(), schema, game, &game_path, &[], check_ak_only_refs);
+                    let mut dependencies = dependencies.write().unwrap();
+                    let lua_api = cached_lua_api(&mut lua_api_cache, game, &settings, &dependencies);
+                    diagnostics.check(&mut packs, &mut dependencies, schema, game, &game_path, &[], check_ak_only_refs, lua_api);
                 }
 
                 info!("Checking diagnostics: done.");
@@ -2225,12 +2270,52 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 let game_path = settings.path_buf(game.key());
 
                 if let Some(ref schema) = schema {
-                    diagnostics.check(&mut packs, &mut dependencies.write().unwrap(), schema, game, &game_path, &path_types, check_ak_only_refs);
+                    let mut dependencies = dependencies.write().unwrap();
+                    let lua_api = cached_lua_api(&mut lua_api_cache, game, &settings, &dependencies);
+                    diagnostics.check(&mut packs, &mut dependencies, schema, game, &game_path, &path_types, check_ak_only_refs, lua_api);
                 }
 
                 info!("Checking diagnostics (update): done.");
 
                 CentralCommand::send_back(&sender, Response::Diagnostics(diagnostics));
+            }
+
+            Command::LuaHovers(source) => {
+                let dependencies = dependencies.read().unwrap();
+                let hovers = match cached_lua_api(&mut lua_api_cache, game, &settings, &dependencies) {
+                    Some(lua_api) => check_script(&source, Some(lua_api), &LuaDefinitions::default()).hovers().iter()
+                        .filter_map(|hover| {
+                            let ((start_line, start_column), (end_line, end_column)) = *hover.range();
+                            lua_api.hover_html(hover.target()).map(|html| (start_line, start_column, end_line, end_column, html))
+                        })
+                        .collect(),
+                    None => vec![],
+                };
+
+                CentralCommand::send_back(&sender, Response::VecU64U64U64U64String(hovers));
+            }
+
+            Command::LuaRunTests(test_source, campaign) => {
+                let dependencies = dependencies.read().unwrap();
+                match cached_lua_api(&mut lua_api_cache, game, &settings, &dependencies) {
+                    Some(lua_api) => {
+                        let scripts = LuaScripts::from_game_and_packs(&dependencies, &packs);
+                        let key_values = |table_name| dependencies.db_key_values(Some(&packs), table_name)
+                            .map(|(_, keys)| keys.into_iter().collect::<Vec<_>>())
+                            .unwrap_or_default();
+
+                        let mut options = LuaTestOptions::default();
+                        options.set_campaign(campaign);
+                        options.set_faction_keys(key_values("factions_tables"));
+                        options.set_region_keys(key_values("regions_tables"));
+
+                        match run_tests(lua_api, &scripts, &test_source, &options) {
+                            Ok(report) => CentralCommand::send_back(&sender, Response::LuaTestReport(report)),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                        }
+                    }
+                    None => CentralCommand::send_back(&sender, Response::Error("The Lua API of the game is not available. Lua tests need the game's Assembly Kit to be installed.".to_owned())),
+                }
             }
 
             // In case we want to get the open PackFile's Settings...
@@ -4047,6 +4132,18 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 None => CentralCommand::send_back(&sender, Response::Error("There is no Schema for the Game Selected.".to_string())),
             },
 
+            // Definitions lose their patches when serialized, so clients need to request them separately.
+            Command::DefinitionPatches(name, version) => match schema {
+                Some(ref schema) => {
+                    let patches = match schema.definition_by_name_and_version(&name, version) {
+                        Some(def) => def.patches().clone(),
+                        None => schema.patches().get(&name).cloned().unwrap_or_default(),
+                    };
+                    CentralCommand::send_back(&sender, Response::DefinitionPatch(patches));
+                },
+                None => CentralCommand::send_back(&sender, Response::Error("There is no Schema for the Game Selected.".to_string())),
+            },
+
             Command::DeleteDefinition(name, version) => {
                 if let Some(ref mut schema) = schema {
                     schema.remove_definition(&name, version);
@@ -4062,6 +4159,46 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
 }
 
 /// Function to simplify logic for changing game selected.
+/// Cached Lua scripting API: the docs path and dependencies build date it was built from, and the API itself.
+type LuaApiCache = (PathBuf, u64, Option<LuaApi>);
+
+/// This function returns the Lua scripting API of a game, rebuilding the cached one if it's outdated.
+///
+/// The API is rebuilt when the game or its Assembly Kit path change, or when the dependencies cache is regenerated.
+///
+/// # Arguments
+///
+/// * `cache` - Cached API, updated if outdated.
+/// * `game` - Game whose API to return.
+/// * `settings` - Settings, to find the game's Assembly Kit.
+/// * `dependencies` - Dependencies cache with the vanilla scripts of the game.
+///
+/// # Returns
+///
+/// The API, or `None` if the game's Assembly Kit has no scripting docs.
+fn cached_lua_api<'a>(cache: &'a mut Option<LuaApiCache>, game: &GameInfo, settings: &Settings, dependencies: &Dependencies) -> Option<&'a LuaApi> {
+    let docs_path = settings.path_buf(&format!("{}_assembly_kit", game.key())).join(ASSEMBLY_KIT_SCRIPT_DOCS_PATH);
+    let build_date = *dependencies.build_date();
+    let outdated = cache.as_ref().is_none_or(|(path, date, _)| *path != docs_path || *date != build_date);
+
+    if outdated {
+        let api = match LuaApi::from_assembly_kit(&docs_path) {
+            Ok(mut api) => {
+                api.add_vanilla_scripts(dependencies);
+                Some(api)
+            }
+            Err(error) => {
+                info!("Lua scripting API not available, Lua scripts will only get their syntax checked: {error}");
+                None
+            }
+        };
+
+        *cache = Some((docs_path, build_date, api));
+    }
+
+    cache.as_ref().and_then(|(_, _, api)| api.as_ref())
+}
+
 fn load_schema(schema: &mut Option<Schema>, packs: &mut BTreeMap<String, Pack>, game: &GameInfo, settings: &Settings) {
 
     // Before loading the schema, make sure we don't have tables with definitions from the current schema.

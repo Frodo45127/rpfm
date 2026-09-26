@@ -103,6 +103,7 @@ Example:
 | `VecString`                     | string[]                             | List of strings                    |
 | `VecStringContainerInfo`        | [string, ContainerInfo][]            | Pack key + metadata pairs          |
 | `VecU8`                         | number[]                             | Raw byte data                      |
+| `VecU64U64U64U64String`        | [number, number, number, number, string][] | Script ranges (start line, start column, end line, end column) with their docs |
 | `HashSetString`                 | string[]                             | Set of strings                     |
 | `HashSetStringHashSetString`    | [string[], string[]]                 | Two sets of strings                |
 
@@ -123,6 +124,7 @@ Example:
 | `Definition`                          | Definition                                                                   | Table definition                      |
 | `DependenciesInfo`                    | DependenciesInfo                                                             | Dependencies information              |
 | `Diagnostics`                         | Diagnostics                                                                  | Diagnostics report                    |
+| `LuaTestReport`                       | [LuaTestReport](./ws-shared-types.md#luatestreport)                          | Results of a Lua test run             |
 | `GlobalSearchVecRFileInfo`            | [GlobalSearch, RFileInfo[]]                                                  | Search results + modified files       |
 | `HashMapDataSourceHashMapStringRFile` | Record<DataSource, Record<string, RFile>>                                    | Files by source and path              |
 | `HashMapDataSourceHashSetContainerPath` | Record<DataSource, ContainerPath[]>                                        | Paths by data source                  |

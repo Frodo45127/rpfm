@@ -630,6 +630,14 @@ pub struct DiagnosticsCheckArgs {
 }
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
+pub struct LuaRunTestsArgs {
+    /// Code of the Lua test file.
+    pub test_source: String,
+    /// Campaign whose vanilla scripts to load, like "main_warhammer". Omit it to load only the script libraries and the mods.
+    pub campaign: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct DiagnosticsUpdateArgs {
     /// The JSON representation of the Diagnostics struct.
     pub diagnostics: String,
@@ -1102,6 +1110,7 @@ All tool responses are JSON-serialized. On failure, an error message is returned
                 "example": {
                     "pack_remove_itm_files": true,
                     "pack_apply_compression": true,
+                    "pack_apply_encryption": false,
                     "pack_remove_duplicated_files": false,
                     "db_import_datacores_into_twad_key_deletes": false,
                     "db_optimize_datacored_tables": false,
@@ -1121,6 +1130,7 @@ All tool responses are JSON-serialized. On failure, an error message is returned
                 "field_descriptions": {
                     "pack_remove_itm_files": "Remove files identical to vanilla (Identical To Master).",
                     "pack_apply_compression": "Apply the most modern compression format the active game supports (overriding the pack's configured one), so the next save compresses the files.",
+                    "pack_apply_encryption": "Enable both index and data encryption, so the next save encrypts the pack. No-op on packs older than PFH4.",
                     "pack_remove_duplicated_files": "Remove case-insensitively duplicated files (same name ignoring casing) when their contents are identical, keeping the all-lowercase one or, failing that, the last one.",
                     "db_import_datacores_into_twad_key_deletes": "Import datacored tables into TWAD key deletes.",
                     "db_optimize_datacored_tables": "Optimize datacored tables.",
@@ -1188,6 +1198,9 @@ Scripts:
     script/<path>.lua
     script/campaign/mod/<script_name>.lua
     Example: script/campaign/mod/my_mod_script.lua
+    After editing a script, run `diagnostics_check`: it reports Lua syntax errors, invalid DB keys, unknown methods,
+    wrong argument counts and unknown events (all but syntax errors need the game's Assembly Kit installed).
+    To check what a script does, write tests for it and run them with `lua_run_tests`.
 
 UI Images:
     ui/<path>.png
@@ -1374,6 +1387,16 @@ impl McpServer {
     #[tool(description = "Change whether the pack index includes timestamps for the pack identified by `pack_key`.")]
     pub async fn change_index_includes_timestamp(&self, params: Parameters<PackKeyBoolArg>) -> Result<CallToolResult, McpError> {
         send_and_respond!(self, "change_index_includes_timestamp", Command::ChangeIndexIncludesTimestamp(params.0.pack_key, params.0.value))
+    }
+
+    #[tool(description = "Change whether the pack index (file paths, sizes and timestamps) is encrypted for the pack identified by `pack_key`. Only PFH4 and newer packs support enabling it.")]
+    pub async fn change_index_is_encrypted(&self, params: Parameters<PackKeyBoolArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, "change_index_is_encrypted", Command::ChangeIndexIsEncrypted(params.0.pack_key, params.0.value))
+    }
+
+    #[tool(description = "Change whether the file data is encrypted for the pack identified by `pack_key`. Only PFH4 and newer packs support enabling it.")]
+    pub async fn change_data_is_encrypted(&self, params: Parameters<PackKeyBoolArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, "change_data_is_encrypted", Command::ChangeDataIsEncrypted(params.0.pack_key, params.0.value))
     }
 
     #[tool(description = "Get the file path of the pack identified by `pack_key`.")]
@@ -1820,6 +1843,21 @@ impl McpServer {
     #[tool(description = "Run a full diagnostics check over all open packs.")]
     pub async fn diagnostics_check(&self, params: Parameters<DiagnosticsCheckArgs>) -> Result<CallToolResult, McpError> {
         send_and_respond!(self, "diagnostics_check", Command::DiagnosticsCheck(params.0.ignored, params.0.check_ak_only_refs))
+    }
+
+    #[tool(description = "Run Lua tests against the scripts of all open packs, outside of the game. Scripts run in Lua 5.1 with the game's real script libraries; the game's engine is emulated with objects typed after the Assembly Kit's scripting docs, which record every call made on them. Needs the game's Assembly Kit.
+
+Test file API (a global `rpfm` table):
+- Top-level code runs before the game boots, to set up the world: `local kislev = rpfm.faction { key = \"wh3_main_ksl_kislev\", is_human = true }`. Fields other than `key` are the values returned by the methods with the same name; lists like `region_list` can be plain arrays. Also `rpfm.region { key = ... }`, `rpfm.character { faction = kislev, ... }`, and `rpfm.object(\"TYPE_SCRIPT_INTERFACE\", methods)`. Factions and regions from the game's DB exist even if not set up.
+- `rpfm.test(name, function)` registers a test. Each test runs in a fresh Lua state, after the libraries, the pack's mods (script/campaign/mod/) and the first tick have run.
+- `rpfm.fire(event, { accessor = value, ... })` triggers an event, like `rpfm.fire(\"FactionTurnStart\", { faction = kislev })`.
+- `rpfm.advance_time(seconds)` advances game time, triggering due time triggers, like the ones from `cm:callback`. `rpfm.end_turn()` plays a full round: `WorldStartRound`, `FactionRoundStart` for every faction, then for each faction in creation order its `FactionTurnStart`, the turn events of the regions and characters in its `region_list` and `character_list`, `FactionBeginTurnPhaseNormal`, `FactionAboutToEndTurn` and `FactionTurnEnd`.
+- `rpfm.mock(object, method, value)` changes what a method of an engine object returns after boot, like `rpfm.mock(region, \"owning_faction\", kislev)`; `value` can be a function receiving the call's arguments. Scripts' own globals (like a mod's manager table) can be inspected and changed directly from tests.
+- `rpfm.assert_called(method, args...)`, `rpfm.assert_not_called(method)`, `rpfm.calls_to(method)` and `rpfm.assert_equal(actual, expected)` check what the scripts did. Calls on `cm` are recorded by their method name, like `treasury_mod`.
+
+The report lists each test with its errors (including errors of the pack's scripts, and in listeners), the undocumented methods it called (whose results are placeholders), and the scripts' output.")]
+    pub async fn lua_run_tests(&self, params: Parameters<LuaRunTestsArgs>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, "lua_run_tests", Command::LuaRunTests(params.0.test_source, params.0.campaign))
     }
 
     #[tool(description = "Update diagnostics incrementally for changed files across all open packs. The `diagnostics` is the Diagnostics JSON from a previous `diagnostics_check` call. The `paths` is a JSON array of ContainerPath for the files that changed, e.g. [{\"File\": \"db/land_units_tables/my_mod\"}].")]

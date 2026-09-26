@@ -29,6 +29,12 @@ itertools.workspace = true
 # Regex support.
 regex.workspace = true
 
+# Lua parsing support.
+full_moon.workspace = true
+
+# Lua runtime, to run scripts in the test harness.
+mlua.workspace = true
+
 # Serialization support.
 serde.workspace = true
 serde_derive.workspace = true

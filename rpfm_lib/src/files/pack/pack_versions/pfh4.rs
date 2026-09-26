@@ -16,7 +16,7 @@
 use std::io::{BufReader, Cursor};
 
 use crate::binary::{ReadBytes, WriteBytes};
-use crate::encryption::Decryptable;
+use crate::encryption::{Decryptable, Encryptable};
 use crate::error::{RLibError, Result};
 use crate::files::{pack::*, RFile};
 
@@ -118,13 +118,18 @@ impl Pack {
         let mut sorted_files = self.files.iter_mut().map(|(key, file)| (key.replace('/', "\\"), file)).collect::<Vec<(String, &mut RFile)>>();
         sorted_files.sort_unstable_by_key(|(path, _)| path.to_lowercase());
 
+        let files_count = sorted_files.len() as u32;
+        let index_is_encrypted = self.header.bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX);
+        let data_is_encrypted = self.header.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA);
+
         // Optimization: we process the sorted files in parallel, so we can speedup loading/compression.
         // Sadly, this requires us to make a double iterator to actually catch the errors.
         let (files_index, files_data): (Vec<_>, Vec<_>) = sorted_files.par_iter_mut()
-            .map(|(path, file)| {
+            .enumerate()
+            .map(|(position, (path, file))| {
 
                 // This unwrap is actually safe.
-                let data = file.encode(extra_data, false, false, true)?.unwrap();
+                let mut data = file.encode(extra_data, false, false, true)?.unwrap();
 
                 // 5 because 4 (size) + 1 (null), 9 because + 4 (timestamp).
                 let file_index_entry_len = if self.header.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) {
@@ -133,6 +138,13 @@ impl Pack {
                     5 + path.len()
                 };
 
+                // Encryption goes after compression, as decryption goes before decompression when reading.
+                if data_is_encrypted {
+                    let mut encrypted_data = Vec::with_capacity(data.len());
+                    encrypted_data.encrypt(&data, self.header.pfh_version)?;
+                    data = encrypted_data;
+                }
+
                 let mut file_index_entry = Vec::with_capacity(file_index_entry_len);
 
                 // Error on files too big for the Pack.
@@ -140,7 +152,14 @@ impl Pack {
                     return Err(RLibError::DataTooBigForContainer("Pack".to_owned(), u32::MAX as u64, data.len(), path.to_owned()));
                 }
 
-                file_index_entry.write_u32(data.len() as u32)?;
+                // The index key is the amount of files after this one in the index.
+                let size = data.len() as u32;
+                let index_key = files_count - 1 - position as u32;
+                if index_is_encrypted {
+                    file_index_entry.encrypt_u32(size, index_key)?;
+                } else {
+                    file_index_entry.write_u32(size)?;
+                }
 
                 if self.header.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) {
                     let timestamp = if nullify_dates {
@@ -148,10 +167,20 @@ impl Pack {
                     } else {
                         file.timestamp().unwrap_or(0) as u32
                     };
-                    file_index_entry.write_u32(timestamp)?;
+
+                    if index_is_encrypted {
+                        file_index_entry.encrypt_u32(timestamp, index_key)?;
+                    } else {
+                        file_index_entry.write_u32(timestamp)?;
+                    }
                 }
 
-                file_index_entry.write_string_u8_0terminated(path)?;
+                if index_is_encrypted {
+                    file_index_entry.encrypt_string(path, size as u8)?;
+                } else {
+                    file_index_entry.write_string_u8_0terminated(path)?;
+                }
+
                 Ok((file_index_entry, data))
             }).collect::<Result<Vec<(Vec<u8>, Vec<u8>)>>>()?
             .into_par_iter()

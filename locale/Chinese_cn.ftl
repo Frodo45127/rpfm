@@ -201,9 +201,9 @@ tt_change_packfile_type_patch = 将 PackFile 的类型更改为 Patch。您绝�
 tt_change_packfile_type_mod = 将 PackFile 的类型更改为 Mod。对于应在 Mod 管理器中显示的 Mod，您应该使用此类型。
 tt_change_packfile_type_movie = 将 PackFile 的类型更改为 Movie。对于将始终处于激活状态且不会在 Mod 管理器中显示的 Mod，您应该使用此类型。
 tt_change_packfile_type_other = 将 PackFile 的类型更改为 Other。这适用于没有写入支持的 PackFile，因此您绝对不应该使用它。
-tt_change_packfile_type_data_is_encrypted = 如果勾选，此 PackFile 中的 PackedFile 数据将被加密。不支持保存此类 PackFile。
+tt_change_packfile_type_data_is_encrypted = 如果勾选，此 PackFile 中的 PackedFile 数据将被加密。
 tt_change_packfile_type_index_includes_timestamp = 如果勾选，此 PackFile 的 PackedFile 索引将包含每个 PackedFile 的“最后修改”日期。请注意，启用此功能的 PackFile 将不会在官方启动器中作为 Mod 显示。
-tt_change_packfile_type_index_is_encrypted = 如果勾选，此 PackFile 的 PackedFile 索引将被加密。不支持保存此类 PackFile。
+tt_change_packfile_type_index_is_encrypted = 如果勾选，此 PackFile 的 PackedFile 索引将被加密。
 tt_change_packfile_type_header_is_extended = 如果勾选，此 PackFile 的头部将扩展 20 字节。仅在带有加密的竞技场 (Arena) PackFile 中可见。不支持保存此类 PackFile。
 tt_change_packfile_type_data_is_compressed = 如果勾选，则在保存时压缩打开的 PackFile 中的每个 PackedFile 的数据。如果您想解压 PackFile，请取消勾选此项，然后保存。
 

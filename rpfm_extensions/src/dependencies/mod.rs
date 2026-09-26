@@ -663,6 +663,15 @@ impl Dependencies {
         }).collect::<HashMap<_, _>>()
     }
 
+    /// This function creates dependencies holding the provided files as vanilla files, for tests.
+    #[cfg(test)]
+    pub(crate) fn new_with_vanilla_files(files: Vec<RFile>) -> Self {
+        Self {
+            vanilla_files: files.into_iter().map(|file| (file.path_in_container_raw().to_owned(), file)).collect(),
+            ..Default::default()
+        }
+    }
+
     /// This function tries to load dependencies from the path provided.
     pub fn load(file_path: &Path, schema: &Option<Schema>) -> Result<Self> {
 
@@ -2212,6 +2221,37 @@ impl Dependencies {
         }
 
         values
+    }
+
+    /// This function returns the name and values of the first key column of a DB table, across the dependencies and the provided Packs.
+    ///
+    /// # Arguments
+    ///
+    /// * `packs` - Packs whose tables are included, if any.
+    /// * `table_name` - Name of the table, with the `_tables` suffix.
+    ///
+    /// # Returns
+    ///
+    /// The column name and its values, or `None` if the table isn't found or has no key column.
+    pub fn db_key_values(&self, packs: Option<&BTreeMap<String, Pack>>, table_name: &str) -> Option<(String, HashSet<String>)> {
+        let key_column_name = |file: &RFile| match file.decoded() {
+            Ok(RFileDecoded::DB(table)) => {
+                let definition = table.definition();
+                let fields = definition.fields_processed();
+                definition.key_column_positions().first().and_then(|position| fields.get(*position)).map(|field| field.name().to_owned())
+            }
+            _ => None,
+        };
+
+        let column = self.db_data(table_name, true, true).ok()
+            .and_then(|files| files.into_iter().find_map(key_column_name))
+            .or_else(|| packs.into_iter()
+                .flat_map(|packs| packs.values())
+                .flat_map(|pack| pack.files_by_paths(&ContainerPath::db_table_folders(table_name), true))
+                .find_map(key_column_name))?;
+
+        let keys = self.db_values_from_table_name_and_column_name(packs, table_name, &column, true, true);
+        Some((column, keys))
     }
 
     /// This function returns the value a table has in the row it has a specific value in a specific column.

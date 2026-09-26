@@ -25,7 +25,8 @@ use std::sync::{Arc, RwLock};
 use rpfm_lib::files::{FileType, text::*};
 
 use crate::app_ui::AppUI;
-use crate::ffi::{cursor_row_safe, new_text_editor_safe, scroll_to_row_safe, set_text_safe};
+use crate::communications::*;
+use crate::ffi::{add_text_hover_safe, clear_text_hovers_safe, cursor_row_safe, get_text_safe, new_text_editor_safe, scroll_to_row_safe, set_text_safe};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{DataSource, FileView, View, ViewType};
 use crate::packedfile_views::text::slots::PackedFileTextViewSlots;
@@ -106,6 +107,7 @@ impl PackedFileTextView {
 
         let slots = PackedFileTextViewSlots::new(&view, app_ui, pack_file_contents_ui);
         connections::set_connections(&view, &slots);
+        view.refresh_lua_hovers();
 
         file_view.file_type = FileType::Text;
         file_view.view_type = ViewType::Internal(View::Text(view));
@@ -141,5 +143,25 @@ impl PackedFileTextView {
 
         // Try to scroll to the line we were before.
         scroll_to_row_safe(&self.editor.as_ptr(), row_number);
+        self.refresh_lua_hovers();
+    }
+
+    /// This function updates the docs shown when hovering what a Lua script uses, based on the current text of the editor.
+    ///
+    /// Views of other kinds of files are left untouched.
+    pub unsafe fn refresh_lua_hovers(&self) {
+        let is_lua = self.packed_file_path.as_ref().is_some_and(|path| path.read().unwrap().ends_with(".lua"));
+        if !is_lua {
+            return;
+        }
+
+        let source = get_text_safe(&self.editor).to_std_string();
+        let hovers = send_ipc_command_async(Command::LuaHovers(source), response_extractor!(Response::VecU64U64U64U64String));
+
+        let editor = self.editor.as_ptr();
+        clear_text_hovers_safe(&editor);
+        for (start_line, start_column, end_line, end_column, html) in hovers {
+            add_text_hover_safe(&editor, ((start_line, start_column), (end_line, end_column)), &QString::from_std_str(html).as_ptr());
+        }
     }
 }

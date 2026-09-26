@@ -1798,6 +1798,58 @@ public class DiagnosticTypeText               : DiagnosticType { public object T
 ```
 <!-- langtabs-end -->
 
+### LuaTestReport
+
+Results of a Lua test run.
+
+| Field         | Type            | Description                                                                                         |
+|---------------|-----------------|-----------------------------------------------------------------------------------------------------|
+| `tests`       | LuaTestResult[] | Result of each test, in the order they were registered                                              |
+| `boot_errors` | string[]        | Errors raised while booting by scripts outside the tested packs, like vanilla ones. They don't fail tests |
+
+### LuaTestResult
+
+| Field            | Type     | Description                                                                                      |
+|------------------|----------|--------------------------------------------------------------------------------------------------|
+| `name`           | string   | Name of the test                                                                                 |
+| `passed`         | boolean  | If the test passed                                                                               |
+| `errors`         | string[] | Why it failed: its own errors, errors in listeners, and errors of the tested packs' scripts      |
+| `unmocked_calls` | string[] | Undocumented methods called during the test, as `type:method`. Their results are placeholders   |
+| `log`            | string[] | Output of the scripts during the whole run                                                       |
+
+<!-- langtabs-start -->
+```typescript
+interface LuaTestReport {
+  tests: LuaTestResult[];
+  boot_errors: string[];
+}
+
+interface LuaTestResult {
+  name: string;
+  passed: boolean;
+  errors: string[];
+  unmocked_calls: string[];
+  log: string[];
+}
+```
+```csharp
+public class LuaTestReport
+{
+    public List<LuaTestResult> Tests { get; set; }
+    public List<string> BootErrors { get; set; }
+}
+
+public class LuaTestResult
+{
+    public string Name { get; set; }
+    public bool Passed { get; set; }
+    public List<string> Errors { get; set; }
+    public List<string> UnmockedCalls { get; set; }
+    public List<string> Log { get; set; }
+}
+```
+<!-- langtabs-end -->
+
 ---
 
 ## Update Types

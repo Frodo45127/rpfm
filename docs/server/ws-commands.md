@@ -498,6 +498,56 @@ public class ChangeIndexIncludesTimestampRequest
 ```
 <!-- langtabs-end -->
 
+### ChangeIndexIsEncrypted
+
+Toggle the "Index Is Encrypted" flag for a specific pack. When enabled, file paths, sizes and timestamps in the pack index are encrypted on save. Enabling it is only supported in PFH4 and newer packs.
+
+| Parameter  | Type    | Description   |
+|------------|---------|---------------|
+| `pack_key` | string  | Pack to modify|
+| `enabled`  | boolean | New flag value|
+
+Response: `"Success"`, or `{ "Error": string }` if enabling it on a pack older than PFH4.
+
+<!-- langtabs-start -->
+```typescript
+type ChangeIndexIsEncryptedRequest = { ChangeIndexIsEncrypted: [string, boolean] };
+type ChangeIndexIsEncryptedResponse = "Success" | { Error: string };
+```
+```csharp
+public class ChangeIndexIsEncryptedRequest
+{
+    public Tuple<string, bool> ChangeIndexIsEncrypted { get; set; }
+}
+// Response: the literal string "Success", or an object with an "Error" string.
+```
+<!-- langtabs-end -->
+
+### ChangeDataIsEncrypted
+
+Toggle the "Data Is Encrypted" flag for a specific pack. When enabled, the data of every file in the pack is encrypted on save. Enabling it is only supported in PFH4 and newer packs.
+
+| Parameter  | Type    | Description   |
+|------------|---------|---------------|
+| `pack_key` | string  | Pack to modify|
+| `enabled`  | boolean | New flag value|
+
+Response: `"Success"`, or `{ "Error": string }` if enabling it on a pack older than PFH4.
+
+<!-- langtabs-start -->
+```typescript
+type ChangeDataIsEncryptedRequest = { ChangeDataIsEncrypted: [string, boolean] };
+type ChangeDataIsEncryptedResponse = "Success" | { Error: string };
+```
+```csharp
+public class ChangeDataIsEncryptedRequest
+{
+    public Tuple<string, bool> ChangeDataIsEncrypted { get; set; }
+}
+// Response: the literal string "Success", or an object with an "Error" string.
+```
+<!-- langtabs-end -->
+
 ### ChangeCompressionFormat
 
 Change the compression format of a specific open Pack.
@@ -2205,6 +2255,36 @@ public class DefinitionByTableNameAndVersionResponse
 ```
 <!-- langtabs-end -->
 
+### DefinitionPatches
+
+Get the patches (including local ones) applied to a specific definition. Definitions returned by other commands do not include them.
+
+| Parameter    | Type   | Description      |
+|--------------|--------|------------------|
+| `table_name` | string | Table name       |
+| `version`    | number | Version number   |
+
+Response: `{ DefinitionPatch: Record<string, Record<string, string>> }`
+
+<!-- langtabs-start -->
+```typescript
+type DefinitionPatchesRequest = {
+  DefinitionPatches: [string, number]
+};
+type DefinitionPatchesResponse = { DefinitionPatch: Record<string, Record<string, string>> };
+```
+```csharp
+public class DefinitionPatchesRequest
+{
+    public Tuple<string, int> DefinitionPatches { get; set; }
+}
+public class DefinitionPatchesResponse
+{
+    public Dictionary<string, Dictionary<string, string>> DefinitionPatch { get; set; }
+}
+```
+<!-- langtabs-end -->
+
 ### DeleteDefinition
 
 Delete a definition by table name and version.
@@ -2495,6 +2575,61 @@ public class DiagnosticsUpdateRequest
 public class DiagnosticsUpdateResponse
 {
     public Diagnostics Diagnostics { get; set; }
+}
+```
+<!-- langtabs-end -->
+
+### LuaHovers
+
+Get the docs of the documented functions, accessors and events used in a Lua script, for showing them on hover. Needs the game's Assembly Kit; without it the list is empty.
+
+| Parameter | Type   | Description        |
+|-----------|--------|--------------------|
+| `source`  | string | Code of the script |
+
+Response: `{ VecU64U64U64U64String: [number, number, number, number, string][] }`, with the range of each use (start line, start column, end line, end column, all 0-based) and its docs as Qt rich text.
+
+<!-- langtabs-start -->
+```typescript
+type LuaHoversRequest = { LuaHovers: string };
+type LuaHoversResponse = { VecU64U64U64U64String: [number, number, number, number, string][] };
+```
+```csharp
+public class LuaHoversRequest
+{
+    public string LuaHovers { get; set; }
+}
+public class LuaHoversResponse
+{
+    public List<Tuple<ulong, ulong, ulong, ulong, string>> VecU64U64U64U64String { get; set; }
+}
+```
+<!-- langtabs-end -->
+
+### LuaRunTests
+
+Run Lua tests against the scripts of all open packs, together with the game's script libraries. See the `lua_run_tests` tool in the [MCP docs](./mcp.md) for the test file API. Needs the game's Assembly Kit.
+
+| Parameter     | Type           | Description                                                                                              |
+|---------------|----------------|----------------------------------------------------------------------------------------------------------|
+| `test_source` | string         | Code of the test file                                                                                    |
+| `campaign`    | string \| null | Campaign whose vanilla scripts to load, like `main_warhammer`, or `null` for only the libraries and mods |
+
+Response: `{ LuaTestReport: LuaTestReport }`
+
+<!-- langtabs-start -->
+```typescript
+type LuaRunTestsRequest = { LuaRunTests: [string, string | null] };
+type LuaRunTestsResponse = { LuaTestReport: LuaTestReport };
+```
+```csharp
+public class LuaRunTestsRequest
+{
+    public Tuple<string, string?> LuaRunTests { get; set; }
+}
+public class LuaRunTestsResponse
+{
+    public LuaTestReport LuaTestReport { get; set; }
 }
 ```
 <!-- langtabs-end -->

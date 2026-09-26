@@ -78,6 +78,8 @@ The MCP interface exposes **150 tools** organized by category. Each tool accepts
 | `set_pack_file_type` | Set the pack type (PFHFileType as JSON) | `pack_key`, `pack_file_type` |
 | `change_compression_format` | Change compression format | `pack_key`, `format` |
 | `change_index_includes_timestamp` | Toggle timestamp in pack index | `pack_key`, `value` |
+| `change_index_is_encrypted` | Toggle encryption of the pack index (PFH4+) | `pack_key`, `value` |
+| `change_data_is_encrypted` | Toggle encryption of the pack file data (PFH4+) | `pack_key`, `value` |
 | `get_pack_file_path` | Get the file path of a pack | `pack_key` |
 | `get_pack_file_name` | Get the file name of a pack | `pack_key` |
 | `get_pack_settings` | Get pack settings | `pack_key` |
@@ -192,6 +194,7 @@ The MCP interface exposes **150 tools** organized by category. Each tool accepts
 |------|-------------|---------------|
 | `diagnostics_check` | Run a full diagnostics check | `ignored`, `check_ak_only_refs` |
 | `diagnostics_update` | Update diagnostics for changed files | `diagnostics`, `paths`, `check_ak_only_refs` |
+| `lua_run_tests` | Run Lua tests against the open packs' scripts, with the game's script libraries | `test_source`, `campaign` |
 | `add_line_to_pack_ignored_diagnostics` | Add to ignored diagnostics | `pack_key`, `value` |
 | `get_missing_definitions` | Export missing table definitions | `pack_key` |
 

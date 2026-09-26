@@ -37,6 +37,13 @@
 //! - Animation fragment validation
 //! - Configurable diagnostic levels (Info, Warning, Error)
 //!
+//! ## Lua Scripting API
+//!
+//! The [`lua`] module describes the Lua scripting API of the games:
+//!
+//! - Functions, parameters and return types, built at runtime from the Assembly Kit's scripting docs
+//! - Game interfaces and the context accessors of each event
+//!
 //! ## Global Search
 //!
 //! The [`search`] module provides search and replace functionality across
@@ -80,6 +87,7 @@ use std::{sync::{mpsc::Sender, Arc, LazyLock, RwLock}, thread::JoinHandle};
 pub mod dependencies;
 pub mod diagnostics;
 pub mod gltf;
+pub mod lua;
 pub mod merge;
 pub mod optimizer;
 pub mod search;

@@ -26,7 +26,7 @@ use rpfm_extensions::optimizer::OptimizerOptions;
 use rpfm_ipc::messages::{Command, Response};
 use rpfm_ipc::settings_keys::*;
 
-use rpfm_lib::schema::{Definition, Schema};
+use rpfm_lib::schema::{Definition, DefinitionPatch, Schema};
 
 use crate::app_ui::AppUI;
 use crate::communications::{send_ipc_command, send_ipc_command_async, send_ipc_command_result, send_ipc_command_result_async};
@@ -326,6 +326,10 @@ pub fn schema() -> Result<Schema> {
 
 pub fn definition_by_table_name_and_version(name: &str, version: i32) -> Result<Definition> {
     send_ipc_command_result(Command::DefinitionByTableNameAndVersion(name.to_owned(), version), response_extractor!(Response::Definition))
+}
+
+pub fn definition_patches(name: &str, version: i32) -> Result<DefinitionPatch> {
+    send_ipc_command_result(Command::DefinitionPatches(name.to_owned(), version), response_extractor!(Response::DefinitionPatch))
 }
 
 pub fn delete_definition(name: &str, version: i32) {

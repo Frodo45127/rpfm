@@ -217,9 +217,9 @@ tt_change_packfile_type_mod = Changes the PackFile's Type to Mod. You should use
 tt_change_packfile_type_movie = Changes the PackFile's Type to Movie. You should use this for mods that'll always be active, and will not show up in the Mod Manager.
 tt_change_packfile_type_other = Changes the PackFile's Type to Other. This is for PackFiles without write support, so you should never use it.
 
-tt_change_packfile_type_data_is_encrypted = If checked, the data of the PackedFiles in this PackFile is encrypted. Saving this kind of PackFiles is NOT SUPPORTED.
+tt_change_packfile_type_data_is_encrypted = If checked, the data of the PackedFiles in this PackFile is encrypted.
 tt_change_packfile_type_index_includes_timestamp = If checked, the PackedFile Index of this PackFile includes the 'Last Modified' date of every PackedFile. Note that PackFiles with this enabled WILL NOT SHOW UP as mods in the official launcher.
-tt_change_packfile_type_index_is_encrypted = If checked, the PackedFile Index of this PackFile is encrypted. Saving this kind of PackFiles is NOT SUPPORTED.
+tt_change_packfile_type_index_is_encrypted = If checked, the PackedFile Index of this PackFile is encrypted.
 tt_change_packfile_type_header_is_extended = If checked, the header of this PackFile is extended by 20 bytes. Only seen in Arena PackFiles with encryption. Saving this kind of PackFiles is NOT SUPPORTED.
 tt_change_packfile_type_data_is_compressed = If checked, the data of each PackedFile in the open PackFile will be compressed on save. If you want to decompress a PackFile, disable this, then save it.
 
@@ -1856,6 +1856,30 @@ text_invalid_key_explanation = In a lua table that has been marked as using valu
 
     This means if you end up using those values assuming all exists in the table, the script may break.
 
+label_lua_syntax_error = Lua Syntax Error
+text_lua_syntax_error_explanation = The Lua script cannot be parsed. The game will fail to load it, and nothing in it will run.
+label_lua_unknown_method = Unknown Lua Method
+text_lua_unknown_method_explanation = A method is called on an object whose type is known, but the scripting docs of the Assembly Kit don't list that method for it, and no open script defines it. This is usually a typo, and the script will error when it reaches that line.
+label_lua_wrong_argument_count = Wrong Lua Argument Count
+text_lua_wrong_argument_count_explanation = A documented function is called with more arguments than it takes, or fewer than it needs, according to the scripting docs of the Assembly Kit.
+label_lua_unknown_event = Unknown Lua Event
+text_lua_unknown_event_explanation = A listener is registered for an event that the game doesn't trigger and that no open script triggers either, so the listener will never run.
+
+context_menu_run_lua_tests = Run Lua Tests
+lua_tests_title = Lua Test Results
+lua_tests_running_title = Running Lua Tests
+lua_tests_running = Running the tests of {"{"}{"}"}...
+lua_tests_summary = {"{"}{"}"} tests passed, {"{"}{"}"} failed.
+lua_tests_file_summary = {"{"}{"}"} passed, {"{"}{"}"} failed
+lua_tests_column_test = Test
+lua_tests_column_result = Result
+lua_tests_passed = Passed
+lua_tests_failed = Failed
+lua_tests_errors = Errors
+lua_tests_unmocked_calls = Undocumented calls, returning placeholder values
+lua_tests_output = Output
+lua_tests_boot_errors = Errors of other scripts while booting, not failing tests
+
 translation_download_error = Error while trying to download the latest mod translations: {"{"}{"}"}.
 
 reload_renderer = Reload 3D Renderer
@@ -2054,6 +2078,7 @@ optimizer_pts_title = Portrait Settings Files
 
 optimizer_pack_remove_itm_files = Remove unchanged files
 optimizer_pack_apply_compression = Compress the Pack
+optimizer_pack_apply_encryption = Encrypt the Pack
 optimizer_pack_remove_duplicated_files = Remove duplicated files
 optimizer_db_import_datacores_into_twad_key_deletes = Import datacores into twad_key_deletes
 optimizer_db_optimize_datacored_tables = <b>NOT RECOMMENDED:</b> Optimize datacored tables

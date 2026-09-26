@@ -346,6 +346,7 @@ impl Settings {
         let opt = OptimizerOptions::default();
         settings.initialize_bool(PACK_REMOVE_ITM_FILES, *opt.pack_remove_itm_files());
         settings.initialize_bool(PACK_APPLY_COMPRESSION, *opt.pack_apply_compression());
+        settings.initialize_bool(PACK_APPLY_ENCRYPTION, *opt.pack_apply_encryption());
         settings.initialize_bool(PACK_REMOVE_DUPLICATED_FILES, *opt.pack_remove_duplicated_files());
         settings.initialize_bool(DB_IMPORT_DATACORES_INTO_TWAD_KEY_DELETES, *opt.db_import_datacores_into_twad_key_deletes());
         settings.initialize_bool(DB_OPTIMIZE_DATACORED_TABLES, *opt.db_optimize_datacored_tables());
@@ -608,6 +609,7 @@ impl Settings {
 
         options.set_pack_remove_itm_files(self.bool(PACK_REMOVE_ITM_FILES));
         options.set_pack_apply_compression(self.bool(PACK_APPLY_COMPRESSION));
+        options.set_pack_apply_encryption(self.bool(PACK_APPLY_ENCRYPTION));
         options.set_pack_remove_duplicated_files(self.bool(PACK_REMOVE_DUPLICATED_FILES));
         options.set_db_import_datacores_into_twad_key_deletes(self.bool(DB_IMPORT_DATACORES_INTO_TWAD_KEY_DELETES));
         options.set_db_optimize_datacored_tables(self.bool(DB_OPTIMIZE_DATACORED_TABLES));

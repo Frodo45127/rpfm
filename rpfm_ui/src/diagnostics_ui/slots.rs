@@ -472,6 +472,10 @@ impl DiagnosticsUISlots {
                 diag_blocked!(diagnostics_ui, checkbox_meta_file_path_not_found, toggled);
                 diag_blocked!(diagnostics_ui, checkbox_snd_file_path_not_found, toggled);
                 diag_blocked!(diagnostics_ui, checkbox_lua_invalid_key, toggled);
+                diag_blocked!(diagnostics_ui, checkbox_lua_syntax_error, toggled);
+                diag_blocked!(diagnostics_ui, checkbox_lua_unknown_method, toggled);
+                diag_blocked!(diagnostics_ui, checkbox_lua_wrong_argument_count, toggled);
+                diag_blocked!(diagnostics_ui, checkbox_lua_unknown_event, toggled);
                 diag_blocked!(diagnostics_ui, checkbox_missing_loc_data_file_detected, toggled);
                 diag_blocked!(diagnostics_ui, checkbox_invalid_file_name, toggled);
                 diag_blocked!(diagnostics_ui, checkbox_file_itm, toggled);

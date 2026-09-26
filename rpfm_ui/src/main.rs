@@ -95,6 +95,7 @@ mod diagnostics_ui;
 mod ffi;
 mod github_ui;
 mod global_search_ui;
+mod lua_tests_ui;
 mod mymod_ui;
 mod pack_tree;
 mod packfile_contents_ui;
