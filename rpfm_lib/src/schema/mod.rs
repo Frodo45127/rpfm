@@ -955,24 +955,18 @@ impl Schema {
                     }
                 });
 
-                // Move any lookup_hardcoded patches to schema patches.
-                if definition.patches.values().any(|x| x.keys().any(|y| y == "lookup_hardcoded")) {
-                    let mut def_patches = definition.patches().clone();
-                    def_patches.retain(|_, value| {
-                        value.retain(|key, _| key == "lookup_hardcoded");
-                        !value.is_empty()
-                    });
-                    patches.insert(table_name.to_owned(), def_patches);
-                }
+                // Move any lookup_hardcoded and unused patches to schema patches, merging them with the ones from other versions.
+                let mut def_patches = definition.patches().clone();
+                def_patches.retain(|_, value| {
+                    value.retain(|key, _| key == "lookup_hardcoded" || key == "unused");
+                    !value.is_empty()
+                });
 
-                // Move any unused patches to schema patches.
-                if definition.patches.values().any(|x| x.keys().any(|y| y == "unused")) {
-                    let mut def_patches = definition.patches().clone();
-                    def_patches.retain(|_, value| {
-                        value.retain(|key, _| key == "unused");
-                        !value.is_empty()
-                    });
-                    patches.insert(table_name.to_owned(), def_patches);
+                if !def_patches.is_empty() {
+                    let table_patches: &mut DefinitionPatch = patches.entry(table_name.to_owned()).or_default();
+                    for (column, column_patch) in def_patches {
+                        table_patches.entry(column).or_default().extend(column_patch);
+                    }
                 }
             })
         });
