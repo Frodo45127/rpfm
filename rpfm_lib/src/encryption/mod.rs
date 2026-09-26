@@ -272,15 +272,13 @@ fn apply_data_key(input: &[u8], pfh_version: PFHVersion, output: &mut Vec<u8>) {
         PFHVersion::PFH4 | PFHVersion::PFH3 | PFHVersion::PFH2 | PFHVersion::PFH0 => false,
     };
 
-    let mut chunks = input.chunks_exact(8);
-    for (index, chunk) in chunks.by_ref().enumerate() {
+    let (chunks, remainder) = input.as_chunks::<8>();
+    for (index, chunk) in chunks.iter().enumerate() {
         let position = index as u64 * 8;
         let negated_position = if wide_position { !position } else { u64::from(!(position as u32)) };
         let key = DATA_KEY.wrapping_mul(negated_position);
-        let mut chunk_bytes = [0; 8];
-        chunk_bytes.copy_from_slice(chunk);
-        output.extend_from_slice(&(u64::from_le_bytes(chunk_bytes) ^ key).to_le_bytes());
+        output.extend_from_slice(&(u64::from_le_bytes(*chunk) ^ key).to_le_bytes());
     }
 
-    output.extend_from_slice(chunks.remainder());
+    output.extend_from_slice(remainder);
 }

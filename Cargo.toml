@@ -21,7 +21,7 @@ exclude = ["3rdparty"]
 [workspace.package]
 version = "5.0.6"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
-rust-version = "1.85"
+rust-version = "1.89"
 edition = "2021"
 
 [profile.dev]
