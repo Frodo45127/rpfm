@@ -675,6 +675,10 @@ pub enum RLibError {
     #[error("The Lua test file could not be loaded: {0}")]
     LuaTestFileError(String),
 
+    /// The game's scripts are not available to run Lua tests.
+    #[error("The game's scripts could not be found. Make sure the dependencies cache of the game is generated and up to date.")]
+    LuaTestGameScriptsNotFound,
+
     /// The Lua runtime used to run tests failed.
     #[error("The Lua runtime failed: {0}")]
     LuaRuntimeError(String),

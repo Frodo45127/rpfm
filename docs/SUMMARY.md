@@ -15,6 +15,7 @@
 - [Pack settings & notes](./packs/pack-settings.md)
 - [Dependencies](./packs/dependencies.md)
 - [Plugin scripts](./packs/plugin-scripts.md)
+- [Lua tests](./packs/lua-tests.md)
 
 # Editors
 

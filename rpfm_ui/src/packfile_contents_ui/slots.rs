@@ -52,6 +52,7 @@ use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::communications::{Command, Response, send_ipc_command, send_ipc_command_result, send_ipc_command_result_async, send_ipc_command_async};
 use crate::global_search_ui::GlobalSearchUI;
+use crate::lua_tests_ui;
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::SpecialView;
@@ -90,6 +91,7 @@ pub struct PackFileContentsSlots {
     pub contextual_menu_copy_to_pack: QBox<SlotOfQAction>,
     pub contextual_menu_run_script_about_to_show: QBox<SlotNoArgs>,
     pub contextual_menu_run_script: QBox<SlotOfQAction>,
+    pub contextual_menu_run_lua_tests: QBox<SlotOfBool>,
     pub contextual_menu_delete: QBox<SlotOfBool>,
     pub contextual_menu_extract: QBox<SlotOfBool>,
     pub contextual_menu_rename: QBox<SlotOfBool>,
@@ -376,6 +378,7 @@ impl PackFileContentsSlots {
                     pack_file_contents_ui.context_menu_open_notes.set_enabled(false);
                     pack_file_contents_ui.context_menu_update_table.set_enabled(false);
                     pack_file_contents_ui.context_menu_run_script.menu_action().set_enabled(false);
+                    pack_file_contents_ui.context_menu_run_lua_tests.set_enabled(false);
                 } else {
                     match contents {
 
@@ -640,6 +643,12 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_generate_missing_loc_data.set_enabled(false);
                         pack_file_contents_ui.context_menu_run_script.menu_action().set_enabled(false);
                     }
+
+                    // Only Lua files can be run as test files.
+                    let only_lua_files = files > 0 && folders == 0 && <QPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui)
+                        .iter()
+                        .all(|path| matches!(path, ContainerPath::File(path) if path.ends_with(".lua")));
+                    pack_file_contents_ui.context_menu_run_lua_tests.set_enabled(only_lua_files);
                 }
 
                 // "Add from Pack" needs the same target-Pack context as "Copy to Pack", so keep them in sync.
@@ -1172,6 +1181,15 @@ impl PackFileContentsSlots {
                 }
 
                 PackFileContentsUI::run_plugin_script(&app_ui, &pack_file_contents_ui, &script_path);
+            }
+        ));
+
+        // What happens when we trigger the "Run Lua Tests" action in the Contextual Menu.
+        let contextual_menu_run_lua_tests = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+                rpfm_telemetry::track_action("Run Lua Tests");
+                lua_tests_ui::run_selected_lua_tests(&app_ui, &pack_file_contents_ui);
             }
         ));
 
@@ -2410,6 +2428,7 @@ impl PackFileContentsSlots {
             contextual_menu_copy_to_pack,
             contextual_menu_run_script_about_to_show,
             contextual_menu_run_script,
+            contextual_menu_run_lua_tests,
             contextual_menu_delete,
             contextual_menu_extract,
             contextual_menu_rename,

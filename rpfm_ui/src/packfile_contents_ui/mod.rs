@@ -129,6 +129,7 @@ pub struct PackFileContentsUI {
     context_menu_update_table: QPtr<QAction>,
     context_menu_generate_missing_loc_data: QPtr<QAction>,
     context_menu_run_script: QPtr<QMenu>,
+    context_menu_run_lua_tests: QPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
     // Pack-level actions (shown when pack root is right-clicked).
@@ -287,6 +288,7 @@ impl PackFileContentsUI {
 
         // Submenu populated on demand with the user's plugin scripts (see the `about_to_show` slot).
         let context_menu_run_script = packfile_contents_tree_view_context_menu.add_menu_q_string(&qtr("context_menu_run_script"));
+        let context_menu_run_lua_tests = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("context_menu_run_lua_tests"));
 
         //-------------------------------------------------------------------------------//
         // Pack-level actions (shown when pack root is right-clicked).
@@ -414,6 +416,7 @@ impl PackFileContentsUI {
         context_menu_open_with_external_program.set_enabled(false);
         context_menu_open_notes.set_enabled(false);
         context_menu_run_script.menu_action().set_enabled(false);
+        context_menu_run_lua_tests.set_enabled(false);
 
         // Create ***Da monsta***.
         Ok(Self {
@@ -469,6 +472,7 @@ impl PackFileContentsUI {
             context_menu_update_table,
             context_menu_generate_missing_loc_data,
             context_menu_run_script,
+            context_menu_run_lua_tests,
 
             //-------------------------------------------------------------------------------//
             // Pack-level actions.
@@ -773,10 +777,7 @@ impl PackFileContentsUI {
         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
 
         // Flush open files to the backend first, or the script would run against outdated data.
-        if let Err(error) = UI_STATE.get_open_packedfiles()
-            .iter()
-            .filter(|x| x.data_source() == DataSource::PackFile)
-            .try_for_each(|packed_file| packed_file.save(app_ui, pack_file_contents_ui)) {
+        if let Err(error) = Self::save_open_files(app_ui, pack_file_contents_ui) {
             return show_dialog(app_ui.main_window(), error, false);
         }
 
@@ -806,6 +807,14 @@ impl PackFileContentsUI {
             Err(error) => show_dialog(app_ui.main_window(), error, false),
         }
         app_ui.toggle_main_window(true);
+    }
+
+    /// This function saves the files open from packs to the backend, so backend operations see their latest edits.
+    pub unsafe fn save_open_files(app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<Self>) -> Result<()> {
+        UI_STATE.get_open_packedfiles()
+            .iter()
+            .filter(|x| x.data_source() == DataSource::PackFile)
+            .try_for_each(|packed_file| packed_file.save(app_ui, pack_file_contents_ui))
     }
 
     pub unsafe fn start_delayed_updates_timer(pack_file_contents_ui: &Rc<Self>,) {

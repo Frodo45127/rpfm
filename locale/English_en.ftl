@@ -1810,6 +1810,21 @@ text_lua_wrong_argument_count_explanation = A documented function is called with
 label_lua_unknown_event = Unknown Lua Event
 text_lua_unknown_event_explanation = A listener is registered for an event that the game doesn't trigger and that no open script triggers either, so the listener will never run.
 
+context_menu_run_lua_tests = Run Lua Tests
+lua_tests_title = Lua Test Results
+lua_tests_running_title = Running Lua Tests
+lua_tests_running = Running the tests of {"{"}{"}"}...
+lua_tests_summary = {"{"}{"}"} tests passed, {"{"}{"}"} failed.
+lua_tests_file_summary = {"{"}{"}"} passed, {"{"}{"}"} failed
+lua_tests_column_test = Test
+lua_tests_column_result = Result
+lua_tests_passed = Passed
+lua_tests_failed = Failed
+lua_tests_errors = Errors
+lua_tests_unmocked_calls = Undocumented calls, returning placeholder values
+lua_tests_output = Output
+lua_tests_boot_errors = Errors of other scripts while booting, not failing tests
+
 translation_download_error = Error while trying to download the latest mod translations: {"{"}{"}"}.
 
 reload_renderer = Reload 3D Renderer

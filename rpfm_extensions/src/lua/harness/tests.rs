@@ -52,6 +52,7 @@ function load_script_libraries()
         return function(_, ...) local game = GAME() return game[key](game, ...) end
     end })
     cm.get_campaign_ui_manager = function() return {} end
+    cm.set_campaign_name = function() end
 
     core:add_listener("load mods", "NewSession", true, function()
         for path in string.gmatch(common.filesystem_lookup("/script/campaign/mod/", "*.lua"), "[^,]+") do
@@ -244,4 +245,93 @@ fn test_lua_scripts_list() {
 
     assert_eq!(scripts.list("/script/campaign/mod/", "*.lua"), "script/campaign/mod/B.lua,script/campaign/mod/a.lua");
     assert_eq!(scripts.get("SCRIPT/campaign/mod/a.lua").map(|(_, source)| source.as_str()), Some("return 1"), "lookups ignore case, and the BOM is removed");
+}
+
+#[test]
+fn test_run_tests_advance_time() {
+    let timer_mod = r#"
+core:add_listener("timers", "TimeTrigger", true, function(context) print("fired " .. context.string) end)
+function my_mod()
+    cm:add_time_trigger("once", 5)
+    cm:add_time_trigger("every_two", 2, true)
+    cm:add_time_trigger("removed", 1)
+    cm:remove_time_trigger("removed")
+end
+"#;
+
+    let test = r#"
+rpfm.test("timers", function()
+    rpfm.advance_time(4)
+    rpfm.advance_time(2)
+end)
+"#;
+
+    let report = run_tests(&api(), &scripts(timer_mod), test, &LuaTestOptions::default()).expect("the test file should run");
+    let result = test_result(&report, "timers");
+    assert!(result.passed(), "{:?}", result.errors());
+
+    let fired = result.log().iter().filter(|line| line.starts_with("fired ")).cloned().collect::<Vec<_>>();
+    assert_eq!(fired, vec!["fired every_two", "fired every_two", "fired once", "fired every_two"]);
+}
+
+#[test]
+fn test_run_tests_end_turn() {
+    let turn_mod = r#"
+for _, event in ipairs({ "WorldStartRound", "FactionRoundStart", "FactionTurnStart", "RegionTurnStart", "FactionTurnEnd" }) do
+    core:add_listener(event, event, true, function(context)
+        local subject = ""
+        if event == "RegionTurnStart" then subject = context:region():name()
+        elseif event ~= "WorldStartRound" then subject = context:faction():name() end
+        print(event .. " " .. subject)
+    end)
+end
+"#;
+
+    let test = r#"
+local region = rpfm.region { key = "region_a" }
+rpfm.faction { key = "faction_a", region_list = { region } }
+rpfm.faction { key = "faction_b" }
+
+rpfm.test("turns", function()
+    rpfm.end_turn()
+    rpfm.assert_equal(GAME():model():turn_number(), 2)
+end)
+"#;
+
+    let report = run_tests(&api(), &scripts(turn_mod), test, &LuaTestOptions::default()).expect("the test file should run");
+    let result = test_result(&report, "turns");
+    assert!(result.passed(), "{:?}", result.errors());
+
+    let events = result.log().iter().filter(|line| !line.contains("first tick")).cloned().collect::<Vec<_>>();
+    assert_eq!(events, vec![
+        "WorldStartRound ",
+        "FactionRoundStart faction_a",
+        "FactionRoundStart faction_b",
+        "FactionTurnStart faction_a",
+        "RegionTurnStart region_a",
+        "FactionTurnEnd faction_a",
+        "FactionTurnStart faction_b",
+        "FactionTurnEnd faction_b",
+    ]);
+}
+
+#[test]
+fn test_run_tests_without_game_scripts() {
+    let mut scripts = LuaScripts::default();
+    scripts.add("script/campaign/mod/my_mod.lua", MOD_SCRIPT.to_owned(), true);
+
+    let result = run_tests(&api(), &scripts, "rpfm.test(\"boot\", function() end)", &LuaTestOptions::default());
+    assert!(matches!(result, Err(RLibError::LuaTestGameScriptsNotFound)));
+}
+
+#[test]
+fn test_run_tests_broken_libraries() {
+    let mut scripts = scripts(MOD_SCRIPT);
+    scripts.add("script/campaign_scripted.lua", "error(\"library broke\")".to_owned(), false);
+
+    let report = run_tests(&api(), &scripts, "rpfm.test(\"boot\", function() end)", &LuaTestOptions::default()).expect("the test file should run");
+    let result = test_result(&report, "boot");
+    assert!(!result.passed(), "tests can't pass without the libraries");
+    assert!(result.errors()[0].starts_with("The game's script libraries failed to load:"));
+    assert!(result.errors()[0].contains("library broke"));
 }

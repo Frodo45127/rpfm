@@ -48,8 +48,15 @@ pub const ASSEMBLY_KIT_SCRIPT_DOCS_PATH: &str = "documentation/script/script";
 /// File within the scripting documentation describing game interfaces and events.
 const SCRIPTING_DOC_FILE: &str = "scripting_doc.html";
 
-/// Folder of the vanilla scripts.
-const VANILLA_SCRIPTS_FOLDER: &str = "script/";
+/// Interface methods the docs describe as answering yes or no, but document with a non-boolean return type.
+const BOOLEAN_RETURN_DOC_FIXES: [(&str, &str); 3] = [
+    ("CHARACTER_DETAILS_SCRIPT_INTERFACE", "has_trait"),
+    ("CHARACTER_SCRIPT_INTERFACE", "has_trait"),
+    ("FACTION_SCRIPT_INTERFACE", "was_confederated"),
+];
+
+/// Folder of the vanilla scripts, without trailing slash, as dependency lookups add it.
+const VANILLA_SCRIPTS_FOLDER: &str = "script";
 
 /// Vanilla script declaring one table per event the game can trigger.
 const VANILLA_EVENTS_SCRIPT: &str = "script/events.lua";
@@ -475,6 +482,7 @@ impl LuaApi {
                 }
             }
         }
+
     }
 
     /// This function adds the events declared in `script/events.lua` that are not already known.
@@ -556,6 +564,12 @@ impl LuaApi {
 
                     functions.insert(function.name.to_owned(), function);
                 }
+            }
+        }
+
+        for (owner, name) in BOOLEAN_RETURN_DOC_FIXES {
+            if let Some(function) = self.owners.get_mut(owner).and_then(|functions| functions.get_mut(name)) {
+                function.returns = vec![LuaReturn { lua_type: LuaType::Boolean, description: String::new() }];
             }
         }
     }

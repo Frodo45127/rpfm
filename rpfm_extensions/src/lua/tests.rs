@@ -79,6 +79,10 @@ const SCRIPTING_DOC: &str = "<h2>Events</h2>
 <dd>Parameters: region_list()</dd>
 <dd>Return: <a href=\"#REGION_LIST_SCRIPT_INTERFACE\">REGION_LIST_SCRIPT_INTERFACE</a></dd>
 <br>
+<dd>Function: <a name=\"FACTION_SCRIPT_INTERFACEwas_confederated\">was_confederated</a></dd>
+<dd>Description: Returns if the faction was confederated</dd>
+<dd>Return: <a href=\"#FACTION_SCRIPT_INTERFACE\">FACTION_SCRIPT_INTERFACE</a></dd>
+<br>
 <dd>Function: <a name=\"FACTION_SCRIPT_INTERFACEreset\">reset</a></dd>
 <dd>Description: Does something</dd>
 <dd>Parameters: reset()</dd>
@@ -218,6 +222,9 @@ fn test_add_scripting_doc() {
 
     let region_list = api.function("FACTION_SCRIPT_INTERFACE", "region_list").expect("interface method should be parsed");
     assert_eq!(return_types(region_list), vec![LuaType::Interface("REGION_LIST_SCRIPT_INTERFACE".to_owned())]);
+
+    let was_confederated = api.function("FACTION_SCRIPT_INTERFACE", "was_confederated").expect("interface method should be parsed");
+    assert_eq!(return_types(was_confederated), vec![LuaType::Boolean], "known doc errors must be corrected");
 
     let reset = api.function("FACTION_SCRIPT_INTERFACE", "reset").expect("interface method should be parsed");
     assert!(reset.returns().is_empty());
@@ -438,4 +445,24 @@ fn test_check_hovers() {
 
     let unique = hovers.iter().collect::<std::collections::HashSet<_>>();
     assert_eq!(unique.len(), hovers.len(), "chains checked twice must not duplicate hovers");
+}
+
+#[test]
+fn test_vanilla_scripts() {
+    use rpfm_lib::files::{FileType, RFile};
+    use crate::dependencies::Dependencies;
+
+    let dependencies = Dependencies::new_with_vanilla_files(vec![
+        RFile::new_from_vec(b"return 1", FileType::Text, 0, "script/_lib/lib_core.lua"),
+        RFile::new_from_vec(b"", FileType::Text, 0, "script/events.lua"),
+        RFile::new_from_vec(b"", FileType::Text, 0, "script/readme.txt"),
+        RFile::new_from_vec(b"", FileType::Text, 0, "scripts_other/other.lua"),
+    ]);
+
+    let mut scripts = vanilla_scripts(&dependencies);
+    scripts.sort();
+    assert_eq!(scripts, vec![
+        ("script/_lib/lib_core.lua".to_owned(), "return 1".to_owned()),
+        ("script/events.lua".to_owned(), String::new()),
+    ]);
 }

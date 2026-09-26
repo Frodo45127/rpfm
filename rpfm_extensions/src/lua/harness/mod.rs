@@ -42,6 +42,9 @@ use super::{vanilla_scripts, LuaApi, LuaType};
 /// Emulation of the game's engine, and the test API.
 const ENGINE_SCRIPT: &str = include_str!("engine.lua");
 
+/// Script the game runs first when loading a campaign, which loads everything else.
+const CAMPAIGN_BOOT_SCRIPT: &str = "script/campaign_scripted.lua";
+
 /// Name of the chunk holding the test file, as shown in errors.
 const TEST_FILE_CHUNK: &str = "@test";
 
@@ -116,7 +119,7 @@ pub struct LuaTestResult {
     /// are placeholders, so results depending on them may not match the game.
     unmocked_calls: Vec<String>,
 
-    /// Output of the scripts during the whole run, boot included.
+    /// Output of the scripts during the whole run, boot included. Only the latest lines are kept for long runs.
     log: Vec<String>,
 }
 
@@ -236,8 +239,12 @@ impl LuaScripts {
 ///
 /// # Errors
 ///
-/// Returns an error if the test file can't be loaded, or if the Lua runtime fails.
+/// Returns an error if the game's scripts are missing, if the test file can't be loaded, or if the Lua runtime fails.
 pub fn run_tests(api: &LuaApi, scripts: &LuaScripts, test_source: &str, options: &LuaTestOptions) -> Result<LuaTestReport> {
+    if scripts.get(CAMPAIGN_BOOT_SCRIPT).is_none() {
+        return Err(RLibError::LuaTestGameScriptsNotFound);
+    }
+
     let mut report = LuaTestReport::default();
     let mut index = 1;
 
@@ -253,7 +260,7 @@ pub fn run_tests(api: &LuaApi, scripts: &LuaScripts, test_source: &str, options:
         }
 
         let boot: mlua::Function = rpfm.get("__boot").map_err(lua_error)?;
-        boot.call::<()>(options.campaign.as_deref()).map_err(lua_error)?;
+        let boot_error = boot.call::<Option<String>>(options.campaign.as_deref()).map_err(lua_error)?;
 
         let (pack_errors, other_errors): (Vec<_>, Vec<_>) = string_list(&rpfm, "errors")?.into_iter().partition(|error| scripts.is_pack_error(error));
         if index == 1 {
@@ -269,7 +276,9 @@ pub fn run_tests(api: &LuaApi, scripts: &LuaScripts, test_source: &str, options:
             Err(error) => (false, Some(error.to_string())),
         };
 
-        let mut errors = pack_errors;
+        // Without the libraries nothing else works, so that's what every test must report.
+        let mut errors = boot_error.map(|error| vec![format!("The game's script libraries failed to load: {error}")]).unwrap_or_default();
+        errors.extend(pack_errors);
         errors.extend(test_error);
         errors.extend(string_list(&rpfm, "errors")?);
 

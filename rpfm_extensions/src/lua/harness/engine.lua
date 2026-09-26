@@ -43,6 +43,10 @@ rpfm = {
     -- Game state the engine objects expose.
     world = {
         turn = 1,
+
+        -- Seconds of game time since the game booted.
+        time = 0,
+
         factions = {},
         faction_order = {},
         regions = {},
@@ -56,9 +60,14 @@ local original_find = string.find;
 local original_len = string.len;
 local original_sub = string.sub;
 
+-- Once full, the log works as a ring buffer, keeping the latest lines, as the end of a test is what explains its result.
+local oldest_log_line = 1;
 local function log(line)
     if #rpfm.log < MAX_LOG_LINES then
         table.insert(rpfm.log, tostring(line));
+    else
+        rpfm.log[oldest_log_line] = tostring(line);
+        oldest_log_line = oldest_log_line % MAX_LOG_LINES + 1;
     end;
 end;
 
@@ -460,8 +469,16 @@ local model = rpfm.object("MODEL_SCRIPT_INTERFACE", {
     turn_number = function() return rpfm.world.turn end,
 });
 
+-- Pending time triggers, by id.
+local time_triggers = {};
+
 local game_interface = rpfm.object("cm", {
     model = model,
+    add_time_trigger = function(id, interval, repeats)
+        interval = interval or 0;
+        time_triggers[tostring(id)] = { due = rpfm.world.time + interval, interval = interval, repeats = repeats == true };
+    end,
+    remove_time_trigger = function(id) time_triggers[tostring(id)] = nil end,
 });
 
 --------------------------------------------------------------------------------
@@ -543,6 +560,16 @@ function rpfm.region(fields)
     return region;
 end;
 
+-- Changes what a method of an engine object returns, like `rpfm.mock(region, "owning_faction", faction)`. The value
+-- can be a function, called with the arguments of each call.
+function rpfm.mock(object, method, value)
+    local data = objects[object];
+    if data == nil then
+        error("rpfm.mock only works on engine objects, got " .. tostring(object), 2);
+    end;
+    data.methods[method] = value;
+end;
+
 -- Creates a character. Fields are the values of the methods with the same name, like `faction = my_faction`.
 function rpfm.character(fields)
     return rpfm.object("CHARACTER_SCRIPT_INTERFACE", fields);
@@ -578,6 +605,82 @@ function rpfm.fire(event, accessors)
         if not ok then
             table.insert(rpfm.errors, "Error in a listener of " .. event .. ": " .. tostring(err));
         end;
+    end;
+end;
+
+-- Advances game time, triggering the time triggers that become due in order, like `cm:callback` ones.
+function rpfm.advance_time(seconds)
+    local target = rpfm.world.time + seconds;
+    while true do
+        local next_id, next_trigger;
+        for id, trigger in pairs(time_triggers) do
+            local is_earlier = next_trigger == nil or trigger.due < next_trigger.due or (trigger.due == next_trigger.due and id < next_id);
+            if trigger.due <= target and is_earlier then
+                next_id, next_trigger = id, trigger;
+            end;
+        end;
+
+        if next_trigger == nil then
+            break;
+        end;
+
+        rpfm.world.time = next_trigger.due;
+        if next_trigger.repeats and next_trigger.interval > 0 then
+            next_trigger.due = next_trigger.due + next_trigger.interval;
+        else
+            time_triggers[next_id] = nil;
+        end;
+
+        rpfm.fire("TimeTrigger", { string = next_id });
+    end;
+
+    rpfm.world.time = target;
+end;
+
+-- Objects configured as the values of a list method of an object, like the regions of a faction's `region_list`.
+local function configured_items(object, method)
+    local value = objects[object] and objects[object].methods[method];
+    if is_object(value) then
+        return objects[value].items or {};
+    end;
+    if type(value) == "table" then
+        return value;
+    end;
+    return {};
+end;
+
+-- Plays a full round: the round starts for everyone, then each faction, in the order they were created, starts and ends
+-- its turn, together with its regions and characters.
+function rpfm.end_turn()
+    rpfm.world.turn = rpfm.world.turn + 1;
+    rpfm.fire("WorldStartRound", { world = world });
+
+    local factions = ordered(rpfm.world.faction_order, rpfm.world.factions);
+    for _, faction in ipairs(factions) do
+        rpfm.fire("FactionRoundStart", { faction = faction });
+    end;
+
+    for _, faction in ipairs(factions) do
+        local regions = configured_items(faction, "region_list");
+        local characters = configured_items(faction, "character_list");
+
+        rpfm.fire("FactionTurnStart", { faction = faction });
+        for _, region in ipairs(regions) do
+            rpfm.fire("RegionTurnStart", { region = region });
+        end;
+        for _, character in ipairs(characters) do
+            rpfm.fire("CharacterTurnStart", { character = character });
+        end;
+        rpfm.fire("FactionBeginTurnPhaseNormal", { faction = faction });
+
+        rpfm.fire("FactionAboutToEndTurn", { faction = faction });
+        for _, character in ipairs(characters) do
+            rpfm.fire("CharacterTurnEnd", { character = character });
+        end;
+        for _, region in ipairs(regions) do
+            rpfm.fire("RegionTurnEnd", { region = region });
+        end;
+        rpfm.fire("FactionTurnEnd", { faction = faction });
     end;
 end;
 
@@ -651,6 +754,7 @@ end;
 --------------------------------------------------------------------------------
 
 -- Loads the script libraries, the vanilla scripts of a campaign if any, and the mods, then gets to the first tick.
+-- Returns the error of loading the libraries, if they fail to load.
 function rpfm.__boot(campaign)
     CampaignName = campaign or "main_warhammer";
 
@@ -662,14 +766,14 @@ function rpfm.__boot(campaign)
         else
             load_script_libraries();
 
-            -- Created by the shared campaign scripts, which are only loaded with the vanilla scripts of a campaign.
+            -- Done by the vanilla scripts of a campaign, which are only loaded in the other mode.
+            cm:set_campaign_name(CampaignName);
             uim = cm:get_campaign_ui_manager();
         end;
     end, debug.traceback);
 
     if not ok then
-        table.insert(rpfm.errors, "Error loading the script libraries: " .. tostring(err));
-        return;
+        return tostring(err);
     end;
 
     for _, event in ipairs({ "NewSession", "WorldCreated", "UICreated", "FirstTickAfterWorldCreated" }) do
@@ -683,5 +787,13 @@ function rpfm.__run_test(index)
     rpfm.calls = {};
     rpfm.errors = {};
     rpfm.unmocked = {};
-    return xpcall(test.test_function, debug.traceback);
+    local ok, err = xpcall(test.test_function, debug.traceback);
+
+    local ordered_log = {};
+    for offset = 0, #rpfm.log - 1 do
+        table.insert(ordered_log, rpfm.log[(oldest_log_line - 1 + offset) % #rpfm.log + 1]);
+    end;
+    rpfm.log = ordered_log;
+
+    return ok, err;
 end;
