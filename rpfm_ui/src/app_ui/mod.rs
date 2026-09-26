@@ -2370,7 +2370,7 @@ impl AppUI {
                             let result = if settings_bool(USE_DEBUG_VIEW_GROUP_FORMATIONS) {
                                 FileGroupFormationsDebugView::new_view(&mut tab, data)
                             } else {
-                                GroupFormationsView::new_view(&mut tab, data, app_ui, pack_file_contents_ui)
+                                GroupFormationsView::new_view(&mut tab, data, app_ui, pack_file_contents_ui, diagnostics_ui)
                             };
 
                             match result {

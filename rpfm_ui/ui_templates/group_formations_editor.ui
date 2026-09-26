@@ -10,606 +10,618 @@
    <property name="bottomMargin"><number>2</number></property>
    <property name="spacing"><number>2</number></property>
    <item row="0" column="0" rowspan="1" colspan="1">
-    <widget class="QSplitter" name="main_splitter">
-     <property name="orientation"><enum>Qt::Vertical</enum></property>
+    <widget class="QSplitter" name="editor_splitter">
+     <property name="orientation"><enum>Qt::Horizontal</enum></property>
      <property name="childrenCollapsible"><bool>false</bool></property>
-     <widget class="QSplitter" name="editor_splitter">
-      <property name="orientation"><enum>Qt::Horizontal</enum></property>
-      <property name="childrenCollapsible"><bool>false</bool></property>
-      <widget class="QWidget" name="formations_widget" native="true">
-       <layout class="QGridLayout" name="formations_widget_layout">
-        <property name="leftMargin"><number>2</number></property>
-        <property name="topMargin"><number>2</number></property>
-        <property name="rightMargin"><number>2</number></property>
-        <property name="bottomMargin"><number>2</number></property>
-        <property name="spacing"><number>2</number></property>
-        <item row="0" column="0" rowspan="1" colspan="1">
-         <widget class="QLineEdit" name="formations_filter_line_edit">
-          <property name="clearButtonEnabled"><bool>true</bool></property>
+     <widget class="QWidget" name="formations_widget" native="true">
+      <layout class="QGridLayout" name="formations_widget_layout">
+       <property name="leftMargin"><number>2</number></property>
+       <property name="topMargin"><number>2</number></property>
+       <property name="rightMargin"><number>2</number></property>
+       <property name="bottomMargin"><number>2</number></property>
+       <property name="spacing"><number>2</number></property>
+       <item row="0" column="0" rowspan="1" colspan="1">
+        <widget class="QLineEdit" name="formations_filter_line_edit">
+         <property name="clearButtonEnabled"><bool>true</bool></property>
+        </widget>
+       </item>
+       <item row="1" column="0" rowspan="1" colspan="1">
+        <widget class="QListView" name="formations_list_view">
+         <property name="alternatingRowColors"><bool>true</bool></property>
+         <property name="contextMenuPolicy"><enum>Qt::CustomContextMenu</enum></property>
+        </widget>
+       </item>
+       <item row="2" column="0" rowspan="1" colspan="1">
+        <widget class="QWidget" name="formations_buttons" native="true">
+         <layout class="QGridLayout" name="formations_buttons_layout">
+          <property name="leftMargin"><number>0</number></property>
+          <property name="topMargin"><number>0</number></property>
+          <property name="rightMargin"><number>0</number></property>
+          <property name="bottomMargin"><number>0</number></property>
+          <property name="spacing"><number>0</number></property>
+          <item row="0" column="0" rowspan="1" colspan="1">
+           <widget class="QToolButton" name="add_formation_button">
+            <property name="autoRaise"><bool>true</bool></property>
+           </widget>
+          </item>
+          <item row="0" column="1" rowspan="1" colspan="1">
+           <widget class="QToolButton" name="clone_formation_button">
+            <property name="autoRaise"><bool>true</bool></property>
+           </widget>
+          </item>
+          <item row="0" column="2" rowspan="1" colspan="1">
+           <widget class="QToolButton" name="delete_formation_button">
+            <property name="autoRaise"><bool>true</bool></property>
+           </widget>
+          </item>
+          <item row="0" column="3" rowspan="1" colspan="1">
+           <spacer name="formations_buttons_spacer">
+            <property name="orientation"><enum>Qt::Horizontal</enum></property>
+            <property name="sizeHint" stdset="0"><size><width>0</width><height>0</height></size></property>
+           </spacer>
+          </item>
+         </layout>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="blocks_widget" native="true">
+      <layout class="QGridLayout" name="blocks_widget_layout">
+       <property name="leftMargin"><number>2</number></property>
+       <property name="topMargin"><number>2</number></property>
+       <property name="rightMargin"><number>2</number></property>
+       <property name="bottomMargin"><number>2</number></property>
+       <property name="spacing"><number>2</number></property>
+       <item row="0" column="0" rowspan="1" colspan="1">
+        <widget class="QWidget" name="canvas_toolbar" native="true">
+         <layout class="QGridLayout" name="canvas_toolbar_layout">
+          <property name="leftMargin"><number>0</number></property>
+          <property name="topMargin"><number>0</number></property>
+          <property name="rightMargin"><number>0</number></property>
+          <property name="bottomMargin"><number>0</number></property>
+          <property name="spacing"><number>0</number></property>
+          <item row="0" column="0" rowspan="1" colspan="1">
+           <widget class="QLabel" name="unit_count_label">
+            <property name="text"><string>TextLabel</string></property>
+           </widget>
+          </item>
+          <item row="0" column="1" rowspan="1" colspan="1">
+           <widget class="QSpinBox" name="unit_count_spinbox">
+            <property name="minimum"><number>1</number></property>
+            <property name="maximum"><number>40</number></property>
+            <property name="value"><number>2</number></property>
+           </widget>
+          </item>
+          <item row="0" column="2" rowspan="1" colspan="1">
+           <widget class="QLabel" name="grid_step_label">
+            <property name="text"><string>TextLabel</string></property>
+           </widget>
+          </item>
+          <item row="0" column="3" rowspan="1" colspan="1">
+           <widget class="QDoubleSpinBox" name="grid_step_spinbox">
+            <property name="decimals"><number>1</number></property>
+            <property name="minimum"><double>0.5</double></property>
+            <property name="maximum"><double>100.0</double></property>
+            <property name="value"><double>5.0</double></property>
+           </widget>
+          </item>
+          <item row="0" column="4" rowspan="1" colspan="1">
+           <widget class="QToolButton" name="fit_button">
+            <property name="autoRaise"><bool>true</bool></property>
+           </widget>
+          </item>
+          <item row="0" column="5" rowspan="1" colspan="1">
+           <spacer name="canvas_toolbar_spacer">
+            <property name="orientation"><enum>Qt::Horizontal</enum></property>
+            <property name="sizeHint" stdset="0"><size><width>0</width><height>0</height></size></property>
+           </spacer>
+          </item>
+          <item row="1" column="0" rowspan="1" colspan="6">
+           <widget class="QLabel" name="canvas_hint_label">
+            <property name="text"><string>TextLabel</string></property>
+            <property name="wordWrap"><bool>true</bool></property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item row="1" column="0" rowspan="1" colspan="1">
+        <widget class="QSplitter" name="blocks_splitter">
+         <property name="orientation"><enum>Qt::Vertical</enum></property>
+         <property name="childrenCollapsible"><bool>false</bool></property>
+         <widget class="QWidget" name="canvas_placeholder" native="true">
+          <property name="minimumSize"><size><width>300</width><height>200</height></size></property>
          </widget>
-        </item>
-        <item row="1" column="0" rowspan="1" colspan="1">
-         <widget class="QListView" name="formations_list_view">
+         <widget class="QTreeView" name="blocks_tree_view">
           <property name="alternatingRowColors"><bool>true</bool></property>
           <property name="contextMenuPolicy"><enum>Qt::CustomContextMenu</enum></property>
+          <property name="selectionMode"><enum>QAbstractItemView::ExtendedSelection</enum></property>
+          <property name="headerHidden"><bool>true</bool></property>
          </widget>
-        </item>
-        <item row="2" column="0" rowspan="1" colspan="1">
-         <widget class="QWidget" name="formations_buttons" native="true">
-          <layout class="QGridLayout" name="formations_buttons_layout">
-           <property name="leftMargin"><number>0</number></property>
-           <property name="topMargin"><number>0</number></property>
-           <property name="rightMargin"><number>0</number></property>
-           <property name="bottomMargin"><number>0</number></property>
-           <property name="spacing"><number>0</number></property>
-           <item row="0" column="0" rowspan="1" colspan="1">
-            <widget class="QToolButton" name="add_formation_button">
-             <property name="autoRaise"><bool>true</bool></property>
-            </widget>
-           </item>
-           <item row="0" column="1" rowspan="1" colspan="1">
-            <widget class="QToolButton" name="clone_formation_button">
-             <property name="autoRaise"><bool>true</bool></property>
-            </widget>
-           </item>
-           <item row="0" column="2" rowspan="1" colspan="1">
-            <widget class="QToolButton" name="delete_formation_button">
-             <property name="autoRaise"><bool>true</bool></property>
-            </widget>
-           </item>
-           <item row="0" column="3" rowspan="1" colspan="1">
-            <spacer name="formations_buttons_spacer">
-             <property name="orientation"><enum>Qt::Horizontal</enum></property>
-             <property name="sizeHint" stdset="0"><size><width>0</width><height>0</height></size></property>
-            </spacer>
-           </item>
-          </layout>
-         </widget>
-        </item>
-       </layout>
-      </widget>
-      <widget class="QWidget" name="blocks_widget" native="true">
-       <layout class="QGridLayout" name="blocks_widget_layout">
-        <property name="leftMargin"><number>2</number></property>
-        <property name="topMargin"><number>2</number></property>
-        <property name="rightMargin"><number>2</number></property>
-        <property name="bottomMargin"><number>2</number></property>
-        <property name="spacing"><number>2</number></property>
-        <item row="0" column="0" rowspan="1" colspan="1">
-         <widget class="QWidget" name="canvas_toolbar" native="true">
-          <layout class="QGridLayout" name="canvas_toolbar_layout">
-           <property name="leftMargin"><number>0</number></property>
-           <property name="topMargin"><number>0</number></property>
-           <property name="rightMargin"><number>0</number></property>
-           <property name="bottomMargin"><number>0</number></property>
-           <property name="spacing"><number>0</number></property>
-           <item row="0" column="0" rowspan="1" colspan="1">
-            <widget class="QLabel" name="unit_count_label">
-             <property name="text"><string>TextLabel</string></property>
-            </widget>
-           </item>
-           <item row="0" column="1" rowspan="1" colspan="1">
-            <widget class="QSpinBox" name="unit_count_spinbox">
-             <property name="minimum"><number>1</number></property>
-             <property name="maximum"><number>40</number></property>
-             <property name="value"><number>2</number></property>
-            </widget>
-           </item>
-           <item row="0" column="2" rowspan="1" colspan="1">
-            <widget class="QToolButton" name="fit_button">
-             <property name="autoRaise"><bool>true</bool></property>
-            </widget>
-           </item>
-           <item row="0" column="3" rowspan="1" colspan="1">
-            <spacer name="canvas_toolbar_spacer">
-             <property name="orientation"><enum>Qt::Horizontal</enum></property>
-             <property name="sizeHint" stdset="0"><size><width>0</width><height>0</height></size></property>
-            </spacer>
-           </item>
-          </layout>
-         </widget>
-        </item>
-        <item row="1" column="0" rowspan="1" colspan="1">
-         <widget class="QSplitter" name="blocks_splitter">
-          <property name="orientation"><enum>Qt::Vertical</enum></property>
-          <property name="childrenCollapsible"><bool>false</bool></property>
-          <widget class="QWidget" name="canvas_placeholder" native="true">
-           <property name="minimumSize"><size><width>300</width><height>200</height></size></property>
-          </widget>
-          <widget class="QTreeView" name="blocks_tree_view">
-           <property name="alternatingRowColors"><bool>true</bool></property>
-           <property name="contextMenuPolicy"><enum>Qt::CustomContextMenu</enum></property>
-           <property name="selectionMode"><enum>QAbstractItemView::ExtendedSelection</enum></property>
-           <property name="headerHidden"><bool>true</bool></property>
-          </widget>
-         </widget>
-        </item>
-        <item row="2" column="0" rowspan="1" colspan="1">
-         <widget class="QWidget" name="blocks_buttons" native="true">
-          <layout class="QGridLayout" name="blocks_buttons_layout">
-           <property name="leftMargin"><number>0</number></property>
-           <property name="topMargin"><number>0</number></property>
-           <property name="rightMargin"><number>0</number></property>
-           <property name="bottomMargin"><number>0</number></property>
-           <property name="spacing"><number>0</number></property>
-           <item row="0" column="0" rowspan="1" colspan="1">
-            <widget class="QToolButton" name="add_absolute_button">
-             <property name="autoRaise"><bool>true</bool></property>
-            </widget>
-           </item>
-           <item row="0" column="1" rowspan="1" colspan="1">
-            <widget class="QToolButton" name="add_relative_button">
-             <property name="autoRaise"><bool>true</bool></property>
-            </widget>
-           </item>
-           <item row="0" column="2" rowspan="1" colspan="1">
-            <widget class="QToolButton" name="add_span_button">
-             <property name="autoRaise"><bool>true</bool></property>
-            </widget>
-           </item>
-           <item row="0" column="3" rowspan="1" colspan="1">
-            <widget class="QToolButton" name="delete_block_button">
-             <property name="autoRaise"><bool>true</bool></property>
-            </widget>
-           </item>
-           <item row="0" column="4" rowspan="1" colspan="1">
-            <widget class="QToolButton" name="delete_subtree_button">
-             <property name="autoRaise"><bool>true</bool></property>
-            </widget>
-           </item>
-           <item row="0" column="5" rowspan="1" colspan="1">
-            <widget class="QToolButton" name="undo_button">
-             <property name="autoRaise"><bool>true</bool></property>
-            </widget>
-           </item>
-           <item row="0" column="6" rowspan="1" colspan="1">
-            <widget class="QToolButton" name="redo_button">
-             <property name="autoRaise"><bool>true</bool></property>
-            </widget>
-           </item>
-           <item row="0" column="7" rowspan="1" colspan="1">
-            <spacer name="blocks_buttons_spacer">
-             <property name="orientation"><enum>Qt::Horizontal</enum></property>
-             <property name="sizeHint" stdset="0"><size><width>0</width><height>0</height></size></property>
-            </spacer>
-           </item>
-          </layout>
-         </widget>
-        </item>
-       </layout>
-      </widget>
-      <widget class="QScrollArea" name="inspector_scroll_area">
-       <property name="widgetResizable"><bool>true</bool></property>
-       <property name="minimumSize"><size><width>350</width><height>0</height></size></property>
-       <widget class="QStackedWidget" name="inspector_stack">
-        <widget class="QWidget" name="empty_page" native="true">
-         <layout class="QGridLayout" name="empty_page_layout">
+        </widget>
+       </item>
+       <item row="2" column="0" rowspan="1" colspan="1">
+        <widget class="QWidget" name="blocks_buttons" native="true">
+         <layout class="QGridLayout" name="blocks_buttons_layout">
           <property name="leftMargin"><number>0</number></property>
           <property name="topMargin"><number>0</number></property>
           <property name="rightMargin"><number>0</number></property>
           <property name="bottomMargin"><number>0</number></property>
           <property name="spacing"><number>0</number></property>
           <item row="0" column="0" rowspan="1" colspan="1">
-           <spacer name="empty_page_spacer">
-            <property name="orientation"><enum>Qt::Vertical</enum></property>
+           <widget class="QToolButton" name="add_absolute_button">
+            <property name="autoRaise"><bool>true</bool></property>
+           </widget>
+          </item>
+          <item row="0" column="1" rowspan="1" colspan="1">
+           <widget class="QToolButton" name="add_relative_button">
+            <property name="autoRaise"><bool>true</bool></property>
+           </widget>
+          </item>
+          <item row="0" column="2" rowspan="1" colspan="1">
+           <widget class="QToolButton" name="add_span_button">
+            <property name="autoRaise"><bool>true</bool></property>
+           </widget>
+          </item>
+          <item row="0" column="3" rowspan="1" colspan="1">
+           <widget class="QToolButton" name="delete_block_button">
+            <property name="autoRaise"><bool>true</bool></property>
+           </widget>
+          </item>
+          <item row="0" column="4" rowspan="1" colspan="1">
+           <widget class="QToolButton" name="delete_subtree_button">
+            <property name="autoRaise"><bool>true</bool></property>
+           </widget>
+          </item>
+          <item row="0" column="5" rowspan="1" colspan="1">
+           <widget class="QToolButton" name="undo_button">
+            <property name="autoRaise"><bool>true</bool></property>
+           </widget>
+          </item>
+          <item row="0" column="6" rowspan="1" colspan="1">
+           <widget class="QToolButton" name="redo_button">
+            <property name="autoRaise"><bool>true</bool></property>
+           </widget>
+          </item>
+          <item row="0" column="7" rowspan="1" colspan="1">
+           <spacer name="blocks_buttons_spacer">
+            <property name="orientation"><enum>Qt::Horizontal</enum></property>
             <property name="sizeHint" stdset="0"><size><width>0</width><height>0</height></size></property>
            </spacer>
           </item>
          </layout>
         </widget>
-        <widget class="QWidget" name="formation_page" native="true">
-         <layout class="QGridLayout" name="formation_page_layout">
-          <property name="leftMargin"><number>0</number></property>
-          <property name="topMargin"><number>0</number></property>
-          <property name="rightMargin"><number>0</number></property>
-          <property name="bottomMargin"><number>0</number></property>
-          <property name="spacing"><number>0</number></property>
-          <item row="0" column="0" rowspan="1" colspan="1">
-           <widget class="QGroupBox" name="formation_groupbox">
-            <property name="title"><string>GroupBox</string></property>
-            <layout class="QGridLayout" name="formation_groupbox_layout">
-             <property name="leftMargin"><number>2</number></property>
-             <property name="topMargin"><number>2</number></property>
-             <property name="rightMargin"><number>2</number></property>
-             <property name="bottomMargin"><number>2</number></property>
-             <property name="spacing"><number>2</number></property>
-             <item row="0" column="0" rowspan="1" colspan="1">
-              <widget class="QLabel" name="name_label">
-               <property name="text"><string>TextLabel</string></property>
-              </widget>
-             </item>
-             <item row="0" column="1" rowspan="1" colspan="1">
-              <widget class="QLineEdit" name="name_line_edit">
-              </widget>
-             </item>
-             <item row="1" column="0" rowspan="1" colspan="1">
-              <widget class="QLabel" name="ai_priority_label">
-               <property name="text"><string>TextLabel</string></property>
-              </widget>
-             </item>
-             <item row="1" column="1" rowspan="1" colspan="1">
-              <widget class="QDoubleSpinBox" name="ai_priority_spinbox">
-               <property name="keyboardTracking"><bool>false</bool></property>
-               <property name="decimals"><number>2</number></property>
-               <property name="minimum"><double>-100000.000000000000000</double></property>
-               <property name="maximum"><double>100000.000000000000000</double></property>
-              </widget>
-             </item>
-             <item row="2" column="0" rowspan="1" colspan="1">
-              <widget class="QLabel" name="uk_2_label">
-               <property name="text"><string>TextLabel</string></property>
-              </widget>
-             </item>
-             <item row="2" column="1" rowspan="1" colspan="1">
-              <widget class="QSpinBox" name="uk_2_spinbox">
-               <property name="keyboardTracking"><bool>false</bool></property>
-               <property name="minimum"><number>0</number></property>
-               <property name="maximum"><number>2147483647</number></property>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-          </item>
-          <item row="1" column="0" rowspan="1" colspan="1">
-           <widget class="QGroupBox" name="ai_purpose_groupbox">
-            <property name="title"><string>GroupBox</string></property>
-            <layout class="QGridLayout" name="ai_purpose_groupbox_layout">
-             <property name="leftMargin"><number>2</number></property>
-             <property name="topMargin"><number>2</number></property>
-             <property name="rightMargin"><number>2</number></property>
-             <property name="bottomMargin"><number>2</number></property>
-             <property name="spacing"><number>2</number></property>
-             <item row="0" column="0" rowspan="1" colspan="1">
-              <widget class="QListView" name="ai_purpose_list_view">
-               <property name="alternatingRowColors"><bool>true</bool></property>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-          </item>
-          <item row="2" column="0" rowspan="1" colspan="1">
-           <widget class="QGroupBox" name="min_unit_category_groupbox">
-            <property name="title"><string>GroupBox</string></property>
-            <layout class="QGridLayout" name="min_unit_category_groupbox_layout">
-             <property name="leftMargin"><number>2</number></property>
-             <property name="topMargin"><number>2</number></property>
-             <property name="rightMargin"><number>2</number></property>
-             <property name="bottomMargin"><number>2</number></property>
-             <property name="spacing"><number>2</number></property>
-             <item row="0" column="0" rowspan="1" colspan="1">
-              <widget class="QTableView" name="min_unit_category_table_view">
-               <property name="alternatingRowColors"><bool>true</bool></property>
-              </widget>
-             </item>
-             <item row="1" column="0" rowspan="1" colspan="1">
-              <widget class="QWidget" name="min_unit_category_groupbox_buttons" native="true">
-               <layout class="QGridLayout" name="min_unit_category_groupbox_buttons_layout">
-                <property name="leftMargin"><number>0</number></property>
-                <property name="topMargin"><number>0</number></property>
-                <property name="rightMargin"><number>0</number></property>
-                <property name="bottomMargin"><number>0</number></property>
-                <property name="spacing"><number>0</number></property>
-                <item row="0" column="0" rowspan="1" colspan="1">
-                 <widget class="QToolButton" name="add_min_unit_category_button">
-                  <property name="autoRaise"><bool>true</bool></property>
-                 </widget>
-                </item>
-                <item row="0" column="1" rowspan="1" colspan="1">
-                 <widget class="QToolButton" name="remove_min_unit_category_button">
-                  <property name="autoRaise"><bool>true</bool></property>
-                 </widget>
-                </item>
-                <item row="0" column="2" rowspan="1" colspan="1">
-                 <spacer name="min_unit_category_groupbox_buttons_spacer">
-                  <property name="orientation"><enum>Qt::Horizontal</enum></property>
-                  <property name="sizeHint" stdset="0"><size><width>0</width><height>0</height></size></property>
-                 </spacer>
-                </item>
-               </layout>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-          </item>
-          <item row="3" column="0" rowspan="1" colspan="1">
-           <widget class="QGroupBox" name="subcultures_groupbox">
-            <property name="title"><string>GroupBox</string></property>
-            <layout class="QGridLayout" name="subcultures_groupbox_layout">
-             <property name="leftMargin"><number>2</number></property>
-             <property name="topMargin"><number>2</number></property>
-             <property name="rightMargin"><number>2</number></property>
-             <property name="bottomMargin"><number>2</number></property>
-             <property name="spacing"><number>2</number></property>
-             <item row="0" column="0" rowspan="1" colspan="1">
-              <widget class="QListView" name="subcultures_list_view">
-               <property name="alternatingRowColors"><bool>true</bool></property>
-              </widget>
-             </item>
-             <item row="1" column="0" rowspan="1" colspan="1">
-              <widget class="QWidget" name="subcultures_groupbox_buttons" native="true">
-               <layout class="QGridLayout" name="subcultures_groupbox_buttons_layout">
-                <property name="leftMargin"><number>0</number></property>
-                <property name="topMargin"><number>0</number></property>
-                <property name="rightMargin"><number>0</number></property>
-                <property name="bottomMargin"><number>0</number></property>
-                <property name="spacing"><number>0</number></property>
-                <item row="0" column="0" rowspan="1" colspan="1">
-                 <widget class="QToolButton" name="add_subculture_button">
-                  <property name="autoRaise"><bool>true</bool></property>
-                 </widget>
-                </item>
-                <item row="0" column="1" rowspan="1" colspan="1">
-                 <widget class="QToolButton" name="remove_subculture_button">
-                  <property name="autoRaise"><bool>true</bool></property>
-                 </widget>
-                </item>
-                <item row="0" column="2" rowspan="1" colspan="1">
-                 <spacer name="subcultures_groupbox_buttons_spacer">
-                  <property name="orientation"><enum>Qt::Horizontal</enum></property>
-                  <property name="sizeHint" stdset="0"><size><width>0</width><height>0</height></size></property>
-                 </spacer>
-                </item>
-               </layout>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-          </item>
-          <item row="4" column="0" rowspan="1" colspan="1">
-           <widget class="QGroupBox" name="factions_groupbox">
-            <property name="title"><string>GroupBox</string></property>
-            <layout class="QGridLayout" name="factions_groupbox_layout">
-             <property name="leftMargin"><number>2</number></property>
-             <property name="topMargin"><number>2</number></property>
-             <property name="rightMargin"><number>2</number></property>
-             <property name="bottomMargin"><number>2</number></property>
-             <property name="spacing"><number>2</number></property>
-             <item row="0" column="0" rowspan="1" colspan="1">
-              <widget class="QListView" name="factions_list_view">
-               <property name="alternatingRowColors"><bool>true</bool></property>
-              </widget>
-             </item>
-             <item row="1" column="0" rowspan="1" colspan="1">
-              <widget class="QWidget" name="factions_groupbox_buttons" native="true">
-               <layout class="QGridLayout" name="factions_groupbox_buttons_layout">
-                <property name="leftMargin"><number>0</number></property>
-                <property name="topMargin"><number>0</number></property>
-                <property name="rightMargin"><number>0</number></property>
-                <property name="bottomMargin"><number>0</number></property>
-                <property name="spacing"><number>0</number></property>
-                <item row="0" column="0" rowspan="1" colspan="1">
-                 <widget class="QToolButton" name="add_faction_button">
-                  <property name="autoRaise"><bool>true</bool></property>
-                 </widget>
-                </item>
-                <item row="0" column="1" rowspan="1" colspan="1">
-                 <widget class="QToolButton" name="remove_faction_button">
-                  <property name="autoRaise"><bool>true</bool></property>
-                 </widget>
-                </item>
-                <item row="0" column="2" rowspan="1" colspan="1">
-                 <spacer name="factions_groupbox_buttons_spacer">
-                  <property name="orientation"><enum>Qt::Horizontal</enum></property>
-                  <property name="sizeHint" stdset="0"><size><width>0</width><height>0</height></size></property>
-                 </spacer>
-                </item>
-               </layout>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-          </item>
-         </layout>
-        </widget>
-        <widget class="QWidget" name="container_page" native="true">
-         <layout class="QGridLayout" name="container_page_layout">
-          <property name="leftMargin"><number>0</number></property>
-          <property name="topMargin"><number>0</number></property>
-          <property name="rightMargin"><number>0</number></property>
-          <property name="bottomMargin"><number>0</number></property>
-          <property name="spacing"><number>0</number></property>
-          <item row="0" column="0" rowspan="1" colspan="1">
-           <widget class="QGroupBox" name="container_groupbox">
-            <property name="title"><string>GroupBox</string></property>
-            <layout class="QGridLayout" name="container_groupbox_layout">
-             <property name="leftMargin"><number>2</number></property>
-             <property name="topMargin"><number>2</number></property>
-             <property name="rightMargin"><number>2</number></property>
-             <property name="bottomMargin"><number>2</number></property>
-             <property name="spacing"><number>2</number></property>
-             <item row="0" column="0" rowspan="1" colspan="1">
-              <widget class="QLabel" name="parent_label">
-               <property name="text"><string>TextLabel</string></property>
-              </widget>
-             </item>
-             <item row="0" column="1" rowspan="1" colspan="1">
-              <widget class="QComboBox" name="parent_combobox">
-              </widget>
-             </item>
-             <item row="1" column="0" rowspan="1" colspan="1">
-              <widget class="QLabel" name="position_x_label">
-               <property name="text"><string>TextLabel</string></property>
-              </widget>
-             </item>
-             <item row="1" column="1" rowspan="1" colspan="1">
-              <widget class="QDoubleSpinBox" name="position_x_spinbox">
-               <property name="keyboardTracking"><bool>false</bool></property>
-               <property name="decimals"><number>2</number></property>
-               <property name="minimum"><double>-100000.000000000000000</double></property>
-               <property name="maximum"><double>100000.000000000000000</double></property>
-              </widget>
-             </item>
-             <item row="2" column="0" rowspan="1" colspan="1">
-              <widget class="QLabel" name="position_y_label">
-               <property name="text"><string>TextLabel</string></property>
-              </widget>
-             </item>
-             <item row="2" column="1" rowspan="1" colspan="1">
-              <widget class="QDoubleSpinBox" name="position_y_spinbox">
-               <property name="keyboardTracking"><bool>false</bool></property>
-               <property name="decimals"><number>2</number></property>
-               <property name="minimum"><double>-100000.000000000000000</double></property>
-               <property name="maximum"><double>100000.000000000000000</double></property>
-              </widget>
-             </item>
-             <item row="3" column="0" rowspan="1" colspan="1">
-              <widget class="QLabel" name="block_priority_label">
-               <property name="text"><string>TextLabel</string></property>
-              </widget>
-             </item>
-             <item row="3" column="1" rowspan="1" colspan="1">
-              <widget class="QDoubleSpinBox" name="block_priority_spinbox">
-               <property name="keyboardTracking"><bool>false</bool></property>
-               <property name="decimals"><number>2</number></property>
-               <property name="minimum"><double>-100000.000000000000000</double></property>
-               <property name="maximum"><double>100000.000000000000000</double></property>
-              </widget>
-             </item>
-             <item row="4" column="0" rowspan="1" colspan="1">
-              <widget class="QLabel" name="arrangement_label">
-               <property name="text"><string>TextLabel</string></property>
-              </widget>
-             </item>
-             <item row="4" column="1" rowspan="1" colspan="1">
-              <widget class="QComboBox" name="arrangement_combobox">
-              </widget>
-             </item>
-             <item row="5" column="0" rowspan="1" colspan="1">
-              <widget class="QLabel" name="spacing_label">
-               <property name="text"><string>TextLabel</string></property>
-              </widget>
-             </item>
-             <item row="5" column="1" rowspan="1" colspan="1">
-              <widget class="QDoubleSpinBox" name="spacing_spinbox">
-               <property name="keyboardTracking"><bool>false</bool></property>
-               <property name="decimals"><number>2</number></property>
-               <property name="minimum"><double>-100000.000000000000000</double></property>
-               <property name="maximum"><double>100000.000000000000000</double></property>
-              </widget>
-             </item>
-             <item row="6" column="0" rowspan="1" colspan="1">
-              <widget class="QLabel" name="crescent_y_offset_label">
-               <property name="text"><string>TextLabel</string></property>
-              </widget>
-             </item>
-             <item row="6" column="1" rowspan="1" colspan="1">
-              <widget class="QDoubleSpinBox" name="crescent_y_offset_spinbox">
-               <property name="keyboardTracking"><bool>false</bool></property>
-               <property name="decimals"><number>2</number></property>
-               <property name="minimum"><double>-100000.000000000000000</double></property>
-               <property name="maximum"><double>100000.000000000000000</double></property>
-              </widget>
-             </item>
-             <item row="7" column="0" rowspan="1" colspan="1">
-              <widget class="QLabel" name="minimum_threshold_label">
-               <property name="text"><string>TextLabel</string></property>
-              </widget>
-             </item>
-             <item row="7" column="1" rowspan="1" colspan="1">
-              <widget class="QSpinBox" name="minimum_threshold_spinbox">
-               <property name="keyboardTracking"><bool>false</bool></property>
-               <property name="minimum"><number>0</number></property>
-               <property name="maximum"><number>10000</number></property>
-              </widget>
-             </item>
-             <item row="8" column="0" rowspan="1" colspan="1">
-              <widget class="QLabel" name="maximum_threshold_label">
-               <property name="text"><string>TextLabel</string></property>
-              </widget>
-             </item>
-             <item row="8" column="1" rowspan="1" colspan="1">
-              <widget class="QSpinBox" name="maximum_threshold_spinbox">
-               <property name="keyboardTracking"><bool>false</bool></property>
-               <property name="minimum"><number>-1</number></property>
-               <property name="maximum"><number>10000</number></property>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-          </item>
-          <item row="1" column="0" rowspan="1" colspan="1">
-           <widget class="QGroupBox" name="entity_preferences_groupbox">
-            <property name="title"><string>GroupBox</string></property>
-            <layout class="QGridLayout" name="entity_preferences_groupbox_layout">
-             <property name="leftMargin"><number>2</number></property>
-             <property name="topMargin"><number>2</number></property>
-             <property name="rightMargin"><number>2</number></property>
-             <property name="bottomMargin"><number>2</number></property>
-             <property name="spacing"><number>2</number></property>
-             <item row="0" column="0" rowspan="1" colspan="1">
-              <widget class="QTableView" name="entity_preferences_table_view">
-               <property name="alternatingRowColors"><bool>true</bool></property>
-              </widget>
-             </item>
-             <item row="1" column="0" rowspan="1" colspan="1">
-              <widget class="QWidget" name="entity_preferences_groupbox_buttons" native="true">
-               <layout class="QGridLayout" name="entity_preferences_groupbox_buttons_layout">
-                <property name="leftMargin"><number>0</number></property>
-                <property name="topMargin"><number>0</number></property>
-                <property name="rightMargin"><number>0</number></property>
-                <property name="bottomMargin"><number>0</number></property>
-                <property name="spacing"><number>0</number></property>
-                <item row="0" column="0" rowspan="1" colspan="1">
-                 <widget class="QToolButton" name="add_entity_preference_button">
-                  <property name="autoRaise"><bool>true</bool></property>
-                 </widget>
-                </item>
-                <item row="0" column="1" rowspan="1" colspan="1">
-                 <widget class="QToolButton" name="remove_entity_preference_button">
-                  <property name="autoRaise"><bool>true</bool></property>
-                 </widget>
-                </item>
-                <item row="0" column="2" rowspan="1" colspan="1">
-                 <spacer name="entity_preferences_groupbox_buttons_spacer">
-                  <property name="orientation"><enum>Qt::Horizontal</enum></property>
-                  <property name="sizeHint" stdset="0"><size><width>0</width><height>0</height></size></property>
-                 </spacer>
-                </item>
-               </layout>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-          </item>
-         </layout>
-        </widget>
-        <widget class="QWidget" name="span_page" native="true">
-         <layout class="QGridLayout" name="span_page_layout">
-          <property name="leftMargin"><number>0</number></property>
-          <property name="topMargin"><number>0</number></property>
-          <property name="rightMargin"><number>0</number></property>
-          <property name="bottomMargin"><number>0</number></property>
-          <property name="spacing"><number>0</number></property>
-          <item row="0" column="0" rowspan="1" colspan="1">
-           <widget class="QGroupBox" name="span_groupbox">
-            <property name="title"><string>GroupBox</string></property>
-            <layout class="QGridLayout" name="span_groupbox_layout">
-             <property name="leftMargin"><number>2</number></property>
-             <property name="topMargin"><number>2</number></property>
-             <property name="rightMargin"><number>2</number></property>
-             <property name="bottomMargin"><number>2</number></property>
-             <property name="spacing"><number>2</number></property>
-             <item row="0" column="0" rowspan="1" colspan="1">
-              <widget class="QListView" name="span_members_list_view">
-               <property name="alternatingRowColors"><bool>true</bool></property>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-          </item>
-          <item row="1" column="0" rowspan="1" colspan="1">
-           <spacer name="span_page_spacer">
-            <property name="orientation"><enum>Qt::Vertical</enum></property>
-            <property name="sizeHint" stdset="0"><size><width>0</width><height>0</height></size></property>
-           </spacer>
-          </item>
-         </layout>
-        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QScrollArea" name="inspector_scroll_area">
+      <property name="widgetResizable"><bool>true</bool></property>
+      <property name="minimumSize"><size><width>350</width><height>0</height></size></property>
+      <widget class="QStackedWidget" name="inspector_stack">
+       <widget class="QWidget" name="empty_page" native="true">
+        <layout class="QGridLayout" name="empty_page_layout">
+         <property name="leftMargin"><number>0</number></property>
+         <property name="topMargin"><number>0</number></property>
+         <property name="rightMargin"><number>0</number></property>
+         <property name="bottomMargin"><number>0</number></property>
+         <property name="spacing"><number>0</number></property>
+         <item row="0" column="0" rowspan="1" colspan="1">
+          <spacer name="empty_page_spacer">
+           <property name="orientation"><enum>Qt::Vertical</enum></property>
+           <property name="sizeHint" stdset="0"><size><width>0</width><height>0</height></size></property>
+          </spacer>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QWidget" name="formation_page" native="true">
+        <layout class="QGridLayout" name="formation_page_layout">
+         <property name="leftMargin"><number>0</number></property>
+         <property name="topMargin"><number>0</number></property>
+         <property name="rightMargin"><number>0</number></property>
+         <property name="bottomMargin"><number>0</number></property>
+         <property name="spacing"><number>0</number></property>
+         <item row="0" column="0" rowspan="1" colspan="1">
+          <widget class="QGroupBox" name="formation_groupbox">
+           <property name="title"><string>GroupBox</string></property>
+           <layout class="QGridLayout" name="formation_groupbox_layout">
+            <property name="leftMargin"><number>2</number></property>
+            <property name="topMargin"><number>2</number></property>
+            <property name="rightMargin"><number>2</number></property>
+            <property name="bottomMargin"><number>2</number></property>
+            <property name="spacing"><number>2</number></property>
+            <item row="0" column="0" rowspan="1" colspan="1">
+             <widget class="QLabel" name="name_label">
+              <property name="text"><string>TextLabel</string></property>
+             </widget>
+            </item>
+            <item row="0" column="1" rowspan="1" colspan="1">
+             <widget class="QLineEdit" name="name_line_edit">
+             </widget>
+            </item>
+            <item row="1" column="0" rowspan="1" colspan="1">
+             <widget class="QLabel" name="ai_priority_label">
+              <property name="text"><string>TextLabel</string></property>
+             </widget>
+            </item>
+            <item row="1" column="1" rowspan="1" colspan="1">
+             <widget class="QDoubleSpinBox" name="ai_priority_spinbox">
+              <property name="keyboardTracking"><bool>false</bool></property>
+              <property name="decimals"><number>2</number></property>
+              <property name="minimum"><double>-100000.000000000000000</double></property>
+              <property name="maximum"><double>100000.000000000000000</double></property>
+             </widget>
+            </item>
+            <item row="2" column="0" rowspan="1" colspan="1">
+             <widget class="QLabel" name="uk_2_label">
+              <property name="text"><string>TextLabel</string></property>
+             </widget>
+            </item>
+            <item row="2" column="1" rowspan="1" colspan="1">
+             <widget class="QSpinBox" name="uk_2_spinbox">
+              <property name="keyboardTracking"><bool>false</bool></property>
+              <property name="minimum"><number>0</number></property>
+              <property name="maximum"><number>2147483647</number></property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item row="1" column="0" rowspan="1" colspan="1">
+          <widget class="QGroupBox" name="ai_purpose_groupbox">
+           <property name="title"><string>GroupBox</string></property>
+           <layout class="QGridLayout" name="ai_purpose_groupbox_layout">
+            <property name="leftMargin"><number>2</number></property>
+            <property name="topMargin"><number>2</number></property>
+            <property name="rightMargin"><number>2</number></property>
+            <property name="bottomMargin"><number>2</number></property>
+            <property name="spacing"><number>2</number></property>
+            <item row="0" column="0" rowspan="1" colspan="1">
+             <widget class="QListView" name="ai_purpose_list_view">
+              <property name="alternatingRowColors"><bool>true</bool></property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item row="2" column="0" rowspan="1" colspan="1">
+          <widget class="QGroupBox" name="min_unit_category_groupbox">
+           <property name="title"><string>GroupBox</string></property>
+           <layout class="QGridLayout" name="min_unit_category_groupbox_layout">
+            <property name="leftMargin"><number>2</number></property>
+            <property name="topMargin"><number>2</number></property>
+            <property name="rightMargin"><number>2</number></property>
+            <property name="bottomMargin"><number>2</number></property>
+            <property name="spacing"><number>2</number></property>
+            <item row="0" column="0" rowspan="1" colspan="1">
+             <widget class="QTableView" name="min_unit_category_table_view">
+              <property name="alternatingRowColors"><bool>true</bool></property>
+             </widget>
+            </item>
+            <item row="1" column="0" rowspan="1" colspan="1">
+             <widget class="QWidget" name="min_unit_category_groupbox_buttons" native="true">
+              <layout class="QGridLayout" name="min_unit_category_groupbox_buttons_layout">
+               <property name="leftMargin"><number>0</number></property>
+               <property name="topMargin"><number>0</number></property>
+               <property name="rightMargin"><number>0</number></property>
+               <property name="bottomMargin"><number>0</number></property>
+               <property name="spacing"><number>0</number></property>
+               <item row="0" column="0" rowspan="1" colspan="1">
+                <widget class="QToolButton" name="add_min_unit_category_button">
+                 <property name="autoRaise"><bool>true</bool></property>
+                </widget>
+               </item>
+               <item row="0" column="1" rowspan="1" colspan="1">
+                <widget class="QToolButton" name="remove_min_unit_category_button">
+                 <property name="autoRaise"><bool>true</bool></property>
+                </widget>
+               </item>
+               <item row="0" column="2" rowspan="1" colspan="1">
+                <spacer name="min_unit_category_groupbox_buttons_spacer">
+                 <property name="orientation"><enum>Qt::Horizontal</enum></property>
+                 <property name="sizeHint" stdset="0"><size><width>0</width><height>0</height></size></property>
+                </spacer>
+               </item>
+              </layout>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item row="3" column="0" rowspan="1" colspan="1">
+          <widget class="QGroupBox" name="subcultures_groupbox">
+           <property name="title"><string>GroupBox</string></property>
+           <layout class="QGridLayout" name="subcultures_groupbox_layout">
+            <property name="leftMargin"><number>2</number></property>
+            <property name="topMargin"><number>2</number></property>
+            <property name="rightMargin"><number>2</number></property>
+            <property name="bottomMargin"><number>2</number></property>
+            <property name="spacing"><number>2</number></property>
+            <item row="0" column="0" rowspan="1" colspan="1">
+             <widget class="QListView" name="subcultures_list_view">
+              <property name="alternatingRowColors"><bool>true</bool></property>
+             </widget>
+            </item>
+            <item row="1" column="0" rowspan="1" colspan="1">
+             <widget class="QWidget" name="subcultures_groupbox_buttons" native="true">
+              <layout class="QGridLayout" name="subcultures_groupbox_buttons_layout">
+               <property name="leftMargin"><number>0</number></property>
+               <property name="topMargin"><number>0</number></property>
+               <property name="rightMargin"><number>0</number></property>
+               <property name="bottomMargin"><number>0</number></property>
+               <property name="spacing"><number>0</number></property>
+               <item row="0" column="0" rowspan="1" colspan="1">
+                <widget class="QToolButton" name="add_subculture_button">
+                 <property name="autoRaise"><bool>true</bool></property>
+                </widget>
+               </item>
+               <item row="0" column="1" rowspan="1" colspan="1">
+                <widget class="QToolButton" name="remove_subculture_button">
+                 <property name="autoRaise"><bool>true</bool></property>
+                </widget>
+               </item>
+               <item row="0" column="2" rowspan="1" colspan="1">
+                <spacer name="subcultures_groupbox_buttons_spacer">
+                 <property name="orientation"><enum>Qt::Horizontal</enum></property>
+                 <property name="sizeHint" stdset="0"><size><width>0</width><height>0</height></size></property>
+                </spacer>
+               </item>
+              </layout>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item row="4" column="0" rowspan="1" colspan="1">
+          <widget class="QGroupBox" name="factions_groupbox">
+           <property name="title"><string>GroupBox</string></property>
+           <layout class="QGridLayout" name="factions_groupbox_layout">
+            <property name="leftMargin"><number>2</number></property>
+            <property name="topMargin"><number>2</number></property>
+            <property name="rightMargin"><number>2</number></property>
+            <property name="bottomMargin"><number>2</number></property>
+            <property name="spacing"><number>2</number></property>
+            <item row="0" column="0" rowspan="1" colspan="1">
+             <widget class="QListView" name="factions_list_view">
+              <property name="alternatingRowColors"><bool>true</bool></property>
+             </widget>
+            </item>
+            <item row="1" column="0" rowspan="1" colspan="1">
+             <widget class="QWidget" name="factions_groupbox_buttons" native="true">
+              <layout class="QGridLayout" name="factions_groupbox_buttons_layout">
+               <property name="leftMargin"><number>0</number></property>
+               <property name="topMargin"><number>0</number></property>
+               <property name="rightMargin"><number>0</number></property>
+               <property name="bottomMargin"><number>0</number></property>
+               <property name="spacing"><number>0</number></property>
+               <item row="0" column="0" rowspan="1" colspan="1">
+                <widget class="QToolButton" name="add_faction_button">
+                 <property name="autoRaise"><bool>true</bool></property>
+                </widget>
+               </item>
+               <item row="0" column="1" rowspan="1" colspan="1">
+                <widget class="QToolButton" name="remove_faction_button">
+                 <property name="autoRaise"><bool>true</bool></property>
+                </widget>
+               </item>
+               <item row="0" column="2" rowspan="1" colspan="1">
+                <spacer name="factions_groupbox_buttons_spacer">
+                 <property name="orientation"><enum>Qt::Horizontal</enum></property>
+                 <property name="sizeHint" stdset="0"><size><width>0</width><height>0</height></size></property>
+                </spacer>
+               </item>
+              </layout>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QWidget" name="container_page" native="true">
+        <layout class="QGridLayout" name="container_page_layout">
+         <property name="leftMargin"><number>0</number></property>
+         <property name="topMargin"><number>0</number></property>
+         <property name="rightMargin"><number>0</number></property>
+         <property name="bottomMargin"><number>0</number></property>
+         <property name="spacing"><number>0</number></property>
+         <item row="0" column="0" rowspan="1" colspan="1">
+          <widget class="QGroupBox" name="container_groupbox">
+           <property name="title"><string>GroupBox</string></property>
+           <layout class="QGridLayout" name="container_groupbox_layout">
+            <property name="leftMargin"><number>2</number></property>
+            <property name="topMargin"><number>2</number></property>
+            <property name="rightMargin"><number>2</number></property>
+            <property name="bottomMargin"><number>2</number></property>
+            <property name="spacing"><number>2</number></property>
+            <item row="0" column="0" rowspan="1" colspan="1">
+             <widget class="QLabel" name="parent_label">
+              <property name="text"><string>TextLabel</string></property>
+             </widget>
+            </item>
+            <item row="0" column="1" rowspan="1" colspan="1">
+             <widget class="QComboBox" name="parent_combobox">
+             </widget>
+            </item>
+            <item row="1" column="0" rowspan="1" colspan="1">
+             <widget class="QLabel" name="position_x_label">
+              <property name="text"><string>TextLabel</string></property>
+             </widget>
+            </item>
+            <item row="1" column="1" rowspan="1" colspan="1">
+             <widget class="QDoubleSpinBox" name="position_x_spinbox">
+              <property name="keyboardTracking"><bool>false</bool></property>
+              <property name="decimals"><number>2</number></property>
+              <property name="minimum"><double>-100000.000000000000000</double></property>
+              <property name="maximum"><double>100000.000000000000000</double></property>
+             </widget>
+            </item>
+            <item row="2" column="0" rowspan="1" colspan="1">
+             <widget class="QLabel" name="position_y_label">
+              <property name="text"><string>TextLabel</string></property>
+             </widget>
+            </item>
+            <item row="2" column="1" rowspan="1" colspan="1">
+             <widget class="QDoubleSpinBox" name="position_y_spinbox">
+              <property name="keyboardTracking"><bool>false</bool></property>
+              <property name="decimals"><number>2</number></property>
+              <property name="minimum"><double>-100000.000000000000000</double></property>
+              <property name="maximum"><double>100000.000000000000000</double></property>
+             </widget>
+            </item>
+            <item row="3" column="0" rowspan="1" colspan="1">
+             <widget class="QLabel" name="block_priority_label">
+              <property name="text"><string>TextLabel</string></property>
+             </widget>
+            </item>
+            <item row="3" column="1" rowspan="1" colspan="1">
+             <widget class="QDoubleSpinBox" name="block_priority_spinbox">
+              <property name="keyboardTracking"><bool>false</bool></property>
+              <property name="decimals"><number>2</number></property>
+              <property name="minimum"><double>-100000.000000000000000</double></property>
+              <property name="maximum"><double>100000.000000000000000</double></property>
+             </widget>
+            </item>
+            <item row="4" column="0" rowspan="1" colspan="1">
+             <widget class="QLabel" name="arrangement_label">
+              <property name="text"><string>TextLabel</string></property>
+             </widget>
+            </item>
+            <item row="4" column="1" rowspan="1" colspan="1">
+             <widget class="QComboBox" name="arrangement_combobox">
+             </widget>
+            </item>
+            <item row="5" column="0" rowspan="1" colspan="1">
+             <widget class="QLabel" name="spacing_label">
+              <property name="text"><string>TextLabel</string></property>
+             </widget>
+            </item>
+            <item row="5" column="1" rowspan="1" colspan="1">
+             <widget class="QDoubleSpinBox" name="spacing_spinbox">
+              <property name="keyboardTracking"><bool>false</bool></property>
+              <property name="decimals"><number>2</number></property>
+              <property name="minimum"><double>-100000.000000000000000</double></property>
+              <property name="maximum"><double>100000.000000000000000</double></property>
+             </widget>
+            </item>
+            <item row="6" column="0" rowspan="1" colspan="1">
+             <widget class="QLabel" name="crescent_y_offset_label">
+              <property name="text"><string>TextLabel</string></property>
+             </widget>
+            </item>
+            <item row="6" column="1" rowspan="1" colspan="1">
+             <widget class="QDoubleSpinBox" name="crescent_y_offset_spinbox">
+              <property name="keyboardTracking"><bool>false</bool></property>
+              <property name="decimals"><number>2</number></property>
+              <property name="minimum"><double>-100000.000000000000000</double></property>
+              <property name="maximum"><double>100000.000000000000000</double></property>
+             </widget>
+            </item>
+            <item row="7" column="0" rowspan="1" colspan="1">
+             <widget class="QLabel" name="minimum_threshold_label">
+              <property name="text"><string>TextLabel</string></property>
+             </widget>
+            </item>
+            <item row="7" column="1" rowspan="1" colspan="1">
+             <widget class="QSpinBox" name="minimum_threshold_spinbox">
+              <property name="keyboardTracking"><bool>false</bool></property>
+              <property name="minimum"><number>0</number></property>
+              <property name="maximum"><number>10000</number></property>
+             </widget>
+            </item>
+            <item row="8" column="0" rowspan="1" colspan="1">
+             <widget class="QLabel" name="maximum_threshold_label">
+              <property name="text"><string>TextLabel</string></property>
+             </widget>
+            </item>
+            <item row="8" column="1" rowspan="1" colspan="1">
+             <widget class="QSpinBox" name="maximum_threshold_spinbox">
+              <property name="keyboardTracking"><bool>false</bool></property>
+              <property name="minimum"><number>-1</number></property>
+              <property name="maximum"><number>10000</number></property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item row="1" column="0" rowspan="1" colspan="1">
+          <widget class="QGroupBox" name="entity_preferences_groupbox">
+           <property name="title"><string>GroupBox</string></property>
+           <layout class="QGridLayout" name="entity_preferences_groupbox_layout">
+            <property name="leftMargin"><number>2</number></property>
+            <property name="topMargin"><number>2</number></property>
+            <property name="rightMargin"><number>2</number></property>
+            <property name="bottomMargin"><number>2</number></property>
+            <property name="spacing"><number>2</number></property>
+            <item row="0" column="0" rowspan="1" colspan="1">
+             <widget class="QTableView" name="entity_preferences_table_view">
+              <property name="alternatingRowColors"><bool>true</bool></property>
+             </widget>
+            </item>
+            <item row="1" column="0" rowspan="1" colspan="1">
+             <widget class="QWidget" name="entity_preferences_groupbox_buttons" native="true">
+              <layout class="QGridLayout" name="entity_preferences_groupbox_buttons_layout">
+               <property name="leftMargin"><number>0</number></property>
+               <property name="topMargin"><number>0</number></property>
+               <property name="rightMargin"><number>0</number></property>
+               <property name="bottomMargin"><number>0</number></property>
+               <property name="spacing"><number>0</number></property>
+               <item row="0" column="0" rowspan="1" colspan="1">
+                <widget class="QToolButton" name="add_entity_preference_button">
+                 <property name="autoRaise"><bool>true</bool></property>
+                </widget>
+               </item>
+               <item row="0" column="1" rowspan="1" colspan="1">
+                <widget class="QToolButton" name="remove_entity_preference_button">
+                 <property name="autoRaise"><bool>true</bool></property>
+                </widget>
+               </item>
+               <item row="0" column="2" rowspan="1" colspan="1">
+                <spacer name="entity_preferences_groupbox_buttons_spacer">
+                 <property name="orientation"><enum>Qt::Horizontal</enum></property>
+                 <property name="sizeHint" stdset="0"><size><width>0</width><height>0</height></size></property>
+                </spacer>
+               </item>
+              </layout>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QWidget" name="span_page" native="true">
+        <layout class="QGridLayout" name="span_page_layout">
+         <property name="leftMargin"><number>0</number></property>
+         <property name="topMargin"><number>0</number></property>
+         <property name="rightMargin"><number>0</number></property>
+         <property name="bottomMargin"><number>0</number></property>
+         <property name="spacing"><number>0</number></property>
+         <item row="0" column="0" rowspan="1" colspan="1">
+          <widget class="QGroupBox" name="span_groupbox">
+           <property name="title"><string>GroupBox</string></property>
+           <layout class="QGridLayout" name="span_groupbox_layout">
+            <property name="leftMargin"><number>2</number></property>
+            <property name="topMargin"><number>2</number></property>
+            <property name="rightMargin"><number>2</number></property>
+            <property name="bottomMargin"><number>2</number></property>
+            <property name="spacing"><number>2</number></property>
+            <item row="0" column="0" rowspan="1" colspan="1">
+             <widget class="QListView" name="span_members_list_view">
+              <property name="alternatingRowColors"><bool>true</bool></property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item row="1" column="0" rowspan="1" colspan="1">
+          <spacer name="span_page_spacer">
+           <property name="orientation"><enum>Qt::Vertical</enum></property>
+           <property name="sizeHint" stdset="0"><size><width>0</width><height>0</height></size></property>
+          </spacer>
+         </item>
+        </layout>
        </widget>
       </widget>
-     </widget>
-     <widget class="QListView" name="issues_list_view">
-      <property name="alternatingRowColors"><bool>true</bool></property>
      </widget>
     </widget>
    </item>

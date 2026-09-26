@@ -464,6 +464,15 @@ impl DiagnosticsUISlots {
                 diag_blocked!(diagnostics_ui, checkbox_invalid_variant_filename, toggled);
                 diag_blocked!(diagnostics_ui, checkbox_file_diffuse_not_found_for_variant, toggled);
                 diag_blocked!(diagnostics_ui, checkbox_datacored_portrait_settings, toggled);
+                diag_blocked!(diagnostics_ui, checkbox_group_formations_duplicate_formation_name, toggled);
+                diag_blocked!(diagnostics_ui, checkbox_group_formations_no_absolute_block, toggled);
+                diag_blocked!(diagnostics_ui, checkbox_group_formations_duplicate_block_id, toggled);
+                diag_blocked!(diagnostics_ui, checkbox_group_formations_missing_reference, toggled);
+                diag_blocked!(diagnostics_ui, checkbox_group_formations_forward_reference, toggled);
+                diag_blocked!(diagnostics_ui, checkbox_group_formations_reference_cycle, toggled);
+                diag_blocked!(diagnostics_ui, checkbox_group_formations_empty_span, toggled);
+                diag_blocked!(diagnostics_ui, checkbox_group_formations_invalid_thresholds, toggled);
+                diag_blocked!(diagnostics_ui, checkbox_group_formations_no_entity_preferences, toggled);
                 diag_blocked!(diagnostics_ui, checkbox_file_mask_1_not_found_for_variant, toggled);
                 diag_blocked!(diagnostics_ui, checkbox_file_mask_2_not_found_for_variant, toggled);
                 diag_blocked!(diagnostics_ui, checkbox_file_mask_3_not_found_for_variant, toggled);

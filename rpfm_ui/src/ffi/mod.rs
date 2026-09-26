@@ -307,6 +307,45 @@ pub fn group_formation_canvas_fit_safe(canvas: &QPtr<QGraphicsView>) {
     unsafe { group_formation_canvas_fit(canvas.as_mut_raw_ptr()) }
 }
 
+extern "C" { fn group_formation_canvas_set_grid_step(canvas: *mut QGraphicsView, step: f64); }
+pub fn group_formation_canvas_set_grid_step_safe(canvas: &QPtr<QGraphicsView>, step: f64) {
+    unsafe { group_formation_canvas_set_grid_step(canvas.as_mut_raw_ptr(), step) }
+}
+
+extern "C" { fn group_formation_canvas_moved_delta_x(canvas: *mut QGraphicsView) -> f64; }
+extern "C" { fn group_formation_canvas_moved_delta_y(canvas: *mut QGraphicsView) -> f64; }
+/// Returns how far the last drag on the canvas moved the selected blocks, in scene coordinates.
+pub fn group_formation_canvas_moved_delta_safe(canvas: &QPtr<QGraphicsView>) -> (f64, f64) {
+    unsafe { (group_formation_canvas_moved_delta_x(canvas.as_mut_raw_ptr()), group_formation_canvas_moved_delta_y(canvas.as_mut_raw_ptr())) }
+}
+
+extern "C" { fn group_formation_canvas_link_child(canvas: *mut QGraphicsView) -> u32; }
+extern "C" { fn group_formation_canvas_link_parent(canvas: *mut QGraphicsView) -> u32; }
+/// Returns the child and parent ids of the last link drawn on the canvas.
+pub fn group_formation_canvas_link_safe(canvas: &QPtr<QGraphicsView>) -> (u32, u32) {
+    unsafe { (group_formation_canvas_link_child(canvas.as_mut_raw_ptr()), group_formation_canvas_link_parent(canvas.as_mut_raw_ptr())) }
+}
+
+// Signal emitted by the canvas when the user finishes dragging blocks.
+pub fn group_formation_canvas_blocks_moved_signal(canvas: &QPtr<QGraphicsView>) -> Signal<()> {
+    unsafe {
+        Signal::new(
+            ::cpp_core::Ref::from_raw(canvas.as_raw_ptr()).expect("attempted to construct a null Ref"),
+            c"2blocksMoved()",
+        )
+    }
+}
+
+// Signal emitted by the canvas when the user draws a link from a block to another.
+pub fn group_formation_canvas_link_requested_signal(canvas: &QPtr<QGraphicsView>) -> Signal<()> {
+    unsafe {
+        Signal::new(
+            ::cpp_core::Ref::from_raw(canvas.as_raw_ptr()).expect("attempted to construct a null Ref"),
+            c"2linkRequested()",
+        )
+    }
+}
+
 // Signal emitted by the canvas when the user changes which blocks are selected.
 pub fn group_formation_canvas_selection_changed_signal(canvas: &QPtr<QGraphicsView>) -> Signal<()> {
     unsafe {

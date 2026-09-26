@@ -80,6 +80,15 @@ pub unsafe fn set_connections(ui: &DiagnosticsUI, slots: &DiagnosticsUISlots) {
     ui.checkbox_file_mask_2_not_found_for_variant.toggled().connect(slots.toggle_filters());
     ui.checkbox_file_mask_3_not_found_for_variant.toggled().connect(slots.toggle_filters());
     ui.checkbox_datacored_portrait_settings.toggled().connect(slots.toggle_filters());
+    ui.checkbox_group_formations_duplicate_formation_name.toggled().connect(slots.toggle_filters());
+    ui.checkbox_group_formations_no_absolute_block.toggled().connect(slots.toggle_filters());
+    ui.checkbox_group_formations_duplicate_block_id.toggled().connect(slots.toggle_filters());
+    ui.checkbox_group_formations_missing_reference.toggled().connect(slots.toggle_filters());
+    ui.checkbox_group_formations_forward_reference.toggled().connect(slots.toggle_filters());
+    ui.checkbox_group_formations_reference_cycle.toggled().connect(slots.toggle_filters());
+    ui.checkbox_group_formations_empty_span.toggled().connect(slots.toggle_filters());
+    ui.checkbox_group_formations_invalid_thresholds.toggled().connect(slots.toggle_filters());
+    ui.checkbox_group_formations_no_entity_preferences.toggled().connect(slots.toggle_filters());
     ui.checkbox_loocomotion_graph_path_not_found.toggled().connect(slots.toggle_filters());
     ui.checkbox_file_path_not_found.toggled().connect(slots.toggle_filters());
     ui.checkbox_meta_file_path_not_found.toggled().connect(slots.toggle_filters());

@@ -673,3 +673,22 @@ fn test_entity_labels_are_unique_per_format() {
         assert_eq!(labels.len(), format.entities().len(), "{format:?}");
     }
 }
+
+#[test]
+fn test_move_blocks_skips_blocks_moved_by_their_parents() {
+    let mut formation = formation_with(vec![
+        absolute_block(0),
+        offset_block(1, 0, 5.0, 0.0),
+        absolute_block(2),
+        span_block(3, vec![0, 1]),
+        offset_block(4, 3, 0.0, 10.0),
+    ]);
+
+    formation.move_blocks(&[0, 1, 2, 3, 4], (10.0, 4.0), 5.0, &LayoutParams::default()).unwrap();
+
+    // Blocks 1 and 4 depend on block 0, so they keep their offsets and move with it.
+    assert_eq!(center_of(&formation, 0), (10.0, 5.0));
+    assert_eq!(center_of(&formation, 2), (10.0, 5.0));
+    assert_eq!(formation.group_formation_blocks()[1], offset_block(1, 0, 5.0, 0.0));
+    assert_eq!(formation.group_formation_blocks()[4], offset_block(4, 3, 0.0, 10.0));
+}

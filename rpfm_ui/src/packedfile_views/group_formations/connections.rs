@@ -21,7 +21,7 @@ use super::{GroupFormationsView, ItemList, slots::GroupFormationsSlots};
 use qt_core::QBox;
 use qt_core::SlotNoArgs;
 
-use crate::ffi::group_formation_canvas_selection_changed_signal;
+use crate::ffi::{group_formation_canvas_blocks_moved_signal, group_formation_canvas_link_requested_signal, group_formation_canvas_selection_changed_signal};
 
 /// This function connects all the actions from the provided `GroupFormationsView` with their slots in `GroupFormationsSlots`.
 pub unsafe fn set_connections(ui: &Arc<GroupFormationsView>, slots: &GroupFormationsSlots) {
@@ -63,10 +63,14 @@ pub unsafe fn set_connections(ui: &Arc<GroupFormationsView>, slots: &GroupFormat
     ui.span_members_model().item_changed().connect(slots.span_members_changed());
 
     group_formation_canvas_selection_changed_signal(ui.canvas()).connect(slots.canvas_selection_changed());
+    group_formation_canvas_blocks_moved_signal(ui.canvas()).connect(slots.canvas_blocks_moved());
+    group_formation_canvas_link_requested_signal(ui.canvas()).connect(slots.canvas_link_requested());
+    ui.canvas().custom_context_menu_requested().connect(slots.canvas_context_menu());
+    ui.grid_step_spinbox().value_changed().connect(slots.grid_step_changed());
     ui.unit_count_spinbox().value_changed().connect(slots.unit_count_changed());
     ui.fit_button().released().connect(slots.fit_canvas());
 
-    ui.issues_list_view().clicked().connect(slots.issue_clicked());
+    ui.diagnostics_timer().timeout().connect(slots.update_diagnostics());
 }
 
 /// Connects an inspector list to the slot saving it, and its buttons to the slots adding and removing rows.

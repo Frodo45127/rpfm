@@ -34,7 +34,29 @@ Battle Map Definition files — the binary scene description for battle maps (te
 
 ## Group formations
 
-Formation definitions for unit groups (e.g. infantry block, cavalry charge wedge). UI is a **JSON debug view** — the lib supports full read/write for the per-game variants (Warhammer 3 / Three Kingdoms / Troy / Rome 2 / Shogun 2 each have their own decode path), but the editor is the generic JSON editor.
+Formation templates the AI (and multiple-selection drag-outs) use to deploy armies. Supported for Shogun 2, Rome 2, Attila, Thrones of Britannia, Troy, Pharaoh, Three Kingdoms and Warhammer 3.
+
+Each formation is a set of **blocks**:
+
+- **Absolute blocks** sit at a fixed position. Every formation needs at least one, as it anchors the rest.
+- **Relative blocks** sit at an offset from another block, their parent.
+- **Spans** group other blocks, so relative blocks can be positioned from the whole group.
+
+The editor has three columns:
+
+- **Formations**: the list of formations, with add, clone and delete. Formations with issues get an error or warning icon.
+- **Canvas and blocks tree**: the canvas draws a simulated deployment of the selected formation over a grid in meters, with the front at the top. The tree below shows each block under its parent. Selection is shared between both.
+  - Drag blocks to move them. Their offsets snap to the grid step set above the canvas.
+  - Shift+drag from a block to another to make the second one its parent.
+  - Drag on empty space to select several blocks, and right-click for the block actions (add, add span over the selection, delete, delete with children).
+  - **Units per Block** changes how many units the simulation assumes, so you can check how the formation stretches.
+- **Inspector**: the properties of the selected formation, container or span, including AI purposes, unit category requirements, supported subcultures and factions, and each block's entity preferences.
+
+Edits can be undone with **Ctrl+Z**. Deleting a block re-attaches its children to the closest surviving ancestor, keeping them in place. Issues like missing references or blocks depending on each other in a loop are reported in the [Diagnostics panel](../search/diagnostics.md).
+
+> The simulated layout assumes a relative block's offset is a gap measured from its parent's edge, and that a zero offset centers it on the parent. This hasn't been confirmed in-game yet, so the canvas may not match the game exactly.
+
+If you need the raw data, enable **Use Debug View for Group Formations** in the settings to open these files as JSON instead.
 
 ## Animation file formats summary
 

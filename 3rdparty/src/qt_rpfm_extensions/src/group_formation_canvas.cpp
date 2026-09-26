@@ -71,6 +71,26 @@ extern "C" void group_formation_canvas_fit(QGraphicsView* canvas) {
     dynamic_cast<GroupFormationCanvas*>(canvas)->fitToBlocks();
 }
 
+extern "C" void group_formation_canvas_set_grid_step(QGraphicsView* canvas, double step) {
+    dynamic_cast<GroupFormationCanvas*>(canvas)->setGridStep(step);
+}
+
+extern "C" double group_formation_canvas_moved_delta_x(QGraphicsView* canvas) {
+    return dynamic_cast<GroupFormationCanvas*>(canvas)->movedDelta().x();
+}
+
+extern "C" double group_formation_canvas_moved_delta_y(QGraphicsView* canvas) {
+    return dynamic_cast<GroupFormationCanvas*>(canvas)->movedDelta().y();
+}
+
+extern "C" quint32 group_formation_canvas_link_child(QGraphicsView* canvas) {
+    return dynamic_cast<GroupFormationCanvas*>(canvas)->linkChild();
+}
+
+extern "C" quint32 group_formation_canvas_link_parent(QGraphicsView* canvas) {
+    return dynamic_cast<GroupFormationCanvas*>(canvas)->linkParent();
+}
+
 //---------------------------------------------------------------------------//
 //                                Block item
 //---------------------------------------------------------------------------//
@@ -83,6 +103,9 @@ GroupFormationBlockItem::GroupFormationBlockItem(quint32 id, int kind, const QRe
     color(color)
 {
     setFlag(QGraphicsItem::ItemIsSelectable, true);
+
+    // Spans can't be moved, as their position comes from their members.
+    setFlag(QGraphicsItem::ItemIsMovable, kind != GroupFormationBlockKind::Span);
     setZValue(kind == GroupFormationBlockKind::Span ? Z_SPAN : Z_CONTAINER);
     setToolTip(label);
 }
@@ -119,18 +142,25 @@ void GroupFormationBlockItem::paint(QPainter* painter, const QStyleOptionGraphic
         painter->drawRect(rect());
     }
 
-    // Text is laid out in meters, so it scales with the zoom like the blocks do.
-    QFont font = painter->font();
-    font.setPointSizeF(qMin(rect().height() * 0.45, 3.0));
+    // Text is drawn in pixels at the normal font size, as fonts scaled by the zoom fail to render when they get too big.
+    const QRectF text_rect = painter->worldTransform().mapRect(rect()).adjusted(3.0, 1.0, -3.0, -1.0);
+    const QFont font = widget ? widget->font() : painter->font();
+    const QFontMetricsF metrics(font);
+    if (text_rect.height() < metrics.height() || text_rect.width() < metrics.averageCharWidth() * 3.0) {
+        return;
+    }
+
+    painter->save();
+    painter->resetTransform();
     painter->setFont(font);
 
     const QColor text_color = block_kind == GroupFormationBlockKind::Span ? palette.color(QPalette::Text) : (color.lightnessF() > 0.5 ? Qt::black : Qt::white);
     painter->setPen(text_color);
 
-    const QRectF text_rect = rect().adjusted(0.5, 0.2, -0.5, -0.2);
-    const QString text = QFontMetricsF(font).elidedText(label, Qt::ElideRight, text_rect.width());
+    const QString text = metrics.elidedText(label, Qt::ElideRight, text_rect.width());
     const Qt::Alignment alignment = block_kind == GroupFormationBlockKind::Span ? (Qt::AlignLeft | Qt::AlignTop) : Qt::AlignCenter;
     painter->drawText(text_rect, alignment, text);
+    painter->restore();
 }
 
 //---------------------------------------------------------------------------//
@@ -143,7 +173,11 @@ GroupFormationCanvas::GroupFormationCanvas(QWidget* parent):
     grid_step(DEFAULT_GRID_STEP),
     is_updating_selection(false),
     is_panning(false),
-    is_fit_pending(false)
+    is_fit_pending(false),
+    link_source(nullptr),
+    link_preview(nullptr),
+    link_child(0),
+    link_parent(0)
 {
     setScene(formation_scene);
     setRenderHint(QPainter::Antialiasing, true);
@@ -165,6 +199,8 @@ void GroupFormationCanvas::clearBlocks() {
     is_updating_selection = true;
     formation_scene->clear();
     blocks.clear();
+    link_source = nullptr;
+    link_preview = nullptr;
     is_updating_selection = false;
 }
 
@@ -270,6 +306,37 @@ void GroupFormationCanvas::fitToBlocks() {
     fitInView(bounds.adjusted(-FIT_MARGIN, -FIT_MARGIN, FIT_MARGIN, FIT_MARGIN), Qt::KeepAspectRatio);
 }
 
+void GroupFormationCanvas::setGridStep(qreal step) {
+    if (step > 0.0) {
+        grid_step = step;
+        viewport()->update();
+    }
+}
+
+QPointF GroupFormationCanvas::movedDelta() const {
+    return moved_delta;
+}
+
+quint32 GroupFormationCanvas::linkChild() const {
+    return link_child;
+}
+
+quint32 GroupFormationCanvas::linkParent() const {
+    return link_parent;
+}
+
+GroupFormationBlockItem* GroupFormationCanvas::blockAt(const QPoint& position, const GroupFormationBlockItem* ignored) const {
+
+    // Items come sorted from top to bottom, so containers are found before the spans behind them.
+    for (QGraphicsItem* item : items(position)) {
+        GroupFormationBlockItem* block = dynamic_cast<GroupFormationBlockItem*>(item);
+        if (block != nullptr && block != ignored) {
+            return block;
+        }
+    }
+    return nullptr;
+}
+
 void GroupFormationCanvas::drawBackground(QPainter* painter, const QRectF& rect) {
     painter->fillRect(rect, palette().color(QPalette::Base));
 
@@ -359,10 +426,38 @@ void GroupFormationCanvas::mousePressEvent(QMouseEvent* event) {
         return;
     }
 
+    GroupFormationBlockItem* block = blockAt(event->pos());
+
+    // Shift+drag from a block starts drawing a link instead of moving or selecting.
+    if (event->button() == Qt::LeftButton && (event->modifiers() & Qt::ShiftModifier) && block != nullptr) {
+        link_source = block;
+        const QPointF start = block->rect().center();
+        QPen pen(palette().color(QPalette::Highlight));
+        pen.setCosmetic(true);
+        pen.setWidthF(2.0);
+        pen.setStyle(Qt::DashLine);
+        link_preview = formation_scene->addLine(QLineF(start, start), pen);
+        link_preview->setZValue(Z_CONTAINER + 1.0);
+        event->accept();
+        return;
+    }
+
+    // Right-clicking a block that's not selected selects only it, so the context menu acts on it.
+    if (event->button() == Qt::RightButton && block != nullptr && !block->isSelected()) {
+        formation_scene->clearSelection();
+        block->setSelected(true);
+    }
+
     QGraphicsView::mousePressEvent(event);
 }
 
 void GroupFormationCanvas::mouseMoveEvent(QMouseEvent* event) {
+    if (link_preview != nullptr) {
+        link_preview->setLine(QLineF(link_preview->line().p1(), mapToScene(event->pos())));
+        event->accept();
+        return;
+    }
+
     if (is_panning) {
         const QPoint delta = event->pos() - last_pan_position;
         last_pan_position = event->pos();
@@ -390,5 +485,35 @@ void GroupFormationCanvas::mouseReleaseEvent(QMouseEvent* event) {
         return;
     }
 
+    if (event->button() == Qt::LeftButton && link_preview != nullptr) {
+        GroupFormationBlockItem* target = blockAt(event->pos(), link_source);
+        const quint32 child = link_source->blockId();
+
+        formation_scene->removeItem(link_preview);
+        delete link_preview;
+        link_preview = nullptr;
+        link_source = nullptr;
+
+        if (target != nullptr) {
+            link_child = child;
+            link_parent = target->blockId();
+            emit linkRequested();
+        }
+
+        event->accept();
+        return;
+    }
+
     QGraphicsView::mouseReleaseEvent(event);
+
+    // Dragged items keep their rect and get an offset position, which is the same for all of them.
+    if (event->button() == Qt::LeftButton) {
+        for (QGraphicsItem* item : formation_scene->selectedItems()) {
+            if (!item->pos().isNull()) {
+                moved_delta = item->pos();
+                emit blocksMoved();
+                break;
+            }
+        }
+    }
 }

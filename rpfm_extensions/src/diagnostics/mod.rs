@@ -36,6 +36,10 @@
 //!   - Invalid art set references
 //!   - Missing variant definitions
 //!
+//! - **Group Formations Diagnostics** ([`group_formations`]): Formation block validation
+//!   - Missing or looping block references
+//!   - Formations without an anchoring block
+//!
 //! - **Animation Fragment Diagnostics** ([`anim_fragment_battle`]): Animation validation
 //!   - Invalid animation references
 //!   - Malformed fragment data
@@ -115,6 +119,7 @@ use crate::lua::check::LuaDefinitions;
 use self::anim_fragment_battle::*;
 use self::config::*;
 use self::dependency::*;
+use self::group_formations::*;
 use self::pack::*;
 use self::portrait_settings::*;
 use self::table::*;
@@ -123,6 +128,7 @@ use self::text::TextDiagnostic;
 pub mod anim_fragment_battle;
 pub mod config;
 pub mod dependency;
+pub mod group_formations;
 pub mod pack;
 pub mod portrait_settings;
 pub mod table;
@@ -210,6 +216,8 @@ pub enum DiagnosticType {
     Dependency(DependencyDiagnostic),
     /// Diagnostics for DB tables.
     DB(TableDiagnostic),
+    /// Diagnostics for group formations files.
+    GroupFormations(GroupFormationsDiagnostic),
     /// Diagnostics for Loc (localisation) tables.
     Loc(TableDiagnostic),
     /// Diagnostics for pack-level issues.
@@ -267,6 +275,7 @@ impl DiagnosticType {
             Self::DB(ref diag) |
             Self::Loc(ref diag) => diag.path(),
             Self::Pack(_) => "",
+            Self::GroupFormations(diag) => diag.path(),
             Self::PortraitSettings(diag) => diag.path(),
             Self::Text(diag) => diag.path(),
             Self::Dependency(diag) => diag.path(),
@@ -280,6 +289,7 @@ impl DiagnosticType {
             Self::DB(ref diag) |
             Self::Loc(ref diag) => diag.pack(),
             Self::Pack(diag) => diag.pack(),
+            Self::GroupFormations(diag) => diag.pack(),
             Self::PortraitSettings(diag) => diag.pack(),
             Self::Text(diag) => diag.pack(),
             Self::Dependency(diag) => diag.pack(),
@@ -352,7 +362,7 @@ impl Diagnostics {
             let extra_data = Some(extra_data);
 
             for pack in packs.values_mut() {
-                pack.files_by_type_mut(&[FileType::AnimFragmentBattle, FileType::Text, FileType::PortraitSettings])
+                pack.files_by_type_mut(&[FileType::AnimFragmentBattle, FileType::GroupFormations, FileType::Text, FileType::PortraitSettings])
                     .par_iter_mut()
                     .for_each(|file| { let _ = file.decode(&extra_data, true, false); });
             }
@@ -361,9 +371,9 @@ impl Diagnostics {
         // Logic here: we want to process the tables on batches containing all the tables of the same type, so we can check duplicates in different tables.
         // To do that, we have to sort/split the file list, the process that.
         let files: Vec<(&str, &RFile)> = if paths_to_check.is_empty() {
-            packs.iter().flat_map(|(key, pack)| pack.files_by_type(&[FileType::AnimFragmentBattle, FileType::DB, FileType::Loc, FileType::Text, FileType::PortraitSettings]).into_iter().map(move |file| (key.as_str(), file))).collect()
+            packs.iter().flat_map(|(key, pack)| pack.files_by_type(&[FileType::AnimFragmentBattle, FileType::DB, FileType::GroupFormations, FileType::Loc, FileType::Text, FileType::PortraitSettings]).into_iter().map(move |file| (key.as_str(), file))).collect()
         } else {
-            packs.iter().flat_map(|(key, pack)| pack.files_by_type_and_paths(&[FileType::AnimFragmentBattle, FileType::DB, FileType::Loc, FileType::Text, FileType::PortraitSettings], paths_to_check, false).into_iter().map(move |file| (key.as_str(), file))).collect()
+            packs.iter().flat_map(|(key, pack)| pack.files_by_type_and_paths(&[FileType::AnimFragmentBattle, FileType::DB, FileType::GroupFormations, FileType::Loc, FileType::Text, FileType::PortraitSettings], paths_to_check, false).into_iter().map(move |file| (key.as_str(), file))).collect()
         };
 
         let mut files_split: HashMap<&str, Vec<(&str, &RFile)>> = HashMap::new();
@@ -407,6 +417,13 @@ impl Diagnostics {
                         }
                     }
                 },
+                FileType::GroupFormations => {
+                    if let Some(table_set) = files_split.get_mut("group_formations") {
+                        table_set.push((pack_key, file));
+                    } else {
+                        files_split.insert("group_formations", vec![(pack_key, file)]);
+                    }
+                },
                 FileType::PortraitSettings => {
                     if let Some(table_set) = files_split.get_mut("portrait_settings") {
                         table_set.push((pack_key, file));
@@ -443,7 +460,7 @@ impl Diagnostics {
         };
 
         // That way we can get it fast on the first try, and skip.
-        let table_names = files_split.iter().filter(|(key, _)| **key != "anim_fragment_battle" && **key != "locs" && **key != "lua" && **key != "portrait_settings").map(|(key, _)| key.to_string()).collect::<Vec<_>>();
+        let table_names = files_split.iter().filter(|(key, _)| **key != "anim_fragment_battle" && **key != "group_formations" && **key != "locs" && **key != "lua" && **key != "portrait_settings").map(|(key, _)| key.to_string()).collect::<Vec<_>>();
 
         // If table names is empty this triggers a full regeneration, which is slow as fuck. So make sure to avoid that if we're only doing a partial check.
         if !table_names.is_empty() || (table_names.is_empty() && paths_to_check.is_empty()) {
@@ -528,6 +545,7 @@ impl Diagnostics {
                                     local_file_path_list,
                                 ),
 
+                                FileType::GroupFormations => GroupFormationsDiagnostic::check(pack_key, file, &self.diagnostics_ignored),
                                 FileType::Text => TextDiagnostic::check(pack_key, file, packs, dependencies, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields, lua_api, &lua_definitions),
                                 FileType::PortraitSettings => PortraitSettingsDiagnostic::check(pack_key, file, &art_set_ids, &variant_filenames, dependencies, &self.diagnostics_ignored, &ignored_fields, &ignored_diagnostics, &ignored_diagnostics_for_fields, local_file_path_list),
                                 _ => None,
@@ -647,6 +665,7 @@ impl Display for DiagnosticType {
             Self::AnimFragmentBattle(_) => "AnimFragmentBattle",
             Self::Config(_) => "Config",
             Self::DB(_) => "DB",
+            Self::GroupFormations(_) => "GroupFormations",
             Self::Loc(_) => "Loc",
             Self::Pack(_) => "Packfile",
             Self::PortraitSettings(_) => "PortraitSettings",

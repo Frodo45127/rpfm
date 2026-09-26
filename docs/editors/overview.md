@@ -31,7 +31,7 @@ Every supported file type opens in a dedicated view that knows how to decode, pr
 | ESF (saves, startpos)| [Specialised editors](./specialised.md)                                 | Tree editor (debug-gated) |
 | BMD                  | [Specialised editors](./specialised.md)                                 | JSON text editor |
 | UIC                  | [Specialised editors](./specialised.md)                                 | Read-only text dump |
-| Group formations     | [Specialised editors](./specialised.md)                                 | JSON debug view |
+| Group formations     | [Specialised editors](./specialised.md)                                 | Full structured editor with canvas |
 
 > **JSON debug view** means the file decodes via the lib, gets serialised to pretty JSON, opens in a text editor, and you save it by hitting Save (the JSON is parsed back into the typed structure). It's editable but it's not a UI — handle with care.
 

@@ -1765,6 +1765,7 @@ A single diagnostic result. Serialized as a tagged enum — the variant name ind
 | `Config`             | ConfigDiagnostic              | Pack-level configuration issue        |
 | `Dependency`         | DependencyDiagnostic          | Broken/missing dependency reference   |
 | `DB`                 | TableDiagnostic               | Issue in a DB table                   |
+| `GroupFormations`    | GroupFormationsDiagnostic     | Issue in a GroupFormations file       |
 | `Loc`                | TableDiagnostic               | Issue in a Loc file                   |
 | `Pack`               | PackDiagnostic                | Pack-wide issue                       |
 | `PortraitSettings`   | PortraitSettingsDiagnostic    | Issue in a PortraitSettings file      |
@@ -1780,6 +1781,7 @@ type DiagnosticType =
   | { Config: unknown }
   | { Dependency: unknown }
   | { DB: unknown }
+  | { GroupFormations: unknown }
   | { Loc: unknown }
   | { Pack: unknown }
   | { PortraitSettings: unknown }
@@ -1791,6 +1793,7 @@ public class DiagnosticTypeAnimFragmentBattle : DiagnosticType { public object A
 public class DiagnosticTypeConfig             : DiagnosticType { public object Config { get; set; } }
 public class DiagnosticTypeDependency         : DiagnosticType { public object Dependency { get; set; } }
 public class DiagnosticTypeDB                 : DiagnosticType { public object DB { get; set; } }
+public class DiagnosticTypeGroupFormations    : DiagnosticType { public object GroupFormations { get; set; } }
 public class DiagnosticTypeLoc                : DiagnosticType { public object Loc { get; set; } }
 public class DiagnosticTypePack               : DiagnosticType { public object Pack { get; set; } }
 public class DiagnosticTypePortraitSettings   : DiagnosticType { public object PortraitSettings { get; set; } }

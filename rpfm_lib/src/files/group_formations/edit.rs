@@ -179,6 +179,46 @@ impl GroupFormation {
         Ok(())
     }
 
+    /// Moves several containers by the same distance, snapping their offsets or positions to a grid.
+    ///
+    /// Blocks that depend on another moved block already move with it, so they're left untouched. Spans are ignored,
+    /// as their position comes from their members.
+    ///
+    /// # Arguments
+    ///
+    /// * `block_ids` - The blocks to move.
+    /// * `delta` - Distance to move them.
+    /// * `grid_step` - Size of the grid to snap to, or 0 to not snap.
+    /// * `params` - The simulated deployment used to compute the offsets.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if a block doesn't exist, or a moved block or its parent can't be positioned.
+    pub fn move_blocks(&mut self, block_ids: &[u32], delta: (f32, f32), grid_step: f32, params: &LayoutParams) -> Result<()> {
+        let rects = self.layout(params);
+        let mut targets = vec![];
+        for block_id in block_ids {
+            let position = self.position_of(*block_id)?;
+            if let Block::Spanning(_) = self.group_formation_blocks[position].block {
+                continue;
+            }
+
+            if block_ids.iter().any(|other_id| other_id != block_id && self.depends_on(*block_id, *other_id)) {
+                continue;
+            }
+
+            let rect = rects.get(block_id).ok_or(RLibError::GroupFormationsBlockNotPlaceable(*block_id))?;
+            targets.push((*block_id, (rect.center_x() + delta.0, rect.center_y() + delta.1)));
+        }
+
+        // Targets are computed before moving anything, as each move changes the layout.
+        for (block_id, center) in targets {
+            self.move_block(block_id, center, grid_step, params)?;
+        }
+
+        Ok(())
+    }
+
     /// Deletes blocks, re-attaching the containers positioned relative to them to their closest surviving ancestor.
     ///
     /// Spans left without members are deleted too. Containers left without ancestors become absolute.

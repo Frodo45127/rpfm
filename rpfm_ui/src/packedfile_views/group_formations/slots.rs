@@ -19,7 +19,6 @@ use qt_core::QModelIndex;
 use qt_core::QString;
 use qt_core::QVariant;
 use qt_core::SlotNoArgs;
-use qt_core::SlotOfQModelIndex;
 use qt_core::SlotOfQString;
 
 use anyhow::Result;
@@ -32,6 +31,12 @@ use std::sync::Arc;
 use rpfm_ui_common::clone;
 
 use crate::app_ui::AppUI;
+use crate::diagnostics_ui::DiagnosticsUI;
+use crate::settings_ui::backend::settings_bool;
+use crate::UI_STATE;
+
+use rpfm_ipc::settings_keys::DIAGNOSTICS_TRIGGER_ON_TABLE_EDIT;
+use rpfm_lib::files::ContainerPath;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::utils::show_dialog;
 
@@ -88,10 +93,14 @@ pub struct GroupFormationsSlots {
     span_members_changed: QBox<SlotNoArgs>,
 
     canvas_selection_changed: QBox<SlotNoArgs>,
+    canvas_context_menu: QBox<SlotOfQPoint>,
+    canvas_blocks_moved: QBox<SlotNoArgs>,
+    canvas_link_requested: QBox<SlotNoArgs>,
+    grid_step_changed: QBox<SlotNoArgs>,
     unit_count_changed: QBox<SlotNoArgs>,
     fit_canvas: QBox<SlotNoArgs>,
 
-    issue_clicked: QBox<SlotOfQModelIndex>,
+    update_diagnostics: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -99,8 +108,28 @@ pub struct GroupFormationsSlots {
 //-------------------------------------------------------------------------------//
 
 impl GroupFormationsSlots {
-    pub unsafe fn new(view: &Arc<GroupFormationsView>, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Self {
+    pub unsafe fn new(view: &Arc<GroupFormationsView>, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>, diagnostics_ui: &Rc<DiagnosticsUI>) -> Self {
         let parent = view.blocks_tree_view();
+
+        // Sends the file to the backend, and updates its diagnostics if they're set to update on edit, like tables do.
+        let update_diagnostics = SlotNoArgs::new(parent, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            diagnostics_ui,
+            view => move || {
+                let path = view.path().read().unwrap().to_owned();
+                let pack_key = view.pack_key().read().unwrap().to_owned();
+                if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().find(|file_view| *file_view.path_read() == path && file_view.pack_key_copy() == pack_key && file_view.data_source() == DataSource::PackFile) {
+                    if let Err(error) = file_view.save(&app_ui, &pack_file_contents_ui) {
+                        return show_dialog(view.blocks_tree_view(), error, false);
+                    }
+                }
+
+                if settings_bool(DIAGNOSTICS_TRIGGER_ON_TABLE_EDIT) {
+                    DiagnosticsUI::check_on_path(&app_ui, &diagnostics_ui, vec![ContainerPath::File(path)]);
+                }
+            }
+        ));
 
         //-----------------------------------------------//
         // Formations list.
@@ -197,6 +226,55 @@ impl GroupFormationsSlots {
                 view.select_tree_blocks(&group_formation_canvas_selected_ids_safe(view.canvas()));
                 view.load_inspector();
                 view.update_actions();
+            }
+        ));
+
+        let canvas_context_menu = SlotOfQPoint::new(parent, clone!(
+            view => move |_| {
+                view.blocks_context_menu().exec_1a_mut(&QCursor::pos_0a());
+            }
+        ));
+
+        // The canvas uses screen coordinates, where Y grows downwards, so the vertical distance is flipped.
+        let canvas_blocks_moved = SlotNoArgs::new(parent, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            view => move || {
+                let blocks = group_formation_canvas_selected_ids_safe(view.canvas());
+                let (delta_x, delta_y) = group_formation_canvas_moved_delta_safe(view.canvas());
+                let grid_step = view.grid_step();
+                let params = view.layout_params();
+                let result = view.edit_formation(&app_ui, &pack_file_contents_ui, |formation| {
+                    formation.move_blocks(&blocks, (delta_x as f32, -delta_y as f32), grid_step, &params)?;
+                    Ok(())
+                });
+
+                // The canvas is redrawn even if the move fails or snaps back, as the dragged items are still displaced.
+                report(&view, result);
+                view.refresh_after_edit(Some(&blocks), true);
+            }
+        ));
+
+        let canvas_link_requested = SlotNoArgs::new(parent, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            view => move || {
+                let (child_id, parent_id) = group_formation_canvas_link_safe(view.canvas());
+                let params = view.layout_params();
+                let result = view.edit_formation(&app_ui, &pack_file_contents_ui, |formation| {
+                    formation.reparent(child_id, Some(parent_id), &params)?;
+                    Ok(())
+                });
+
+                if report(&view, result) {
+                    view.refresh_after_edit(Some(&[child_id]), true);
+                }
+            }
+        ));
+
+        let grid_step_changed = SlotNoArgs::new(parent, clone!(
+            view => move || {
+                group_formation_canvas_set_grid_step_safe(view.canvas(), view.grid_step() as f64);
             }
         ));
 
@@ -352,7 +430,7 @@ impl GroupFormationsSlots {
                     if let Some(formation_index) = view.selected_formation() {
                         view.update_formation_name(formation_index);
                     }
-                    view.refresh_issues();
+                    view.refresh_issue_icons();
                 }
             }
         ));
@@ -565,27 +643,6 @@ impl GroupFormationsSlots {
             }
         ));
 
-        //-----------------------------------------------//
-        // Issues.
-        //-----------------------------------------------//
-
-        let issue_clicked = SlotOfQModelIndex::new(parent, clone!(
-            view => move |index| {
-                let formation_index = index.data_1a(ID_ROLE).to_u_int_0a() as usize;
-                let block_id = index.data_1a(ISSUE_BLOCK_ROLE);
-
-                if view.selected_formation() != Some(formation_index) {
-                    view.select_formation(formation_index);
-                }
-
-                if block_id.is_valid() {
-                    view.select_blocks(&[block_id.to_u_int_0a()]);
-                } else {
-                    view.select_blocks(&[]);
-                }
-            }
-        ));
-
         Self {
             filter_formations,
             formation_selected,
@@ -624,10 +681,14 @@ impl GroupFormationsSlots {
             span_members_changed,
 
             canvas_selection_changed,
+            canvas_context_menu,
+            canvas_blocks_moved,
+            canvas_link_requested,
+            grid_step_changed,
             unit_count_changed,
             fit_canvas,
 
-            issue_clicked,
+            update_diagnostics,
         }
     }
 }

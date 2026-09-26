@@ -69,6 +69,7 @@ use rpfm_lib::files::group_formations::validation::ValidationIssue;
 use rpfm_ui_common::utils::*;
 
 use crate::app_ui::AppUI;
+use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::*;
 use crate::GAME_SELECTED;
 use crate::packedfile_views::{DataSource, FileView, View, ViewType, utils::set_modified};
@@ -101,8 +102,8 @@ const VIEW_RELEASE: &str = "ui/group_formations_editor.ui";
 /// Role storing the formation index or block id of an item.
 const ID_ROLE: i32 = 256;
 
-/// Role storing the block id an issue points to. Issues about the whole formation don't have it.
-const ISSUE_BLOCK_ROLE: i32 = 257;
+/// Delay after the last edit before sending the file to the backend and updating its diagnostics, in milliseconds.
+const DIAGNOSTICS_UPDATE_DELAY: i32 = 500;
 
 /// Maximum amount of snapshots kept for undo.
 const MAX_UNDO_STEPS: usize = 200;
@@ -172,6 +173,7 @@ pub struct GroupFormationsView {
 
     canvas: QPtr<QGraphicsView>,
     unit_count_spinbox: QPtr<QSpinBox>,
+    grid_step_spinbox: QPtr<QDoubleSpinBox>,
     fit_button: QPtr<QToolButton>,
 
     blocks_tree_view: QPtr<QTreeView>,
@@ -210,8 +212,8 @@ pub struct GroupFormationsView {
 
     span_members_model: QBox<QStandardItemModel>,
 
-    issues_list_view: QPtr<QListView>,
-    issues_model: QBox<QStandardItemModel>,
+    /// Timer to send the file to the backend and update its diagnostics a bit after the last edit.
+    diagnostics_timer: QBox<QTimer>,
 }
 
 /// An editable list or table of the inspector, with its buttons to add and remove rows.
@@ -241,6 +243,7 @@ impl GroupFormationsView {
         data: GroupFormations,
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
     ) -> Result<()> {
         let format = GroupFormationsFormat::from_game(&GAME_SELECTED.read().unwrap())?;
 
@@ -287,6 +290,12 @@ impl GroupFormationsView {
         set_label_text(&widget, "unit_count_label", "group_formations_unit_count")?;
         let unit_count_spinbox: QPtr<QSpinBox> = find_widget(&widget, "unit_count_spinbox")?;
         unit_count_spinbox.set_tool_tip(&qtr("group_formations_unit_count_tip"));
+        set_label_text(&widget, "grid_step_label", "group_formations_grid_step")?;
+        let grid_step_spinbox: QPtr<QDoubleSpinBox> = find_widget(&widget, "grid_step_spinbox")?;
+        grid_step_spinbox.set_tool_tip(&qtr("group_formations_grid_step_tip"));
+        set_label_text(&widget, "canvas_hint_label", "group_formations_canvas_hint")?;
+        canvas.set_context_menu_policy(qt_core::ContextMenuPolicy::CustomContextMenu);
+
         let fit_button: QPtr<QToolButton> = find_widget(&widget, "fit_button")?;
         fit_button.set_icon(&QIcon::from_theme_q_string(&QString::from_std_str("zoom-fit-best")));
         fit_button.set_tool_tip(&qtr("group_formations_fit"));
@@ -308,6 +317,11 @@ impl GroupFormationsView {
         blocks_context_menu.add_separator();
         let undo = add_action_to_menu(&blocks_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "group_formations", "undo", "group_formations_undo", Some(main_widget.static_upcast()));
         let redo = add_action_to_menu(&blocks_context_menu.static_upcast(), app_ui.shortcuts().as_ref(), "group_formations", "redo", "group_formations_redo", Some(main_widget.static_upcast()));
+        // Block actions also work from the canvas, so their shortcuts work while it has the focus.
+        for action in [&add_absolute, &add_relative, &add_span, &delete_block, &delete_subtree] {
+            canvas.add_action_q_action(action);
+        }
+
         set_button_action(&widget, "add_absolute_button", &add_absolute)?;
         set_button_action(&widget, "add_relative_button", &add_relative)?;
         set_button_action(&widget, "add_span_button", &add_span)?;
@@ -406,10 +420,9 @@ impl GroupFormationsView {
         let span_members_model = QStandardItemModel::new_1a(&span_members_list_view);
         span_members_list_view.set_model(&span_members_model);
 
-        // Issues.
-        let issues_list_view: QPtr<QListView> = find_widget(&widget, "issues_list_view")?;
-        let issues_model = QStandardItemModel::new_1a(&issues_list_view);
-        issues_list_view.set_model(&issues_model);
+        let diagnostics_timer = QTimer::new_1a(&main_widget);
+        diagnostics_timer.set_single_shot(true);
+        diagnostics_timer.set_interval(DIAGNOSTICS_UPDATE_DELAY);
 
         let view = Arc::new(Self {
             path: file_view.path_raw(),
@@ -433,6 +446,7 @@ impl GroupFormationsView {
 
             canvas,
             unit_count_spinbox,
+            grid_step_spinbox,
             fit_button,
 
             blocks_tree_view,
@@ -471,11 +485,10 @@ impl GroupFormationsView {
 
             span_members_model,
 
-            issues_list_view,
-            issues_model,
+            diagnostics_timer,
         });
 
-        let slots = GroupFormationsSlots::new(&view, app_ui, pack_file_contents_ui);
+        let slots = GroupFormationsSlots::new(&view, app_ui, pack_file_contents_ui, diagnostics_ui);
         connections::set_connections(&view, &slots);
 
         view.load_formations_list(Some(0));
@@ -698,11 +711,12 @@ impl GroupFormationsView {
         self.select_blocks(&blocks);
     }
 
-    /// Marks the file as modified, if it belongs to the open Pack.
+    /// Marks the file as modified if it belongs to the open Pack, and schedules updating its diagnostics.
     unsafe fn set_modified(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
         if let DataSource::PackFile = *self.data_source.read().unwrap() {
             rpfm_telemetry::track_action("Modified Group Formations File");
             set_modified(true, &self.path.read().unwrap(), &self.pack_key.read().unwrap(), app_ui, pack_file_contents_ui);
+            self.diagnostics_timer.start_0a();
         }
     }
 
@@ -729,7 +743,7 @@ impl GroupFormationsView {
             _ => self.load_formation(),
         }
 
-        self.refresh_issues();
+        self.refresh_issue_icons();
     }
 
     /// Loads the selected formation into the blocks tree, the canvas and the inspector.
@@ -738,6 +752,11 @@ impl GroupFormationsView {
         group_formation_canvas_fit_safe(&self.canvas);
         self.load_inspector();
         self.update_actions();
+    }
+
+    /// Returns the size of the grid blocks snap to when moved on the canvas.
+    pub unsafe fn grid_step(&self) -> f32 {
+        self.grid_step_spinbox.value() as f32
     }
 
     /// Returns the simulated deployment used for the canvas and to keep blocks in place while editing.
@@ -1018,30 +1037,14 @@ impl GroupFormationsView {
         self.inspector_stack.set_current_index(PAGE_SPAN);
     }
 
-    /// Rebuilds the issues list, and updates the issue icons of the formations list.
-    pub unsafe fn refresh_issues(&self) {
-        let data = self.data.read().unwrap();
-        let issues = data.validate();
+    /// Updates the issue icons of the formations list. The issues themselves are listed in the diagnostics panel.
+    pub unsafe fn refresh_issue_icons(&self) {
+        let mut formation_errors: HashMap<usize, bool> = HashMap::new();
+        for (formation_index, issue) in self.data.read().unwrap().validate() {
+            *formation_errors.entry(formation_index).or_default() |= issue.is_error();
+        }
 
         self.loading(|| {
-            self.issues_model.clear();
-
-            let mut formation_errors: HashMap<usize, bool> = HashMap::new();
-            for (formation_index, issue) in &issues {
-                let Some(formation) = data.formations().get(*formation_index) else { continue };
-                let is_error = issue.is_error();
-                *formation_errors.entry(*formation_index).or_default() |= is_error;
-
-                let item = QStandardItem::from_q_string(&QString::from_std_str(issue_text(formation.name(), issue)));
-                item.set_icon(&QIcon::from_theme_q_string(&QString::from_std_str(if is_error { "data-error" } else { "data-warning" })));
-                item.set_data_2a(&QVariant::from_uint(*formation_index as u32), ID_ROLE);
-                if let Some(block_id) = issue_block(issue) {
-                    item.set_data_2a(&QVariant::from_uint(block_id), ISSUE_BLOCK_ROLE);
-                }
-                item.set_editable(false);
-                self.issues_model.append_row_q_standard_item(item.into_ptr());
-            }
-
             for row in 0..self.formations_list_model.row_count_0a() {
                 let item = self.formations_list_model.item_1a(row);
                 let icon = match formation_errors.get(&(row as usize)) {
@@ -1067,7 +1070,7 @@ impl GroupFormationsView {
         };
 
         self.load_blocks_tree(&selected);
-        self.refresh_issues();
+        self.refresh_issue_icons();
         if reload_inspector {
             self.load_inspector();
         }
@@ -1425,23 +1428,5 @@ fn issue_block(issue: &ValidationIssue) -> Option<u32> {
         ValidationIssue::MissingReference { block_id, .. } |
         ValidationIssue::ForwardReference { block_id, .. } => Some(*block_id),
         ValidationIssue::ReferenceCycle(block_ids) => block_ids.first().copied(),
-    }
-}
-
-/// Returns the translated description of an issue.
-fn issue_text(formation_name: &str, issue: &ValidationIssue) -> String {
-    match issue {
-        ValidationIssue::DuplicateFormationName => tre("group_formations_issue_duplicate_formation_name", &[formation_name]),
-        ValidationIssue::NoAbsoluteBlock => tre("group_formations_issue_no_absolute_block", &[formation_name]),
-        ValidationIssue::DuplicateBlockId(block_id) => tre("group_formations_issue_duplicate_block_id", &[formation_name, &block_id.to_string()]),
-        ValidationIssue::MissingReference { block_id, referenced_id } => tre("group_formations_issue_missing_reference", &[formation_name, &block_id.to_string(), &referenced_id.to_string()]),
-        ValidationIssue::ForwardReference { block_id, referenced_id } => tre("group_formations_issue_forward_reference", &[formation_name, &block_id.to_string(), &referenced_id.to_string()]),
-        ValidationIssue::ReferenceCycle(block_ids) => {
-            let block_ids = block_ids.iter().map(|block_id| block_id.to_string()).collect::<Vec<_>>().join(", ");
-            tre("group_formations_issue_reference_cycle", &[formation_name, &block_ids])
-        },
-        ValidationIssue::EmptySpan(block_id) => tre("group_formations_issue_empty_span", &[formation_name, &block_id.to_string()]),
-        ValidationIssue::InvalidThresholds(block_id) => tre("group_formations_issue_invalid_thresholds", &[formation_name, &block_id.to_string()]),
-        ValidationIssue::NoEntityPreferences(block_id) => tre("group_formations_issue_no_entity_preferences", &[formation_name, &block_id.to_string()]),
     }
 }

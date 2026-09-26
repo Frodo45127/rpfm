@@ -23,6 +23,11 @@ extern "C" int group_formation_canvas_selected_count(QGraphicsView* canvas);
 extern "C" quint32 group_formation_canvas_selected_id(QGraphicsView* canvas, int index);
 extern "C" void group_formation_canvas_set_front_label(QGraphicsView* canvas, const QString* label);
 extern "C" void group_formation_canvas_fit(QGraphicsView* canvas);
+extern "C" void group_formation_canvas_set_grid_step(QGraphicsView* canvas, double step);
+extern "C" double group_formation_canvas_moved_delta_x(QGraphicsView* canvas);
+extern "C" double group_formation_canvas_moved_delta_y(QGraphicsView* canvas);
+extern "C" quint32 group_formation_canvas_link_child(QGraphicsView* canvas);
+extern "C" quint32 group_formation_canvas_link_parent(QGraphicsView* canvas);
 
 // A block of the formation. It only paints itself, the canvas owns the logic.
 class GroupFormationBlockItem : public QGraphicsRectItem {
@@ -44,12 +49,17 @@ private:
 // View that draws the simulated layout of a formation over a grid in meters.
 //
 // It knows nothing about formations: the Rust side sends it rects already positioned in scene
-// coordinates, and reads back what the user selected.
+// coordinates, and reads back what the user did through the getters after each signal.
+//
+// Containers can be dragged to move them, and Shift+dragging from a block to another requests
+// linking the first one to the second as its parent.
 class GroupFormationCanvas : public QGraphicsView {
     Q_OBJECT
 
 signals:
     void blockSelectionChanged();
+    void blocksMoved();
+    void linkRequested();
 
 public:
     explicit GroupFormationCanvas(QWidget* parent = nullptr);
@@ -60,6 +70,10 @@ public:
     QList<quint32> selectedIds() const;
     void setFrontLabel(const QString& label);
     void fitToBlocks();
+    void setGridStep(qreal step);
+    QPointF movedDelta() const;
+    quint32 linkChild() const;
+    quint32 linkParent() const;
 
 protected:
     void drawBackground(QPainter* painter, const QRectF& rect) override;
@@ -79,6 +93,14 @@ private:
     bool is_panning;
     bool is_fit_pending;
     QPoint last_pan_position;
+
+    QPointF moved_delta;
+    GroupFormationBlockItem* link_source;
+    QGraphicsLineItem* link_preview;
+    quint32 link_child;
+    quint32 link_parent;
+
+    GroupFormationBlockItem* blockAt(const QPoint& position, const GroupFormationBlockItem* ignored = nullptr) const;
 };
 
 #endif // GROUP_FORMATION_CANVAS_H

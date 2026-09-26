@@ -53,7 +53,7 @@ use rayon::prelude::*;
 use std::path::Path;
 use std::rc::Rc;
 
-use rpfm_extensions::diagnostics::{*, anim_fragment_battle::*, config::*, dependency::*, pack::*, portrait_settings::*, table::*, text::*};
+use rpfm_extensions::diagnostics::{*, anim_fragment_battle::*, config::*, dependency::*, group_formations::*, pack::*, portrait_settings::*, table::*, text::*};
 
 use rpfm_ipc::helpers::DataSource;
 use rpfm_ipc::settings_keys::*;
@@ -176,6 +176,15 @@ pub struct DiagnosticsUI {
     checkbox_file_mask_2_not_found_for_variant: QBox<QCheckBox>,
     checkbox_file_mask_3_not_found_for_variant: QBox<QCheckBox>,
     checkbox_datacored_portrait_settings: QBox<QCheckBox>,
+    checkbox_group_formations_duplicate_formation_name: QBox<QCheckBox>,
+    checkbox_group_formations_no_absolute_block: QBox<QCheckBox>,
+    checkbox_group_formations_duplicate_block_id: QBox<QCheckBox>,
+    checkbox_group_formations_missing_reference: QBox<QCheckBox>,
+    checkbox_group_formations_forward_reference: QBox<QCheckBox>,
+    checkbox_group_formations_reference_cycle: QBox<QCheckBox>,
+    checkbox_group_formations_empty_span: QBox<QCheckBox>,
+    checkbox_group_formations_invalid_thresholds: QBox<QCheckBox>,
+    checkbox_group_formations_no_entity_preferences: QBox<QCheckBox>,
     checkbox_loocomotion_graph_path_not_found: QBox<QCheckBox>,
     checkbox_file_path_not_found: QBox<QCheckBox>,
     checkbox_meta_file_path_not_found: QBox<QCheckBox>,
@@ -336,6 +345,15 @@ impl DiagnosticsUI {
         let checkbox_file_mask_2_not_found_for_variant = QCheckBox::from_q_string_q_widget(&qtr("label_file_mask_2_not_found_for_variant"), &sidebar_scroll_area);
         let checkbox_file_mask_3_not_found_for_variant = QCheckBox::from_q_string_q_widget(&qtr("label_file_mask_3_not_found_for_variant"), &sidebar_scroll_area);
         let checkbox_datacored_portrait_settings = QCheckBox::from_q_string_q_widget(&qtr("label_datacored_portrait_settings"), &sidebar_scroll_area);
+        let checkbox_group_formations_duplicate_formation_name = QCheckBox::from_q_string_q_widget(&qtr("label_group_formations_duplicate_formation_name"), &sidebar_scroll_area);
+        let checkbox_group_formations_no_absolute_block = QCheckBox::from_q_string_q_widget(&qtr("label_group_formations_no_absolute_block"), &sidebar_scroll_area);
+        let checkbox_group_formations_duplicate_block_id = QCheckBox::from_q_string_q_widget(&qtr("label_group_formations_duplicate_block_id"), &sidebar_scroll_area);
+        let checkbox_group_formations_missing_reference = QCheckBox::from_q_string_q_widget(&qtr("label_group_formations_missing_reference"), &sidebar_scroll_area);
+        let checkbox_group_formations_forward_reference = QCheckBox::from_q_string_q_widget(&qtr("label_group_formations_forward_reference"), &sidebar_scroll_area);
+        let checkbox_group_formations_reference_cycle = QCheckBox::from_q_string_q_widget(&qtr("label_group_formations_reference_cycle"), &sidebar_scroll_area);
+        let checkbox_group_formations_empty_span = QCheckBox::from_q_string_q_widget(&qtr("label_group_formations_empty_span"), &sidebar_scroll_area);
+        let checkbox_group_formations_invalid_thresholds = QCheckBox::from_q_string_q_widget(&qtr("label_group_formations_invalid_thresholds"), &sidebar_scroll_area);
+        let checkbox_group_formations_no_entity_preferences = QCheckBox::from_q_string_q_widget(&qtr("label_group_formations_no_entity_preferences"), &sidebar_scroll_area);
         let checkbox_loocomotion_graph_path_not_found = QCheckBox::from_q_string_q_widget(&qtr("label_locomotion_graph_path_not_found"), &sidebar_scroll_area);
         let checkbox_file_path_not_found = QCheckBox::from_q_string_q_widget(&qtr("label_file_path_not_found"), &sidebar_scroll_area);
         let checkbox_meta_file_path_not_found = QCheckBox::from_q_string_q_widget(&qtr("label_meta_file_path_not_found"), &sidebar_scroll_area);
@@ -384,6 +402,15 @@ impl DiagnosticsUI {
         checkbox_file_mask_2_not_found_for_variant.set_checked(true);
         checkbox_file_mask_3_not_found_for_variant.set_checked(true);
         checkbox_datacored_portrait_settings.set_checked(true);
+        checkbox_group_formations_duplicate_formation_name.set_checked(true);
+        checkbox_group_formations_no_absolute_block.set_checked(true);
+        checkbox_group_formations_duplicate_block_id.set_checked(true);
+        checkbox_group_formations_missing_reference.set_checked(true);
+        checkbox_group_formations_forward_reference.set_checked(true);
+        checkbox_group_formations_reference_cycle.set_checked(true);
+        checkbox_group_formations_empty_span.set_checked(true);
+        checkbox_group_formations_invalid_thresholds.set_checked(true);
+        checkbox_group_formations_no_entity_preferences.set_checked(true);
         checkbox_loocomotion_graph_path_not_found.set_checked(true);
         checkbox_file_path_not_found.set_checked(true);
         checkbox_meta_file_path_not_found.set_checked(true);
@@ -432,6 +459,15 @@ impl DiagnosticsUI {
         sidebar_grid.add_widget_1a(&checkbox_file_mask_2_not_found_for_variant);
         sidebar_grid.add_widget_1a(&checkbox_file_mask_3_not_found_for_variant);
         sidebar_grid.add_widget_1a(&checkbox_datacored_portrait_settings);
+        sidebar_grid.add_widget_1a(&checkbox_group_formations_duplicate_formation_name);
+        sidebar_grid.add_widget_1a(&checkbox_group_formations_no_absolute_block);
+        sidebar_grid.add_widget_1a(&checkbox_group_formations_duplicate_block_id);
+        sidebar_grid.add_widget_1a(&checkbox_group_formations_missing_reference);
+        sidebar_grid.add_widget_1a(&checkbox_group_formations_forward_reference);
+        sidebar_grid.add_widget_1a(&checkbox_group_formations_reference_cycle);
+        sidebar_grid.add_widget_1a(&checkbox_group_formations_empty_span);
+        sidebar_grid.add_widget_1a(&checkbox_group_formations_invalid_thresholds);
+        sidebar_grid.add_widget_1a(&checkbox_group_formations_no_entity_preferences);
         sidebar_grid.add_widget_1a(&checkbox_loocomotion_graph_path_not_found);
         sidebar_grid.add_widget_1a(&checkbox_file_path_not_found);
         sidebar_grid.add_widget_1a(&checkbox_meta_file_path_not_found);
@@ -518,6 +554,15 @@ impl DiagnosticsUI {
             checkbox_file_mask_2_not_found_for_variant,
             checkbox_file_mask_3_not_found_for_variant,
             checkbox_datacored_portrait_settings,
+            checkbox_group_formations_duplicate_formation_name,
+            checkbox_group_formations_no_absolute_block,
+            checkbox_group_formations_duplicate_block_id,
+            checkbox_group_formations_missing_reference,
+            checkbox_group_formations_forward_reference,
+            checkbox_group_formations_reference_cycle,
+            checkbox_group_formations_empty_span,
+            checkbox_group_formations_invalid_thresholds,
+            checkbox_group_formations_no_entity_preferences,
             checkbox_loocomotion_graph_path_not_found,
             checkbox_file_path_not_found,
             checkbox_meta_file_path_not_found,
@@ -821,6 +866,58 @@ impl DiagnosticsUI {
 
                                 // Set the tooltips to the diag type and description columns.
                                 Self::set_tooltips_portrait_settings(&[&level, &path, &message], result.report_type());
+
+                                qlist.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&data_affected.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&pack.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&path.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&extra_data_1.into_ptr().as_mut_raw_ptr());
+
+                                reports.push(atomic_from_cpp_box(qlist));
+                            }
+
+                            reports
+                        },
+
+                        DiagnosticType::GroupFormations(ref diagnostic) => {
+                            let mut reports = Vec::with_capacity(diagnostic.results().len());
+
+                            for result in diagnostic.results() {
+                                let qlist = QListOfQStandardItem::new_0a();
+
+                                // Create an empty row.
+                                let level = Self::new_item();
+                                let diag_type = Self::new_item();
+                                let data_affected = Self::new_item();
+                                let pack = Self::new_item();
+                                let path = Self::new_item();
+                                let message = Self::new_item();
+                                let report_type = Self::new_item();
+                                let extra_data_1 = Self::new_item();
+
+                                let (result_type, color) = match result.level() {
+                                    DiagnosticLevel::Info => (ref_from_atomic(&result_type_info), ref_from_atomic(&color_info)),
+                                    DiagnosticLevel::Warning => (ref_from_atomic(&result_type_warning), ref_from_atomic(&color_warning)),
+                                    DiagnosticLevel::Error => (ref_from_atomic(&result_type_error), ref_from_atomic(&color_error)),
+                                };
+
+                                level.set_background(color);
+                                level.set_text(result_type);
+                                diag_type.set_text(&QString::from_std_str(diagnostic_type.to_string()));
+
+                                // Formation index and block id, used to select the block when opening the diagnostic.
+                                let block_id = result.report_type().block_id().map(|block_id| block_id.to_string()).unwrap_or_default();
+                                data_affected.set_text(&QString::from_std_str(format!("{}|{}", result.formation_index(), block_id)));
+                                Self::set_pack_item(&pack, diagnostic_type.pack());
+                                path.set_text(&QString::from_std_str(diagnostic.path()));
+                                message.set_text(&QString::from_std_str(result.message()));
+                                report_type.set_text(&QString::from_std_str(result.report_type().to_string()));
+
+                                // Set the tooltips to the diag type and description columns.
+                                Self::set_tooltips_group_formations(&[&level, &path, &message], result.report_type());
 
                                 qlist.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
                                 qlist.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
@@ -1229,6 +1326,20 @@ impl DiagnosticsUI {
                                     }
                                 }
                             }
+                        }
+                    }
+                }
+            }
+
+            "GroupFormations" => {
+                if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).find(|x| *x.path_read() == path && (pack_key.is_empty() || x.pack_key_copy() == pack_key)) {
+                    if let ViewType::Internal(View::GroupFormations(view)) = file_view.view_type() {
+                        let data = model.item_2a(model_index.row(), 2).text().to_std_string();
+                        let (formation_index, block_id) = data.split_once('|').unwrap_or_default();
+                        if let Ok(formation_index) = formation_index.parse::<usize>() {
+                            view.select_formation(formation_index);
+                            let blocks = block_id.parse::<u32>().map(|block_id| vec![block_id]).unwrap_or_default();
+                            view.select_blocks(&blocks);
                         }
                     }
                 }
@@ -1661,6 +1772,16 @@ impl DiagnosticsUI {
         diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_file_mask_2_not_found_for_variant, PortraitSettingsDiagnosticReportType::FileMask2NotFoundForVariant(String::new(), String::new(), false, false, String::new()));
         diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_file_mask_3_not_found_for_variant, PortraitSettingsDiagnosticReportType::FileMask3NotFoundForVariant(String::new(), String::new(), false, false, String::new()));
 
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_group_formations_duplicate_formation_name, GroupFormationsDiagnosticReportType::DuplicateFormationName);
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_group_formations_no_absolute_block, GroupFormationsDiagnosticReportType::NoAbsoluteBlock);
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_group_formations_duplicate_block_id, GroupFormationsDiagnosticReportType::DuplicateBlockId(0));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_group_formations_missing_reference, GroupFormationsDiagnosticReportType::MissingReference(0, 0));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_group_formations_forward_reference, GroupFormationsDiagnosticReportType::ForwardReference(0, 0));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_group_formations_reference_cycle, GroupFormationsDiagnosticReportType::ReferenceCycle(vec![]));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_group_formations_empty_span, GroupFormationsDiagnosticReportType::EmptySpan(0));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_group_formations_invalid_thresholds, GroupFormationsDiagnosticReportType::InvalidThresholds(0));
+        diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_group_formations_no_entity_preferences, GroupFormationsDiagnosticReportType::NoEntityPreferences(0));
+
         diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_loocomotion_graph_path_not_found, AnimFragmentBattleDiagnosticReportType::LocomotionGraphPathNotFound(String::new()));
         diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_file_path_not_found, AnimFragmentBattleDiagnosticReportType::FilePathNotFound(String::new()));
         diag_pattern!(diagnostics_ui, diagnostic_type_pattern, checkbox_meta_file_path_not_found, AnimFragmentBattleDiagnosticReportType::MetaFilePathNotFound(String::new()));
@@ -1712,6 +1833,10 @@ impl DiagnosticsUI {
                     .iter()
                     .filter(|y| matches!(y.level(), DiagnosticLevel::Info))
                     .count(),
+                DiagnosticType::GroupFormations(ref diag) => diag.results()
+                    .iter()
+                    .filter(|y| matches!(y.level(), DiagnosticLevel::Info))
+                    .count(),
                 DiagnosticType::Dependency(ref diag) => diag.results()
                     .iter()
                     .filter(|y| matches!(y.level(), DiagnosticLevel::Info))
@@ -1742,6 +1867,10 @@ impl DiagnosticsUI {
                     .filter(|y| matches!(y.level(), DiagnosticLevel::Warning))
                     .count(),
                 DiagnosticType::PortraitSettings(ref diag) => diag.results()
+                    .iter()
+                    .filter(|y| matches!(y.level(), DiagnosticLevel::Warning))
+                    .count(),
+                DiagnosticType::GroupFormations(ref diag) => diag.results()
                     .iter()
                     .filter(|y| matches!(y.level(), DiagnosticLevel::Warning))
                     .count(),
@@ -1776,6 +1905,10 @@ impl DiagnosticsUI {
                     .filter(|y| matches!(y.level(), DiagnosticLevel::Error))
                     .count(),
                 DiagnosticType::PortraitSettings(ref diag) => diag.results()
+                    .iter()
+                    .filter(|y| matches!(y.level(), DiagnosticLevel::Error))
+                    .count(),
+                DiagnosticType::GroupFormations(ref diag) => diag.results()
                     .iter()
                     .filter(|y| matches!(y.level(), DiagnosticLevel::Error))
                     .count(),
@@ -1907,6 +2040,24 @@ impl DiagnosticsUI {
         }
     }
 
+    pub unsafe fn set_tooltips_group_formations(items: &[&CppBox<QStandardItem>], report_type: &GroupFormationsDiagnosticReportType) {
+        let tool_tip = match report_type {
+            GroupFormationsDiagnosticReportType::DuplicateFormationName => qtr("group_formations_duplicate_formation_name_explanation"),
+            GroupFormationsDiagnosticReportType::NoAbsoluteBlock => qtr("group_formations_no_absolute_block_explanation"),
+            GroupFormationsDiagnosticReportType::DuplicateBlockId(_) => qtr("group_formations_duplicate_block_id_explanation"),
+            GroupFormationsDiagnosticReportType::MissingReference(_, _) => qtr("group_formations_missing_reference_explanation"),
+            GroupFormationsDiagnosticReportType::ForwardReference(_, _) => qtr("group_formations_forward_reference_explanation"),
+            GroupFormationsDiagnosticReportType::ReferenceCycle(_) => qtr("group_formations_reference_cycle_explanation"),
+            GroupFormationsDiagnosticReportType::EmptySpan(_) => qtr("group_formations_empty_span_explanation"),
+            GroupFormationsDiagnosticReportType::InvalidThresholds(_) => qtr("group_formations_invalid_thresholds_explanation"),
+            GroupFormationsDiagnosticReportType::NoEntityPreferences(_) => qtr("group_formations_no_entity_preferences_explanation"),
+        };
+
+        for item in items {
+            item.set_tool_tip(&tool_tip);
+        }
+    }
+
     unsafe fn diagnostics_ignored(&self) -> Vec<String> {
         let mut diagnostics_ignored = vec![];
 
@@ -1951,6 +2102,16 @@ impl DiagnosticsUI {
         diag_ignored!(self, diagnostics_ignored, checkbox_file_mask_1_not_found_for_variant, PortraitSettingsDiagnosticReportType::FileMask1NotFoundForVariant(String::new(), String::new(), false, false, String::new()));
         diag_ignored!(self, diagnostics_ignored, checkbox_file_mask_2_not_found_for_variant, PortraitSettingsDiagnosticReportType::FileMask2NotFoundForVariant(String::new(), String::new(), false, false, String::new()));
         diag_ignored!(self, diagnostics_ignored, checkbox_file_mask_3_not_found_for_variant, PortraitSettingsDiagnosticReportType::FileMask3NotFoundForVariant(String::new(), String::new(), false, false, String::new()));
+
+        diag_ignored!(self, diagnostics_ignored, checkbox_group_formations_duplicate_formation_name, GroupFormationsDiagnosticReportType::DuplicateFormationName);
+        diag_ignored!(self, diagnostics_ignored, checkbox_group_formations_no_absolute_block, GroupFormationsDiagnosticReportType::NoAbsoluteBlock);
+        diag_ignored!(self, diagnostics_ignored, checkbox_group_formations_duplicate_block_id, GroupFormationsDiagnosticReportType::DuplicateBlockId(0));
+        diag_ignored!(self, diagnostics_ignored, checkbox_group_formations_missing_reference, GroupFormationsDiagnosticReportType::MissingReference(0, 0));
+        diag_ignored!(self, diagnostics_ignored, checkbox_group_formations_forward_reference, GroupFormationsDiagnosticReportType::ForwardReference(0, 0));
+        diag_ignored!(self, diagnostics_ignored, checkbox_group_formations_reference_cycle, GroupFormationsDiagnosticReportType::ReferenceCycle(vec![]));
+        diag_ignored!(self, diagnostics_ignored, checkbox_group_formations_empty_span, GroupFormationsDiagnosticReportType::EmptySpan(0));
+        diag_ignored!(self, diagnostics_ignored, checkbox_group_formations_invalid_thresholds, GroupFormationsDiagnosticReportType::InvalidThresholds(0));
+        diag_ignored!(self, diagnostics_ignored, checkbox_group_formations_no_entity_preferences, GroupFormationsDiagnosticReportType::NoEntityPreferences(0));
 
         diag_ignored!(self, diagnostics_ignored, checkbox_loocomotion_graph_path_not_found, AnimFragmentBattleDiagnosticReportType::LocomotionGraphPathNotFound(String::new()));
         diag_ignored!(self, diagnostics_ignored, checkbox_file_path_not_found, AnimFragmentBattleDiagnosticReportType::FilePathNotFound(String::new()));
