@@ -23,7 +23,7 @@ Workspace layout:
 
 The `3rdparty/` directory is excluded from the workspace. It contains vendored `ritual`-generated Qt6 bindings (`qt_core`, `qt_gui`, `qt_widgets`, `qt_ui_tools`, `cpp_core`). **Do not touch files in `3rdparty/` (except `3rdparty/src/qt_rpfm_extensions`) unless explicitly asked.**
 
-MSRV is `1.85`, edition `2021`.
+MSRV is `1.88`, edition `2021`.
 
 ## Your Core Principles
 

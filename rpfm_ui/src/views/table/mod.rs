@@ -3074,7 +3074,8 @@ impl TableView {
                             if hex.len() % 2 == 0 {
                                 let mut new_bytes = Vec::with_capacity(hex.len() / 2);
                                 let mut valid = true;
-                                for chunk in hex.as_bytes().chunks_exact(2) {
+                                let (pairs, _) = hex.as_bytes().as_chunks::<2>();
+                                for chunk in pairs {
                                     let pair = std::str::from_utf8(chunk).unwrap_or("");
                                     match u8::from_str_radix(pair, 16) {
                                         Ok(byte) => new_bytes.push(byte),

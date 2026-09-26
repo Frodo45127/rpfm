@@ -21,7 +21,7 @@ exclude = ["3rdparty"]
 [workspace.package]
 version = "5.0.6"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
-rust-version = "1.85"
+rust-version = "1.88"
 edition = "2021"
 
 [profile.dev]
@@ -75,7 +75,7 @@ getset = "^0.1"
 image = "^0.25"
 itertools = "^0.14"
 log = { version = "^0.4", features = ["std"] }
-keyring = { version = "^3.6", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust", "vendored"] }
+keyring = "^4.2"
 open = "^5"
 qt_core = { path = "3rdparty/src/ritual/output/out/qt_core" }
 qt_gui = { path = "3rdparty/src/ritual/output/out/qt_gui" }

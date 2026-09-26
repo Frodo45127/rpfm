@@ -113,17 +113,15 @@ pub trait Decryptable: ReadBytes + Read + Seek {
         };
 
         let mut plaintext = Vec::with_capacity(ciphertext.len());
-        let mut chunks = ciphertext.chunks_exact(8);
-        for (index, chunk) in chunks.by_ref().enumerate() {
+        let (chunks, remainder) = ciphertext.as_chunks::<8>();
+        for (index, chunk) in chunks.iter().enumerate() {
             let position = index as u64 * 8;
             let negated_position = if wide_position { !position } else { u64::from(!(position as u32)) };
             let key = DATA_KEY.wrapping_mul(negated_position);
-            let mut chunk_bytes = [0; 8];
-            chunk_bytes.copy_from_slice(chunk);
-            plaintext.extend_from_slice(&(u64::from_le_bytes(chunk_bytes) ^ key).to_le_bytes());
+            plaintext.extend_from_slice(&(u64::from_le_bytes(*chunk) ^ key).to_le_bytes());
         }
 
-        plaintext.extend_from_slice(chunks.remainder());
+        plaintext.extend_from_slice(remainder);
         Ok(plaintext)
     }
 
