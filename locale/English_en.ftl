@@ -1399,6 +1399,11 @@ portrait_settings_id_title = Edit ID
 
 ## Group Formations
 group_formations_filter = Filter
+group_formations_unit_count = Units per Block:
+group_formations_unit_count_tip = Units assumed on each block when drawing the formation. Blocks with a maximum amount of units use that maximum if it's lower.
+group_formations_fit = Fit the Formation in the View
+group_formations_front = Front
+group_formations_canvas_span = {"{"}{"}"}: Span
 group_formations_formation_title = Formation
 group_formations_name = Name:
 group_formations_ai_priority = AI Priority:

@@ -41,6 +41,7 @@ DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs depr
 SOURCES += \
     src/colour_item_delegate.cpp \
     src/extended_q_styled_item_delegate.cpp \
+    src/group_formation_canvas.cpp \
     src/kcolor_combo.cpp \
     src/kline_edit_custom.cpp \
     src/kmessage_widget.cpp \
@@ -77,6 +78,7 @@ HEADERS += \
     include/command_palette.h \
     include/colour_item_delegate.h \
     include/extended_q_styled_item_delegate.h \
+    include/group_formation_canvas.h \
     include/kline_edit_custom.h \
     include/kmessage_widget.h \
     include/kshortcuts_dialog.h \

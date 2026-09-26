@@ -28,7 +28,6 @@ use getset::Getters;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use rpfm_lib::files::group_formations::layout::LayoutParams;
 
 use rpfm_ui_common::clone;
 
@@ -87,6 +86,10 @@ pub struct GroupFormationsSlots {
     add_entity_preference: QBox<SlotNoArgs>,
     remove_entity_preference: QBox<SlotNoArgs>,
     span_members_changed: QBox<SlotNoArgs>,
+
+    canvas_selection_changed: QBox<SlotNoArgs>,
+    unit_count_changed: QBox<SlotNoArgs>,
+    fit_canvas: QBox<SlotNoArgs>,
 
     issue_clicked: QBox<SlotOfQModelIndex>,
 }
@@ -183,8 +186,31 @@ impl GroupFormationsSlots {
 
         let blocks_selected = SlotNoArgs::new(parent, clone!(
             view => move || {
+                group_formation_canvas_set_selected_ids_safe(view.canvas(), &view.selected_blocks());
                 view.load_inspector();
                 view.update_actions();
+            }
+        ));
+
+        let canvas_selection_changed = SlotNoArgs::new(parent, clone!(
+            view => move || {
+                view.select_tree_blocks(&group_formation_canvas_selected_ids_safe(view.canvas()));
+                view.load_inspector();
+                view.update_actions();
+            }
+        ));
+
+        let unit_count_changed = SlotNoArgs::new(parent, clone!(
+            view => move || {
+                let selected = view.selected_blocks();
+                view.load_canvas();
+                group_formation_canvas_set_selected_ids_safe(view.canvas(), &selected);
+            }
+        ));
+
+        let fit_canvas = SlotNoArgs::new(parent, clone!(
+            view => move || {
+                group_formation_canvas_fit_safe(view.canvas());
             }
         ));
 
@@ -258,7 +284,7 @@ impl GroupFormationsSlots {
                 }
 
                 let result = view.edit_formation(&app_ui, &pack_file_contents_ui, |formation| {
-                    formation.delete_blocks(&blocks, &LayoutParams::default())?;
+                    formation.delete_blocks(&blocks, &view.layout_params())?;
                     Ok(())
                 });
 
@@ -274,7 +300,7 @@ impl GroupFormationsSlots {
             view => move || {
                 let [block_id] = view.selected_blocks()[..] else { return };
                 let result = view.edit_formation(&app_ui, &pack_file_contents_ui, |formation| {
-                    formation.delete_subtree(block_id, &LayoutParams::default())?;
+                    formation.delete_subtree(block_id, &view.layout_params())?;
                     Ok(())
                 });
 
@@ -439,7 +465,7 @@ impl GroupFormationsSlots {
                 let parent_id = view.parent_combobox().current_data_0a().to_int_0a();
                 let parent_id = u32::try_from(parent_id).ok();
                 let result = view.edit_formation(&app_ui, &pack_file_contents_ui, |formation| {
-                    formation.reparent(block_id, parent_id, &LayoutParams::default())?;
+                    formation.reparent(block_id, parent_id, &view.layout_params())?;
                     Ok(())
                 });
 
@@ -596,6 +622,10 @@ impl GroupFormationsSlots {
             add_entity_preference,
             remove_entity_preference,
             span_members_changed,
+
+            canvas_selection_changed,
+            unit_count_changed,
+            fit_canvas,
 
             issue_clicked,
         }

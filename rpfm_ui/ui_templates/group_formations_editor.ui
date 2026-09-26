@@ -76,14 +76,55 @@
         <property name="bottomMargin"><number>2</number></property>
         <property name="spacing"><number>2</number></property>
         <item row="0" column="0" rowspan="1" colspan="1">
-         <widget class="QTreeView" name="blocks_tree_view">
-          <property name="alternatingRowColors"><bool>true</bool></property>
-          <property name="contextMenuPolicy"><enum>Qt::CustomContextMenu</enum></property>
-          <property name="selectionMode"><enum>QAbstractItemView::ExtendedSelection</enum></property>
-          <property name="headerHidden"><bool>true</bool></property>
+         <widget class="QWidget" name="canvas_toolbar" native="true">
+          <layout class="QGridLayout" name="canvas_toolbar_layout">
+           <property name="leftMargin"><number>0</number></property>
+           <property name="topMargin"><number>0</number></property>
+           <property name="rightMargin"><number>0</number></property>
+           <property name="bottomMargin"><number>0</number></property>
+           <property name="spacing"><number>0</number></property>
+           <item row="0" column="0" rowspan="1" colspan="1">
+            <widget class="QLabel" name="unit_count_label">
+             <property name="text"><string>TextLabel</string></property>
+            </widget>
+           </item>
+           <item row="0" column="1" rowspan="1" colspan="1">
+            <widget class="QSpinBox" name="unit_count_spinbox">
+             <property name="minimum"><number>1</number></property>
+             <property name="maximum"><number>40</number></property>
+             <property name="value"><number>2</number></property>
+            </widget>
+           </item>
+           <item row="0" column="2" rowspan="1" colspan="1">
+            <widget class="QToolButton" name="fit_button">
+             <property name="autoRaise"><bool>true</bool></property>
+            </widget>
+           </item>
+           <item row="0" column="3" rowspan="1" colspan="1">
+            <spacer name="canvas_toolbar_spacer">
+             <property name="orientation"><enum>Qt::Horizontal</enum></property>
+             <property name="sizeHint" stdset="0"><size><width>0</width><height>0</height></size></property>
+            </spacer>
+           </item>
+          </layout>
          </widget>
         </item>
         <item row="1" column="0" rowspan="1" colspan="1">
+         <widget class="QSplitter" name="blocks_splitter">
+          <property name="orientation"><enum>Qt::Vertical</enum></property>
+          <property name="childrenCollapsible"><bool>false</bool></property>
+          <widget class="QWidget" name="canvas_placeholder" native="true">
+           <property name="minimumSize"><size><width>300</width><height>200</height></size></property>
+          </widget>
+          <widget class="QTreeView" name="blocks_tree_view">
+           <property name="alternatingRowColors"><bool>true</bool></property>
+           <property name="contextMenuPolicy"><enum>Qt::CustomContextMenu</enum></property>
+           <property name="selectionMode"><enum>QAbstractItemView::ExtendedSelection</enum></property>
+           <property name="headerHidden"><bool>true</bool></property>
+          </widget>
+         </widget>
+        </item>
+        <item row="2" column="0" rowspan="1" colspan="1">
          <widget class="QWidget" name="blocks_buttons" native="true">
           <layout class="QGridLayout" name="blocks_buttons_layout">
            <property name="leftMargin"><number>0</number></property>

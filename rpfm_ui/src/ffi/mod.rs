@@ -14,6 +14,7 @@ Module containing the ffi functions used for custom widgets.
 
 use qt_widgets::QAbstractSpinBox;
 use qt_widgets::QCheckBox;
+use qt_widgets::QGraphicsView;
 #[cfg(feature = "enable_tools")] use qt_widgets::QDialog;
 use qt_widgets::QLabel;
 use qt_widgets::QLayout;
@@ -232,6 +233,86 @@ pub fn header_funnel_clicked_signal(header: QPtr<QObject>) -> Signal<(i32,)> {
         Signal::new(
             ::cpp_core::Ref::from_raw(header.as_raw_ptr()).expect("attempted to construct a null Ref"),
             c"2funnelClicked(int)",
+        )
+    }
+}
+
+/// Kind of a block drawn in a GroupFormations canvas. The values must match `GroupFormationBlockKind` on the C++ side.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CanvasBlockKind {
+    AbsoluteContainer = 0,
+    RelativeContainer = 1,
+    Span = 2,
+}
+
+/// A block to draw in a GroupFormations canvas, in scene coordinates.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CanvasBlock {
+    pub id: u32,
+    pub kind: CanvasBlockKind,
+    pub center: (f64, f64),
+    pub size: (f64, f64),
+    pub label: String,
+    pub color: (u8, u8, u8),
+}
+
+// These functions create and manage the canvas showing the blocks of a formation.
+extern "C" { fn new_group_formation_canvas(parent: *mut QWidget) -> *mut QGraphicsView; }
+pub fn new_group_formation_canvas_safe(parent: &QPtr<QWidget>) -> QPtr<QGraphicsView> {
+    unsafe { QPtr::from_raw(new_group_formation_canvas(parent.as_mut_raw_ptr())) }
+}
+
+extern "C" { fn group_formation_canvas_clear(canvas: *mut QGraphicsView); }
+pub fn group_formation_canvas_clear_safe(canvas: &QPtr<QGraphicsView>) {
+    unsafe { group_formation_canvas_clear(canvas.as_mut_raw_ptr()) }
+}
+
+extern "C" { fn group_formation_canvas_add_block(canvas: *mut QGraphicsView, id: u32, kind: i32, center_x: f64, center_y: f64, width: f64, height: f64, label: *const QString, red: i32, green: i32, blue: i32); }
+pub fn group_formation_canvas_add_block_safe(canvas: &QPtr<QGraphicsView>, block: &CanvasBlock) {
+    unsafe {
+        let label = QString::from_std_str(&block.label);
+        group_formation_canvas_add_block(canvas.as_mut_raw_ptr(), block.id, block.kind as i32, block.center.0, block.center.1, block.size.0, block.size.1, label.as_ptr().as_raw_ptr(), block.color.0 as i32, block.color.1 as i32, block.color.2 as i32)
+    }
+}
+
+extern "C" { fn group_formation_canvas_add_link(canvas: *mut QGraphicsView, child_id: u32, parent_id: u32); }
+pub fn group_formation_canvas_add_link_safe(canvas: &QPtr<QGraphicsView>, child_id: u32, parent_id: u32) {
+    unsafe { group_formation_canvas_add_link(canvas.as_mut_raw_ptr(), child_id, parent_id) }
+}
+
+extern "C" { fn group_formation_canvas_set_selected_ids(canvas: *mut QGraphicsView, ids: *const u32, count: i32); }
+pub fn group_formation_canvas_set_selected_ids_safe(canvas: &QPtr<QGraphicsView>, ids: &[u32]) {
+    unsafe { group_formation_canvas_set_selected_ids(canvas.as_mut_raw_ptr(), ids.as_ptr(), ids.len() as i32) }
+}
+
+extern "C" { fn group_formation_canvas_selected_count(canvas: *mut QGraphicsView) -> i32; }
+extern "C" { fn group_formation_canvas_selected_id(canvas: *mut QGraphicsView, index: i32) -> u32; }
+pub fn group_formation_canvas_selected_ids_safe(canvas: &QPtr<QGraphicsView>) -> Vec<u32> {
+    unsafe {
+        let count = group_formation_canvas_selected_count(canvas.as_mut_raw_ptr());
+        (0..count).map(|index| group_formation_canvas_selected_id(canvas.as_mut_raw_ptr(), index)).collect()
+    }
+}
+
+extern "C" { fn group_formation_canvas_set_front_label(canvas: *mut QGraphicsView, label: *const QString); }
+pub fn group_formation_canvas_set_front_label_safe(canvas: &QPtr<QGraphicsView>, label: &str) {
+    unsafe {
+        let label = QString::from_std_str(label);
+        group_formation_canvas_set_front_label(canvas.as_mut_raw_ptr(), label.as_ptr().as_raw_ptr())
+    }
+}
+
+extern "C" { fn group_formation_canvas_fit(canvas: *mut QGraphicsView); }
+pub fn group_formation_canvas_fit_safe(canvas: &QPtr<QGraphicsView>) {
+    unsafe { group_formation_canvas_fit(canvas.as_mut_raw_ptr()) }
+}
+
+// Signal emitted by the canvas when the user changes which blocks are selected.
+pub fn group_formation_canvas_selection_changed_signal(canvas: &QPtr<QGraphicsView>) -> Signal<()> {
+    unsafe {
+        Signal::new(
+            ::cpp_core::Ref::from_raw(canvas.as_raw_ptr()).expect("attempted to construct a null Ref"),
+            c"2blockSelectionChanged()",
         )
     }
 }

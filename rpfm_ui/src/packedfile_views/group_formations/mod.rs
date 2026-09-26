@@ -17,6 +17,7 @@ use qt_widgets::q_abstract_item_view::SelectionMode;
 use qt_widgets::QAbstractItemView;
 use qt_widgets::QComboBox;
 use qt_widgets::QDoubleSpinBox;
+use qt_widgets::QGraphicsView;
 use qt_widgets::QGridLayout;
 use qt_widgets::QGroupBox;
 use qt_widgets::QLabel;
@@ -24,6 +25,7 @@ use qt_widgets::QLineEdit;
 use qt_widgets::QListView;
 use qt_widgets::QMenu;
 use qt_widgets::QSpinBox;
+use qt_widgets::QSplitter;
 use qt_widgets::QStackedWidget;
 use qt_widgets::QTableView;
 use qt_widgets::QToolButton;
@@ -61,6 +63,7 @@ use std::sync::{Arc, RwLock};
 
 use rpfm_lib::files::{FileType, RFileDecoded};
 use rpfm_lib::files::group_formations::*;
+use rpfm_lib::files::group_formations::layout::LayoutParams;
 use rpfm_lib::files::group_formations::validation::ValidationIssue;
 
 use rpfm_ui_common::utils::*;
@@ -110,6 +113,26 @@ const PAGE_FORMATION: i32 = 1;
 const PAGE_CONTAINER: i32 = 2;
 const PAGE_SPAN: i32 = 3;
 
+/// Extra margin of spans around their members on the canvas, per level of spans nested inside them.
+const SPAN_MARGIN: f64 = 1.5;
+
+/// Color of spans on the canvas.
+const SPAN_COLOR: (u8, u8, u8) = (128, 128, 128);
+
+/// Colors for containers on the canvas, picked by their main entity so the same units share a color.
+const CONTAINER_COLORS: [(u8, u8, u8); 10] = [
+    (0x4e, 0x79, 0xa7),
+    (0xf2, 0x8e, 0x2b),
+    (0xe1, 0x57, 0x59),
+    (0x76, 0xb7, 0xb2),
+    (0x59, 0xa1, 0x4f),
+    (0xed, 0xc9, 0x48),
+    (0xb0, 0x7a, 0xa1),
+    (0xff, 0x9d, 0xa7),
+    (0x9c, 0x75, 0x5f),
+    (0xba, 0xb0, 0xac),
+];
+
 /// Columns of the entity preferences table.
 const COLUMN_PRIORITY: i32 = 0;
 const COLUMN_ENTITY: i32 = 1;
@@ -146,6 +169,10 @@ pub struct GroupFormationsView {
     add_formation: QPtr<QAction>,
     clone_formation: QPtr<QAction>,
     delete_formation: QPtr<QAction>,
+
+    canvas: QPtr<QGraphicsView>,
+    unit_count_spinbox: QPtr<QSpinBox>,
+    fit_button: QPtr<QToolButton>,
 
     blocks_tree_view: QPtr<QTreeView>,
     blocks_tree_model: QBox<QStandardItemModel>,
@@ -242,6 +269,27 @@ impl GroupFormationsView {
         set_button_action(&widget, "add_formation_button", &add_formation)?;
         set_button_action(&widget, "clone_formation_button", &clone_formation)?;
         set_button_action(&widget, "delete_formation_button", &delete_formation)?;
+
+        // Canvas. It's a custom widget, so it replaces a placeholder from the template. It's not created
+        // as a child of the splitter because the splitter would take it as a new pane, and refuse the replace.
+        let blocks_splitter: QPtr<QSplitter> = find_widget(&widget, "blocks_splitter")?;
+        let canvas_placeholder: QPtr<QWidget> = find_widget(&widget, "canvas_placeholder")?;
+        let canvas = new_group_formation_canvas_safe(&widget);
+        let placeholder_index = blocks_splitter.index_of(&canvas_placeholder);
+        let replaced = blocks_splitter.replace_widget(placeholder_index, &canvas);
+        if replaced.is_null() {
+            return Err(anyhow!("The GroupFormations canvas couldn't be added to the view."));
+        }
+        replaced.delete_later();
+        blocks_splitter.set_stretch_factor(placeholder_index, 3);
+        group_formation_canvas_set_front_label_safe(&canvas, &tr("group_formations_front"));
+
+        set_label_text(&widget, "unit_count_label", "group_formations_unit_count")?;
+        let unit_count_spinbox: QPtr<QSpinBox> = find_widget(&widget, "unit_count_spinbox")?;
+        unit_count_spinbox.set_tool_tip(&qtr("group_formations_unit_count_tip"));
+        let fit_button: QPtr<QToolButton> = find_widget(&widget, "fit_button")?;
+        fit_button.set_icon(&QIcon::from_theme_q_string(&QString::from_std_str("zoom-fit-best")));
+        fit_button.set_tool_tip(&qtr("group_formations_fit"));
 
         // Blocks tree.
         let blocks_tree_view: QPtr<QTreeView> = find_widget(&widget, "blocks_tree_view")?;
@@ -383,6 +431,10 @@ impl GroupFormationsView {
             clone_formation,
             delete_formation,
 
+            canvas,
+            unit_count_spinbox,
+            fit_button,
+
             blocks_tree_view,
             blocks_tree_model,
             blocks_context_menu,
@@ -502,8 +554,14 @@ impl GroupFormationsView {
         self.formations_list_view.scroll_to_1a(&index);
     }
 
-    /// Selects the blocks with the provided ids in the tree, without reloading the inspector.
+    /// Selects the blocks with the provided ids in the tree and the canvas, without reloading the inspector.
     unsafe fn select_blocks_silently(&self, block_ids: &[u32]) {
+        self.select_tree_blocks(block_ids);
+        group_formation_canvas_set_selected_ids_safe(&self.canvas, block_ids);
+    }
+
+    /// Selects the blocks with the provided ids in the tree only, without reloading the inspector.
+    pub unsafe fn select_tree_blocks(&self, block_ids: &[u32]) {
         let selection_model = self.blocks_tree_view.selection_model();
         let _blocker = QSignalBlocker::from_q_object(&selection_model);
         selection_model.clear_selection();
@@ -674,11 +732,19 @@ impl GroupFormationsView {
         self.refresh_issues();
     }
 
-    /// Loads the selected formation into the blocks tree and the inspector.
+    /// Loads the selected formation into the blocks tree, the canvas and the inspector.
     pub unsafe fn load_formation(&self) {
         self.load_blocks_tree(&[]);
+        group_formation_canvas_fit_safe(&self.canvas);
         self.load_inspector();
         self.update_actions();
+    }
+
+    /// Returns the simulated deployment used for the canvas and to keep blocks in place while editing.
+    pub unsafe fn layout_params(&self) -> LayoutParams {
+        let mut params = LayoutParams::default();
+        params.set_default_unit_count(self.unit_count_spinbox.value().max(1) as u32);
+        params
     }
 
     /// Updates the name of a formation in the list.
@@ -690,7 +756,7 @@ impl GroupFormationsView {
         }
     }
 
-    /// Rebuilds the blocks tree of the selected formation, and selects the provided blocks without reloading the inspector.
+    /// Rebuilds the blocks tree and the canvas of the selected formation, and selects the provided blocks without reloading the inspector.
     ///
     /// Containers are shown under the block they're positioned relative to. Absolute containers, spans, and
     /// blocks whose parent is missing or part of a reference loop are shown at the top level.
@@ -763,7 +829,54 @@ impl GroupFormationsView {
         });
 
         drop(data);
+        self.load_canvas();
         self.select_blocks_silently(select);
+    }
+
+    /// Redraws the canvas with the simulated layout of the selected formation.
+    ///
+    /// The canvas uses screen coordinates, where Y grows downwards, so Y is flipped to keep the front of the formation up.
+    pub unsafe fn load_canvas(&self) {
+        group_formation_canvas_clear_safe(&self.canvas);
+
+        let data = self.data.read().unwrap();
+        let Some(formation) = self.selected_formation().and_then(|index| data.formations().get(index)) else { return };
+        let rects = formation.layout(&self.layout_params());
+        let span_levels = span_levels(formation);
+
+        for block in formation.group_formation_blocks() {
+            let Some(rect) = rects.get(block.block_id()) else { continue };
+            let block_id = *block.block_id();
+            let (kind, label, color, margin) = match block.block() {
+                Block::ContainerAbsolute(container) => {
+                    let summary = preferences_summary(container.entity_preferences(), self.format);
+                    (CanvasBlockKind::AbsoluteContainer, format!("{block_id}: {summary}"), summary_color(&summary), 0.0)
+                },
+                Block::ContainerRelative(container) => {
+                    let summary = preferences_summary(container.entity_preferences(), self.format);
+                    (CanvasBlockKind::RelativeContainer, format!("{block_id}: {summary}"), summary_color(&summary), 0.0)
+                },
+                Block::Spanning(_) => {
+                    let level = span_levels.get(&block_id).copied().unwrap_or(1);
+                    (CanvasBlockKind::Span, tre("group_formations_canvas_span", &[&block_id.to_string()]), SPAN_COLOR, SPAN_MARGIN * level as f64)
+                },
+            };
+
+            group_formation_canvas_add_block_safe(&self.canvas, &CanvasBlock {
+                id: block_id,
+                kind,
+                center: (rect.center_x() as f64, -rect.center_y() as f64),
+                size: (rect.width() as f64 + margin * 2.0, rect.height() as f64 + margin * 2.0),
+                label,
+                color,
+            });
+        }
+
+        for block in formation.group_formation_blocks() {
+            if let Block::ContainerRelative(container) = block.block() {
+                group_formation_canvas_add_link_safe(&self.canvas, *block.block_id(), *container.relative_block_id());
+            }
+        }
     }
 
     /// Fills the inspector with the data of the selected block, or of the selected formation if no single block is selected.
@@ -1213,6 +1326,44 @@ fn preferences_summary(preferences: &[EntityPreference], format: GroupFormations
         1 => name,
         count => format!("{name} +{}", count - 1),
     }
+}
+
+/// Returns the canvas color of a container, from the summary of its entity preferences.
+///
+/// Uses the FNV-1a hash of the summary, so the same units always get the same color.
+fn summary_color(summary: &str) -> (u8, u8, u8) {
+    let hash = summary.bytes().fold(0xcbf29ce484222325u64, |hash, byte| (hash ^ byte as u64).wrapping_mul(0x100000001b3));
+    CONTAINER_COLORS[(hash % CONTAINER_COLORS.len() as u64) as usize]
+}
+
+/// Returns how many levels of spans each span contains, counting itself, so outer spans can be drawn bigger.
+fn span_levels(formation: &GroupFormation) -> HashMap<u32, u32> {
+    let spans = formation.group_formation_blocks()
+        .iter()
+        .filter_map(|block| match block.block() {
+            Block::Spanning(span) => Some((*block.block_id(), span.spanned_block_ids())),
+            Block::ContainerAbsolute(_) | Block::ContainerRelative(_) => None,
+        })
+        .collect::<HashMap<_, _>>();
+
+    // Each pass can only add one level, so a span cycle stops growing once passes reach the span count.
+    let mut levels = spans.keys().map(|span_id| (*span_id, 1)).collect::<HashMap<_, _>>();
+    for _ in 0..spans.len() {
+        let mut changed = false;
+        for (span_id, members) in &spans {
+            let level = 1 + members.iter().filter_map(|member_id| levels.get(member_id)).max().copied().unwrap_or(0);
+            if levels.get(span_id) != Some(&level) {
+                levels.insert(*span_id, level);
+                changed = true;
+            }
+        }
+
+        if !changed {
+            break;
+        }
+    }
+
+    levels
 }
 
 /// Turns a flag name like `NAVAL_ATTACK` into `Naval Attack`.

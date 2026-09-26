@@ -21,6 +21,8 @@ use super::{GroupFormationsView, ItemList, slots::GroupFormationsSlots};
 use qt_core::QBox;
 use qt_core::SlotNoArgs;
 
+use crate::ffi::group_formation_canvas_selection_changed_signal;
+
 /// This function connects all the actions from the provided `GroupFormationsView` with their slots in `GroupFormationsSlots`.
 pub unsafe fn set_connections(ui: &Arc<GroupFormationsView>, slots: &GroupFormationsSlots) {
     ui.formations_filter_line_edit().text_changed().connect(slots.filter_formations());
@@ -59,6 +61,10 @@ pub unsafe fn set_connections(ui: &Arc<GroupFormationsView>, slots: &GroupFormat
     ui.maximum_threshold_spinbox().value_changed().connect(slots.container_fields_changed());
     connect_list(ui.entity_preferences(), slots.entity_preferences_changed(), slots.add_entity_preference(), slots.remove_entity_preference());
     ui.span_members_model().item_changed().connect(slots.span_members_changed());
+
+    group_formation_canvas_selection_changed_signal(ui.canvas()).connect(slots.canvas_selection_changed());
+    ui.unit_count_spinbox().value_changed().connect(slots.unit_count_changed());
+    ui.fit_button().released().connect(slots.fit_canvas());
 
     ui.issues_list_view().clicked().connect(slots.issue_clicked());
 }
