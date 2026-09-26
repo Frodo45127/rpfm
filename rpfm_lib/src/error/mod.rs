@@ -299,6 +299,10 @@ pub enum RLibError {
     #[error("Unknown group formations {0} value: {1}.")]
     DecodingGroupFormationsUnknownEnumValue(String, u32),
 
+    /// Group Formations value of a version not used by the game being encoded.
+    #[error("A group formations {0} value doesn't match the version used by the selected game.")]
+    EncodingGroupFormationsMismatchedVersion(String),
+
     // Table Decoding Errors
 
     /// Combined colour field decoding failed.

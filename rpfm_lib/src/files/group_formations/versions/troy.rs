@@ -40,9 +40,7 @@ impl GroupFormations {
                 formation.ai_supported_subcultures.push(data.read_sized_string_u8()?);
             }
 
-            // for _ in 0..data.read_u32()? {
-            //     formation.ai_supported_factions.push(data.read_sized_string_u8()?);
-            // }
+            // Troy has no supported factions list.
 
             // GroupFormationBlock
             for _ in 0..data.read_u32()? {
@@ -132,9 +130,7 @@ impl GroupFormations {
             buffer.write_sized_string_u8(formation.name())?;
 
             buffer.write_f32(formation.ai_priority)?;
-            if let AIPurpose::V2(data) = &formation.ai_purpose {
-                buffer.write_u32(data.bits())?;
-            }
+            buffer.write_u32(formation.ai_purpose.v2_bits()?)?;
 
             buffer.write_u32(formation.uk_2)?;
             buffer.write_u32(formation.min_unit_category_percentage.len() as u32)?;
@@ -147,11 +143,6 @@ impl GroupFormations {
             for ai_supported_subculture in formation.ai_supported_subcultures() {
                 buffer.write_sized_string_u8(ai_supported_subculture)?;
             }
-
-            // buffer.write_u32(formation.ai_supported_factions.len() as u32)?;
-            // for ai_supported_faction in formation.ai_supported_factions() {
-            //     buffer.write_sized_string_u8(ai_supported_faction)?;
-            // }
 
             buffer.write_u32(formation.group_formation_blocks.len() as u32)?;
             for block in formation.group_formation_blocks() {
@@ -173,9 +164,7 @@ impl GroupFormations {
                         buffer.write_u32(b.entity_preferences.len() as u32)?;
                         for ep in b.entity_preferences() {
                             buffer.write_f32(ep.priority)?;
-                            if let Entity::V2(data) = &ep.entity {
-                                buffer.write_u32((*data).into())?;
-                            }
+                            buffer.write_u32(ep.entity.v2_value()?)?;
                             buffer.write_u32(ep.entity_weight.into())?;
                             buffer.write_u32(ep.uk_1)?;
                             buffer.write_sized_string_u8(&ep.entity_class)?;
@@ -198,9 +187,7 @@ impl GroupFormations {
                         buffer.write_u32(b.entity_preferences.len() as u32)?;
                         for ep in b.entity_preferences() {
                             buffer.write_f32(ep.priority)?;
-                            if let Entity::V2(data) = &ep.entity {
-                                buffer.write_u32((*data).into())?;
-                            }
+                            buffer.write_u32(ep.entity.v2_value()?)?;
                             buffer.write_u32(ep.entity_weight.into())?;
 
                             buffer.write_u32(ep.uk_1)?;

@@ -128,6 +128,24 @@ pub enum EntityType {
     #[default] Any = 65,
 }
 
+impl EntityType {
+
+    /// All the possible values, in their binary order.
+    pub const ALL: [Self; 63] = [
+        Self::ArtilleryFixed, Self::ArtilleryFoot, Self::ArtilleryHorse, Self::CavalryCamels, Self::CavalryHeavy, Self::CavalryIrregular,
+        Self::CavalryLancers, Self::CavalryLight, Self::CavalryMissile, Self::CavalryStandard, Self::Dragoons, Self::Elephants,
+        Self::General, Self::InfantryBerserker, Self::InfantryElite, Self::InfantryGrenadiers, Self::InfantryIrregulars, Self::InfantryLight,
+        Self::InfantryLine, Self::InfantryMelee, Self::InfantryMilitia, Self::InfantryMob, Self::InfantrySkirmishers, Self::NavalAdmiral,
+        Self::NavalBombKetch, Self::NavalBrig, Self::NavalDhow, Self::NavalFifthRate, Self::NavalFirstRate, Self::NavalFourthRate,
+        Self::NavalHeavyGalley, Self::NavalIndiaman, Self::NavalLightGalley, Self::NavalLugger, Self::NavalMediumGalley, Self::NavalOverFirstRate,
+        Self::NavalRazee, Self::NavalRocketShip, Self::NavalSecondRate, Self::NavalSixthRate, Self::NavalSloop, Self::NavalSteamShip,
+        Self::NavalThirdRate, Self::NavalXebec, Self::InfantrySpearman, Self::InfantryHeavy, Self::InfantrySpecial, Self::InfantryBow,
+        Self::InfantryMatchlock, Self::InfantrySword, Self::Siege, Self::CavalrySword, Self::NavalHeavyShip, Self::NavalMediumShip,
+        Self::NavalLightShip, Self::NavalCannonShip, Self::NavalGalleon, Self::NavalIronclad, Self::NavalCorvette, Self::NavalFrigate,
+        Self::NavalGunboat, Self::NavalTorpedoboat, Self::Any,
+    ];
+}
+
 impl TryFrom<u32> for EntityType {
     type Error = RLibError;
     fn try_from(value: u32) -> Result<Self> {

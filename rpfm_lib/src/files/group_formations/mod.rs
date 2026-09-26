@@ -63,10 +63,12 @@
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
+use std::fmt::Display;
+
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
-use crate::games::supported_games::*;
+use crate::games::{GameInfo, supported_games::*};
 use crate::utils::*;
 
 use super::DecodeableExtraData;
@@ -74,6 +76,7 @@ use super::DecodeableExtraData;
 /// Fixed path to the Group Formations file.
 pub const PATH: &str = "groupformations.bin";
 
+pub mod validation;
 pub mod versions;
 
 #[cfg(test)] mod test_group_formations;
@@ -109,7 +112,7 @@ pub struct GroupFormation {
     /// Bitflags indicating when this formation should be used (attack, defend, naval, etc.).
     ai_purpose: AIPurpose,
 
-    /// Unknown field, present in Three Kingdoms.
+    /// Unknown field, present in Troy and later.
     uk_2: u32,
 
     /// Minimum percentage requirements for unit categories in this formation.
@@ -265,14 +268,10 @@ pub struct EntityPreference {
     /// Weight class of the unit (light, medium, heavy, etc.). Introduced in Rome 2.
     entity_weight: EntityWeight,
 
-    /// Unknown fields present in Three Kingdoms.
+    /// Unknown field, present in Troy and later. Vanilla files almost always use 6.
     uk_1: u32,
-    /// Unknown field present in Three Kingdoms.
-    uk_2: u32,
-    /// Unknown field present in Three Kingdoms.
-    uk_3: u32,
 
-    /// Entity class string identifier (used in Three Kingdoms).
+    /// Entity class string identifier, present in Troy and later.
     entity_class: String,
 }
 
@@ -284,6 +283,23 @@ pub struct EntityPreference {
 pub struct Spanning {
     /// IDs of the blocks that this spanning block encompasses.
     spanned_block_ids: Vec<u32>,
+}
+
+/// Binary layout of a Group Formations file, which depends on the game it belongs to.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GroupFormationsFormat {
+
+    /// Shogun 2.
+    Shogun2,
+
+    /// Rome 2, Attila and Thrones of Britannia.
+    Rome2,
+
+    /// Troy and Pharaoh.
+    Troy,
+
+    /// Three Kingdoms and Warhammer 3.
+    Warhammer3,
 }
 
 /// AI purpose flags indicating when a formation should be used.
@@ -315,7 +331,7 @@ pub enum EntityArrangement {
 #[repr(u32)]
 pub enum UnitCategory {
     #[default] Cavalry = 0,
-    InvantryMelee = 13,
+    InfantryMelee = 13,
     InfantryRanged = 14,
     NavalHeavy = 15,
     NavalMedium = 16,
@@ -343,7 +359,7 @@ pub enum EntityWeight {
     Light = 1,
     Medium = 2,
     Heavy = 3,
-    VeyHeavy = 4,
+    VeryHeavy = 4,
     SuperHeavy = 5,
     #[default] Any = 6,
 }
@@ -351,6 +367,236 @@ pub enum EntityWeight {
 //---------------------------------------------------------------------------//
 //                          Implementation of GroupFormations
 //---------------------------------------------------------------------------//
+
+impl GroupFormationsFormat {
+
+    /// Returns the format used by the provided game.
+    ///
+    /// # Arguments
+    ///
+    /// * `game_info` - The game the file belongs to.
+    ///
+    /// # Returns
+    ///
+    /// The format of the game's Group Formations file.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the game doesn't support Group Formations files.
+    pub fn from_game(game_info: &GameInfo) -> Result<Self> {
+        match game_info.key() {
+            KEY_PHARAOH_DYNASTIES |
+            KEY_PHARAOH |
+            KEY_TROY => Ok(Self::Troy),
+            KEY_THREE_KINGDOMS |
+            KEY_WARHAMMER_3 => Ok(Self::Warhammer3),
+            KEY_THRONES_OF_BRITANNIA |
+            KEY_ATTILA |
+            KEY_ROME_2 => Ok(Self::Rome2),
+            KEY_SHOGUN_2 => Ok(Self::Shogun2),
+
+            // Warhammer, Warhammer 2, Napoleon and Empire formats are not yet researched.
+            _ => Err(RLibError::DecodingUnsupportedGameSelected(game_info.key().to_string())),
+        }
+    }
+
+    /// Returns if formations in this format have a list of supported factions.
+    pub fn has_ai_supported_factions(&self) -> bool {
+        matches!(self, Self::Shogun2 | Self::Rome2 | Self::Warhammer3)
+    }
+
+    /// Returns if formations in this format have a list of supported subcultures.
+    pub fn has_ai_supported_subcultures(&self) -> bool {
+        matches!(self, Self::Rome2 | Self::Troy | Self::Warhammer3)
+    }
+
+    /// Returns if formations in this format have the `uk_2` field.
+    pub fn has_formation_uk_2(&self) -> bool {
+        matches!(self, Self::Troy | Self::Warhammer3)
+    }
+
+    /// Returns if entity preferences in this format have an entity weight.
+    pub fn has_entity_weight(&self) -> bool {
+        matches!(self, Self::Rome2 | Self::Troy | Self::Warhammer3)
+    }
+
+    /// Returns if entity preferences in this format have the `uk_1` and `entity_class` fields.
+    pub fn has_entity_class(&self) -> bool {
+        matches!(self, Self::Troy | Self::Warhammer3)
+    }
+
+    /// Returns an empty set of AI purpose flags of the version used by this format.
+    pub fn default_ai_purpose(&self) -> AIPurpose {
+        match self {
+            Self::Shogun2 => AIPurpose::V1(versions::v1::AIPurposeFlags::empty()),
+            Self::Rome2 | Self::Troy | Self::Warhammer3 => AIPurpose::V2(versions::v2::AIPurposeFlags::empty()),
+        }
+    }
+
+    /// Returns the default entity type of the version used by this format.
+    pub fn default_entity(&self) -> Entity {
+        match self {
+            Self::Shogun2 => Entity::V1(versions::v1::EntityType::Any),
+            Self::Rome2 => Entity::V2(versions::v2::EntityType::InfMel),
+
+            // Vanilla files pair the "any" entity class with this value.
+            Self::Troy | Self::Warhammer3 => Entity::V2(versions::v2::EntityType::Invalid),
+        }
+    }
+}
+
+impl GroupFormation {
+
+    /// Creates an empty formation valid for the provided format.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - Name of the new formation.
+    /// * `format` - Format of the file the formation will belong to.
+    ///
+    /// # Returns
+    ///
+    /// A formation with no blocks and the AI purpose version expected by the format.
+    pub fn new(name: &str, format: GroupFormationsFormat) -> Self {
+        Self {
+            name: name.to_owned(),
+            ai_purpose: format.default_ai_purpose(),
+            ..Default::default()
+        }
+    }
+}
+
+impl EntityPreference {
+
+    /// Creates an entity preference valid for the provided format, with the defaults used by vanilla files.
+    ///
+    /// # Arguments
+    ///
+    /// * `format` - Format of the file the preference will belong to.
+    ///
+    /// # Returns
+    ///
+    /// An entity preference with the entity version expected by the format.
+    pub fn new(format: GroupFormationsFormat) -> Self {
+        Self {
+            priority: 1.0,
+            entity: format.default_entity(),
+            entity_weight: EntityWeight::Any,
+            uk_1: if format.has_entity_class() { 6 } else { 0 },
+            entity_class: if format.has_entity_class() { "any".to_owned() } else { String::new() },
+        }
+    }
+}
+
+impl AIPurpose {
+
+    /// Returns the raw bits of these flags, if they're the V1 (Shogun 2) version.
+    pub(crate) fn v1_bits(&self) -> Result<u32> {
+        match self {
+            Self::V1(flags) => Ok(flags.bits()),
+            Self::V2(_) => Err(RLibError::EncodingGroupFormationsMismatchedVersion("AIPurpose".to_owned())),
+        }
+    }
+
+    /// Returns the raw bits of these flags, if they're the V2 (Rome 2 and later) version.
+    pub(crate) fn v2_bits(&self) -> Result<u32> {
+        match self {
+            Self::V2(flags) => Ok(flags.bits()),
+            Self::V1(_) => Err(RLibError::EncodingGroupFormationsMismatchedVersion("AIPurpose".to_owned())),
+        }
+    }
+}
+
+impl Entity {
+
+    /// Returns the raw value of this entity, if it's the V1 (Shogun 2) version.
+    pub(crate) fn v1_value(&self) -> Result<u32> {
+        match self {
+            Self::V1(entity) => Ok((*entity).into()),
+            Self::V2(_) => Err(RLibError::EncodingGroupFormationsMismatchedVersion("Entity".to_owned())),
+        }
+    }
+
+    /// Returns the raw value of this entity, if it's the V2 (Rome 2 and later) version.
+    pub(crate) fn v2_value(&self) -> Result<u32> {
+        match self {
+            Self::V2(entity) => Ok((*entity).into()),
+            Self::V1(_) => Err(RLibError::EncodingGroupFormationsMismatchedVersion("Entity".to_owned())),
+        }
+    }
+}
+
+impl EntityArrangement {
+
+    /// All the possible values, in their binary order.
+    pub const ALL: [Self; 4] = [Self::Line, Self::Column, Self::CrescentFront, Self::CrescentBack];
+}
+
+impl UnitCategory {
+
+    /// All the possible values, in their binary order.
+    pub const ALL: [Self; 6] = [Self::Cavalry, Self::InfantryMelee, Self::InfantryRanged, Self::NavalHeavy, Self::NavalMedium, Self::NavalLight];
+}
+
+impl EntityWeight {
+
+    /// All the possible values, in their binary order.
+    pub const ALL: [Self; 7] = [Self::VeryLight, Self::Light, Self::Medium, Self::Heavy, Self::VeryHeavy, Self::SuperHeavy, Self::Any];
+}
+
+impl Display for EntityArrangement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Line => write!(f, "Line"),
+            Self::Column => write!(f, "Column"),
+            Self::CrescentFront => write!(f, "Crescent Front"),
+            Self::CrescentBack => write!(f, "Crescent Back"),
+        }
+    }
+}
+
+impl Display for UnitCategory {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Cavalry => write!(f, "Cavalry"),
+            Self::InfantryMelee => write!(f, "Melee Infantry"),
+            Self::InfantryRanged => write!(f, "Ranged Infantry"),
+            Self::NavalHeavy => write!(f, "Heavy Naval"),
+            Self::NavalMedium => write!(f, "Medium Naval"),
+            Self::NavalLight => write!(f, "Light Naval"),
+        }
+    }
+}
+
+impl Display for EntityWeight {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::VeryLight => write!(f, "Very Light"),
+            Self::Light => write!(f, "Light"),
+            Self::Medium => write!(f, "Medium"),
+            Self::Heavy => write!(f, "Heavy"),
+            Self::VeryHeavy => write!(f, "Very Heavy"),
+            Self::SuperHeavy => write!(f, "Super Heavy"),
+            Self::Any => write!(f, "Any"),
+        }
+    }
+}
+
+impl Block {
+
+    /// Returns the ids of the blocks this block needs to be positioned first.
+    ///
+    /// # Returns
+    ///
+    /// The parent block for relative containers, the spanned blocks for spans, and nothing for absolute containers.
+    pub fn dependencies(&self) -> &[u32] {
+        match self {
+            Self::ContainerAbsolute(_) => &[],
+            Self::ContainerRelative(container) => std::slice::from_ref(&container.relative_block_id),
+            Self::Spanning(span) => &span.spanned_block_ids,
+        }
+    }
+}
 
 impl Default for Block {
     fn default() -> Self {
@@ -394,7 +640,7 @@ impl TryFrom<u32> for UnitCategory {
     fn try_from(value: u32) -> Result<Self> {
         match value {
             _ if value == Self::Cavalry as u32 => Ok(Self::Cavalry),
-            _ if value == Self::InvantryMelee as u32 => Ok(Self::InvantryMelee),
+            _ if value == Self::InfantryMelee as u32 => Ok(Self::InfantryMelee),
             _ if value == Self::InfantryRanged as u32 => Ok(Self::InfantryRanged),
             _ if value == Self::NavalHeavy as u32 => Ok(Self::NavalHeavy),
             _ if value == Self::NavalMedium as u32 => Ok(Self::NavalMedium),
@@ -418,7 +664,7 @@ impl TryFrom<u32> for EntityWeight {
             _ if value == Self::Light as u32 => Ok(Self::Light),
             _ if value == Self::Medium as u32 => Ok(Self::Medium),
             _ if value == Self::Heavy as u32 => Ok(Self::Heavy),
-            _ if value == Self::VeyHeavy as u32 => Ok(Self::VeyHeavy),
+            _ if value == Self::VeryHeavy as u32 => Ok(Self::VeryHeavy),
             _ if value == Self::SuperHeavy as u32 => Ok(Self::SuperHeavy),
             _ if value == Self::Any as u32 => Ok(Self::Any),
             _ => Err(RLibError::DecodingGroupFormationsUnknownEnumValue("EntityWeight".to_string(), value)),
@@ -441,21 +687,11 @@ impl Decodeable for GroupFormations {
         let mut decoded = Self::default();
         let data_len = data.len()?;
 
-        match game_info.key() {
-            KEY_PHARAOH_DYNASTIES |
-            KEY_PHARAOH |
-            KEY_TROY => decoded.decode_troy(data)?,
-            KEY_THREE_KINGDOMS |
-            KEY_WARHAMMER_3 => decoded.decode_wh3(data)?,
-            //KEY_WARHAMMER_2 |
-            //KEY_WARHAMMER |
-            KEY_THRONES_OF_BRITANNIA |
-            KEY_ATTILA |
-            KEY_ROME_2 => decoded.decode_rom_2(data)?,
-            KEY_SHOGUN_2 => decoded.decode_sho_2(data)?,
-            //KEY_NAPOLEON |
-            //KEY_EMPIRE => data.read_sized_string_u16()?,
-            _ => return Err(RLibError::DecodingUnsupportedGameSelected(game_info.key().to_string())),
+        match GroupFormationsFormat::from_game(game_info)? {
+            GroupFormationsFormat::Troy => decoded.decode_troy(data)?,
+            GroupFormationsFormat::Warhammer3 => decoded.decode_wh3(data)?,
+            GroupFormationsFormat::Rome2 => decoded.decode_rom_2(data)?,
+            GroupFormationsFormat::Shogun2 => decoded.decode_sho_2(data)?,
         }
 
         check_size_mismatch(data.stream_position()? as usize, data_len as usize)?;
@@ -470,21 +706,11 @@ impl Encodeable for GroupFormations {
         let extra_data = extra_data.as_ref().ok_or(RLibError::EncodingMissingExtraData)?;
         let game_info = extra_data.game_info.ok_or_else(|| RLibError::DecodingMissingExtraDataField("game_info".to_owned()))?;
 
-        match game_info.key() {
-            KEY_PHARAOH_DYNASTIES |
-            KEY_PHARAOH |
-            KEY_TROY => self.encode_troy(buffer)?,
-            KEY_THREE_KINGDOMS |
-            KEY_WARHAMMER_3 => self.encode_wh3(buffer)?,
-            //KEY_WARHAMMER_2 |
-            //KEY_WARHAMMER |
-            KEY_THRONES_OF_BRITANNIA |
-            KEY_ATTILA |
-            KEY_ROME_2 => self.encode_rom_2(buffer)?,
-            KEY_SHOGUN_2 => self.encode_sho_2(buffer)?,
-            //KEY_NAPOLEON |
-            //KEY_EMPIRE => buffer.write_sized_string_u16(formation.name())?,
-            _ => return Err(RLibError::DecodingUnsupportedGameSelected(game_info.key().to_string())),
+        match GroupFormationsFormat::from_game(game_info)? {
+            GroupFormationsFormat::Troy => self.encode_troy(buffer)?,
+            GroupFormationsFormat::Warhammer3 => self.encode_wh3(buffer)?,
+            GroupFormationsFormat::Rome2 => self.encode_rom_2(buffer)?,
+            GroupFormationsFormat::Shogun2 => self.encode_sho_2(buffer)?,
         };
 
         Ok(())

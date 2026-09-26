@@ -117,9 +117,7 @@ impl GroupFormations {
             buffer.write_sized_string_u16(formation.name())?;
             buffer.write_f32(formation.ai_priority)?;
 
-            if let AIPurpose::V1(data) = &formation.ai_purpose {
-                buffer.write_u32(data.bits())?;
-            }
+            buffer.write_u32(formation.ai_purpose.v1_bits()?)?;
 
             buffer.write_u32(formation.min_unit_category_percentage.len() as u32)?;
             for mucp in formation.min_unit_category_percentage() {
@@ -151,9 +149,7 @@ impl GroupFormations {
                         buffer.write_u32(b.entity_preferences.len() as u32)?;
                         for ep in b.entity_preferences() {
                             buffer.write_f32(ep.priority)?;
-                            if let Entity::V1(data) = &ep.entity {
-                                buffer.write_u32((*data).into())?;
-                            }
+                            buffer.write_u32(ep.entity.v1_value()?)?;
                         }
                     },
 
@@ -172,9 +168,7 @@ impl GroupFormations {
                         buffer.write_u32(b.entity_preferences.len() as u32)?;
                         for ep in b.entity_preferences() {
                             buffer.write_f32(ep.priority)?;
-                            if let Entity::V1(data) = &ep.entity {
-                                buffer.write_u32((*data).into())?;
-                            }
+                            buffer.write_u32(ep.entity.v1_value()?)?;
                         }
                     },
 

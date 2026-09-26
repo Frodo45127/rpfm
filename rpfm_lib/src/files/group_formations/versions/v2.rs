@@ -22,6 +22,7 @@ use crate::error::{Result, RLibError};
 
 bitflags! {
 
+    // Names taken from the Attila Assembly Kit. Later games may use the unknown bits.
     #[derive(Default, PartialEq, Clone, Debug, Serialize, Deserialize)]
     pub struct AIPurposeFlags: u32 {
         const ATTACK                        = 0b0000_0000_0000_0000_0000_0000_0000_0001;
@@ -32,14 +33,14 @@ bitflags! {
         const AMBUSH_DEFENCE_BLOCK          = 0b0000_0000_0000_0000_0000_0000_0010_0000;
         const SETTLEMENT_ASSAULT            = 0b0000_0000_0000_0000_0000_0000_0100_0000;
         const SETTLEMENT_AREA_DEFEND_NARROW = 0b0000_0000_0000_0000_0000_0000_1000_0000;
-        const SETTLEMENT_AREA_ATTACK_NARROW = 0b0000_0000_0000_0000_0000_0001_0000_0000;
-        const UK_9                          = 0b0000_0000_0000_0000_0000_0010_0000_0000;
-        const NAVAL_ATTACK                  = 0b0000_0000_0000_0000_0000_0100_0000_0000;
-        const NAVAL_DEFEND                  = 0b0000_0000_0000_0000_0000_1000_0000_0000;
-        const DEFAULT_DEPLOYMENT            = 0b0000_0000_0000_0000_0001_0000_0000_0000;
-        const NAVAL_DEFAULT_DEPLOYMENT      = 0b0000_0000_0000_0000_0010_0000_0000_0000;
-        const UK_14                         = 0b0000_0000_0000_0000_0100_0000_0000_0000;
-        const UK_15                         = 0b0000_0000_0000_0000_1000_0000_0000_0000;
+        const SETTLEMENT_AREA_DEFEND_WIDE   = 0b0000_0000_0000_0000_0000_0001_0000_0000;
+        const SETTLEMENT_AREA_ATTACK_NARROW = 0b0000_0000_0000_0000_0000_0010_0000_0000;
+        const SETTLEMENT_AREA_ATTACK_WIDE   = 0b0000_0000_0000_0000_0000_0100_0000_0000;
+        const UK_11                         = 0b0000_0000_0000_0000_0000_1000_0000_0000;
+        const NAVAL_ATTACK                  = 0b0000_0000_0000_0000_0001_0000_0000_0000;
+        const NAVAL_DEFEND                  = 0b0000_0000_0000_0000_0010_0000_0000_0000;
+        const DEFAULT_DEPLOYMENT            = 0b0000_0000_0000_0000_0100_0000_0000_0000;
+        const NAVAL_DEFAULT_DEPLOYMENT      = 0b0000_0000_0000_0000_1000_0000_0000_0000;
         const UK_16                         = 0b0000_0000_0000_0001_0000_0000_0000_0000;
         const UK_17                         = 0b0000_0000_0000_0010_0000_0000_0000_0000;
         const UK_18                         = 0b0000_0000_0000_0100_0000_0000_0000_0000;
@@ -93,6 +94,16 @@ pub enum EntityType {
     Uk24 = 24,
 }
 
+impl EntityType {
+
+    /// All the possible values, in their binary order.
+    pub const ALL: [Self; 25] = [
+        Self::InfMel, Self::InfSpr, Self::InfPik, Self::InfMis, Self::Com, Self::CavShk, Self::CavMel, Self::CavMis,
+        Self::Chariot, Self::Elph, Self::Spcl, Self::ArtFld, Self::ArtFix, Self::ArtSiege, Self::ShpMel, Self::ShpMis,
+        Self::ShpArt, Self::ShpTrn, Self::ShpStk, Self::ShpFir, Self::Invalid, Self::Uk21, Self::Uk22, Self::Uk23, Self::Uk24,
+    ];
+}
+
 impl TryFrom<u32> for EntityType {
     type Error = RLibError;
     fn try_from(value: u32) -> Result<Self> {
@@ -136,7 +147,7 @@ impl From<EntityType> for u32 {
 impl Display for EntityType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::InfMel => write!(f, "Missile Infantry"),
+            Self::InfMel => write!(f, "Melee Infantry"),
             Self::InfSpr => write!(f, "Spear Infantry"),
             Self::InfPik => write!(f, "Pike Infantry"),
             Self::InfMis => write!(f, "Missile Infantry"),
