@@ -124,6 +124,7 @@ Example:
 | `Definition`                          | Definition                                                                   | Table definition                      |
 | `DependenciesInfo`                    | DependenciesInfo                                                             | Dependencies information              |
 | `Diagnostics`                         | Diagnostics                                                                  | Diagnostics report                    |
+| `LuaTestReport`                       | [LuaTestReport](./ws-shared-types.md#luatestreport)                          | Results of a Lua test run             |
 | `GlobalSearchVecRFileInfo`            | [GlobalSearch, RFileInfo[]]                                                  | Search results + modified files       |
 | `HashMapDataSourceHashMapStringRFile` | Record<DataSource, Record<string, RFile>>                                    | Files by source and path              |
 | `HashMapDataSourceHashSetContainerPath` | Record<DataSource, ContainerPath[]>                                        | Paths by data source                  |

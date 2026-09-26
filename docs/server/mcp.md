@@ -194,6 +194,7 @@ The MCP interface exposes **150 tools** organized by category. Each tool accepts
 |------|-------------|---------------|
 | `diagnostics_check` | Run a full diagnostics check | `ignored`, `check_ak_only_refs` |
 | `diagnostics_update` | Update diagnostics for changed files | `diagnostics`, `paths`, `check_ak_only_refs` |
+| `lua_run_tests` | Run Lua tests against the open packs' scripts, with the game's script libraries | `test_source`, `campaign` |
 | `add_line_to_pack_ignored_diagnostics` | Add to ignored diagnostics | `pack_key`, `value` |
 | `get_missing_definitions` | Export missing table definitions | `pack_key` |
 

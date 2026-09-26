@@ -669,6 +669,16 @@ pub enum RLibError {
     #[error("No translation could be found.")]
     TranslatorCouldNotLoadTranslation,
 
+    // Lua Test Errors
+
+    /// The test file of a Lua test run can't be loaded.
+    #[error("The Lua test file could not be loaded: {0}")]
+    LuaTestFileError(String),
+
+    /// The Lua runtime used to run tests failed.
+    #[error("The Lua runtime failed: {0}")]
+    LuaRuntimeError(String),
+
     // GameInfo Errors
 
     /// GameInfo missing from pack-reading function.

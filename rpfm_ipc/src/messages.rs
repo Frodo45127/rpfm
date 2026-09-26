@@ -60,6 +60,7 @@ use std::path::PathBuf;
 
 use rpfm_extensions::dependencies::TableReferences;
 use rpfm_extensions::diagnostics::Diagnostics;
+use rpfm_extensions::lua::harness::LuaTestReport;
 use rpfm_extensions::merge::{MergeConflict, MergeOptions};
 use rpfm_extensions::optimizer::OptimizerOptions;
 use rpfm_extensions::search::{GlobalSearch, MatchHolder};
@@ -724,6 +725,15 @@ pub enum Command {
     /// Response: [`Response::VecU64U64U64U64String`], with the range of each use (start line, start column,
     /// end line, end column, all 0-based) and its docs as Qt rich text. Empty if the game's Lua API is not available.
     LuaHovers(String),
+
+    /// Run Lua tests against the scripts of all open packs, together with the game's script libraries.
+    /// First field is the code of the test file, then the campaign whose vanilla scripts to load (like
+    /// `main_warhammer`), or `None` to load only the script libraries and the mods.
+    ///
+    /// Response:
+    /// - [`Response::LuaTestReport`] on success.
+    /// - [`Response::Error`] if the game's Lua API is not available or the test file can't be loaded.
+    LuaRunTests(String, Option<String>),
 
     //-----------------------------------------------------------------------//
     // Pack Settings Commands
@@ -1505,6 +1515,7 @@ pub enum Response {
     VecStringTuples(Vec<(String, String)>),
     VecStringContainerInfo(Vec<(String, ContainerInfo)>),
     VecU8(Vec<u8>),
+    LuaTestReport(LuaTestReport),
     VecU64U64U64U64String(Vec<(u64, u64, u64, u64, String)>),
     VideoInfoRFileInfo(VideoInfo, RFileInfo),
     VMDRFileInfo(Text, RFileInfo),

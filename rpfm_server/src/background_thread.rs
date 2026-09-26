@@ -49,6 +49,7 @@ use rpfm_extensions::diagnostics::Diagnostics;
 use rpfm_extensions::gltf::{gltf_from_rigid, save_gltf_to_disk};
 use rpfm_extensions::lua::{ASSEMBLY_KIT_SCRIPT_DOCS_PATH, LuaApi};
 use rpfm_extensions::lua::check::{check_script, LuaDefinitions};
+use rpfm_extensions::lua::harness::{run_tests, LuaScripts, LuaTestOptions};
 use rpfm_extensions::merge::{db_baseline, delta_merge_db, delta_merge_loc, loc_baseline, MergeConflict, MergeResolution};
 use rpfm_extensions::optimizer::OptimizableContainer;
 use rpfm_extensions::translator::PackTranslation;
@@ -2293,6 +2294,29 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                 };
 
                 CentralCommand::send_back(&sender, Response::VecU64U64U64U64String(hovers));
+            }
+
+            Command::LuaRunTests(test_source, campaign) => {
+                let dependencies = dependencies.read().unwrap();
+                match cached_lua_api(&mut lua_api_cache, game, &settings, &dependencies) {
+                    Some(lua_api) => {
+                        let scripts = LuaScripts::from_game_and_packs(&dependencies, &packs);
+                        let key_values = |table_name| dependencies.db_key_values(Some(&packs), table_name)
+                            .map(|(_, keys)| keys.into_iter().collect::<Vec<_>>())
+                            .unwrap_or_default();
+
+                        let mut options = LuaTestOptions::default();
+                        options.set_campaign(campaign);
+                        options.set_faction_keys(key_values("factions_tables"));
+                        options.set_region_keys(key_values("regions_tables"));
+
+                        match run_tests(lua_api, &scripts, &test_source, &options) {
+                            Ok(report) => CentralCommand::send_back(&sender, Response::LuaTestReport(report)),
+                            Err(error) => CentralCommand::send_back(&sender, Response::Error(error.to_string())),
+                        }
+                    }
+                    None => CentralCommand::send_back(&sender, Response::Error("The Lua API of the game is not available. Lua tests need the game's Assembly Kit to be installed.".to_owned())),
+                }
             }
 
             // In case we want to get the open PackFile's Settings...

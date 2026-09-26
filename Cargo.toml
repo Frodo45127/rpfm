@@ -98,6 +98,7 @@ winres = "^0.1"
 zip = { version = "^8", default-features = false, features = ["deflate"] }
 fs_extra = "^1.3"
 full_moon = { version = "^2", default-features = false }
+mlua = { version = "^0.12", features = ["lua51", "vendored"] }
 caseless = "^0.2"
 half = "^2"
 rmcp = { version = "^3", default-features = false, features = ["server", "transport-io", "transport-streamable-http-server", "macros"] }

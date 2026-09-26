@@ -450,7 +450,7 @@ impl TextDiagnostic {
 
         for reference in key_references {
             let table_keys = keys_by_table.entry(reference.table())
-                .or_insert_with(|| Self::db_keys(reference.table(), packs, dependencies));
+                .or_insert_with(|| dependencies.db_key_values(Some(packs), reference.table()));
 
             if let Some((column, keys)) = table_keys {
                 if !keys.contains(reference.key()) {
@@ -461,36 +461,5 @@ impl TextDiagnostic {
         }
 
         reports
-    }
-
-    /// This function returns the name and values of the first key column of a DB table.
-    ///
-    /// # Arguments
-    ///
-    /// * `table_name` - Name of the table, with the `_tables` suffix.
-    /// * `packs` - Open packs, whose tables are included.
-    /// * `dependencies` - Dependencies cache, whose tables are included.
-    ///
-    /// # Returns
-    ///
-    /// The column name and its values, or `None` if the table isn't found or has no key column.
-    fn db_keys(table_name: &str, packs: &BTreeMap<String, Pack>, dependencies: &Dependencies) -> Option<(String, HashSet<String>)> {
-        let key_column_name = |file: &RFile| match file.decoded() {
-            Ok(RFileDecoded::DB(table)) => {
-                let definition = table.definition();
-                let fields = definition.fields_processed();
-                definition.key_column_positions().first().and_then(|position| fields.get(*position)).map(|field| field.name().to_owned())
-            }
-            _ => None,
-        };
-
-        let column = dependencies.db_data(table_name, true, true).ok()
-            .and_then(|files| files.into_iter().find_map(key_column_name))
-            .or_else(|| packs.values()
-                .flat_map(|pack| pack.files_by_paths(&ContainerPath::db_table_folders(table_name), true))
-                .find_map(key_column_name))?;
-
-        let keys = dependencies.db_values_from_table_name_and_column_name(Some(packs), table_name, &column, true, true);
-        Some((column, keys))
     }
 }

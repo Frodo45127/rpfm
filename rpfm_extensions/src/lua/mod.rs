@@ -39,6 +39,7 @@ use crate::dependencies::Dependencies;
 use self::check::LuaDefinitions;
 
 pub mod check;
+pub mod harness;
 #[cfg(test)] mod tests;
 
 /// Path of the scripting documentation, relative to the root folder of the Assembly Kit.
@@ -350,18 +351,7 @@ impl LuaApi {
     ///
     /// * `dependencies` - Dependencies cache with the vanilla files loaded.
     pub fn add_vanilla_scripts(&mut self, dependencies: &Dependencies) {
-        let scripts = dependencies.files_by_path(&[ContainerPath::Folder(VANILLA_SCRIPTS_FOLDER.to_owned())], true, false, false)
-            .into_par_iter()
-            .filter(|(path, _)| path.ends_with(".lua"))
-            .filter_map(|(path, file)| {
-
-                // Vanilla files are loaded from disk on demand, so work on a copy to not need mutable access to the cache.
-                let mut file = file.clone();
-                file.load().ok()?;
-                Some((path, String::from_utf8_lossy(file.cached().ok()?).to_string()))
-            })
-            .collect::<Vec<_>>();
-
+        let scripts = vanilla_scripts(dependencies);
         for (path, source) in &scripts {
             if path == VANILLA_EVENTS_SCRIPT {
                 self.add_events_script(source);
@@ -569,6 +559,29 @@ impl LuaApi {
             }
         }
     }
+}
+
+/// This function returns the vanilla Lua scripts from the dependencies cache.
+///
+/// # Arguments
+///
+/// * `dependencies` - Dependencies cache with the vanilla files loaded.
+///
+/// # Returns
+///
+/// The path and code of each script.
+pub fn vanilla_scripts(dependencies: &Dependencies) -> Vec<(String, String)> {
+    dependencies.files_by_path(&[ContainerPath::Folder(VANILLA_SCRIPTS_FOLDER.to_owned())], true, false, false)
+        .into_par_iter()
+        .filter(|(path, _)| path.ends_with(".lua"))
+        .filter_map(|(path, file)| {
+
+            // Vanilla files are loaded from disk on demand, so work on a copy to not need mutable access to the cache.
+            let mut file = file.clone();
+            file.load().ok()?;
+            Some((path, String::from_utf8_lossy(file.cached().ok()?).to_string()))
+        })
+        .collect()
 }
 
 //---------------------------------------------------------------------------//

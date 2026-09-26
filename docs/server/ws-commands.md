@@ -2576,6 +2576,34 @@ public class LuaHoversResponse
 ```
 <!-- langtabs-end -->
 
+### LuaRunTests
+
+Run Lua tests against the scripts of all open packs, together with the game's script libraries. See the `lua_run_tests` tool in the [MCP docs](./mcp.md) for the test file API. Needs the game's Assembly Kit.
+
+| Parameter     | Type           | Description                                                                                              |
+|---------------|----------------|----------------------------------------------------------------------------------------------------------|
+| `test_source` | string         | Code of the test file                                                                                    |
+| `campaign`    | string \| null | Campaign whose vanilla scripts to load, like `main_warhammer`, or `null` for only the libraries and mods |
+
+Response: `{ LuaTestReport: LuaTestReport }`
+
+<!-- langtabs-start -->
+```typescript
+type LuaRunTestsRequest = { LuaRunTests: [string, string | null] };
+type LuaRunTestsResponse = { LuaTestReport: LuaTestReport };
+```
+```csharp
+public class LuaRunTestsRequest
+{
+    public Tuple<string, string?> LuaRunTests { get; set; }
+}
+public class LuaRunTestsResponse
+{
+    public LuaTestReport LuaTestReport { get; set; }
+}
+```
+<!-- langtabs-end -->
+
 ### AddLineToPackIgnoredDiagnostics
 
 Add a line to a specific pack's ignored diagnostics list.
