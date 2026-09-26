@@ -205,9 +205,9 @@ impl LayoutBuilder<'_> {
 
     /// Returns the width and height of a container with its simulated unit count, or `None` for spans.
     fn footprint(&self, block: &GroupFormationBlock) -> Option<(f32, f32)> {
-        let (arrangement, spacing, minimum, maximum) = match &block.block {
-            Block::ContainerAbsolute(container) => (container.entity_arrangement, container.inter_entity_spacing, container.minimum_entity_threshold, container.maximum_entity_threshold),
-            Block::ContainerRelative(container) => (container.entity_arrangement, container.inter_entity_spacing, container.minimum_entity_threshold, container.maximum_entity_threshold),
+        let (arrangement, spacing, crescent_y_offset, minimum, maximum) = match &block.block {
+            Block::ContainerAbsolute(container) => (container.entity_arrangement, container.inter_entity_spacing, container.crescent_y_offset, container.minimum_entity_threshold, container.maximum_entity_threshold),
+            Block::ContainerRelative(container) => (container.entity_arrangement, container.inter_entity_spacing, container.crescent_y_offset, container.minimum_entity_threshold, container.maximum_entity_threshold),
             Block::Spanning(_) => return None,
         };
 
@@ -220,9 +220,11 @@ impl LayoutBuilder<'_> {
         let width = count * self.params.unit_width + (count - 1.0) * spacing;
         let depth = count * self.params.unit_depth + (count - 1.0) * spacing;
         match arrangement {
-            EntityArrangement::Line |
+            EntityArrangement::Line => Some((width, self.params.unit_depth)),
+
+            // Crescents are lines bent by their offset, so they're deeper by it.
             EntityArrangement::CrescentFront |
-            EntityArrangement::CrescentBack => Some((width, self.params.unit_depth)),
+            EntityArrangement::CrescentBack => Some((width, self.params.unit_depth + crescent_y_offset.abs())),
             EntityArrangement::Column => Some((self.params.unit_width, depth)),
         }
     }

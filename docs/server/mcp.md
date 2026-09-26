@@ -48,7 +48,7 @@ Any MCP client that supports Streamable HTTP transport can connect. Point it to 
 
 ## Tool Reference
 
-The MCP interface exposes **150 tools** organized by category. Each tool accepts typed JSON arguments and returns the server's `Response` serialized as JSON text.
+The MCP interface exposes **155 tools** organized by category. Each tool accepts typed JSON arguments and returns the server's `Response` serialized as JSON text.
 
 ### Generic
 
@@ -141,6 +141,7 @@ The MCP interface exposes **150 tools** organized by category. Each tool accepts
 | `get_packed_files_names_starting_with_path_from_all_sources` | Get file names under a path | `path` |
 | `local_art_set_ids` | Get local art set IDs | `pack_key` |
 | `dependencies_art_set_ids` | Get art set IDs from dependencies | *(none)* |
+| `dependencies_column_values` | Get the distinct values of a DB table column from the open packs, parents and vanilla | `table_name`, `column_name` |
 
 ### Search
 

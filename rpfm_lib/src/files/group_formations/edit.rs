@@ -179,10 +179,10 @@ impl GroupFormation {
         Ok(())
     }
 
-    /// Moves several containers by the same distance, snapping their offsets or positions to a grid.
+    /// Moves several blocks by the same distance, snapping their offsets or positions to a grid.
     ///
-    /// Blocks that depend on another moved block already move with it, so they're left untouched. Spans are ignored,
-    /// as their position comes from their members.
+    /// Spans are moved by moving their members. Blocks that depend on another moved block already move with it,
+    /// so they're left untouched.
     ///
     /// # Arguments
     ///
@@ -195,15 +195,31 @@ impl GroupFormation {
     ///
     /// Returns an error if a block doesn't exist, or a moved block or its parent can't be positioned.
     pub fn move_blocks(&mut self, block_ids: &[u32], delta: (f32, f32), grid_step: f32, params: &LayoutParams) -> Result<()> {
-        let rects = self.layout(params);
-        let mut targets = vec![];
         for block_id in block_ids {
-            let position = self.position_of(*block_id)?;
-            if let Block::Spanning(_) = self.group_formation_blocks[position].block {
+            self.position_of(*block_id)?;
+        }
+
+        // Replace spans with their members, recursively. Missing members are skipped, as they can't be moved.
+        let mut containers = vec![];
+        let mut visited = HashSet::new();
+        let mut pending = block_ids.to_vec();
+        while let Some(block_id) = pending.pop() {
+            let Ok(position) = self.position_of(block_id) else { continue };
+            if !visited.insert(block_id) {
                 continue;
             }
 
-            if block_ids.iter().any(|other_id| other_id != block_id && self.depends_on(*block_id, *other_id)) {
+            match &self.group_formation_blocks[position].block {
+                Block::Spanning(span) => pending.extend_from_slice(&span.spanned_block_ids),
+                Block::ContainerAbsolute(_) |
+                Block::ContainerRelative(_) => containers.push(block_id),
+            }
+        }
+
+        let rects = self.layout(params);
+        let mut targets = vec![];
+        for block_id in &containers {
+            if containers.iter().any(|other_id| other_id != block_id && self.depends_on(*block_id, *other_id)) {
                 continue;
             }
 

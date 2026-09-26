@@ -252,6 +252,9 @@ pub struct CanvasBlock {
     pub kind: CanvasBlockKind,
     pub center: (f64, f64),
     pub size: (f64, f64),
+
+    /// How much the middle of a crescent is above its ends, or below them if negative. 0 for straight blocks.
+    pub bend: f64,
     pub label: String,
     pub color: (u8, u8, u8),
 }
@@ -267,11 +270,11 @@ pub fn group_formation_canvas_clear_safe(canvas: &QPtr<QGraphicsView>) {
     unsafe { group_formation_canvas_clear(canvas.as_mut_raw_ptr()) }
 }
 
-extern "C" { fn group_formation_canvas_add_block(canvas: *mut QGraphicsView, id: u32, kind: i32, center_x: f64, center_y: f64, width: f64, height: f64, label: *const QString, red: i32, green: i32, blue: i32); }
+extern "C" { fn group_formation_canvas_add_block(canvas: *mut QGraphicsView, id: u32, kind: i32, center_x: f64, center_y: f64, width: f64, height: f64, bend: f64, label: *const QString, red: i32, green: i32, blue: i32); }
 pub fn group_formation_canvas_add_block_safe(canvas: &QPtr<QGraphicsView>, block: &CanvasBlock) {
     unsafe {
         let label = QString::from_std_str(&block.label);
-        group_formation_canvas_add_block(canvas.as_mut_raw_ptr(), block.id, block.kind as i32, block.center.0, block.center.1, block.size.0, block.size.1, label.as_ptr().as_raw_ptr(), block.color.0 as i32, block.color.1 as i32, block.color.2 as i32)
+        group_formation_canvas_add_block(canvas.as_mut_raw_ptr(), block.id, block.kind as i32, block.center.0, block.center.1, block.size.0, block.size.1, block.bend, label.as_ptr().as_raw_ptr(), block.color.0 as i32, block.color.1 as i32, block.color.2 as i32)
     }
 }
 
@@ -310,6 +313,11 @@ pub fn group_formation_canvas_fit_safe(canvas: &QPtr<QGraphicsView>) {
 extern "C" { fn group_formation_canvas_set_grid_step(canvas: *mut QGraphicsView, step: f64); }
 pub fn group_formation_canvas_set_grid_step_safe(canvas: &QPtr<QGraphicsView>, step: f64) {
     unsafe { group_formation_canvas_set_grid_step(canvas.as_mut_raw_ptr(), step) }
+}
+
+extern "C" { fn group_formation_canvas_set_editable(canvas: *mut QGraphicsView, editable: bool); }
+pub fn group_formation_canvas_set_editable_safe(canvas: &QPtr<QGraphicsView>, editable: bool) {
+    unsafe { group_formation_canvas_set_editable(canvas.as_mut_raw_ptr(), editable) }
 }
 
 extern "C" { fn group_formation_canvas_moved_delta_x(canvas: *mut QGraphicsView) -> f64; }

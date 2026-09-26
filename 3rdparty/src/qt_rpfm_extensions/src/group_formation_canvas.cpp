@@ -37,9 +37,9 @@ extern "C" void group_formation_canvas_clear(QGraphicsView* canvas) {
     dynamic_cast<GroupFormationCanvas*>(canvas)->clearBlocks();
 }
 
-extern "C" void group_formation_canvas_add_block(QGraphicsView* canvas, quint32 id, int kind, double center_x, double center_y, double width, double height, const QString* label, int red, int green, int blue) {
+extern "C" void group_formation_canvas_add_block(QGraphicsView* canvas, quint32 id, int kind, double center_x, double center_y, double width, double height, double bend, const QString* label, int red, int green, int blue) {
     QRectF rect(center_x - width / 2.0, center_y - height / 2.0, width, height);
-    GroupFormationBlockItem* item = new GroupFormationBlockItem(id, kind, rect, *label, QColor(red, green, blue));
+    GroupFormationBlockItem* item = new GroupFormationBlockItem(id, kind, rect, bend, *label, QColor(red, green, blue));
     dynamic_cast<GroupFormationCanvas*>(canvas)->addBlock(item);
 }
 
@@ -75,6 +75,10 @@ extern "C" void group_formation_canvas_set_grid_step(QGraphicsView* canvas, doub
     dynamic_cast<GroupFormationCanvas*>(canvas)->setGridStep(step);
 }
 
+extern "C" void group_formation_canvas_set_editable(QGraphicsView* canvas, bool editable) {
+    dynamic_cast<GroupFormationCanvas*>(canvas)->setEditable(editable);
+}
+
 extern "C" double group_formation_canvas_moved_delta_x(QGraphicsView* canvas) {
     return dynamic_cast<GroupFormationCanvas*>(canvas)->movedDelta().x();
 }
@@ -95,17 +99,18 @@ extern "C" quint32 group_formation_canvas_link_parent(QGraphicsView* canvas) {
 //                                Block item
 //---------------------------------------------------------------------------//
 
-GroupFormationBlockItem::GroupFormationBlockItem(quint32 id, int kind, const QRectF& rect, const QString& label, const QColor& color):
+GroupFormationBlockItem::GroupFormationBlockItem(quint32 id, int kind, const QRectF& rect, qreal bend, const QString& label, const QColor& color):
     QGraphicsRectItem(rect),
     block_id(id),
     block_kind(kind),
+    bend(bend),
     label(label),
     color(color)
 {
     setFlag(QGraphicsItem::ItemIsSelectable, true);
 
-    // Spans can't be moved, as their position comes from their members.
-    setFlag(QGraphicsItem::ItemIsMovable, kind != GroupFormationBlockKind::Span);
+    // Dragging a span is reported like any other move. The Rust side moves its members.
+    setFlag(QGraphicsItem::ItemIsMovable, true);
     setZValue(kind == GroupFormationBlockKind::Span ? Z_SPAN : Z_CONTAINER);
     setToolTip(label);
 }
@@ -136,6 +141,24 @@ void GroupFormationBlockItem::paint(QPainter* painter, const QStyleOptionGraphic
         painter->setPen(pen);
         painter->setBrush(fill);
         painter->drawRoundedRect(rect(), 1.0, 1.0);
+    } else if (!qFuzzyIsNull(bend) && qAbs(bend) < rect().height()) {
+
+        // Crescents are drawn as a curved band. The control point of each curve is placed so the curve's peak lands on the middle.
+        const QRectF area = rect();
+        const qreal thickness = area.height() - qAbs(bend);
+        const qreal ends_y = area.top() + qMax(bend, 0.0);
+        const qreal middle_y = area.top() + qMax(-bend, 0.0);
+        const qreal control_y = 2.0 * middle_y - ends_y;
+
+        QPainterPath band(QPointF(area.left(), ends_y));
+        band.quadTo(QPointF(area.center().x(), control_y), QPointF(area.right(), ends_y));
+        band.lineTo(area.right(), ends_y + thickness);
+        band.quadTo(QPointF(area.center().x(), control_y + thickness), QPointF(area.left(), ends_y + thickness));
+        band.closeSubpath();
+
+        painter->setPen(pen);
+        painter->setBrush(color);
+        painter->drawPath(band);
     } else {
         painter->setPen(pen);
         painter->setBrush(color);
@@ -174,6 +197,7 @@ GroupFormationCanvas::GroupFormationCanvas(QWidget* parent):
     is_updating_selection(false),
     is_panning(false),
     is_fit_pending(false),
+    is_editable(true),
     link_source(nullptr),
     link_preview(nullptr),
     link_child(0),
@@ -199,12 +223,17 @@ void GroupFormationCanvas::clearBlocks() {
     is_updating_selection = true;
     formation_scene->clear();
     blocks.clear();
+    links.clear();
     link_source = nullptr;
     link_preview = nullptr;
     is_updating_selection = false;
 }
 
 void GroupFormationCanvas::addBlock(GroupFormationBlockItem* item) {
+    if (!is_editable) {
+        item->setFlag(QGraphicsItem::ItemIsMovable, false);
+    }
+
     formation_scene->addItem(item);
     blocks.insert(item->blockId(), item);
 }
@@ -216,7 +245,19 @@ void GroupFormationCanvas::addLink(quint32 child_id, quint32 parent_id) {
         return;
     }
 
-    // The link goes between the borders of both blocks, not their centers, so it's not hidden under them.
+    QPen pen(palette().color(QPalette::Text));
+    pen.setCosmetic(true);
+    pen.setWidthF(1.5);
+
+    QGraphicsPathItem* path = formation_scene->addPath(QPainterPath(), pen);
+    path->setZValue(Z_LINK);
+    links.append(GroupFormationLink { child, parent, path });
+    updateLinkPaths();
+}
+
+void GroupFormationCanvas::updateLinkPaths() {
+
+    // Links go between the borders of both blocks, not their centers, so they're not hidden under them.
     auto border_point = [](const QRectF& rect, const QPointF& towards) {
         const QPointF center = rect.center();
         const QPointF direction = towards - center;
@@ -229,32 +270,31 @@ void GroupFormationCanvas::addLink(quint32 child_id, quint32 parent_id) {
         return center + direction * qMin(qMin(scale_x, scale_y), 1.0);
     };
 
-    const QRectF child_rect = child->rect();
-    const QRectF parent_rect = parent->rect();
-    const QPointF start = border_point(child_rect, parent_rect.center());
-    const QPointF end = border_point(parent_rect, child_rect.center());
+    for (const GroupFormationLink& link : std::as_const(links)) {
 
-    QPen pen(palette().color(QPalette::Text));
-    pen.setCosmetic(true);
-    pen.setWidthF(1.5);
+        // Dragged blocks keep their rect and get moved by their position, so the scene rect accounts for both.
+        const QRectF child_rect = link.child->mapRectToScene(link.child->rect());
+        const QRectF parent_rect = link.parent->mapRectToScene(link.parent->rect());
+        const QPointF start = border_point(child_rect, parent_rect.center());
+        const QPointF end = border_point(parent_rect, child_rect.center());
 
-    QPainterPath path(start);
-    path.lineTo(end);
-
-    // Arrow head pointing at the parent, sized in meters.
-    const QLineF line(start, end);
-    if (line.length() > 0.01) {
-        const qreal head = qMin(1.5, line.length() / 2.0);
-        const qreal angle = qDegreesToRadians(line.angle());
-        const QPointF left = end + QPointF(-qCos(angle - M_PI / 6.0) * head, qSin(angle - M_PI / 6.0) * head);
-        const QPointF right = end + QPointF(-qCos(angle + M_PI / 6.0) * head, qSin(angle + M_PI / 6.0) * head);
-        path.moveTo(left);
+        QPainterPath path(start);
         path.lineTo(end);
-        path.lineTo(right);
-    }
 
-    QGraphicsPathItem* link = formation_scene->addPath(path, pen);
-    link->setZValue(Z_LINK);
+        // Arrow head pointing at the parent, sized in meters.
+        const QLineF line(start, end);
+        if (line.length() > 0.01) {
+            const qreal head = qMin(1.5, line.length() / 2.0);
+            const qreal angle = qDegreesToRadians(line.angle());
+            const QPointF left = end + QPointF(-qCos(angle - M_PI / 6.0) * head, qSin(angle - M_PI / 6.0) * head);
+            const QPointF right = end + QPointF(-qCos(angle + M_PI / 6.0) * head, qSin(angle + M_PI / 6.0) * head);
+            path.moveTo(left);
+            path.lineTo(end);
+            path.lineTo(right);
+        }
+
+        link.path->setPath(path);
+    }
 }
 
 void GroupFormationCanvas::setSelectedIds(const QList<quint32>& ids) {
@@ -310,6 +350,13 @@ void GroupFormationCanvas::setGridStep(qreal step) {
     if (step > 0.0) {
         grid_step = step;
         viewport()->update();
+    }
+}
+
+void GroupFormationCanvas::setEditable(bool editable) {
+    is_editable = editable;
+    for (GroupFormationBlockItem* item : std::as_const(blocks)) {
+        item->setFlag(QGraphicsItem::ItemIsMovable, editable);
     }
 }
 
@@ -429,7 +476,7 @@ void GroupFormationCanvas::mousePressEvent(QMouseEvent* event) {
     GroupFormationBlockItem* block = blockAt(event->pos());
 
     // Shift+drag from a block starts drawing a link instead of moving or selecting.
-    if (event->button() == Qt::LeftButton && (event->modifiers() & Qt::ShiftModifier) && block != nullptr) {
+    if (is_editable && event->button() == Qt::LeftButton && (event->modifiers() & Qt::ShiftModifier) && block != nullptr) {
         link_source = block;
         const QPointF start = block->rect().center();
         QPen pen(palette().color(QPalette::Highlight));
@@ -468,6 +515,11 @@ void GroupFormationCanvas::mouseMoveEvent(QMouseEvent* event) {
     }
 
     QGraphicsView::mouseMoveEvent(event);
+
+    // While dragging blocks, keep their links attached to them.
+    if (event->buttons() & Qt::LeftButton) {
+        updateLinkPaths();
+    }
 }
 
 void GroupFormationCanvas::resizeEvent(QResizeEvent* event) {

@@ -1561,6 +1561,34 @@ public class DependenciesArtSetIdsResponse
 ```
 <!-- langtabs-end -->
 
+### DependenciesColumnValues
+
+Get the distinct values of a column of a DB table, from the open packs, their parent packs and vanilla.
+
+| Parameter     | Type   | Description                              |
+|---------------|--------|------------------------------------------|
+| `table_name`  | string | Table to query, like `factions_tables`   |
+| `column_name` | string | Column to get the values from            |
+
+Response: `{ HashSetString: string[] }`
+
+<!-- langtabs-start -->
+```typescript
+type DependenciesColumnValuesRequest = { DependenciesColumnValues: [string, string] };
+type DependenciesColumnValuesResponse = { HashSetString: string[] };
+```
+```csharp
+public class DependenciesColumnValuesRequest
+{
+    public Tuple<string, string> DependenciesColumnValues { get; set; }
+}
+public class DependenciesColumnValuesResponse
+{
+    public HashSet<string> HashSetString { get; set; }
+}
+```
+<!-- langtabs-end -->
+
 ### GetTableVersionFromDependencyPackFile
 
 Get the version of a table from the dependency database.

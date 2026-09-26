@@ -552,6 +552,12 @@ pub enum Command {
     /// Response: [`Response::HashSetString`].
     DependenciesArtSetIds,
 
+    /// Get the distinct values of a column of a DB table, from the open packs, their parent packs and vanilla.
+    /// First field is the table name (like `factions_tables`), second is the column name.
+    ///
+    /// Response: [`Response::HashSetString`].
+    DependenciesColumnValues(String, String),
+
     /// Get the version of a table from the dependency database.
     ///
     /// Response:

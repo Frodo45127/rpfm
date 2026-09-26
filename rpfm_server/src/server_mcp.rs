@@ -210,6 +210,14 @@ pub struct PathArg {
     pub path: PathBuf,
 }
 
+#[derive(Debug, Deserialize, JsonSchema, Serialize)]
+pub struct TableColumnArgs {
+    /// Name of the DB table, like `factions_tables`.
+    pub table_name: String,
+    /// Name of the column.
+    pub column_name: String,
+}
+
 // -- Pack Key Args (multi-pack support) --
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
@@ -1660,6 +1668,11 @@ impl McpServer {
     #[tool(description = "Get art set IDs from dependencies' campaign_character_arts_tables.")]
     pub async fn dependencies_art_set_ids(&self) -> Result<CallToolResult, McpError> {
         send_and_respond!(self, "dependencies_art_set_ids", Command::DependenciesArtSetIds)
+    }
+
+    #[tool(description = "Get the distinct values of the column `column_name` of the DB table `table_name` (like `factions_tables`), from the open packs, their parent packs and vanilla.")]
+    pub async fn dependencies_column_values(&self, params: Parameters<TableColumnArgs>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self, "dependencies_column_values", Command::DependenciesColumnValues(params.0.table_name, params.0.column_name))
     }
 
     //-----------------------------------------------------------------------//

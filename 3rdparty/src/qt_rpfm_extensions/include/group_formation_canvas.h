@@ -2,6 +2,7 @@
 #define GROUP_FORMATION_CANVAS_H
 
 #include "qt_subclasses_global.h"
+#include <QGraphicsPathItem>
 #include <QGraphicsRectItem>
 #include <QGraphicsScene>
 #include <QGraphicsView>
@@ -16,7 +17,7 @@ enum GroupFormationBlockKind {
 
 extern "C" QGraphicsView* new_group_formation_canvas(QWidget* parent);
 extern "C" void group_formation_canvas_clear(QGraphicsView* canvas);
-extern "C" void group_formation_canvas_add_block(QGraphicsView* canvas, quint32 id, int kind, double center_x, double center_y, double width, double height, const QString* label, int red, int green, int blue);
+extern "C" void group_formation_canvas_add_block(QGraphicsView* canvas, quint32 id, int kind, double center_x, double center_y, double width, double height, double bend, const QString* label, int red, int green, int blue);
 extern "C" void group_formation_canvas_add_link(QGraphicsView* canvas, quint32 child_id, quint32 parent_id);
 extern "C" void group_formation_canvas_set_selected_ids(QGraphicsView* canvas, const quint32* ids, int count);
 extern "C" int group_formation_canvas_selected_count(QGraphicsView* canvas);
@@ -24,6 +25,7 @@ extern "C" quint32 group_formation_canvas_selected_id(QGraphicsView* canvas, int
 extern "C" void group_formation_canvas_set_front_label(QGraphicsView* canvas, const QString* label);
 extern "C" void group_formation_canvas_fit(QGraphicsView* canvas);
 extern "C" void group_formation_canvas_set_grid_step(QGraphicsView* canvas, double step);
+extern "C" void group_formation_canvas_set_editable(QGraphicsView* canvas, bool editable);
 extern "C" double group_formation_canvas_moved_delta_x(QGraphicsView* canvas);
 extern "C" double group_formation_canvas_moved_delta_y(QGraphicsView* canvas);
 extern "C" quint32 group_formation_canvas_link_child(QGraphicsView* canvas);
@@ -32,7 +34,7 @@ extern "C" quint32 group_formation_canvas_link_parent(QGraphicsView* canvas);
 // A block of the formation. It only paints itself, the canvas owns the logic.
 class GroupFormationBlockItem : public QGraphicsRectItem {
 public:
-    GroupFormationBlockItem(quint32 id, int kind, const QRectF& rect, const QString& label, const QColor& color);
+    GroupFormationBlockItem(quint32 id, int kind, const QRectF& rect, qreal bend, const QString& label, const QColor& color);
     quint32 blockId() const;
     int kind() const;
 
@@ -42,8 +44,18 @@ protected:
 private:
     quint32 block_id;
     int block_kind;
+
+    // How much the middle of a crescent is above its ends. Negative values put it below them.
+    qreal bend;
     QString label;
     QColor color;
+};
+
+// Arrow from a block to its parent.
+struct GroupFormationLink {
+    GroupFormationBlockItem* child;
+    GroupFormationBlockItem* parent;
+    QGraphicsPathItem* path;
 };
 
 // View that draws the simulated layout of a formation over a grid in meters.
@@ -51,7 +63,7 @@ private:
 // It knows nothing about formations: the Rust side sends it rects already positioned in scene
 // coordinates, and reads back what the user did through the getters after each signal.
 //
-// Containers can be dragged to move them, and Shift+dragging from a block to another requests
+// Blocks can be dragged to move them, and Shift+dragging from a block to another requests
 // linking the first one to the second as its parent.
 class GroupFormationCanvas : public QGraphicsView {
     Q_OBJECT
@@ -71,6 +83,7 @@ public:
     void setFrontLabel(const QString& label);
     void fitToBlocks();
     void setGridStep(qreal step);
+    void setEditable(bool editable);
     QPointF movedDelta() const;
     quint32 linkChild() const;
     quint32 linkParent() const;
@@ -87,11 +100,13 @@ protected:
 private:
     QGraphicsScene* formation_scene;
     QHash<quint32, GroupFormationBlockItem*> blocks;
+    QList<GroupFormationLink> links;
     QString front_label;
     qreal grid_step;
     bool is_updating_selection;
     bool is_panning;
     bool is_fit_pending;
+    bool is_editable;
     QPoint last_pan_position;
 
     QPointF moved_delta;
@@ -101,6 +116,7 @@ private:
     quint32 link_parent;
 
     GroupFormationBlockItem* blockAt(const QPoint& position, const GroupFormationBlockItem* ignored = nullptr) const;
+    void updateLinkPaths();
 };
 
 #endif // GROUP_FORMATION_CANVAS_H

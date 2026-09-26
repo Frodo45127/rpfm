@@ -1641,6 +1641,8 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
             // TODO: This needs to use a list pulled from portrait settings files, not from a table.
             Command::DependenciesArtSetIds => CentralCommand::send_back(&sender, Response::HashSetString(dependencies.read().unwrap().db_values_from_table_name_and_column_name(None, "campaign_character_arts_tables", "art_set_id", true, true))),
 
+            Command::DependenciesColumnValues(table_name, column_name) => CentralCommand::send_back(&sender, Response::HashSetString(dependencies.read().unwrap().db_values_from_table_name_and_column_name(Some(&packs), &table_name, &column_name, true, true))),
+
             // In case we want to get the version of an specific table from the dependency database...
             Command::GetTableVersionFromDependencyPackFile(table_name) => {
                 if dependencies.read().unwrap().is_vanilla_data_loaded(false) {

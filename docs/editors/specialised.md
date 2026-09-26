@@ -46,13 +46,13 @@ The editor has three columns:
 
 - **Formations**: the list of formations, with add, clone and delete. Formations with issues get an error or warning icon.
 - **Canvas and blocks tree**: the canvas draws a simulated deployment of the selected formation over a grid in meters, with the front at the top. The tree below shows each block under its parent. Selection is shared between both.
-  - Drag blocks to move them. Their offsets snap to the grid step set above the canvas.
+  - Drag blocks to move them. Their offsets snap to the grid step set above the canvas. Dragging a span moves all its members.
   - Shift+drag from a block to another to make the second one its parent.
   - Drag on empty space to select several blocks, and right-click for the block actions (add, add span over the selection, delete, delete with children).
   - **Units per Block** changes how many units the simulation assumes, so you can check how the formation stretches.
-- **Inspector**: the properties of the selected formation, container or span, including AI purposes, unit category requirements, supported subcultures and factions, and each block's entity preferences.
+- **Inspector**: the properties of the selected formation, container or span, including AI purposes, unit category requirements, supported subcultures and factions (picked from the ones in the game and the open Packs), and each block's entity preferences.
 
-Edits can be undone with **Ctrl+Z**. Deleting a block re-attaches its children to the closest surviving ancestor, keeping them in place. Issues like missing references or blocks depending on each other in a loop are reported in the [Diagnostics panel](../search/diagnostics.md).
+Files opened from the game or from dependencies are read-only. Edits can be undone with **Ctrl+Z**. Deleting a block re-attaches its children to the closest surviving ancestor, keeping them in place. Issues like missing references or blocks depending on each other in a loop are reported in the [Diagnostics panel](../search/diagnostics.md).
 
 > The simulated layout assumes a relative block's offset is a gap measured from its parent's edge, and that a zero offset centers it on the parent. This hasn't been confirmed in-game yet, so the canvas may not match the game exactly.
 

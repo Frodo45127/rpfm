@@ -692,3 +692,32 @@ fn test_move_blocks_skips_blocks_moved_by_their_parents() {
     assert_eq!(formation.group_formation_blocks()[1], offset_block(1, 0, 5.0, 0.0));
     assert_eq!(formation.group_formation_blocks()[4], offset_block(4, 3, 0.0, 10.0));
 }
+
+#[test]
+fn test_layout_makes_crescents_deeper_by_their_offset() {
+    let mut crescent = absolute_block(0);
+    if let Block::ContainerAbsolute(container) = crescent.block_mut() {
+        container.set_entity_arrangement(EntityArrangement::CrescentBack);
+        container.set_crescent_y_offset(-6.0);
+    }
+
+    let formation = formation_with(vec![crescent]);
+    assert_eq!(formation.layout(&LayoutParams::default())[&0], LayoutRect::new(0.0, 0.0, 40.0, 14.0));
+}
+
+#[test]
+fn test_move_blocks_moves_span_members() {
+    let mut formation = formation_with(vec![
+        absolute_block(0),
+        absolute_block(1),
+        span_block(2, vec![0]),
+        span_block(3, vec![2, 1]),
+        offset_block(4, 3, 0.0, 10.0),
+    ]);
+
+    // Moving the outer span moves both absolute blocks, and the block relative to it follows them.
+    formation.move_blocks(&[3], (5.0, 0.0), 5.0, &LayoutParams::default()).unwrap();
+    assert_eq!(center_of(&formation, 0), (5.0, 0.0));
+    assert_eq!(center_of(&formation, 1), (5.0, 0.0));
+    assert_eq!(formation.group_formation_blocks()[4], offset_block(4, 3, 0.0, 10.0));
+}

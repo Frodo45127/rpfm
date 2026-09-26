@@ -13,7 +13,7 @@
 //! The editor keeps the decoded file in memory and applies every edit to it directly, so saving just
 //! returns a copy of it. Each edit stores a snapshot of the file first, which is what undo restores.
 
-use qt_widgets::q_abstract_item_view::SelectionMode;
+use qt_widgets::q_abstract_item_view::{EditTrigger, SelectionMode};
 use qt_widgets::QAbstractItemView;
 use qt_widgets::QComboBox;
 use qt_widgets::QDoubleSpinBox;
@@ -69,6 +69,7 @@ use rpfm_lib::files::group_formations::validation::ValidationIssue;
 use rpfm_ui_common::utils::*;
 
 use crate::app_ui::AppUI;
+use crate::communications::*;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::*;
 use crate::GAME_SELECTED;
@@ -101,6 +102,9 @@ const VIEW_RELEASE: &str = "ui/group_formations_editor.ui";
 
 /// Role storing the formation index or block id of an item.
 const ID_ROLE: i32 = 256;
+
+/// Initial widths of the formations list, the canvas and the inspector, in pixels.
+const EDITOR_COLUMN_WIDTHS: [i32; 3] = [220, 1000, 300];
 
 /// Delay after the last edit before sending the file to the backend and updating its diagnostics, in milliseconds.
 const DIAGNOSTICS_UPDATE_DELAY: i32 = 500;
@@ -154,6 +158,10 @@ pub struct GroupFormationsView {
     data_source: Arc<RwLock<DataSource>>,
 
     format: GroupFormationsFormat,
+
+    /// If the file can't be edited, because it doesn't belong to the open Pack.
+    is_read_only: bool,
+
     data: RwLock<GroupFormations>,
     undo_history: RwLock<Vec<GroupFormations>>,
     redo_history: RwLock<Vec<GroupFormations>>,
@@ -252,6 +260,17 @@ impl GroupFormationsView {
         let layout: QPtr<QGridLayout> = file_view.main_widget().layout().static_downcast();
         layout.add_widget_5a(&main_widget, 0, 0, 1, 1);
         let widget = main_widget.static_upcast::<QWidget>();
+
+        // The canvas column takes any extra space, so the formation has as much room as possible.
+        let editor_splitter: QPtr<QSplitter> = find_widget(&widget, "editor_splitter")?;
+        editor_splitter.set_stretch_factor(0, 0);
+        editor_splitter.set_stretch_factor(1, 1);
+        editor_splitter.set_stretch_factor(2, 0);
+        let sizes = qt_core::QListOfInt::new_0a();
+        for size in EDITOR_COLUMN_WIDTHS {
+            sizes.append_int(&size);
+        }
+        editor_splitter.set_sizes(&sizes);
 
         // Formations list.
         let formations_filter_line_edit: QPtr<QLineEdit> = find_widget(&widget, "formations_filter_line_edit")?;
@@ -377,6 +396,14 @@ impl GroupFormationsView {
         subcultures_groupbox.set_visible(format.has_ai_supported_subcultures());
         factions_groupbox.set_visible(format.has_ai_supported_factions());
 
+        // Subcultures and factions can only be picked from the ones of the game and the open packs.
+        if format.has_ai_supported_subcultures() {
+            subcultures.set_combo_delegate(0, &dependencies_column_values("cultures_subcultures_tables", "subculture"), false);
+        }
+        if format.has_ai_supported_factions() {
+            factions.set_combo_delegate(0, &dependencies_column_values("factions_tables", "key"), false);
+        }
+
         let parent_combobox: QPtr<QComboBox> = find_widget(&widget, "parent_combobox")?;
         let position_x_spinbox: QPtr<QDoubleSpinBox> = find_widget(&widget, "position_x_spinbox")?;
         let position_y_spinbox: QPtr<QDoubleSpinBox> = find_widget(&widget, "position_y_spinbox")?;
@@ -409,7 +436,9 @@ impl GroupFormationsView {
         entity_preferences.set_combo_delegate(COLUMN_ENTITY, &entities, false);
         entity_preferences.set_combo_delegate(COLUMN_WEIGHT, &weights, false);
         new_spinbox_item_delegate_safe(&preferences_view, COLUMN_UK_1, 32, &Ptr::<QTimer>::null(), false);
-        entity_preferences.set_combo_delegate(COLUMN_ENTITY_CLASS, &entity_classes(&data), true);
+        if format.has_entity_class() {
+            entity_preferences.set_combo_delegate(COLUMN_ENTITY_CLASS, &entity_classes(&data), true);
+        }
 
         let preferences_table: QPtr<QTableView> = entity_preferences.view.static_downcast();
         preferences_table.set_column_hidden(COLUMN_WEIGHT, !format.has_entity_weight());
@@ -430,6 +459,7 @@ impl GroupFormationsView {
             data_source: Arc::new(RwLock::new(file_view.data_source())),
 
             format,
+            is_read_only: file_view.data_source() != DataSource::PackFile,
             data: RwLock::new(data),
             undo_history: RwLock::new(vec![]),
             redo_history: RwLock::new(vec![]),
@@ -487,6 +517,10 @@ impl GroupFormationsView {
 
             diagnostics_timer,
         });
+
+        if view.is_read_only {
+            view.disable_editing();
+        }
 
         let slots = GroupFormationsSlots::new(&view, app_ui, pack_file_contents_ui, diagnostics_ui);
         connections::set_connections(&view, &slots);
@@ -613,11 +647,36 @@ impl GroupFormationsView {
         }
     }
 
+    /// Makes the view read-only, leaving only what's needed to browse the file.
+    unsafe fn disable_editing(&self) {
+        group_formation_canvas_set_editable_safe(&self.canvas, false);
+
+        self.name_line_edit.set_read_only(true);
+        self.ai_priority_spinbox.set_read_only(true);
+        self.uk_2_spinbox.set_read_only(true);
+        self.position_x_spinbox.set_read_only(true);
+        self.position_y_spinbox.set_read_only(true);
+        self.block_priority_spinbox.set_read_only(true);
+        self.spacing_spinbox.set_read_only(true);
+        self.crescent_y_offset_spinbox.set_read_only(true);
+        self.minimum_threshold_spinbox.set_read_only(true);
+        self.maximum_threshold_spinbox.set_read_only(true);
+        self.parent_combobox.set_enabled(false);
+        self.arrangement_combobox.set_enabled(false);
+
+        for list in [&self.min_unit_category, &self.subcultures, &self.factions, &self.entity_preferences] {
+            list.view.set_edit_triggers(EditTrigger::NoEditTriggers.into());
+            list.add_button.set_enabled(false);
+            list.remove_button.set_enabled(false);
+        }
+    }
+
     /// Enables the actions that can be used with the current selection.
     pub unsafe fn update_actions(&self) {
-        let has_formation = self.selected_formation().is_some();
-        let blocks = self.selected_blocks();
+        let has_formation = self.selected_formation().is_some() && !self.is_read_only;
+        let blocks = if self.is_read_only { vec![] } else { self.selected_blocks() };
 
+        self.add_formation.set_enabled(!self.is_read_only);
         self.clone_formation.set_enabled(has_formation);
         self.delete_formation.set_enabled(has_formation);
         self.add_absolute.set_enabled(has_formation);
@@ -625,8 +684,8 @@ impl GroupFormationsView {
         self.add_span.set_enabled(!blocks.is_empty());
         self.delete_block.set_enabled(!blocks.is_empty());
         self.delete_subtree.set_enabled(blocks.len() == 1);
-        self.undo.set_enabled(!self.undo_history.read().unwrap().is_empty());
-        self.redo.set_enabled(!self.redo_history.read().unwrap().is_empty());
+        self.undo.set_enabled(!self.is_read_only && !self.undo_history.read().unwrap().is_empty());
+        self.redo.set_enabled(!self.is_read_only && !self.redo_history.read().unwrap().is_empty());
     }
 
     //-------------------------------------------------------------------------------//
@@ -881,11 +940,19 @@ impl GroupFormationsView {
                 },
             };
 
+            // Crescent Front bends its middle forward, which is up on the canvas.
+            let bend = with_container!(block.block(), container => match container.entity_arrangement() {
+                EntityArrangement::CrescentFront => container.crescent_y_offset().abs() as f64,
+                EntityArrangement::CrescentBack => -container.crescent_y_offset().abs() as f64,
+                EntityArrangement::Line | EntityArrangement::Column => 0.0,
+            }).unwrap_or_default();
+
             group_formation_canvas_add_block_safe(&self.canvas, &CanvasBlock {
                 id: block_id,
                 kind,
                 center: (rect.center_x() as f64, -rect.center_y() as f64),
                 size: (rect.width() as f64 + margin * 2.0, rect.height() as f64 + margin * 2.0),
+                bend,
                 label,
                 color,
             });
@@ -931,7 +998,7 @@ impl GroupFormationsView {
         let bits = formation.ai_purpose().bits();
         for (name, bit) in formation.ai_purpose().flags() {
             let item = QStandardItem::from_q_string(&QString::from_std_str(flag_label(name)));
-            item.set_checkable(true);
+            item.set_checkable(!self.is_read_only);
             item.set_editable(false);
             item.set_check_state(if bits & bit != 0 { CheckState::Checked } else { CheckState::Unchecked });
             item.set_data_2a(&QVariant::from_uint(bit), ID_ROLE);
@@ -1027,7 +1094,7 @@ impl GroupFormationsView {
             }
 
             let item = QStandardItem::from_q_string(&QString::from_std_str(block_label(candidate, self.format)));
-            item.set_checkable(true);
+            item.set_checkable(!self.is_read_only);
             item.set_editable(false);
             item.set_check_state(if span.spanned_block_ids().contains(&candidate_id) { CheckState::Checked } else { CheckState::Unchecked });
             item.set_data_2a(&QVariant::from_uint(candidate_id), ID_ROLE);
@@ -1175,13 +1242,16 @@ impl ItemList {
         })
     }
 
-    /// Sets the translated column headers of a table.
+    /// Sets the translated column headers of a table, and makes its last column fill the rest of its width.
     unsafe fn set_headers(&self, keys: &[&str]) {
         let headers = QListOfQString::new_0a();
         for key in keys {
             headers.append_q_string(&qtr(key));
         }
         self.model.set_horizontal_header_labels(&headers);
+
+        let table: QPtr<QTableView> = self.view.static_downcast();
+        table.horizontal_header().set_stretch_last_section(true);
     }
 
     /// Makes a column editable through a combobox with the provided values.
@@ -1383,7 +1453,15 @@ fn flag_label(name: &str) -> String {
         .join(" ")
 }
 
-/// Returns the distinct entity classes used in the file, plus the generic one, sorted.
+/// Returns the sorted values of a DB table column, from the game and the open packs.
+fn dependencies_column_values(table_name: &str, column_name: &str) -> Vec<String> {
+    let values = send_ipc_command_async(Command::DependenciesColumnValues(table_name.to_owned(), column_name.to_owned()), response_extractor!(Response::HashSetString));
+    values.into_iter().collect::<BTreeSet<_>>().into_iter().collect()
+}
+
+/// Returns the sorted entity classes of the game, plus the ones used in the file and the generic one.
+///
+/// Entity classes are the keys of the `ai_usage_groups` table, which units use to tell the AI how to use them.
 fn entity_classes(data: &GroupFormations) -> Vec<String> {
     let mut classes = data.formations()
         .iter()
@@ -1395,6 +1473,7 @@ fn entity_classes(data: &GroupFormations) -> Vec<String> {
         .collect::<BTreeSet<_>>();
 
     classes.insert("any".to_owned());
+    classes.extend(dependencies_column_values("ai_usage_groups_tables", "key"));
     classes.into_iter().collect()
 }
 
