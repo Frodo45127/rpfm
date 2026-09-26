@@ -328,7 +328,16 @@ impl GroupFormation {
     }
 
     /// Returns if a block is the target, or depends on it directly or through other blocks.
-    fn depends_on(&self, block_id: u32, target_id: u32) -> bool {
+    ///
+    /// # Arguments
+    ///
+    /// * `block_id` - The block to check.
+    /// * `target_id` - The block that may be depended on.
+    ///
+    /// # Returns
+    ///
+    /// `true` if making the target depend on the block would create a reference cycle.
+    pub fn depends_on(&self, block_id: u32, target_id: u32) -> bool {
         let mut visited = HashSet::new();
         let mut pending = vec![block_id];
         while let Some(current_id) = pending.pop() {

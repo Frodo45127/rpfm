@@ -228,6 +228,20 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     new_action(portrait_settings_actions, "delete_filtered_out", "Delete Filtered Out Rows", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+Shift+Del"), "edit-table-delete-row");
     portrait_settings_actions->readSettings();
 
+    KActionCollection* group_formations_actions = new KActionCollection(parent, "group_formations");
+    group_formations_actions->setComponentDisplayName("Group Formations");
+    new_action(group_formations_actions, "add_formation", "Add Formation", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+A"), "list-add");
+    new_action(group_formations_actions, "clone_formation", "Clone Formation", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+D"), "edit-copy");
+    new_action(group_formations_actions, "delete_formation", "Delete Formation", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+Del"), "list-remove");
+    new_action(group_formations_actions, "add_absolute", "Add Absolute Block", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+Shift+A"), "draw-rectangle");
+    new_action(group_formations_actions, "add_relative", "Add Relative Block", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+A"), "node-add");
+    new_action(group_formations_actions, "add_span", "Add Span", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+G"), "object-group");
+    new_action(group_formations_actions, "delete_block", "Delete Block", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Del"), "edit-delete");
+    new_action(group_formations_actions, "delete_subtree", "Delete Block and Children", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Shift+Del"), "edit-delete-remove");
+    new_action(group_formations_actions, "undo", "Undo", Qt::ShortcutContext::WidgetWithChildrenShortcut, QKeySequence::listFromString("Ctrl+Z"), "edit-undo-symbolic");
+    new_action(group_formations_actions, "redo", "Redo", Qt::ShortcutContext::WidgetWithChildrenShortcut, QKeySequence::listFromString("Ctrl+Shift+Z"), "edit-redo-symbolic");
+    group_formations_actions->readSettings();
+
     KActionCollection* unit_variant_actions = new KActionCollection(parent, "unit_variant");
     unit_variant_actions->setComponentDisplayName("Unit Variant");
     new_action(unit_variant_actions, "add", "Add", Qt::ShortcutContext::WidgetShortcut, QKeySequence::listFromString("Ctrl+A"), "edit-table-insert-row-below");
@@ -266,6 +280,7 @@ extern "C" void shortcut_collection_init(QWidget* parent, QList<QObject*>* short
     shortcuts->append(dynamic_cast<QObject*>(table_editor_actions));
     shortcuts->append(dynamic_cast<QObject*>(decoder_actions));
     shortcuts->append(dynamic_cast<QObject*>(portrait_settings_actions));
+    shortcuts->append(dynamic_cast<QObject*>(group_formations_actions));
     shortcuts->append(dynamic_cast<QObject*>(unit_variant_actions));
     shortcuts->append(dynamic_cast<QObject*>(text_editor_actions));
     shortcuts->append(dynamic_cast<QObject*>(translator_actions));

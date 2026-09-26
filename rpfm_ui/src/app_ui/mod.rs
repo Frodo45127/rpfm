@@ -2367,7 +2367,13 @@ impl AppUI {
 
                         Response::GroupFormationsRFileInfo(data, file_info) => {
                             let file_info = file_info.clone();
-                            match FileGroupFormationsDebugView::new_view(&mut tab, data) {
+                            let result = if settings_bool(USE_DEBUG_VIEW_GROUP_FORMATIONS) {
+                                FileGroupFormationsDebugView::new_view(&mut tab, data)
+                            } else {
+                                GroupFormationsView::new_view(&mut tab, data, app_ui, pack_file_contents_ui)
+                            };
+
+                            match result {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.

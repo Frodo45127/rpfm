@@ -97,6 +97,7 @@ pub const ENABLE_DEBUG_MENU: &str = "enable_debug_menu";
 pub const ENABLE_UNIT_EDITOR: &str = "enable_unit_editor";
 pub const ENABLE_ESF_EDITOR: &str = "enable_esf_editor";
 pub const USE_DEBUG_VIEW_UNIT_VARIANT: &str = "use_debug_view_unit_variant";
+pub const USE_DEBUG_VIEW_GROUP_FORMATIONS: &str = "use_debug_view_group_formations";
 pub const ENABLE_RENDERER: &str = "enable_renderer";
 
 // Diagnostics settings.

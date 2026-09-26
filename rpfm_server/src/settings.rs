@@ -303,6 +303,7 @@ impl Settings {
         settings.initialize_bool(ENABLE_UNIT_EDITOR, false);
         settings.initialize_bool(ENABLE_ESF_EDITOR, false);
         settings.initialize_bool(USE_DEBUG_VIEW_UNIT_VARIANT, false);
+        settings.initialize_bool(USE_DEBUG_VIEW_GROUP_FORMATIONS, false);
         settings.initialize_bool(ENABLE_RENDERER, true);
 
         // Diagnostics Settings.

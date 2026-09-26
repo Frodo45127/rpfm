@@ -479,6 +479,7 @@ impl SettingsUI {
         new_setting_checkbox(&mut checkboxes, &debug_vbox, &debug_frame, ENABLE_UNIT_EDITOR, "settings_enable_unit_editor", "tt_settings_debug_enable_unit_editor");
         new_setting_checkbox(&mut checkboxes, &debug_vbox, &debug_frame, ENABLE_ESF_EDITOR, "settings_enable_esf_editor", "tt_settings_enable_esf_editor_tip");
         new_setting_checkbox(&mut checkboxes, &debug_vbox, &debug_frame, USE_DEBUG_VIEW_UNIT_VARIANT, "settings_use_debug_view_unit_variant", "tt_settings_use_debug_view_unit_variant_tip");
+        new_setting_checkbox(&mut checkboxes, &debug_vbox, &debug_frame, USE_DEBUG_VIEW_GROUP_FORMATIONS, "settings_use_debug_view_group_formations", "tt_settings_use_debug_view_group_formations_tip");
         #[cfg(feature = "support_model_renderer")] new_setting_checkbox(&mut checkboxes, &debug_vbox, &debug_frame, ENABLE_RENDERER, "settings_enable_renderer", "tt_settings_enable_renderer_tip");
         new_setting_checkbox(&mut checkboxes, &debug_vbox, &debug_frame, USE_LAZY_LOADING, "settings_use_lazy_loading", "tt_extra_packfile_use_lazy_loading_tip");
 

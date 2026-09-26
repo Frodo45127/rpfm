@@ -653,3 +653,23 @@ fn test_set_span_members() {
     formation.set_span_members(2, &[0, 1]).unwrap();
     assert_eq!(formation.group_formation_blocks()[2], span_block(2, vec![0, 1]));
 }
+
+#[test]
+fn test_ai_purpose_bits_round_trip() {
+    let purpose = GroupFormationsFormat::Warhammer3.default_ai_purpose();
+    let flags = purpose.flags();
+    assert_eq!(flags.len(), 32);
+    assert!(flags.contains(&("SETTLEMENT_AREA_ATTACK_WIDE", 1 << 10)));
+
+    let purpose = purpose.with_bits(0b101);
+    assert_eq!(purpose, AIPurpose::V2(v2::AIPurposeFlags::ATTACK | v2::AIPurposeFlags::RIVER_ATTACK));
+    assert_eq!(purpose.bits(), 0b101);
+}
+
+#[test]
+fn test_entity_labels_are_unique_per_format() {
+    for format in [GroupFormationsFormat::Shogun2, GroupFormationsFormat::Warhammer3] {
+        let labels = format.entities().iter().map(|entity| entity.to_string()).collect::<std::collections::HashSet<_>>();
+        assert_eq!(labels.len(), format.entities().len(), "{format:?}");
+    }
+}

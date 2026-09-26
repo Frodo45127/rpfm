@@ -60,6 +60,7 @@
 //! }
 //! ```
 
+use bitflags::Flags;
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
 
@@ -435,6 +436,14 @@ impl GroupFormationsFormat {
         }
     }
 
+    /// Returns all the entity types of the version used by this format.
+    pub fn entities(&self) -> Vec<Entity> {
+        match self {
+            Self::Shogun2 => versions::v1::EntityType::ALL.iter().map(|entity| Entity::V1(*entity)).collect(),
+            Self::Rome2 | Self::Troy | Self::Warhammer3 => versions::v2::EntityType::ALL.iter().map(|entity| Entity::V2(*entity)).collect(),
+        }
+    }
+
     /// Returns the default entity type of the version used by this format.
     pub fn default_entity(&self) -> Entity {
         match self {
@@ -492,6 +501,30 @@ impl EntityPreference {
 
 impl AIPurpose {
 
+    /// Returns the name and bit of every flag of the same version as these flags.
+    pub fn flags(&self) -> Vec<(&'static str, u32)> {
+        match self {
+            Self::V1(_) => versions::v1::AIPurposeFlags::FLAGS.iter().map(|flag| (flag.name(), flag.value().bits())).collect(),
+            Self::V2(_) => versions::v2::AIPurposeFlags::FLAGS.iter().map(|flag| (flag.name(), flag.value().bits())).collect(),
+        }
+    }
+
+    /// Returns the raw bits of these flags.
+    pub fn bits(&self) -> u32 {
+        match self {
+            Self::V1(flags) => flags.bits(),
+            Self::V2(flags) => flags.bits(),
+        }
+    }
+
+    /// Returns flags of the same version as these flags, with the provided bits.
+    pub fn with_bits(&self, bits: u32) -> Self {
+        match self {
+            Self::V1(_) => Self::V1(versions::v1::AIPurposeFlags::from_bits_retain(bits)),
+            Self::V2(_) => Self::V2(versions::v2::AIPurposeFlags::from_bits_retain(bits)),
+        }
+    }
+
     /// Returns the raw bits of these flags, if they're the V1 (Shogun 2) version.
     pub(crate) fn v1_bits(&self) -> Result<u32> {
         match self {
@@ -544,6 +577,15 @@ impl EntityWeight {
 
     /// All the possible values, in their binary order.
     pub const ALL: [Self; 7] = [Self::VeryLight, Self::Light, Self::Medium, Self::Heavy, Self::VeryHeavy, Self::SuperHeavy, Self::Any];
+}
+
+impl Display for Entity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::V1(entity) => entity.fmt(f),
+            Self::V2(entity) => entity.fmt(f),
+        }
+    }
 }
 
 impl Display for EntityArrangement {

@@ -1397,6 +1397,64 @@ portrait_settings_list_id_error = That ID already exists.
 portrait_settings_id = Id
 portrait_settings_id_title = Edit ID
 
+## Group Formations
+group_formations_filter = Filter
+group_formations_formation_title = Formation
+group_formations_name = Name:
+group_formations_ai_priority = AI Priority:
+group_formations_uk_2 = Unknown 2:
+group_formations_ai_purpose_title = AI Purpose
+group_formations_min_unit_category_title = Minimum Unit Category Percentages
+group_formations_subcultures_title = Supported Subcultures
+group_formations_factions_title = Supported Factions
+group_formations_container_title = Container
+group_formations_parent = Parent:
+group_formations_parent_none = None (Absolute)
+group_formations_position_x = Position X:
+group_formations_position_y = Position Y:
+group_formations_offset_x = Offset X:
+group_formations_offset_y = Offset Y:
+group_formations_block_priority = Block Priority:
+group_formations_arrangement = Arrangement:
+group_formations_spacing = Spacing Between Units:
+group_formations_crescent_y_offset = Crescent Y Offset:
+group_formations_minimum_threshold = Minimum Units:
+group_formations_maximum_threshold = Maximum Units:
+group_formations_unlimited = Unlimited
+group_formations_entity_preferences_title = Entity Preferences
+group_formations_span_title = Span Members
+group_formations_column_category = Category
+group_formations_column_percentage = Percentage
+group_formations_column_priority = Priority
+group_formations_column_entity = Entity
+group_formations_column_weight = Weight
+group_formations_column_uk_1 = Unknown 1
+group_formations_column_entity_class = Entity Class
+group_formations_block_absolute = {"{"}{"}"} - Absolute
+group_formations_block_relative = {"{"}{"}"} - Relative to {"{"}{"}"} ({"{"}{"}"}, {"{"}{"}"})
+group_formations_block_span = {"{"}{"}"} - Span over {"{"}{"}"}
+group_formations_add_formation = Add Formation
+group_formations_clone_formation = Clone Formation
+group_formations_delete_formation = Delete Formation
+group_formations_add_absolute = Add Absolute Block
+group_formations_add_relative = Add Block Relative to the Selected One
+group_formations_add_span = Add Span over the Selected Blocks
+group_formations_delete_block = Delete Selected Blocks
+group_formations_delete_subtree = Delete Block and its Children
+group_formations_undo = Undo
+group_formations_redo = Redo
+group_formations_add_item = Add
+group_formations_remove_item = Remove
+group_formations_issue_duplicate_formation_name = {"{"}{"}"}: another formation has the same name.
+group_formations_issue_no_absolute_block = {"{"}{"}"}: has no absolute block, so nothing anchors its blocks.
+group_formations_issue_duplicate_block_id = {"{"}{"}"}: more than one block uses the id {"{"}{"}"}.
+group_formations_issue_missing_reference = {"{"}{"}"}: block {"{"}{"}"} references block {"{"}{"}"}, which doesn't exist.
+group_formations_issue_forward_reference = {"{"}{"}"}: block {"{"}{"}"} references block {"{"}{"}"}, which is defined after it.
+group_formations_issue_reference_cycle = {"{"}{"}"}: blocks {"{"}{"}"} depend on each other in a loop.
+group_formations_issue_empty_span = {"{"}{"}"}: span {"{"}{"}"} has no members.
+group_formations_issue_invalid_thresholds = {"{"}{"}"}: block {"{"}{"}"} has a minimum amount of units above its maximum.
+group_formations_issue_no_entity_preferences = {"{"}{"}"}: block {"{"}{"}"} has no entity preferences, so no unit can be placed in it.
+
 move_field_up = Move Field Up
 move_field_down = Move Field Down
 move_field_left = Move Field Left
@@ -2023,6 +2081,7 @@ tt_settings_enable_esf_editor_tip = Enable the experimental ESF editor for editi
     - General ESF data (`.esf`)
 
 tt_settings_use_debug_view_unit_variant_tip = Use a debug view for the Unit Variant editor instead of the visual one.
+tt_settings_use_debug_view_group_formations_tip = Use a debug view for Group Formations files instead of the editor.
 tt_settings_enable_renderer_tip = Enable the experimental 3D model renderer for previewing RigidModel files.
 tt_settings_add_rpfm_to_runcher_tools_tip = Register RPFM as an external tool in Runcher's configuration.
 
@@ -2134,6 +2193,7 @@ rigid_model_editor_texture_list_title = Texture List
 rigid_model_editor_export_to_gltf = Export to GLTF
 extract_gltf = Export GLTF File
 settings_use_debug_view_unit_variant = Use Debug View for Unit Variants
+settings_use_debug_view_group_formations = Use Debug View for Group Formations
 
 ## Session Selection Dialog
 

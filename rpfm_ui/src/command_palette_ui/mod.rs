@@ -162,6 +162,12 @@ pub unsafe fn show_command_palette(
                             let menu: QPtr<QMenu> = QPtr::from_raw(unit_variant_view.main_list_context_menu().as_mut_raw_ptr());
                             collect_actions_from_menu(&menu, "Unit Variant", &mut actions, &palette_ptr);
                         },
+                        View::GroupFormations(group_formations_view) => {
+                            let menu: QPtr<QMenu> = QPtr::from_raw(group_formations_view.formations_context_menu().as_mut_raw_ptr());
+                            collect_actions_from_menu(&menu, "Group Formations", &mut actions, &palette_ptr);
+                            let menu: QPtr<QMenu> = QPtr::from_raw(group_formations_view.blocks_context_menu().as_mut_raw_ptr());
+                            collect_actions_from_menu(&menu, "Group Formations", &mut actions, &palette_ptr);
+                        },
                         View::PortraitSettings(portrait_settings_view) => {
                             let menu: QPtr<QMenu> = QPtr::from_raw(portrait_settings_view.main_list_context_menu().as_mut_raw_ptr());
                             collect_actions_from_menu(&menu, "Portrait Settings", &mut actions, &palette_ptr);

@@ -52,7 +52,7 @@ use self::esf::PackedFileESFView;
 use self::decoder::PackedFileDecoderView;
 use self::dependencies_manager::DependenciesManagerView;
 use self::external::PackedFileExternalView;
-use self::group_formations::FileGroupFormationsDebugView;
+use self::group_formations::{FileGroupFormationsDebugView, GroupFormationsView};
 use self::image::PackedFileImageView;
 use self::matched_combat::FileMatchedCombatDebugView;
 use self::notes::NotesView;
@@ -141,6 +141,7 @@ pub enum View {
     #[allow(dead_code)] Decoder(Arc<PackedFileDecoderView>),
     DependenciesManager(Arc<DependenciesManagerView>),
     Esf(Arc<PackedFileESFView>),
+    GroupFormations(Arc<GroupFormationsView>),
     GroupFormationsDebug(Arc<FileGroupFormationsDebugView>),
     Image(PackedFileImageView),
     MatchedCombatDebug(Arc<FileMatchedCombatDebugView>),
@@ -297,6 +298,7 @@ impl FileView {
                 View::Decoder(view) => view.table_view().set_focus_0a(),
                 View::DependenciesManager(view) => view.get_ref_table().table_view().set_focus_0a(),
                 View::Esf(_) => self.main_widget.set_focus_0a(),
+                View::GroupFormations(view) => view.formations_list_view().set_focus_0a(),
                 View::GroupFormationsDebug(_) => self.main_widget.set_focus_0a(),
                 View::Image(_) => self.main_widget.set_focus_0a(),
                 View::MatchedCombatDebug(_) => self.main_widget.set_focus_0a(),
@@ -396,6 +398,7 @@ impl FileView {
                                 return Ok(())
                             },
                             View::Esf(view) => RFileDecoded::ESF(view.save_view()),
+                            View::GroupFormations(view) => RFileDecoded::GroupFormations(view.save_view()),
                             View::GroupFormationsDebug(_) => return Ok(()),
                             View::Image(_) => return Ok(()),
                             View::MatchedCombatDebug(_) => return Ok(()),
@@ -600,7 +603,11 @@ impl FileView {
                         },
 
                         Response::GroupFormationsRFileInfo(new, packed_file_info) => {
-                            if let View::GroupFormationsDebug(old) = view {
+                            if let View::GroupFormations(old) = view {
+                                old.reload_view(new);
+                                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile, &pack_key);
+                            }
+                            else if let View::GroupFormationsDebug(old) = view {
                                 old.reload_view(&new)?;
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile, &pack_key);
                             }
