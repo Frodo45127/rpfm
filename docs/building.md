@@ -8,7 +8,7 @@ You'll need:
 
 - [**Windows SDK**](https://developer.microsoft.com/en-US/windows/downloads/windows-sdk).
 - **Visual Studio Community 2022** with the **MSVC** C++ build tools workload.
-- **Rust 1.81** (or newer) with the MSVC toolchain.
+- **Rust 1.89** (or newer) with the MSVC toolchain.
 - [**Craft**](https://community.kde.org/Craft) from KDE.
 
 Once Craft is installed, install RPFM's KDE / Qt dependencies:
@@ -66,7 +66,7 @@ You can make any editor inherit Craft's environment (and so be able to compile R
 You'll need:
 
 - **CMake**.
-- **Rust 1.81** (or newer).
+- **Rust 1.89** (or newer).
 - **Qt6**.
 - **KDE Frameworks 6**: KCompletion, KIconThemes, KTextEditor, KXmlGui, KWidgetsAddons.
 - **xz**, **p7zip**.

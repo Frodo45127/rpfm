@@ -5,6 +5,7 @@ Every supported file type opens in a dedicated view that knows how to decode, pr
 ## How editors behave
 
 - **Open by double-click.** Double-clicking a file in the Pack tree opens it in a new tab. Re-opening an already-open file just brings its tab forward.
+- **Split view.** Tabs can be moved to a second pane to see two files side by side. See [Split view](../packs/main-window.md#split-view).
 - **Tabs do not survive Pack switches.** Editors stay open until you close them, or you close the Pack underneath. RPFM warns before destroying unsaved changes.
 - **Save are usually on-edit, except in some editors.** Editors save on edit the changes to the in-memory Pack, except some editors which have a save button at the bottom of the screen. You still need to **save the Pack** for changes to hit the `.pack` file on disk.
 - **External editing.** From the tree's context menu, **Open with External Program** extracts the file into a temp folder and hands it to your OS's default app for that file type. Edits round-trip back into the Pack when you save them externally. There is no per-extension configuration in RPFM Preferences — the OS decides which app opens what.

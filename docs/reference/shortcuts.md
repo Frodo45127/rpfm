@@ -32,6 +32,8 @@ The list below shows the **defaults** as defined in the source. Most shortcuts a
 | Next Tab                | `Ctrl+Tab`       |
 | Toggle Quick Notes      | (unbound)        |
 | Import From Dependencies| (unbound)        |
+| Move to Other Pane      | (unbound)        |
+| Merge Panes             | (unbound)        |
 
 ## View menu
 
@@ -67,7 +69,7 @@ The list below shows the **defaults** as defined in the source. Most shortcuts a
 | Delete                       | `Del`                |
 | Extract                      | `Ctrl+E`             |
 | Rename / Move                | `Ctrl+R` or `F2`     |
-| Copy                         | `Ctrl+C`             |
+| Copy                         | `Ctrl+Shift+C`       |
 | Cut                          | `Ctrl+X`             |
 | Paste                        | `Ctrl+V`             |
 | Duplicate                    | `Ctrl+Shift+D`       |

@@ -18,6 +18,12 @@ A quick orientation tour. Once you know where everything lives, the rest of the 
     - **Quick Notes** — not a dock. It's a side panel inside each file editor, toggled per-tab.
 7. **Status bar.** Bottom strip. Shows short-lived status messages from the last operation.
 
+## Split view
+
+The editor area can show two tab panes side by side. Right-click a file tab and pick **Move to Other Pane** to send it to the second pane (or back to the first); **Merge Panes** moves every tab back into a single pane. A pane is only shown while it has tabs open.
+
+Files you open from the Pack tree go to the pane that last had keyboard focus. A file is only ever open in one pane: opening it again focuses its existing tab, wherever it is. Each pane keeps its own preview tab. The split position is remembered between runs.
+
 ## The welcome page
 
 When no Pack is open, the editor area is replaced by a **welcome page** with quick links to recent Packs, the manual, the GitHub project, the Patreon (wink wink), and some other useful stuff.

@@ -25,7 +25,7 @@ Right before you publish a release / update. Not earlier — the optimiser strip
 
 The full step list lives in [`rpfm_extensions::optimizer`](../../api/rpfm_extensions/optimizer/index.html), and the dialog groups them into four sections:
 
-- **Pack** — Remove ITM (identical-to-master) files, Apply compression.
+- **Pack** — Remove ITM (identical-to-master) files, Apply compression, Encrypt the Pack (turns on index and data encryption; disabled for games whose Packs predate PFH4).
 - **Table** (DB / Loc) — Import datacores into `twad_key_deletes` (Warhammer 3+, see [Datacores](./datacores.md)), Optimize datacored tables, Remove duplicated entries, Remove ITM rows, Remove ITNR (identical to new row) rows, Remove empty files.
 - **Text** — Remove unused `.xml` files in `map/` folders, remove unused `.xml` files in the prefab folder, Remove `.agf` files, Remove `.model_statistics` files (the last two are BOB exporter byproducts).
 - **Portrait Settings** — Remove unused art sets, Remove unused variants, Remove empty masks, Remove empty files.

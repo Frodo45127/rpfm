@@ -28,6 +28,12 @@ The KTextEditor backend gives you:
 - **Indent / unindent** (`Tab` / `Shift+Tab`).
 - **Open / save** integration with the Pack — your edits go into the in-memory Pack on save.
 
+## Lua scripts
+
+When a diagnostics check runs, its results for the open script are shown in the editor itself, like in an IDE: the offending code is underlined, and its line gets a mark in the margin. See [Diagnostics](../search/diagnostics.md) for the checks performed.
+
+Hovering a documented function, accessor or event in a Lua script shows its docs. Both features rely on the scripting docs of the game's Assembly Kit, completed with the vanilla scripts from the [dependencies cache](../packs/dependencies.md), so they need the Assembly Kit path set and the cache generated. To run a mod's scripts outside the game, see [Lua tests](../packs/lua-tests.md).
+
 ## External editor
 
 If you'd rather use VS Code, Neovim or anything else, **Open with External Program** from the Pack tree's right-click menu extracts the file to a temp folder and opens it with your OS's default app for that extension; saving it externally pushes the change back into the Pack. There's no per-extension override inside RPFM — the OS picks the app.

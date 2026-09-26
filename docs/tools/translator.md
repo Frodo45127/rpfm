@@ -26,6 +26,12 @@ The JSON file also records its format `version`. `0` is the legacy format (compa
 3. **Generate the translated loc.** When you save, the Translator writes a translated `.loc` file into the Pack at the right path: `text/!!!!!!translated_locs.loc` for Warhammer 1 and newer (except Thrones of Britannia), or `text/localisation.loc` for Thrones of Britannia and older games. The translation works in-game immediately.
 4. **Persist the translation as JSON.** The translation is also persisted to `<config>/translations_local/<game>/<pack>/<SOURCE>-<LANGUAGE>.json` (or `<LANGUAGE>.json` for format `0`). This is the file you contribute to the [Translation Hub](https://github.com/Frodo45127/total_war_translation_hub).
 
+## Editing a line
+
+**Clear translation** resets the selected line to untranslated. It has a configurable shortcut, unbound by default.
+
+To keep the editor compact, the quick start instructions, the auto-translation settings (the ones applied when a line is selected) and the formatted in-game style previews of the source and translated text are hidden by default. Show them with the **Help**, **Auto-translate settings** and **Preview** toggles.
+
 ## Glossary
 
 The glossary is a per-translation list of source terms and the translation you want used for each one, like faction or unit names. Open it with the **Glossary** button: it opens over the right side of the translator, so the lines stay visible for reference, and its close button hides it again. Edit it like any other table, with its toolbar, right-click menu or shortcuts. Entries without a source term are ignored.

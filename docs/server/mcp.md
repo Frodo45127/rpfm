@@ -274,7 +274,8 @@ The MCP interface exposes **150 tools** organized by category. Each tool accepts
 | `patch_siege_ai` | Patch SiegeAI for Warhammer maps | `pack_key` |
 | `pack_map` | Pack map tiles | `pack_key`, `tile_maps`, `tiles` |
 | `generate_missing_loc_data` | Generate missing loc entries | `pack_key` |
-| `get_pack_translation` | Get translation data | `pack_key`, `language` |
+| `get_pack_translation` | Get translation data | `pack_key`, `src_lang`, `language` |
+| `generate_vanilla_translation_source` | Extract the vanilla texts of a source language from the game's locale packs | `src_lang` |
 | `build_starpos_get_campaign_ids` | Get campaign IDs for starpos | `pack_key` |
 | `build_starpos_check_victory_conditions` | Check victory conditions file | `pack_key` |
 | `build_starpos` | Build starpos (pre-processing) | `pack_key`, `campaign_id`, `process_hlp_spd` |

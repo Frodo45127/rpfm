@@ -12,7 +12,7 @@ These live on the Pack root's context menu (right-click the Pack in the tree). T
 
 A submenu listing the possible PFH file types: **Boot**, **Release**, **Patch**, **Mod**, **Movie**. Mods almost always want **Mod** (shows up in the launcher) or **Movie** (always-on, hidden from the launcher). The other three are CA-only types and should not be used for player mods.
 
-The same submenu also exposes the header flags as checkable items: **Index Includes Timestamp** (editable), and **Header Is Extended**, **Index Is Encrypted**, **Data Is Encrypted** (read-only — RPFM cannot save encrypted Packs, but it can read them).
+The same submenu also exposes the header flags as checkable items: **Index Includes Timestamp**, **Index Is Encrypted** and **Data Is Encrypted** (editable), and **Header Is Extended** (read-only). The encryption flags are applied the next time the Pack is saved, and are only available for PFH4 and newer Packs (Rome 2 and later games); older formats can't be encrypted. The optimiser's **Encrypt the Pack** option sets both flags for you (see [Optimising a mod](../tutorials/optimising-a-mod.md)).
 
 ### Compression Format
 

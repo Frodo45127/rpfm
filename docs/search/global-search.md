@@ -18,7 +18,7 @@ There is no "match whole word" toggle — wrap the pattern in word boundaries yo
 
 A search can target several sources independently:
 
-- **Per-Pack checkboxes.** One checkbox per open Pack appears under the Sources group; tick the ones you want included.
+- **Per-Pack checkboxes.** One checkbox per open Pack appears under the Sources group; tick the ones you want included. Newly opened Packs are ticked automatically, unless **Auto-select Open Packs in Global Search** is disabled in the settings.
 - **Game Files.** Vanilla files for the active game (requires the [dependencies cache](../packs/dependencies.md)).
 - **Parent Files.** Parent mods declared by the active Pack (see [Dependencies](../packs/dependencies.md)).
 - **Assembly Kit Files.** AK-only tables and locs (requires the AK install path to be configured for the active game).

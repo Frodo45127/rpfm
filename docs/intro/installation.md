@@ -12,6 +12,8 @@ That's it. The first launch will take you to [first-time configuration](./first-
 
 > **Heads-up:** Don't extract the zip into a path that requires admin rights (e.g. `Program Files`). RPFM writes certain update-related files relative to where its files are, and a write-protected install path causes confusing errors.
 
+> **If RPFM says `rpfm_server Not Responding`:** RPFM's backend, `rpfm_server.exe`, took too long to start. This usually means Windows security or your antivirus blocked it, as it's not signed. Allow `rpfm_server.exe` (or RPFM's whole folder) in your security software, then restart RPFM.
+
 ## Linux
 
 ### Arch Linux and derivatives
@@ -29,6 +31,8 @@ There's also `rpfm-git` if you want to build from the latest `develop` branch yo
 ### Other distributions (Flatpak)
 
 A Flatpak is the easiest way to run RPFM on any distro that supports Flatpak. The Flatpak bundles Qt6 and the KDE Frameworks RPFM needs, so you don't have to install them yourself. Refer to the project's [releases page](https://github.com/Frodo45127/rpfm/releases) for the current Flatpak download.
+
+> **Paths inside other Flatpak apps:** the Flatpak can't read the data folders of other Flatpak apps (for example, a game installed through Steam's Flatpak), even if the file dialog lets you pick them. When one of your configured paths is in one, RPFM shows the command to grant it access (**Copy Command**). Run it in a terminal with RPFM closed, or set the same paths with Flatseal, then start RPFM again.
 
 ### Building from source
 

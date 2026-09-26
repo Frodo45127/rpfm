@@ -23,6 +23,8 @@ Responses follow the same [serialization convention](./overview.md#serialization
 | `Error`            | string   | Human-readable error message             |
 | `SessionConnected` | number   | Session ID (unsolicited, sent on connect with id=0) |
 | `Unknown`          | *(none)* | Returned for unsupported/unrecognized file types |
+| `SettingsChanged`  | SettingsSnapshot | Unsolicited, sent to every client (id=0) when any session changes the settings |
+| `GitHubSignInRequired` | *(none)* | The command needs a GitHub sign-in, and the user isn't signed in or GitHub rejected it |
 
 ---
 
@@ -77,6 +79,7 @@ Example:
 | `I32`      | number            | 32-bit integer             |
 | `I32I32`   | [number, number]  | Pair of integers           |
 | `String`   | string            | String value               |
+| `OptionString` | string or null | Optional string value      |
 | `PathBuf`  | string            | Filesystem path            |
 
 ---
@@ -101,6 +104,7 @@ Example:
 | `VecRFile`                      | RFile[]                              | List of raw files                  |
 | `VecRFileInfo`                  | RFileInfo[]                          | List of file metadata              |
 | `VecString`                     | string[]                             | List of strings                    |
+| `VecStringTuples`               | [string, string][]                   | String pairs                       |
 | `VecStringContainerInfo`        | [string, ContainerInfo][]            | Pack key + metadata pairs          |
 | `VecU8`                         | number[]                             | Raw byte data                      |
 | `VecU64U64U64U64String`        | [number, number, number, number, string][] | Script ranges (start line, start column, end line, end column) with their docs |
@@ -122,9 +126,13 @@ Example:
 | `StringContainerInfo`                 | [string, ContainerInfo]                                                      | Pack key + metadata                   |
 | `DataSourceStringUsizeUsize`          | [DataSource, string, number, number]                                         | Navigation result                     |
 | `Definition`                          | Definition                                                                   | Table definition                      |
+| `DefinitionPatch`                     | Record<string, Record<string, string>>                                       | Patches of a definition, by field     |
 | `DependenciesInfo`                    | DependenciesInfo                                                             | Dependencies information              |
 | `Diagnostics`                         | Diagnostics                                                                  | Diagnostics report                    |
+| `GitHubDeviceCode`                    | [DeviceCode](./ws-shared-types.md#devicecode)                                | GitHub sign-in code to show the user  |
+| `GitHubSignInState`                   | [GitHubSignInState](./ws-shared-types.md#githubsigninstate)                  | Progress of a GitHub sign-in          |
 | `LuaTestReport`                       | [LuaTestReport](./ws-shared-types.md#luatestreport)                          | Results of a Lua test run             |
+| `MergeConflicts`                      | MergeConflict[]                                                              | Unresolved conflicts of a delta merge |
 | `GlobalSearchVecRFileInfo`            | [GlobalSearch, RFileInfo[]]                                                  | Search results + modified files       |
 | `HashMapDataSourceHashMapStringRFile` | Record<DataSource, Record<string, RFile>>                                    | Files by source and path              |
 | `HashMapDataSourceHashSetContainerPath` | Record<DataSource, ContainerPath[]>                                        | Paths by data source                  |
@@ -143,6 +151,7 @@ Example:
 | `Schema`                              | Schema                                                                       | Full schema                           |
 | `StringVecContainerPath`              | [string, ContainerPath[]]                                                    | String + path list                    |
 | `StringVecPathBuf`                    | [string, string[]]                                                           | String + filesystem paths             |
+| `SubmissionResult`                    | [SubmissionResult](./ws-shared-types.md#submissionresult)                    | Translation Hub pull request result   |
 | `Text`                                | Text                                                                         | Text file content                     |
 
 ---

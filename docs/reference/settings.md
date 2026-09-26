@@ -4,9 +4,9 @@ Open the Preferences dialog from **PackFile → Settings** (or via its shortcut,
 
 Settings are stored on the server side and cached client-side, so they're consistent across `rpfm_ui` runs and across multiple UIs talking to the same `rpfm_server`. Most changes take effect immediately; a few (notably language and other UI-layout settings) require a restart.
 
-<!-- IMAGE: Preferences dialog open with the seven-button navigation pane on the left and the General section on the right. -->
+<!-- IMAGE: Preferences dialog open with the eight-button navigation pane on the left and the General section on the right. -->
 
-The dialog is a single scrollable form with a left-hand navigation pane that jumps to one of seven sections. The list below is a tour, not an exhaustive reference — for the full list of setting keys see the [`rpfm_ipc::settings_keys` API docs](../../api/rpfm_ipc/settings_keys/index.html).
+The dialog is a single scrollable form with a left-hand navigation pane that jumps to one of eight sections. The list below is a tour, not an exhaustive reference — for the full list of setting keys see the [`rpfm_ipc::settings_keys` API docs](../../api/rpfm_ipc/settings_keys/index.html).
 
 ## Paths
 
@@ -29,6 +29,7 @@ A few caveats: this path is stored separately from the rest of the settings (so 
 - **Autosave amount** and **Autosave interval** (in minutes).
 - **Check for X on start** toggles for program, schema, lua-autogen and old-AK updates.
 - **Allow editing of CA Packfiles**, **Disable file previews**, **Start maximized**.
+- **Auto-select Open Packs in Global Search** — newly opened Packs are ticked as Global Search sources. Uncheck it to pick them manually.
 - Pack-tree behaviour toggles: expand on add, include base folder on add-from-folder, delete empty folders on delete, ignore game files in AK, multifolder file picker, drag-and-drop in the pack contents tree.
 
 ## Table
@@ -39,6 +40,7 @@ UI behaviour for the table editors:
 - **Tables use old column order** (and a TSV variant) — restores the legacy column ordering.
 - **Disable UUID regeneration on DB tables** — don't auto-generate a new UUID on table save.
 - **Use right-side markers**, **Enable lookups**, **Enable icons**, **Enable diff markers**.
+- **New filter chips join the previous group by default** — new filter chips are AND-combined with the last one instead of getting their own (OR-combined) group. Can be overridden per chip with its `@N` suffix or its gear menu.
 - Colour pickers for **Added**, **Modified**, **Error**, **Warning** and **Info** marks (separate light/dark colour for each).
 
 ## Debug
@@ -70,6 +72,10 @@ API keys for the AI-backed features (used by the [Translator](../tools/translato
 - **OpenAI API key**.
 - **DeepL API key**.
 
+## GitHub
+
+- **GitHub account** — the account used to submit translations to the Translation Hub from the [Translator](../tools/translator.md). **Sign in** opens GitHub in your browser and copies a code to your clipboard; enter it there to approve RPFM. The sign-in is kept in your system's keyring, not in the settings file. **Sign out** removes it.
+
 ## Shortcuts
 
 The Preferences dialog has a **Shortcuts** button at the bottom that opens a separate KDE-style shortcuts dialog where every action can be rebound. See [Keyboard shortcuts](./shortcuts.md).
@@ -77,5 +83,5 @@ The Preferences dialog has a **Shortcuts** button at the bottom that opens a sep
 ## Where settings live on disk
 
 - **Server-side authoritative copy:** `<config>/settings.json`. The exact `<config>` folder depends on platform (e.g. `~/.config/rpfm/` on Linux, `%AppData%\rpfm\` on Windows). On debug builds, it's the working directory.
-- **Backup:** a single `.bak` file is written next to it when the main file fails to load, so a corrupted settings file can be recovered manually.
+- **Backup:** `<config>/settings.json.bak` holds the last copy that loaded successfully. If `settings.json` is missing, empty or broken, RPFM restores it from the backup instead of falling back to the defaults. Settings are written to a temporary file first and then moved over the real one, so a crash mid-save can't truncate them.
 - **UI-side cache:** in-memory only — refreshed from the server on launch and on each preferences-saved event.
