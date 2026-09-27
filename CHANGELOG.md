@@ -6,6 +6,54 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [Unreleased]
+### Added
+- Implemented split view, to have two tab panes side by side.
+- Added a setting to configure if new table filters should work as an OR or AND filter by default.
+- Added a setting to disable auto-selecting newly opened packs in Global Search.
+- Added a message for when the server fails to start due to Windows blocking it.
+- Refactored the translator:
+    - Implemented support for the v1 translation file format.
+    - Implemented support for translating from any language (previously only English was supported).
+    - Implemented support for mass translation.
+    - Implemented a per-translation glossary.
+    - Implemented 1-click upload of translated files to the Translation Hub.
+    - Improved prompt for translating lines using AI.
+    - Cleaned up the UI to make it less cluttered.
+- Implemented pack encryption, through the Pack's header flags or the new "Encrypt the Pack" optimizer option.
+- Implemented Lua script diagnostics (syntax errors, invalid DB keys, unknown methods and events, wrong argument counts), based on the Assembly Kit's scripting docs.
+- Implemented showing diagnostics inside the text editor, and docs on hover for Lua scripts.
+- Implemented an offline Lua test harness, to run a mod's scripts with the game's script libraries outside of the game, from the Pack tree's context menu.
+- Implemented GroupFormations editor.
+- Implemented GroupFormations diagnostics.
+
+### Changed
+- Upgraded MCP server to support the latest MCP protocol version (by [@PassingbyPixels](https://github.com/PassingByPixels)).
+- Changed default binding for copying files in the Pack tree to `Ctrl+Shift+C`.
+- CEO tooling now works with tables under `ceo_db/` (by [@Ironic](https://github.com/Ironictw2st)).
+- Importing tables from the Assembly Kit now picks the schema version that keeps the most columns (by [@Ironic](https://github.com/Ironictw2st)).
+- Raised MSRV to 1.89.
+
+### Fixed
+- Fixed Build Startpos for Rome 2 removing the vanilla startpos.
+- Fixed multiple missing/outdated documentation issues (by [@coylemichael](https://github.com/coylemichael)).
+- Fixed pasting multiple lines in a table filter not formatting correctly as an OR filter.
+- Fixed flatpak builds missing permissions for reading other Flatpak apps' folders.
+- Fixed unpreviewing a tab not focusing its main widget.
+- Fixed a lot of issues regarding settings getting overwritten between sessions.
+- Fixed multiple issues with settings being wiped out/reset on rare occasions.
+- Fixed MCP sessions leaking memory (by [@PassingbyPixels](https://github.com/PassingByPixels)).
+- Fixed incorrect order on twad_key_deletes after WH3 9.0 patch.
+- Fixed update checker blocking the ui from loading, causing it to freeze and start very slowly.
+- Fixed issues decrypting pfh4 files, and the remainder not being decrypted in some files (thanks Pear for the report).
+- Fixed schema patches not being applied to tables in the UI, causing issues like icons not loading.
+- Fixed tables losing their schema patches after updating the schema from the Assembly Kit.
+- Fixed schema saves losing lookup_hardcoded or unused patches when a table had both kinds, or multiple versions.
+- Fixed wrong names on most AI purpose flags of GroupFormations files from Rome 2 and later.
+- Fixed GroupFormations files with data from another game being saved broken instead of failing to save.
+- Fixed packs not saving when using Ctrl+S if they're a new pack not yet on disk.
+- Fixed packs saving to the wrong path when using Ctrl+S in rare occasions.
+
 ## [5.0.6]
 ### Added
 - Improved documentation for AI Agents to more easely decode tables, by [@ChaosRobie](https://github.com/robert-d-schultz).
