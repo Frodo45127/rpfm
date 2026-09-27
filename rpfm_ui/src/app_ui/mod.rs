@@ -1441,6 +1441,7 @@ impl AppUI {
     ) -> Result<()> {
 
         let mut result: Result<()> = Ok(());
+        let mut saved = false;
         app_ui.toggle_main_window(false);
 
         // Resolve the pack key once, up front.
@@ -1476,7 +1477,10 @@ impl AppUI {
                 return Err(error);
             }
         };
-        if !path.is_file() || save_as {
+
+        // New packs only carry a bare file name, which would resolve against the process's CWD.
+        let exists_on_disk = path.is_absolute() && path.is_file();
+        if !exists_on_disk || save_as {
 
             // Create the FileDialog to save the PackFile and configure it.
             let file_dialog = QFileDialog::from_q_widget_q_string(
@@ -1489,7 +1493,7 @@ impl AppUI {
             file_dialog.select_file(&QString::from_std_str(path.file_name().unwrap_or_else(|| OsStr::new("mod.pack")).to_string_lossy()));
 
             // If we are saving an existing PackFile with another name, we start in his current path.
-            if path.is_file() {
+            if exists_on_disk {
                 path.pop();
                 file_dialog.set_directory_q_string(&QString::from_std_str(path.to_string_lossy().as_ref()));
             }
@@ -1520,6 +1524,7 @@ impl AppUI {
                         Self::add_path_to_recent_files(&recent_path);
 
                         UI_STATE.set_is_modified(false, app_ui, pack_file_contents_ui);
+                        saved = true;
                     }
                     Err(error) => result = Err(error),
                 }
@@ -1533,17 +1538,20 @@ impl AppUI {
                     let packfile_item = root_item_for_pack(&pack_key);
                     packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
                     UI_STATE.set_is_modified(false, app_ui, pack_file_contents_ui);
+                    saved = true;
                 }
                 Err(error) => result = Err(error),
             }
         }
 
-        // Clean the treeview and the views from markers.
-        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile, &pack_key);
+        // Only clear the modified markers if the pack was actually written to disk.
+        if saved {
+            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile, &pack_key);
 
-        for file_view in UI_STATE.get_open_packedfiles().iter() {
-            if file_view.pack_key_copy() == pack_key {
-                file_view.clean();
+            for file_view in UI_STATE.get_open_packedfiles().iter() {
+                if file_view.pack_key_copy() == pack_key {
+                    file_view.clean();
+                }
             }
         }
 

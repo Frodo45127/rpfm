@@ -634,36 +634,35 @@ impl AppUISlots {
             pack_file_contents_ui => move |_| {
                 rpfm_telemetry::track_action("Save All");
 
-                // Get all open packs from the server.
+                // Get all open packs from the server. Packs never saved to disk get a Save As dialog.
                 let pack_list = send_ipc_command(Command::ListOpenPacks, response_extractor!(Response::VecStringContainerInfo));
+                let mut all_saved = true;
                 for (pack_key, _) in &pack_list {
-
-                    // Get the pack's file path.
-                    let path = match send_ipc_command_result(Command::GetPackFilePath(pack_key.clone()), response_extractor!(Response::PathBuf)) {
-                        Ok(path) => path,
-                        Err(error) => {
-                            show_dialog(&app_ui.main_window, error, false);
-                            continue;
-                        }
-                    };
-
-                    // If the pack has a valid path on disk, save it. Otherwise, skip (save-as would
-                    // require a dialog per pack which is disruptive for save-all).
-                    if path.is_file() {
-                        if let Err(error) = AppUI::save_packfile_by_key(&app_ui, &pack_file_contents_ui, Some(pack_key.clone()), false) {
-                            show_dialog(app_ui.main_window(), error, false);
-                        }
+                    if let Err(error) = AppUI::save_packfile_by_key(&app_ui, &pack_file_contents_ui, Some(pack_key.clone()), false) {
+                        show_dialog(app_ui.main_window(), error, false);
+                        all_saved = false;
+                        continue;
                     }
+
+                    // A cancelled Save As dialog returns Ok, so confirm the pack actually exists on disk now.
+                    let saved = send_ipc_command_result(Command::GetPackFilePath(pack_key.clone()), response_extractor!(Response::PathBuf))
+                        .is_ok_and(|path| path.is_absolute() && path.is_file());
+                    all_saved &= saved;
                 }
 
-                // Clean the treeview markers and file views.
-                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile, "");
-                for file_view in UI_STATE.get_open_packedfiles().iter() {
-                    file_view.clean();
+                // Only mark everything as clean if every pack was actually written, so unsaved
+                // packs still trigger the "unsaved changes" prompt on close.
+                if all_saved {
+                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile, "");
+                    for file_view in UI_STATE.get_open_packedfiles().iter() {
+                        file_view.clean();
+                    }
+                    UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
+                    log_to_status_bar("All packs saved.");
+                } else {
+                    UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+                    log_to_status_bar("Some packs were not saved.");
                 }
-                UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
-
-                log_to_status_bar("All packs saved.");
             }
         ));
 
