@@ -38,7 +38,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::env::temp_dir;
 use std::fs::{DirBuilder, File};
 use std::io::{BufWriter, Cursor, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::slice::from_ref;
 use std::sync::{Arc, RwLock};
 use std::thread;
@@ -483,6 +483,12 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                         let pack_type = *pack.header().pfh_file_type();
                         if !settings.bool("allow_editing_of_ca_packfiles") && pack_type != PFHFileType::Mod && pack_type != PFHFileType::Movie {
                             CentralCommand::send_back(&sender, Response::Error(anyhow!("Pack cannot be saved due to being of CA-Only type. Either change the Pack Type or enable \"Allow Edition of CA Packs\" in the settings.").to_string()));
+                            continue;
+                        }
+
+                        // New packs only have a bare name, which would silently save to the server's path.
+                        if !Path::new(pack.disk_file_path()).is_absolute() {
+                            CentralCommand::send_back(&sender, Response::Error(format!("Pack '{}' has never been saved to disk. Use Save As to choose where to save it.", pack_key)));
                             continue;
                         }
 
