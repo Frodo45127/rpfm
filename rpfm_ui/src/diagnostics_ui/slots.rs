@@ -43,7 +43,7 @@ use crate::UI_STATE;
 
 macro_rules! diag_blocked {
     ($ui:ident, $check:ident, $toggled:expr) => (
-        let _ = QSignalBlocker::from_q_object($ui.$check.static_upcast::<QObject>());
+        let _blocker = QSignalBlocker::from_q_object($ui.$check.static_upcast::<QObject>());
 
         if $toggled {
             $ui.$check.set_checked(true);
@@ -427,6 +427,7 @@ impl DiagnosticsUISlots {
                 diagnostics_ui.checkbox_all.block_signals(false);
             }
 
+            diagnostics_ui.save_disabled_diagnostics();
             DiagnosticsUI::filter(&app_ui, &diagnostics_ui);
         }));
 
@@ -491,6 +492,7 @@ impl DiagnosticsUISlots {
                 diag_blocked!(diagnostics_ui, checkbox_file_overwrite, toggled);
                 diag_blocked!(diagnostics_ui, checkbox_file_duplicated, toggled);
 
+                diagnostics_ui.save_disabled_diagnostics();
                 DiagnosticsUI::filter(&app_ui, &diagnostics_ui);
             }
         ));

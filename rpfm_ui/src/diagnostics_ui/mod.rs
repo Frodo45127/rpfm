@@ -72,7 +72,7 @@ use crate::packedfile_views::{FileView, View, ViewType, SpecialView};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::UI_STATE;
 use crate::references_ui::ReferencesUI;
-use crate::settings_ui::backend::settings_bool;
+use crate::settings_ui::backend::{settings_bool, settings_set_vec_string, settings_vec_string};
 use crate::utils::*;
 use crate::views::table::{ITEM_HAS_ERROR, ITEM_HAS_WARNING, ITEM_HAS_INFO, ITEM_PACK_KEY, utils::open_subtable};
 
@@ -369,63 +369,6 @@ impl DiagnosticsUI {
         let checkbox_file_overwrite = QCheckBox::from_q_string_q_widget(&qtr("label_file_overwrite"), &sidebar_scroll_area);
         let checkbox_file_duplicated = QCheckBox::from_q_string_q_widget(&qtr("label_file_duplicated"), &sidebar_scroll_area);
 
-        checkbox_all.set_checked(false);
-        checkbox_outdated_table.set_checked(true);
-        checkbox_invalid_reference.set_checked(true);
-        checkbox_empty_row.set_checked(true);
-        checkbox_empty_key_field.set_checked(true);
-        checkbox_empty_key_fields.set_checked(true);
-        checkbox_duplicated_combined_keys.set_checked(true);
-        checkbox_no_reference_table_found.set_checked(true);
-        checkbox_no_reference_table_nor_column_found_pak.set_checked(true);
-        checkbox_no_reference_table_nor_column_found_no_pak.set_checked(true);
-        checkbox_invalid_escape.set_checked(true);
-        checkbox_duplicated_row.set_checked(true);
-        checkbox_invalid_dependency_packfile.set_checked(true);
-        checkbox_invalid_loc_key.set_checked(true);
-        checkbox_dependencies_cache_not_generated.set_checked(true);
-        checkbox_invalid_packfile_name.set_checked(true);
-        checkbox_table_name_ends_in_number.set_checked(true);
-        checkbox_table_name_has_space.set_checked(true);
-        checkbox_table_is_datacoring.set_checked(true);
-        checkbox_dependencies_cache_outdated.set_checked(true);
-        checkbox_dependencies_cache_could_not_be_loaded.set_checked(true);
-        checkbox_field_with_path_not_found.set_checked(false);
-        checkbox_incorrect_game_path.set_checked(true);
-        checkbox_banned_table.set_checked(true);
-        checkbox_value_cannot_be_empty.set_checked(true);
-        checkbox_altered_table.set_checked(true);
-        checkbox_invalid_art_set_id.set_checked(true);
-        checkbox_invalid_variant_filename.set_checked(true);
-        checkbox_file_diffuse_not_found_for_variant.set_checked(true);
-        checkbox_file_mask_1_not_found_for_variant.set_checked(true);
-        checkbox_file_mask_2_not_found_for_variant.set_checked(true);
-        checkbox_file_mask_3_not_found_for_variant.set_checked(true);
-        checkbox_datacored_portrait_settings.set_checked(true);
-        checkbox_group_formations_duplicate_formation_name.set_checked(true);
-        checkbox_group_formations_no_absolute_block.set_checked(true);
-        checkbox_group_formations_duplicate_block_id.set_checked(true);
-        checkbox_group_formations_missing_reference.set_checked(true);
-        checkbox_group_formations_forward_reference.set_checked(true);
-        checkbox_group_formations_reference_cycle.set_checked(true);
-        checkbox_group_formations_empty_span.set_checked(true);
-        checkbox_group_formations_invalid_thresholds.set_checked(true);
-        checkbox_group_formations_no_entity_preferences.set_checked(true);
-        checkbox_loocomotion_graph_path_not_found.set_checked(true);
-        checkbox_file_path_not_found.set_checked(true);
-        checkbox_meta_file_path_not_found.set_checked(true);
-        checkbox_snd_file_path_not_found.set_checked(true);
-        checkbox_lua_invalid_key.set_checked(true);
-        checkbox_lua_syntax_error.set_checked(true);
-        checkbox_lua_unknown_method.set_checked(true);
-        checkbox_lua_wrong_argument_count.set_checked(true);
-        checkbox_lua_unknown_event.set_checked(true);
-        checkbox_missing_loc_data_file_detected.set_checked(true);
-        checkbox_invalid_file_name.set_checked(true);
-        checkbox_file_itm.set_checked(true);
-        checkbox_file_overwrite.set_checked(true);
-        checkbox_file_duplicated.set_checked(true);
-
         sidebar_grid.add_widget_1a(&checkbox_all);
         sidebar_grid.add_widget_1a(&checkbox_outdated_table);
         sidebar_grid.add_widget_1a(&checkbox_invalid_reference);
@@ -487,7 +430,7 @@ impl DiagnosticsUI {
         checkbox_datacored_portrait_settings.set_checked(false);
         checkbox_datacored_portrait_settings.set_visible(false);
 
-        Ok(Self {
+        let diagnostics_ui = Self {
 
             //-------------------------------------------------------------------------------//
             // `Diagnostics` Dock Widget.
@@ -577,7 +520,10 @@ impl DiagnosticsUI {
             checkbox_file_itm,
             checkbox_file_overwrite,
             checkbox_file_duplicated,
-        })
+        };
+
+        diagnostics_ui.load_disabled_diagnostics();
+        Ok(diagnostics_ui)
     }
 
     /// This function takes care of checking the entire PackFile for errors.
@@ -2056,6 +2002,93 @@ impl DiagnosticsUI {
         for item in items {
             item.set_tool_tip(&tool_tip);
         }
+    }
+
+    /// Every diagnostic filter checkbox, paired with the key used to persist its state in [`DIAGNOSTICS_DISABLED`].
+    ///
+    /// The keys are the checkbox's label keys, as the diagnostic ids aren't unique across file types.
+    fn diagnostic_checkboxes(&self) -> Vec<(&QBox<QCheckBox>, &'static str)> {
+        vec![
+            (&self.checkbox_outdated_table, "label_outdated_table"),
+            (&self.checkbox_invalid_reference, "label_invalid_reference"),
+            (&self.checkbox_empty_row, "label_empty_row"),
+            (&self.checkbox_empty_key_field, "label_empty_key_field"),
+            (&self.checkbox_empty_key_fields, "label_empty_key_fields"),
+            (&self.checkbox_duplicated_combined_keys, "label_duplicated_combined_keys"),
+            (&self.checkbox_no_reference_table_found, "label_no_reference_table_found"),
+            (&self.checkbox_no_reference_table_nor_column_found_pak, "label_no_reference_table_nor_column_found_pak"),
+            (&self.checkbox_no_reference_table_nor_column_found_no_pak, "label_no_reference_table_nor_column_found_no_pak"),
+            (&self.checkbox_invalid_escape, "label_invalid_escape"),
+            (&self.checkbox_duplicated_row, "label_duplicated_row"),
+            (&self.checkbox_invalid_dependency_packfile, "label_invalid_dependency_packfile"),
+            (&self.checkbox_invalid_loc_key, "label_invalid_loc_key"),
+            (&self.checkbox_dependencies_cache_not_generated, "label_dependencies_cache_not_generated"),
+            (&self.checkbox_invalid_packfile_name, "label_invalid_packfile_name"),
+            (&self.checkbox_table_name_ends_in_number, "label_table_name_ends_in_number"),
+            (&self.checkbox_table_name_has_space, "label_table_name_has_space"),
+            (&self.checkbox_table_is_datacoring, "label_table_is_datacoring"),
+            (&self.checkbox_dependencies_cache_outdated, "label_dependencies_cache_outdated"),
+            (&self.checkbox_dependencies_cache_could_not_be_loaded, "label_dependencies_cache_could_not_be_loaded"),
+            (&self.checkbox_field_with_path_not_found, "label_field_with_path_not_found"),
+            (&self.checkbox_incorrect_game_path, "label_incorrect_game_path"),
+            (&self.checkbox_banned_table, "label_banned_table"),
+            (&self.checkbox_value_cannot_be_empty, "label_value_cannot_be_empty"),
+            (&self.checkbox_altered_table, "label_altered_table"),
+            (&self.checkbox_invalid_art_set_id, "label_invalid_art_set_id"),
+            (&self.checkbox_invalid_variant_filename, "label_invalid_variant_filename"),
+            (&self.checkbox_file_diffuse_not_found_for_variant, "label_file_diffuse_not_found_for_variant"),
+            (&self.checkbox_file_mask_1_not_found_for_variant, "label_file_mask_1_not_found_for_variant"),
+            (&self.checkbox_file_mask_2_not_found_for_variant, "label_file_mask_2_not_found_for_variant"),
+            (&self.checkbox_file_mask_3_not_found_for_variant, "label_file_mask_3_not_found_for_variant"),
+            (&self.checkbox_datacored_portrait_settings, "label_datacored_portrait_settings"),
+            (&self.checkbox_group_formations_duplicate_formation_name, "label_group_formations_duplicate_formation_name"),
+            (&self.checkbox_group_formations_no_absolute_block, "label_group_formations_no_absolute_block"),
+            (&self.checkbox_group_formations_duplicate_block_id, "label_group_formations_duplicate_block_id"),
+            (&self.checkbox_group_formations_missing_reference, "label_group_formations_missing_reference"),
+            (&self.checkbox_group_formations_forward_reference, "label_group_formations_forward_reference"),
+            (&self.checkbox_group_formations_reference_cycle, "label_group_formations_reference_cycle"),
+            (&self.checkbox_group_formations_empty_span, "label_group_formations_empty_span"),
+            (&self.checkbox_group_formations_invalid_thresholds, "label_group_formations_invalid_thresholds"),
+            (&self.checkbox_group_formations_no_entity_preferences, "label_group_formations_no_entity_preferences"),
+            (&self.checkbox_loocomotion_graph_path_not_found, "label_locomotion_graph_path_not_found"),
+            (&self.checkbox_file_path_not_found, "label_file_path_not_found"),
+            (&self.checkbox_meta_file_path_not_found, "label_meta_file_path_not_found"),
+            (&self.checkbox_snd_file_path_not_found, "label_snd_file_path_not_found"),
+            (&self.checkbox_lua_invalid_key, "label_lua_invalid_key"),
+            (&self.checkbox_lua_syntax_error, "label_lua_syntax_error"),
+            (&self.checkbox_lua_unknown_method, "label_lua_unknown_method"),
+            (&self.checkbox_lua_wrong_argument_count, "label_lua_wrong_argument_count"),
+            (&self.checkbox_lua_unknown_event, "label_lua_unknown_event"),
+            (&self.checkbox_missing_loc_data_file_detected, "label_missing_loc_data_file_detected"),
+            (&self.checkbox_invalid_file_name, "label_invalid_file_name"),
+            (&self.checkbox_file_itm, "label_file_itm"),
+            (&self.checkbox_file_overwrite, "label_file_overwrite"),
+            (&self.checkbox_file_duplicated, "label_file_duplicated"),
+        ]
+    }
+
+    /// Restores the diagnostic filters saved in [`DIAGNOSTICS_DISABLED`].
+    unsafe fn load_disabled_diagnostics(&self) {
+        let disabled = settings_vec_string(DIAGNOSTICS_DISABLED);
+        let mut all_enabled = true;
+        for (checkbox, key) in self.diagnostic_checkboxes() {
+            let enabled = !disabled.iter().any(|disabled_key| disabled_key == key);
+            checkbox.set_checked(enabled);
+            all_enabled &= enabled;
+        }
+
+        self.checkbox_all.set_checked(all_enabled);
+    }
+
+    /// Saves the currently disabled diagnostic filters to [`DIAGNOSTICS_DISABLED`].
+    pub unsafe fn save_disabled_diagnostics(&self) {
+        let disabled = self.diagnostic_checkboxes()
+            .into_iter()
+            .filter(|(checkbox, _)| !checkbox.is_checked())
+            .map(|(_, key)| key.to_owned())
+            .collect::<Vec<_>>();
+
+        let _ = settings_set_vec_string(DIAGNOSTICS_DISABLED, &disabled);
     }
 
     unsafe fn diagnostics_ignored(&self) -> Vec<String> {

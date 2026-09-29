@@ -328,6 +328,7 @@ impl Settings {
         settings.initialize_string(GITHUB_LOGIN, "");
 
         settings.initialize_vec_string(RECENT_FILE_LIST, &[]);
+        settings.initialize_vec_string(DIAGNOSTICS_DISABLED, &["label_field_with_path_not_found".to_owned()]);
 
         // Colours.
     /*    let q_settings = qt_core::QSettings::new();
