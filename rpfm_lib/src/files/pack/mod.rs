@@ -351,7 +351,7 @@ pub struct PackNotes {
 
 /// Parsed entry from the `diagnostics_files_to_ignore` pack setting.
 ///
-/// Tuple shape: `(path, ignored_diagnostic_codes, ignored_field_names)`.
+/// Tuple shape: `(path, ignored_field_names, ignored_diagnostic_codes)`.
 pub type DiagnosticIgnoreEntry = (String, Vec<String>, Vec<String>);
 
 //---------------------------------------------------------------------------//

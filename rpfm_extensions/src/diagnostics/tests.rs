@@ -108,3 +108,30 @@ fn test_group_formations_reports_and_ignores() {
     let Some(DiagnosticType::GroupFormations(diagnostic)) = GroupFormationsDiagnostic::check("pack", &file, &ignored) else { panic!("other issues must still be reported") };
     assert!(diagnostic.results().iter().all(|report| *report.report_type() != GroupFormationsDiagnosticReportType::NoAbsoluteBlock), "ignored report types must be skipped");
 }
+
+#[test]
+fn test_ignore_diagnostic_rules() {
+    let global = vec!["OutdatedTable".to_owned()];
+    let ignored_fields = vec!["ignored_field".to_owned()];
+    let ignored_diagnostics = HashSet::from(["EmptyRow".to_owned()]);
+    let ignored_for_fields = HashMap::from([("key".to_owned(), vec!["InvalidReference".to_owned()])]);
+    let ignored = |field: Option<&str>, diagnostic: Option<&str>| Diagnostics::ignore_diagnostic(&global, field, diagnostic, &ignored_fields, &ignored_diagnostics, &ignored_for_fields);
+
+    // Ignored globally, or for the whole file, with or without a field.
+    assert!(ignored(None, Some("OutdatedTable")));
+    assert!(ignored(None, Some("EmptyRow")));
+    assert!(ignored(Some("key"), Some("EmptyRow")));
+
+    // Ignored fields, whatever the diagnostic.
+    assert!(ignored(Some("ignored_field"), None));
+    assert!(ignored(Some("ignored_field"), Some("InvalidReference")));
+
+    // Ignored only for a specific field.
+    assert!(ignored(Some("key"), Some("InvalidReference")));
+    assert!(!ignored(Some("other"), Some("InvalidReference")));
+    assert!(!ignored(None, Some("InvalidReference")));
+
+    // Not ignored at all.
+    assert!(!ignored(Some("key"), None));
+    assert!(!ignored(None, None));
+}

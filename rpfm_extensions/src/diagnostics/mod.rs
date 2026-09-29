@@ -582,35 +582,22 @@ impl Diagnostics {
     }
 
     /// Function to know if an specific field/diagnostic must be ignored.
+    ///
+    /// A diagnostic is ignored if it's ignored globally or for the whole file, if its field is ignored,
+    /// or if it's ignored for its field.
     fn ignore_diagnostic(global_ignored_diagnostics: &[String], field_name: Option<&str>, diagnostic: Option<&str>, ignored_fields: &[String], ignored_diagnostics: &HashSet<String>, ignored_diagnostics_for_fields: &HashMap<String, Vec<String>>) -> bool {
-        let mut ignore_diagnostic = false;
-
         if let Some(diagnostic) = diagnostic {
-            return global_ignored_diagnostics.iter().any(|x| x == diagnostic);
-        }
-
-        // If we have a field, and it's in the ignored list, ignore it.
-        if let Some(field_name) = field_name {
-            ignore_diagnostic = ignored_fields.iter().any(|x| x == field_name);
-        }
-
-        // If we have a diagnostic, and it's in the ignored list, ignore it.
-        else if let Some(diagnostic) = diagnostic {
-            ignore_diagnostic = ignored_diagnostics.get(diagnostic).is_some();
-        }
-
-        // If we have not yet being ignored, check for specific diagnostics for specific fields.
-        if !ignore_diagnostic {
-            if let Some(field_name) = field_name {
-                if let Some(diagnostic) = diagnostic {
-                    if let Some(diags) = ignored_diagnostics_for_fields.get(field_name) {
-                        ignore_diagnostic = diags.iter().any(|x| x == diagnostic);
-                    }
-                }
+            if global_ignored_diagnostics.iter().any(|x| x == diagnostic) || ignored_diagnostics.contains(diagnostic) {
+                return true;
             }
         }
 
-        ignore_diagnostic
+        match field_name {
+            Some(field_name) => ignored_fields.iter().any(|x| x == field_name) || diagnostic.is_some_and(|diagnostic| {
+                ignored_diagnostics_for_fields.get(field_name).is_some_and(|diags| diags.iter().any(|x| x == diagnostic))
+            }),
+            None => false,
+        }
     }
 
     /// Ignore entire tables if their path starts with the one we have (so we can do mass ignores) and we didn't specified a field to ignore.
