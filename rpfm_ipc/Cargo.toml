@@ -14,6 +14,10 @@ rpfm_extensions.workspace = true
 # Serialization support.
 serde.workspace = true
 serde_derive.workspace = true
+serde_json.workspace = true
+
+# Error management.
+thiserror.workspace = true
 
 # Multithreaded iterator support.
 rayon.workspace = true

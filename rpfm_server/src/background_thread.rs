@@ -9,10 +9,10 @@
 //---------------------------------------------------------------------------//
 
 //! Per-session command loop, translating the legacy [`Command`] protocol into
-//! [`SessionState`] operations.
+//! [`SessionState`] operations. Version 2 API requests are handled by [`crate::api`].
 //!
 //! Each [`Session`] spawns one task running [`background_loop`]. The loop
-//! pulls `(reply_sender, Command)` pairs off the session's mpsc channel,
+//! pulls [`SessionMessage`]s off the session's mpsc channel,
 //! runs the matching operation on the session's [`SessionState`], reading any
 //! option it needs from the process-wide [`crate::settings::SETTINGS`] store,
 //! and ships the result back as a [`Response`] over the per-request `reply_sender`.
@@ -48,7 +48,8 @@ use rpfm_lib::schema::{SCHEMA_BRANCH, SCHEMA_REMOTE, SCHEMA_REPO};
 use rpfm_telemetry::info;
 
 use crate::comms::CentralCommand;
-use crate::session::Session;
+use crate::api;
+use crate::session::{Session, SessionMessage};
 use crate::settings::*;
 use crate::state::{DecodedFile, ExtractOptions, MergeOutcome, MyModOptions, RowLocation, SessionState, plugin_scripts};
 use crate::translation_hub::{self, SubmitOutcome};
@@ -88,13 +89,13 @@ fn command_name(cmd: &Command) -> String {
 
 /// The per-session command loop.
 ///
-/// Receives `(reply_sender, command)` pairs from the session's mpsc
+/// Receives legacy commands and version 2 requests from the session's mpsc
 /// `receiver` and processes them serially against the session's
-/// [`SessionState`]. Each command gets exactly one response through its `reply_sender`.
+/// [`SessionState`]. Each message gets exactly one response through its reply sender.
 ///
 /// One instance runs per [`Session`], spawned by [`Session::new`]. The loop
 /// terminates when the session is dropped or [`Command::Exit`] is dispatched.
-pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Response>, Command)>, session: Arc<Session>) {
+pub async fn background_loop(mut receiver: UnboundedReceiver<SessionMessage>, session: Arc<Session>) {
     let mut state = SessionState::new(session);
 
     // Sync the telemetry toggles with the current settings.
@@ -102,7 +103,15 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
     rpfm_telemetry::set_crash_reports_enabled(SETTINGS.read().unwrap().bool(ENABLE_CRASH_REPORTS));
 
     info!("Background Thread looping around…");
-    while let Some((sender, command)) = receiver.recv().await {
+    while let Some(message) = receiver.recv().await {
+        let (command, sender) = match message {
+            SessionMessage::Command(command, sender) => (*command, sender),
+            SessionMessage::Api(request, sender) => {
+                rpfm_telemetry::record_action(&request.method);
+                let _ = sender.send(api::dispatch(&mut state, request));
+                continue;
+            }
+        };
 
         // Record the action for telemetry, skipping lifecycle commands so we only
         // measure real user-facing work. Counters are dropped silently when disabled.

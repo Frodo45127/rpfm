@@ -14,22 +14,33 @@
 use anyhow::{anyhow, Result};
 use rayon::prelude::*;
 
+use serde_json::{Number, Value};
+
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use rpfm_extensions::dependencies::{Dependencies, KEY_DELETES_TABLE_NAME, TableReferences};
 use rpfm_extensions::merge::{db_baseline, delta_merge_db, delta_merge_loc, loc_baseline, MergeConflict, MergeOptions, MergeResolution};
 
+use rpfm_ipc::api::ApiError;
+use rpfm_ipc::api::files::{ASSEMBLY_KIT_TABLE_FILE_NAME, FileRef, FileSource};
+use rpfm_ipc::api::tables::{ColumnInfo, ColumnReference, DEFAULT_ROWS_LIMIT, FilterOp, GetTableRows, RowFilter, TableInfo, TableRow, TableRows};
 use rpfm_ipc::helpers::{DataSource, RFileInfo};
 
-use rpfm_lib::files::{Container, ContainerPath, db::DB, FileType, RFile, RFileDecoded, table::{DecodedData, Table}};
-use rpfm_lib::schema::{Definition, Field};
+use rpfm_lib::files::{Container, ContainerPath, db::DB, DecodeableExtraData, FileType, RFile, RFileDecoded, table::{DecodedData, local::TableInMemory, Table}};
+use rpfm_lib::schema::{Definition, DefinitionPatch, Field};
 use rpfm_lib::utils::current_time;
 
 use super::{SessionState, loaded_schema, pack, pack_mut};
 
-/// Error message returned when an operation needs the vanilla dependencies and they're not loaded.
-const NO_DEPENDENCIES_ERROR: &str = "Dependencies cache needs to be regenerated before this.";
+/// A [`RowFilter`] ready to check rows: its column index resolved, and its value lowercased if it ignores case.
+struct PreparedFilter {
+    column_index: usize,
+    op: FilterOp,
+    value: String,
+    ignore_case: bool,
+}
 
 /// Result of merging tables.
 #[derive(Debug)]
@@ -283,7 +294,7 @@ impl SessionState {
 
         if let Some(table) = self.dependencies.asskit_only_db_tables().get(&table_name) {
             if let Some((column_index, row_index)) = find_in_db(table, ref_column, value) {
-                return Ok((DataSource::AssKitFiles, format!("db/{table_name}/ak_data"), column_index, row_index));
+                return Ok((DataSource::AssKitFiles, format!("db/{table_name}/{ASSEMBLY_KIT_TABLE_FILE_NAME}"), column_index, row_index));
             }
         }
 
@@ -383,7 +394,7 @@ impl SessionState {
     /// Startpos, twad and CEO tables not in the game files return the latest version in the schema.
     pub fn dependency_table_version(&self, table_name: &str) -> Result<i32> {
         if !self.dependencies.is_vanilla_data_loaded(false) {
-            return Err(anyhow!(NO_DEPENDENCIES_ERROR));
+            return Err(ApiError::DependenciesNotLoaded.into());
         }
 
         if let Some(version) = self.dependencies.db_version(table_name) {
@@ -403,7 +414,7 @@ impl SessionState {
     /// Returns the definition of a table with the version it has in the game files.
     pub fn dependency_table_definition(&self, table_name: &str) -> Result<Definition> {
         if !self.dependencies.is_vanilla_data_loaded(false) {
-            return Err(anyhow!(NO_DEPENDENCIES_ERROR));
+            return Err(ApiError::DependenciesNotLoaded.into());
         }
 
         let schema = loaded_schema(&self.schema)?;
@@ -418,6 +429,169 @@ impl SessionState {
     /// Returns the tables with the provided name from the game files and the parent packs.
     pub fn dependency_tables(&self, table_name: &str) -> Result<Vec<RFile>> {
         Ok(self.dependencies.db_data(table_name, true, true)?.into_iter().cloned().collect())
+    }
+}
+
+impl SessionState {
+
+    /// Returns the definition and row count of a table.
+    pub fn table_info(&mut self, file: &FileRef) -> Result<TableInfo> {
+        let table = self.table(file)?;
+        Ok(TableInfo {
+            table_name: table.name().to_owned(),
+            version: *table.definition().version(),
+            columns: columns_info(table.definition(), table.patches()),
+            row_count: table.len(),
+        })
+    }
+
+    /// Returns a page of the rows of a table matching the request's filters, with only the requested columns.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the table can't be read, or if the request names a column the table doesn't have.
+    pub fn table_rows(&mut self, request: &GetTableRows) -> Result<TableRows> {
+        let table = self.table(&request.file)?;
+        let fields = table.definition().fields_processed();
+        let column_index = |name: &str| fields.iter()
+            .position(|field| field.name() == name)
+            .ok_or_else(|| ApiError::InvalidParams(format!("The table has no column named {name}.")));
+
+        let columns = match request.columns {
+            Some(ref names) => names.iter()
+                .map(|name| column_index(name).map(|index| (index, name.to_owned())))
+                .collect::<Result<Vec<_>, _>>()?,
+            None => fields.iter().enumerate().map(|(index, field)| (index, field.name().to_owned())).collect(),
+        };
+
+        let filters = request.filters.iter()
+            .map(|filter| column_index(&filter.column).map(|column_index| PreparedFilter::new(filter, column_index)))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let limit = request.limit.unwrap_or(DEFAULT_ROWS_LIMIT);
+        let mut rows = vec![];
+        let mut total = 0;
+
+        for (index, row) in table.data().iter().enumerate() {
+            if !filters.iter().all(|filter| filter.matches(row)) {
+                continue;
+            }
+
+            if total >= request.offset && rows.len() < limit {
+                let values = columns.iter()
+                    .map(|(column_index, _)| row.get(*column_index).map(decoded_to_json).unwrap_or(Value::Null))
+                    .collect();
+
+                rows.push(TableRow { index, values });
+            }
+
+            total += 1;
+        }
+
+        Ok(TableRows {
+            columns: columns.into_iter().map(|(_, name)| name).collect(),
+            rows,
+            total,
+        })
+    }
+
+    /// Returns a DB or Loc table from any source, decoding it first if needed.
+    fn table(&mut self, file: &FileRef) -> Result<&TableInMemory> {
+        let not_found = || ApiError::FileNotFound(file.path.clone());
+        let rfile = match file.source {
+            FileSource::Pack(ref pack_key) => pack_mut(&mut self.packs, pack_key)?.files_mut().get_mut(&file.path),
+            FileSource::GameFiles => self.dependencies.file_mut(&file.path, true, false).ok(),
+            FileSource::ParentFiles => self.dependencies.file_mut(&file.path, false, true).ok(),
+            FileSource::AssemblyKit => {
+                let table_name = file.path.split('/').nth(1).ok_or_else(not_found)?;
+                let table = self.dependencies.asskit_only_db_tables().get(table_name).ok_or_else(not_found)?;
+                return Ok(table.table());
+            }
+        }.ok_or_else(not_found)?;
+
+        let file_type = rfile.file_type();
+        if file_type != FileType::DB && file_type != FileType::Loc {
+            return Err(ApiError::NotATable(file.path.clone()).into());
+        }
+
+        if file_type == FileType::DB && self.schema.is_none() {
+            return Err(ApiError::SchemaNotLoaded.into());
+        }
+
+        let mut extra_data = DecodeableExtraData::default();
+        extra_data.set_schema(self.schema.as_ref());
+        rfile.decode(&Some(extra_data), true, false)?;
+
+        match rfile.decoded()? {
+            RFileDecoded::DB(table) => Ok(table.table()),
+            RFileDecoded::Loc(table) => Ok(table.table()),
+            _ => Err(ApiError::NotATable(file.path.clone()).into()),
+        }
+    }
+}
+
+impl PreparedFilter {
+
+    /// Prepares a filter to check rows, with the index of its column.
+    fn new(filter: &RowFilter, column_index: usize) -> Self {
+        Self {
+            column_index,
+            op: filter.op,
+            value: if filter.ignore_case { filter.value.to_lowercase() } else { filter.value.clone() },
+            ignore_case: filter.ignore_case,
+        }
+    }
+
+    /// Returns if the value of the filter's column in a row matches the filter.
+    fn matches(&self, row: &[DecodedData]) -> bool {
+        let Some(data) = row.get(self.column_index) else { return false };
+        let value = data.data_to_string();
+        let value = if self.ignore_case { Cow::Owned(value.to_lowercase()) } else { value };
+
+        match self.op {
+            FilterOp::Equals => *value == self.value,
+            FilterOp::NotEquals => *value != self.value,
+            FilterOp::Contains => value.contains(&self.value),
+            FilterOp::StartsWith => value.starts_with(&self.value),
+            FilterOp::EndsWith => value.ends_with(&self.value),
+        }
+    }
+}
+
+/// Returns the columns of a definition as rows see them, with the patches applied.
+pub(super) fn columns_info(definition: &Definition, patches: &DefinitionPatch) -> Vec<ColumnInfo> {
+    definition.fields_processed().iter()
+        .map(|field| ColumnInfo {
+            name: field.name().to_owned(),
+            field_type: field.field_type().clone(),
+            is_key: field.is_key(Some(patches)),
+            reference: field.is_reference(Some(patches)).map(|(table, column)| ColumnReference { table, column }),
+            default_value: field.default_value(Some(patches)),
+            description: field.description(Some(patches)),
+        })
+        .collect()
+}
+
+/// Returns a table value as JSON: booleans and numbers as themselves, everything else as text.
+///
+/// Floats not representable in JSON (NaN, infinite) become `null`.
+fn decoded_to_json(data: &DecodedData) -> Value {
+    match data {
+        DecodedData::Boolean(value) => Value::Bool(*value),
+
+        // Parsing the f32's shortest text form keeps values like 0.1 exact, instead of 0.10000000149011612.
+        DecodedData::F32(value) => value.to_string().parse::<f64>().ok().and_then(Number::from_f64).map_or(Value::Null, Value::Number),
+        DecodedData::F64(value) => Number::from_f64(*value).map_or(Value::Null, Value::Number),
+        DecodedData::I16(value) | DecodedData::OptionalI16(value) => Value::from(*value),
+        DecodedData::I32(value) | DecodedData::OptionalI32(value) => Value::from(*value),
+        DecodedData::I64(value) | DecodedData::OptionalI64(value) => Value::from(*value),
+        DecodedData::ColourRGB(value) |
+        DecodedData::StringU8(value) |
+        DecodedData::StringU16(value) |
+        DecodedData::OptionalStringU8(value) |
+        DecodedData::OptionalStringU16(value) => Value::String(value.clone()),
+        DecodedData::SequenceU16(_) |
+        DecodedData::SequenceU32(_) => Value::String(data.data_to_string().into_owned()),
     }
 }
 
@@ -507,5 +681,54 @@ fn delta_merge_files(sources: &[&RFile], merged_path: &str, dependencies: &Depen
         Ok(DeltaMergeOutcome::Merged(RFile::new_from_decoded(&merged, current_time()?, merged_path)))
     } else {
         Ok(DeltaMergeOutcome::Conflicts(conflicts))
+    }
+}
+
+//-------------------------------------------------------------------------------//
+//                                   Tests
+//-------------------------------------------------------------------------------//
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+
+    fn filter(op: FilterOp, value: &str, ignore_case: bool) -> PreparedFilter {
+        PreparedFilter::new(&RowFilter { column: "key".to_owned(), op, value: value.to_owned(), ignore_case }, 1)
+    }
+
+    #[test]
+    fn values_become_plain_json() {
+        assert_eq!(decoded_to_json(&DecodedData::Boolean(true)), json!(true));
+        assert_eq!(decoded_to_json(&DecodedData::F32(0.1)), json!(0.1));
+        assert_eq!(decoded_to_json(&DecodedData::F32(f32::NAN)), Value::Null);
+        assert_eq!(decoded_to_json(&DecodedData::F64(2.5)), json!(2.5));
+        assert_eq!(decoded_to_json(&DecodedData::I16(-3)), json!(-3));
+        assert_eq!(decoded_to_json(&DecodedData::OptionalI32(7)), json!(7));
+        assert_eq!(decoded_to_json(&DecodedData::I64(1 << 40)), json!(1_i64 << 40));
+        assert_eq!(decoded_to_json(&DecodedData::StringU8("wh_main_emp".to_owned())), json!("wh_main_emp"));
+        assert_eq!(decoded_to_json(&DecodedData::ColourRGB("FF0000".to_owned())), json!("FF0000"));
+    }
+
+    #[test]
+    fn filters_compare_the_column_value_as_text() {
+        let row = vec![DecodedData::I32(5), DecodedData::StringU8("wh_main_Empire".to_owned())];
+
+        assert!(filter(FilterOp::Equals, "wh_main_Empire", false).matches(&row));
+        assert!(!filter(FilterOp::Equals, "wh_main_empire", false).matches(&row));
+        assert!(filter(FilterOp::Equals, "WH_MAIN_EMPIRE", true).matches(&row));
+        assert!(filter(FilterOp::NotEquals, "other", false).matches(&row));
+        assert!(filter(FilterOp::Contains, "main", false).matches(&row));
+        assert!(filter(FilterOp::StartsWith, "wh_", false).matches(&row));
+        assert!(filter(FilterOp::EndsWith, "empire", true).matches(&row));
+        assert!(!filter(FilterOp::EndsWith, "empire", false).matches(&row));
+    }
+
+    #[test]
+    fn filters_on_missing_columns_never_match() {
+        let row = vec![DecodedData::I32(5)];
+
+        assert!(!filter(FilterOp::NotEquals, "anything", false).matches(&row));
     }
 }

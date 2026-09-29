@@ -51,6 +51,7 @@ use tokio::time::{Duration, Instant};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock, atomic::{AtomicBool, AtomicU32, Ordering}};
 
+use rpfm_ipc::api::{ApiError, RpcRequest, RpcResponse};
 use rpfm_ipc::helpers::SessionInfo;
 use rpfm_ipc::messages::{Command, Response};
 use rpfm_telemetry::info;
@@ -69,6 +70,17 @@ pub const DEFAULT_SESSION_TIMEOUT_SECS: u64 = 300;
 
 /// Unique identifier for a session.
 pub type SessionId = u64;
+
+/// A message for a session's background thread, with where to send its response.
+#[derive(Debug)]
+pub enum SessionMessage {
+
+    /// A command of the legacy protocol.
+    Command(Box<Command>, UnboundedSender<Response>),
+
+    /// A request of the version 2 API.
+    Api(RpcRequest, UnboundedSender<RpcResponse>),
+}
 
 /// Manages all active sessions.
 ///
@@ -120,7 +132,7 @@ pub struct Session {
     last_activity: Mutex<Instant>,
 
     /// Sender to communicate with this session's background thread.
-    sender: UnboundedSender<(UnboundedSender<Response>, Command)>,
+    sender: UnboundedSender<SessionMessage>,
 
     /// Number of active connections using this session.
     connection_count: AtomicU32,
@@ -236,7 +248,7 @@ impl Session {
 
         // Send exit command - ignore errors if channel is already closed.
         let (sender_back, _) = unbounded_channel();
-        let _ = self.sender.send((sender_back, Command::Exit));
+        let _ = self.sender.send(SessionMessage::Command(Box::new(Command::Exit), sender_back));
     }
 
     /// Send a command to this session's background thread.
@@ -245,11 +257,28 @@ impl Session {
     pub fn send(&self, command: Command) -> UnboundedReceiver<Response> {
         self.touch();
         let (sender_back, receiver_back) = unbounded_channel();
-        if let Err(error) = self.sender.send((sender_back, command)) {
+        if let Err(error) = self.sender.send(SessionMessage::Command(Box::new(command), sender_back)) {
             let message = format!("{SESSION_SENDER_ERROR}: {error}");
             info!("{message}");
-            let (sender_back, _) = error.0;
-            let _ = sender_back.send(Response::Error(message));
+            if let SessionMessage::Command(_, sender_back) = error.0 {
+                let _ = sender_back.send(Response::Error(message));
+            }
+        }
+        receiver_back
+    }
+
+    /// Send a request of the version 2 API to this session's background thread.
+    ///
+    /// Returns a receiver to get the response.
+    pub fn call(&self, request: RpcRequest) -> UnboundedReceiver<RpcResponse> {
+        self.touch();
+        let (sender_back, receiver_back) = unbounded_channel();
+        if let Err(error) = self.sender.send(SessionMessage::Api(request, sender_back)) {
+            let message = format!("{SESSION_SENDER_ERROR}: {error}");
+            info!("{message}");
+            if let SessionMessage::Api(request, sender_back) = error.0 {
+                let _ = sender_back.send(RpcResponse::new(request.id, Err(ApiError::Internal(message))));
+            }
         }
         receiver_back
     }

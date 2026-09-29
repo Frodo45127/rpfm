@@ -19,6 +19,7 @@ use std::io::{BufWriter, Cursor, Write};
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
+use rpfm_ipc::api::packs::{PackDependency, PackDetails};
 use rpfm_ipc::helpers::{ContainerInfo, RFileInfo};
 use rpfm_ipc::messages::OperationalMode;
 
@@ -30,7 +31,7 @@ use rpfm_lib::utils::files_in_folder_from_newest_to_oldest;
 
 use crate::settings::{backup_autosave_path, Settings};
 
-use super::{SessionState, decode_tables, encode_extra_data, pack, pack_mut};
+use super::{SessionState, decode_tables, encode_extra_data, pack, pack_mut, pack_summary};
 
 /// Stem used to seed names for newly created Packs (`new_pack.pack`, `new_pack_2.pack`, …).
 const DEFAULT_PACK_STEM: &str = "new_pack";
@@ -228,6 +229,25 @@ impl SessionState {
     pub fn files_info(&self, pack_key: &str, paths: &[String]) -> Result<Vec<RFileInfo>> {
         let paths = paths.iter().map(|path| ContainerPath::File(path.to_owned())).collect::<Vec<_>>();
         Ok(pack(&self.packs, pack_key)?.files_by_paths(&paths, false).into_iter().map(From::from).collect())
+    }
+
+    /// Returns the details of an open pack.
+    pub fn pack_details(&self, pack_key: &str) -> Result<PackDetails> {
+        let pack = pack(&self.packs, pack_key)?;
+        let bitmask = pack.bitmask();
+
+        Ok(PackDetails {
+            summary: pack_summary(pack_key, pack),
+            version: pack.pfh_version(),
+            compression: pack.compression_format(),
+            index_encrypted: bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX),
+            data_encrypted: bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA),
+            index_includes_timestamp: bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS),
+            dependencies: pack.dependencies().iter()
+                .map(|(enabled, name)| PackDependency { enabled: *enabled, name: name.clone() })
+                .collect(),
+            operational_mode: self.pack_operational_mode(pack_key),
+        })
     }
 
     /// Returns the path of a pack on disk.

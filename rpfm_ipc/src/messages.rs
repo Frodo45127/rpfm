@@ -101,7 +101,7 @@ pub struct Message<T: Debug> {
 ///
 /// A pack can either be in normal mode or in MyMod mode, which links it to
 /// a specific game folder and mod name for import/export operations.
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum OperationalMode {
 
     /// MyMod mode enabled. Contains the game folder name (e.g. "warhammer_2") and the MyMod pack name.

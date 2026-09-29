@@ -16,13 +16,17 @@ use rayon::prelude::*;
 
 use std::collections::HashMap;
 
+use rpfm_ipc::api::ApiError;
+use rpfm_ipc::api::tables::{GetTableDefinition, TableDefinition};
+
 use rpfm_lib::files::{Container, db::DB, FileType, RFileDecoded};
 use rpfm_lib::integrations::assembly_kit::update_schema_from_raw_files;
 use rpfm_lib::schema::{Definition, DefinitionPatch, Schema};
 
 use crate::settings::{schemas_path, table_patches_path, Settings};
 
-use super::{NO_SCHEMA_ERROR, SessionState, load_schema, loaded_schema};
+use super::{SessionState, load_schema, loaded_schema, loaded_schema_mut};
+use super::tables::columns_info;
 
 impl SessionState {
 
@@ -34,7 +38,7 @@ impl SessionState {
     /// * `ignore_game_files_in_ak` - If tables in the game files are skipped.
     /// * `disable_uuid_regeneration` - If tables keep their GUID when re-encoded to reload the schema.
     pub fn update_schema_from_asskit(&mut self, settings: &Settings, ignore_game_files_in_ak: bool, disable_uuid_regeneration: bool) -> Result<()> {
-        let schema = self.schema.as_mut().ok_or_else(|| anyhow!(NO_SCHEMA_ERROR))?;
+        let schema = loaded_schema_mut(&mut self.schema)?;
         let asskit_path = settings.assembly_kit_path(&self.game)?;
         let schema_path = schemas_path()?.join(self.game.schema_file_name());
 
@@ -137,7 +141,7 @@ impl SessionState {
 
     /// Adds patches to the schema of the selected game, and saves it.
     pub fn import_schema_patches(&mut self, patches: &HashMap<String, DefinitionPatch>) -> Result<()> {
-        let schema = self.schema.as_mut().ok_or_else(|| anyhow!(NO_SCHEMA_ERROR))?;
+        let schema = loaded_schema_mut(&mut self.schema)?;
         Schema::add_patches_to_patch_set(schema.patches_mut(), patches);
         schema.save(&schemas_path()?.join(self.game.schema_file_name()))?;
         Ok(())
@@ -154,6 +158,26 @@ impl SessionState {
             .filter(|(key, definitions)| !definitions.is_empty() && (key.starts_with("start_pos_") || key.starts_with("twad_")))
             .map(|(key, _)| key.to_owned())
             .collect())
+    }
+
+    /// Returns the columns of a table as defined in the schema.
+    ///
+    /// If the request has no version, the version of the table in the game files is used, or the newest one if there is none.
+    pub fn table_definition(&self, request: &GetTableDefinition) -> Result<TableDefinition> {
+        let schema = loaded_schema(&self.schema)?;
+        let table_name = &request.table_name;
+        let definition = match request.version {
+            Some(version) => schema.definition_by_name_and_version(table_name, version),
+            None => self.dependencies.db_version(table_name)
+                .and_then(|version| schema.definition_by_name_and_version(table_name, version))
+                .or_else(|| schema.definitions_by_table_name(table_name).and_then(|definitions| definitions.first())),
+        }.ok_or_else(|| ApiError::DefinitionNotFound(table_name.to_owned()))?;
+
+        Ok(TableDefinition {
+            table_name: table_name.to_owned(),
+            version: *definition.version(),
+            columns: columns_info(definition, definition.patches()),
+        })
     }
 
     /// Returns all the definitions of a table. Empty if the table is not in the schema.

@@ -13,7 +13,7 @@
 
 use anyhow::{anyhow, Result};
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::env::temp_dir;
 use std::path::{Path, PathBuf};
 use std::slice::from_ref;
@@ -21,6 +21,7 @@ use std::slice::from_ref;
 use rpfm_extensions::dependencies::Dependencies;
 use rpfm_extensions::optimizer::{OptimizableContainer, OptimizerOptions};
 
+use rpfm_ipc::api::files::{ASSEMBLY_KIT_TABLE_FILE_NAME, DEFAULT_FILES_LIMIT, FileEntry, FileList, FileSource, ListFiles};
 use rpfm_ipc::helpers::{DataSource, NewFile, RFileInfo};
 
 use rpfm_lib::files::{
@@ -137,6 +138,56 @@ impl SessionState {
         let file = RFile::new_from_decoded(&decoded, 0, path);
         pack_mut(&mut self.packs, pack_key)?.insert(file)?;
         Ok(())
+    }
+
+    /// Returns a page of the files of a source matching the request, sorted by path.
+    pub fn list_files(&self, request: &ListFiles) -> Result<FileList> {
+        let keep = |path: &str, file_type: FileType| path.starts_with(&request.prefix) &&
+            request.file_types.as_ref().is_none_or(|file_types| file_types.contains(&file_type));
+        let entry = |file: &RFile| FileEntry { path: file.path_in_container_raw().to_owned(), file_type: file.file_type() };
+
+        let mut files = match request.source {
+            FileSource::Pack(ref pack_key) => pack(&self.packs, pack_key)?.files().values()
+                .filter(|file| keep(file.path_in_container_raw(), file.file_type()))
+                .map(entry)
+                .collect::<Vec<_>>(),
+            FileSource::GameFiles => self.dependencies.vanilla_loose_files().values()
+                .chain(self.dependencies.vanilla_files().values())
+                .filter(|file| keep(file.path_in_container_raw(), file.file_type()))
+                .map(entry)
+                .collect(),
+            FileSource::ParentFiles => self.dependencies.parent_files().values()
+                .filter(|file| keep(file.path_in_container_raw(), file.file_type()))
+                .map(entry)
+                .collect(),
+            FileSource::AssemblyKit => self.dependencies.asskit_only_db_tables().keys()
+                .map(|table_name| FileEntry { path: format!("db/{table_name}/{ASSEMBLY_KIT_TABLE_FILE_NAME}"), file_type: FileType::DB })
+                .filter(|file| keep(&file.path, file.file_type))
+                .collect(),
+        };
+
+        // In non-recursive listings, files in subfolders are replaced by their subfolder.
+        let mut folders = BTreeSet::new();
+        if !request.recursive {
+            let base = if request.prefix.is_empty() || request.prefix.ends_with('/') { request.prefix.clone() } else { format!("{}/", request.prefix) };
+            files.retain(|file| match file.path.strip_prefix(&base).and_then(|relative| relative.split_once('/')) {
+                Some((folder, _)) => {
+                    folders.insert(format!("{base}{folder}"));
+                    false
+                }
+                None => file.path.starts_with(&base),
+            });
+        }
+
+        files.sort_unstable_by(|a, b| a.path.cmp(&b.path));
+
+        let total = files.len();
+        let files = files.into_iter()
+            .skip(request.offset)
+            .take(request.limit.unwrap_or(DEFAULT_FILES_LIMIT))
+            .collect();
+
+        Ok(FileList { files, folders: folders.into_iter().collect(), total })
     }
 
     /// Adds files and folders from disk to a pack.

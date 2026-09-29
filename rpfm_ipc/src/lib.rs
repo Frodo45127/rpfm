@@ -30,6 +30,8 @@
 //!
 //! - [`messages`]: Core protocol definitions including [`messages::Command`], [`messages::Response`],
 //!   and the [`messages::Message`] wrapper.
+//! - [`api`]: Version 2 of the protocol: typed methods over JSON-RPC 2.0, meant to replace
+//!   [`messages`].
 //! - [`helpers`]: Data structures for marshalling complex data between UI and server, including
 //!   [`helpers::ContainerInfo`], [`helpers::RFileInfo`], and [`helpers::DataSource`].
 //!
@@ -56,6 +58,7 @@
 //! };
 //! ```
 
+pub mod api;
 pub mod helpers;
 pub mod messages;
 pub mod settings_keys;

@@ -17,7 +17,7 @@
 //! The legacy [`Command`](rpfm_ipc::messages::Command) protocol is translated into these
 //! operations in [`crate::background_thread`].
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use rayon::prelude::*;
 
 use std::collections::BTreeMap;
@@ -27,6 +27,9 @@ use std::sync::Arc;
 use rpfm_extensions::dependencies::Dependencies;
 use rpfm_extensions::lua::{ASSEMBLY_KIT_SCRIPT_DOCS_PATH, LuaApi};
 
+use rpfm_ipc::api::ApiError;
+use rpfm_ipc::api::packs::PackSummary;
+use rpfm_ipc::api::session::{DependenciesStatus, SessionStatus};
 use rpfm_ipc::messages::OperationalMode;
 use rpfm_ipc::settings_keys::ASSEMBLY_KIT_SUFFIX;
 
@@ -53,9 +56,6 @@ mod tools;
 pub use self::files::{DecodedFile, PathsByPack};
 pub use self::tables::{MergeOutcome, ReferenceLocation, RowLocation};
 pub use self::tools::{MyModOptions, plugin_scripts};
-
-/// Error message returned by every operation that needs a schema when none is loaded.
-const NO_SCHEMA_ERROR: &str = "There is no Schema for the Game Selected.";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -174,21 +174,51 @@ impl SessionState {
     pub fn is_schema_loaded(&self) -> bool {
         self.schema.is_some()
     }
+
+    /// Returns the selected game, what's loaded for it, and the open packs.
+    pub fn session_status(&self) -> SessionStatus {
+        SessionStatus {
+            game: self.game.key().to_owned(),
+            schema_loaded: self.schema.is_some(),
+            dependencies: DependenciesStatus {
+                vanilla_loaded: self.dependencies.is_vanilla_data_loaded(false),
+                assembly_kit_loaded: !self.dependencies.asskit_only_db_tables().is_empty(),
+                parent_files: self.dependencies.parent_files().len(),
+            },
+            packs: self.packs.iter().map(|(key, pack)| pack_summary(key, pack)).collect(),
+        }
+    }
+}
+
+/// Returns the short description of an open pack.
+fn pack_summary(key: &str, pack: &Pack) -> PackSummary {
+    PackSummary {
+        key: key.to_owned(),
+        name: pack.disk_file_name(),
+        path: pack.disk_file_path().to_owned(),
+        pack_type: pack.pfh_file_type(),
+        file_count: pack.files().len(),
+    }
 }
 
 /// Returns the open pack with the provided key.
 fn pack<'a>(packs: &'a BTreeMap<String, Pack>, pack_key: &str) -> Result<&'a Pack> {
-    packs.get(pack_key).ok_or_else(|| anyhow!("Pack not found: {}", pack_key))
+    packs.get(pack_key).ok_or_else(|| ApiError::PackNotFound(pack_key.to_owned()).into())
 }
 
 /// Returns the open pack with the provided key, mutably.
 fn pack_mut<'a>(packs: &'a mut BTreeMap<String, Pack>, pack_key: &str) -> Result<&'a mut Pack> {
-    packs.get_mut(pack_key).ok_or_else(|| anyhow!("Pack not found: {}", pack_key))
+    packs.get_mut(pack_key).ok_or_else(|| ApiError::PackNotFound(pack_key.to_owned()).into())
 }
 
 /// Returns the loaded schema, or an error if there is none.
 fn loaded_schema(schema: &Option<Schema>) -> Result<&Schema> {
-    schema.as_ref().ok_or_else(|| anyhow!(NO_SCHEMA_ERROR))
+    schema.as_ref().ok_or_else(|| ApiError::SchemaNotLoaded.into())
+}
+
+/// Returns the loaded schema mutably, or an error if there is none.
+fn loaded_schema_mut(schema: &mut Option<Schema>) -> Result<&mut Schema> {
+    schema.as_mut().ok_or_else(|| ApiError::SchemaNotLoaded.into())
 }
 
 /// Returns the names of the parent packs of every open pack.
