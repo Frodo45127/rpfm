@@ -26,6 +26,7 @@ use std::sync::Arc;
 
 use rpfm_extensions::dependencies::Dependencies;
 use rpfm_extensions::lua::{ASSEMBLY_KIT_SCRIPT_DOCS_PATH, LuaApi};
+use rpfm_extensions::search::GlobalSearch;
 
 use rpfm_ipc::api::ApiError;
 use rpfm_ipc::api::packs::PackSummary;
@@ -91,6 +92,9 @@ pub struct SessionState {
 
     /// Vanilla and parent files of the selected game.
     dependencies: Dependencies,
+
+    /// The last search, with its matches, if any.
+    search: Option<GlobalSearch>,
 
     /// Results of the last diagnostics check, if any.
     diagnostics: Option<DiagnosticsResults>,
@@ -178,6 +182,7 @@ impl SessionState {
             pack_modes: BTreeMap::new(),
             clipboard: Clipboard::default(),
             dependencies: Dependencies::default(),
+            search: None,
             diagnostics: None,
             lua_api_cache: None,
             backup_settings: SETTINGS.read().unwrap().clone(),

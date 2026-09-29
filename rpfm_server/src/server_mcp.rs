@@ -59,6 +59,7 @@ use rpfm_extensions::translator::DEFAULT_SRC_LANG;
 
 use rpfm_ipc::api::{ApiError, Done, Request, RpcError, RpcOutcome, RpcRequest, RpcResponse};
 use rpfm_ipc::api::diagnostics::{DiagnosticList, IgnoreDiagnostics, ListDiagnostics, RunDiagnostics};
+use rpfm_ipc::api::search::{ListSearchMatches, ReplaceSearchMatches, RunSearch, SearchMatchList, SearchReplaced};
 use rpfm_ipc::api::files::{
     AddFilesFromDisk, CopyFiles, CreateFile, DeleteFiles, DuplicateFiles, ExtractFiles, FileEntry, FileList, FilesAdded, FilesDeleted,
     FilesExtracted, FilesRenamed, ListFiles, RenameFiles,
@@ -354,23 +355,7 @@ pub struct StringsArg {
 
 // -- Search Args --
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct GlobalSearchArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The JSON representation of the GlobalSearch struct.
-    pub search: String,
-}
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct GlobalSearchReplaceMatchesArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The JSON representation of the GlobalSearch struct.
-    pub search: String,
-    /// The JSON representation of Vec<MatchHolder>.
-    pub matches: String,
-}
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct SearchReferencesArgs {
@@ -771,7 +756,6 @@ All tool responses are JSON-serialized. On failure, an error message is returned
             resource("rpfm://enums/ContainerPath", "ContainerPath", "ContainerPath enum variants with JSON examples.", "application/json"),
             resource("rpfm://enums/NewFile", "NewFile", "NewFile enum variants for creating files inside packs, with JSON examples.", "application/json"),
             resource("rpfm://enums/SupportedFormats", "SupportedFormats", "Valid video format values (CaVp8, Ivf).", "application/json"),
-            resource("rpfm://examples/global_search", "GlobalSearch example", "Example JSON for the GlobalSearch struct used by search tools.", "application/json"),
             resource("rpfm://examples/optimizer_options", "OptimizerOptions example", "Example JSON for OptimizerOptions with all boolean fields.", "application/json"),
             resource("rpfm://reference/initialization", "Initialization guide", "Step-by-step guide for initializing the RPFM MCP server session.", "text/plain"),
             resource("rpfm://reference/path_conventions", "Path conventions", "Common file path conventions inside Total War PackFiles.", "text/plain"),
@@ -927,36 +911,6 @@ All tool responses are JSON-serialized. On failure, an error message is returned
                 "json_example": "\"CaVp8\""
             }).to_string(),
 
-            "rpfm://examples/global_search" => serde_json::json!({
-                "description": "Example GlobalSearch JSON for use with global_search, global_search_replace_all, etc.",
-                "example": {
-                    "pattern": "old_unit_name",
-                    "replace_text": "new_unit_name",
-                    "case_sensitive": false,
-                    "use_regex": false,
-                    "sources": [{"Pack": "my_mod.pack"}],
-                    "search_on": {
-                        "anim": false, "anim_fragment_battle": false, "anim_pack": false,
-                        "anims_table": false, "atlas": false, "audio": false, "bmd": false,
-                        "db": true, "esf": false, "group_formations": false, "image": false,
-                        "loc": true, "matched_combat": false, "pack": false,
-                        "portrait_settings": false, "rigid_model": false, "sound_bank": false,
-                        "text": true, "uic": false, "unit_variant": false, "unknown": false,
-                        "video": false, "schema": false
-                    },
-                    "matches": {
-                        "anim": [], "anim_fragment_battle": [], "anim_pack": [],
-                        "anims_table": [], "atlas": [], "audio": [], "bmd": [],
-                        "db": [], "esf": [], "group_formations": [], "image": [],
-                        "loc": [], "matched_combat": [], "pack": [],
-                        "portrait_settings": [], "rigid_model": [], "sound_bank": [],
-                        "text": [], "uic": [], "unit_variant": [], "unknown": [],
-                        "video": [], "schema": {"matches": []}
-                    },
-                    "game_key": "warhammer_3"
-                },
-                "notes": "The `matches` field is populated by the search results. When calling `global_search`, pass it empty. The `sources` field uses SearchSource: {\"Pack\": \"key\"}, \"ParentFiles\", \"GameFiles\", \"AssKitFiles\"."
-            }).to_string(),
 
             "rpfm://examples/optimizer_options" => serde_json::json!({
                 "description": "OptimizerOptions struct with all boolean fields for pack optimization.",
@@ -1316,6 +1270,36 @@ impl McpServer {
     }
 
     #[tool(
+        name = "run_search",
+        description = "Search text (or a regex) in open packs, the game files, the parent packs, the Assembly Kit tables, or the schema's column names, and return a summary of the matches by file type. The matches are kept: read them with `list_search_matches`, and replace them with `replace_search_matches`. Runs as a job: waits up to 45 seconds and returns its state; if it's still running, call `wait_for_job`.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<JobStatus>(),
+    )]
+    pub async fn run_search(&self, params: Parameters<RunSearch>) -> Result<CallToolResult, McpError> {
+        self.call_api("run_search", params.0).await
+    }
+
+    #[tool(
+        name = "list_search_matches",
+        description = "List matches of the last `run_search`, filtered by file type and path prefix, in pages (100 by default; the total of matching matches is always returned). Each match has an ID to replace it, and details with where it is in its file (row and column for tables, row for text files).",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<SearchMatchList>(),
+    )]
+    pub async fn list_search_matches(&self, params: Parameters<ListSearchMatches>) -> Result<CallToolResult, McpError> {
+        self.call_api("list_search_matches", params.0).await
+    }
+
+    #[tool(
+        name = "replace_search_matches",
+        description = "Replace matches of the last `run_search` by ID, or all of them, with a text. Only matches in open packs are replaced. The edited files are searched again, so match IDs change afterwards: list them again before replacing more.",
+        annotations(read_only_hint = false, destructive_hint = true),
+        output_schema = schema_for_output::<SearchReplaced>(),
+    )]
+    pub async fn replace_search_matches(&self, params: Parameters<ReplaceSearchMatches>) -> Result<CallToolResult, McpError> {
+        self.call_api("replace_search_matches", params.0).await
+    }
+
+    #[tool(
         name = "job_status",
         description = "Get the state of a job: queued, running (with its current step), finished (with its result), failed (with its error) or cancelled.",
         annotations(read_only_hint = true),
@@ -1619,25 +1603,6 @@ impl McpServer {
     //-----------------------------------------------------------------------//
     // Search
     //-----------------------------------------------------------------------//
-
-    #[tool(description = "Run a global search across the pack identified by `pack_key`. The `search` is a GlobalSearch JSON with fields: pattern (string), replace_text (string), case_sensitive (bool), use_regex (bool), search_on ({db: bool, loc: bool, text: bool, ...}), sources ([{\"Pack\": \"key\"}]), game_key (string). See the `rpfm://examples/global_search` resource for a full example.")]
-    pub async fn global_search(&self, params: Parameters<GlobalSearchArgs>) -> Result<CallToolResult, McpError> {
-        let search = parse_json!(&params.0.search);
-        send_and_respond!(self, "global_search", Command::GlobalSearch(params.0.pack_key, search))
-    }
-
-    #[tool(description = "Replace specific matches in a global search for the pack identified by `pack_key`. The `search` is the same GlobalSearch JSON used in `global_search` (see `rpfm://examples/global_search` resource). The `matches` is a JSON array of MatchHolder objects from the search results — include only the matches you want to replace.")]
-    pub async fn global_search_replace_matches(&self, params: Parameters<GlobalSearchReplaceMatchesArgs>) -> Result<CallToolResult, McpError> {
-        let search = parse_json!(&params.0.search);
-        let matches = parse_json!(&params.0.matches);
-        send_and_respond!(self, "global_search_replace_matches", Command::GlobalSearchReplaceMatches(params.0.pack_key, search, matches))
-    }
-
-    #[tool(description = "Replace all matches in a global search for the pack identified by `pack_key`. The `search` is a GlobalSearch JSON with the `replace_text` field set to the replacement string. See `rpfm://examples/global_search` resource for the full structure.")]
-    pub async fn global_search_replace_all(&self, params: Parameters<GlobalSearchArgs>) -> Result<CallToolResult, McpError> {
-        let search = parse_json!(&params.0.search);
-        send_and_respond!(self, "global_search_replace_all", Command::GlobalSearchReplaceAll(params.0.pack_key, search))
-    }
 
     #[tool(description = "Find all references to a value in the pack identified by `pack_key`. The `reference_map` is a JSON object mapping table names to column name arrays, e.g. {\"land_units_tables\": [\"key\", \"unit\"]}. The `value` is the string to search for across those columns.")]
     pub async fn search_references(&self, params: Parameters<SearchReferencesArgs>) -> Result<CallToolResult, McpError> {
@@ -2221,18 +2186,18 @@ Workflow:
 
 1. **Open the pack** and **set the game** (see `open_and_inspect_pack` prompt).
 
-2. **Run a global search** – Call `global_search` with the pack key and a `GlobalSearch`
-   JSON object. The search object specifies the pattern, whether to use regex, which file
-   types to include (DB, Loc, Text), and the replacement string.
+2. **Run a search** – Call `run_search` with the `pattern`, the `sources` to search
+   (e.g. `[{\"pack\": <pack key>}]`), and optionally `file_types` (DB, Loc and text by default),
+   `case_sensitive` and `use_regex`. It returns how many matches there are per file type.
 
-3. **Review matches** – The response contains all matches grouped by file.
-   Present them to the user for review.
+3. **Review matches** – `list_search_matches`, filtered by `file_types` or `path_prefix` if there
+   are many. Present them to the user for review, with their IDs.
 
-4. **Replace selectively** – Call `global_search_replace_matches` with the same search
-   object and a `Vec<MatchHolder>` containing only the matches the user approved.
+4. **Replace selectively** – Call `replace_search_matches` with the `replace_text` and the IDs of
+   the matches the user approved.
 
-5. **Or replace all** – If the user confirms a blanket replace, call
-   `global_search_replace_all` with the search object.
+5. **Or replace all** – If the user confirms a blanket replace, call `replace_search_matches`
+   without `matches`. Match IDs change after each replace, so list them again before replacing more.
 
 6. **Save** – `save_pack` to persist changes.
 
@@ -2559,7 +2524,7 @@ loc entries for DB fields that reference loc keys but don't have entries yet.
 
 - Use `go_to_loc` with a loc key to find its source loc file.
 - Use `get_source_data_from_loc_key` to find where a loc key is referenced.
-- Use `global_search` with `search_on.loc: true` to search across all loc files.
+- Use `run_search` with `file_types: [\"loc\"]` to search across all loc files.
 
 ## Tips
 - Loc keys follow naming conventions like `<table>_<loc_column_name>_<keys_concatenated>`.

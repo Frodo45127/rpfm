@@ -17,6 +17,7 @@ use serde_json::{Map, Value};
 use rpfm_ipc::api::{ApiError, Done, Request, RpcRequest, RpcResponse};
 use rpfm_ipc::api::diagnostics::{IgnoreDiagnostics, ListDiagnostics, RunDiagnostics};
 use rpfm_ipc::api::files::{AddFilesFromDisk, CopyFiles, CreateFile, DeleteFiles, DuplicateFiles, ExtractFiles, ListFiles, RenameFiles};
+use rpfm_ipc::api::search::{ListSearchMatches, ReplaceSearchMatches, RunSearch};
 use rpfm_ipc::api::packs::{ClosePack, CloseAllPacks, GetPackInfo, NewPack, OpenPack, OpenVanillaPacks, SavePack, UpdatePack};
 use rpfm_ipc::api::session::{GenerateDependenciesCache, GetSessionStatus, RebuildDependencies, SetGame};
 use rpfm_ipc::api::tables::{EditTable, GetTableDefinition, GetTableInfo, GetTableRows};
@@ -26,7 +27,7 @@ use crate::settings::Settings;
 use crate::state::{ExtractOptions, SaveOptions, SessionState};
 
 /// Methods that run as jobs.
-const JOB_METHODS: [&str; 4] = [SetGame::METHOD, GenerateDependenciesCache::METHOD, RebuildDependencies::METHOD, RunDiagnostics::METHOD];
+const JOB_METHODS: [&str; 5] = [SetGame::METHOD, GenerateDependenciesCache::METHOD, RebuildDependencies::METHOD, RunDiagnostics::METHOD, RunSearch::METHOD];
 
 /// Runs a request on the session's state.
 ///
@@ -127,6 +128,13 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         }),
         ListDiagnostics::METHOD => call(params, |request: ListDiagnostics| state.list_diagnostics(&request)),
         IgnoreDiagnostics::METHOD => call(params, |request: IgnoreDiagnostics| state.ignore_diagnostics(&request)),
+
+        RunSearch::METHOD => call(params, |request: RunSearch| {
+            report_stage("Searching");
+            state.run_search(&request)
+        }),
+        ListSearchMatches::METHOD => call(params, |request: ListSearchMatches| state.list_search_matches(&request)),
+        ReplaceSearchMatches::METHOD => call(params, |request: ReplaceSearchMatches| state.replace_search_matches(&request)),
         method => Err(ApiError::MethodNotFound(method.to_owned())),
     };
 
@@ -168,7 +176,7 @@ mod tests {
 
     #[test]
     fn job_methods_are_the_ones_marked_as_jobs() {
-        assert!(SetGame::IS_JOB && GenerateDependenciesCache::IS_JOB && RebuildDependencies::IS_JOB && RunDiagnostics::IS_JOB);
+        assert!(SetGame::IS_JOB && GenerateDependenciesCache::IS_JOB && RebuildDependencies::IS_JOB && RunDiagnostics::IS_JOB && RunSearch::IS_JOB);
         assert!(JOB_METHODS.iter().all(|method| is_job_method(method)));
         assert!(!is_job_method(GetSessionStatus::METHOD) && !GetSessionStatus::IS_JOB);
     }

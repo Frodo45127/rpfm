@@ -21,6 +21,7 @@
 //! - [`files`]: listing the files of a pack or of the dependencies.
 //! - [`tables`]: reading DB and Loc tables, and their definitions.
 //! - [`diagnostics`]: checking the open packs for problems.
+//! - [`search`]: searching and replacing text.
 //! - [`jobs`]: following and cancelling methods that run as jobs.
 //!
 //! Lists are paginated: requests take an `offset` and an optional `limit`, and responses
@@ -35,6 +36,7 @@ pub mod diagnostics;
 pub mod files;
 pub mod jobs;
 pub mod packs;
+pub mod search;
 pub mod session;
 pub mod tables;
 
@@ -180,6 +182,10 @@ pub enum ApiError {
     #[error("There are no diagnostics results. Run diagnostics.run first.")]
     DiagnosticsNotRun,
 
+    /// The operation needs the matches of a search, and there are none.
+    #[error("There are no search matches. Run search.run first.")]
+    SearchNotRun,
+
     /// There is no job with this ID, or it ended long ago and was forgotten.
     #[error("There is no job with ID {0}.")]
     JobNotFound(u64),
@@ -295,6 +301,7 @@ impl ApiError {
             Self::ReadOnly(_) => -32007,
             Self::JobNotFound(_) => -32008,
             Self::DiagnosticsNotRun => -32009,
+            Self::SearchNotRun => -32010,
         }
     }
 }
