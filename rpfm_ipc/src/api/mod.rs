@@ -20,6 +20,7 @@
 //! - [`packs`]: details of the open packs.
 //! - [`files`]: listing the files of a pack or of the dependencies.
 //! - [`tables`]: reading DB and Loc tables, and their definitions.
+//! - [`jobs`]: following and cancelling methods that run as jobs.
 //!
 //! Lists are paginated: requests take an `offset` and an optional `limit`, and responses
 //! include the `total` amount of items, so clients never get more than they asked for.
@@ -30,6 +31,7 @@ use serde_json::Value;
 use thiserror::Error;
 
 pub mod files;
+pub mod jobs;
 pub mod packs;
 pub mod session;
 pub mod tables;
@@ -54,7 +56,16 @@ pub trait Request: Serialize + DeserializeOwned {
 
     /// Response of the method.
     type Response: Serialize + DeserializeOwned;
+
+    /// If the method runs as a job.
+    ///
+    /// Jobs answer right away with a [`jobs::JobStarted`], and their response arrives later as the
+    /// result of the job, in [`JOB_UPDATED_NOTIFICATION`] notifications and in [`jobs::GetJobStatus`].
+    const IS_JOB: bool = false;
 }
+
+/// Method of the notification sent to clients whenever a job changes state. Its params are a [`jobs::JobStatus`].
+pub const JOB_UPDATED_NOTIFICATION: &str = "job.updated";
 
 /// Response of the methods that return nothing.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -105,8 +116,22 @@ pub enum RpcOutcome {
     Error(RpcError),
 }
 
-/// A JSON-RPC error.
+/// A JSON-RPC notification: a message from the server that isn't a response to a request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RpcNotification {
+
+    /// Always [`JSONRPC_VERSION`].
+    pub jsonrpc: String,
+
+    /// What the notification is about, like [`JOB_UPDATED_NOTIFICATION`].
+    pub method: String,
+
+    /// Data of the notification.
+    pub params: Value,
+}
+
+/// A JSON-RPC error.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct RpcError {
 
     /// Numeric code of the error. See [`ApiError::code`].
@@ -148,6 +173,10 @@ pub enum ApiError {
     /// The file can't be edited, because it's not in an open pack.
     #[error("The file {0} can't be edited: only files in open packs can.")]
     ReadOnly(String),
+
+    /// There is no job with this ID, or it ended long ago and was forgotten.
+    #[error("There is no job with ID {0}.")]
+    JobNotFound(u64),
 
     /// The operation needs the vanilla dependencies, and they're not loaded.
     #[error("Dependencies cache needs to be regenerated before this.")]
@@ -230,6 +259,18 @@ impl RpcResponse {
     }
 }
 
+impl RpcNotification {
+
+    /// Builds a notification.
+    pub fn new(method: &str, params: Value) -> Self {
+        Self {
+            jsonrpc: JSONRPC_VERSION.to_owned(),
+            method: method.to_owned(),
+            params,
+        }
+    }
+}
+
 impl ApiError {
 
     /// Returns the JSON-RPC code of the error: the standard ones for protocol errors,
@@ -246,6 +287,7 @@ impl ApiError {
             Self::DependenciesNotLoaded => -32005,
             Self::DefinitionNotFound(_) => -32006,
             Self::ReadOnly(_) => -32007,
+            Self::JobNotFound(_) => -32008,
         }
     }
 }

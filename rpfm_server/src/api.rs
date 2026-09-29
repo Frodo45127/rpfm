@@ -17,12 +17,15 @@ use serde_json::{Map, Value};
 use rpfm_ipc::api::{ApiError, Done, Request, RpcRequest, RpcResponse};
 use rpfm_ipc::api::files::{AddFilesFromDisk, CopyFiles, CreateFile, DeleteFiles, DuplicateFiles, ExtractFiles, ListFiles, RenameFiles};
 use rpfm_ipc::api::packs::{ClosePack, CloseAllPacks, GetPackInfo, NewPack, OpenPack, OpenVanillaPacks, SavePack, UpdatePack};
-use rpfm_ipc::api::session::{GetSessionStatus, SetGame};
+use rpfm_ipc::api::session::{GenerateDependenciesCache, GetSessionStatus, RebuildDependencies, SetGame};
 use rpfm_ipc::api::tables::{EditTable, GetTableDefinition, GetTableInfo, GetTableRows};
-use rpfm_ipc::settings_keys::{ALLOW_EDITING_OF_CA_PACKFILES, DISABLE_UUID_REGENERATION_ON_DB_TABLES, INCLUDE_BASE_FOLDER_ON_ADD_FROM_FOLDER, TABLES_USE_OLD_COLUMN_ORDER_FOR_TSV, USE_LAZY_LOADING};
+use rpfm_ipc::settings_keys::{ALLOW_EDITING_OF_CA_PACKFILES, DISABLE_UUID_REGENERATION_ON_DB_TABLES, IGNORE_GAME_FILES_IN_AK, INCLUDE_BASE_FOLDER_ON_ADD_FROM_FOLDER, TABLES_USE_OLD_COLUMN_ORDER_FOR_TSV, USE_LAZY_LOADING};
 
 use crate::settings::Settings;
 use crate::state::{ExtractOptions, SaveOptions, SessionState};
+
+/// Methods that run as jobs.
+const JOB_METHODS: [&str; 3] = [SetGame::METHOD, GenerateDependenciesCache::METHOD, RebuildDependencies::METHOD];
 
 /// Runs a request on the session's state.
 ///
@@ -31,20 +34,34 @@ use crate::state::{ExtractOptions, SaveOptions, SessionState};
 /// * `state` - State of the session.
 /// * `request` - The request to run.
 /// * `settings` - Settings, for the options the request doesn't set.
+/// * `report_stage` - Called by long operations with the step they're on.
 ///
 /// # Returns
 ///
 /// The response to the request.
-pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settings) -> RpcResponse {
+pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settings, report_stage: &dyn Fn(&str)) -> RpcResponse {
     let params = request.params;
     let result = match request.method.as_str() {
         GetSessionStatus::METHOD => call(params, |_: GetSessionStatus| Ok(state.session_status())),
         SetGame::METHOD => call(params, |request: SetGame| {
+            report_stage("Loading the schema and the dependencies");
             let (_, dependencies_info) = state.set_game_selected(&request.game, request.rebuild_dependencies, settings, settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES))?;
             if dependencies_info.is_some() {
+                report_stage("Decoding the tables of the dependencies");
                 state.decode_dependency_tables();
             }
 
+            Ok(state.session_status())
+        }),
+        GenerateDependenciesCache::METHOD => call(params, |request: GenerateDependenciesCache| {
+            report_stage("Generating the dependencies cache");
+            let ignore_game_files = request.ignore_game_files_in_assembly_kit.unwrap_or_else(|| settings.bool(IGNORE_GAME_FILES_IN_AK));
+            state.generate_dependencies_cache(settings, ignore_game_files)?;
+            Ok(state.session_status())
+        }),
+        RebuildDependencies::METHOD => call(params, |request: RebuildDependencies| {
+            report_stage("Rebuilding the dependencies");
+            state.rebuild_dependencies(request.only_parent_packs, settings)?;
             Ok(state.session_status())
         }),
 
@@ -108,13 +125,22 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
     RpcResponse::new(request.id, result)
 }
 
-/// Deserializes the params of a request, runs its operation, and serializes its response.
-fn call<R: Request>(params: Value, operation: impl FnOnce(R) -> anyhow::Result<R::Response>) -> Result<Value, ApiError> {
+/// Returns if a method runs as a job. See [`Request::IS_JOB`].
+pub fn is_job_method(method: &str) -> bool {
+    JOB_METHODS.contains(&method)
+}
+
+/// Deserializes the params of a request.
+pub fn parse_params<R: Request>(params: Value) -> Result<R, ApiError> {
 
     // Methods without params can be called without the params field, which arrives as null.
     let params = if params.is_null() { Value::Object(Map::new()) } else { params };
+    serde_json::from_value::<R>(params).map_err(|error| ApiError::InvalidParams(error.to_string()))
+}
 
-    let request = serde_json::from_value::<R>(params).map_err(|error| ApiError::InvalidParams(error.to_string()))?;
+/// Deserializes the params of a request, runs its operation, and serializes its response.
+fn call<R: Request>(params: Value, operation: impl FnOnce(R) -> anyhow::Result<R::Response>) -> Result<Value, ApiError> {
+    let request = parse_params::<R>(params)?;
     let response = operation(request).map_err(api_error)?;
     serde_json::to_value(response).map_err(|error| ApiError::Internal(error.to_string()))
 }
@@ -122,4 +148,20 @@ fn call<R: Request>(params: Value, operation: impl FnOnce(R) -> anyhow::Result<R
 /// Returns the [`ApiError`] an operation failed with, or wraps its message in [`ApiError::Internal`] if it's another error.
 fn api_error(error: anyhow::Error) -> ApiError {
     error.downcast::<ApiError>().unwrap_or_else(|error| ApiError::Internal(error.to_string()))
+}
+
+//-------------------------------------------------------------------------------//
+//                                   Tests
+//-------------------------------------------------------------------------------//
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn job_methods_are_the_ones_marked_as_jobs() {
+        assert!(SetGame::IS_JOB && GenerateDependenciesCache::IS_JOB && RebuildDependencies::IS_JOB);
+        assert!(JOB_METHODS.iter().all(|method| is_job_method(method)));
+        assert!(!is_job_method(GetSessionStatus::METHOD) && !GetSessionStatus::IS_JOB);
+    }
 }

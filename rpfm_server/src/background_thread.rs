@@ -96,7 +96,7 @@ fn command_name(cmd: &Command) -> String {
 /// One instance runs per [`Session`], spawned by [`Session::new`]. The loop
 /// terminates when the session is dropped or [`Command::Exit`] is dispatched.
 pub async fn background_loop(mut receiver: UnboundedReceiver<SessionMessage>, session: Arc<Session>) {
-    let mut state = SessionState::new(session);
+    let mut state = SessionState::new(session.clone());
 
     // Sync the telemetry toggles with the current settings.
     rpfm_telemetry::set_usage_telemetry_enabled(SETTINGS.read().unwrap().bool(ENABLE_USAGE_TELEMETRY));
@@ -109,7 +109,19 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<SessionMessage>, se
             SessionMessage::Api(request, sender) => {
                 rpfm_telemetry::record_action(&request.method);
                 let settings = SETTINGS.read().unwrap().clone();
-                let _ = sender.send(api::dispatch(&mut state, request, &settings));
+                let _ = sender.send(api::dispatch(&mut state, request, &settings, &|_| {}));
+                continue;
+            }
+            SessionMessage::Job(job, request) => {
+                let jobs = session.jobs().clone();
+                if !jobs.start(job) {
+                    continue;
+                }
+
+                rpfm_telemetry::record_action(&request.method);
+                let settings = SETTINGS.read().unwrap().clone();
+                let response = api::dispatch(&mut state, request, &settings, &|stage| jobs.set_stage(job, stage));
+                jobs.finish(job, response.outcome);
                 continue;
             }
         };

@@ -56,7 +56,7 @@ impl Request for GetSessionStatus {
     type Response = SessionStatus;
 }
 
-/// `session.set_game`: selects a game, loading its schema and, optionally, its dependencies.
+/// `session.set_game`: selects a game, loading its schema and, optionally, its dependencies. Runs as a job.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct SetGame {
 
@@ -68,7 +68,40 @@ pub struct SetGame {
     pub rebuild_dependencies: bool,
 }
 
+/// `dependencies.generate_cache`: generates the dependencies cache of the selected game from its files and
+/// Assembly Kit, and loads it. Runs as a job.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct GenerateDependenciesCache {
+
+    /// If tables in the game files are skipped when reading the Assembly Kit. Defaults to the server's setting.
+    #[serde(default)]
+    pub ignore_game_files_in_assembly_kit: Option<bool>,
+}
+
+/// `dependencies.rebuild`: reloads the dependencies of the selected game, like after changing the packs
+/// the open packs depend on. Runs as a job.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct RebuildDependencies {
+
+    /// If only the parent packs are reloaded, instead of the whole dependencies.
+    #[serde(default)]
+    pub only_parent_packs: bool,
+}
+
 impl Request for SetGame {
     const METHOD: &'static str = "session.set_game";
     type Response = SessionStatus;
+    const IS_JOB: bool = true;
+}
+
+impl Request for GenerateDependenciesCache {
+    const METHOD: &'static str = "dependencies.generate_cache";
+    type Response = SessionStatus;
+    const IS_JOB: bool = true;
+}
+
+impl Request for RebuildDependencies {
+    const METHOD: &'static str = "dependencies.rebuild";
+    type Response = SessionStatus;
+    const IS_JOB: bool = true;
 }

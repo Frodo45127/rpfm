@@ -40,7 +40,7 @@ use tokio::sync::{broadcast, mpsc};
 
 use std::sync::Arc;
 
-use rpfm_ipc::api::{ApiError, JSONRPC_VERSION, RpcRequest, RpcResponse};
+use rpfm_ipc::api::{ApiError, JOB_UPDATED_NOTIFICATION, JSONRPC_VERSION, RpcNotification, RpcRequest, RpcResponse};
 use rpfm_ipc::messages::{Command, Message as IpcMessage, Response};
 use rpfm_telemetry::{info, warn};
 
@@ -68,6 +68,9 @@ enum Outgoing {
 
     /// A response of the version 2 API.
     Api(RpcResponse),
+
+    /// A notification of the version 2 API.
+    Notification(RpcNotification),
 }
 
 //-------------------------------------------------------------------------------//
@@ -130,6 +133,14 @@ async fn handle_socket(socket: WebSocket, session_manager: Arc<SessionManager>, 
                     }
                     continue;
                 }
+                Outgoing::Notification(notification) => {
+                    if let Ok(json) = serde_json::to_string(&notification) {
+                        if sink.send(Message::Text(json.into())).await.is_err() {
+                            break;
+                        }
+                    }
+                    continue;
+                }
             };
 
             match serde_json::to_string(&response_msg) {
@@ -166,6 +177,25 @@ async fn handle_socket(socket: WebSocket, session_manager: Arc<SessionManager>, 
 
                 // We missed some updates because we were too slow, but there's always a newer
                 // one coming right after, so just keep going instead of tearing down the task.
+                Err(broadcast::error::RecvError::Lagged(_)) => continue,
+                Err(broadcast::error::RecvError::Closed) => break,
+            }
+        }
+    });
+
+    // Task to notify the client of every change of the session's jobs.
+    let mut job_updates = session.jobs().subscribe();
+    let jobs_tx = tx.clone();
+    let jobs_forward_task = tokio::spawn(async move {
+        loop {
+            match job_updates.recv().await {
+                Ok(status) => {
+                    if let Ok(params) = serde_json::to_value(&status) {
+                        let _ = jobs_tx.send(Outgoing::Notification(RpcNotification::new(JOB_UPDATED_NOTIFICATION, params)));
+                    }
+                }
+
+                // Clients can always ask for the current state of a job, so missed updates are skipped.
                 Err(broadcast::error::RecvError::Lagged(_)) => continue,
                 Err(broadcast::error::RecvError::Closed) => break,
             }
@@ -253,6 +283,7 @@ async fn handle_socket(socket: WebSocket, session_manager: Arc<SessionManager>, 
 
     sender_task.abort();
     settings_forward_task.abort();
+    jobs_forward_task.abort();
 
     // Client requested graceful disconnect - remove session immediately.
     if graceful_disconnect {

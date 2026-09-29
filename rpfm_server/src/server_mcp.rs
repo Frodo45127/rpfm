@@ -51,18 +51,20 @@ use serde::{Deserialize, Serialize};
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use std::time::Duration;
 use std::path::PathBuf;
 
 use rpfm_extensions::merge::MergeOptions;
 use rpfm_extensions::translator::DEFAULT_SRC_LANG;
 
-use rpfm_ipc::api::{ApiError, Done, Request, RpcOutcome, RpcRequest, RpcResponse};
+use rpfm_ipc::api::{ApiError, Done, Request, RpcError, RpcOutcome, RpcRequest, RpcResponse};
 use rpfm_ipc::api::files::{
     AddFilesFromDisk, CopyFiles, CreateFile, DeleteFiles, DuplicateFiles, ExtractFiles, FileEntry, FileList, FilesAdded, FilesDeleted,
     FilesExtracted, FilesRenamed, ListFiles, RenameFiles,
 };
 use rpfm_ipc::api::packs::{ClosePack, CloseAllPacks, GetPackInfo, NewPack, OpenPack, OpenVanillaPacks, PackDetails, PackSummary, SavePack, UpdatePack};
-use rpfm_ipc::api::session::{GetSessionStatus, SessionStatus, SetGame};
+use rpfm_ipc::api::jobs::{CancelJob, GetJobStatus, JobStarted, JobState, JobStatus, WaitForJob};
+use rpfm_ipc::api::session::{GenerateDependenciesCache, GetSessionStatus, RebuildDependencies, SessionStatus, SetGame};
 use rpfm_ipc::api::tables::{EditTable, GetTableDefinition, GetTableInfo, GetTableRows, TableDefinition, TableEdited, TableInfo, TableRows};
 use rpfm_ipc::helpers::DataSource;
 use rpfm_ipc::messages::{Command, Response};
@@ -103,6 +105,11 @@ macro_rules! send_and_respond {
     }};
 }
 
+/// How long tools that run as jobs wait for them before returning their state.
+///
+/// Kept under the usual timeout of MCP clients. Jobs still running after it can be waited for with `wait_for_job`.
+const MCP_JOB_WAIT: Duration = Duration::from_secs(45);
+
 /// Starts the Sentry transaction of a tool call, following the MCP tracing spec.
 fn start_tool_transaction(tool_name: &str) -> sentry::Transaction {
     let tx_ctx = sentry::TransactionContext::new(&format!("tools/call {}", tool_name), "mcp.server");
@@ -113,6 +120,20 @@ fn start_tool_transaction(tool_name: &str) -> sentry::Transaction {
 
     sentry::configure_scope(|scope| scope.set_span(Some(tx.clone().into())));
     tx
+}
+
+/// Returns an API error as a tool error.
+fn error_result(error: &RpcError) -> CallToolResult {
+    CallToolResult::error(vec![ContentBlock::text(serde_json::to_string(error).unwrap_or_else(|_| error.message.clone()))])
+}
+
+/// Returns the state of a job as structured content, marked as a tool error if the job failed.
+fn job_status_result(status: &JobStatus) -> CallToolResult {
+    match serde_json::to_value(status) {
+        Ok(value) if matches!(status.state, JobState::Failed { .. }) => CallToolResult::structured_error(value),
+        Ok(value) => CallToolResult::structured(value),
+        Err(error) => error_result(&ApiError::Internal(error.to_string()).into()),
+    }
 }
 
 /// Build a `Resource` with common fields set.
@@ -168,8 +189,6 @@ pub struct CallCommandArgs {
     pub command: String,
 }
 
-
-
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct TsvExportArgs {
     /// The key of the target pack.
@@ -224,7 +243,6 @@ pub struct PackKeyArg {
     pub pack_key: String,
 }
 
-
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct PackKeyStringArg {
     /// The key of the target pack.
@@ -233,16 +251,7 @@ pub struct PackKeyStringArg {
     pub value: String,
 }
 
-
 // -- Pack Metadata Args --
-
-
-
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct BoolArg {
-    /// A boolean value.
-    pub value: bool,
-}
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct SetPackSettingsArgs {
@@ -251,7 +260,6 @@ pub struct SetPackSettingsArgs {
     /// The JSON representation of the PackSettings struct.
     pub settings: String,
 }
-
 
 // -- File Operations Args --
 
@@ -264,8 +272,6 @@ pub struct NewPackedFileArgs {
     /// The JSON representation of the NewFile enum.
     pub new_file: String,
 }
-
-
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct AddPackedFilesFromPackFileToAnimpackArgs {
@@ -311,9 +317,6 @@ pub struct DeleteFromAnimpackArgs {
     pub container_paths: String,
 }
 
-
-
-
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct SavePackedFileFromViewArgs {
     /// The key of the target pack.
@@ -347,7 +350,6 @@ pub struct StringsArg {
 }
 
 // -- Dependency Args --
-
 
 // -- Search Args --
 
@@ -710,6 +712,9 @@ format used by all modern Total War titles.
   name. To change a vanilla table, copy it into your pack with `copy_files` first.
 - **Paths**: tools taking plain path strings treat a path as a file if one exists there, or as a \
   folder otherwise.
+- **Jobs**: slow tools (`set_game`, `generate_dependencies_cache`, `rebuild_dependencies`) run as jobs. \
+  They wait up to 45 seconds and return the job's state, with its result if it finished. If it's still \
+  running, call `wait_for_job` with its ID. Other tools called meanwhile wait for the job to end.
 - **DataSource**: Where data lives — `\"PackFile\"` (the user's mod), `\"GameFiles\"` (vanilla game data), \
   `\"ParentFiles\"` (dependency mods), `\"AssKitFiles\"` (Assembly Kit data), `\"ExternalFile\"` (disk file).
 - **ContainerPath**: A path inside a pack — either `{\"File\": \"db/land_units_tables/my_table\"}` or \
@@ -1184,12 +1189,21 @@ impl McpServer {
         let response = self.session.call(rpc_request).recv().await
             .unwrap_or_else(|| RpcResponse::new(0, Err(ApiError::Internal("Session response channel closed unexpectedly".to_owned()))));
 
-        tx.finish();
-
-        Ok(match response.outcome {
+        // Jobs answer with their ID right away, so wait a bit for them and return their state.
+        let result = match response.outcome {
+            RpcOutcome::Result(value) if R::IS_JOB => match serde_json::from_value::<JobStarted>(value) {
+                Ok(started) => match self.session.jobs().wait(started.job, MCP_JOB_WAIT).await {
+                    Some(status) => job_status_result(&status),
+                    None => error_result(&ApiError::JobNotFound(started.job).into()),
+                },
+                Err(error) => error_result(&ApiError::Internal(error.to_string()).into()),
+            },
             RpcOutcome::Result(value) => CallToolResult::structured(value),
-            RpcOutcome::Error(error) => CallToolResult::error(vec![ContentBlock::text(serde_json::to_string(&error).unwrap_or(error.message))]),
-        })
+            RpcOutcome::Error(error) => error_result(&error),
+        };
+
+        tx.finish();
+        Ok(result)
     }
 }
 
@@ -1258,12 +1272,62 @@ impl McpServer {
 
     #[tool(
         name = "set_game",
-        description = "Select the game to work with, like `warhammer_3`, loading its schema and, by default, its dependencies (vanilla files, Assembly Kit tables, parent packs). Loading the dependencies can take a while. Call this before opening packs.",
+        description = "Select the game to work with, like `warhammer_3`, loading its schema and, by default, its dependencies (vanilla files, Assembly Kit tables, parent packs). Call this before opening packs. Runs as a job: waits up to 45 seconds and returns its state, with the session status as result if it finished; if it's still running, call `wait_for_job`.",
         annotations(read_only_hint = false, destructive_hint = false),
-        output_schema = schema_for_output::<SessionStatus>(),
+        output_schema = schema_for_output::<JobStatus>(),
     )]
     pub async fn set_game(&self, params: Parameters<SetGame>) -> Result<CallToolResult, McpError> {
         self.call_api("set_game", params.0).await
+    }
+
+    #[tool(
+        name = "generate_dependencies_cache",
+        description = "Generate the dependencies cache of the selected game from its files and Assembly Kit, and load it. Needed once per game, and after game updates. Takes a while. Runs as a job: waits up to 45 seconds and returns its state; if it's still running, call `wait_for_job`.",
+        annotations(read_only_hint = false, destructive_hint = false),
+        output_schema = schema_for_output::<JobStatus>(),
+    )]
+    pub async fn generate_dependencies_cache(&self, params: Parameters<GenerateDependenciesCache>) -> Result<CallToolResult, McpError> {
+        self.call_api("generate_dependencies_cache", params.0).await
+    }
+
+    #[tool(
+        name = "rebuild_dependencies",
+        description = "Reload the dependencies of the selected game, like after changing the packs the open packs depend on. Runs as a job: waits up to 45 seconds and returns its state; if it's still running, call `wait_for_job`.",
+        annotations(read_only_hint = false, destructive_hint = false),
+        output_schema = schema_for_output::<JobStatus>(),
+    )]
+    pub async fn rebuild_dependencies(&self, params: Parameters<RebuildDependencies>) -> Result<CallToolResult, McpError> {
+        self.call_api("rebuild_dependencies", params.0).await
+    }
+
+    #[tool(
+        name = "job_status",
+        description = "Get the state of a job: queued, running (with its current step), finished (with its result), failed (with its error) or cancelled.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<JobStatus>(),
+    )]
+    pub async fn job_status(&self, params: Parameters<GetJobStatus>) -> Result<CallToolResult, McpError> {
+        self.call_api("job_status", params.0).await
+    }
+
+    #[tool(
+        name = "wait_for_job",
+        description = "Wait for a job to end, up to `timeout_secs` (60 by default), and return its state.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<JobStatus>(),
+    )]
+    pub async fn wait_for_job(&self, params: Parameters<WaitForJob>) -> Result<CallToolResult, McpError> {
+        self.call_api("wait_for_job", params.0).await
+    }
+
+    #[tool(
+        name = "cancel_job",
+        description = "Cancel a job that hasn't started yet. Running jobs can't be cancelled.",
+        annotations(read_only_hint = false, destructive_hint = true),
+        output_schema = schema_for_output::<Done>(),
+    )]
+    pub async fn cancel_job(&self, params: Parameters<CancelJob>) -> Result<CallToolResult, McpError> {
+        self.call_api("cancel_job", params.0).await
     }
 
     #[tool(
@@ -1516,16 +1580,6 @@ impl McpServer {
     //-----------------------------------------------------------------------//
     // Dependencies
     //-----------------------------------------------------------------------//
-
-    #[tool(description = "Generate the dependencies cache for the selected game. This can take a long time (more than 30 seconds), depending on your CPU and disk read speed. If the client is not careful, it can take enough time that the client may trigger a timeout.")]
-    pub async fn generate_dependencies_cache(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "generate_dependencies_cache", Command::GenerateDependenciesCache)
-    }
-
-    #[tool(description = "Rebuild dependencies. Pass true for full rebuild, false for mod-specific only.")]
-    pub async fn rebuild_dependencies(&self, params: Parameters<BoolArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "rebuild_dependencies", Command::RebuildDependencies(params.0.value))
-    }
 
     #[tool(description = "Get custom table names (start_pos_, twad_ prefixes) from the schema.")]
     pub async fn get_custom_table_list(&self) -> Result<CallToolResult, McpError> {

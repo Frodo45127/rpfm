@@ -51,12 +51,15 @@ use tokio::time::{Duration, Instant};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock, atomic::{AtomicBool, AtomicU32, Ordering}};
 
-use rpfm_ipc::api::{ApiError, RpcRequest, RpcResponse};
+use rpfm_ipc::api::{ApiError, RpcOutcome, RpcRequest, RpcResponse};
+use rpfm_ipc::api::jobs::JobStarted;
 use rpfm_ipc::helpers::SessionInfo;
 use rpfm_ipc::messages::{Command, Response};
 use rpfm_telemetry::info;
 
+use crate::api;
 use crate::background_thread;
+use crate::jobs::{self, JobRegistry};
 
 /// Error messages for session communication.
 pub const SESSION_SENDER_ERROR: &str = "Error in session communication system. Sender failed to send message.";
@@ -80,6 +83,9 @@ pub enum SessionMessage {
 
     /// A request of the version 2 API.
     Api(RpcRequest, UnboundedSender<RpcResponse>),
+
+    /// A request of the version 2 API that runs as a job, with the ID of its job.
+    Job(u64, RpcRequest),
 }
 
 /// Manages all active sessions.
@@ -142,6 +148,9 @@ pub struct Session {
 
     /// Names of the pack files currently open in this session.
     pack_names: RwLock<Vec<String>>,
+
+    /// Jobs of this session.
+    jobs: Arc<JobRegistry>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -165,6 +174,7 @@ impl Session {
             connection_count: AtomicU32::new(0),
             shutdown_requested: AtomicBool::new(false),
             pack_names: RwLock::new(Vec::new()),
+            jobs: Arc::new(JobRegistry::default()),
         });
 
         // Spawn a dedicated background thread for this session.
@@ -267,12 +277,40 @@ impl Session {
         receiver_back
     }
 
+    /// Returns the jobs of this session.
+    pub fn jobs(&self) -> &Arc<JobRegistry> {
+        &self.jobs
+    }
+
     /// Send a request of the version 2 API to this session's background thread.
+    ///
+    /// Job control requests are answered without waiting for the background thread, and jobs are
+    /// answered right away with their ID, before they run.
     ///
     /// Returns a receiver to get the response.
     pub fn call(&self, request: RpcRequest) -> UnboundedReceiver<RpcResponse> {
         self.touch();
         let (sender_back, receiver_back) = unbounded_channel();
+
+        if jobs::is_job_control_method(&request.method) {
+            jobs::handle_request(self.jobs.clone(), request, sender_back);
+            return receiver_back;
+        }
+
+        if api::is_job_method(&request.method) {
+            let job = self.jobs.create(&request.method);
+            let id = request.id;
+            if let Err(error) = self.sender.send(SessionMessage::Job(job, request)) {
+                let message = format!("{SESSION_SENDER_ERROR}: {error}");
+                info!("{message}");
+                self.jobs.finish(job, RpcOutcome::Error(ApiError::Internal(message).into()));
+            }
+
+            let started = serde_json::to_value(JobStarted { job }).map_err(|error| ApiError::Internal(error.to_string()));
+            let _ = sender_back.send(RpcResponse::new(id, started));
+            return receiver_back;
+        }
+
         if let Err(error) = self.sender.send(SessionMessage::Api(request, sender_back)) {
             let message = format!("{SESSION_SENDER_ERROR}: {error}");
             info!("{message}");
