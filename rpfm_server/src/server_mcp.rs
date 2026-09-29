@@ -49,18 +49,21 @@ use rmcp::{prompt, prompt_handler, prompt_router, tool, tool_handler, tool_route
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::path::PathBuf;
 
 use rpfm_extensions::merge::MergeOptions;
 use rpfm_extensions::translator::DEFAULT_SRC_LANG;
 
-use rpfm_ipc::api::{ApiError, Request, RpcOutcome, RpcRequest, RpcResponse};
-use rpfm_ipc::api::files::{FileList, ListFiles};
-use rpfm_ipc::api::packs::{GetPackInfo, PackDetails};
-use rpfm_ipc::api::session::{GetSessionStatus, SessionStatus};
-use rpfm_ipc::api::tables::{GetTableDefinition, GetTableInfo, GetTableRows, TableDefinition, TableInfo, TableRows};
+use rpfm_ipc::api::{ApiError, Done, Request, RpcOutcome, RpcRequest, RpcResponse};
+use rpfm_ipc::api::files::{
+    AddFilesFromDisk, CopyFiles, CreateFile, DeleteFiles, DuplicateFiles, ExtractFiles, FileEntry, FileList, FilesAdded, FilesDeleted,
+    FilesExtracted, FilesRenamed, ListFiles, RenameFiles,
+};
+use rpfm_ipc::api::packs::{ClosePack, CloseAllPacks, GetPackInfo, NewPack, OpenPack, OpenVanillaPacks, PackDetails, PackSummary, SavePack, UpdatePack};
+use rpfm_ipc::api::session::{GetSessionStatus, SessionStatus, SetGame};
+use rpfm_ipc::api::tables::{EditTable, GetTableDefinition, GetTableInfo, GetTableRows, TableDefinition, TableEdited, TableInfo, TableRows};
 use rpfm_ipc::helpers::DataSource;
 use rpfm_ipc::messages::{Command, Response};
 use rpfm_lib::files::{ContainerPath, RFile, RFileDecoded};
@@ -165,19 +168,7 @@ pub struct CallCommandArgs {
     pub command: String,
 }
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct OpenPackfilesArgs {
-    /// The paths of the PackFiles to open.
-    pub paths: Vec<PathBuf>,
-}
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct SetGameSelectedArgs {
-    /// The name of the game to select.
-    pub game_name: String,
-    /// Whether to rebuild dependencies.
-    pub rebuild_dependencies: bool,
-}
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct TsvExportArgs {
@@ -233,13 +224,6 @@ pub struct PackKeyArg {
     pub pack_key: String,
 }
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct PackKeyBoolArg {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// A boolean value.
-    pub value: bool,
-}
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct PackKeyStringArg {
@@ -249,31 +233,10 @@ pub struct PackKeyStringArg {
     pub value: String,
 }
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct PackKeyPathArg {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The file path.
-    pub path: PathBuf,
-}
 
 // -- Pack Metadata Args --
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct SetPackFileTypeArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The JSON representation of the PFHFileType enum.
-    pub pack_file_type: String,
-}
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct ChangeCompressionFormatArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The JSON representation of the CompressionFormat enum.
-    pub format: String,
-}
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct BoolArg {
@@ -289,13 +252,6 @@ pub struct SetPackSettingsArgs {
     pub settings: String,
 }
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct SetDependencyPackFilesListArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The JSON representation of Vec<(bool, String)> for the dependency list.
-    pub list: String,
-}
 
 // -- File Operations Args --
 
@@ -309,27 +265,7 @@ pub struct NewPackedFileArgs {
     pub new_file: String,
 }
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct AddPackedFilesArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The source filesystem paths.
-    pub source_paths: Vec<PathBuf>,
-    /// The JSON representation of Vec<ContainerPath> for destination paths.
-    pub destination_paths: String,
-    /// The optional paths to ignore (JSON representation of Option<Vec<PathBuf>>).
-    pub ignore_paths: Option<Vec<PathBuf>>,
-}
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct AddPackedFilesFromPackFileArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The key of the source PackFile.
-    pub source_pack_path: String,
-    /// The JSON representation of Vec<ContainerPath> for files to add.
-    pub container_paths: String,
-}
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct AddPackedFilesFromPackFileToAnimpackArgs {
@@ -375,33 +311,8 @@ pub struct DeleteFromAnimpackArgs {
     pub container_paths: String,
 }
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct ExtractPackedFilesArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The JSON representation of BTreeMap<DataSource, Vec<ContainerPath>>.
-    pub source_paths: String,
-    /// The destination path on disk.
-    pub destination_path: PathBuf,
-    /// Whether to export tables as TSV.
-    pub export_as_tsv: bool,
-}
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct RenamePackedFilesArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The JSON representation of Vec<(ContainerPath, ContainerPath)>.
-    pub renames: String,
-}
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct DuplicatePackedFilesArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The JSON representation of Vec<ContainerPath> for files to duplicate.
-    pub paths: String,
-}
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct SavePackedFileFromViewArgs {
@@ -437,13 +348,6 @@ pub struct StringsArg {
 
 // -- Dependency Args --
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct ImportDependenciesArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The JSON representation of BTreeMap<DataSource, Vec<ContainerPath>>.
-    pub paths: String,
-}
 
 // -- Search Args --
 
@@ -802,6 +706,10 @@ format used by all modern Total War titles.
   to discover available keys. Most tools require a `pack_key` parameter.
 - **Reading data**: `list_files`, `table_info`, `table_rows` and `table_definition` return small, \
   paginated, structured results. Prefer them over `decode_packed_file` for DB and Loc tables.
+- **Editing tables**: `edit_table` inserts, updates and deletes rows by index, with values by column \
+  name. To change a vanilla table, copy it into your pack with `copy_files` first.
+- **Paths**: tools taking plain path strings treat a path as a file if one exists there, or as a \
+  folder otherwise.
 - **DataSource**: Where data lives — `\"PackFile\"` (the user's mod), `\"GameFiles\"` (vanilla game data), \
   `\"ParentFiles\"` (dependency mods), `\"AssKitFiles\"` (Assembly Kit data), `\"ExternalFile\"` (disk file).
 - **ContainerPath**: A path inside a pack — either `{\"File\": \"db/land_units_tables/my_table\"}` or \
@@ -809,9 +717,9 @@ format used by all modern Total War titles.
 
 ## Required Initialization Sequence
 
-1. **Set the game** — Call `set_game_selected` with the game key (e.g. `\"warhammer_3\"`) and \
-   `rebuild_dependencies: true`. This loads schemas and vanilla data.
-2. **Open a pack** — Call `open_packfiles` with filesystem path(s). Note the returned pack key(s).
+1. **Set the game** — Call `set_game` with the game key (e.g. `\"warhammer_3\"`). This loads the \
+   schema and the vanilla data.
+2. **Open a pack** — Call `open_pack` with filesystem path(s), or `new_pack`. Note the returned pack key.
 3. **Verify schema** — Call `session_status`; if `schema_loaded` is false, call `update_schemas` first.
 
 ## Supported Games
@@ -1111,7 +1019,7 @@ RPFM MCP Server Initialization Guide
 Before you can work with PackFiles, you must initialize the server session:
 
 Step 1: Set the game
-    Call: set_game_selected(game_name: \"warhammer_3\", rebuild_dependencies: true)
+    Call: set_game(game: \"warhammer_3\")
     This loads the correct schemas and vanilla game data for the selected title.
     Valid game keys: pharaoh_dynasties, pharaoh, warhammer_3, troy, three_kingdoms,
     warhammer_2, warhammer, thrones_of_britannia, attila, rome_2, shogun_2,
@@ -1122,9 +1030,8 @@ Step 2: Verify schema is loaded
     If schema_loaded is false, call update_schemas() to download the latest schemas.
 
 Step 3: Open a PackFile
-    Call: open_packfiles(paths: [\"/path/to/my_mod.pack\"])
-    The response returns pack info including the pack_key you'll use for all
-    subsequent operations.
+    Call: open_pack(paths: [\"/path/to/my_mod.pack\"])
+    The response includes the pack key you'll use for all subsequent operations.
 
 Step 4: Verify dependencies (optional but recommended)
     Call: session_status()
@@ -1349,6 +1256,166 @@ impl McpServer {
         self.call_api("table_definition", params.0).await
     }
 
+    #[tool(
+        name = "set_game",
+        description = "Select the game to work with, like `warhammer_3`, loading its schema and, by default, its dependencies (vanilla files, Assembly Kit tables, parent packs). Loading the dependencies can take a while. Call this before opening packs.",
+        annotations(read_only_hint = false, destructive_hint = false),
+        output_schema = schema_for_output::<SessionStatus>(),
+    )]
+    pub async fn set_game(&self, params: Parameters<SetGame>) -> Result<CallToolResult, McpError> {
+        self.call_api("set_game", params.0).await
+    }
+
+    #[tool(
+        name = "new_pack",
+        description = "Create a new empty pack. It has no path on disk until you save it with `save_pack` and a `path`.",
+        annotations(read_only_hint = false, destructive_hint = false),
+        output_schema = schema_for_output::<PackSummary>(),
+    )]
+    pub async fn new_pack(&self) -> Result<CallToolResult, McpError> {
+        self.call_api("new_pack", NewPack {}).await
+    }
+
+    #[tool(
+        name = "open_pack",
+        description = "Open one or more packs from disk, merged into a single one. Returns its key, used by every tool that works on it.",
+        annotations(read_only_hint = false, destructive_hint = false),
+        output_schema = schema_for_output::<PackSummary>(),
+    )]
+    pub async fn open_pack(&self, params: Parameters<OpenPack>) -> Result<CallToolResult, McpError> {
+        self.call_api("open_pack", params.0).await
+    }
+
+    #[tool(
+        name = "open_vanilla_packs",
+        description = "Open all the vanilla packs of the selected game, merged into a single one, to browse them like any open pack.",
+        annotations(read_only_hint = false, destructive_hint = false),
+        output_schema = schema_for_output::<PackSummary>(),
+    )]
+    pub async fn open_vanilla_packs(&self) -> Result<CallToolResult, McpError> {
+        self.call_api("open_vanilla_packs", OpenVanillaPacks {}).await
+    }
+
+    #[tool(
+        name = "close_pack",
+        description = "Close an open pack. Unsaved changes are lost.",
+        annotations(read_only_hint = false, destructive_hint = true),
+        output_schema = schema_for_output::<Done>(),
+    )]
+    pub async fn close_pack(&self, params: Parameters<ClosePack>) -> Result<CallToolResult, McpError> {
+        self.call_api("close_pack", params.0).await
+    }
+
+    #[tool(
+        name = "close_all_packs",
+        description = "Close all open packs. Unsaved changes are lost.",
+        annotations(read_only_hint = false, destructive_hint = true),
+        output_schema = schema_for_output::<Done>(),
+    )]
+    pub async fn close_all_packs(&self) -> Result<CallToolResult, McpError> {
+        self.call_api("close_all_packs", CloseAllPacks {}).await
+    }
+
+    #[tool(
+        name = "save_pack",
+        description = "Save an open pack to disk, to its current path or to a new `path`. New packs need a path. Set `clean` to drop files that failed to decode if saving normally fails.",
+        annotations(read_only_hint = false, destructive_hint = true),
+        output_schema = schema_for_output::<PackSummary>(),
+    )]
+    pub async fn save_pack(&self, params: Parameters<SavePack>) -> Result<CallToolResult, McpError> {
+        self.call_api("save_pack", params.0).await
+    }
+
+    #[tool(
+        name = "update_pack",
+        description = "Change properties of an open pack: type, compression, encryption and timestamp flags, the packs it depends on, and its MyMod mode. Only the fields you set are changed.",
+        annotations(read_only_hint = false, destructive_hint = true),
+        output_schema = schema_for_output::<PackDetails>(),
+    )]
+    pub async fn update_pack(&self, params: Parameters<UpdatePack>) -> Result<CallToolResult, McpError> {
+        self.call_api("update_pack", params.0).await
+    }
+
+    #[tool(
+        name = "create_file",
+        description = "Create a new empty file in an open pack: a DB table (with the version of the game files by default), a Loc table, a text file or an AnimPack. Fill tables afterwards with `edit_table`.",
+        annotations(read_only_hint = false, destructive_hint = false),
+        output_schema = schema_for_output::<FileEntry>(),
+    )]
+    pub async fn create_file(&self, params: Parameters<CreateFile>) -> Result<CallToolResult, McpError> {
+        self.call_api("create_file", params.0).await
+    }
+
+    #[tool(
+        name = "add_files_from_disk",
+        description = "Add files and folders from disk to an open pack, under a folder of the pack.",
+        annotations(read_only_hint = false, destructive_hint = false),
+        output_schema = schema_for_output::<FilesAdded>(),
+    )]
+    pub async fn add_files_from_disk(&self, params: Parameters<AddFilesFromDisk>) -> Result<CallToolResult, McpError> {
+        self.call_api("add_files_from_disk", params.0).await
+    }
+
+    #[tool(
+        name = "copy_files",
+        description = "Copy files and folders from an open pack, the game files, the parent packs or the Assembly Kit tables into an open pack, keeping their paths. Use it to start editing a vanilla table in your mod. Paths that match nothing are returned in `not_added`.",
+        annotations(read_only_hint = false, destructive_hint = false),
+        output_schema = schema_for_output::<FilesAdded>(),
+    )]
+    pub async fn copy_files(&self, params: Parameters<CopyFiles>) -> Result<CallToolResult, McpError> {
+        self.call_api("copy_files", params.0).await
+    }
+
+    #[tool(
+        name = "delete_files",
+        description = "Delete files and folders from an open pack.",
+        annotations(read_only_hint = false, destructive_hint = true),
+        output_schema = schema_for_output::<FilesDeleted>(),
+    )]
+    pub async fn delete_files(&self, params: Parameters<DeleteFiles>) -> Result<CallToolResult, McpError> {
+        self.call_api("delete_files", params.0).await
+    }
+
+    #[tool(
+        name = "rename_files",
+        description = "Rename or move files and folders of an open pack.",
+        annotations(read_only_hint = false, destructive_hint = true),
+        output_schema = schema_for_output::<FilesRenamed>(),
+    )]
+    pub async fn rename_files(&self, params: Parameters<RenameFiles>) -> Result<CallToolResult, McpError> {
+        self.call_api("rename_files", params.0).await
+    }
+
+    #[tool(
+        name = "duplicate_files",
+        description = "Copy files of an open pack in the same pack, adding a number to their names.",
+        annotations(read_only_hint = false, destructive_hint = false),
+        output_schema = schema_for_output::<FilesAdded>(),
+    )]
+    pub async fn duplicate_files(&self, params: Parameters<DuplicateFiles>) -> Result<CallToolResult, McpError> {
+        self.call_api("duplicate_files", params.0).await
+    }
+
+    #[tool(
+        name = "extract_files",
+        description = "Extract files and folders of an open pack, the game files or the parent packs to a folder on disk, optionally with tables as TSV. Existing files on disk are overwritten.",
+        annotations(read_only_hint = false, destructive_hint = true),
+        output_schema = schema_for_output::<FilesExtracted>(),
+    )]
+    pub async fn extract_files(&self, params: Parameters<ExtractFiles>) -> Result<CallToolResult, McpError> {
+        self.call_api("extract_files", params.0).await
+    }
+
+    #[tool(
+        name = "edit_table",
+        description = "Edit rows of a DB or Loc table in an open pack: insert, update and delete rows by index, with values given by column name (see `table_info` for the columns). Edits apply in order, each on the result of the previous ones; if any fails, none is applied. To edit a vanilla table, copy it into your pack first with `copy_files`.",
+        annotations(read_only_hint = false, destructive_hint = true),
+        output_schema = schema_for_output::<TableEdited>(),
+    )]
+    pub async fn edit_table(&self, params: Parameters<EditTable>) -> Result<CallToolResult, McpError> {
+        self.call_api("edit_table", params.0).await
+    }
+
     pub fn new(session: Arc<Session>) -> Self {
         Self {
             session,
@@ -1371,71 +1438,9 @@ impl McpServer {
     // Pack Lifecycle
     //-----------------------------------------------------------------------//
 
-    #[tool(description = "Create a new empty PackFile.")]
-    pub async fn new_pack(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "new_pack", Command::NewPack)
-    }
-
-    #[tool(description = "Open one or more PackFiles. Returns the info about the open pack.")]
-    pub async fn open_packfiles(&self, params: Parameters<OpenPackfilesArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "open_packfiles", Command::OpenPackFiles(params.0.paths))
-    }
-
-    #[tool(description = "Save the pack identified by `pack_key`.")]
-    pub async fn save_packfile(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "save_packfile", Command::SavePack(params.0.pack_key))
-    }
-
-    #[tool(description = "Close the pack identified by `pack_key` without saving. Any unsaved changes will be lost.")]
-    pub async fn close_pack(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "close_pack", Command::ClosePack(params.0.pack_key))
-    }
-
-    #[tool(description = "Save the pack identified by `pack_key` to a new path.")]
-    pub async fn save_pack_as(&self, params: Parameters<PackKeyPathArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "save_pack_as", Command::SavePackAs(params.0.pack_key, params.0.path))
-    }
-
-    #[tool(description = "Clean the pack identified by `pack_key` from corrupted files and save to a path. Use if normal save fails.")]
-    pub async fn clean_and_save_pack_as(&self, params: Parameters<PackKeyPathArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "clean_and_save_pack_as", Command::CleanAndSavePackAs(params.0.pack_key, params.0.path))
-    }
-
-    #[tool(description = "Open all CA (vanilla) PackFiles for the selected game as one merged PackFile.")]
-    pub async fn load_all_ca_pack_files(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "load_all_ca_pack_files", Command::LoadAllCAPackFiles)
-    }
-
     //-----------------------------------------------------------------------//
     // Pack Metadata
     //-----------------------------------------------------------------------//
-
-    #[tool(description = "Set the type of the pack identified by `pack_key`. Valid PFHFileType values: \"Boot\", \"Release\", \"Patch\", \"Mod\", \"Movie\". Example: pack_file_type = \"\\\"Mod\\\"\"")]
-    pub async fn set_pack_file_type(&self, params: Parameters<SetPackFileTypeArgs>) -> Result<CallToolResult, McpError> {
-        let pfh_type = parse_json!(&params.0.pack_file_type);
-        send_and_respond!(self, "set_pack_file_type", Command::SetPackFileType(params.0.pack_key, pfh_type))
-    }
-
-    #[tool(description = "Change the compression format of the pack identified by `pack_key`. Valid formats: \"None\", \"Lzma1\" (legacy), \"Lz4\" (WH3 6.2+), \"Zstd\" (WH3 6.2+). Example: format = \"\\\"None\\\"\"")]
-    pub async fn change_compression_format(&self, params: Parameters<ChangeCompressionFormatArgs>) -> Result<CallToolResult, McpError> {
-        let format = parse_json!(&params.0.format);
-        send_and_respond!(self, "change_compression_format", Command::ChangeCompressionFormat(params.0.pack_key, format))
-    }
-
-    #[tool(description = "Change whether the pack index includes timestamps for the pack identified by `pack_key`.")]
-    pub async fn change_index_includes_timestamp(&self, params: Parameters<PackKeyBoolArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "change_index_includes_timestamp", Command::ChangeIndexIncludesTimestamp(params.0.pack_key, params.0.value))
-    }
-
-    #[tool(description = "Change whether the pack index (file paths, sizes and timestamps) is encrypted for the pack identified by `pack_key`. Only PFH4 and newer packs support enabling it.")]
-    pub async fn change_index_is_encrypted(&self, params: Parameters<PackKeyBoolArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "change_index_is_encrypted", Command::ChangeIndexIsEncrypted(params.0.pack_key, params.0.value))
-    }
-
-    #[tool(description = "Change whether the file data is encrypted for the pack identified by `pack_key`. Only PFH4 and newer packs support enabling it.")]
-    pub async fn change_data_is_encrypted(&self, params: Parameters<PackKeyBoolArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "change_data_is_encrypted", Command::ChangeDataIsEncrypted(params.0.pack_key, params.0.value))
-    }
 
     #[tool(description = "Get the settings of the pack identified by `pack_key`.")]
     pub async fn get_pack_settings(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
@@ -1446,12 +1451,6 @@ impl McpServer {
     pub async fn set_pack_settings(&self, params: Parameters<SetPackSettingsArgs>) -> Result<CallToolResult, McpError> {
         let settings = parse_json!(&params.0.settings);
         send_and_respond!(self, "set_pack_settings", Command::SetPackSettings(params.0.pack_key, settings))
-    }
-
-    #[tool(description = "Set the list of PackFiles marked as dependencies for the pack identified by `pack_key`. The `list` is a JSON array of [enabled, pack_name] pairs, e.g. [[true, \"other_mod.pack\"], [false, \"disabled_mod.pack\"]].")]
-    pub async fn set_dependency_pack_files_list(&self, params: Parameters<SetDependencyPackFilesListArgs>) -> Result<CallToolResult, McpError> {
-        let list = parse_json!(&params.0.list);
-        send_and_respond!(self, "set_dependency_pack_files_list", Command::SetDependencyPackFilesList(params.0.pack_key, list))
     }
 
     //-----------------------------------------------------------------------//
@@ -1469,18 +1468,6 @@ impl McpServer {
         send_and_respond!(self, "new_packed_file", Command::NewPackedFile(params.0.pack_key, params.0.path, new_file))
     }
 
-    #[tool(description = "Add files from disk to the pack identified by `pack_key`. The `source_paths` are filesystem paths. The `destination_paths` is a JSON array of ContainerPath: [{\"File\": \"db/table/file\"}, {\"Folder\": \"ui/images\"}]. Optionally set `ignore_paths` to skip certain files.")]
-    pub async fn add_packed_files(&self, params: Parameters<AddPackedFilesArgs>) -> Result<CallToolResult, McpError> {
-        let dest: Vec<ContainerPath> = parse_json!(&params.0.destination_paths);
-        send_and_respond!(self, "add_packed_files", Command::AddPackedFiles(params.0.pack_key, params.0.source_paths, dest, params.0.ignore_paths))
-    }
-
-    #[tool(description = "Add files from another PackFile to the pack identified by `pack_key`. The `source_pack_path` is the pack path. The `container_paths` is a JSON array of ContainerPath: [{\"File\": \"path\"}].")]
-    pub async fn add_packed_files_from_pack_file(&self, params: Parameters<AddPackedFilesFromPackFileArgs>) -> Result<CallToolResult, McpError> {
-        let paths: Vec<ContainerPath> = parse_json!(&params.0.container_paths);
-        send_and_respond!(self, "add_packed_files_from_pack_file", Command::AddPackedFilesFromPackFile(params.0.pack_key, params.0.source_pack_path, paths))
-    }
-
     #[tool(description = "Copy files from the pack identified by `source_pack_key` into an AnimPack owned by `pack_key` (the two may differ). The `container_paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"animations/anim.anim\"}]. The `animpack_path` is the AnimPack's internal path.")]
     pub async fn add_packed_files_from_pack_file_to_animpack(&self, params: Parameters<AddPackedFilesFromPackFileToAnimpackArgs>) -> Result<CallToolResult, McpError> {
         let paths: Vec<ContainerPath> = parse_json!(&params.0.container_paths);
@@ -1493,34 +1480,10 @@ impl McpServer {
         send_and_respond!(self, "add_packed_files_from_animpack", Command::AddPackedFilesFromAnimpack(params.0.anim_pack_key, params.0.pack_key, params.0.source, params.0.animpack_path, paths))
     }
 
-    #[tool(description = "Delete files from the pack identified by `pack_key`. The `paths` is a JSON array of ContainerPath: [{\"File\": \"path/to/file\"}, {\"Folder\": \"path/to/folder\"}].")]
-    pub async fn delete_packed_files(&self, params: Parameters<ContainerPathsArg>) -> Result<CallToolResult, McpError> {
-        let paths: Vec<ContainerPath> = parse_json!(&params.0.paths);
-        send_and_respond!(self, "delete_packed_files", Command::DeletePackedFiles(params.0.pack_key, paths))
-    }
-
     #[tool(description = "Delete files from an AnimPack in the pack identified by `pack_key`. The `animpack_path` is the AnimPack's internal path. The `container_paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"animations/anim.anim\"}].")]
     pub async fn delete_from_animpack(&self, params: Parameters<DeleteFromAnimpackArgs>) -> Result<CallToolResult, McpError> {
         let paths: Vec<ContainerPath> = parse_json!(&params.0.container_paths);
         send_and_respond!(self, "delete_from_animpack", Command::DeleteFromAnimpack(params.0.pack_key, params.0.animpack_path, paths))
-    }
-
-    #[tool(description = "Extract files from the pack identified by `pack_key` to disk. The `source_paths` is a JSON object mapping DataSource to ContainerPath arrays, e.g. {\"PackFile\": [{\"File\": \"db/table/file\"}]}. Set `export_as_tsv: true` to export tables as TSV files.")]
-    pub async fn extract_packed_files(&self, params: Parameters<ExtractPackedFilesArgs>) -> Result<CallToolResult, McpError> {
-        let source: BTreeMap<DataSource, Vec<ContainerPath>> = parse_json!(&params.0.source_paths);
-        send_and_respond!(self, "extract_packed_files", Command::ExtractPackedFiles(params.0.pack_key, source, params.0.destination_path, params.0.export_as_tsv))
-    }
-
-    #[tool(description = "Rename files in the pack identified by `pack_key`. The `renames` is a JSON array of [old, new] ContainerPath pairs, e.g. [[{\"File\": \"old/path\"}, {\"File\": \"new/path\"}]].")]
-    pub async fn rename_packed_files(&self, params: Parameters<RenamePackedFilesArgs>) -> Result<CallToolResult, McpError> {
-        let renames: Vec<(ContainerPath, ContainerPath)> = parse_json!(&params.0.renames);
-        send_and_respond!(self, "rename_packed_files", Command::RenamePackedFiles(params.0.pack_key, renames))
-    }
-
-    #[tool(description = "Duplicate files in-place within the same pack. Files are cloned with a numeric suffix to avoid name collisions. The `paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"db/table/file\"}].")]
-    pub async fn duplicate_packed_files(&self, params: Parameters<DuplicatePackedFilesArgs>) -> Result<CallToolResult, McpError> {
-        let paths: Vec<ContainerPath> = parse_json!(&params.0.paths);
-        send_and_respond!(self, "duplicate_packed_files", Command::DuplicatePackedFiles(params.0.pack_key, paths))
     }
 
     #[tool(description = "Save an edited decoded file back to the pack identified by `pack_key`. The `path` is the internal path (e.g. \"db/land_units_tables/my_mod\"). The `data` is the modified RFileDecoded JSON (same structure returned by `decode_packed_file`).")]
@@ -1550,11 +1513,6 @@ impl McpServer {
     // Game Selection
     //-----------------------------------------------------------------------//
 
-    #[tool(description = "Set the current game. Valid game keys: pharaoh_dynasties, pharaoh, warhammer_3, troy, three_kingdoms, warhammer_2, warhammer, thrones_of_britannia, attila, rome_2, shogun_2, napoleon, empire, arena. Set rebuild_dependencies to true on first call to load schemas and vanilla data.")]
-    pub async fn set_game_selected(&self, params: Parameters<SetGameSelectedArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "set_game_selected", Command::SetGameSelected(params.0.game_name, params.0.rebuild_dependencies))
-    }
-
     //-----------------------------------------------------------------------//
     // Dependencies
     //-----------------------------------------------------------------------//
@@ -1572,12 +1530,6 @@ impl McpServer {
     #[tool(description = "Get custom table names (start_pos_, twad_ prefixes) from the schema.")]
     pub async fn get_custom_table_list(&self) -> Result<CallToolResult, McpError> {
         send_and_respond!(self, "get_custom_table_list", Command::GetCustomTableList)
-    }
-
-    #[tool(description = "Import files from dependencies into the pack identified by `pack_key`. The `paths` is a JSON object mapping DataSource to ContainerPath arrays, e.g. {\"GameFiles\": [{\"File\": \"db/table/file\"}]}.")]
-    pub async fn import_dependencies_to_open_pack_file(&self, params: Parameters<ImportDependenciesArgs>) -> Result<CallToolResult, McpError> {
-        let paths: BTreeMap<DataSource, Vec<ContainerPath>> = parse_json!(&params.0.paths);
-        send_and_respond!(self, "import_dependencies_to_open_pack_file", Command::ImportDependenciesToOpenPackFile(params.0.pack_key, paths))
     }
 
     #[tool(description = "Get local art set IDs from campaign_character_arts_tables in the pack identified by `pack_key`.")]
@@ -2095,11 +2047,6 @@ The report lists each test with its errors (including errors of the pack's scrip
     // Additional tools
     //-----------------------------------------------------------------------//
 
-    #[tool(description = "Close all currently open packs without saving. Any unsaved changes will be lost.")]
-    pub async fn close_all_packs(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "close_all_packs", Command::CloseAllPacks)
-    }
-
 }
 
 //-------------------------------------------------------------------------------//
@@ -2118,11 +2065,11 @@ You are an assistant helping the user inspect a Total War PackFile using the RPF
 
 Follow these steps in order:
 
-1. **Open the pack** – Call `open_packfiles` with the filesystem path(s) the user provides.
-   The response contains one or more pack keys; remember them for subsequent calls.
+1. **Select the game** – Call `set_game` with the correct game key (e.g. `\"warhammer_3\"`), so the
+   schema and the vanilla data are loaded.
 
-2. **Select the game** – Call `set_game_selected` with the correct game key (e.g. `\"warhammer_3\"`)
-   and `rebuild_dependencies: true` so that schemas and dependency data are loaded.
+2. **Open the pack** – Call `open_pack` with the filesystem path(s) the user provides.
+   Remember the returned `key`; the other tools take it as the pack key.
 
 3. **List pack contents** – Call `list_files` with `source: {\"pack\": <pack key>}`. For big packs,
    browse folder by folder with `recursive: false` and a `prefix`, or filter by `file_types`.
@@ -2152,25 +2099,26 @@ You are an assistant helping the user edit a DB table inside a Total War PackFil
 
 Workflow:
 
-1. **Open the pack** – `open_packfiles` → note the `pack_key`.
-2. **Set the game** – `set_game_selected` with `rebuild_dependencies: true`.
-3. **Inspect the table** – `table_info` with `file: {\"source\": {\"pack\": <pack key>}, \"path\": <DB path>}`
-   returns its columns, in the order row values are, and its row count. Use `table_rows` to
-   read the rows you need.
-4. **Decode the table** – `decode_packed_file` with the DB path
-   (e.g. `\"db/unit_stats_land_tables/my_table\"`) and `source: \"PackFile\"`.
-   The response is an `RFileDecoded` JSON containing the table data and definition.
-5. **Modify rows** – Edit the decoded JSON: add, remove, or change rows/cells.
-   Each row is a list of `DecodedData` values, one per column returned by `table_info`,
-   in the same order. Rows with a different amount or type of values fail to save.
-6. **Save back** – Call `save_packed_file_from_view` with the pack key, the same path,
-   and the modified `RFileDecoded` JSON as the `data` parameter.
-7. **Save the pack** – Call `save_packfile` (or `save_pack_as` for a new path).
+1. **Set the game** – `set_game` with the game key.
+2. **Open the pack** – `open_pack` → note the pack `key`.
+3. **Find the table** – `list_files` with `source: {\"pack\": <pack key>}`, `prefix: \"db/\"` and
+   `file_types: [\"DB\"]`. To edit a vanilla table, copy it into the pack first:
+   `copy_files` with `from: \"game_files\"`, its path, and `to_pack`.
+4. **Inspect it** – `table_info` with `file: {\"source\": {\"pack\": <pack key>}, \"path\": <DB path>}`
+   returns its columns (name, type, key, referenced table) and row count.
+5. **Read the rows you need** – `table_rows` with `columns` and `filters`, to find the index of each
+   row to change.
+6. **Edit** – `edit_table` with a list of edits:
+   - `{\"op\": \"update\", \"index\": 3, \"values\": {\"column\": value}}`
+   - `{\"op\": \"insert\", \"values\": {\"key\": \"my_key\", ...}}` (missing columns get their default)
+   - `{\"op\": \"delete\", \"indexes\": [5, 7]}`
+   Edits apply in order, each on the result of the previous ones, and if any fails, none is applied.
+7. **Save the pack** – `save_pack` (with a `path` to save it somewhere else).
 
 Tips:
-- Use `table_definition` to see the columns of a table without a file of it, and
-  `table_rows` on the game files to see vanilla rows of the same table.
-- Use `get_reference_data_from_definition` to discover valid values for referenced columns.
+- Use `get_reference_data_from_definition` to discover valid values for referenced columns,
+  or `table_rows` on the referenced table in the game files.
+- Mods usually only keep the rows they change: `optimize_pack_file` removes rows identical to vanilla.
 - After saving, you can run `diagnostics_check` to validate the pack.
 ",
         )]
@@ -2185,27 +2133,24 @@ You are an assistant helping the user create a new Total War mod from scratch.
 
 Workflow:
 
-1. **Set the game** – `set_game_selected` with the target game key and
-   `rebuild_dependencies: true`.
+1. **Set the game** – `set_game` with the target game key.
 
-2. **Create the pack** – `new_pack` returns a new empty pack and its pack key.
+2. **Create the pack** – `new_pack` returns a new empty pack and its key.
 
-3. **Set pack type** – `set_pack_file_type` to `\"Mod\"` (the standard type for mods).
+3. **Add DB tables** – For each table you need, either:
+   a. copy the vanilla table with `copy_files` (`from: \"game_files\"`) and edit it, or
+   b. create an empty one with `create_file` (`kind: {\"type\": \"db\", \"table_name\": \"land_units_tables\"}`
+      and a path like `\"db/land_units_tables/my_mod\"`), then add rows with `edit_table`.
 
-4. **Add DB tables** – For each table you need:
-   a. Call `new_packed_file` with the pack key, the path (e.g. `\"db/land_units_tables/my_mod\"`),
-      and the `new_file` JSON set to `\"DB\"` with the table name.
-   b. Decode, edit, and save as described in the `edit_db_table` workflow.
+4. **Add Loc files** – `create_file` with a path like `\"text/db/my_mod.loc\"` and
+   `kind: {\"type\": \"loc\"}`, then add `key`/`text` rows with `edit_table`.
 
-5. **Add Loc files** – For localisation:
-   a. `new_packed_file` with path `\"text/db/my_mod.loc\"` and `new_file` set to `\"Loc\"`.
-   b. Decode, add key/value rows, and save.
+5. **Add other files** – `add_files_from_disk` to import assets from disk (images, models, scripts, etc.).
 
-6. **Add other files** – Use `add_packed_files` to import assets from disk (images, models, etc.).
-
-7. **Save the pack** – `save_pack_as` to write the final `.pack` file to disk.
+6. **Save the pack** – `save_pack` with a `path` to write the `.pack` file to disk.
 
 Optional steps:
+- `update_pack` to change the pack's type or the packs it depends on.
 - `initialize_my_mod_folder` to set up a mod development folder with IDE support.
 - `optimize_pack_file` to strip unchanged rows that match vanilla data.
 - `diagnostics_check` to validate everything before release.
@@ -2237,7 +2182,7 @@ Workflow:
 5. **Or replace all** – If the user confirms a blanket replace, call
    `global_search_replace_all` with the search object.
 
-6. **Save** – `save_packfile` to persist changes.
+6. **Save** – `save_pack` to persist changes.
 
 Related tools:
 - `search_references` – Find all rows that reference a specific value across tables.
@@ -2256,7 +2201,7 @@ You are an assistant helping the user work with dependency data (vanilla game fi
 
 Workflow:
 
-1. **Set the game** – `set_game_selected` with `rebuild_dependencies: true`.
+1. **Set the game** – `set_game` with the game key.
 
 2. **Check dependency database** – `session_status` shows if the vanilla files and the
    Assembly Kit tables are loaded. If `dependencies.vanilla_loaded` is false, call
@@ -2270,14 +2215,13 @@ Workflow:
 
 5. **Get definitions** – `table_definition` with a table name, or `table_info` on a vanilla file.
 
-6. **Import from vanilla** – `import_dependencies_to_open_pack_file` to copy specific
-   files from vanilla into your mod pack.
+6. **Import from vanilla** – `copy_files` with `from: \"game_files\"` (or `\"assembly_kit\"`) to copy
+   specific files from vanilla into your mod pack.
 
-7. **Open CA packs** – `load_all_ca_pack_files` opens all vanilla packs as one merged
-   read-only pack for full browsing.
+7. **Open CA packs** – `open_vanilla_packs` opens all vanilla packs as one merged pack for full browsing.
 
 Tips:
-- `set_dependency_pack_files_list` lets you mark other mods as dependencies of your pack,
+- `update_pack` with `dependencies` lets you mark other mods as dependencies of your pack,
   and `pack_info` shows the current ones.
 - Columns returned by `table_info` and `table_definition` match the values of each row,
   in the same order.
@@ -2310,10 +2254,8 @@ Workflow:
    - Empty loc entries
    - Outdated table versions
 
-5. **Fix issues** – For each issue:
-   - Decode the affected file with `decode_packed_file`.
-   - Apply the fix (correct a reference, remove a duplicate row, etc.).
-   - Save with `save_packed_file_from_view`.
+5. **Fix issues** – For each issue in a table, find the affected rows with `table_rows` and fix them
+   with `edit_table` (correct a reference, remove a duplicate row, etc.).
 
 6. **Ignore false positives** – Use `add_line_to_pack_ignored_diagnostics` to suppress
    specific diagnostic lines that are intentional.
@@ -2377,47 +2319,41 @@ Workflow:
         vec![PromptMessage::new_text(
             Role::User,
             "\
-You are an assistant helping the user manage files inside a Total War PackFile.
+You are an assistant helping the user manage files inside Total War PackFiles.
 
-Common operations:
+Paths are plain strings: a path is treated as a file if one exists there, or as a folder otherwise.
 
-**Add files from disk:**
-- `add_packed_files` – Import files from the filesystem into the pack. Provide source
-  filesystem paths and destination `ContainerPath` entries as JSON.
+**Find files:**
+- `list_files` – List files by path prefix and type, to find files or check if a path exists.
 
-**Add files from another pack:**
-- `add_packed_files_from_pack_file` – Copy files between two open packs.
+**Create files:**
+- `create_file` – Create an empty DB table, Loc table, text file or AnimPack.
+- `new_packed_file` – Create other file types, like portrait settings.
 
-**Create new files:**
-- `new_packed_file` – Create a blank DB table, Loc file, or other file type inside the pack.
+**Add files:**
+- `add_files_from_disk` – Import files and folders from disk into a folder of the pack.
+- `copy_files` – Copy files from another open pack, the game files, the parent packs or the
+  Assembly Kit, keeping their paths.
 
-**Delete files:**
-- `delete_packed_files` – Remove files by their `ContainerPath` list.
-
-**Rename / move files:**
-- `rename_packed_files` – Pass a list of `(old_path, new_path)` tuples.
-
-**Copy / Duplicate:**
-- `add_packed_files_from_pack_file` – Copy files from another open pack.
-- `duplicate_packed_files` – Clone files in-place with a numeric suffix.
+**Delete, rename, duplicate:**
+- `delete_files` – Remove files and folders.
+- `rename_files` – Rename or move files and folders, with a list of `{from, to}`.
+- `duplicate_files` – Clone files in the same pack with a numeric suffix.
 
 **Extract to disk:**
-- `extract_packed_files` – Export files from the pack to a folder on disk.
-  Set `export_as_tsv: true` to export tables as TSV files.
+- `extract_files` – Export files from a pack, the game files or the parent packs to a folder on disk.
+  Set `as_tsv: true` to export tables as TSV files.
 
 **AnimPack operations:**
 - `add_packed_files_from_pack_file_to_animpack` – Add files to an AnimPack.
 - `add_packed_files_from_animpack` – Extract files from an AnimPack.
 - `delete_from_animpack` – Remove files from an AnimPack.
 
-**File info:**
-- `list_files` – List files by path prefix and type, to find files or check if a path exists.
+**Other:**
 - `get_packed_file_raw_data` – Get the raw binary content of a file.
-
-**Merge tables:**
 - `merge_files` – Combine multiple compatible tables into one.
 
-Always call `save_packfile` or `save_pack_as` when done to persist changes.
+Always call `save_pack` when done to persist changes.
 ",
         )]
     }
@@ -2435,7 +2371,7 @@ You are an assistant helping the user troubleshoot common RPFM and PackFile issu
 **Symptom**: Files fail to decode, or `decode_packed_file` returns raw data.
 **Solution**:
 - Call `session_status()` – if `schema_loaded` is false, call `update_schemas()`.
-- Make sure `set_game_selected` was called with `rebuild_dependencies: true`.
+- Make sure `set_game` was called for the right game.
 
 ### 2. Dependencies not available
 **Symptom**: References show as invalid, diagnostics report missing keys.
@@ -2444,11 +2380,11 @@ You are an assistant helping the user troubleshoot common RPFM and PackFile issu
 - Ensure the game path is configured correctly in settings.
 
 ### 3. Pack won't save
-**Symptom**: `save_packfile` returns an error.
+**Symptom**: `save_pack` returns an error.
 **Solution**:
 - Check if the file is read-only or locked by another process.
-- Try `save_pack_as` to a different path.
-- As a last resort, use `clean_and_save_pack_as` to recover from corruption.
+- Try `save_pack` with a different `path`.
+- As a last resort, use `save_pack` with `clean: true` to drop the files that fail to decode.
 
 ### 4. Table version mismatch
 **Symptom**: Table data looks wrong or has missing columns after a game update.
@@ -2461,7 +2397,7 @@ You are an assistant helping the user troubleshoot common RPFM and PackFile issu
 **Symptom**: Tables decode with wrong columns or fail to decode, dependencies are for a different game.
 **Solution**:
 - Call `session_status()` to verify the current game.
-- Call `set_game_selected` with the correct game key and `rebuild_dependencies: true`.
+- Call `set_game` with the correct game key.
 
 ### 6. Diagnostics show many reference errors
 **Symptom**: `diagnostics_check` reports hundreds of invalid references.
@@ -2498,7 +2434,7 @@ Total War mod data in spreadsheets.
    - `table_path`: the internal path (e.g. `db/land_units_tables/my_mod`)
 
 3. **Export all tables as TSV**:
-   Call `extract_packed_files` with `export_as_tsv: true`.
+   Call `extract_files` with `paths: [\"db\", \"text\"]` and `as_tsv: true`.
    This exports all tables in the pack as TSV files to the destination folder.
 
 4. **Edit in a spreadsheet**: Open the TSV file in LibreOffice Calc, Excel, or Google Sheets.
@@ -2515,9 +2451,9 @@ Total War mod data in spreadsheets.
    - `tsv_path`: path to the TSV file on disk
    - `table_path`: the internal path where the table should go
 
-3. **Verify**: Call `decode_packed_file` to confirm the data imported correctly.
+3. **Verify**: Call `table_rows` to confirm the data imported correctly.
 
-4. **Save the pack**: Call `save_packfile` to persist changes.
+4. **Save the pack**: Call `save_pack` to persist changes.
 
 ## Tips
 - TSV files include metadata headers that RPFM uses for schema matching.
@@ -2545,9 +2481,9 @@ Loc files contain key-value pairs for in-game text. Each entry has:
 
 1. **Open the pack** and **set the game**.
 
-2. **Decode a loc file**:
-   Call `decode_packed_file` with the loc file path (e.g. `text/db/my_mod.loc`)
-   and `source: \"PackFile\"`.
+2. **Read a loc file**:
+   Call `table_rows` with `file: {\"source\": {\"pack\": <pack key>}, \"path\": \"text/db/my_mod.loc\"}`,
+   filtering by `key` or `text` to find specific entries.
 
 3. **Get translation overview**:
    Call `get_pack_translation` with the pack key and a language code
@@ -2556,15 +2492,12 @@ Loc files contain key-value pairs for in-game text. Each entry has:
 ## Creating New Translations
 
 1. **Create a new loc file**:
-   Call `new_packed_file` with path `\"text/db/my_mod.loc\"` and
-   `new_file = {\"Loc\": \"my_mod\"}`.
+   Call `create_file` with path `\"text/db/my_mod.loc\"` and `kind: {\"type\": \"loc\"}`.
 
-2. **Decode it**: `decode_packed_file` to get the empty structure.
+2. **Add entries**: `edit_table` with inserts like
+   `{\"op\": \"insert\", \"values\": {\"key\": \"key_string\", \"text\": \"Displayed text in game\"}}`.
 
-3. **Add entries**: Modify the decoded JSON to add key-value rows.
-   Each row is typically `[\"key_string\", \"Displayed text in game\"]`.
-
-4. **Save back**: `save_packed_file_from_view` with the modified data.
+3. **Save the pack**: `save_pack`.
 
 ## Generating Missing Loc Data
 
