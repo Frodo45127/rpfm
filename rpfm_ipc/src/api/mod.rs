@@ -20,6 +20,7 @@
 //! - [`packs`]: details of the open packs.
 //! - [`files`]: listing the files of a pack or of the dependencies.
 //! - [`tables`]: reading DB and Loc tables, and their definitions.
+//! - [`diagnostics`]: checking the open packs for problems.
 //! - [`jobs`]: following and cancelling methods that run as jobs.
 //!
 //! Lists are paginated: requests take an `offset` and an optional `limit`, and responses
@@ -30,6 +31,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
 
+pub mod diagnostics;
 pub mod files;
 pub mod jobs;
 pub mod packs;
@@ -174,6 +176,10 @@ pub enum ApiError {
     #[error("The file {0} can't be edited: only files in open packs can.")]
     ReadOnly(String),
 
+    /// The operation needs the results of a diagnostics check, and there are none.
+    #[error("There are no diagnostics results. Run diagnostics.run first.")]
+    DiagnosticsNotRun,
+
     /// There is no job with this ID, or it ended long ago and was forgotten.
     #[error("There is no job with ID {0}.")]
     JobNotFound(u64),
@@ -288,6 +294,7 @@ impl ApiError {
             Self::DefinitionNotFound(_) => -32006,
             Self::ReadOnly(_) => -32007,
             Self::JobNotFound(_) => -32008,
+            Self::DiagnosticsNotRun => -32009,
         }
     }
 }

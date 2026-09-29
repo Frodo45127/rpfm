@@ -58,6 +58,7 @@ use rpfm_extensions::merge::MergeOptions;
 use rpfm_extensions::translator::DEFAULT_SRC_LANG;
 
 use rpfm_ipc::api::{ApiError, Done, Request, RpcError, RpcOutcome, RpcRequest, RpcResponse};
+use rpfm_ipc::api::diagnostics::{DiagnosticList, IgnoreDiagnostics, ListDiagnostics, RunDiagnostics};
 use rpfm_ipc::api::files::{
     AddFilesFromDisk, CopyFiles, CreateFile, DeleteFiles, DuplicateFiles, ExtractFiles, FileEntry, FileList, FilesAdded, FilesDeleted,
     FilesExtracted, FilesRenamed, ListFiles, RenameFiles,
@@ -480,13 +481,6 @@ pub struct AddKeysToKeyDeletesArgs {
 
 // -- Diagnostics Args --
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct DiagnosticsCheckArgs {
-    /// The list of ignored diagnostics.
-    pub ignored: Vec<String>,
-    /// Whether to check AK-only references.
-    pub check_ak_only_refs: bool,
-}
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct LuaRunTestsArgs {
@@ -496,15 +490,6 @@ pub struct LuaRunTestsArgs {
     pub campaign: Option<String>,
 }
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct DiagnosticsUpdateArgs {
-    /// The JSON representation of the Diagnostics struct.
-    pub diagnostics: String,
-    /// The JSON representation of Vec<ContainerPath> for paths to check.
-    pub paths: String,
-    /// Whether to check AK-only references.
-    pub check_ak_only_refs: bool,
-}
 
 // -- Notes Args --
 
@@ -1065,7 +1050,7 @@ Scripts:
     script/<path>.lua
     script/campaign/mod/<script_name>.lua
     Example: script/campaign/mod/my_mod_script.lua
-    After editing a script, run `diagnostics_check`: it reports Lua syntax errors, invalid DB keys, unknown methods,
+    After editing a script, run `run_diagnostics`: it reports Lua syntax errors, invalid DB keys, unknown methods,
     wrong argument counts and unknown events (all but syntax errors need the game's Assembly Kit installed).
     To check what a script does, write tests for it and run them with `lua_run_tests`.
 
@@ -1298,6 +1283,36 @@ impl McpServer {
     )]
     pub async fn rebuild_dependencies(&self, params: Parameters<RebuildDependencies>) -> Result<CallToolResult, McpError> {
         self.call_api("rebuild_dependencies", params.0).await
+    }
+
+    #[tool(
+        name = "run_diagnostics",
+        description = "Check the open packs for problems (invalid references, duplicated keys, outdated tables, script errors, etc.), and return a summary by level and type. The results are kept: read them with `list_diagnostics`. After fixing some files, pass their `paths` to check only them again. Runs as a job: waits up to 45 seconds and returns its state; if it's still running, call `wait_for_job`.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<JobStatus>(),
+    )]
+    pub async fn run_diagnostics_tool(&self, params: Parameters<RunDiagnostics>) -> Result<CallToolResult, McpError> {
+        self.call_api("run_diagnostics", params.0).await
+    }
+
+    #[tool(
+        name = "list_diagnostics",
+        description = "List results of the last `run_diagnostics`, filtered by level, report type, pack and path prefix, in pages (100 by default; the total of matching results is always returned). Table results include the affected cells as [row, column], to fix them with `edit_table`.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<DiagnosticList>(),
+    )]
+    pub async fn list_diagnostics(&self, params: Parameters<ListDiagnostics>) -> Result<CallToolResult, McpError> {
+        self.call_api("list_diagnostics", params.0).await
+    }
+
+    #[tool(
+        name = "ignore_diagnostics",
+        description = "Make the next diagnostics checks of a pack skip results of files under a path, optionally only for some columns and report types. Saved in the pack's settings, so it applies after saving the pack.",
+        annotations(read_only_hint = false, destructive_hint = false),
+        output_schema = schema_for_output::<Done>(),
+    )]
+    pub async fn ignore_diagnostics(&self, params: Parameters<IgnoreDiagnostics>) -> Result<CallToolResult, McpError> {
+        self.call_api("ignore_diagnostics", params.0).await
     }
 
     #[tool(
@@ -1763,11 +1778,6 @@ impl McpServer {
     // Diagnostics
     //-----------------------------------------------------------------------//
 
-    #[tool(description = "Run a full diagnostics check over all open packs.")]
-    pub async fn diagnostics_check(&self, params: Parameters<DiagnosticsCheckArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "diagnostics_check", Command::DiagnosticsCheck(params.0.ignored, params.0.check_ak_only_refs))
-    }
-
     #[tool(description = "Run Lua tests against the scripts of all open packs, outside of the game. Scripts run in Lua 5.1 with the game's real script libraries; the game's engine is emulated with objects typed after the Assembly Kit's scripting docs, which record every call made on them. Needs the game's Assembly Kit.
 
 Test file API (a global `rpfm` table):
@@ -1781,18 +1791,6 @@ Test file API (a global `rpfm` table):
 The report lists each test with its errors (including errors of the pack's scripts, and in listeners), the undocumented methods it called (whose results are placeholders), and the scripts' output.")]
     pub async fn lua_run_tests(&self, params: Parameters<LuaRunTestsArgs>) -> Result<CallToolResult, McpError> {
         send_and_respond!(self, "lua_run_tests", Command::LuaRunTests(params.0.test_source, params.0.campaign))
-    }
-
-    #[tool(description = "Update diagnostics incrementally for changed files across all open packs. The `diagnostics` is the Diagnostics JSON from a previous `diagnostics_check` call. The `paths` is a JSON array of ContainerPath for the files that changed, e.g. [{\"File\": \"db/land_units_tables/my_mod\"}].")]
-    pub async fn diagnostics_update(&self, params: Parameters<DiagnosticsUpdateArgs>) -> Result<CallToolResult, McpError> {
-        let diag = parse_json!(&params.0.diagnostics);
-        let paths: Vec<ContainerPath> = parse_json!(&params.0.paths);
-        send_and_respond!(self, "diagnostics_update", Command::DiagnosticsUpdate(diag, paths, params.0.check_ak_only_refs))
-    }
-
-    #[tool(description = "Add a line to the ignored diagnostics list for the pack identified by `pack_key`.")]
-    pub async fn add_line_to_pack_ignored_diagnostics(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "add_line_to_pack_ignored_diagnostics", Command::AddLineToPackIgnoredDiagnostics(params.0.pack_key, params.0.value))
     }
 
     //-----------------------------------------------------------------------//
@@ -2173,7 +2171,7 @@ Tips:
 - Use `get_reference_data_from_definition` to discover valid values for referenced columns,
   or `table_rows` on the referenced table in the game files.
 - Mods usually only keep the rows they change: `optimize_pack_file` removes rows identical to vanilla.
-- After saving, you can run `diagnostics_check` to validate the pack.
+- After saving, you can run `run_diagnostics` to validate the pack.
 ",
         )]
     }
@@ -2207,7 +2205,7 @@ Optional steps:
 - `update_pack` to change the pack's type or the packs it depends on.
 - `initialize_my_mod_folder` to set up a mod development folder with IDE support.
 - `optimize_pack_file` to strip unchanged rows that match vanilla data.
-- `diagnostics_check` to validate everything before release.
+- `run_diagnostics` to validate everything before release.
 ",
         )]
     }
@@ -2292,17 +2290,16 @@ You are an assistant helping the user validate a Total War mod PackFile.
 
 Workflow:
 
-1. **Open the pack** and **set the game** with `rebuild_dependencies: true`.
+1. **Set the game** with `set_game` and **open the pack** with `open_pack`.
 
-2. **Generate dependencies** – If dependencies have not been generated yet,
-   call `generate_dependencies` to build the dependency data needed for diagnostics.
+2. **Generate dependencies** – If `session_status` shows the vanilla data isn't loaded,
+   call `generate_dependencies_cache` to build the dependency data needed for diagnostics.
 
-3. **Run full diagnostics** – `diagnostics_check` with an empty `ignored` list
-   and `check_ak_only_refs: false` (or `true` to include Assembly Kit references).
-   The response contains all warnings and errors grouped by category.
+3. **Run diagnostics** – `run_diagnostics`, optionally with `check_assembly_kit_only_references: true`
+   to include Assembly Kit references. It returns a summary with the amount of results per level and type.
 
-4. **Review results** – Present the diagnostic results to the user, grouped by severity.
-   Common issues include:
+4. **Review results** – `list_diagnostics` filtered by `levels` (e.g. `[\"error\"]`), `report_types` or
+   `path_prefix`, and present them to the user grouped by severity. Common issues include:
    - Invalid references (a column references a key that does not exist)
    - Duplicate keys
    - Empty loc entries
@@ -2311,11 +2308,11 @@ Workflow:
 5. **Fix issues** – For each issue in a table, find the affected rows with `table_rows` and fix them
    with `edit_table` (correct a reference, remove a duplicate row, etc.).
 
-6. **Ignore false positives** – Use `add_line_to_pack_ignored_diagnostics` to suppress
-   specific diagnostic lines that are intentional.
+6. **Ignore false positives** – Use `ignore_diagnostics` to skip results that are intentional,
+   for a path and, optionally, only some columns and report types.
 
-7. **Re-check** – After fixes, call `diagnostics_check` again to confirm all issues
-   are resolved.
+7. **Re-check** – After fixes, call `run_diagnostics` with the `paths` of the fixed files to check
+   only them again, and confirm the issues are resolved.
 
 8. **Optimize** – Optionally run `optimize_pack_file` to remove rows that are identical
    to vanilla, reducing pack size.
@@ -2454,15 +2451,15 @@ You are an assistant helping the user troubleshoot common RPFM and PackFile issu
 - Call `set_game` with the correct game key.
 
 ### 6. Diagnostics show many reference errors
-**Symptom**: `diagnostics_check` reports hundreds of invalid references.
+**Symptom**: `run_diagnostics` reports hundreds of invalid references.
 **Solution**:
 - Ensure dependencies are loaded (`dependencies` in `session_status`).
 - Check if the pack depends on other mods via `pack_info`.
-- Some references are Assembly Kit only; re-run with `check_ak_only_refs: true`.
-- Use `add_line_to_pack_ignored_diagnostics` for intentional deviations.
+- Some references are Assembly Kit only; re-run with `check_assembly_kit_only_references: true`.
+- Use `ignore_diagnostics` for intentional deviations.
 
 ### Diagnostic Tools
-- `diagnostics_check` – Full pack validation.
+- `run_diagnostics` / `list_diagnostics` – Full pack validation.
 - `session_status` – Verify the game, schema, dependencies and open packs.
 - `config_path` / `schemas_path` – Verify RPFM paths.
 ",
@@ -2513,7 +2510,7 @@ Total War mod data in spreadsheets.
 - TSV files include metadata headers that RPFM uses for schema matching.
   Do not delete or modify these header rows.
 - Use `table_info` or `table_definition` to understand column types before editing.
-- After import, run `diagnostics_check` to validate references.
+- After import, run `run_diagnostics` to validate references.
 ",
         )]
     }
@@ -2567,7 +2564,7 @@ loc entries for DB fields that reference loc keys but don't have entries yet.
 ## Tips
 - Loc keys follow naming conventions like `<table>_<loc_column_name>_<keys_concatenated>`.
 - Use `search_references` to find all DB columns that reference a specific loc key.
-- After adding translations, run `diagnostics_check` to verify all references.
+- After adding translations, run `run_diagnostics` to verify all references.
 ",
         )]
     }

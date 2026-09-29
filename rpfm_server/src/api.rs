@@ -15,6 +15,7 @@
 use serde_json::{Map, Value};
 
 use rpfm_ipc::api::{ApiError, Done, Request, RpcRequest, RpcResponse};
+use rpfm_ipc::api::diagnostics::{IgnoreDiagnostics, ListDiagnostics, RunDiagnostics};
 use rpfm_ipc::api::files::{AddFilesFromDisk, CopyFiles, CreateFile, DeleteFiles, DuplicateFiles, ExtractFiles, ListFiles, RenameFiles};
 use rpfm_ipc::api::packs::{ClosePack, CloseAllPacks, GetPackInfo, NewPack, OpenPack, OpenVanillaPacks, SavePack, UpdatePack};
 use rpfm_ipc::api::session::{GenerateDependenciesCache, GetSessionStatus, RebuildDependencies, SetGame};
@@ -25,7 +26,7 @@ use crate::settings::Settings;
 use crate::state::{ExtractOptions, SaveOptions, SessionState};
 
 /// Methods that run as jobs.
-const JOB_METHODS: [&str; 3] = [SetGame::METHOD, GenerateDependenciesCache::METHOD, RebuildDependencies::METHOD];
+const JOB_METHODS: [&str; 4] = [SetGame::METHOD, GenerateDependenciesCache::METHOD, RebuildDependencies::METHOD, RunDiagnostics::METHOD];
 
 /// Runs a request on the session's state.
 ///
@@ -119,6 +120,13 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         GetTableRows::METHOD => call(params, |request: GetTableRows| state.table_rows(&request)),
         EditTable::METHOD => call(params, |request: EditTable| state.edit_table(&request)),
         GetTableDefinition::METHOD => call(params, |request: GetTableDefinition| state.table_definition(&request)),
+
+        RunDiagnostics::METHOD => call(params, |request: RunDiagnostics| {
+            report_stage("Checking the open packs");
+            Ok(state.run_diagnostics(&request, settings))
+        }),
+        ListDiagnostics::METHOD => call(params, |request: ListDiagnostics| state.list_diagnostics(&request)),
+        IgnoreDiagnostics::METHOD => call(params, |request: IgnoreDiagnostics| state.ignore_diagnostics(&request)),
         method => Err(ApiError::MethodNotFound(method.to_owned())),
     };
 
@@ -160,7 +168,7 @@ mod tests {
 
     #[test]
     fn job_methods_are_the_ones_marked_as_jobs() {
-        assert!(SetGame::IS_JOB && GenerateDependenciesCache::IS_JOB && RebuildDependencies::IS_JOB);
+        assert!(SetGame::IS_JOB && GenerateDependenciesCache::IS_JOB && RebuildDependencies::IS_JOB && RunDiagnostics::IS_JOB);
         assert!(JOB_METHODS.iter().all(|method| is_job_method(method)));
         assert!(!is_job_method(GetSessionStatus::METHOD) && !GetSessionStatus::IS_JOB);
     }

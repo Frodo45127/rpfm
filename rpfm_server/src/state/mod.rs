@@ -54,6 +54,7 @@ mod tables;
 mod tools;
 
 pub use self::files::{DecodedFile, PathsByPack};
+use self::diagnostics::DiagnosticsResults;
 pub use self::tables::{MergeOutcome, ReferenceLocation, RowLocation};
 pub use self::tools::{MyModOptions, plugin_scripts};
 
@@ -90,6 +91,9 @@ pub struct SessionState {
 
     /// Vanilla and parent files of the selected game.
     dependencies: Dependencies,
+
+    /// Results of the last diagnostics check, if any.
+    diagnostics: Option<DiagnosticsResults>,
 
     /// Lua scripting API of the selected game, built on first use. See [`cached_lua_api`].
     lua_api_cache: Option<LuaApiCache>,
@@ -174,6 +178,7 @@ impl SessionState {
             pack_modes: BTreeMap::new(),
             clipboard: Clipboard::default(),
             dependencies: Dependencies::default(),
+            diagnostics: None,
             lua_api_cache: None,
             backup_settings: SETTINGS.read().unwrap().clone(),
         }
