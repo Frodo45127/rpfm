@@ -66,7 +66,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use rpfm_ipc::helpers::SessionInfo;
-use rpfm_ipc::messages::{Command, Response};
 use rpfm_ipc::settings_keys::{ANONYMOUS_TELEMETRY_ID, ENABLE_CRASH_REPORTS, ENABLE_USAGE_TELEMETRY};
 
 use rpfm_telemetry::{Logger, SentryLayer, SENTRY_DSN, info, release_name, warn};
@@ -84,6 +83,7 @@ pub mod server_websocket;
 pub mod session;
 pub mod settings;
 #[cfg(test)] mod settings_test;
+pub mod state;
 pub mod translation_hub;
 pub mod updater;
 #[cfg(test)] mod updater_test;

@@ -5,11 +5,13 @@
 
 use anyhow::{anyhow, Result};
 
-use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
+use std::collections::{BTreeMap, HashMap, HashSet};
+use std::path::{Path, PathBuf};
+use std::process::{Command as SysCommand, Stdio};
 use std::slice::from_ref;
+use std::time::Instant;
 
-use rpfm_lib::files::{Container, ContainerPath, db::DB, FileType, loc::Loc, pack::Pack, RFile, RFileDecoded, table::DecodedData};
+use rpfm_lib::files::{Container, ContainerPath, db::DB, DecodeableExtraData, FileType, loc::Loc, pack::Pack, RFile, RFileDecoded, table::DecodedData};
 use rpfm_lib::schema::*;
 
 use rpfm_ipc::messages::CeoEntryData;
@@ -1320,6 +1322,340 @@ pub fn get_trait_ceos(deps: &rpfm_extensions::dependencies::Dependencies) -> Vec
     info!("GetTraitCeos: returning {} traits", trait_ceos.len());
 
     trait_ceos
+}
+
+/// CEO tables BOB reads when building `ceo_data.ccd`. Only these are exported.
+const CEO_BOB_TABLES: [&str; 61] = [
+    "ceo_active_permissions_tables",
+    "ceo_anti_ceo_pairs_tables",
+    "ceo_can_equip_requirements_tables",
+    "ceo_categories_tables",
+    "ceo_effect_list_to_effects_tables",
+    "ceo_effect_lists_tables",
+    "ceo_equipment_category_managers_tables",
+    "ceo_equipment_manager_all_possible_ceos_tables",
+    "ceo_equipment_manager_campaign_lookups_tables",
+    "ceo_equipment_manager_to_category_managers_tables",
+    "ceo_equipment_manager_types_tables",
+    "ceo_equipment_managers_tables",
+    "ceo_equipped_set_bonus_ceos_tables",
+    "ceo_equipped_set_bonus_effect_bundles_tables",
+    "ceo_equipped_set_bonuses_tables",
+    "ceo_equipped_set_bonuses_to_incident_junctions_tables",
+    "ceo_event_feed_categories_tables",
+    "ceo_group_ceos_tables",
+    "ceo_group_spawners_tables",
+    "ceo_groups_tables",
+    "ceo_initial_data_active_ceos_tables",
+    "ceo_initial_data_active_spawners_tables",
+    "ceo_initial_data_equipments_tables",
+    "ceo_initial_data_scripted_permissions_tables",
+    "ceo_initial_data_stages_tables",
+    "ceo_initial_data_to_stages_tables",
+    "ceo_initial_data_triggers_tables",
+    "ceo_initial_datas_tables",
+    "ceo_location_enums_tables",
+    "ceo_nodes_tables",
+    "ceo_permissions_groups_tables",
+    "ceo_permissions_tables",
+    "ceo_post_battle_loot_chances_tables",
+    "ceo_rarities_tables",
+    "ceo_scripted_permissions_tables",
+    "ceo_scripted_permissions_to_permissions_tables",
+    "ceo_set_items_tables",
+    "ceo_sets_tables",
+    "ceo_spawner_can_spawn_requirements_tables",
+    "ceo_spawners_tables",
+    "ceo_template_manager_all_possible_ceos_tables",
+    "ceo_template_manager_campaign_lookups_tables",
+    "ceo_template_manager_ceo_limits_tables",
+    "ceo_template_manager_ceo_spawn_limits_tables",
+    "ceo_template_manager_supported_categories_tables",
+    "ceo_template_manager_types_tables",
+    "ceo_template_managers_tables",
+    "ceo_threshold_nodes_tables",
+    "ceo_thresholds_tables",
+    "ceo_to_target_ceo_junctions_tables",
+    "ceo_to_target_factions_tables",
+    "ceo_to_target_junction_reasons_tables",
+    "ceo_to_target_province_junctions_tables",
+    "ceo_to_ui_display_junctions_tables",
+    "ceo_trigger_behaviour_enums_tables",
+    "ceo_trigger_target_requirements_tables",
+    "ceo_trigger_targets_tables",
+    "ceo_trigger_to_trigger_targets_tables",
+    "ceo_triggers_tables",
+    "ceos_tables",
+    "ceos_to_equipment_variants_tables",
+];
+
+/// CEO tables BOB can't build `ceo_data.ccd` without.
+const CEO_REQUIRED_TABLES: [&str; 5] = [
+    "ceos_tables",
+    "ceo_nodes_tables",
+    "ceo_thresholds_tables",
+    "ceo_threshold_nodes_tables",
+    "ceo_initial_datas_tables",
+];
+
+/// BOB configuration that builds only `ceo_data.ccd`, silently.
+const BOB_CONFIG_XML: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
+                <bob_configuration><processors><processor>Campaign</processor></processors>
+                <directories/><global_rules/><retail>0</retail><silent>1</silent>
+                <get_latest>0</get_latest><connect_db>0</connect_db>
+                <merge_for_checkin_mode>2</merge_for_checkin_mode>
+                <selected_files><entry>&lt;working&gt;/campaigns/ceo_data.ccd</entry></selected_files>
+                </bob_configuration>"#;
+
+/// Builds `ceo_data.ccd` in the Assembly Kit from the CEO tables of a pack, running BOB.
+///
+/// The CEO tables under the pack's `ceo_db/` folder are exported to the Assembly Kit's
+/// `raw_data/db` as XML, and BOB is run to build the file. The previous `ceo_data.ccd` is
+/// backed up, and the original XML files and BOB config are restored afterwards.
+///
+/// # Arguments
+///
+/// * `pack` - Pack with the CEO tables.
+/// * `schema` - Schema to decode the tables.
+/// * `akit_root` - Root folder of the Assembly Kit.
+/// * `bob_exe` - Path of BOB's executable.
+///
+/// # Errors
+///
+/// Fails if required tables are missing, if exporting them fails, or if BOB doesn't produce `ceo_data.ccd`.
+pub fn build_ceo(pack: &mut Pack, schema: &Option<Schema>, akit_root: &Path, bob_exe: &Path) -> Result<()> {
+    let bob_dir = bob_exe.parent().ok_or_else(|| anyhow!("Invalid BOB path"))?;
+    let raw_db = akit_root.join(r"raw_data\db");
+    let ceo_ccd = akit_root.join(r"working_data\campaigns\ceo_data.ccd");
+
+    if ceo_ccd.exists() {
+        std::fs::copy(&ceo_ccd, ceo_ccd.with_extension("ccd.bak1"))
+            .map_err(|e| anyhow!("Failed to backup ceo_data.ccd: {e}"))?;
+    }
+
+    let xml_backups = backup_ceo_xmls(&raw_db)?;
+    let result = export_ceo_tables(pack, schema, &raw_db)
+        .and_then(|_| run_bob(bob_exe, bob_dir, &ceo_ccd));
+
+    for (orig, bak) in &xml_backups {
+        let _ = std::fs::rename(bak, orig);
+    }
+
+    result
+}
+
+/// Copies the `ceo*.xml` files of the Assembly Kit's `raw_data/db` to `.xml.bak` files.
+///
+/// # Returns
+///
+/// The original and backup path of each backed up file.
+fn backup_ceo_xmls(raw_db: &Path) -> Result<Vec<(PathBuf, PathBuf)>> {
+    let mut xml_backups = vec![];
+    if !raw_db.exists() {
+        return Ok(xml_backups);
+    }
+
+    let entries = std::fs::read_dir(raw_db).map_err(|e| anyhow!("Failed to read raw_data/db: {e}"))?;
+    for entry in entries.filter_map(|e| e.ok()) {
+        let file_name = entry.file_name().to_string_lossy().to_lowercase();
+        if file_name.starts_with("ceo") && file_name.ends_with(".xml") {
+            let orig = entry.path();
+            let bak = orig.with_extension("xml.bak");
+            if std::fs::copy(&orig, &bak).is_ok() {
+                xml_backups.push((orig, bak));
+            }
+        }
+    }
+
+    Ok(xml_backups)
+}
+
+/// Exports the CEO tables under the `ceo_db/` folder of a pack to XML files in the Assembly Kit's `raw_data/db`.
+///
+/// Tables of the same folder (like `data__` and `data__01`) are combined into one XML file.
+fn export_ceo_tables(pack: &mut Pack, schema: &Option<Schema>, raw_db: &Path) -> Result<()> {
+    let ceo_table_paths = pack.files()
+        .keys()
+        .filter(|path| {
+            let mut parts = path.splitn(3, '/');
+            parts.next() == Some("ceo_db") && parts.next().is_some_and(|folder| CEO_BOB_TABLES.contains(&folder))
+        })
+        .cloned()
+        .collect::<Vec<String>>();
+
+    if ceo_table_paths.is_empty() {
+        return Err(anyhow!("No CEO tables found in the pack (only the ceo_db/ folder is scanned). \
+            Import CEO tables from the Assembly Kit, or move any CEO tables under db/ to ceo_db/."));
+    }
+
+    let present_folders = ceo_table_paths.iter()
+        .filter_map(|path| path.split('/').nth(1))
+        .collect::<HashSet<&str>>();
+    let missing = CEO_REQUIRED_TABLES.iter()
+        .filter(|table| !present_folders.contains(**table))
+        .map(|table| format!("  - {table}"))
+        .collect::<Vec<_>>();
+
+    if !missing.is_empty() {
+        return Err(anyhow!("The following required CEO tables are missing from the pack:\n{}\n\n\
+            Import them from the Assembly Kit generate them.", missing.join("\n")));
+    }
+
+    let mut decode_extra_data = DecodeableExtraData::default();
+    decode_extra_data.set_schema(schema.as_ref());
+    let decode_extra_data = Some(decode_extra_data);
+
+    // "ceo_db/ceos_tables/data__" -> "ceos.xml".
+    let mut xml_groups: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for table_path in &ceo_table_paths {
+        if let Some(folder) = table_path.split('/').nth(1) {
+            let xml_name = format!("{}.xml", folder.strip_suffix("_tables").unwrap_or(folder));
+            xml_groups.entry(xml_name).or_default().push(table_path.clone());
+        }
+    }
+
+    let mut export_errors = vec![];
+    for (xml_name, table_paths) in &xml_groups {
+        let xml_path = raw_db.join(xml_name);
+        let table_tag = xml_name.trim_end_matches(".xml");
+        let xsd_name = xml_name.replace(".xml", ".xsd");
+
+        let mut xml = format!(
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n\
+             <dataroot xmlns:od=\"urn:schemas-microsoft-com:officedata\" \
+             xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" \
+             xsi:noNamespaceSchemaLocation=\"{xsd_name}\" \
+             export_time=\"\" revision=\"0\" export_branch=\"\" export_user=\"rpfm\">\r\n\
+             <edit_uuid>00000000-0000-0000-0000-000000000000</edit_uuid>\r\n"
+        );
+
+        for table_path in table_paths {
+            let Some(rfile) = pack.files_mut().get_mut(table_path.as_str()) else { continue };
+            let _ = rfile.load();
+            let _ = rfile.decode(&decode_extra_data, true, false);
+
+            let Ok(RFileDecoded::DB(table)) = rfile.decoded() else {
+                export_errors.push(format!("Could not decode {table_path}"));
+                continue;
+            };
+
+            let fields = table.definition().fields_processed();
+            for row in table.data().iter() {
+                let mut field_pairs = fields.iter()
+                    .zip(row.iter())
+                    .map(|(field, value)| (field.name().to_owned(), xml_escaped_value(value)))
+                    .collect::<Vec<_>>();
+                field_pairs.sort_by(|a, b| a.0.cmp(&b.0));
+
+                xml.push_str(&format!("<{table_tag}>\r\n"));
+                for (field_name, value) in &field_pairs {
+                    xml.push_str(&format!("<{field_name}>{value}</{field_name}>\r\n"));
+                }
+                xml.push_str(&format!("</{table_tag}>\r\n"));
+            }
+        }
+
+        xml.push_str("</dataroot>\r\n");
+
+        if let Err(e) = std::fs::write(&xml_path, xml.as_bytes()) {
+            export_errors.push(format!("Failed to write {}: {e}", xml_path.display()));
+        }
+    }
+
+    if export_errors.is_empty() {
+        Ok(())
+    } else {
+        Err(anyhow!("Export errors:\n{}", export_errors.join("\n")))
+    }
+}
+
+/// Returns a table value as BOB expects it in an XML file.
+fn xml_escaped_value(value: &DecodedData) -> String {
+    let value = match value {
+        DecodedData::Boolean(b) => if *b { "1".to_owned() } else { "0".to_owned() },
+        DecodedData::I16(v) => v.to_string(),
+        DecodedData::I32(v) => v.to_string(),
+        DecodedData::I64(v) => v.to_string(),
+        DecodedData::OptionalI16(v) => v.to_string(),
+        DecodedData::OptionalI32(v) => v.to_string(),
+        DecodedData::OptionalI64(v) => v.to_string(),
+        DecodedData::F32(v) => v.to_string(),
+        DecodedData::F64(v) => v.to_string(),
+        DecodedData::StringU8(s) | DecodedData::StringU16(s) |
+        DecodedData::OptionalStringU8(s) | DecodedData::OptionalStringU16(s) |
+        DecodedData::ColourRGB(s) => s.clone(),
+        _ => String::new(),
+    };
+
+    value.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+}
+
+/// Runs BOB to build `ceo_data.ccd`, with a config that only builds that file.
+///
+/// Any previous BOB config is restored afterwards.
+///
+/// # Errors
+///
+/// Fails if BOB can't be configured or launched, or if it doesn't produce `ceo_data.ccd`.
+fn run_bob(bob_exe: &Path, bob_dir: &Path, ceo_ccd: &Path) -> Result<()> {
+    let cfg_path = bob_dir.join("BOB/default_configuration.xml");
+
+    // The `binaries\BOB` config dir is absent on a fresh Assembly Kit that never ran
+    // BOB; create it up front so the config write below doesn't fail with OS error 3.
+    if let Some(cfg_dir) = cfg_path.parent() {
+        std::fs::create_dir_all(cfg_dir)
+            .map_err(|e| anyhow!("Failed to create BOB config directory {}: {e}", cfg_dir.display()))?;
+    }
+
+    let cfg_backup = bob_dir.join("BOB/default_configuration.xml.rpfm_bak");
+    let cfg_existed = cfg_path.exists();
+    if cfg_existed {
+        std::fs::rename(&cfg_path, &cfg_backup)
+            .map_err(|e| anyhow!("Failed to backup BOB config {}: {e}", cfg_path.display()))?;
+    }
+
+    let restore_config = || {
+        let _ = std::fs::remove_file(&cfg_path);
+        if cfg_existed {
+            let _ = std::fs::rename(&cfg_backup, &cfg_path);
+        }
+    };
+
+    if let Err(e) = std::fs::write(&cfg_path, BOB_CONFIG_XML) {
+        restore_config();
+        return Err(anyhow!("Failed to write BOB config {}: {e}", cfg_path.display()));
+    }
+
+    info!("[BuildCeo] launching BOB: {} (cwd {})", bob_exe.display(), bob_dir.display());
+    let bob_start = Instant::now();
+
+    // Use `.status()`, not `.output()`: it waits only on BOB's process handle, so it
+    // returns the moment BOB exits without blocking to read captured output.
+    let status = SysCommand::new(bob_exe)
+        .current_dir(bob_dir)
+        .stdin(Stdio::null())
+        .status();
+
+    restore_config();
+
+    let status = status.map_err(|e| {
+        info!("[BuildCeo] BOB spawn failed after {:?}: {e}", bob_start.elapsed());
+        anyhow!("Failed to launch BOB: {e}")
+    })?;
+
+    info!("[BuildCeo] BOB exited after {:?}, exit={:?}", bob_start.elapsed(), status.code());
+
+    // BOB is single-process and we waited on its handle above, so its writes are
+    // already flushed and visible: the file either exists now or never will.
+    if ceo_ccd.exists() {
+        Ok(())
+    } else {
+        Err(anyhow!("BOB finished (exit {:?}) but ceo_data.ccd was not generated. \
+            This usually means BOB hit an error in the exported tables.", status.code()))
+    }
 }
 
 /// Import ceo_data.ccd into the pack after BOB has run.
