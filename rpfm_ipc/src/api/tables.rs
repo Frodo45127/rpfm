@@ -17,6 +17,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use std::collections::BTreeMap;
+
 use rpfm_lib::schema::FieldType;
 
 use super::Request;
@@ -216,4 +218,67 @@ impl Request for GetTableRows {
 impl Request for GetTableDefinition {
     const METHOD: &'static str = "schema.definition";
     type Response = TableDefinition;
+}
+
+/// `table.edit`: edits rows of a DB or Loc table in an open pack.
+///
+/// Edits are applied in order, each one on the result of the previous ones. If any of them fails, none is applied.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct EditTable {
+
+    /// The table. Its source must be an open pack.
+    pub file: FileRef,
+
+    /// Edits to apply.
+    pub edits: Vec<RowEdit>,
+}
+
+/// An edit of the rows of a table.
+///
+/// Values are given by column name, as booleans, numbers or strings, and converted to the type of their column.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "op", rename_all = "snake_case")]
+pub enum RowEdit {
+
+    /// Adds a row. Columns not set get their default value.
+    Insert {
+
+        /// Position of the new row. If not set, it's added at the end.
+        #[serde(default)]
+        index: Option<usize>,
+
+        /// Values of the new row, by column name.
+        #[serde(default)]
+        values: BTreeMap<String, Value>,
+    },
+
+    /// Changes values of a row.
+    Update {
+
+        /// Position of the row.
+        index: usize,
+
+        /// New values, by column name. Columns not set keep their value.
+        values: BTreeMap<String, Value>,
+    },
+
+    /// Removes rows.
+    Delete {
+
+        /// Positions of the rows to remove, as they're before this edit.
+        indexes: Vec<usize>,
+    },
+}
+
+/// Result of editing a table.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct TableEdited {
+
+    /// Amount of rows the table has after the edits.
+    pub row_count: usize,
+}
+
+impl Request for EditTable {
+    const METHOD: &'static str = "table.edit";
+    type Response = TableEdited;
 }

@@ -15,14 +15,14 @@
 use serde_json::{Map, Value};
 
 use rpfm_ipc::api::{ApiError, Done, Request, RpcRequest, RpcResponse};
-use rpfm_ipc::api::files::ListFiles;
+use rpfm_ipc::api::files::{AddFilesFromDisk, CopyFiles, CreateFile, DeleteFiles, DuplicateFiles, ExtractFiles, ListFiles, RenameFiles};
 use rpfm_ipc::api::packs::{ClosePack, CloseAllPacks, GetPackInfo, NewPack, OpenPack, OpenVanillaPacks, SavePack, UpdatePack};
 use rpfm_ipc::api::session::{GetSessionStatus, SetGame};
-use rpfm_ipc::api::tables::{GetTableDefinition, GetTableInfo, GetTableRows};
-use rpfm_ipc::settings_keys::{ALLOW_EDITING_OF_CA_PACKFILES, DISABLE_UUID_REGENERATION_ON_DB_TABLES, USE_LAZY_LOADING};
+use rpfm_ipc::api::tables::{EditTable, GetTableDefinition, GetTableInfo, GetTableRows};
+use rpfm_ipc::settings_keys::{ALLOW_EDITING_OF_CA_PACKFILES, DISABLE_UUID_REGENERATION_ON_DB_TABLES, INCLUDE_BASE_FOLDER_ON_ADD_FROM_FOLDER, TABLES_USE_OLD_COLUMN_ORDER_FOR_TSV, USE_LAZY_LOADING};
 
 use crate::settings::Settings;
-use crate::state::{SaveOptions, SessionState};
+use crate::state::{ExtractOptions, SaveOptions, SessionState};
 
 /// Runs a request on the session's state.
 ///
@@ -80,8 +80,27 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         UpdatePack::METHOD => call(params, |request: UpdatePack| state.update_pack(&request)),
 
         ListFiles::METHOD => call(params, |request: ListFiles| state.list_files(&request)),
+        CreateFile::METHOD => call(params, |request: CreateFile| state.create_file(&request)),
+        AddFilesFromDisk::METHOD => call(params, |request: AddFilesFromDisk| {
+            let include_base_folder = request.include_base_folder.unwrap_or_else(|| settings.bool(INCLUDE_BASE_FOLDER_ON_ADD_FROM_FOLDER));
+            state.add_disk_files(&request, include_base_folder)
+        }),
+        CopyFiles::METHOD => call(params, |request: CopyFiles| state.copy_files_to_pack(&request)),
+        DeleteFiles::METHOD => call(params, |request: DeleteFiles| state.delete_paths(&request)),
+        RenameFiles::METHOD => call(params, |request: RenameFiles| state.rename_paths(&request)),
+        DuplicateFiles::METHOD => call(params, |request: DuplicateFiles| state.duplicate_paths(&request)),
+        ExtractFiles::METHOD => call(params, |request: ExtractFiles| {
+            let options = ExtractOptions {
+                disable_uuid_regeneration: settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES),
+                tsv_keys_first: request.tsv_keys_first.unwrap_or_else(|| settings.bool(TABLES_USE_OLD_COLUMN_ORDER_FOR_TSV)),
+            };
+
+            state.extract_paths(&request, options)
+        }),
+
         GetTableInfo::METHOD => call(params, |request: GetTableInfo| state.table_info(&request.file)),
         GetTableRows::METHOD => call(params, |request: GetTableRows| state.table_rows(&request)),
+        EditTable::METHOD => call(params, |request: EditTable| state.edit_table(&request)),
         GetTableDefinition::METHOD => call(params, |request: GetTableDefinition| state.table_definition(&request)),
         method => Err(ApiError::MethodNotFound(method.to_owned())),
     };

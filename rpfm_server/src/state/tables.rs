@@ -16,6 +16,8 @@ use rayon::prelude::*;
 
 use serde_json::{Number, Value};
 
+use std::collections::BTreeMap;
+
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -25,14 +27,23 @@ use rpfm_extensions::merge::{db_baseline, delta_merge_db, delta_merge_loc, loc_b
 
 use rpfm_ipc::api::ApiError;
 use rpfm_ipc::api::files::{ASSEMBLY_KIT_TABLE_FILE_NAME, FileRef, FileSource};
-use rpfm_ipc::api::tables::{ColumnInfo, ColumnReference, DEFAULT_ROWS_LIMIT, FilterOp, GetTableRows, RowFilter, TableInfo, TableRow, TableRows};
+use rpfm_ipc::api::tables::{ColumnInfo, ColumnReference, DEFAULT_ROWS_LIMIT, EditTable, FilterOp, GetTableRows, RowEdit, RowFilter, TableEdited, TableInfo, TableRow, TableRows};
 use rpfm_ipc::helpers::{DataSource, RFileInfo};
 
 use rpfm_lib::files::{Container, ContainerPath, db::DB, DecodeableExtraData, FileType, RFile, RFileDecoded, table::{DecodedData, local::TableInMemory, Table}};
-use rpfm_lib::schema::{Definition, DefinitionPatch, Field};
+use rpfm_lib::schema::{Definition, DefinitionPatch, Field, FieldType};
 use rpfm_lib::utils::current_time;
 
 use super::{SessionState, loaded_schema, pack, pack_mut};
+
+/// A [`RowEdit`] with its values converted to the types of their columns, and its indexes checked.
+enum PreparedEdit {
+    Insert(usize, Vec<DecodedData>),
+    Update(usize, Vec<(usize, DecodedData)>),
+
+    /// Indexes to delete, sorted from last to first so removing one doesn't move the rest.
+    Delete(Vec<usize>),
+}
 
 /// A [`RowFilter`] ready to check rows: its column index resolved, and its value lowercased if it ignores case.
 struct PreparedFilter {
@@ -495,19 +506,58 @@ impl SessionState {
         })
     }
 
+    /// Edits rows of a table of an open pack. If any edit fails, none is applied.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the table is not in an open pack, or if an edit names a column the table doesn't have,
+    /// a row that doesn't exist, or a value that doesn't fit its column.
+    pub fn edit_table(&mut self, request: &EditTable) -> Result<TableEdited> {
+        if !matches!(request.file.source, FileSource::Pack(_)) {
+            return Err(ApiError::ReadOnly(request.file.path.clone()).into());
+        }
+
+        let row_count = match self.decoded_table_file(&request.file)?.decoded_mut()? {
+            RFileDecoded::DB(table) => {
+                let edits = prepare_row_edits(&request.edits, &table.definition().fields_processed(), table.new_row(), table.data().len())?;
+                apply_row_edits(table.data_mut(), edits)
+            }
+            RFileDecoded::Loc(table) => {
+                let edits = prepare_row_edits(&request.edits, &table.definition().fields_processed(), table.new_row(), table.data().len())?;
+                apply_row_edits(table.data_mut(), edits)
+            }
+            _ => return Err(ApiError::NotATable(request.file.path.clone()).into()),
+        };
+
+        Ok(TableEdited { row_count })
+    }
+
     /// Returns a DB or Loc table from any source, decoding it first if needed.
     fn table(&mut self, file: &FileRef) -> Result<&TableInMemory> {
-        let not_found = || ApiError::FileNotFound(file.path.clone());
+        if file.source == FileSource::AssemblyKit {
+            let not_found = || ApiError::FileNotFound(file.path.clone());
+            let table_name = file.path.split('/').nth(1).ok_or_else(not_found)?;
+            let table = self.dependencies.asskit_only_db_tables().get(table_name).ok_or_else(not_found)?;
+            return Ok(table.table());
+        }
+
+        match self.decoded_table_file(file)?.decoded()? {
+            RFileDecoded::DB(table) => Ok(table.table()),
+            RFileDecoded::Loc(table) => Ok(table.table()),
+            _ => Err(ApiError::NotATable(file.path.clone()).into()),
+        }
+    }
+
+    /// Returns a DB or Loc file from an open pack or the dependencies, decoded.
+    fn decoded_table_file(&mut self, file: &FileRef) -> Result<&mut RFile> {
         let rfile = match file.source {
             FileSource::Pack(ref pack_key) => pack_mut(&mut self.packs, pack_key)?.files_mut().get_mut(&file.path),
             FileSource::GameFiles => self.dependencies.file_mut(&file.path, true, false).ok(),
             FileSource::ParentFiles => self.dependencies.file_mut(&file.path, false, true).ok(),
-            FileSource::AssemblyKit => {
-                let table_name = file.path.split('/').nth(1).ok_or_else(not_found)?;
-                let table = self.dependencies.asskit_only_db_tables().get(table_name).ok_or_else(not_found)?;
-                return Ok(table.table());
-            }
-        }.ok_or_else(not_found)?;
+
+            // Assembly Kit tables are kept decoded, outside of any file.
+            FileSource::AssemblyKit => return Err(ApiError::ReadOnly(file.path.clone()).into()),
+        }.ok_or_else(|| ApiError::FileNotFound(file.path.clone()))?;
 
         let file_type = rfile.file_type();
         if file_type != FileType::DB && file_type != FileType::Loc {
@@ -521,12 +571,7 @@ impl SessionState {
         let mut extra_data = DecodeableExtraData::default();
         extra_data.set_schema(self.schema.as_ref());
         rfile.decode(&Some(extra_data), true, false)?;
-
-        match rfile.decoded()? {
-            RFileDecoded::DB(table) => Ok(table.table()),
-            RFileDecoded::Loc(table) => Ok(table.table()),
-            _ => Err(ApiError::NotATable(file.path.clone()).into()),
-        }
+        Ok(rfile)
     }
 }
 
@@ -556,6 +601,118 @@ impl PreparedFilter {
             FilterOp::EndsWith => value.ends_with(&self.value),
         }
     }
+}
+
+/// Converts row edits to the types of their columns, and checks their indexes against the rows the table will have when each one is applied.
+///
+/// # Arguments
+///
+/// * `edits` - The edits to prepare.
+/// * `fields` - Columns of the table, as rows see them.
+/// * `new_row` - A row with the default value of each column.
+/// * `row_count` - Amount of rows of the table before the edits.
+fn prepare_row_edits(edits: &[RowEdit], fields: &[Field], new_row: Vec<DecodedData>, mut row_count: usize) -> Result<Vec<PreparedEdit>, ApiError> {
+    let mut prepared = Vec::with_capacity(edits.len());
+    for (edit_index, edit) in edits.iter().enumerate() {
+        let invalid = |message: String| ApiError::InvalidParams(format!("Edit {edit_index}: {message}"));
+        let missing_row = |index: usize, row_count: usize| invalid(format!("row {index} doesn't exist, the table has {row_count} rows at this point."));
+
+        match edit {
+            RowEdit::Insert { index, values } => {
+                let index = index.unwrap_or(row_count);
+                if index > row_count {
+                    return Err(missing_row(index, row_count));
+                }
+
+                let mut row = new_row.clone();
+                for (column_index, value) in row_values(fields, values).map_err(invalid)? {
+                    row[column_index] = value;
+                }
+
+                prepared.push(PreparedEdit::Insert(index, row));
+                row_count += 1;
+            }
+            RowEdit::Update { index, values } => {
+                if *index >= row_count {
+                    return Err(missing_row(*index, row_count));
+                }
+
+                prepared.push(PreparedEdit::Update(*index, row_values(fields, values).map_err(invalid)?));
+            }
+            RowEdit::Delete { indexes } => {
+                let mut indexes = indexes.clone();
+                indexes.sort_unstable_by(|a, b| b.cmp(a));
+                indexes.dedup();
+
+                if let Some(index) = indexes.first().filter(|index| **index >= row_count) {
+                    return Err(missing_row(*index, row_count));
+                }
+
+                row_count -= indexes.len();
+                prepared.push(PreparedEdit::Delete(indexes));
+            }
+        }
+    }
+
+    Ok(prepared)
+}
+
+/// Applies prepared row edits to the rows of a table.
+///
+/// # Returns
+///
+/// The amount of rows after the edits.
+fn apply_row_edits(rows: &mut Vec<Vec<DecodedData>>, edits: Vec<PreparedEdit>) -> usize {
+    for edit in edits {
+        match edit {
+            PreparedEdit::Insert(index, row) => rows.insert(index, row),
+            PreparedEdit::Update(index, values) => {
+                for (column_index, value) in values {
+                    rows[index][column_index] = value;
+                }
+            }
+            PreparedEdit::Delete(indexes) => {
+                for index in indexes {
+                    rows.remove(index);
+                }
+            }
+        }
+    }
+
+    rows.len()
+}
+
+/// Converts values given by column name to the types of their columns.
+///
+/// # Returns
+///
+/// The index of the column of each value, and the converted value.
+fn row_values(fields: &[Field], values: &BTreeMap<String, Value>) -> Result<Vec<(usize, DecodedData)>, String> {
+    values.iter()
+        .map(|(column, value)| {
+            let column_index = fields.iter()
+                .position(|field| field.name() == column)
+                .ok_or_else(|| format!("the table has no column named {column}."))?;
+
+            let value = json_to_decoded(fields[column_index].field_type(), value)
+                .map_err(|error| format!("invalid value for column {column}: {error}"))?;
+
+            Ok((column_index, value))
+        })
+        .collect()
+}
+
+/// Converts a JSON value to a table value of the provided type.
+///
+/// Booleans, numbers and strings are accepted, as long as their text parses as the type.
+fn json_to_decoded(field_type: &FieldType, value: &Value) -> Result<DecodedData> {
+    let text = match value {
+        Value::String(text) => Cow::Borrowed(text.as_str()),
+        Value::Bool(_) | Value::Number(_) => Cow::Owned(value.to_string()),
+        Value::Null | Value::Array(_) | Value::Object(_) => return Err(anyhow!("expected a boolean, number or string, found {value}.")),
+    };
+
+    Ok(DecodedData::new_from_type_and_string(field_type, &text)?)
 }
 
 /// Returns the columns of a definition as rows see them, with the patches applied.
@@ -723,6 +880,76 @@ mod tests {
         assert!(filter(FilterOp::StartsWith, "wh_", false).matches(&row));
         assert!(filter(FilterOp::EndsWith, "empire", true).matches(&row));
         assert!(!filter(FilterOp::EndsWith, "empire", false).matches(&row));
+    }
+
+    fn fields() -> Vec<Field> {
+        let mut key = Field::default();
+        key.set_name("key".to_owned());
+        key.set_field_type(FieldType::StringU8);
+
+        let mut value = Field::default();
+        value.set_name("value".to_owned());
+        value.set_field_type(FieldType::F32);
+
+        vec![key, value]
+    }
+
+    fn row(key: &str, value: f32) -> Vec<DecodedData> {
+        vec![DecodedData::StringU8(key.to_owned()), DecodedData::F32(value)]
+    }
+
+    fn values(pairs: &[(&str, Value)]) -> BTreeMap<String, Value> {
+        pairs.iter().map(|(column, value)| (column.to_string(), value.clone())).collect()
+    }
+
+    fn edit(rows: &mut Vec<Vec<DecodedData>>, edits: &[RowEdit]) -> Result<usize, ApiError> {
+        let prepared = prepare_row_edits(edits, &fields(), row("", 0.0), rows.len())?;
+        Ok(apply_row_edits(rows, prepared))
+    }
+
+    #[test]
+    fn edits_apply_in_order() {
+        let mut rows = vec![row("a", 1.0), row("b", 2.0), row("c", 3.0)];
+        let edits = vec![
+            RowEdit::Insert { index: Some(0), values: values(&[("key", json!("new")), ("value", json!(0.5))]) },
+            RowEdit::Update { index: 2, values: values(&[("value", json!("2.5"))]) },
+            RowEdit::Delete { indexes: vec![3, 1, 3] },
+            RowEdit::Insert { index: None, values: values(&[("key", json!("last"))]) },
+        ];
+
+        assert_eq!(edit(&mut rows, &edits), Ok(3));
+        assert_eq!(rows, vec![row("new", 0.5), row("b", 2.5), row("last", 0.0)]);
+    }
+
+    #[test]
+    fn failed_edits_change_nothing() {
+        let original = vec![row("a", 1.0), row("b", 2.0)];
+
+        let failing = [
+            vec![RowEdit::Update { index: 0, values: values(&[("value", json!(9.0))]) }, RowEdit::Update { index: 2, values: values(&[("value", json!(1.0))]) }],
+            vec![RowEdit::Delete { indexes: vec![0] }, RowEdit::Update { index: 1, values: values(&[("value", json!(1.0))]) }],
+            vec![RowEdit::Insert { index: Some(3), values: BTreeMap::new() }],
+            vec![RowEdit::Update { index: 0, values: values(&[("nope", json!(1))]) }],
+            vec![RowEdit::Update { index: 0, values: values(&[("value", json!("not a number"))]) }],
+            vec![RowEdit::Update { index: 0, values: values(&[("value", json!(null))]) }],
+        ];
+
+        for edits in failing {
+            let mut rows = original.clone();
+            assert!(matches!(edit(&mut rows, &edits), Err(ApiError::InvalidParams(_))), "{edits:?}");
+            assert_eq!(rows, original);
+        }
+    }
+
+    #[test]
+    fn values_are_converted_to_the_column_type() {
+        assert_eq!(json_to_decoded(&FieldType::Boolean, &json!(true)).unwrap(), DecodedData::Boolean(true));
+        assert_eq!(json_to_decoded(&FieldType::I32, &json!(42)).unwrap(), DecodedData::I32(42));
+        assert_eq!(json_to_decoded(&FieldType::I32, &json!("42")).unwrap(), DecodedData::I32(42));
+        assert_eq!(json_to_decoded(&FieldType::F32, &json!(3)).unwrap(), DecodedData::F32(3.0));
+        assert_eq!(json_to_decoded(&FieldType::StringU8, &json!("text")).unwrap(), DecodedData::StringU8("text".to_owned()));
+        assert!(json_to_decoded(&FieldType::I32, &json!(4.5)).is_err());
+        assert!(json_to_decoded(&FieldType::StringU8, &json!(["a"])).is_err());
     }
 
     #[test]

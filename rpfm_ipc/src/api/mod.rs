@@ -145,6 +145,10 @@ pub enum ApiError {
     #[error("No definition found for table {0}.")]
     DefinitionNotFound(String),
 
+    /// The file can't be edited, because it's not in an open pack.
+    #[error("The file {0} can't be edited: only files in open packs can.")]
+    ReadOnly(String),
+
     /// The operation needs the vanilla dependencies, and they're not loaded.
     #[error("Dependencies cache needs to be regenerated before this.")]
     DependenciesNotLoaded,
@@ -241,6 +245,7 @@ impl ApiError {
             Self::SchemaNotLoaded => -32004,
             Self::DependenciesNotLoaded => -32005,
             Self::DefinitionNotFound(_) => -32006,
+            Self::ReadOnly(_) => -32007,
         }
     }
 }

@@ -13,7 +13,9 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use rpfm_lib::files::FileType;
+use std::path::PathBuf;
+
+use rpfm_lib::files::{FileType, text::TextFormat};
 
 use super::{default_true, Request};
 
@@ -111,4 +113,229 @@ pub struct FileEntry {
 impl Request for ListFiles {
     const METHOD: &'static str = "files.list";
     type Response = FileList;
+}
+
+/// `files.create`: creates a new empty file in an open pack.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct CreateFile {
+
+    /// Key of the pack.
+    pub pack: String,
+
+    /// Path of the new file in the pack, like `db/units_tables/my_mod` or `text/db/my_mod.loc`.
+    pub path: String,
+
+    /// Type of the new file.
+    pub kind: NewFileKind,
+}
+
+/// Type of a new file.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum NewFileKind {
+
+    /// An empty DB table.
+    Db {
+
+        /// Name of the table, like `units_tables`.
+        table_name: String,
+
+        /// Version of the table. If not set, the version the table has in the game files is used,
+        /// or the newest one if the game files are not loaded or don't have the table.
+        #[serde(default)]
+        version: Option<i32>,
+    },
+
+    /// An empty Loc table.
+    Loc,
+
+    /// An empty text file.
+    Text {
+
+        /// Format of the text, like `Plain`, `Lua`, `Xml` or `Json`. Defaults to `Plain`.
+        #[serde(default)]
+        #[schemars(with = "Option<String>")]
+        format: Option<TextFormat>,
+    },
+
+    /// An empty AnimPack.
+    AnimPack,
+}
+
+/// `files.add_from_disk`: adds files and folders from disk to an open pack.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct AddFilesFromDisk {
+
+    /// Key of the pack.
+    pub pack: String,
+
+    /// Paths on disk of the files and folders to add.
+    pub paths: Vec<PathBuf>,
+
+    /// Folder of the pack to add them to. Empty for the root of the pack.
+    #[serde(default)]
+    pub destination: String,
+
+    /// If added folders keep their own name in the pack, instead of adding only their contents. Defaults to the server's setting.
+    #[serde(default)]
+    pub include_base_folder: Option<bool>,
+
+    /// Files and folders under any of these paths are skipped.
+    #[serde(default)]
+    pub ignore: Vec<PathBuf>,
+}
+
+/// `files.copy`: copies files and folders from any source into an open pack, keeping their paths.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct CopyFiles {
+
+    /// Where to copy the files from.
+    pub from: FileSource,
+
+    /// Paths of the files and folders to copy.
+    pub paths: Vec<String>,
+
+    /// Key of the pack to copy them to.
+    pub to_pack: String,
+}
+
+/// Files added to a pack.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct FilesAdded {
+
+    /// Paths in the pack of the added files.
+    pub added: Vec<String>,
+
+    /// Paths of the files that couldn't be added.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub not_added: Vec<String>,
+
+    /// Last error found while adding the files, if any.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+/// `files.delete`: deletes files and folders from an open pack.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct DeleteFiles {
+
+    /// Key of the pack.
+    pub pack: String,
+
+    /// Paths of the files and folders to delete.
+    pub paths: Vec<String>,
+}
+
+/// Files deleted from a pack.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct FilesDeleted {
+
+    /// Paths of the deleted files.
+    pub deleted: Vec<String>,
+}
+
+/// `files.rename`: renames or moves files and folders of an open pack.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct RenameFiles {
+
+    /// Key of the pack.
+    pub pack: String,
+
+    /// Renames to apply.
+    pub renames: Vec<FileRename>,
+}
+
+/// A rename of a file or folder.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct FileRename {
+
+    /// Current path.
+    pub from: String,
+
+    /// New path.
+    pub to: String,
+}
+
+/// Files renamed in a pack.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct FilesRenamed {
+
+    /// Old and new path of each renamed file.
+    pub renamed: Vec<FileRename>,
+}
+
+/// `files.duplicate`: copies files of an open pack in the same pack, adding a number to their names.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct DuplicateFiles {
+
+    /// Key of the pack.
+    pub pack: String,
+
+    /// Paths of the files and folders to duplicate.
+    pub paths: Vec<String>,
+}
+
+/// `files.extract`: extracts files and folders of an open pack, the game files or the parent packs to disk.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ExtractFiles {
+
+    /// Where the files are. The Assembly Kit tables can't be extracted.
+    pub source: FileSource,
+
+    /// Paths of the files and folders to extract.
+    pub paths: Vec<String>,
+
+    /// Folder on disk to extract them to. Their paths in the source are kept under it.
+    pub destination: PathBuf,
+
+    /// If tables are extracted as TSV files instead of binary ones.
+    #[serde(default)]
+    pub as_tsv: bool,
+
+    /// If TSV files use the old column order, with keys first. Defaults to the server's setting.
+    #[serde(default)]
+    pub tsv_keys_first: Option<bool>,
+}
+
+/// Files extracted to disk.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct FilesExtracted {
+
+    /// Paths on disk of the extracted files.
+    pub extracted: Vec<PathBuf>,
+}
+
+impl Request for CreateFile {
+    const METHOD: &'static str = "files.create";
+    type Response = FileEntry;
+}
+
+impl Request for AddFilesFromDisk {
+    const METHOD: &'static str = "files.add_from_disk";
+    type Response = FilesAdded;
+}
+
+impl Request for CopyFiles {
+    const METHOD: &'static str = "files.copy";
+    type Response = FilesAdded;
+}
+
+impl Request for DeleteFiles {
+    const METHOD: &'static str = "files.delete";
+    type Response = FilesDeleted;
+}
+
+impl Request for RenameFiles {
+    const METHOD: &'static str = "files.rename";
+    type Response = FilesRenamed;
+}
+
+impl Request for DuplicateFiles {
+    const METHOD: &'static str = "files.duplicate";
+    type Response = FilesAdded;
+}
+
+impl Request for ExtractFiles {
+    const METHOD: &'static str = "files.extract";
+    type Response = FilesExtracted;
 }

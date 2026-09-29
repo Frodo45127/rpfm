@@ -21,7 +21,12 @@ use std::slice::from_ref;
 use rpfm_extensions::dependencies::Dependencies;
 use rpfm_extensions::optimizer::{OptimizableContainer, OptimizerOptions};
 
-use rpfm_ipc::api::files::{ASSEMBLY_KIT_TABLE_FILE_NAME, DEFAULT_FILES_LIMIT, FileEntry, FileList, FileSource, ListFiles};
+use rpfm_ipc::api::ApiError;
+use rpfm_ipc::api::files::{
+    AddFilesFromDisk, ASSEMBLY_KIT_TABLE_FILE_NAME, CopyFiles, CreateFile, DEFAULT_FILES_LIMIT, DeleteFiles, DuplicateFiles, ExtractFiles,
+    FileEntry, FileList, FileRename, FileSource, FilesAdded, FilesDeleted, FilesExtracted, FilesRenamed, ListFiles, NewFileKind, RenameFiles,
+};
+use rpfm_ipc::api::tables::GetTableDefinition;
 use rpfm_ipc::helpers::{DataSource, NewFile, RFileInfo};
 
 use rpfm_lib::files::{
@@ -866,6 +871,204 @@ impl SessionState {
 
         Ok((added_paths, not_added_paths))
     }
+}
+
+impl SessionState {
+
+    /// Creates a new empty file in an open pack.
+    ///
+    /// # Returns
+    ///
+    /// The path and type of the new file.
+    pub fn create_file(&mut self, request: &CreateFile) -> Result<FileEntry> {
+        let new_file = match request.kind {
+            NewFileKind::Db { ref table_name, version } => {
+                let definition = self.table_definition(&GetTableDefinition { table_name: table_name.clone(), version })?;
+                NewFile::DB(request.path.clone(), table_name.clone(), definition.version)
+            }
+            NewFileKind::Loc => NewFile::Loc(request.path.clone()),
+            NewFileKind::Text { format } => NewFile::Text(request.path.clone(), format.unwrap_or(TextFormat::Plain)),
+            NewFileKind::AnimPack => NewFile::AnimPack(request.path.clone()),
+        };
+
+        self.new_file(&request.pack, &request.path, new_file)?;
+
+        let file = pack(&self.packs, &request.pack)?.files().get(&request.path)
+            .ok_or_else(|| ApiError::FileNotFound(request.path.clone()))?;
+        Ok(FileEntry { path: file.path_in_container_raw().to_owned(), file_type: file.file_type() })
+    }
+
+    /// Adds files and folders from disk to an open pack, under a folder of the pack.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - What to add, and where.
+    /// * `include_base_folder` - If added folders keep their own name in the pack.
+    pub fn add_disk_files(&mut self, request: &AddFilesFromDisk, include_base_folder: bool) -> Result<FilesAdded> {
+        let destination = request.destination.trim_end_matches('/');
+        let destination_paths = request.paths.iter()
+            .map(|path| match path.file_name().filter(|_| path.is_file()) {
+                Some(name) if destination.is_empty() => ContainerPath::File(name.to_string_lossy().to_string()),
+                Some(name) => ContainerPath::File(format!("{destination}/{}", name.to_string_lossy())),
+                None => ContainerPath::Folder(destination.to_owned()),
+            })
+            .collect::<Vec<_>>();
+
+        let ignore = if request.ignore.is_empty() { None } else { Some(request.ignore.clone()) };
+        let (added, error) = self.add_files_from_disk(&request.pack, &request.paths, &destination_paths, &ignore, include_base_folder)?;
+        Ok(FilesAdded { added: raw_paths(&added), not_added: vec![], error })
+    }
+
+    /// Copies files and folders from any source into an open pack, keeping their paths.
+    ///
+    /// Assembly Kit tables get the file name tables have in the game files.
+    pub fn copy_files_to_pack(&mut self, request: &CopyFiles) -> Result<FilesAdded> {
+        match request.from {
+            FileSource::Pack(ref source_key) => {
+                let source = pack(&self.packs, source_key)?;
+                let (paths, not_found) = split_found(&request.paths, |path| container_path(|path| source.has_file(path), path), |path| !source.files_by_path(path, false).is_empty());
+
+                let added = self.add_files_from_pack(&request.to_pack, source_key, &paths)?;
+                Ok(FilesAdded { added: raw_paths(&added), not_added: not_found, error: None })
+            }
+            FileSource::GameFiles | FileSource::ParentFiles => {
+                let data_source = data_source(&request.from).expect("dependency sources always have a data source");
+                let (include_vanilla, include_parent) = (data_source == DataSource::GameFiles, data_source == DataSource::ParentFiles);
+                let (paths, mut not_found) = split_found(
+                    &request.paths,
+                    |path| container_path(|path| self.dependencies.file_exists(path, include_vanilla, include_parent, false), path),
+                    |path| !self.dependencies.files_by_path(from_ref(path), include_vanilla, include_parent, false).is_empty(),
+                );
+
+                let (added, mut not_added) = self.import_dependencies(&request.to_pack, &BTreeMap::from([(data_source, paths)]))?;
+                not_added.append(&mut not_found);
+                Ok(FilesAdded { added: raw_paths(&added), not_added, error: None })
+            }
+            FileSource::AssemblyKit => {
+
+                // Their listed paths end in a placeholder file name, so they're copied as their table folder instead.
+                let paths = request.paths.iter()
+                    .map(|path| ContainerPath::Folder(path.strip_suffix(ASSEMBLY_KIT_TABLE_FILE_NAME).unwrap_or(path).trim_end_matches('/').to_owned()))
+                    .collect();
+
+                let (added, not_added) = self.import_dependencies(&request.to_pack, &BTreeMap::from([(DataSource::AssKitFiles, paths)]))?;
+                Ok(FilesAdded { added: raw_paths(&added), not_added, error: None })
+            }
+        }
+    }
+
+    /// Deletes files and folders from an open pack.
+    pub fn delete_paths(&mut self, request: &DeleteFiles) -> Result<FilesDeleted> {
+        let paths = self.pack_container_paths(&request.pack, &request.paths)?;
+        let deleted = self.delete_files(&request.pack, &paths)?;
+        Ok(FilesDeleted { deleted: raw_paths(&deleted) })
+    }
+
+    /// Renames or moves files and folders of an open pack.
+    pub fn rename_paths(&mut self, request: &RenameFiles) -> Result<FilesRenamed> {
+        let pack = pack(&self.packs, &request.pack)?;
+        let renames = request.renames.iter()
+            .map(|rename| match container_path(|path| pack.has_file(path), &rename.from) {
+                ContainerPath::File(from) => (ContainerPath::File(from), ContainerPath::File(rename.to.clone())),
+                ContainerPath::Folder(from) => (ContainerPath::Folder(from), ContainerPath::Folder(rename.to.clone())),
+            })
+            .collect::<Vec<_>>();
+
+        let renamed = self.rename_files(&request.pack, &renames)?;
+        Ok(FilesRenamed {
+            renamed: renamed.iter()
+                .map(|(from, to)| FileRename { from: from.path_raw().to_owned(), to: to.path_raw().to_owned() })
+                .collect(),
+        })
+    }
+
+    /// Duplicates files of an open pack in the same pack.
+    pub fn duplicate_paths(&mut self, request: &DuplicateFiles) -> Result<FilesAdded> {
+        let paths = self.pack_container_paths(&request.pack, &request.paths)?;
+        let added = self.duplicate_files(&request.pack, &paths)?;
+        Ok(FilesAdded { added: raw_paths(&added), ..FilesAdded::default() })
+    }
+
+    /// Extracts files and folders of an open pack, the game files or the parent packs to disk.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - What to extract, and where.
+    /// * `options` - Options for writing the files.
+    pub fn extract_paths(&mut self, request: &ExtractFiles, options: ExtractOptions) -> Result<FilesExtracted> {
+        let (pack_key, data_source, paths) = match request.source {
+            FileSource::Pack(ref pack_key) => (pack_key.as_str(), DataSource::PackFile, self.pack_container_paths(pack_key, &request.paths)?),
+            FileSource::GameFiles | FileSource::ParentFiles => {
+                let data_source = data_source(&request.source).expect("dependency sources always have a data source");
+                let (include_vanilla, include_parent) = (data_source == DataSource::GameFiles, data_source == DataSource::ParentFiles);
+                let paths = request.paths.iter()
+                    .map(|path| container_path(|path| self.dependencies.file_exists(path, include_vanilla, include_parent, false), path))
+                    .collect();
+
+                ("", data_source, paths)
+            }
+            FileSource::AssemblyKit => return Err(ApiError::InvalidParams("Assembly Kit tables can't be extracted.".to_owned()).into()),
+        };
+
+        let extracted = self.extract_files(pack_key, &BTreeMap::from([(data_source, paths)]), &request.destination, request.as_tsv, options)?;
+        Ok(FilesExtracted { extracted })
+    }
+
+    /// Resolves paths of an open pack into file or folder paths, depending on if there's a file at each one.
+    fn pack_container_paths(&self, pack_key: &str, paths: &[String]) -> Result<Vec<ContainerPath>> {
+        let pack = pack(&self.packs, pack_key)?;
+        Ok(paths.iter().map(|path| container_path(|path| pack.has_file(path), path)).collect())
+    }
+}
+
+/// Returns a path as a file path if `has_file` says there's a file at it, or as a folder path otherwise.
+fn container_path(has_file: impl Fn(&str) -> bool, path: &str) -> ContainerPath {
+    if has_file(path) {
+        ContainerPath::File(path.to_owned())
+    } else {
+        ContainerPath::Folder(path.trim_end_matches('/').to_owned())
+    }
+}
+
+/// Resolves paths into container paths, splitting out the ones that match no file.
+///
+/// # Arguments
+///
+/// * `paths` - Paths to resolve.
+/// * `resolve` - Turns a path into a file or folder path.
+/// * `exists` - Returns if a container path matches any file.
+///
+/// # Returns
+///
+/// The container paths matching files, and the paths matching none.
+fn split_found(paths: &[String], resolve: impl Fn(&str) -> ContainerPath, exists: impl Fn(&ContainerPath) -> bool) -> (Vec<ContainerPath>, Vec<String>) {
+    let mut found = Vec::with_capacity(paths.len());
+    let mut not_found = vec![];
+    for path in paths {
+        let container_path = resolve(path);
+        if exists(&container_path) {
+            found.push(container_path);
+        } else {
+            not_found.push(path.to_owned());
+        }
+    }
+
+    (found, not_found)
+}
+
+/// Returns the legacy data source of a file source, or `None` for open packs.
+fn data_source(source: &FileSource) -> Option<DataSource> {
+    match source {
+        FileSource::Pack(_) => None,
+        FileSource::GameFiles => Some(DataSource::GameFiles),
+        FileSource::ParentFiles => Some(DataSource::ParentFiles),
+        FileSource::AssemblyKit => Some(DataSource::AssKitFiles),
+    }
+}
+
+/// Returns the raw paths of container paths.
+fn raw_paths(paths: &[ContainerPath]) -> Vec<String> {
+    paths.iter().map(|path| path.path_raw().to_owned()).collect()
 }
 
 /// Decodes a file, skipping the types the server doesn't decode.
