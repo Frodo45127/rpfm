@@ -51,7 +51,7 @@ use crate::comms::CentralCommand;
 use crate::api;
 use crate::session::{Session, SessionMessage};
 use crate::settings::*;
-use crate::state::{DecodedFile, ExtractOptions, MergeOutcome, MyModOptions, RowLocation, SessionState, plugin_scripts};
+use crate::state::{DecodedFile, ExtractOptions, MergeOutcome, MyModOptions, RowLocation, SaveOptions, SessionState, plugin_scripts};
 use crate::translation_hub::{self, SubmitOutcome};
 use crate::updater;
 
@@ -108,7 +108,8 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<SessionMessage>, se
             SessionMessage::Command(command, sender) => (*command, sender),
             SessionMessage::Api(request, sender) => {
                 rpfm_telemetry::record_action(&request.method);
-                let _ = sender.send(api::dispatch(&mut state, request));
+                let settings = SETTINGS.read().unwrap().clone();
+                let _ = sender.send(api::dispatch(&mut state, request, &settings));
                 continue;
             }
         };
@@ -136,6 +137,12 @@ async fn dispatch(state: &mut SessionState, command: Command, sender: &Unbounded
         tsv_keys_first: settings.bool(TABLES_USE_OLD_COLUMN_ORDER_FOR_TSV),
     };
 
+    let save_options = SaveOptions {
+        disable_uuid_regeneration,
+        allow_editing_of_ca_packfiles: settings.bool(ALLOW_EDITING_OF_CA_PACKFILES),
+        clean: false,
+    };
+
     match command {
 
         // Handled by the loop.
@@ -154,9 +161,14 @@ async fn dispatch(state: &mut SessionState, command: Command, sender: &Unbounded
             success(sender);
         }
         Command::ListOpenPacks => send(sender, Response::VecStringContainerInfo(state.open_packs_info())),
-        Command::SavePack(pack_key) => reply(sender, state.save_pack(&pack_key, None, disable_uuid_regeneration, settings.bool(ALLOW_EDITING_OF_CA_PACKFILES)), Response::ContainerInfo),
-        Command::SavePackAs(pack_key, path) => reply(sender, state.save_pack(&pack_key, Some(&path), disable_uuid_regeneration, settings.bool(ALLOW_EDITING_OF_CA_PACKFILES)), Response::ContainerInfo),
-        Command::CleanAndSavePackAs(pack_key, path) => reply(sender, state.clean_and_save_pack_as(&pack_key, &path, disable_uuid_regeneration), Response::ContainerInfo),
+        Command::SavePack(pack_key) => reply(sender, state.save_pack(&pack_key, None, save_options), Response::ContainerInfo),
+        Command::SavePackAs(pack_key, path) => reply(sender, state.save_pack(&pack_key, Some(&path), save_options), Response::ContainerInfo),
+
+        // Cleaning is the last resort when saving fails, so it doesn't check the pack's type.
+        Command::CleanAndSavePackAs(pack_key, path) => {
+            let options = SaveOptions { allow_editing_of_ca_packfiles: true, clean: true, ..save_options };
+            reply(sender, state.save_pack(&pack_key, Some(&path), options), Response::ContainerInfo);
+        }
         Command::GetPackFileDataForTreeView(pack_key) => reply(sender, state.pack_tree_data(&pack_key), Response::ContainerInfoVecRFileInfo),
         Command::GetPackFilePath(pack_key) => reply(sender, state.pack_path(&pack_key), Response::PathBuf),
         Command::GetPackFileName(pack_key) => reply(sender, state.pack_name(&pack_key), Response::String),

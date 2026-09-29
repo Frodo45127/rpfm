@@ -19,7 +19,8 @@ use std::io::{BufWriter, Cursor, Write};
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-use rpfm_ipc::api::packs::{PackDependency, PackDetails};
+use rpfm_ipc::api::ApiError;
+use rpfm_ipc::api::packs::{PackDependency, PackDetails, PackSummary, UpdatePack};
 use rpfm_ipc::helpers::{ContainerInfo, RFileInfo};
 use rpfm_ipc::messages::OperationalMode;
 
@@ -31,7 +32,7 @@ use rpfm_lib::utils::files_in_folder_from_newest_to_oldest;
 
 use crate::settings::{backup_autosave_path, Settings};
 
-use super::{SessionState, decode_tables, encode_extra_data, pack, pack_mut, pack_summary};
+use super::{SaveOptions, SessionState, decode_tables, encode_extra_data, pack, pack_mut, pack_summary};
 
 /// Stem used to seed names for newly created Packs (`new_pack.pack`, `new_pack_2.pack`, …).
 const DEFAULT_PACK_STEM: &str = "new_pack";
@@ -133,7 +134,7 @@ impl SessionState {
 
     /// Closes a pack without saving it.
     pub fn close_pack(&mut self, pack_key: &str) -> Result<()> {
-        self.packs.remove(pack_key).ok_or_else(|| anyhow!("Pack not found: {}", pack_key))?;
+        self.packs.remove(pack_key).ok_or_else(|| ApiError::PackNotFound(pack_key.to_owned()))?;
         self.pack_modes.remove(pack_key);
         self.session.remove_pack_name(pack_key);
         Ok(())
@@ -162,8 +163,7 @@ impl SessionState {
     ///
     /// * `pack_key` - Key of the pack to save.
     /// * `path` - Path to save the pack to. If `None`, the pack is saved to its current path.
-    /// * `disable_uuid_regeneration` - If tables keep their GUID when encoded.
-    /// * `allow_editing_of_ca_packfiles` - If packs of CA types can be saved.
+    /// * `options` - How to save the pack.
     ///
     /// # Returns
     ///
@@ -172,11 +172,11 @@ impl SessionState {
     /// # Errors
     ///
     /// Fails if the pack is of a CA type and editing them is not allowed, if it has no path on disk yet, or if saving fails.
-    pub fn save_pack(&mut self, pack_key: &str, path: Option<&Path>, disable_uuid_regeneration: bool, allow_editing_of_ca_packfiles: bool) -> Result<ContainerInfo> {
+    pub fn save_pack(&mut self, pack_key: &str, path: Option<&Path>, options: SaveOptions) -> Result<ContainerInfo> {
         let pack = pack_mut(&mut self.packs, pack_key)?;
 
         let pack_type = *pack.header().pfh_file_type();
-        if !allow_editing_of_ca_packfiles && pack_type != PFHFileType::Mod && pack_type != PFHFileType::Movie {
+        if !options.allow_editing_of_ca_packfiles && pack_type != PFHFileType::Mod && pack_type != PFHFileType::Movie {
             return Err(anyhow!("Pack cannot be saved due to being of CA-Only type. Either change the Pack Type or enable \"Allow Edition of CA Packs\" in the settings."));
         }
 
@@ -185,33 +185,64 @@ impl SessionState {
             return Err(anyhow!("Pack '{}' has never been saved to disk. Use Save As to choose where to save it.", pack_key));
         }
 
-        let extra_data = encode_extra_data(&self.game, pack.compression_format(), disable_uuid_regeneration);
+        if options.clean {
+            pack.clean_undecoded();
+        }
+
+        let extra_data = encode_extra_data(&self.game, pack.compression_format(), options.disable_uuid_regeneration);
         pack.save(path, &self.game, &extra_data)
             .map_err(|error| anyhow!("Error while trying to save the currently open PackFile: {}", error))?;
 
         Ok(ContainerInfo::from(&*pack))
     }
 
-    /// Removes the files of a pack that failed to decode, then saves it to a new path.
+    /// Changes properties of a pack. Only the properties set in the request are changed.
     ///
-    /// # Arguments
+    /// # Errors
     ///
-    /// * `pack_key` - Key of the pack to save.
-    /// * `path` - Path to save the pack to.
-    /// * `disable_uuid_regeneration` - If tables keep their GUID when encoded.
-    ///
-    /// # Returns
-    ///
-    /// The info of the saved pack.
-    pub fn clean_and_save_pack_as(&mut self, pack_key: &str, path: &Path, disable_uuid_regeneration: bool) -> Result<ContainerInfo> {
-        let pack = pack_mut(&mut self.packs, pack_key)?;
-        pack.clean_undecoded();
+    /// Fails, without changing anything, if the request enables encryption on a pack whose version doesn't support it.
+    pub fn update_pack(&mut self, request: &UpdatePack) -> Result<PackDetails> {
+        let pack = pack_mut(&mut self.packs, &request.pack)?;
 
-        let extra_data = encode_extra_data(&self.game, pack.compression_format(), disable_uuid_regeneration);
-        pack.save(Some(path), &self.game, &extra_data)
-            .map_err(|error| anyhow!("Error while trying to save the currently open PackFile: {}", error))?;
+        let enables_encryption = request.index_encrypted == Some(true) || request.data_encrypted == Some(true);
+        if enables_encryption && !pack.pfh_version().supports_encryption() {
+            return Err(anyhow!("Encryption is not supported in {} Packs.", pack.pfh_version().value()));
+        }
 
-        Ok(ContainerInfo::from(&*pack))
+        if let Some(pack_type) = request.pack_type {
+            pack.set_pfh_file_type(pack_type);
+        }
+
+        if let Some(compression) = request.compression {
+            pack.set_compression_format(compression, &self.game);
+        }
+
+        let mut bitmask = pack.bitmask();
+        for (flag, state) in [
+            (PFHFlags::HAS_ENCRYPTED_INDEX, request.index_encrypted),
+            (PFHFlags::HAS_ENCRYPTED_DATA, request.data_encrypted),
+            (PFHFlags::HAS_INDEX_WITH_TIMESTAMPS, request.index_includes_timestamp),
+        ] {
+            if let Some(state) = state {
+                bitmask.set(flag, state);
+            }
+        }
+        pack.set_bitmask(bitmask);
+
+        if let Some(ref dependencies) = request.dependencies {
+            pack.set_dependencies(dependencies.iter().map(|dependency| (dependency.enabled, dependency.name.clone())).collect());
+        }
+
+        if let Some(ref mode) = request.operational_mode {
+            self.pack_modes.insert(request.pack.clone(), mode.clone());
+        }
+
+        self.pack_details(&request.pack)
+    }
+
+    /// Returns the short description of an open pack.
+    pub fn pack_summary(&self, pack_key: &str) -> Result<PackSummary> {
+        Ok(pack_summary(pack_key, pack(&self.packs, pack_key)?))
     }
 
     /// Returns the info of a pack and of every file in it.

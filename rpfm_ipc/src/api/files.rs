@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 
 use rpfm_lib::files::FileType;
 
-use super::Request;
+use super::{default_true, Request};
 
 /// File name of the Assembly Kit tables, in paths like `db/<table_name>/ak_data`.
 pub const ASSEMBLY_KIT_TABLE_FILE_NAME: &str = "ak_data";
@@ -111,9 +111,4 @@ pub struct FileEntry {
 impl Request for ListFiles {
     const METHOD: &'static str = "files.list";
     type Response = FileList;
-}
-
-/// Default value of fields that are `true` unless set.
-fn default_true() -> bool {
-    true
 }

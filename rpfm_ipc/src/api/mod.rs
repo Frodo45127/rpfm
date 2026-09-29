@@ -24,6 +24,7 @@
 //! Lists are paginated: requests take an `offset` and an optional `limit`, and responses
 //! include the `total` amount of items, so clients never get more than they asked for.
 
+use schemars::JsonSchema;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
@@ -54,6 +55,10 @@ pub trait Request: Serialize + DeserializeOwned {
     /// Response of the method.
     type Response: Serialize + DeserializeOwned;
 }
+
+/// Response of the methods that return nothing.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct Done {}
 
 /// A JSON-RPC request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -256,6 +261,11 @@ impl From<RpcError> for ApiError {
             .and_then(|data| serde_json::from_value(data).ok())
             .unwrap_or(Self::Internal(error.message))
     }
+}
+
+/// Default value of fields that are `true` unless set.
+fn default_true() -> bool {
+    true
 }
 
 //-------------------------------------------------------------------------------//

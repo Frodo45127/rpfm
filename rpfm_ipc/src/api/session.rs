@@ -13,7 +13,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use super::Request;
+use super::{default_true, Request};
 use super::packs::PackSummary;
 
 /// `session.status`: returns the selected game, what's loaded for it, and the open packs.
@@ -53,5 +53,22 @@ pub struct DependenciesStatus {
 
 impl Request for GetSessionStatus {
     const METHOD: &'static str = "session.status";
+    type Response = SessionStatus;
+}
+
+/// `session.set_game`: selects a game, loading its schema and, optionally, its dependencies.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct SetGame {
+
+    /// Key of the game, like `warhammer_3`.
+    pub game: String,
+
+    /// If the dependencies (vanilla files, Assembly Kit tables, parent packs) are loaded for the game.
+    #[serde(default = "default_true")]
+    pub rebuild_dependencies: bool,
+}
+
+impl Request for SetGame {
+    const METHOD: &'static str = "session.set_game";
     type Response = SessionStatus;
 }

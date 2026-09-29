@@ -14,24 +14,71 @@
 
 use serde_json::{Map, Value};
 
-use rpfm_ipc::api::{ApiError, Request, RpcRequest, RpcResponse};
+use rpfm_ipc::api::{ApiError, Done, Request, RpcRequest, RpcResponse};
 use rpfm_ipc::api::files::ListFiles;
-use rpfm_ipc::api::packs::GetPackInfo;
-use rpfm_ipc::api::session::GetSessionStatus;
+use rpfm_ipc::api::packs::{ClosePack, CloseAllPacks, GetPackInfo, NewPack, OpenPack, OpenVanillaPacks, SavePack, UpdatePack};
+use rpfm_ipc::api::session::{GetSessionStatus, SetGame};
 use rpfm_ipc::api::tables::{GetTableDefinition, GetTableInfo, GetTableRows};
+use rpfm_ipc::settings_keys::{ALLOW_EDITING_OF_CA_PACKFILES, DISABLE_UUID_REGENERATION_ON_DB_TABLES, USE_LAZY_LOADING};
 
-use crate::state::SessionState;
+use crate::settings::Settings;
+use crate::state::{SaveOptions, SessionState};
 
 /// Runs a request on the session's state.
+///
+/// # Arguments
+///
+/// * `state` - State of the session.
+/// * `request` - The request to run.
+/// * `settings` - Settings, for the options the request doesn't set.
 ///
 /// # Returns
 ///
 /// The response to the request.
-pub fn dispatch(state: &mut SessionState, request: RpcRequest) -> RpcResponse {
+pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settings) -> RpcResponse {
     let params = request.params;
     let result = match request.method.as_str() {
         GetSessionStatus::METHOD => call(params, |_: GetSessionStatus| Ok(state.session_status())),
+        SetGame::METHOD => call(params, |request: SetGame| {
+            let (_, dependencies_info) = state.set_game_selected(&request.game, request.rebuild_dependencies, settings, settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES))?;
+            if dependencies_info.is_some() {
+                state.decode_dependency_tables();
+            }
+
+            Ok(state.session_status())
+        }),
+
         GetPackInfo::METHOD => call(params, |request: GetPackInfo| state.pack_details(&request.pack)),
+        NewPack::METHOD => call(params, |_: NewPack| {
+            let key = state.new_pack(settings);
+            state.pack_summary(&key)
+        }),
+        OpenPack::METHOD => call(params, |request: OpenPack| {
+            let lazy_loading = request.lazy_loading.unwrap_or_else(|| settings.bool(USE_LAZY_LOADING));
+            let (key, _) = state.open_packs(&request.paths, lazy_loading)?;
+            state.pack_summary(&key)
+        }),
+        OpenVanillaPacks::METHOD => call(params, |_: OpenVanillaPacks| {
+            let (key, _) = state.open_ca_packs(settings)?;
+            state.pack_summary(&key)
+        }),
+        ClosePack::METHOD => call(params, |request: ClosePack| state.close_pack(&request.pack).map(|_| Done {})),
+        CloseAllPacks::METHOD => call(params, |_: CloseAllPacks| {
+            state.close_all_packs();
+            Ok(Done {})
+        }),
+        SavePack::METHOD => call(params, |request: SavePack| {
+            let options = SaveOptions {
+                disable_uuid_regeneration: request.disable_uuid_regeneration.unwrap_or_else(|| settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES)),
+                allow_editing_of_ca_packfiles: request.allow_editing_ca_packs.unwrap_or_else(|| settings.bool(ALLOW_EDITING_OF_CA_PACKFILES)),
+                clean: request.clean,
+            };
+
+            state.save_pack(&request.pack, request.path.as_deref(), options)?;
+            state.pack_summary(&request.pack)
+        }),
+        UpdatePack::METHOD => call(params, |request: UpdatePack| state.update_pack(&request)),
+
         ListFiles::METHOD => call(params, |request: ListFiles| state.list_files(&request)),
         GetTableInfo::METHOD => call(params, |request: GetTableInfo| state.table_info(&request.file)),
         GetTableRows::METHOD => call(params, |request: GetTableRows| state.table_rows(&request)),

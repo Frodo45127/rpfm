@@ -109,6 +109,20 @@ pub struct ExtractOptions {
     pub tsv_keys_first: bool,
 }
 
+/// Options for saving a pack.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct SaveOptions {
+
+    /// If tables keep their GUID when encoded.
+    pub disable_uuid_regeneration: bool,
+
+    /// If packs of CA types can be saved.
+    pub allow_editing_of_ca_packfiles: bool,
+
+    /// If files that failed to decode are removed before saving.
+    pub clean: bool,
+}
+
 /// Files copied or cut, waiting to be pasted.
 #[derive(Debug, Default)]
 struct Clipboard {
