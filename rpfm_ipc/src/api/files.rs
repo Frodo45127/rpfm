@@ -10,6 +10,7 @@
 
 //! Methods about the files of the open packs and the dependencies.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use rpfm_lib::files::FileType;
@@ -23,7 +24,7 @@ pub const ASSEMBLY_KIT_TABLE_FILE_NAME: &str = "ak_data";
 pub const DEFAULT_FILES_LIMIT: usize = 500;
 
 /// Where a file is.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum FileSource {
 
@@ -42,7 +43,7 @@ pub enum FileSource {
 }
 
 /// A file in one of the sources.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 pub struct FileRef {
 
     /// Where the file is.
@@ -53,7 +54,7 @@ pub struct FileRef {
 }
 
 /// `files.list`: lists the files of a source, sorted by path.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct ListFiles {
 
     /// Source to list.
@@ -67,8 +68,9 @@ pub struct ListFiles {
     #[serde(default = "default_true")]
     pub recursive: bool,
 
-    /// If set, only files of these types are listed.
+    /// If set, only files of these types are listed, like `DB`, `Loc`, `Text`, `Image` or `RigidModel`.
     #[serde(default)]
+    #[schemars(with = "Option<Vec<String>>")]
     pub file_types: Option<Vec<FileType>>,
 
     /// Amount of files to skip.
@@ -81,7 +83,7 @@ pub struct ListFiles {
 }
 
 /// A page of the files of a source.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct FileList {
 
     /// The files in the page.
@@ -95,13 +97,14 @@ pub struct FileList {
 }
 
 /// A file in a listing.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct FileEntry {
 
     /// Path of the file in its source.
     pub path: String,
 
-    /// Type of the file.
+    /// Type of the file, like `DB`, `Loc`, `Text` or `Image`.
+    #[schemars(with = "String")]
     pub file_type: FileType,
 }
 

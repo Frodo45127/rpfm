@@ -36,7 +36,7 @@
 //! [`CallToolResult`]: rmcp::model::CallToolResult
 
 use rmcp::ErrorData as McpError;
-use rmcp::handler::server::{router::prompt::PromptRouter, tool::ToolRouter, wrapper::Parameters};
+use rmcp::handler::server::{common::schema_for_output, router::prompt::PromptRouter, tool::ToolRouter, wrapper::Parameters};
 use rmcp::model::{
     CallToolResult, CompletionInfo, CompleteRequestParams, CompleteResult,
     ContentBlock, ErrorCode, ListResourcesResult, ListResourceTemplatesResult,
@@ -56,6 +56,11 @@ use std::path::PathBuf;
 use rpfm_extensions::merge::MergeOptions;
 use rpfm_extensions::translator::DEFAULT_SRC_LANG;
 
+use rpfm_ipc::api::{ApiError, Request, RpcOutcome, RpcRequest, RpcResponse};
+use rpfm_ipc::api::files::{FileList, ListFiles};
+use rpfm_ipc::api::packs::{GetPackInfo, PackDetails};
+use rpfm_ipc::api::session::{GetSessionStatus, SessionStatus};
+use rpfm_ipc::api::tables::{GetTableDefinition, GetTableInfo, GetTableRows, TableDefinition, TableInfo, TableRows};
 use rpfm_ipc::helpers::DataSource;
 use rpfm_ipc::messages::{Command, Response};
 use rpfm_lib::files::{ContainerPath, RFile, RFileDecoded};
@@ -73,17 +78,7 @@ use crate::session::{Session, recv_response};
 /// so it gets reported regardless of the long-lived rmcp service span.
 macro_rules! send_and_respond {
     ($self:expr, $tool_name:expr, $cmd:expr) => {{
-        let tx_ctx = sentry::TransactionContext::new(
-            &format!("tools/call {}", $tool_name),
-            "mcp.server",
-        );
-        let tx = sentry::start_transaction(tx_ctx);
-        tx.set_data("mcp.method.name", sentry::protocol::Value::from("tools/call"));
-        tx.set_data("mcp.tool.name", sentry::protocol::Value::from($tool_name));
-        tx.set_data("mcp.transport", sentry::protocol::Value::from("streamable-http"));
-
-        sentry::configure_scope(|scope| scope.set_span(Some(tx.clone().into())));
-
+        let tx = start_tool_transaction($tool_name);
         let mut receiver = $self.session.send($cmd);
         let response = recv_response(&mut receiver).await;
 
@@ -103,6 +98,18 @@ macro_rules! send_and_respond {
             Ok(CallToolResult::success(vec![ContentBlock::text(json)]))
         }
     }};
+}
+
+/// Starts the Sentry transaction of a tool call, following the MCP tracing spec.
+fn start_tool_transaction(tool_name: &str) -> sentry::Transaction {
+    let tx_ctx = sentry::TransactionContext::new(&format!("tools/call {}", tool_name), "mcp.server");
+    let tx = sentry::start_transaction(tx_ctx);
+    tx.set_data("mcp.method.name", sentry::protocol::Value::from("tools/call"));
+    tx.set_data("mcp.tool.name", sentry::protocol::Value::from(tool_name));
+    tx.set_data("mcp.transport", sentry::protocol::Value::from("streamable-http"));
+
+    sentry::configure_scope(|scope| scope.set_span(Some(tx.clone().into())));
+    tx
 }
 
 /// Build a `Resource` with common fields set.
@@ -222,7 +229,7 @@ pub struct TableColumnArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct PackKeyArg {
-    /// The key of the target pack. Use `list_open_packs` to get available keys.
+    /// The key of the target pack. Use `session_status` to get available keys.
     pub pack_key: String,
 }
 
@@ -240,14 +247,6 @@ pub struct PackKeyStringArg {
     pub pack_key: String,
     /// A string value.
     pub value: String,
-}
-
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct PackKeyStringsArg {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// A list of string values.
-    pub values: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
@@ -397,20 +396,6 @@ pub struct RenamePackedFilesArgs {
 }
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct CopyOrCutPackedFilesArgs {
-    /// A JSON object mapping pack key to ContainerPath arrays, e.g. {"my_pack.pack": [{"File": "db/table/file"}]}.
-    pub paths_by_pack: String,
-}
-
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct PastePackedFilesArgs {
-    /// The key of the target pack to paste into.
-    pub pack_key: String,
-    /// The destination folder path inside the pack (use empty string for root).
-    pub destination_path: String,
-}
-
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct DuplicatePackedFilesArgs {
     /// The key of the target pack.
     pub pack_key: String,
@@ -426,16 +411,6 @@ pub struct SavePackedFileFromViewArgs {
     pub path: String,
     /// The JSON representation of the RFileDecoded enum.
     pub data: String,
-}
-
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct SavePackedFileFromExternalViewArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The internal path of the file in the pack.
-    pub internal_path: String,
-    /// The external file path on disk.
-    pub external_path: PathBuf,
 }
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
@@ -455,16 +430,6 @@ pub struct StringArg {
 }
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct OpenPackedFileInExternalProgramArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The data source of the file.
-    pub source: DataSource,
-    /// The JSON representation of the ContainerPath.
-    pub container_path: String,
-}
-
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct StringsArg {
     /// A list of string values.
     pub values: Vec<String>,
@@ -478,20 +443,6 @@ pub struct ImportDependenciesArgs {
     pub pack_key: String,
     /// The JSON representation of BTreeMap<DataSource, Vec<ContainerPath>>.
     pub paths: String,
-}
-
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct GetRFilesFromAllSourcesArgs {
-    /// The JSON representation of Vec<ContainerPath>.
-    pub paths: String,
-    /// Whether to lowercase paths.
-    pub lowercase: bool,
-}
-
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct ContainerPathArg {
-    /// The JSON representation of the ContainerPath.
-    pub path: String,
 }
 
 // -- Search Args --
@@ -568,12 +519,6 @@ pub struct StringI32Args {
 pub struct ReferencingColumnsForDefinitionArgs {
     /// The table name.
     pub table_name: String,
-    /// The JSON representation of the Definition struct.
-    pub definition: String,
-}
-
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct DefinitionArg {
     /// The JSON representation of the Definition struct.
     pub definition: String,
 }
@@ -853,8 +798,10 @@ format used by all modern Total War titles.
 
 - **PackFile**: An archive containing game data files (DB tables, localisation, textures, models, etc.). \
   Mods are distributed as PackFiles.
-- **pack_key**: When you open one or more PackFiles, each gets a unique key string. Use `list_open_packs` \
+- **pack_key**: When you open one or more PackFiles, each gets a unique key string. Use `session_status` \
   to discover available keys. Most tools require a `pack_key` parameter.
+- **Reading data**: `list_files`, `table_info`, `table_rows` and `table_definition` return small, \
+  paginated, structured results. Prefer them over `decode_packed_file` for DB and Loc tables.
 - **DataSource**: Where data lives — `\"PackFile\"` (the user's mod), `\"GameFiles\"` (vanilla game data), \
   `\"ParentFiles\"` (dependency mods), `\"AssKitFiles\"` (Assembly Kit data), `\"ExternalFile\"` (disk file).
 - **ContainerPath**: A path inside a pack — either `{\"File\": \"db/land_units_tables/my_table\"}` or \
@@ -865,7 +812,7 @@ format used by all modern Total War titles.
 1. **Set the game** — Call `set_game_selected` with the game key (e.g. `\"warhammer_3\"`) and \
    `rebuild_dependencies: true`. This loads schemas and vanilla data.
 2. **Open a pack** — Call `open_packfiles` with filesystem path(s). Note the returned pack key(s).
-3. **Verify schema** — Call `is_schema_loaded`; if false, call `update_schemas` first.
+3. **Verify schema** — Call `session_status`; if `schema_loaded` is false, call `update_schemas` first.
 
 ## Supported Games
 
@@ -1171,8 +1118,8 @@ Step 1: Set the game
     napoleon, empire, arena.
 
 Step 2: Verify schema is loaded
-    Call: is_schema_loaded()
-    If it returns false, call update_schemas() to download the latest schemas.
+    Call: session_status()
+    If schema_loaded is false, call update_schemas() to download the latest schemas.
 
 Step 3: Open a PackFile
     Call: open_packfiles(paths: [\"/path/to/my_mod.pack\"])
@@ -1180,10 +1127,10 @@ Step 3: Open a PackFile
     subsequent operations.
 
 Step 4: Verify dependencies (optional but recommended)
-    Call: is_there_a_dependency_database(value: true)
-    If false, call generate_dependencies_cache() to build the dependency database.
+    Call: session_status()
+    If dependencies.vanilla_loaded is false, call generate_dependencies_cache() to build the dependency database.
 
-After initialization, use list_open_packs() to see all open pack keys at any time.
+After initialization, use session_status() to see all open pack keys at any time.
 ".to_string(),
 
             "rpfm://reference/path_conventions" => "\
@@ -1311,8 +1258,96 @@ Maps:
 
 }
 
+impl McpServer {
+
+    /// Runs a request of the version 2 API on the session.
+    ///
+    /// # Returns
+    ///
+    /// The response as structured content, or the error as a tool error, so a failed request doesn't end the MCP session.
+    async fn call_api<R: Request>(&self, tool_name: &str, request: R) -> Result<CallToolResult, McpError> {
+        let tx = start_tool_transaction(tool_name);
+
+        let rpc_request = RpcRequest::new(0, &request).map_err(|error| McpError {
+            code: ErrorCode::INTERNAL_ERROR,
+            message: format!("Failed to serialize request: {error}").into(),
+            data: None,
+        })?;
+
+        let response = self.session.call(rpc_request).recv().await
+            .unwrap_or_else(|| RpcResponse::new(0, Err(ApiError::Internal("Session response channel closed unexpectedly".to_owned()))));
+
+        tx.finish();
+
+        Ok(match response.outcome {
+            RpcOutcome::Result(value) => CallToolResult::structured(value),
+            RpcOutcome::Error(error) => CallToolResult::error(vec![ContentBlock::text(serde_json::to_string(&error).unwrap_or(error.message))]),
+        })
+    }
+}
+
 #[tool_router]
 impl McpServer {
+
+    #[tool(
+        name = "session_status",
+        description = "Get the state of the session: the selected game, if its schema and dependencies (vanilla files, Assembly Kit tables, parent packs) are loaded, and the open packs with their keys. Call this first to know what's available.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<SessionStatus>(),
+    )]
+    pub async fn session_status(&self) -> Result<CallToolResult, McpError> {
+        self.call_api("session_status", GetSessionStatus {}).await
+    }
+
+    #[tool(
+        name = "pack_info",
+        description = "Get the details of an open pack: type, format version, compression, encryption flags, the packs it depends on, and its MyMod mode.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<PackDetails>(),
+    )]
+    pub async fn pack_info(&self, params: Parameters<GetPackInfo>) -> Result<CallToolResult, McpError> {
+        self.call_api("pack_info", params.0).await
+    }
+
+    #[tool(
+        name = "list_files",
+        description = "List the files of an open pack, the game files, the parent packs, or the Assembly Kit tables, sorted by path. Filter by path prefix and file type, and page through big sources with offset/limit (the total is always returned). With recursive=false, the subfolders of the prefix are listed instead of their files, to browse folder by folder.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<FileList>(),
+    )]
+    pub async fn list_files(&self, params: Parameters<ListFiles>) -> Result<CallToolResult, McpError> {
+        self.call_api("list_files", params.0).await
+    }
+
+    #[tool(
+        name = "table_info",
+        description = "Get the columns (name, type, key, referenced table and column, default value, description) and the row count of a DB or Loc table, from any source. Columns are listed in the order row values are returned and written.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<TableInfo>(),
+    )]
+    pub async fn table_info(&self, params: Parameters<GetTableInfo>) -> Result<CallToolResult, McpError> {
+        self.call_api("table_info", params.0).await
+    }
+
+    #[tool(
+        name = "table_rows",
+        description = "Read rows of a DB or Loc table, from any source, as plain values (booleans, numbers and strings). Pick only the columns you need, filter rows by column values, and page with offset/limit (100 rows by default; the total of matching rows is always returned). Each row includes its index in the table.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<TableRows>(),
+    )]
+    pub async fn table_rows(&self, params: Parameters<GetTableRows>) -> Result<CallToolResult, McpError> {
+        self.call_api("table_rows", params.0).await
+    }
+
+    #[tool(
+        name = "table_definition",
+        description = "Get the columns of a table as defined in the schema, without needing a file of it. Without a version, the version of the table in the game files is used.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<TableDefinition>(),
+    )]
+    pub async fn table_definition(&self, params: Parameters<GetTableDefinition>) -> Result<CallToolResult, McpError> {
+        self.call_api("table_definition", params.0).await
+    }
 
     pub fn new(session: Arc<Session>) -> Self {
         Self {
@@ -1366,11 +1401,6 @@ impl McpServer {
         send_and_respond!(self, "clean_and_save_pack_as", Command::CleanAndSavePackAs(params.0.pack_key, params.0.path))
     }
 
-    #[tool(description = "Trigger a backup autosave for the pack identified by `pack_key`.")]
-    pub async fn trigger_backup_autosave(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "trigger_backup_autosave", Command::TriggerBackupAutosave(params.0.pack_key))
-    }
-
     #[tool(description = "Open all CA (vanilla) PackFiles for the selected game as one merged PackFile.")]
     pub async fn load_all_ca_pack_files(&self) -> Result<CallToolResult, McpError> {
         send_and_respond!(self, "load_all_ca_pack_files", Command::LoadAllCAPackFiles)
@@ -1407,16 +1437,6 @@ impl McpServer {
         send_and_respond!(self, "change_data_is_encrypted", Command::ChangeDataIsEncrypted(params.0.pack_key, params.0.value))
     }
 
-    #[tool(description = "Get the file path of the pack identified by `pack_key`.")]
-    pub async fn get_pack_file_path(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_pack_file_path", Command::GetPackFilePath(params.0.pack_key))
-    }
-
-    #[tool(description = "Get the file name of the pack identified by `pack_key`.")]
-    pub async fn get_pack_file_name(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_pack_file_name", Command::GetPackFileName(params.0.pack_key))
-    }
-
     #[tool(description = "Get the settings of the pack identified by `pack_key`.")]
     pub async fn get_pack_settings(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
         send_and_respond!(self, "get_pack_settings", Command::GetPackSettings(params.0.pack_key))
@@ -1426,11 +1446,6 @@ impl McpServer {
     pub async fn set_pack_settings(&self, params: Parameters<SetPackSettingsArgs>) -> Result<CallToolResult, McpError> {
         let settings = parse_json!(&params.0.settings);
         send_and_respond!(self, "set_pack_settings", Command::SetPackSettings(params.0.pack_key, settings))
-    }
-
-    #[tool(description = "Get the list of PackFiles marked as dependencies of the pack identified by `pack_key`.")]
-    pub async fn get_dependency_pack_files_list(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_dependency_pack_files_list", Command::GetDependencyPackFilesList(params.0.pack_key))
     }
 
     #[tool(description = "Set the list of PackFiles marked as dependencies for the pack identified by `pack_key`. The `list` is a JSON array of [enabled, pack_name] pairs, e.g. [[true, \"other_mod.pack\"], [false, \"disabled_mod.pack\"]].")]
@@ -1443,7 +1458,7 @@ impl McpServer {
     // File Operations
     //-----------------------------------------------------------------------//
 
-    #[tool(description = "Decode a file from the pack identified by `pack_key`. The `path` is the internal file path (e.g. \"db/land_units_tables/my_mod\"). The `source` is the data source: \"PackFile\" (user mod), \"GameFiles\" (vanilla), \"ParentFiles\" (dependency mods), \"AssKitFiles\", or \"ExternalFile\". Returns the decoded file content as JSON (RFileDecoded).")]
+    #[tool(description = "Decode a file from the pack identified by `pack_key`. The `path` is the internal file path (e.g. \"db/land_units_tables/my_mod\"). The `source` is the data source: \"PackFile\" (user mod), \"GameFiles\" (vanilla), \"ParentFiles\" (dependency mods), \"AssKitFiles\", or \"ExternalFile\". Returns the whole decoded file as JSON (RFileDecoded). For DB and Loc tables, prefer `table_info` and `table_rows`, which return only the columns and rows you ask for.")]
     pub async fn decode_packed_file(&self, params: Parameters<DecodePackedFileArgs>) -> Result<CallToolResult, McpError> {
         send_and_respond!(self, "decode_packed_file", Command::DecodePackedFile(params.0.pack_key, params.0.path, params.0.source))
     }
@@ -1502,23 +1517,6 @@ impl McpServer {
         send_and_respond!(self, "rename_packed_files", Command::RenamePackedFiles(params.0.pack_key, renames))
     }
 
-    #[tool(description = "Copy files to the internal clipboard. The `paths_by_pack` is a JSON object mapping pack key to ContainerPath arrays, e.g. {\"my_pack.pack\": [{\"File\": \"db/table/file\"}]}. Use `paste_packed_files` to paste afterwards.")]
-    pub async fn copy_packed_files(&self, params: Parameters<CopyOrCutPackedFilesArgs>) -> Result<CallToolResult, McpError> {
-        let paths_by_pack: BTreeMap<String, Vec<ContainerPath>> = parse_json!(&params.0.paths_by_pack);
-        send_and_respond!(self, "copy_packed_files", Command::CopyPackedFiles(paths_by_pack))
-    }
-
-    #[tool(description = "Cut files to the internal clipboard. Same as copy, but files will be removed from the source pack on paste. The `paths_by_pack` is a JSON object mapping pack key to ContainerPath arrays. Use `paste_packed_files` to paste afterwards.")]
-    pub async fn cut_packed_files(&self, params: Parameters<CopyOrCutPackedFilesArgs>) -> Result<CallToolResult, McpError> {
-        let paths_by_pack: BTreeMap<String, Vec<ContainerPath>> = parse_json!(&params.0.paths_by_pack);
-        send_and_respond!(self, "cut_packed_files", Command::CutPackedFiles(paths_by_pack))
-    }
-
-    #[tool(description = "Paste files from the internal clipboard into the pack identified by `pack_key`. The `destination_path` is the folder path to paste into (empty string for root). Returns the added paths, any cut-deleted paths, and the source pack key.")]
-    pub async fn paste_packed_files(&self, params: Parameters<PastePackedFilesArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "paste_packed_files", Command::PastePackedFiles(params.0.pack_key, params.0.destination_path))
-    }
-
     #[tool(description = "Duplicate files in-place within the same pack. Files are cloned with a numeric suffix to avoid name collisions. The `paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"db/table/file\"}].")]
     pub async fn duplicate_packed_files(&self, params: Parameters<DuplicatePackedFilesArgs>) -> Result<CallToolResult, McpError> {
         let paths: Vec<ContainerPath> = parse_json!(&params.0.paths);
@@ -1529,11 +1527,6 @@ impl McpServer {
     pub async fn save_packed_file_from_view(&self, params: Parameters<SavePackedFileFromViewArgs>) -> Result<CallToolResult, McpError> {
         let data: RFileDecoded = parse_json!(&params.0.data);
         send_and_respond!(self, "save_packed_file_from_view", Command::SavePackedFileFromView(params.0.pack_key, params.0.path, data))
-    }
-
-    #[tool(description = "Save a file from an external program back to the pack identified by `pack_key`.")]
-    pub async fn save_packed_file_from_external_view(&self, params: Parameters<SavePackedFileFromExternalViewArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "save_packed_file_from_external_view", Command::SavePackedFileFromExternalView(params.0.pack_key, params.0.internal_path, params.0.external_path))
     }
 
     #[tool(description = "Save files to the pack identified by `pack_key` and optionally optimize afterward. The `files` is a JSON array of RFile objects (as returned by decode/get operations). Set `optimize` to true to remove unchanged data after saving.")]
@@ -1547,51 +1540,15 @@ impl McpServer {
         send_and_respond!(self, "get_packed_file_raw_data", Command::GetPackedFileRawData(params.0.pack_key, params.0.value))
     }
 
-    #[tool(description = "Open a file in the system's default program from the pack identified by `pack_key`. The `source` is the DataSource (\"PackFile\", \"GameFiles\", etc.). The `container_path` is a ContainerPath JSON, e.g. {\"File\": \"db/table/file\"}.")]
-    pub async fn open_packed_file_in_external_program(&self, params: Parameters<OpenPackedFileInExternalProgramArgs>) -> Result<CallToolResult, McpError> {
-        let cp: ContainerPath = parse_json!(&params.0.container_path);
-        send_and_respond!(self, "open_packed_file_in_external_program", Command::OpenPackedFileInExternalProgram(params.0.pack_key, params.0.source, cp))
-    }
-
-    #[tool(description = "Open the folder containing the pack identified by `pack_key` in the file manager.")]
-    pub async fn open_containing_folder(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "open_containing_folder", Command::OpenContainingFolder(params.0.pack_key))
-    }
-
     #[tool(description = "Clean the decode cache for the provided paths in the pack identified by `pack_key`. The `paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"db/land_units_tables/my_mod\"}, {\"Folder\": \"db\"}].")]
     pub async fn clean_cache(&self, params: Parameters<ContainerPathsArg>) -> Result<CallToolResult, McpError> {
         let paths: Vec<ContainerPath> = parse_json!(&params.0.paths);
         send_and_respond!(self, "clean_cache", Command::CleanCache(params.0.pack_key, paths))
     }
 
-    #[tool(description = "Check if a folder exists in the pack identified by `pack_key`.")]
-    pub async fn folder_exists(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "folder_exists", Command::FolderExists(params.0.pack_key, params.0.value))
-    }
-
-    #[tool(description = "Check if a file exists in the pack identified by `pack_key`.")]
-    pub async fn packed_file_exists(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "packed_file_exists", Command::PackedFileExists(params.0.pack_key, params.0.value))
-    }
-
-    #[tool(description = "Get the info of one or more files in the pack identified by `pack_key`.")]
-    pub async fn get_packed_files_info(&self, params: Parameters<PackKeyStringsArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_packed_files_info", Command::GetPackedFilesInfo(params.0.pack_key, params.0.values))
-    }
-
-    #[tool(description = "Get the info of a single file in the pack identified by `pack_key`.")]
-    pub async fn get_rfile_info(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_rfile_info", Command::GetRFileInfo(params.0.pack_key, params.0.value))
-    }
-
     //-----------------------------------------------------------------------//
     // Game Selection
     //-----------------------------------------------------------------------//
-
-    #[tool(description = "Get the currently selected game key.")]
-    pub async fn get_game_selected(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_game_selected", Command::GetGameSelected)
-    }
 
     #[tool(description = "Set the current game. Valid game keys: pharaoh_dynasties, pharaoh, warhammer_3, troy, three_kingdoms, warhammer_2, warhammer, thrones_of_britannia, attila, rome_2, shogun_2, napoleon, empire, arena. Set rebuild_dependencies to true on first call to load schemas and vanilla data.")]
     pub async fn set_game_selected(&self, params: Parameters<SetGameSelectedArgs>) -> Result<CallToolResult, McpError> {
@@ -1612,52 +1569,15 @@ impl McpServer {
         send_and_respond!(self, "rebuild_dependencies", Command::RebuildDependencies(params.0.value))
     }
 
-    #[tool(description = "Check if there is a dependency database loaded. Pass true to ensure AssKit data is included.")]
-    pub async fn is_there_a_dependency_database(&self, params: Parameters<BoolArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "is_there_a_dependency_database", Command::IsThereADependencyDatabase(params.0.value))
-    }
-
-    #[tool(description = "Get the table names of all DB files in dependency PackFiles.")]
-    pub async fn get_table_list_from_dependency_pack_file(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_table_list_from_dependency_pack_file", Command::GetTableListFromDependencyPackFile)
-    }
-
     #[tool(description = "Get custom table names (start_pos_, twad_ prefixes) from the schema.")]
     pub async fn get_custom_table_list(&self) -> Result<CallToolResult, McpError> {
         send_and_respond!(self, "get_custom_table_list", Command::GetCustomTableList)
-    }
-
-    #[tool(description = "Get the version of a table from the dependency database.")]
-    pub async fn get_table_version_from_dependency_pack_file(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_table_version_from_dependency_pack_file", Command::GetTableVersionFromDependencyPackFile(params.0.value))
-    }
-
-    #[tool(description = "Get the definition of a table from the dependency database. NOTE: the returned `fields` list is the raw on-disk field layout, not what row data looks like (e.g. colour columns are split into separate r/g/b fields here). Pass the definition to `fields_processed` to get the field list/count that rows must actually match.")]
-    pub async fn get_table_definition_from_dependency_pack_file(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_table_definition_from_dependency_pack_file", Command::GetTableDefinitionFromDependencyPackFile(params.0.value))
-    }
-
-    #[tool(description = "Get table data from dependencies by table name. NOTE: each returned file's decoded `data` rows are shaped per the PROCESSED fields (colour groups merged, bitwise/enum expanded), but the `definition.fields` bundled in the same file is the RAW on-disk layout and will have a different length/order — do not zip row cells against `definition.fields`. Call `fields_processed` on that definition to get the field list that actually lines up with `data`.")]
-    pub async fn get_tables_from_dependencies(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_tables_from_dependencies", Command::GetTablesFromDependencies(params.0.value))
     }
 
     #[tool(description = "Import files from dependencies into the pack identified by `pack_key`. The `paths` is a JSON object mapping DataSource to ContainerPath arrays, e.g. {\"GameFiles\": [{\"File\": \"db/table/file\"}]}.")]
     pub async fn import_dependencies_to_open_pack_file(&self, params: Parameters<ImportDependenciesArgs>) -> Result<CallToolResult, McpError> {
         let paths: BTreeMap<DataSource, Vec<ContainerPath>> = parse_json!(&params.0.paths);
         send_and_respond!(self, "import_dependencies_to_open_pack_file", Command::ImportDependenciesToOpenPackFile(params.0.pack_key, paths))
-    }
-
-    #[tool(description = "Get files from all known sources (PackFile, GameFiles, ParentFiles). The `paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"db/land_units_tables/some_file\"}]. Set `lowercase` to true to normalize path casing.")]
-    pub async fn get_rfiles_from_all_sources(&self, params: Parameters<GetRFilesFromAllSourcesArgs>) -> Result<CallToolResult, McpError> {
-        let paths: Vec<ContainerPath> = parse_json!(&params.0.paths);
-        send_and_respond!(self, "get_rfiles_from_all_sources", Command::GetRFilesFromAllSources(paths, params.0.lowercase))
-    }
-
-    #[tool(description = "Get all file names under a path prefix across all data sources (PackFile, GameFiles, ParentFiles). The `path` is a ContainerPath JSON, e.g. {\"Folder\": \"db/land_units_tables\"} to list all files under that folder.")]
-    pub async fn get_packed_files_names_starting_with_path_from_all_sources(&self, params: Parameters<ContainerPathArg>) -> Result<CallToolResult, McpError> {
-        let path: ContainerPath = parse_json!(&params.0.path);
-        send_and_respond!(self, "get_packed_files_names_starting_with_path_from_all_sources", Command::GetPackedFilesNamesStartingWitPathFromAllSources(path))
     }
 
     #[tool(description = "Get local art set IDs from campaign_character_arts_tables in the pack identified by `pack_key`.")]
@@ -1704,7 +1624,7 @@ impl McpServer {
         send_and_respond!(self, "search_references", Command::SearchReferences(params.0.pack_key, map, params.0.value))
     }
 
-    #[tool(description = "Get valid reference values for columns in a table definition for the pack identified by `pack_key`. The `definition` is a Definition JSON (as returned by `get_table_definition_from_dependency_pack_file`). Set `force` to true to regenerate cached reference data.")]
+    #[tool(description = "Get valid reference values for columns in a table definition for the pack identified by `pack_key`. The `definition` is a Definition JSON (as returned by `definition_by_table_name_and_version`). Set `force` to true to regenerate cached reference data.")]
     pub async fn get_reference_data_from_definition(&self, params: Parameters<GetReferenceDataFromDefinitionArgs>) -> Result<CallToolResult, McpError> {
         let def = parse_json!(&params.0.definition);
         send_and_respond!(self, "get_reference_data_from_definition", Command::GetReferenceDataFromDefinition(params.0.pack_key, params.0.table_name, def, params.0.force))
@@ -1745,22 +1665,17 @@ impl McpServer {
         send_and_respond!(self, "update_schemas", Command::UpdateSchemas)
     }
 
-    #[tool(description = "Check if a schema is currently loaded.")]
-    pub async fn is_schema_loaded(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "is_schema_loaded", Command::IsSchemaLoaded)
-    }
-
     #[tool(description = "Get the current schema.")]
     pub async fn get_schema(&self) -> Result<CallToolResult, McpError> {
         send_and_respond!(self, "get_schema", Command::Schema)
     }
 
-    #[tool(description = "Get all definitions for a table name. NOTE: the returned `fields` list is the raw on-disk field layout, not what row data looks like (e.g. colour columns are split into separate r/g/b fields here). Pass the definition to `fields_processed` to get the field list/count that rows must actually match.")]
+    #[tool(description = "Get all definitions for a table name. NOTE: the returned `fields` list is the raw on-disk field layout, not what row data looks like (e.g. colour columns are split into separate r/g/b fields here). Use `table_definition` to get the columns rows actually have.")]
     pub async fn definitions_by_table_name(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
         send_and_respond!(self, "definitions_by_table_name", Command::DefinitionsByTableName(params.0.value))
     }
 
-    #[tool(description = "Get a specific definition by table name and version. NOTE: the returned `fields` list is the raw on-disk field layout, not what row data looks like (e.g. colour columns are split into separate r/g/b fields here). Do not use `fields.len()` to size a row for saving — pass this definition to `fields_processed` first to get the field list/count and types that rows must actually match.")]
+    #[tool(description = "Get a specific definition by table name and version. NOTE: the returned `fields` list is the raw on-disk field layout, not what row data looks like (e.g. colour columns are split into separate r/g/b fields here). Do not use `fields.len()` to size a row for saving — use `table_definition` to get the columns and types rows actually have.")]
     pub async fn definition_by_table_name_and_version(&self, params: Parameters<StringI32Args>) -> Result<CallToolResult, McpError> {
         send_and_respond!(self, "definition_by_table_name_and_version", Command::DefinitionByTableNameAndVersion(params.0.name, params.0.version))
     }
@@ -1770,16 +1685,10 @@ impl McpServer {
         send_and_respond!(self, "delete_definition", Command::DeleteDefinition(params.0.name, params.0.version))
     }
 
-    #[tool(description = "Get columns from other tables that reference the given table's definition. The `definition` is a Definition JSON (as returned by `get_table_definition_from_dependency_pack_file` or `definitions_by_table_name`).")]
+    #[tool(description = "Get columns from other tables that reference the given table's definition. The `definition` is a Definition JSON (as returned by `definition_by_table_name_and_version` or `definitions_by_table_name`).")]
     pub async fn referencing_columns_for_definition(&self, params: Parameters<ReferencingColumnsForDefinitionArgs>) -> Result<CallToolResult, McpError> {
         let def = parse_json!(&params.0.definition);
         send_and_respond!(self, "referencing_columns_for_definition", Command::ReferencingColumnsForDefinition(params.0.table_name, def))
-    }
-
-    #[tool(description = "Get the processed fields from a definition, with bitwise expansion, enum conversions, and colour-group merging applied. Call this before building or validating row data: table rows must have exactly as many entries as `fields_processed` returns, NOT as many as the raw `fields` list on the Definition (e.g. `definition_by_table_name_and_version`/`definitions_by_table_name` return raw fields, where a colour split into r/g/b counts as 3 fields instead of the 1 merged field rows actually use). Saving a row built against the raw field count/types will fail. The `definition` is a Definition JSON (as returned by `get_table_definition_from_dependency_pack_file`).")]
-    pub async fn fields_processed(&self, params: Parameters<DefinitionArg>) -> Result<CallToolResult, McpError> {
-        let def = parse_json!(&params.0.definition);
-        send_and_respond!(self, "fields_processed", Command::FieldsProcessed(def))
     }
 
     #[tool(description = "Save local schema patches to customize column metadata without modifying the upstream schema. The `patches` is a JSON object mapping table names to DefinitionPatch objects, e.g. {\"land_units_tables\": {\"field_patches\": {...}}}.")]
@@ -1827,11 +1736,6 @@ impl McpServer {
         let def = parse_json!(&params.0.definition);
         let changes = parse_json!(&params.0.changes);
         send_and_respond!(self, "cascade_edition", Command::CascadeEdition(params.0.pack_key, params.0.table_name, def, changes))
-    }
-
-    #[tool(description = "Get table paths by table name from the pack identified by `pack_key`.")]
-    pub async fn get_tables_by_table_name(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_tables_by_table_name", Command::GetTablesByTableName(params.0.pack_key, params.0.value))
     }
 
     #[tool(description = "Add keys to the key_deletes table in the pack identified by `pack_key`.")]
@@ -1883,11 +1787,6 @@ The report lists each test with its errors (including errors of the pack's scrip
     #[tool(description = "Add a line to the ignored diagnostics list for the pack identified by `pack_key`.")]
     pub async fn add_line_to_pack_ignored_diagnostics(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
         send_and_respond!(self, "add_line_to_pack_ignored_diagnostics", Command::AddLineToPackIgnoredDiagnostics(params.0.pack_key, params.0.value))
-    }
-
-    #[tool(description = "Export missing table definitions for the pack identified by `pack_key` to a file (for debugging).")]
-    pub async fn get_missing_definitions(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_missing_definitions", Command::GetMissingDefinitions(params.0.pack_key))
     }
 
     //-----------------------------------------------------------------------//
@@ -1957,11 +1856,6 @@ The report lists each test with its errors (including errors of the pack's scrip
     #[tool(description = "Update the Lua autogen repository.")]
     pub async fn update_lua_autogen(&self) -> Result<CallToolResult, McpError> {
         send_and_respond!(self, "update_lua_autogen", Command::UpdateLuaAutogen)
-    }
-
-    #[tool(description = "Update the program to the latest version.")]
-    pub async fn update_main_program(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "update_main_program", Command::UpdateMainProgram)
     }
 
     #[tool(description = "Update the Empire/Napoleon Assembly Kit files.")]
@@ -2057,21 +1951,6 @@ The report lists each test with its errors (including errors of the pack's scrip
         send_and_respond!(self, "settings_set_vec_raw", Command::SettingsSetVecRaw(params.0.key, params.0.value))
     }
 
-    #[tool(description = "Backup the current settings to memory.")]
-    pub async fn backup_settings(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "backup_settings", Command::BackupSettings)
-    }
-
-    #[tool(description = "Clear all settings and reset to defaults.")]
-    pub async fn clear_settings(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "clear_settings", Command::ClearSettings)
-    }
-
-    #[tool(description = "Restore settings from the backup.")]
-    pub async fn restore_backup_settings(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "restore_backup_settings", Command::RestoreBackupSettings)
-    }
-
     //-----------------------------------------------------------------------//
     // Path Queries
     //-----------------------------------------------------------------------//
@@ -2124,11 +2003,6 @@ The report lists each test with its errors (including errors of the pack's scrip
     //-----------------------------------------------------------------------//
     // Specialized
     //-----------------------------------------------------------------------//
-
-    #[tool(description = "Get the info about the pack identified by `pack_key` and the list of files it contains.")]
-    pub async fn open_pack_info(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "open_pack_info", Command::GetPackFileDataForTreeView(params.0.pack_key))
-    }
 
     #[tool(description = "Initialize a MyMod folder for mod development.")]
     pub async fn initialize_my_mod_folder(&self, params: Parameters<InitializeMyModFolderArgs>) -> Result<CallToolResult, McpError> {
@@ -2217,11 +2091,6 @@ The report lists each test with its errors (including errors of the pack's scrip
     // Multi-Pack Management
     //-----------------------------------------------------------------------//
 
-    #[tool(description = "List all currently open packs with their keys and metadata. Use this to get valid pack_key values for other tools.")]
-    pub async fn list_open_packs(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "list_open_packs", Command::ListOpenPacks)
-    }
-
     //-----------------------------------------------------------------------//
     // Additional tools
     //-----------------------------------------------------------------------//
@@ -2255,19 +2124,20 @@ Follow these steps in order:
 2. **Select the game** – Call `set_game_selected` with the correct game key (e.g. `\"warhammer_3\"`)
    and `rebuild_dependencies: true` so that schemas and dependency data are loaded.
 
-3. **List pack contents** – Call `open_pack_info` with the pack key to get the full file tree.
-   Present the tree to the user in a readable format.
+3. **List pack contents** – Call `list_files` with `source: {\"pack\": <pack key>}`. For big packs,
+   browse folder by folder with `recursive: false` and a `prefix`, or filter by `file_types`.
+   Present the files to the user in a readable format.
 
-4. **Decode specific files** – When the user asks about a file, call `decode_packed_file` with the
-   pack key, the internal path (e.g. `\"db/land_units_tables/my_table\"`), and
-   `source: \"PackFile\"`. The decoded JSON will contain the table rows, schema, etc.
+4. **Read tables** – For DB and Loc tables, call `table_info` to see their columns and row count,
+   and `table_rows` to read rows, picking only the columns and rows you need with `columns` and
+   `filters`. For other files, call `decode_packed_file` with the pack key, the internal path,
+   and `source: \"PackFile\"`.
 
-5. **Inspect metadata** – Use `get_pack_settings`, `get_pack_file_name`, or
-   `get_dependency_pack_files_list` to answer questions about the pack itself.
+5. **Inspect metadata** – Use `pack_info` and `get_pack_settings` to answer questions about the pack itself.
 
 Important notes:
-- Always call `list_open_packs` if you are unsure which pack key to use.
-- If a file fails to decode, check `is_schema_loaded`; if false, call `update_schemas` first.
+- Always call `session_status` if you are unsure which pack key to use.
+- If a table fails to decode, check `schema_loaded` in `session_status`; if false, call `update_schemas` first.
 - When done, optionally call `close_pack` to free resources.
 ",
         )]
@@ -2284,22 +2154,22 @@ Workflow:
 
 1. **Open the pack** – `open_packfiles` → note the `pack_key`.
 2. **Set the game** – `set_game_selected` with `rebuild_dependencies: true`.
-3. **Decode the table** – `decode_packed_file` with the DB path
+3. **Inspect the table** – `table_info` with `file: {\"source\": {\"pack\": <pack key>}, \"path\": <DB path>}`
+   returns its columns, in the order row values are, and its row count. Use `table_rows` to
+   read the rows you need.
+4. **Decode the table** – `decode_packed_file` with the DB path
    (e.g. `\"db/unit_stats_land_tables/my_table\"`) and `source: \"PackFile\"`.
    The response is an `RFileDecoded` JSON containing the table data and definition.
-4. **Modify rows** – Edit the decoded JSON: add, remove, or change rows/cells.
-   Each row is typically a list of `DecodedData` values matching the table's
-   fields processed list (retrievable via the `FieldsProcessed` message).
-5. **Save back** – Call `save_packed_file_from_view` with the pack key, the same path,
+5. **Modify rows** – Edit the decoded JSON: add, remove, or change rows/cells.
+   Each row is a list of `DecodedData` values, one per column returned by `table_info`,
+   in the same order. Rows with a different amount or type of values fail to save.
+6. **Save back** – Call `save_packed_file_from_view` with the pack key, the same path,
    and the modified `RFileDecoded` JSON as the `data` parameter.
-6. **Save the pack** – Call `save_packfile` (or `save_pack_as` for a new path).
+7. **Save the pack** – Call `save_packfile` (or `save_pack_as` for a new path).
 
 Tips:
-- Use `get_table_definition_from_dependency_pack_file` to see the table's definition, but
-  always run it through `fields_processed` before using its field list/count — the
-  definition's raw `fields` do NOT match row shape (e.g. a colour column is split into
-  separate r/g/b fields there); rows must match `fields_processed` exactly or saving
-  will fail with a field-count or type error.
+- Use `table_definition` to see the columns of a table without a file of it, and
+  `table_rows` on the game files to see vanilla rows of the same table.
 - Use `get_reference_data_from_definition` to discover valid values for referenced columns.
 - After saving, you can run `diagnostics_check` to validate the pack.
 ",
@@ -2388,18 +2258,17 @@ Workflow:
 
 1. **Set the game** – `set_game_selected` with `rebuild_dependencies: true`.
 
-2. **Check dependency database** – `is_there_a_dependency_database` with `true` to verify
-   that game data (including Assembly Kit data) is loaded.
-   If it returns false, call `generate_dependencies_cache` first.
+2. **Check dependency database** – `session_status` shows if the vanilla files and the
+   Assembly Kit tables are loaded. If `dependencies.vanilla_loaded` is false, call
+   `generate_dependencies_cache` first.
 
-3. **Browse vanilla tables** – `get_table_list_from_dependency_pack_file` returns all
-   DB table names from the vanilla game files.
+3. **Browse vanilla files** – `list_files` with `source: \"game_files\"` (or `\"parent_files\"`,
+   `\"assembly_kit\"`). Use `prefix: \"db/\"` and `file_types: [\"DB\"]` to list the vanilla tables.
 
-4. **Read vanilla data** – `get_tables_from_dependencies` with a table name to get
-   all rows from vanilla for that table.
+4. **Read vanilla data** – `table_rows` with `file: {\"source\": \"game_files\", \"path\": <path>}`,
+   filtering and picking columns to get only the rows you need.
 
-5. **Get definitions** – `get_table_definition_from_dependency_pack_file` to get the
-   schema definition for any table.
+5. **Get definitions** – `table_definition` with a table name, or `table_info` on a vanilla file.
 
 6. **Import from vanilla** – `import_dependencies_to_open_pack_file` to copy specific
    files from vanilla into your mod pack.
@@ -2407,18 +2276,11 @@ Workflow:
 7. **Open CA packs** – `load_all_ca_pack_files` opens all vanilla packs as one merged
    read-only pack for full browsing.
 
-8. **Cross-source lookups** – `get_rfiles_from_all_sources` retrieves files by path
-   from PackFile, GameFiles, and ParentFiles simultaneously.
-
 Tips:
-- Use `get_packed_files_names_starting_with_path_from_all_sources` to discover files
-  under a given path prefix across all sources.
-- `set_dependency_pack_files_list` lets you mark other mods as dependencies of your pack.
-- The `definition` bundled in each file from `get_tables_from_dependencies` (and from
-  `get_table_definition_from_dependency_pack_file`) lists RAW on-disk fields, which can
-  have a different length/order than the actual decoded rows (e.g. colour columns are
-  split into separate r/g/b fields there). Run it through `fields_processed` before
-  matching it up against row cells or reusing it to build new rows.
+- `set_dependency_pack_files_list` lets you mark other mods as dependencies of your pack,
+  and `pack_info` shows the current ones.
+- Columns returned by `table_info` and `table_definition` match the values of each row,
+  in the same order.
 ",
         )]
     }
@@ -2474,7 +2336,7 @@ You are an assistant helping the user manage RPFM table schemas.
 
 Workflow:
 
-1. **Check schema status** – `is_schema_loaded` to verify a schema is loaded.
+1. **Check schema status** – `session_status` to verify a schema is loaded (`schema_loaded`).
    If not, call `update_schemas` to download the latest from the repository.
 
 2. **Get the full schema** – `get_schema` returns the entire schema object.
@@ -2483,13 +2345,12 @@ Workflow:
    returns all known versions. Use `definition_by_table_name_and_version` for a
    specific version.
 
-4. **See processed fields** – `fields_processed` takes a Definition JSON and returns
-   fields with bitwise expansion, enum conversions, and colour-group merging applied.
-   This is required, not just cosmetic: `definitions_by_table_name` and
-   `definition_by_table_name_and_version` return the raw on-disk field list (e.g. a
-   colour column split into separate r/g/b fields), which has a different length/order
-   than actual row data. Always call `fields_processed` before using a definition's
-   field list/count to build or validate rows for saving.
+4. **See the columns rows have** – `table_definition` returns the columns of a table
+   as rows see them, with bitwise expansion, enum conversions, and colour-group merging
+   applied. `definitions_by_table_name` and `definition_by_table_name_and_version` return
+   the raw on-disk field list instead (e.g. a colour column split into separate r/g/b
+   fields), which has a different length/order than actual row data. Use those only to
+   edit the schema itself.
 
 5. **Find referencing columns** – `referencing_columns_for_definition` shows which
    other tables reference a given table's columns.
@@ -2536,10 +2397,8 @@ Common operations:
 **Rename / move files:**
 - `rename_packed_files` – Pass a list of `(old_path, new_path)` tuples.
 
-**Copy / Cut / Paste / Duplicate:**
-- `copy_packed_files` – Copy files to the internal clipboard for later pasting.
-- `cut_packed_files` – Cut files to the internal clipboard (removed from source on paste).
-- `paste_packed_files` – Paste clipboard contents into a pack at the given folder path.
+**Copy / Duplicate:**
+- `add_packed_files_from_pack_file` – Copy files from another open pack.
 - `duplicate_packed_files` – Clone files in-place with a numeric suffix.
 
 **Extract to disk:**
@@ -2552,16 +2411,11 @@ Common operations:
 - `delete_from_animpack` – Remove files from an AnimPack.
 
 **File info:**
-- `get_packed_files_info` / `get_rfile_info` – Get metadata about files.
-- `folder_exists` / `packed_file_exists` – Check if a path exists.
+- `list_files` – List files by path prefix and type, to find files or check if a path exists.
 - `get_packed_file_raw_data` – Get the raw binary content of a file.
 
 **Merge tables:**
 - `merge_files` – Combine multiple compatible tables into one.
-
-**External editing:**
-- `open_packed_file_in_external_program` – Open a file in the system's default editor.
-- `save_packed_file_from_external_view` – Re-import after external editing.
 
 Always call `save_packfile` or `save_pack_as` when done to persist changes.
 ",
@@ -2580,13 +2434,13 @@ You are an assistant helping the user troubleshoot common RPFM and PackFile issu
 ### 1. Schema not loaded
 **Symptom**: Files fail to decode, or `decode_packed_file` returns raw data.
 **Solution**:
-- Call `is_schema_loaded()` – if false, call `update_schemas()`.
+- Call `session_status()` – if `schema_loaded` is false, call `update_schemas()`.
 - Make sure `set_game_selected` was called with `rebuild_dependencies: true`.
 
 ### 2. Dependencies not available
 **Symptom**: References show as invalid, diagnostics report missing keys.
 **Solution**:
-- Call `is_there_a_dependency_database(true)` – if false, call `generate_dependencies_cache()`.
+- Call `session_status()` – if `dependencies.vanilla_loaded` is false, call `generate_dependencies_cache()`.
 - Ensure the game path is configured correctly in settings.
 
 ### 3. Pack won't save
@@ -2601,28 +2455,25 @@ You are an assistant helping the user troubleshoot common RPFM and PackFile issu
 **Solution**:
 - Call `update_schemas()` to get the latest table definitions.
 - Use `update_table` to migrate the table to the current version.
-- Check `get_table_definition_from_dependency_pack_file` for the expected schema.
+- Check `table_definition` for the expected columns.
 
 ### 5. Wrong game selected
 **Symptom**: Tables decode with wrong columns or fail to decode, dependencies are for a different game.
 **Solution**:
-- Call `get_game_selected()` to verify the current game.
+- Call `session_status()` to verify the current game.
 - Call `set_game_selected` with the correct game key and `rebuild_dependencies: true`.
 
 ### 6. Diagnostics show many reference errors
 **Symptom**: `diagnostics_check` reports hundreds of invalid references.
 **Solution**:
-- Ensure dependencies are loaded (`is_there_a_dependency_database(true)`).
-- Check if the pack depends on other mods via `get_dependency_pack_files_list`.
+- Ensure dependencies are loaded (`dependencies` in `session_status`).
+- Check if the pack depends on other mods via `pack_info`.
 - Some references are Assembly Kit only; re-run with `check_ak_only_refs: true`.
 - Use `add_line_to_pack_ignored_diagnostics` for intentional deviations.
 
 ### Diagnostic Tools
 - `diagnostics_check` – Full pack validation.
-- `get_game_selected` – Verify game context.
-- `is_schema_loaded` – Check schema status.
-- `is_there_a_dependency_database` – Check dependency database status.
-- `list_open_packs` – Verify which packs are open.
+- `session_status` – Verify the game, schema, dependencies and open packs.
 - `config_path` / `schemas_path` – Verify RPFM paths.
 ",
         )]
@@ -2671,8 +2522,7 @@ Total War mod data in spreadsheets.
 ## Tips
 - TSV files include metadata headers that RPFM uses for schema matching.
   Do not delete or modify these header rows.
-- Use `get_table_definition_from_dependency_pack_file` to understand column types
-  before editing.
+- Use `table_info` or `table_definition` to understand column types before editing.
 - After import, run `diagnostics_check` to validate references.
 ",
         )]

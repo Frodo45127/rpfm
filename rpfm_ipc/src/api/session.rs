@@ -10,17 +10,18 @@
 
 //! Methods about the state of the session.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use super::Request;
 use super::packs::PackSummary;
 
 /// `session.status`: returns the selected game, what's loaded for it, and the open packs.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct GetSessionStatus {}
 
 /// State of a session.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct SessionStatus {
 
     /// Key of the selected game, like `warhammer_3`.
@@ -37,7 +38,7 @@ pub struct SessionStatus {
 }
 
 /// What's loaded of the dependencies of the selected game.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct DependenciesStatus {
 
     /// If the vanilla files of the game are loaded.

@@ -10,6 +10,7 @@
 
 //! Methods about the open packs.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use rpfm_lib::compression::CompressionFormat;
@@ -20,7 +21,7 @@ use crate::messages::OperationalMode;
 use super::Request;
 
 /// Short description of an open pack.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct PackSummary {
 
     /// Key identifying the pack in every method that works on it.
@@ -32,7 +33,8 @@ pub struct PackSummary {
     /// Path of the pack on disk. For packs never saved, only their name.
     pub path: String,
 
-    /// Type of the pack.
+    /// Type of the pack: `Boot`, `Release`, `Patch`, `Mod` or `Movie`.
+    #[schemars(with = "String")]
     pub pack_type: PFHFileType,
 
     /// Amount of files in the pack.
@@ -40,7 +42,7 @@ pub struct PackSummary {
 }
 
 /// `pack.info`: returns the details of an open pack.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct GetPackInfo {
 
     /// Key of the pack.
@@ -48,17 +50,19 @@ pub struct GetPackInfo {
 }
 
 /// Details of an open pack.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct PackDetails {
 
     /// Short description of the pack.
     #[serde(flatten)]
     pub summary: PackSummary,
 
-    /// Version of the pack format.
+    /// Version of the pack format, like `PFH5`.
+    #[schemars(with = "String")]
     pub version: PFHVersion,
 
-    /// Compression format of the files of the pack.
+    /// Compression format of the files of the pack, like `None` or `Lz4`.
+    #[schemars(with = "String")]
     pub compression: CompressionFormat,
 
     /// If the index of the pack is encrypted.
@@ -73,12 +77,13 @@ pub struct PackDetails {
     /// Packs this pack depends on, loaded as parent files.
     pub dependencies: Vec<PackDependency>,
 
-    /// If the pack is in normal or MyMod mode.
+    /// If the pack is in normal mode (`"Normal"`) or MyMod mode (`{"MyMod": [game_folder, mod_name]}`).
+    #[schemars(with = "serde_json::Value")]
     pub operational_mode: OperationalMode,
 }
 
 /// A pack another pack depends on.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct PackDependency {
 
     /// If the dependency is loaded.

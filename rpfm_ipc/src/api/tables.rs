@@ -13,6 +13,7 @@
 //! Tables are described by their columns as rows see them: colour columns are merged,
 //! bitwise columns split and enum columns converted, so each row has one value per column.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -25,13 +26,14 @@ use super::files::FileRef;
 pub const DEFAULT_ROWS_LIMIT: usize = 100;
 
 /// A column of a table.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct ColumnInfo {
 
     /// Name of the column.
     pub name: String,
 
-    /// Type of the values of the column.
+    /// Type of the values of the column, like `StringU8`, `I32`, `F32` or `Boolean`.
+    #[schemars(with = "serde_json::Value")]
     pub field_type: FieldType,
 
     /// If the column is part of the key of the table.
@@ -51,7 +53,7 @@ pub struct ColumnInfo {
 }
 
 /// A column of another table.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct ColumnReference {
 
     /// Name of the table, without the `_tables` suffix.
@@ -62,7 +64,7 @@ pub struct ColumnReference {
 }
 
 /// `table.info`: returns the definition and row count of a table.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct GetTableInfo {
 
     /// The table.
@@ -70,7 +72,7 @@ pub struct GetTableInfo {
 }
 
 /// Definition and size of a table.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct TableInfo {
 
     /// Name of the table, like `units_tables`, or `loc` for Loc files.
@@ -87,7 +89,7 @@ pub struct TableInfo {
 }
 
 /// `table.rows`: returns rows of a table, optionally filtered and with only some columns.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct GetTableRows {
 
     /// The table.
@@ -111,7 +113,7 @@ pub struct GetTableRows {
 }
 
 /// A condition on the value of a column, compared as text.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct RowFilter {
 
     /// Name of the column.
@@ -129,7 +131,7 @@ pub struct RowFilter {
 }
 
 /// Comparison of a [`RowFilter`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum FilterOp {
 
@@ -150,7 +152,7 @@ pub enum FilterOp {
 }
 
 /// A page of the rows of a table.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct TableRows {
 
     /// Names of the columns of the values of each row.
@@ -164,7 +166,7 @@ pub struct TableRows {
 }
 
 /// A row of a table.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct TableRow {
 
     /// Position of the row in the table. Used to edit it.
@@ -175,7 +177,7 @@ pub struct TableRow {
 }
 
 /// `schema.definition`: returns the columns of a table as defined in the schema.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct GetTableDefinition {
 
     /// Name of the table, like `units_tables`.
@@ -188,7 +190,7 @@ pub struct GetTableDefinition {
 }
 
 /// Definition of a table in the schema.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct TableDefinition {
 
     /// Name of the table.
