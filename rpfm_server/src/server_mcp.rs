@@ -61,11 +61,13 @@ use rpfm_ipc::api::{ApiError, Done, Request, RpcError, RpcOutcome, RpcRequest, R
 use rpfm_ipc::api::diagnostics::{DiagnosticList, IgnoreDiagnostics, ListDiagnostics, RunDiagnostics};
 use rpfm_ipc::api::search::{ListSearchMatches, ReplaceSearchMatches, RunSearch, SearchMatchList, SearchReplaced};
 use rpfm_ipc::api::references::{FindDefinition, FindLoc, FindUsages, GetLocSource, LocSourceLookup, RowLocation, Usages};
+use rpfm_ipc::api::notes::{AddNote, DeleteNote, ListNotes, NoteEntry, NoteList};
+use rpfm_ipc::api::schema::{ListSchemaTables, PatchColumn, RemovePatches, SchemaTables, UpdateSchemaFromAssemblyKit, UpdateSchemas};
 use rpfm_ipc::api::files::{
     AddFilesFromDisk, CopyFiles, CreateFile, DeleteFiles, DuplicateFiles, ExtractFiles, FileEntry, FileList, FilesAdded, FilesDeleted,
     FilesExtracted, FilesRenamed, ListFiles, RenameFiles,
 };
-use rpfm_ipc::api::packs::{ClosePack, CloseAllPacks, GetPackInfo, NewPack, OpenPack, OpenVanillaPacks, PackDetails, PackSummary, SavePack, UpdatePack};
+use rpfm_ipc::api::packs::{ClosePack, CloseAllPacks, GetPackInfo, GetPackSettings, NewPack, OpenPack, OpenVanillaPacks, PackDetails, PackSettingsValues, PackSummary, SavePack, UpdatePack, UpdatePackSettings};
 use rpfm_ipc::api::jobs::{CancelJob, GetJobStatus, JobStarted, JobState, JobStatus, WaitForJob};
 use rpfm_ipc::api::session::{GenerateDependenciesCache, GetSessionStatus, RebuildDependencies, SessionStatus, SetGame};
 use rpfm_ipc::api::tables::{ColumnValues, EditTable, GetColumnValues, GetTableDefinition, GetTableInfo, GetTableRows, TableDefinition, TableEdited, TableInfo, TableRows};
@@ -249,13 +251,6 @@ pub struct PackKeyStringArg {
 
 // -- Pack Metadata Args --
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct SetPackSettingsArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The JSON representation of the PackSettings struct.
-    pub settings: String,
-}
 
 // -- File Operations Args --
 
@@ -452,23 +447,7 @@ pub struct LuaRunTestsArgs {
 
 // -- Notes Args --
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct AddNoteArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The JSON representation of the Note struct.
-    pub note: String,
-}
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct DeleteNoteArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The path the note belongs to.
-    pub path: String,
-    /// The note ID.
-    pub id: u64,
-}
 
 // -- Optimization Args --
 
@@ -1324,6 +1303,106 @@ impl McpServer {
     }
 
     #[tool(
+        name = "pack_settings",
+        description = "Get the settings of an open pack, like its diagnostics ignore rules (`diagnostics_files_to_ignore`), files to ignore when importing, or if it has autosaves disabled.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<PackSettingsValues>(),
+    )]
+    pub async fn pack_settings(&self, params: Parameters<GetPackSettings>) -> Result<CallToolResult, McpError> {
+        self.call_api("pack_settings", params.0).await
+    }
+
+    #[tool(
+        name = "update_pack_settings",
+        description = "Change settings of an open pack. Only the keys you set are changed. Returns all the settings afterwards.",
+        annotations(read_only_hint = false, destructive_hint = true),
+        output_schema = schema_for_output::<PackSettingsValues>(),
+    )]
+    pub async fn update_pack_settings(&self, params: Parameters<UpdatePackSettings>) -> Result<CallToolResult, McpError> {
+        self.call_api("update_pack_settings", params.0).await
+    }
+
+    #[tool(
+        name = "list_notes",
+        description = "Get the notes (comments) attached to a file or folder of an open pack, or all of them.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<NoteList>(),
+    )]
+    pub async fn list_notes(&self, params: Parameters<ListNotes>) -> Result<CallToolResult, McpError> {
+        self.call_api("list_notes", params.0).await
+    }
+
+    #[tool(
+        name = "add_note",
+        description = "Attach a note (comment, with an optional link) to a file or folder of an open pack.",
+        annotations(read_only_hint = false, destructive_hint = false),
+        output_schema = schema_for_output::<NoteEntry>(),
+    )]
+    pub async fn add_note(&self, params: Parameters<AddNote>) -> Result<CallToolResult, McpError> {
+        self.call_api("add_note", params.0).await
+    }
+
+    #[tool(
+        name = "delete_note",
+        description = "Delete a note of an open pack.",
+        annotations(read_only_hint = false, destructive_hint = true),
+        output_schema = schema_for_output::<Done>(),
+    )]
+    pub async fn delete_note(&self, params: Parameters<DeleteNote>) -> Result<CallToolResult, McpError> {
+        self.call_api("delete_note", params.0).await
+    }
+
+    #[tool(
+        name = "schema_tables",
+        description = "List the tables of the selected game's schema whose name starts with a prefix, with the versions it has definitions for, newest first.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<SchemaTables>(),
+    )]
+    pub async fn schema_tables(&self, params: Parameters<ListSchemaTables>) -> Result<CallToolResult, McpError> {
+        self.call_api("schema_tables", params.0).await
+    }
+
+    #[tool(
+        name = "patch_column",
+        description = "Change how the schema describes a column with a local patch: description, if it's a key, default value, referenced table and column (`is_reference` as `table;column`), if it holds file paths, if it can't be empty, or if it's unused. Local patches survive schema updates, and apply right away.",
+        annotations(read_only_hint = false, destructive_hint = false),
+        output_schema = schema_for_output::<Done>(),
+    )]
+    pub async fn patch_column(&self, params: Parameters<PatchColumn>) -> Result<CallToolResult, McpError> {
+        self.call_api("patch_column", params.0).await
+    }
+
+    #[tool(
+        name = "remove_patches",
+        description = "Remove the local schema patches of a table, or of one of its columns.",
+        annotations(read_only_hint = false, destructive_hint = true),
+        output_schema = schema_for_output::<Done>(),
+    )]
+    pub async fn remove_patches(&self, params: Parameters<RemovePatches>) -> Result<CallToolResult, McpError> {
+        self.call_api("remove_patches", params.0).await
+    }
+
+    #[tool(
+        name = "update_schemas",
+        description = "Download the latest schemas, reload the selected game's one, and rebuild the dependencies. Runs as a job: waits up to 45 seconds and returns its state; if it's still running, call `wait_for_job`.",
+        annotations(read_only_hint = false, destructive_hint = false),
+        output_schema = schema_for_output::<JobStatus>(),
+    )]
+    pub async fn update_schemas(&self, params: Parameters<UpdateSchemas>) -> Result<CallToolResult, McpError> {
+        self.call_api("update_schemas", params.0).await
+    }
+
+    #[tool(
+        name = "update_schema_from_assembly_kit",
+        description = "Update the selected game's schema with the table definitions of its Assembly Kit, and save it. For schema maintainers. Runs as a job: waits up to 45 seconds and returns its state; if it's still running, call `wait_for_job`.",
+        annotations(read_only_hint = false, destructive_hint = false),
+        output_schema = schema_for_output::<JobStatus>(),
+    )]
+    pub async fn update_schema_from_assembly_kit(&self, params: Parameters<UpdateSchemaFromAssemblyKit>) -> Result<CallToolResult, McpError> {
+        self.call_api("update_schema_from_assembly_kit", params.0).await
+    }
+
+    #[tool(
         name = "job_status",
         description = "Get the state of a job: queued, running (with its current step), finished (with its result), failed (with its error) or cancelled.",
         annotations(read_only_hint = true),
@@ -1529,17 +1608,6 @@ impl McpServer {
     // Pack Metadata
     //-----------------------------------------------------------------------//
 
-    #[tool(description = "Get the settings of the pack identified by `pack_key`.")]
-    pub async fn get_pack_settings(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_pack_settings", Command::GetPackSettings(params.0.pack_key))
-    }
-
-    #[tool(description = "Set the settings of the pack identified by `pack_key`. The `settings` is a PackSettings JSON object containing pack-level configuration.")]
-    pub async fn set_pack_settings(&self, params: Parameters<SetPackSettingsArgs>) -> Result<CallToolResult, McpError> {
-        let settings = parse_json!(&params.0.settings);
-        send_and_respond!(self, "set_pack_settings", Command::SetPackSettings(params.0.pack_key, settings))
-    }
-
     //-----------------------------------------------------------------------//
     // File Operations
     //-----------------------------------------------------------------------//
@@ -1604,11 +1672,6 @@ impl McpServer {
     // Dependencies
     //-----------------------------------------------------------------------//
 
-    #[tool(description = "Get custom table names (start_pos_, twad_ prefixes) from the schema.")]
-    pub async fn get_custom_table_list(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_custom_table_list", Command::GetCustomTableList)
-    }
-
     //-----------------------------------------------------------------------//
     // Search
     //-----------------------------------------------------------------------//
@@ -1627,16 +1690,6 @@ impl McpServer {
     pub async fn save_schema(&self, params: Parameters<SaveSchemaArgs>) -> Result<CallToolResult, McpError> {
         let schema = parse_json!(&params.0.schema);
         send_and_respond!(self, "save_schema", Command::SaveSchema(schema))
-    }
-
-    #[tool(description = "Update the currently loaded schema with data from the game's Assembly Kit.")]
-    pub async fn update_current_schema_from_asskit(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "update_current_schema_from_asskit", Command::UpdateCurrentSchemaFromAssKit)
-    }
-
-    #[tool(description = "Update schemas from the remote repository.")]
-    pub async fn update_schemas(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "update_schemas", Command::UpdateSchemas)
     }
 
     #[tool(description = "Get the current schema.")]
@@ -1665,23 +1718,7 @@ impl McpServer {
         send_and_respond!(self, "referencing_columns_for_definition", Command::ReferencingColumnsForDefinition(params.0.table_name, def))
     }
 
-    #[tool(description = "Save local schema patches to customize column metadata without modifying the upstream schema. The `patches` is a JSON object mapping table names to DefinitionPatch objects, e.g. {\"land_units_tables\": {\"field_patches\": {...}}}.")]
-    pub async fn save_local_schema_patch(&self, params: Parameters<SchemaPatchArgs>) -> Result<CallToolResult, McpError> {
-        let patches = parse_json!(&params.0.patches);
-        send_and_respond!(self, "save_local_schema_patch", Command::SaveLocalSchemaPatch(patches))
-    }
-
-    #[tool(description = "Remove local schema patches for a table.")]
-    pub async fn remove_local_schema_patches_for_table(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "remove_local_schema_patches_for_table", Command::RemoveLocalSchemaPatchesForTable(params.0.value))
-    }
-
-    #[tool(description = "Remove local schema patches for a specific field in a table.")]
-    pub async fn remove_local_schema_patches_for_table_and_field(&self, params: Parameters<SettingsSetStringArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "remove_local_schema_patches_for_table_and_field", Command::RemoveLocalSchemaPatchesForTableAndField(params.0.key, params.0.value))
-    }
-
-    #[tool(description = "Import a schema patch from an external source. The `patches` is a JSON object mapping table names to DefinitionPatch objects (same format as `save_local_schema_patch`).")]
+    #[tool(description = "Import a schema patch from an external source. The `patches` is a JSON object mapping table names to DefinitionPatch objects (a map of column names to maps of patch keys and values).")]
     pub async fn import_schema_patch(&self, params: Parameters<SchemaPatchArgs>) -> Result<CallToolResult, McpError> {
         let patches = parse_json!(&params.0.patches);
         send_and_respond!(self, "import_schema_patch", Command::ImportSchemaPatch(patches))
@@ -1749,22 +1786,6 @@ The report lists each test with its errors (including errors of the pack's scrip
     //-----------------------------------------------------------------------//
     // Notes
     //-----------------------------------------------------------------------//
-
-    #[tool(description = "Get all notes under a path in the pack identified by `pack_key`.")]
-    pub async fn notes_for_path(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "notes_for_path", Command::NotesForPath(params.0.pack_key, params.0.value))
-    }
-
-    #[tool(description = "Add a note to the pack identified by `pack_key`. The `note` is a Note JSON object with fields: path (string — the file or folder path to attach the note to), id (u64), text (string — the note content).")]
-    pub async fn add_note(&self, params: Parameters<AddNoteArgs>) -> Result<CallToolResult, McpError> {
-        let note = parse_json!(&params.0.note);
-        send_and_respond!(self, "add_note", Command::AddNote(params.0.pack_key, note))
-    }
-
-    #[tool(description = "Delete a note by path and ID in the pack identified by `pack_key`.")]
-    pub async fn delete_note(&self, params: Parameters<DeleteNoteArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "delete_note", Command::DeleteNote(params.0.pack_key, params.0.path, params.0.id))
-    }
 
     //-----------------------------------------------------------------------//
     // Optimization
@@ -2085,7 +2106,7 @@ Follow these steps in order:
    `filters`. For other files, call `decode_packed_file` with the pack key, the internal path,
    and `source: \"PackFile\"`.
 
-5. **Inspect metadata** – Use `pack_info` and `get_pack_settings` to answer questions about the pack itself.
+5. **Inspect metadata** – Use `pack_info` and `pack_settings` to answer questions about the pack itself.
 
 Important notes:
 - Always call `session_status` if you are unsure which pack key to use.
@@ -2301,16 +2322,13 @@ Workflow:
 5. **Find referencing columns** – `referencing_columns_for_definition` shows which
    other tables reference a given table's columns.
 
-6. **Patch a definition** – To customise column metadata (descriptions, references,
-   default values) without modifying the upstream schema:
-   a. Build a `HashMap<String, DefinitionPatch>` with your changes.
-   b. Call `save_local_schema_patch` to persist it locally.
-   c. Use `remove_local_schema_patches_for_table` or
-      `remove_local_schema_patches_for_table_and_field` to undo patches.
+6. **Patch a column** – To customise column metadata (descriptions, references,
+   default values) without modifying the upstream schema, call `patch_column` with the
+   table, the column and the keys to set. Use `remove_patches` to undo them.
 
 7. **Import patches** – `import_schema_patch` applies a patch from another source.
 
-8. **Update from Assembly Kit** – `update_current_schema_from_asskit` merges
+8. **Update from Assembly Kit** – `update_schema_from_assembly_kit` merges
    definition data from the game's Assembly Kit into the loaded schema.
 
 9. **Save the schema** – `save_schema` writes the current in-memory schema to disk.

@@ -13,6 +13,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use rpfm_lib::compression::CompressionFormat;
@@ -228,4 +229,55 @@ impl Request for SavePack {
 impl Request for UpdatePack {
     const METHOD: &'static str = "pack.update";
     type Response = PackDetails;
+}
+
+/// `pack.settings`: returns the settings of an open pack.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct GetPackSettings {
+
+    /// Key of the pack.
+    pub pack: String,
+}
+
+/// Settings of a pack, by type of value and key, like `diagnostics_files_to_ignore` or `disable_autosaves`.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct PackSettingsValues {
+
+    /// Multi-line text settings.
+    #[serde(default)]
+    pub text: BTreeMap<String, String>,
+
+    /// Single-line text settings.
+    #[serde(default)]
+    pub string: BTreeMap<String, String>,
+
+    /// Boolean settings.
+    #[serde(default)]
+    pub bool: BTreeMap<String, bool>,
+
+    /// Number settings.
+    #[serde(default)]
+    pub number: BTreeMap<String, i32>,
+}
+
+/// `pack.update_settings`: changes settings of an open pack. Only the keys set are changed.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct UpdatePackSettings {
+
+    /// Key of the pack.
+    pub pack: String,
+
+    /// Settings to set.
+    #[serde(flatten)]
+    pub values: PackSettingsValues,
+}
+
+impl Request for GetPackSettings {
+    const METHOD: &'static str = "pack.settings";
+    type Response = PackSettingsValues;
+}
+
+impl Request for UpdatePackSettings {
+    const METHOD: &'static str = "pack.update_settings";
+    type Response = PackSettingsValues;
 }

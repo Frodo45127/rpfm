@@ -17,6 +17,7 @@ use rayon::prelude::*;
 use std::collections::HashMap;
 
 use rpfm_ipc::api::ApiError;
+use rpfm_ipc::api::schema::{PATCH_KEYS, PatchColumn, RemovePatches, SchemaTables};
 use rpfm_ipc::api::tables::{GetTableDefinition, TableDefinition};
 
 use rpfm_lib::files::{Container, db::DB, FileType, RFileDecoded};
@@ -178,6 +179,55 @@ impl SessionState {
             version: *definition.version(),
             columns: columns_info(definition, definition.patches()),
         })
+    }
+
+    /// Returns the tables of the schema whose name starts with a prefix, with the versions they have definitions for.
+    pub fn schema_tables(&self, prefix: &str) -> Result<SchemaTables> {
+        let tables = loaded_schema(&self.schema)?.definitions().iter()
+            .filter(|(table_name, definitions)| table_name.starts_with(prefix) && !definitions.is_empty())
+            .map(|(table_name, definitions)| (table_name.to_owned(), definitions.iter().map(|definition| *definition.version()).collect()))
+            .collect();
+
+        Ok(SchemaTables { tables })
+    }
+
+    /// Saves a local patch for a column of a table, and reloads the schema so it applies.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - The patch.
+    /// * `disable_uuid_regeneration` - If tables keep their GUID when re-encoded to reload the schema.
+    ///
+    /// # Errors
+    ///
+    /// Fails if a key of the patch is not a valid one, or if the patch can't be saved.
+    pub fn patch_column(&mut self, request: &PatchColumn, disable_uuid_regeneration: bool) -> Result<()> {
+        if let Some(key) = request.patch.keys().find(|key| !PATCH_KEYS.iter().any(|(valid_key, _)| valid_key == key)) {
+            let valid_keys = PATCH_KEYS.iter().map(|(key, _)| *key).collect::<Vec<_>>().join(", ");
+            return Err(ApiError::InvalidParams(format!("Unknown patch key: {key}. Valid ones: {valid_keys}.")).into());
+        }
+
+        let column_patch = request.patch.iter().map(|(key, value)| (key.clone(), value.clone())).collect();
+        let patches = HashMap::from([(request.table_name.clone(), HashMap::from([(request.column.clone(), column_patch)]))]);
+        self.save_local_schema_patches(&patches)?;
+        self.reload_schema(disable_uuid_regeneration);
+        Ok(())
+    }
+
+    /// Removes the local patches of a table, or of one of its columns, and reloads the schema.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - Patches to remove.
+    /// * `disable_uuid_regeneration` - If tables keep their GUID when re-encoded to reload the schema.
+    pub fn remove_patches(&mut self, request: &RemovePatches, disable_uuid_regeneration: bool) -> Result<()> {
+        match request.column {
+            Some(ref column) => self.remove_local_schema_patches_for_table_and_field(&request.table_name, column)?,
+            None => self.remove_local_schema_patches_for_table(&request.table_name)?,
+        }
+
+        self.reload_schema(disable_uuid_regeneration);
+        Ok(())
     }
 
     /// Returns all the definitions of a table. Empty if the table is not in the schema.

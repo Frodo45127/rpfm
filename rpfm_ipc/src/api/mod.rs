@@ -23,6 +23,8 @@
 //! - [`diagnostics`]: checking the open packs for problems.
 //! - [`references`]: following references between tables and Loc files.
 //! - [`search`]: searching and replacing text.
+//! - [`schema`]: tables, local patches and updates of the schema.
+//! - [`notes`]: notes attached to the files of the open packs.
 //! - [`jobs`]: following and cancelling methods that run as jobs.
 //!
 //! Lists are paginated: requests take an `offset` and an optional `limit`, and responses
@@ -36,8 +38,10 @@ use thiserror::Error;
 pub mod diagnostics;
 pub mod files;
 pub mod jobs;
+pub mod notes;
 pub mod packs;
 pub mod references;
+pub mod schema;
 pub mod search;
 pub mod session;
 pub mod tables;

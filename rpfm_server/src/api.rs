@@ -18,17 +18,30 @@ use rpfm_ipc::api::{ApiError, Done, Request, RpcRequest, RpcResponse};
 use rpfm_ipc::api::diagnostics::{IgnoreDiagnostics, ListDiagnostics, RunDiagnostics};
 use rpfm_ipc::api::files::{AddFilesFromDisk, CopyFiles, CreateFile, DeleteFiles, DuplicateFiles, ExtractFiles, ListFiles, RenameFiles};
 use rpfm_ipc::api::search::{ListSearchMatches, ReplaceSearchMatches, RunSearch};
-use rpfm_ipc::api::packs::{ClosePack, CloseAllPacks, GetPackInfo, NewPack, OpenPack, OpenVanillaPacks, SavePack, UpdatePack};
+use rpfm_ipc::api::notes::{AddNote, DeleteNote, ListNotes, NoteList};
+use rpfm_ipc::api::packs::{ClosePack, CloseAllPacks, GetPackInfo, GetPackSettings, NewPack, OpenPack, OpenVanillaPacks, SavePack, UpdatePack, UpdatePackSettings};
+use rpfm_ipc::api::schema::{ListSchemaTables, PatchColumn, RemovePatches, UpdateSchemaFromAssemblyKit, UpdateSchemas};
 use rpfm_ipc::api::session::{GenerateDependenciesCache, GetSessionStatus, RebuildDependencies, SetGame};
 use rpfm_ipc::api::references::{FindDefinition, FindLoc, FindUsages, GetLocSource, LocSourceLookup};
 use rpfm_ipc::api::tables::{EditTable, GetColumnValues, GetTableDefinition, GetTableInfo, GetTableRows};
 use rpfm_ipc::settings_keys::{ALLOW_EDITING_OF_CA_PACKFILES, DISABLE_UUID_REGENERATION_ON_DB_TABLES, IGNORE_GAME_FILES_IN_AK, INCLUDE_BASE_FOLDER_ON_ADD_FROM_FOLDER, TABLES_USE_OLD_COLUMN_ORDER_FOR_TSV, USE_LAZY_LOADING};
 
-use crate::settings::Settings;
+use rpfm_lib::schema::{SCHEMA_BRANCH, SCHEMA_REMOTE, SCHEMA_REPO};
+
+use crate::settings::{schemas_path, Settings};
 use crate::state::{ExtractOptions, SaveOptions, SessionState};
+use crate::updater::git_update_repo;
 
 /// Methods that run as jobs.
-const JOB_METHODS: [&str; 5] = [SetGame::METHOD, GenerateDependenciesCache::METHOD, RebuildDependencies::METHOD, RunDiagnostics::METHOD, RunSearch::METHOD];
+const JOB_METHODS: [&str; 7] = [
+    SetGame::METHOD,
+    GenerateDependenciesCache::METHOD,
+    RebuildDependencies::METHOD,
+    RunDiagnostics::METHOD,
+    RunSearch::METHOD,
+    UpdateSchemas::METHOD,
+    UpdateSchemaFromAssemblyKit::METHOD,
+];
 
 /// Runs a request on the session's state.
 ///
@@ -98,6 +111,11 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
             state.pack_summary(&request.pack)
         }),
         UpdatePack::METHOD => call(params, |request: UpdatePack| state.update_pack(&request)),
+        GetPackSettings::METHOD => call(params, |request: GetPackSettings| state.pack_settings_values(&request.pack)),
+        UpdatePackSettings::METHOD => call(params, |request: UpdatePackSettings| state.update_pack_settings(&request)),
+        ListNotes::METHOD => call(params, |request: ListNotes| Ok(NoteList { notes: state.note_entries(&request.pack, &request.path)? })),
+        AddNote::METHOD => call(params, |request: AddNote| state.add_note_entry(&request)),
+        DeleteNote::METHOD => call(params, |request: DeleteNote| state.delete_note(&request.pack, &request.path, request.id).map(|_| Done {})),
 
         ListFiles::METHOD => call(params, |request: ListFiles| state.list_files(&request)),
         CreateFile::METHOD => call(params, |request: CreateFile| state.create_file(&request)),
@@ -123,6 +141,27 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         EditTable::METHOD => call(params, |request: EditTable| state.edit_table(&request)),
         GetTableDefinition::METHOD => call(params, |request: GetTableDefinition| state.table_definition(&request)),
         GetColumnValues::METHOD => call(params, |request: GetColumnValues| Ok(state.column_values_page(&request))),
+
+        ListSchemaTables::METHOD => call(params, |request: ListSchemaTables| state.schema_tables(&request.prefix)),
+        PatchColumn::METHOD => call(params, |request: PatchColumn| state.patch_column(&request, settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES)).map(|_| Done {})),
+        RemovePatches::METHOD => call(params, |request: RemovePatches| state.remove_patches(&request, settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES)).map(|_| Done {})),
+        UpdateSchemas::METHOD => call(params, |_: UpdateSchemas| {
+            report_stage("Downloading the schemas");
+            git_update_repo(schemas_path, SCHEMA_REPO, SCHEMA_BRANCH, SCHEMA_REMOTE)?;
+
+            report_stage("Reloading the schema");
+            state.reload_schema(settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES));
+
+            report_stage("Rebuilding the dependencies");
+            state.rebuild_dependencies_after_schema_update(settings)?;
+            Ok(state.session_status())
+        }),
+        UpdateSchemaFromAssemblyKit::METHOD => call(params, |request: UpdateSchemaFromAssemblyKit| {
+            report_stage("Updating the schema from the Assembly Kit");
+            let ignore_game_files = request.ignore_game_files.unwrap_or_else(|| settings.bool(IGNORE_GAME_FILES_IN_AK));
+            state.update_schema_from_asskit(settings, ignore_game_files, settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES))?;
+            Ok(state.session_status())
+        }),
 
         FindDefinition::METHOD => call(params, |request: FindDefinition| state.find_definition(request.pack.as_deref(), &request.table, &request.column, &request.value)),
         FindUsages::METHOD => call(params, |request: FindUsages| state.find_usages(&request)),
@@ -184,6 +223,7 @@ mod tests {
     #[test]
     fn job_methods_are_the_ones_marked_as_jobs() {
         assert!(SetGame::IS_JOB && GenerateDependenciesCache::IS_JOB && RebuildDependencies::IS_JOB && RunDiagnostics::IS_JOB && RunSearch::IS_JOB);
+        assert!(UpdateSchemas::IS_JOB && UpdateSchemaFromAssemblyKit::IS_JOB);
         assert!(JOB_METHODS.iter().all(|method| is_job_method(method)));
         assert!(!is_job_method(GetSessionStatus::METHOD) && !GetSessionStatus::IS_JOB);
     }

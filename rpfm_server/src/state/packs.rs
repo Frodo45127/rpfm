@@ -20,7 +20,8 @@ use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 use rpfm_ipc::api::ApiError;
-use rpfm_ipc::api::packs::{PackDependency, PackDetails, PackSummary, UpdatePack};
+use rpfm_ipc::api::notes::{AddNote, NoteEntry};
+use rpfm_ipc::api::packs::{PackDependency, PackDetails, PackSettingsValues, PackSummary, UpdatePack, UpdatePackSettings};
 use rpfm_ipc::helpers::{ContainerInfo, RFileInfo};
 use rpfm_ipc::messages::OperationalMode;
 
@@ -377,6 +378,56 @@ impl SessionState {
         self.pack_modes.get(pack_key).cloned().unwrap_or(OperationalMode::Normal)
     }
 
+    /// Returns the settings of a pack.
+    pub fn pack_settings_values(&self, pack_key: &str) -> Result<PackSettingsValues> {
+        let settings = pack(&self.packs, pack_key)?.settings();
+        Ok(PackSettingsValues {
+            text: settings.settings_text().clone(),
+            string: settings.settings_string().clone(),
+            bool: settings.settings_bool().clone(),
+            number: settings.settings_number().clone(),
+        })
+    }
+
+    /// Changes settings of a pack. Only the keys set in the request are changed.
+    ///
+    /// # Returns
+    ///
+    /// All the settings of the pack after the change.
+    pub fn update_pack_settings(&mut self, request: &UpdatePackSettings) -> Result<PackSettingsValues> {
+        let settings = pack_mut(&mut self.packs, &request.pack)?.settings_mut();
+        settings.settings_text_mut().extend(request.values.text.clone());
+        settings.settings_string_mut().extend(request.values.string.clone());
+        settings.settings_bool_mut().extend(request.values.bool.clone());
+        settings.settings_number_mut().extend(request.values.number.clone());
+        self.pack_settings_values(&request.pack)
+    }
+
+    /// Returns the notes of a pack for a path, with the notes of the folders containing it, as API entries.
+    ///
+    /// If the path is empty, all the notes of the pack are returned.
+    pub fn note_entries(&self, pack_key: &str, path: &str) -> Result<Vec<NoteEntry>> {
+        if path.is_empty() {
+            let notes = pack(&self.packs, pack_key)?.notes().file_notes().values().flatten().map(note_entry).collect();
+            return Ok(notes);
+        }
+
+        Ok(self.notes_for_path(pack_key, path)?.iter().map(note_entry).collect())
+    }
+
+    /// Attaches a note to a file or folder of a pack.
+    ///
+    /// # Returns
+    ///
+    /// The added note, with its ID.
+    pub fn add_note_entry(&mut self, request: &AddNote) -> Result<NoteEntry> {
+        let mut note = Note::default();
+        note.set_path(request.path.clone());
+        note.set_message(request.message.clone());
+        note.set_url(request.url.clone());
+        Ok(note_entry(&self.add_note(&request.pack, note)?))
+    }
+
     /// Returns the notes of a pack under a path.
     pub fn notes_for_path(&self, pack_key: &str, path: &str) -> Result<Vec<Note>> {
         Ok(pack(&self.packs, pack_key)?.notes().notes_by_path(path))
@@ -525,6 +576,16 @@ impl SessionState {
         self.session.add_pack_name(&key);
         self.pack_modes.insert(key.clone(), OperationalMode::Normal);
         self.packs.insert(key, pack);
+    }
+}
+
+/// Returns a note as an API entry.
+fn note_entry(note: &Note) -> NoteEntry {
+    NoteEntry {
+        id: *note.id(),
+        path: note.path().to_owned(),
+        message: note.message().to_owned(),
+        url: note.url().clone(),
     }
 }
 

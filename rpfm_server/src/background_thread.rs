@@ -45,7 +45,6 @@ use rpfm_ipc::settings_keys::*;
 
 use rpfm_lib::files::{Container, pack::PFHFlags, RFileDecoded};
 use rpfm_lib::games::{LUA_BRANCH, LUA_REMOTE, LUA_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE, OLD_AK_REPO, TRANSLATIONS_BRANCH, TRANSLATIONS_REMOTE, TRANSLATIONS_REPO};
-use rpfm_lib::integrations::git::{GitIntegration, GitResponse};
 use rpfm_lib::schema::{SCHEMA_BRANCH, SCHEMA_REMOTE, SCHEMA_REPO};
 
 use rpfm_telemetry::info;
@@ -56,7 +55,7 @@ use crate::session::{Session, SessionMessage};
 use crate::settings::*;
 use crate::state::{DecodedFile, ExtractOptions, MergeOutcome, MyModOptions, SaveOptions, SessionState, plugin_scripts};
 use crate::translation_hub::{self, SubmitOutcome};
-use crate::updater;
+use crate::updater::{self, git_check_update, git_update_repo};
 
 /// Extracts the variant name (e.g. `"NewPack"`) from a [`Command`] for telemetry.
 ///
@@ -510,16 +509,6 @@ where
     tokio::spawn(async move {
         reply(&sender, run_blocking(job).await, wrap);
     });
-}
-
-/// Checks if a git repository in the config folder has updates.
-fn git_check_update(path_fn: fn() -> Result<PathBuf>, repo: &str, branch: &str, remote: &str) -> Result<GitResponse> {
-    Ok(GitIntegration::new(&path_fn()?, repo, branch, remote).check_update()?)
-}
-
-/// Downloads the updates of a git repository in the config folder.
-fn git_update_repo(path_fn: fn() -> Result<PathBuf>, repo: &str, branch: &str, remote: &str) -> Result<()> {
-    Ok(GitIntegration::new(&path_fn()?, repo, branch, remote).update_repo()?)
 }
 
 /// Legacy response for the location of a row.

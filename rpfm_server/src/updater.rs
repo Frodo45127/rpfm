@@ -37,10 +37,11 @@ use std::env::current_exe;
 use std::fmt::Display;
 use std::fs::{self, DirBuilder, File};
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use rpfm_ipc::helpers::*;
 
+use rpfm_lib::integrations::git::{GitIntegration, GitResponse};
 use rpfm_lib::utils::files_from_subdir;
 
 use crate::settings::Settings;
@@ -319,4 +320,28 @@ impl Display for UpdateChannel {
             UpdateChannel::Beta => BETA,
         }, f)
     }
+}
+
+/// Checks if a git repository in the config folder has updates.
+///
+/// # Arguments
+///
+/// * `path_fn` - Returns the local folder of the repository.
+/// * `repo` - URL of the repository.
+/// * `branch` - Branch to check.
+/// * `remote` - Name of the remote.
+pub fn git_check_update(path_fn: fn() -> Result<PathBuf>, repo: &str, branch: &str, remote: &str) -> Result<GitResponse> {
+    Ok(GitIntegration::new(&path_fn()?, repo, branch, remote).check_update()?)
+}
+
+/// Downloads the updates of a git repository in the config folder.
+///
+/// # Arguments
+///
+/// * `path_fn` - Returns the local folder of the repository.
+/// * `repo` - URL of the repository.
+/// * `branch` - Branch to update.
+/// * `remote` - Name of the remote.
+pub fn git_update_repo(path_fn: fn() -> Result<PathBuf>, repo: &str, branch: &str, remote: &str) -> Result<()> {
+    Ok(GitIntegration::new(&path_fn()?, repo, branch, remote).update_repo()?)
 }
