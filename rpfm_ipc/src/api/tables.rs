@@ -18,10 +18,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use std::collections::BTreeMap;
+use std::path::PathBuf;
+
+use rpfm_extensions::merge::{MergeConflict, MergeResolution};
 
 use rpfm_lib::schema::FieldType;
 
-use super::{default_true, Request};
+use super::{default_true, Done, Request};
 use super::files::FileRef;
 
 /// Default amount of rows returned by [`GetTableRows`].
@@ -331,4 +334,178 @@ pub struct ColumnValues {
 impl Request for GetColumnValues {
     const METHOD: &'static str = "table.column_values";
     type Response = ColumnValues;
+}
+
+/// `table.merge`: merges tables of the same type of an open pack into a new one.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct MergeTables {
+
+    /// Key of the pack.
+    pub pack: String,
+
+    /// Paths of the tables to merge.
+    pub paths: Vec<String>,
+
+    /// Path of the merged table.
+    pub merged_path: String,
+
+    /// If the merged tables are deleted afterwards.
+    #[serde(default)]
+    pub delete_sources: bool,
+
+    /// If rows are merged by key against the vanilla data, instead of concatenated.
+    /// Rows that can't be reconciled automatically are returned as conflicts, and nothing is written.
+    #[serde(default)]
+    pub delta: bool,
+
+    /// How to resolve the conflicts of a previous delta merge.
+    #[serde(default)]
+    #[schemars(with = "Vec<serde_json::Value>")]
+    pub resolutions: Vec<MergeResolution>,
+}
+
+/// Result of merging tables.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct TablesMerged {
+
+    /// Path of the merged table, if the merge was done.
+    pub merged: Option<String>,
+
+    /// Rows that couldn't be reconciled, if the merge wasn't done. Pass resolutions for them to merge again.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[schemars(with = "Vec<serde_json::Value>")]
+    pub conflicts: Vec<MergeConflict>,
+}
+
+/// `table.upgrade`: updates a table of an open pack to the version it has in the game files.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct UpgradeTable {
+
+    /// Key of the pack.
+    pub pack: String,
+
+    /// Path of the table.
+    pub path: String,
+}
+
+/// Result of updating a table.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct TableUpgraded {
+
+    /// Version the table had.
+    pub old_version: i32,
+
+    /// Version the table has now.
+    pub new_version: i32,
+
+    /// Columns removed by the update.
+    pub deleted_columns: Vec<String>,
+
+    /// Columns added by the update, with their default value.
+    pub added_columns: Vec<String>,
+}
+
+/// `table.rename_key`: changes a value of a key column of a table in every table of an open pack,
+/// including the columns referencing it and the loc keys generated from it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct RenameKey {
+
+    /// Key of the pack.
+    pub pack: String,
+
+    /// Name of the table the key is from, like `factions_tables`.
+    pub table_name: String,
+
+    /// Name of the key column.
+    pub column: String,
+
+    /// Current value.
+    pub old_value: String,
+
+    /// New value.
+    pub new_value: String,
+}
+
+/// Files edited by an operation.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct FilesEdited {
+
+    /// Paths of the edited files.
+    pub edited: Vec<String>,
+}
+
+/// `table.add_key_deletes`: adds rows to a key deletes table of an open pack, to delete keys of a table in the game.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct AddKeyDeletes {
+
+    /// Key of the pack.
+    pub pack: String,
+
+    /// File name of the key deletes table, under `db/twad_key_deletes_tables/`.
+    pub file_name: String,
+
+    /// Name of the table the keys belong to, like `units_tables`.
+    pub table_name: String,
+
+    /// Keys to delete.
+    pub keys: Vec<String>,
+}
+
+/// `table.export_tsv`: writes a table to a TSV file.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ExportTsv {
+
+    /// The table. Assembly Kit tables can't be exported.
+    pub file: FileRef,
+
+    /// Path of the TSV file to write.
+    pub destination: PathBuf,
+
+    /// If the TSV uses the old column order, with keys first. Defaults to the server's setting.
+    #[serde(default)]
+    pub keys_first: Option<bool>,
+}
+
+/// `table.import_tsv`: replaces a table of an open pack with the contents of a TSV file, keeping its GUID.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ImportTsv {
+
+    /// Key of the pack.
+    pub pack: String,
+
+    /// Path of the table in the pack.
+    pub path: String,
+
+    /// Path of the TSV file to read.
+    pub source: PathBuf,
+}
+
+impl Request for MergeTables {
+    const METHOD: &'static str = "table.merge";
+    type Response = TablesMerged;
+}
+
+impl Request for UpgradeTable {
+    const METHOD: &'static str = "table.upgrade";
+    type Response = TableUpgraded;
+}
+
+impl Request for RenameKey {
+    const METHOD: &'static str = "table.rename_key";
+    type Response = FilesEdited;
+}
+
+impl Request for AddKeyDeletes {
+    const METHOD: &'static str = "table.add_key_deletes";
+    type Response = FilesEdited;
+}
+
+impl Request for ExportTsv {
+    const METHOD: &'static str = "table.export_tsv";
+    type Response = Done;
+}
+
+impl Request for ImportTsv {
+    const METHOD: &'static str = "table.import_tsv";
+    type Response = TableEdited;
 }

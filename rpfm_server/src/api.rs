@@ -23,7 +23,7 @@ use rpfm_ipc::api::packs::{ClosePack, CloseAllPacks, GetPackInfo, GetPackSetting
 use rpfm_ipc::api::schema::{ListSchemaTables, PatchColumn, RemovePatches, UpdateSchemaFromAssemblyKit, UpdateSchemas};
 use rpfm_ipc::api::session::{GenerateDependenciesCache, GetSessionStatus, RebuildDependencies, SetGame};
 use rpfm_ipc::api::references::{FindDefinition, FindLoc, FindUsages, GetLocSource, LocSourceLookup};
-use rpfm_ipc::api::tables::{EditTable, GetColumnValues, GetTableDefinition, GetTableInfo, GetTableRows};
+use rpfm_ipc::api::tables::{AddKeyDeletes, EditTable, ExportTsv, GetColumnValues, GetTableDefinition, GetTableInfo, GetTableRows, ImportTsv, MergeTables, RenameKey, UpgradeTable};
 use rpfm_ipc::settings_keys::{ALLOW_EDITING_OF_CA_PACKFILES, DISABLE_UUID_REGENERATION_ON_DB_TABLES, IGNORE_GAME_FILES_IN_AK, INCLUDE_BASE_FOLDER_ON_ADD_FROM_FOLDER, TABLES_USE_OLD_COLUMN_ORDER_FOR_TSV, USE_LAZY_LOADING};
 
 use rpfm_lib::schema::{SCHEMA_BRANCH, SCHEMA_REMOTE, SCHEMA_REPO};
@@ -141,6 +141,15 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         EditTable::METHOD => call(params, |request: EditTable| state.edit_table(&request)),
         GetTableDefinition::METHOD => call(params, |request: GetTableDefinition| state.table_definition(&request)),
         GetColumnValues::METHOD => call(params, |request: GetColumnValues| Ok(state.column_values_page(&request))),
+        MergeTables::METHOD => call(params, |request: MergeTables| state.merge_tables(&request)),
+        UpgradeTable::METHOD => call(params, |request: UpgradeTable| state.upgrade_table(&request)),
+        RenameKey::METHOD => call(params, |request: RenameKey| state.rename_key(&request)),
+        AddKeyDeletes::METHOD => call(params, |request: AddKeyDeletes| state.add_key_deletes(&request)),
+        ExportTsv::METHOD => call(params, |request: ExportTsv| {
+            let keys_first = request.keys_first.unwrap_or_else(|| settings.bool(TABLES_USE_OLD_COLUMN_ORDER_FOR_TSV));
+            state.export_table_tsv(&request, keys_first).map(|_| Done {})
+        }),
+        ImportTsv::METHOD => call(params, |request: ImportTsv| state.import_table_tsv(&request)),
 
         ListSchemaTables::METHOD => call(params, |request: ListSchemaTables| state.schema_tables(&request.prefix)),
         PatchColumn::METHOD => call(params, |request: PatchColumn| state.patch_column(&request, settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES)).map(|_| Done {})),

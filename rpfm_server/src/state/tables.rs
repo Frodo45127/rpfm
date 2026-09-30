@@ -28,6 +28,7 @@ use rpfm_extensions::merge::{db_baseline, delta_merge_db, delta_merge_loc, loc_b
 use rpfm_ipc::api::ApiError;
 use rpfm_ipc::api::files::{ASSEMBLY_KIT_TABLE_FILE_NAME, FileRef, FileSource};
 use rpfm_ipc::api::references::{DEFAULT_USAGES_LIMIT, FindUsages, LocSource, RowLocation, Usage, Usages};
+use rpfm_ipc::api::tables::{AddKeyDeletes, ExportTsv, FilesEdited, ImportTsv, MergeTables, RenameKey, TableUpgraded, TablesMerged, UpgradeTable};
 use rpfm_ipc::api::tables::{ColumnInfo, ColumnValues, DEFAULT_VALUES_LIMIT, GetColumnValues, GetTableDefinition, ColumnReference, DEFAULT_ROWS_LIMIT, EditTable, FilterOp, GetTableRows, RowEdit, RowFilter, TableEdited, TableInfo, TableRow, TableRows};
 use rpfm_ipc::helpers::{DataSource, RFileInfo};
 
@@ -574,6 +575,90 @@ impl SessionState {
                 apply_row_edits(table.data_mut(), edits)
             }
             _ => return Err(ApiError::NotATable(request.file.path.clone()).into()),
+        };
+
+        Ok(TableEdited { row_count })
+    }
+
+    /// Merges tables of the same type of a pack into a new one.
+    ///
+    /// # Returns
+    ///
+    /// The path of the merged table, or the conflicts that prevented the merge.
+    pub fn merge_tables(&mut self, request: &MergeTables) -> Result<TablesMerged> {
+        let paths = self.pack_container_paths(&request.pack, &request.paths)?;
+        let mut options = MergeOptions::default();
+        options.set_delta_merge(request.delta);
+        options.set_resolutions(request.resolutions.clone());
+
+        Ok(match self.merge_files(&request.pack, &paths, &request.merged_path, request.delete_sources, &options)? {
+            MergeOutcome::Merged(path) => TablesMerged { merged: Some(path), conflicts: vec![] },
+            MergeOutcome::Conflicts(conflicts) => TablesMerged { merged: None, conflicts },
+        })
+    }
+
+    /// Updates a table of a pack to the version it has in the game files.
+    pub fn upgrade_table(&mut self, request: &UpgradeTable) -> Result<TableUpgraded> {
+        let (old_version, new_version, deleted_columns, added_columns) = self.update_table(&request.pack, &ContainerPath::File(request.path.clone()))?;
+        Ok(TableUpgraded { old_version, new_version, deleted_columns, added_columns })
+    }
+
+    /// Changes a value of a key column in every table of a pack, including the columns referencing it.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the table has no definition, or no column with the provided name.
+    pub fn rename_key(&mut self, request: &RenameKey) -> Result<FilesEdited> {
+        let version = self.table_definition(&GetTableDefinition { table_name: request.table_name.clone(), version: None })?.version;
+        let definition = loaded_schema(&self.schema)?.definition_by_name_and_version(&request.table_name, version)
+            .ok_or_else(|| ApiError::DefinitionNotFound(request.table_name.clone()))?
+            .clone();
+
+        let field = definition.fields_processed().into_iter()
+            .find(|field| field.name() == request.column)
+            .ok_or_else(|| ApiError::InvalidParams(format!("The table has no column named {}.", request.column)))?;
+
+        let changes = [(field, request.old_value.clone(), request.new_value.clone())];
+        let (edited, _) = self.cascade_edition(&request.pack, &request.table_name, &definition, &changes)?;
+        Ok(FilesEdited { edited: edited.iter().map(|path| path.path_raw().to_owned()).collect() })
+    }
+
+    /// Adds rows to a key deletes table of a pack, one per key.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the key deletes table doesn't exist in the pack.
+    pub fn add_key_deletes(&mut self, request: &AddKeyDeletes) -> Result<FilesEdited> {
+        let keys = request.keys.iter().cloned().collect::<HashSet<_>>();
+        let path = self.add_keys_to_key_deletes(&request.pack, &request.file_name, &request.table_name, &keys)?
+            .ok_or_else(|| ApiError::FileNotFound(format!("db/{KEY_DELETES_TABLE_NAME}/{}", request.file_name)))?;
+
+        Ok(FilesEdited { edited: vec![path.path_raw().to_owned()] })
+    }
+
+    /// Writes a table from any source, except the Assembly Kit, to a TSV file.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - Table to export, and where.
+    /// * `keys_first` - If the TSV uses the old column order, with keys first.
+    pub fn export_table_tsv(&mut self, request: &ExportTsv, keys_first: bool) -> Result<()> {
+        let (pack_key, data_source) = match request.file.source {
+            FileSource::Pack(ref pack_key) => (pack_key.as_str(), DataSource::PackFile),
+            FileSource::GameFiles => ("", DataSource::GameFiles),
+            FileSource::ParentFiles => ("", DataSource::ParentFiles),
+            FileSource::AssemblyKit => return Err(ApiError::InvalidParams("Assembly Kit tables can't be exported to TSV.".to_owned()).into()),
+        };
+
+        self.export_tsv(pack_key, &request.file.path, &request.destination, data_source, keys_first)
+    }
+
+    /// Replaces a table of a pack with the contents of a TSV file, keeping its GUID.
+    pub fn import_table_tsv(&mut self, request: &ImportTsv) -> Result<TableEdited> {
+        let row_count = match self.import_tsv(&request.pack, &request.path, &request.source)? {
+            RFileDecoded::DB(table) => table.len(),
+            RFileDecoded::Loc(table) => table.len(),
+            _ => return Err(ApiError::NotATable(request.path.clone()).into()),
         };
 
         Ok(TableEdited { row_count })

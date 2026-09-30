@@ -49,12 +49,10 @@ use rmcp::{prompt, prompt_handler, prompt_router, tool, tool_handler, tool_route
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 use std::path::PathBuf;
 
-use rpfm_extensions::merge::MergeOptions;
 use rpfm_extensions::translator::DEFAULT_SRC_LANG;
 
 use rpfm_ipc::api::{ApiError, Done, Request, RpcError, RpcOutcome, RpcRequest, RpcResponse};
@@ -70,7 +68,10 @@ use rpfm_ipc::api::files::{
 use rpfm_ipc::api::packs::{ClosePack, CloseAllPacks, GetPackInfo, GetPackSettings, NewPack, OpenPack, OpenVanillaPacks, PackDetails, PackSettingsValues, PackSummary, SavePack, UpdatePack, UpdatePackSettings};
 use rpfm_ipc::api::jobs::{CancelJob, GetJobStatus, JobStarted, JobState, JobStatus, WaitForJob};
 use rpfm_ipc::api::session::{GenerateDependenciesCache, GetSessionStatus, RebuildDependencies, SessionStatus, SetGame};
-use rpfm_ipc::api::tables::{ColumnValues, EditTable, GetColumnValues, GetTableDefinition, GetTableInfo, GetTableRows, TableDefinition, TableEdited, TableInfo, TableRows};
+use rpfm_ipc::api::tables::{
+    AddKeyDeletes, ColumnValues, EditTable, ExportTsv, FilesEdited, GetColumnValues, GetTableDefinition, GetTableInfo, GetTableRows, ImportTsv, MergeTables,
+    RenameKey, TableDefinition, TableEdited, TableInfo, TableRows, TablesMerged, TableUpgraded, UpgradeTable,
+};
 use rpfm_ipc::helpers::DataSource;
 use rpfm_ipc::messages::{Command, Response};
 use rpfm_lib::files::{ContainerPath, RFile, RFileDecoded};
@@ -194,25 +195,7 @@ pub struct CallCommandArgs {
     pub command: String,
 }
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct TsvExportArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The path of the TSV file to export to.
-    pub tsv_path: PathBuf,
-    /// The path of the table to export.
-    pub table_path: String,
-}
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct TsvImportArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The path of the TSV file to import from.
-    pub tsv_path: PathBuf,
-    /// The path of the table to import to.
-    pub table_path: String,
-}
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct DecodePackedFileArgs {
@@ -392,46 +375,8 @@ pub struct SchemaPatchArgs {
 
 // -- Table Ops Args --
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct MergeFilesArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The JSON representation of Vec<ContainerPath> for files to merge.
-    pub paths: String,
-    /// The path for the merged file.
-    pub merged_path: String,
-    /// Whether to delete source files after merging.
-    pub delete_source: bool,
-    /// Merge rows by key instead of concatenating them. If some rows can't be reconciled
-    /// automatically, nothing is written and the response is `Response::MergeConflicts` instead.
-    /// Defaults to false.
-    #[serde(default)]
-    pub delta_merge: bool,
-}
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct CascadeEditionArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The table name.
-    pub table_name: String,
-    /// The JSON representation of the Definition struct.
-    pub definition: String,
-    /// The JSON representation of Vec<(Field, String, String)> for field changes.
-    pub changes: String,
-}
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct AddKeysToKeyDeletesArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The table file name.
-    pub table_file_name: String,
-    /// The key table name.
-    pub key_table_name: String,
-    /// The keys to add.
-    pub keys: HashSet<String>,
-}
 
 // -- Diagnostics Args --
 
@@ -1403,6 +1348,66 @@ impl McpServer {
     }
 
     #[tool(
+        name = "merge_tables",
+        description = "Merge tables of the same type of an open pack into a new one. With `delta: true`, rows are merged by key against the vanilla data; rows that can't be reconciled are returned as conflicts and nothing is written, so call it again with `resolutions` for them.",
+        annotations(read_only_hint = false, destructive_hint = true),
+        output_schema = schema_for_output::<TablesMerged>(),
+    )]
+    pub async fn merge_tables(&self, params: Parameters<MergeTables>) -> Result<CallToolResult, McpError> {
+        self.call_api("merge_tables", params.0).await
+    }
+
+    #[tool(
+        name = "upgrade_table",
+        description = "Update a table of an open pack to the version it has in the game files, after a game update. Returns the columns removed and added.",
+        annotations(read_only_hint = false, destructive_hint = true),
+        output_schema = schema_for_output::<TableUpgraded>(),
+    )]
+    pub async fn upgrade_table(&self, params: Parameters<UpgradeTable>) -> Result<CallToolResult, McpError> {
+        self.call_api("upgrade_table", params.0).await
+    }
+
+    #[tool(
+        name = "rename_key",
+        description = "Change a key value of a table in every table of an open pack: the key itself, the columns referencing it, and the loc keys generated from it. Use it to rename things safely.",
+        annotations(read_only_hint = false, destructive_hint = true),
+        output_schema = schema_for_output::<FilesEdited>(),
+    )]
+    pub async fn rename_key(&self, params: Parameters<RenameKey>) -> Result<CallToolResult, McpError> {
+        self.call_api("rename_key", params.0).await
+    }
+
+    #[tool(
+        name = "add_key_deletes",
+        description = "Add keys to a key deletes table (`db/twad_key_deletes_tables/<file_name>`) of an open pack, to delete those keys of a table in the game.",
+        annotations(read_only_hint = false, destructive_hint = false),
+        output_schema = schema_for_output::<FilesEdited>(),
+    )]
+    pub async fn add_key_deletes(&self, params: Parameters<AddKeyDeletes>) -> Result<CallToolResult, McpError> {
+        self.call_api("add_key_deletes", params.0).await
+    }
+
+    #[tool(
+        name = "export_tsv",
+        description = "Write a table of an open pack, the game files or the parent packs to a TSV file, to edit it in a spreadsheet.",
+        annotations(read_only_hint = false, destructive_hint = true),
+        output_schema = schema_for_output::<Done>(),
+    )]
+    pub async fn export_tsv(&self, params: Parameters<ExportTsv>) -> Result<CallToolResult, McpError> {
+        self.call_api("export_tsv", params.0).await
+    }
+
+    #[tool(
+        name = "import_tsv",
+        description = "Replace a table of an open pack with the contents of a TSV file, keeping its GUID.",
+        annotations(read_only_hint = false, destructive_hint = true),
+        output_schema = schema_for_output::<TableEdited>(),
+    )]
+    pub async fn import_tsv(&self, params: Parameters<ImportTsv>) -> Result<CallToolResult, McpError> {
+        self.call_api("import_tsv", params.0).await
+    }
+
+    #[tool(
         name = "job_status",
         description = "Get the state of a job: queued, running (with its current step), finished (with its result), failed (with its error) or cancelled.",
         annotations(read_only_hint = true),
@@ -1727,42 +1732,6 @@ impl McpServer {
     //-----------------------------------------------------------------------//
     // Table Operations
     //-----------------------------------------------------------------------//
-
-    #[tool(description = "Merge multiple compatible tables into one in the pack identified by `pack_key`. The `paths` is a JSON array of ContainerPath for the tables to merge, e.g. [{\"File\": \"db/land_units_tables/table1\"}, {\"File\": \"db/land_units_tables/table2\"}]. The `merged_path` is the destination path. Set `delete_source` to true to remove the original files. DB Tables can also be enabled for Delta Merging (if two or more tables edit the same row, it merges their changes into a single row).")]
-    pub async fn merge_files(&self, params: Parameters<MergeFilesArgs>) -> Result<CallToolResult, McpError> {
-        let paths: Vec<ContainerPath> = parse_json!(&params.0.paths);
-        let mut options = MergeOptions::default();
-        options.set_delta_merge(params.0.delta_merge);
-        send_and_respond!(self, "merge_files", Command::MergeFiles(params.0.pack_key, paths, params.0.merged_path, params.0.delete_source, options))
-    }
-
-    #[tool(description = "Update a table to the latest schema version in the pack identified by `pack_key`. The `value` is a ContainerPath JSON, e.g. {\"File\": \"db/land_units_tables/my_mod\"}.")]
-    pub async fn update_table(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
-        let path: ContainerPath = parse_json!(&params.0.value);
-        send_and_respond!(self, "update_table", Command::UpdateTable(params.0.pack_key, path))
-    }
-
-    #[tool(description = "Trigger a cascade edition on all referenced data in the pack identified by `pack_key`. When a key value changes, this propagates the change to all referencing tables. The `definition` is a Definition JSON for the source table. The `changes` is a JSON array of [field, old_value, new_value] tuples, e.g. [[field_json, \"old_key\", \"new_key\"]].")]
-    pub async fn cascade_edition(&self, params: Parameters<CascadeEditionArgs>) -> Result<CallToolResult, McpError> {
-        let def = parse_json!(&params.0.definition);
-        let changes = parse_json!(&params.0.changes);
-        send_and_respond!(self, "cascade_edition", Command::CascadeEdition(params.0.pack_key, params.0.table_name, def, changes))
-    }
-
-    #[tool(description = "Add keys to the key_deletes table in the pack identified by `pack_key`.")]
-    pub async fn add_keys_to_key_deletes(&self, params: Parameters<AddKeysToKeyDeletesArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "add_keys_to_key_deletes", Command::AddKeysToKeyDeletes(params.0.pack_key, params.0.table_file_name, params.0.key_table_name, params.0.keys))
-    }
-
-    #[tool(description = "Export a table from the pack identified by `pack_key` to a TSV file.")]
-    pub async fn export_tsv(&self, params: Parameters<TsvExportArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "export_tsv", Command::ExportTSV(params.0.pack_key, params.0.table_path, params.0.tsv_path, DataSource::PackFile))
-    }
-
-    #[tool(description = "Import a TSV file to a table in the pack identified by `pack_key`.")]
-    pub async fn import_tsv(&self, params: Parameters<TsvImportArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "import_tsv", Command::ImportTSV(params.0.pack_key, params.0.table_path, params.0.tsv_path))
-    }
 
     //-----------------------------------------------------------------------//
     // Diagnostics
@@ -2373,7 +2342,7 @@ Paths are plain strings: a path is treated as a file if one exists there, or as 
 
 **Other:**
 - `get_packed_file_raw_data` – Get the raw binary content of a file.
-- `merge_files` – Combine multiple compatible tables into one.
+- `merge_tables` – Combine multiple compatible tables into one.
 
 Always call `save_pack` when done to persist changes.
 ",
@@ -2412,7 +2381,7 @@ You are an assistant helping the user troubleshoot common RPFM and PackFile issu
 **Symptom**: Table data looks wrong or has missing columns after a game update.
 **Solution**:
 - Call `update_schemas()` to get the latest table definitions.
-- Use `update_table` to migrate the table to the current version.
+- Use `upgrade_table` to migrate the table to the current version.
 - Check `table_definition` for the expected columns.
 
 ### 5. Wrong game selected
@@ -2447,13 +2416,12 @@ Total War mod data in spreadsheets.
 
 ## Export Workflow (Pack → TSV → Spreadsheet)
 
-1. **Open the pack** and **set the game** with `rebuild_dependencies: true`.
+1. **Set the game** with `set_game` and **open the pack** with `open_pack`.
 
 2. **Export a single table as TSV**:
    Call `export_tsv` with:
-   - `pack_key`: the pack key
-   - `tsv_path`: destination path on disk (e.g. `/home/user/my_table.tsv`)
-   - `table_path`: the internal path (e.g. `db/land_units_tables/my_mod`)
+   - `file`: the table, like `{\"source\": {\"pack\": <pack key>}, \"path\": \"db/land_units_tables/my_mod\"}`
+   - `destination`: destination path on disk (e.g. `/home/user/my_table.tsv`)
 
 3. **Export all tables as TSV**:
    Call `extract_files` with `paths: [\"db\", \"text\"]` and `as_tsv: true`.
@@ -2469,9 +2437,9 @@ Total War mod data in spreadsheets.
 
 2. **Import the TSV back**:
    Call `import_tsv` with:
-   - `pack_key`: the target pack key
-   - `tsv_path`: path to the TSV file on disk
-   - `table_path`: the internal path where the table should go
+   - `pack`: the target pack key
+   - `path`: the internal path of the table to replace
+   - `source`: path to the TSV file on disk
 
 3. **Verify**: Call `table_rows` to confirm the data imported correctly.
 

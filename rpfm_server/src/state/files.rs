@@ -1015,7 +1015,7 @@ impl SessionState {
     }
 
     /// Resolves paths of an open pack into file or folder paths, depending on if there's a file at each one.
-    fn pack_container_paths(&self, pack_key: &str, paths: &[String]) -> Result<Vec<ContainerPath>> {
+    pub(super) fn pack_container_paths(&self, pack_key: &str, paths: &[String]) -> Result<Vec<ContainerPath>> {
         let pack = pack(&self.packs, pack_key)?;
         Ok(paths.iter().map(|path| container_path(|path| pack.has_file(path), path)).collect())
     }
