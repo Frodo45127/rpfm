@@ -49,7 +49,7 @@ use rmcp::{prompt, prompt_handler, prompt_router, tool, tool_handler, tool_route
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 use std::path::PathBuf;
@@ -60,6 +60,7 @@ use rpfm_extensions::translator::DEFAULT_SRC_LANG;
 use rpfm_ipc::api::{ApiError, Done, Request, RpcError, RpcOutcome, RpcRequest, RpcResponse};
 use rpfm_ipc::api::diagnostics::{DiagnosticList, IgnoreDiagnostics, ListDiagnostics, RunDiagnostics};
 use rpfm_ipc::api::search::{ListSearchMatches, ReplaceSearchMatches, RunSearch, SearchMatchList, SearchReplaced};
+use rpfm_ipc::api::references::{FindDefinition, FindLoc, FindUsages, GetLocSource, LocSourceLookup, RowLocation, Usages};
 use rpfm_ipc::api::files::{
     AddFilesFromDisk, CopyFiles, CreateFile, DeleteFiles, DuplicateFiles, ExtractFiles, FileEntry, FileList, FilesAdded, FilesDeleted,
     FilesExtracted, FilesRenamed, ListFiles, RenameFiles,
@@ -67,7 +68,7 @@ use rpfm_ipc::api::files::{
 use rpfm_ipc::api::packs::{ClosePack, CloseAllPacks, GetPackInfo, NewPack, OpenPack, OpenVanillaPacks, PackDetails, PackSummary, SavePack, UpdatePack};
 use rpfm_ipc::api::jobs::{CancelJob, GetJobStatus, JobStarted, JobState, JobStatus, WaitForJob};
 use rpfm_ipc::api::session::{GenerateDependenciesCache, GetSessionStatus, RebuildDependencies, SessionStatus, SetGame};
-use rpfm_ipc::api::tables::{EditTable, GetTableDefinition, GetTableInfo, GetTableRows, TableDefinition, TableEdited, TableInfo, TableRows};
+use rpfm_ipc::api::tables::{ColumnValues, EditTable, GetColumnValues, GetTableDefinition, GetTableInfo, GetTableRows, TableDefinition, TableEdited, TableInfo, TableRows};
 use rpfm_ipc::helpers::DataSource;
 use rpfm_ipc::messages::{Command, Response};
 use rpfm_lib::files::{ContainerPath, RFile, RFileDecoded};
@@ -229,13 +230,6 @@ pub struct PathArg {
     pub path: PathBuf,
 }
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct TableColumnArgs {
-    /// Name of the DB table, like `factions_tables`.
-    pub table_name: String,
-    /// Name of the column.
-    pub column_name: String,
-}
 
 // -- Pack Key Args (multi-pack support) --
 
@@ -357,15 +351,6 @@ pub struct StringsArg {
 
 
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct SearchReferencesArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The JSON representation of HashMap<String, Vec<String>>.
-    pub reference_map: String,
-    /// The value to search for.
-    pub value: String,
-}
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct GetReferenceDataFromDefinitionArgs {
@@ -379,17 +364,6 @@ pub struct GetReferenceDataFromDefinitionArgs {
     pub force: bool,
 }
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct GoToDefinitionArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The table name.
-    pub table_name: String,
-    /// The column name.
-    pub column_name: String,
-    /// The values to search for.
-    pub values: Vec<String>,
-}
 
 // -- Schema Args --
 
@@ -1300,6 +1274,56 @@ impl McpServer {
     }
 
     #[tool(
+        name = "column_values",
+        description = "Get the distinct values of a column of a table, like all the faction keys of `factions_tables`, from the open packs and the dependencies, sorted. Filter by prefix, and page with offset/limit (500 by default; the total is always returned). Useful to find valid values for a referenced column: `table_info` tells which table and column a column references.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<ColumnValues>(),
+    )]
+    pub async fn column_values(&self, params: Parameters<GetColumnValues>) -> Result<CallToolResult, McpError> {
+        self.call_api("column_values", params.0).await
+    }
+
+    #[tool(
+        name = "find_definition",
+        description = "Find the row where a value of a referenced table is defined, like the row of `factions_tables` with a faction key. Searches the open packs (starting with `pack`), the parent packs, the game files and the Assembly Kit tables.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<RowLocation>(),
+    )]
+    pub async fn find_definition(&self, params: Parameters<FindDefinition>) -> Result<CallToolResult, McpError> {
+        self.call_api("find_definition", params.0).await
+    }
+
+    #[tool(
+        name = "find_usages",
+        description = "Find the rows of other tables referencing a value of a table, like everything using a faction key. The referencing columns are taken from the schema. Searches the open packs (or only `pack`), the parent packs and the game files, in pages (200 by default; the total is always returned).",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<Usages>(),
+    )]
+    pub async fn find_usages(&self, params: Parameters<FindUsages>) -> Result<CallToolResult, McpError> {
+        self.call_api("find_usages", params.0).await
+    }
+
+    #[tool(
+        name = "find_loc",
+        description = "Find the row of a Loc file with a key. Searches the open packs (starting with `pack`), the parent packs and the game files.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<RowLocation>(),
+    )]
+    pub async fn find_loc(&self, params: Parameters<FindLoc>) -> Result<CallToolResult, McpError> {
+        self.call_api("find_loc", params.0).await
+    }
+
+    #[tool(
+        name = "loc_source",
+        description = "Get the table, localised column and key values a loc key belongs to, like `factions`, `screen_name` and `[\"wh_main_emp_empire\"]` for `factions_screen_name_wh_main_emp_empire`. `source` is null if it can't be found.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<LocSourceLookup>(),
+    )]
+    pub async fn loc_source(&self, params: Parameters<GetLocSource>) -> Result<CallToolResult, McpError> {
+        self.call_api("loc_source", params.0).await
+    }
+
+    #[tool(
         name = "job_status",
         description = "Get the state of a job: queued, running (with its current step), finished (with its result), failed (with its error) or cancelled.",
         annotations(read_only_hint = true),
@@ -1585,50 +1609,14 @@ impl McpServer {
         send_and_respond!(self, "get_custom_table_list", Command::GetCustomTableList)
     }
 
-    #[tool(description = "Get local art set IDs from campaign_character_arts_tables in the pack identified by `pack_key`.")]
-    pub async fn local_art_set_ids(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "local_art_set_ids", Command::LocalArtSetIds(params.0.pack_key))
-    }
-
-    #[tool(description = "Get art set IDs from dependencies' campaign_character_arts_tables.")]
-    pub async fn dependencies_art_set_ids(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "dependencies_art_set_ids", Command::DependenciesArtSetIds)
-    }
-
-    #[tool(description = "Get the distinct values of the column `column_name` of the DB table `table_name` (like `factions_tables`), from the open packs, their parent packs and vanilla.")]
-    pub async fn dependencies_column_values(&self, params: Parameters<TableColumnArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "dependencies_column_values", Command::DependenciesColumnValues(params.0.table_name, params.0.column_name))
-    }
-
     //-----------------------------------------------------------------------//
     // Search
     //-----------------------------------------------------------------------//
-
-    #[tool(description = "Find all references to a value in the pack identified by `pack_key`. The `reference_map` is a JSON object mapping table names to column name arrays, e.g. {\"land_units_tables\": [\"key\", \"unit\"]}. The `value` is the string to search for across those columns.")]
-    pub async fn search_references(&self, params: Parameters<SearchReferencesArgs>) -> Result<CallToolResult, McpError> {
-        let map: HashMap<String, Vec<String>> = parse_json!(&params.0.reference_map);
-        send_and_respond!(self, "search_references", Command::SearchReferences(params.0.pack_key, map, params.0.value))
-    }
 
     #[tool(description = "Get valid reference values for columns in a table definition for the pack identified by `pack_key`. The `definition` is a Definition JSON (as returned by `definition_by_table_name_and_version`). Set `force` to true to regenerate cached reference data.")]
     pub async fn get_reference_data_from_definition(&self, params: Parameters<GetReferenceDataFromDefinitionArgs>) -> Result<CallToolResult, McpError> {
         let def = parse_json!(&params.0.definition);
         send_and_respond!(self, "get_reference_data_from_definition", Command::GetReferenceDataFromDefinition(params.0.pack_key, params.0.table_name, def, params.0.force))
-    }
-
-    #[tool(description = "Go to the definition of a reference in the pack identified by `pack_key`. Provide table name, column name, and values to search.")]
-    pub async fn go_to_definition(&self, params: Parameters<GoToDefinitionArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "go_to_definition", Command::GoToDefinition(params.0.pack_key, params.0.table_name, params.0.column_name, params.0.values))
-    }
-
-    #[tool(description = "Go to a loc key's location in the pack identified by `pack_key`.")]
-    pub async fn go_to_loc(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "go_to_loc", Command::GoToLoc(params.0.pack_key, params.0.value))
-    }
-
-    #[tool(description = "Get the source data of a loc key in the pack identified by `pack_key`.")]
-    pub async fn get_source_data_from_loc_key(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_source_data_from_loc_key", Command::GetSourceDataFromLocKey(params.0.pack_key, params.0.value))
     }
 
     //-----------------------------------------------------------------------//
@@ -2202,9 +2190,9 @@ Workflow:
 6. **Save** – `save_pack` to persist changes.
 
 Related tools:
-- `search_references` – Find all rows that reference a specific value across tables.
-- `go_to_definition` – Jump to where a referenced key is defined.
-- `go_to_loc` – Find the loc entry for a given key.
+- `find_usages` – Find all rows that reference a specific value across tables.
+- `find_definition` – Find where a referenced key is defined.
+- `find_loc` – Find the loc entry for a given key.
 ",
         )]
     }
@@ -2522,13 +2510,13 @@ loc entries for DB fields that reference loc keys but don't have entries yet.
 
 ## Finding Loc Keys
 
-- Use `go_to_loc` with a loc key to find its source loc file.
-- Use `get_source_data_from_loc_key` to find where a loc key is referenced.
+- Use `find_loc` with a loc key to find the loc file with it.
+- Use `loc_source` to find the table row a loc key belongs to.
 - Use `run_search` with `file_types: [\"loc\"]` to search across all loc files.
 
 ## Tips
 - Loc keys follow naming conventions like `<table>_<loc_column_name>_<keys_concatenated>`.
-- Use `search_references` to find all DB columns that reference a specific loc key.
+- Use `find_usages` to find all the rows referencing a specific key.
 - After adding translations, run `run_diagnostics` to verify all references.
 ",
         )]

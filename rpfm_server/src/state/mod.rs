@@ -56,7 +56,7 @@ mod tools;
 
 pub use self::files::{DecodedFile, PathsByPack};
 use self::diagnostics::DiagnosticsResults;
-pub use self::tables::{MergeOutcome, ReferenceLocation, RowLocation};
+pub use self::tables::MergeOutcome;
 pub use self::tools::{MyModOptions, plugin_scripts};
 
 //-------------------------------------------------------------------------------//

@@ -27,7 +27,8 @@ use rpfm_extensions::merge::{db_baseline, delta_merge_db, delta_merge_loc, loc_b
 
 use rpfm_ipc::api::ApiError;
 use rpfm_ipc::api::files::{ASSEMBLY_KIT_TABLE_FILE_NAME, FileRef, FileSource};
-use rpfm_ipc::api::tables::{ColumnInfo, ColumnReference, DEFAULT_ROWS_LIMIT, EditTable, FilterOp, GetTableRows, RowEdit, RowFilter, TableEdited, TableInfo, TableRow, TableRows};
+use rpfm_ipc::api::references::{DEFAULT_USAGES_LIMIT, FindUsages, LocSource, RowLocation, Usage, Usages};
+use rpfm_ipc::api::tables::{ColumnInfo, ColumnValues, DEFAULT_VALUES_LIMIT, GetColumnValues, GetTableDefinition, ColumnReference, DEFAULT_ROWS_LIMIT, EditTable, FilterOp, GetTableRows, RowEdit, RowFilter, TableEdited, TableInfo, TableRow, TableRows};
 use rpfm_ipc::helpers::{DataSource, RFileInfo};
 
 use rpfm_lib::files::{Container, ContainerPath, db::DB, DecodeableExtraData, FileType, RFile, RFileDecoded, table::{DecodedData, local::TableInMemory, Table}};
@@ -69,13 +70,6 @@ enum DeltaMergeOutcome {
     Merged(RFile),
     Conflicts(Vec<MergeConflict>),
 }
-
-/// Location of a row in a table: its source, the path of the table, and the column and row indexes.
-pub type RowLocation = (DataSource, String, usize, usize);
-
-/// A row referencing a value: its source, the key of its pack (empty for dependencies), the path
-/// of its table, the name and index of the referencing column, and the row index.
-pub type ReferenceLocation = (DataSource, String, String, String, usize, usize);
 
 impl SessionState {
 
@@ -272,106 +266,137 @@ impl SessionState {
     ///
     /// # Arguments
     ///
-    /// * `pack_key` - Key of the pack to search first.
-    /// * `ref_table` - Name of the table, without the `_tables` suffix.
-    /// * `ref_column` - Name of the column. If it's localised, the first key column is searched instead.
-    /// * `ref_data` - Values to search. Only the first one is used.
+    /// * `pack_key` - Key of the pack to search first, if any.
+    /// * `table` - Name of the table, with or without the `_tables` suffix.
+    /// * `column` - Name of the column. If it's localised, the first key column is searched instead.
+    /// * `value` - Value to search.
     ///
     /// # Returns
     ///
     /// Where the row is.
-    pub fn go_to_definition(&self, pack_key: &str, ref_table: &str, ref_column: &str, ref_data: &[String]) -> Result<RowLocation> {
-        let value = ref_data.first().ok_or_else(|| anyhow!("No value to search for."))?;
-        let table_name = format!("{ref_table}_tables");
+    pub fn find_definition(&self, pack_key: Option<&str>, table: &str, column: &str, value: &str) -> Result<RowLocation> {
+        let table_name = format!("{}_tables", table.strip_suffix("_tables").unwrap_or(table));
         let table_folders = ContainerPath::db_table_folders(&table_name);
 
         // Search first in the pack that sent the request (if still open), then in the rest of the open packs.
-        let packs_to_search = self.packs.get(pack_key).into_iter()
-            .chain(self.packs.iter().filter(|(key, _)| *key != pack_key).map(|(_, pack)| pack));
+        let first = pack_key.and_then(|pack_key| self.packs.get_key_value(pack_key));
+        let packs_to_search = first.into_iter()
+            .chain(self.packs.iter().filter(|(key, _)| Some(key.as_str()) != pack_key));
 
-        for pack in packs_to_search {
-            if let Some(location) = find_in_db_files(&pack.files_by_paths(&table_folders, true), ref_column, value, DataSource::PackFile) {
+        for (key, pack) in packs_to_search {
+            if let Some(location) = find_in_db_files(&pack.files_by_paths(&table_folders, true), column, value, &FileSource::Pack(key.clone())) {
                 return Ok(location);
             }
         }
 
-        for (data_source, include_vanilla, include_parent) in [(DataSource::ParentFiles, false, true), (DataSource::GameFiles, true, false)] {
+        for (source, include_vanilla, include_parent) in [(FileSource::ParentFiles, false, true), (FileSource::GameFiles, true, false)] {
             if let Ok(files) = self.dependencies.db_data(&table_name, include_vanilla, include_parent) {
-                if let Some(location) = find_in_db_files(&files, ref_column, value, data_source) {
+                if let Some(location) = find_in_db_files(&files, column, value, &source) {
                     return Ok(location);
                 }
             }
         }
 
         if let Some(table) = self.dependencies.asskit_only_db_tables().get(&table_name) {
-            if let Some((column_index, row_index)) = find_in_db(table, ref_column, value) {
-                return Ok((DataSource::AssKitFiles, format!("db/{table_name}/{ASSEMBLY_KIT_TABLE_FILE_NAME}"), column_index, row_index));
+            if let Some((column_index, row_index)) = find_in_db(table, column, value) {
+                let path = format!("db/{table_name}/{ASSEMBLY_KIT_TABLE_FILE_NAME}");
+                return Ok(RowLocation { source: FileSource::AssemblyKit, path, column_index, row_index });
             }
         }
 
-        Err(anyhow!("source_data_for_field_not_found"))
+        Err(ApiError::NotFound(format!("The value {value} of the column {column} of {table_name}")).into())
     }
 
-    /// Finds the first row of a Loc file with a key, searching a pack, then the parent packs and then the game files.
+    /// Finds the first row of a Loc file with a key.
+    ///
+    /// Searches the open packs (starting with `pack_key`), then the parent packs and then the game files.
     ///
     /// # Returns
     ///
     /// Where the row is.
-    pub fn go_to_loc(&self, pack_key: &str, loc_key: &str) -> Result<RowLocation> {
-        let pack_files = pack(&self.packs, pack_key)?.files_by_type(&[FileType::Loc]);
-        if let Some(location) = find_in_loc_files(&pack_files, loc_key, DataSource::PackFile) {
-            return Ok(location);
+    pub fn find_loc(&self, pack_key: Option<&str>, loc_key: &str) -> Result<RowLocation> {
+        let first = pack_key.and_then(|pack_key| self.packs.get_key_value(pack_key));
+        let packs_to_search = first.into_iter()
+            .chain(self.packs.iter().filter(|(key, _)| Some(key.as_str()) != pack_key));
+
+        for (key, pack) in packs_to_search {
+            if let Some(location) = find_in_loc_files(&pack.files_by_type(&[FileType::Loc]), loc_key, &FileSource::Pack(key.clone())) {
+                return Ok(location);
+            }
         }
 
-        for (data_source, include_vanilla, include_parent) in [(DataSource::ParentFiles, false, true), (DataSource::GameFiles, true, false)] {
+        for (source, include_vanilla, include_parent) in [(FileSource::ParentFiles, false, true), (FileSource::GameFiles, true, false)] {
             if let Ok(files) = self.dependencies.loc_data(include_vanilla, include_parent) {
-                if let Some(location) = find_in_loc_files(&files, loc_key, data_source) {
+                if let Some(location) = find_in_loc_files(&files, loc_key, &source) {
                     return Ok(location);
                 }
             }
         }
 
-        Err(anyhow!("loc_key_not_found"))
+        Err(ApiError::NotFound(format!("The loc key {loc_key}")).into())
     }
 
-    /// Finds every row referencing a value, in a pack, the parent packs and the game files.
+    /// Finds every row referencing a value, in the open packs, the parent packs and the game files.
     ///
     /// # Arguments
     ///
-    /// * `pack_key` - Key of the pack to search.
+    /// * `pack_key` - If set, only this open pack is searched.
     /// * `reference_map` - Columns to search, by table name.
     /// * `value` - Value to search.
     ///
     /// # Returns
     ///
     /// The rows referencing the value.
-    pub fn search_references(&self, pack_key: &str, reference_map: &HashMap<String, Vec<String>>, value: &str) -> Result<Vec<ReferenceLocation>> {
+    pub fn search_references(&self, pack_key: Option<&str>, reference_map: &HashMap<String, Vec<String>>, value: &str) -> Result<Vec<Usage>> {
         let paths = reference_map.keys().flat_map(|table_name| ContainerPath::db_table_folders(table_name)).collect::<Vec<ContainerPath>>();
-        let files = pack(&self.packs, pack_key)?.files_by_paths(&paths, true);
+        let packs = match pack_key {
+            Some(pack_key) => vec![(pack_key, pack(&self.packs, pack_key)?)],
+            None => self.packs.iter().map(|(key, pack)| (key.as_str(), pack)).collect(),
+        };
 
         let mut references = vec![];
-
-        // Tag each hit in the pack with its key so the UI can open the right tab when several
-        // packs are open with files at the same path.
-        for (table_name, columns) in reference_map {
-            for file in &files {
-                if file.db_table_name_from_path() == Some(table_name.as_str()) {
-                    references.extend(references_in_file(file, columns, value, DataSource::PackFile, pack_key));
+        for (key, pack) in packs {
+            let files = pack.files_by_paths(&paths, true);
+            let source = FileSource::Pack(key.to_owned());
+            for (table_name, columns) in reference_map {
+                for file in &files {
+                    if file.db_table_name_from_path() == Some(table_name.as_str()) {
+                        references.extend(references_in_file(file, columns, value, &source));
+                    }
                 }
             }
         }
 
-        // Dependencies results are navigated through the dependencies tree, which has a single root
-        // per source, so their pack key is empty.
-        for (data_source, include_vanilla, include_parent) in [(DataSource::ParentFiles, false, true), (DataSource::GameFiles, true, false)] {
+        for (source, include_vanilla, include_parent) in [(FileSource::ParentFiles, false, true), (FileSource::GameFiles, true, false)] {
             for (table_name, columns) in reference_map {
                 if let Ok(tables) = self.dependencies.db_data(table_name, include_vanilla, include_parent) {
-                    references.par_extend(tables.par_iter().flat_map(|table| references_in_file(table, columns, value, data_source, "")));
+                    references.par_extend(tables.par_iter().flat_map(|table| references_in_file(table, columns, value, &source)));
                 }
             }
         }
 
         Ok(references)
+    }
+
+    /// Finds the rows of other tables referencing a value of a table, taking the referencing columns from the schema.
+    pub fn find_usages(&self, request: &FindUsages) -> Result<Usages> {
+        let schema = loaded_schema(&self.schema)?;
+        let definition = self.table_definition(&GetTableDefinition { table_name: request.table_name.clone(), version: None })?;
+        let definition = schema.definition_by_name_and_version(&request.table_name, definition.version)
+            .ok_or_else(|| ApiError::DefinitionNotFound(request.table_name.clone()))?;
+
+        let reference_map = schema.referencing_columns_for_table(&request.table_name, definition)
+            .remove(&request.column)
+            .unwrap_or_default();
+
+        let usages = self.search_references(request.pack.as_deref(), &reference_map, &request.value)?;
+        let total = usages.len();
+        let usages = usages.into_iter()
+            .skip(request.offset)
+            .take(request.limit.unwrap_or(DEFAULT_USAGES_LIMIT))
+            .collect();
+
+        Ok(Usages { usages, total })
     }
 
     /// Returns the table, column and key values a loc key was generated from, if it can be found in the dependencies.
@@ -390,6 +415,28 @@ impl SessionState {
     pub fn column_values(&self, table_name: &str, column_name: &str, include_packs: bool, include_dependencies: bool) -> HashSet<String> {
         let packs = if include_packs { Some(&self.packs) } else { None };
         self.dependencies.db_values_from_table_name_and_column_name(packs, table_name, column_name, include_dependencies, include_dependencies)
+    }
+
+    /// Returns a page of the distinct values of a column of a table, sorted.
+    pub fn column_values_page(&self, request: &GetColumnValues) -> ColumnValues {
+        let mut values = self.column_values(&request.table_name, &request.column, request.include_packs, request.include_dependencies)
+            .into_iter()
+            .filter(|value| value.starts_with(&request.prefix))
+            .collect::<Vec<_>>();
+        values.sort_unstable();
+
+        let total = values.len();
+        let values = values.into_iter()
+            .skip(request.offset)
+            .take(request.limit.unwrap_or(DEFAULT_VALUES_LIMIT))
+            .collect();
+
+        ColumnValues { values, total }
+    }
+
+    /// Returns the table, column and key values a loc key was generated from, if it can be found in the dependencies.
+    pub fn loc_source(&self, loc_key: &str) -> Option<LocSource> {
+        self.loc_key_source(loc_key).map(|(table, column, key_values)| LocSource { table, column, key_values })
     }
 
     /// Returns the names of the tables in the game files.
@@ -774,33 +821,36 @@ fn find_in_db(table: &DB, column_name: &str, value: &str) -> Option<(usize, usiz
 }
 
 /// Finds the first row with a value in a column, among DB files.
-fn find_in_db_files(files: &[&RFile], column_name: &str, value: &str, data_source: DataSource) -> Option<RowLocation> {
+fn find_in_db_files(files: &[&RFile], column_name: &str, value: &str, source: &FileSource) -> Option<RowLocation> {
     files.iter().find_map(|file| match file.decoded() {
         Ok(RFileDecoded::DB(table)) => find_in_db(table, column_name, value)
-            .map(|(column_index, row_index)| (data_source, file.path_in_container_raw().to_owned(), column_index, row_index)),
+            .map(|(column_index, row_index)| RowLocation { source: source.clone(), path: file.path_in_container_raw().to_owned(), column_index, row_index }),
         _ => None,
     })
 }
 
 /// Finds the first row with a key, among Loc files.
-fn find_in_loc_files(files: &[&RFile], loc_key: &str, data_source: DataSource) -> Option<RowLocation> {
+fn find_in_loc_files(files: &[&RFile], loc_key: &str, source: &FileSource) -> Option<RowLocation> {
     files.iter().find_map(|file| match file.decoded() {
         Ok(RFileDecoded::Loc(table)) => {
             let (column_index, row_indexes) = table.table().rows_containing_data("key", loc_key)?;
-            row_indexes.first().map(|row_index| (data_source, file.path_in_container_raw().to_owned(), column_index, *row_index))
+            row_indexes.first().map(|row_index| RowLocation { source: source.clone(), path: file.path_in_container_raw().to_owned(), column_index, row_index: *row_index })
         }
         _ => None,
     })
 }
 
 /// Returns every row of a DB file with a value in any of the provided columns.
-fn references_in_file(file: &RFile, columns: &[String], value: &str, data_source: DataSource, pack_key: &str) -> Vec<ReferenceLocation> {
+fn references_in_file(file: &RFile, columns: &[String], value: &str, source: &FileSource) -> Vec<Usage> {
     let Ok(RFileDecoded::DB(table)) = file.decoded() else { return vec![] };
 
     columns.iter()
         .filter_map(|column_name| table.table().rows_containing_data(column_name, value).map(|found| (column_name, found)))
         .flat_map(|(column_name, (column_index, row_indexes))| row_indexes.into_iter()
-            .map(|row_index| (data_source, pack_key.to_owned(), file.path_in_container_raw().to_owned(), column_name.to_owned(), column_index, row_index))
+            .map(|row_index| Usage {
+                location: RowLocation { source: source.clone(), path: file.path_in_container_raw().to_owned(), column_index, row_index },
+                column: column_name.to_owned(),
+            })
             .collect::<Vec<_>>())
         .collect()
 }

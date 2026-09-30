@@ -37,6 +37,9 @@ use std::sync::Arc;
 
 use rpfm_extensions::diagnostics::Diagnostics;
 
+use rpfm_ipc::api::files::FileSource;
+use rpfm_ipc::api::references::RowLocation;
+use rpfm_ipc::helpers::DataSource;
 use rpfm_ipc::messages::{Command, Response};
 use rpfm_ipc::settings_keys::*;
 
@@ -51,7 +54,7 @@ use crate::comms::CentralCommand;
 use crate::api;
 use crate::session::{Session, SessionMessage};
 use crate::settings::*;
-use crate::state::{DecodedFile, ExtractOptions, MergeOutcome, MyModOptions, RowLocation, SaveOptions, SessionState, plugin_scripts};
+use crate::state::{DecodedFile, ExtractOptions, MergeOutcome, MyModOptions, SaveOptions, SessionState, plugin_scripts};
 use crate::translation_hub::{self, SubmitOutcome};
 use crate::updater;
 
@@ -265,9 +268,25 @@ async fn dispatch(state: &mut SessionState, command: Command, sender: &Unbounded
         Command::GetTablesByTableName(pack_key, table_name) => reply(sender, state.table_paths_by_name(&pack_key, &table_name), Response::VecString),
         Command::AddKeysToKeyDeletes(pack_key, table_file_name, key_table_name, keys) => reply(sender, state.add_keys_to_key_deletes(&pack_key, &table_file_name, &key_table_name, &keys), Response::OptionContainerPath),
         Command::GetReferenceDataFromDefinition(_pack_key, table_name, definition, force) => send(sender, Response::HashMapI32TableReferences(state.reference_data(&table_name, &definition, force))),
-        Command::GoToDefinition(pack_key, table_name, column_name, values) => reply(sender, state.go_to_definition(&pack_key, &table_name, &column_name, &values), row_location_response),
-        Command::GoToLoc(pack_key, loc_key) => reply(sender, state.go_to_loc(&pack_key, &loc_key), row_location_response),
-        Command::SearchReferences(pack_key, reference_map, value) => reply(sender, state.search_references(&pack_key, &reference_map, &value), Response::VecDataSourceStringStringStringUsizeUsize),
+        Command::GoToDefinition(pack_key, table_name, column_name, values) => {
+            let result = values.first()
+                .ok_or_else(|| anyhow!("No value to search for."))
+                .and_then(|value| state.find_definition(Some(&pack_key), &table_name, &column_name, value));
+            reply(sender, result, row_location_response);
+        }
+        Command::GoToLoc(pack_key, loc_key) => reply(sender, state.find_loc(Some(&pack_key), &loc_key), row_location_response),
+        Command::SearchReferences(pack_key, reference_map, value) => reply(sender, state.search_references(Some(&pack_key), &reference_map, &value), |usages| {
+            Response::VecDataSourceStringStringStringUsizeUsize(usages.into_iter()
+                .map(|usage| {
+                    let pack_key = match usage.location.source {
+                        FileSource::Pack(ref pack_key) => pack_key.clone(),
+                        _ => String::new(),
+                    };
+
+                    (data_source(&usage.location.source), pack_key, usage.location.path, usage.column, usage.location.column_index, usage.location.row_index)
+                })
+                .collect())
+        }),
         Command::GetSourceDataFromLocKey(_pack_key, loc_key) => send(sender, Response::OptionStringStringVecString(state.loc_key_source(&loc_key))),
         Command::LocalArtSetIds(_pack_key) => send(sender, Response::HashSetString(state.column_values("campaign_character_arts_tables", "art_set_id", true, false))),
         Command::DependenciesArtSetIds => send(sender, Response::HashSetString(state.column_values("campaign_character_arts_tables", "art_set_id", false, true))),
@@ -504,8 +523,18 @@ fn git_update_repo(path_fn: fn() -> Result<PathBuf>, repo: &str, branch: &str, r
 }
 
 /// Legacy response for the location of a row.
-fn row_location_response((data_source, path, column_index, row_index): RowLocation) -> Response {
-    Response::DataSourceStringUsizeUsize(data_source, path, column_index, row_index)
+fn row_location_response(location: RowLocation) -> Response {
+    Response::DataSourceStringUsizeUsize(data_source(&location.source), location.path, location.column_index, location.row_index)
+}
+
+/// Legacy data source of a file source.
+fn data_source(source: &FileSource) -> DataSource {
+    match source {
+        FileSource::Pack(_) => DataSource::PackFile,
+        FileSource::GameFiles => DataSource::GameFiles,
+        FileSource::ParentFiles => DataSource::ParentFiles,
+        FileSource::AssemblyKit => DataSource::AssKitFiles,
+    }
 }
 
 /// Legacy response for a decoded file. Each file type has its own response variant.

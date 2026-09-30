@@ -20,7 +20,8 @@ use rpfm_ipc::api::files::{AddFilesFromDisk, CopyFiles, CreateFile, DeleteFiles,
 use rpfm_ipc::api::search::{ListSearchMatches, ReplaceSearchMatches, RunSearch};
 use rpfm_ipc::api::packs::{ClosePack, CloseAllPacks, GetPackInfo, NewPack, OpenPack, OpenVanillaPacks, SavePack, UpdatePack};
 use rpfm_ipc::api::session::{GenerateDependenciesCache, GetSessionStatus, RebuildDependencies, SetGame};
-use rpfm_ipc::api::tables::{EditTable, GetTableDefinition, GetTableInfo, GetTableRows};
+use rpfm_ipc::api::references::{FindDefinition, FindLoc, FindUsages, GetLocSource, LocSourceLookup};
+use rpfm_ipc::api::tables::{EditTable, GetColumnValues, GetTableDefinition, GetTableInfo, GetTableRows};
 use rpfm_ipc::settings_keys::{ALLOW_EDITING_OF_CA_PACKFILES, DISABLE_UUID_REGENERATION_ON_DB_TABLES, IGNORE_GAME_FILES_IN_AK, INCLUDE_BASE_FOLDER_ON_ADD_FROM_FOLDER, TABLES_USE_OLD_COLUMN_ORDER_FOR_TSV, USE_LAZY_LOADING};
 
 use crate::settings::Settings;
@@ -121,6 +122,12 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         GetTableRows::METHOD => call(params, |request: GetTableRows| state.table_rows(&request)),
         EditTable::METHOD => call(params, |request: EditTable| state.edit_table(&request)),
         GetTableDefinition::METHOD => call(params, |request: GetTableDefinition| state.table_definition(&request)),
+        GetColumnValues::METHOD => call(params, |request: GetColumnValues| Ok(state.column_values_page(&request))),
+
+        FindDefinition::METHOD => call(params, |request: FindDefinition| state.find_definition(request.pack.as_deref(), &request.table, &request.column, &request.value)),
+        FindUsages::METHOD => call(params, |request: FindUsages| state.find_usages(&request)),
+        FindLoc::METHOD => call(params, |request: FindLoc| state.find_loc(request.pack.as_deref(), &request.key)),
+        GetLocSource::METHOD => call(params, |request: GetLocSource| Ok(LocSourceLookup { source: state.loc_source(&request.key) })),
 
         RunDiagnostics::METHOD => call(params, |request: RunDiagnostics| {
             report_stage("Checking the open packs");

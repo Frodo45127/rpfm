@@ -21,7 +21,7 @@ use std::collections::BTreeMap;
 
 use rpfm_lib::schema::FieldType;
 
-use super::Request;
+use super::{default_true, Request};
 use super::files::FileRef;
 
 /// Default amount of rows returned by [`GetTableRows`].
@@ -281,4 +281,54 @@ pub struct TableEdited {
 impl Request for EditTable {
     const METHOD: &'static str = "table.edit";
     type Response = TableEdited;
+}
+
+/// Default amount of values returned by [`GetColumnValues`].
+pub const DEFAULT_VALUES_LIMIT: usize = 500;
+
+/// `table.column_values`: returns the distinct values of a column of a table, sorted.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct GetColumnValues {
+
+    /// Name of the table, like `factions_tables`.
+    pub table_name: String,
+
+    /// Name of the column.
+    pub column: String,
+
+    /// If the tables of the open packs are included.
+    #[serde(default = "default_true")]
+    pub include_packs: bool,
+
+    /// If the tables of the game files and the parent packs are included.
+    #[serde(default = "default_true")]
+    pub include_dependencies: bool,
+
+    /// Only values starting with this are returned.
+    #[serde(default)]
+    pub prefix: String,
+
+    /// Amount of values to skip.
+    #[serde(default)]
+    pub offset: usize,
+
+    /// Maximum amount of values to return. Defaults to [`DEFAULT_VALUES_LIMIT`].
+    #[serde(default)]
+    pub limit: Option<usize>,
+}
+
+/// A page of the values of a column.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ColumnValues {
+
+    /// The values in the page, sorted.
+    pub values: Vec<String>,
+
+    /// Amount of values matching the request, in all pages.
+    pub total: usize,
+}
+
+impl Request for GetColumnValues {
+    const METHOD: &'static str = "table.column_values";
+    type Response = ColumnValues;
 }
