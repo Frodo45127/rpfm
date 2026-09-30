@@ -609,6 +609,9 @@ impl Schema {
 
         if let Some(table_patches) = local_patches.get_mut(table_name) {
             table_patches.remove(field_name);
+            if table_patches.is_empty() {
+                local_patches.remove(table_name);
+            }
         }
 
         let mut file = BufWriter::new(File::create(path)?);
