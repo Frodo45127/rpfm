@@ -1056,6 +1056,16 @@ fn split_found(paths: &[String], resolve: impl Fn(&str) -> ContainerPath, exists
     (found, not_found)
 }
 
+/// Returns the key of the pack of a file source (empty for other sources), and its legacy data source.
+pub(super) fn legacy_source(source: &FileSource) -> (&str, DataSource) {
+    match source {
+        FileSource::Pack(pack_key) => (pack_key, DataSource::PackFile),
+        FileSource::GameFiles => ("", DataSource::GameFiles),
+        FileSource::ParentFiles => ("", DataSource::ParentFiles),
+        FileSource::AssemblyKit => ("", DataSource::AssKitFiles),
+    }
+}
+
 /// Returns the legacy data source of a file source, or `None` for open packs.
 fn data_source(source: &FileSource) -> Option<DataSource> {
     match source {
@@ -1067,7 +1077,7 @@ fn data_source(source: &FileSource) -> Option<DataSource> {
 }
 
 /// Returns the raw paths of container paths.
-fn raw_paths(paths: &[ContainerPath]) -> Vec<String> {
+pub(super) fn raw_paths(paths: &[ContainerPath]) -> Vec<String> {
     paths.iter().map(|path| path.path_raw().to_owned()).collect()
 }
 

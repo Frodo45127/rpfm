@@ -24,16 +24,22 @@ use rpfm_ipc::api::schema::{ListSchemaTables, PatchColumn, RemovePatches, Update
 use rpfm_ipc::api::session::{GenerateDependenciesCache, GetSessionStatus, RebuildDependencies, SetGame};
 use rpfm_ipc::api::references::{FindDefinition, FindLoc, FindUsages, GetLocSource, LocSourceLookup};
 use rpfm_ipc::api::tables::{AddKeyDeletes, EditTable, ExportTsv, GetColumnValues, GetTableDefinition, GetTableInfo, GetTableRows, ImportTsv, MergeTables, RenameKey, UpgradeTable};
-use rpfm_ipc::settings_keys::{ALLOW_EDITING_OF_CA_PACKFILES, DISABLE_UUID_REGENERATION_ON_DB_TABLES, IGNORE_GAME_FILES_IN_AK, INCLUDE_BASE_FOLDER_ON_ADD_FROM_FOLDER, TABLES_USE_OLD_COLUMN_ORDER_FOR_TSV, USE_LAZY_LOADING};
+use rpfm_ipc::api::tools::{
+    AnimsBySkeleton, ExportGltf, FinishStartpos, GenerateMissingLocs, GetOptimizerOptions, GetStartposCampaigns, InitMyMod, LiveExport, LuaTestResults,
+    OptimizePack, OptimizerOptionValues, PackMap, PatchSiegeAi, RunLuaTests, SetVideoFormat, StartStartpos, UpdateAnimIds,
+};
+use rpfm_ipc::settings_keys::{ALLOW_EDITING_OF_CA_PACKFILES, MYMOD_BASE_PATH, DISABLE_UUID_REGENERATION_ON_DB_TABLES, IGNORE_GAME_FILES_IN_AK, INCLUDE_BASE_FOLDER_ON_ADD_FROM_FOLDER, TABLES_USE_OLD_COLUMN_ORDER_FOR_TSV, USE_LAZY_LOADING};
 
 use rpfm_lib::schema::{SCHEMA_BRANCH, SCHEMA_REMOTE, SCHEMA_REPO};
 
 use crate::settings::{schemas_path, Settings};
-use crate::state::{ExtractOptions, SaveOptions, SessionState};
+use crate::state::{ExtractOptions, SaveOptions, SessionState, optimizer_option_values, optimizer_options_with};
 use crate::updater::git_update_repo;
 
 /// Methods that run as jobs.
-const JOB_METHODS: [&str; 7] = [
+const JOB_METHODS: [&str; 9] = [
+    OptimizePack::METHOD,
+    RunLuaTests::METHOD,
     SetGame::METHOD,
     GenerateDependenciesCache::METHOD,
     RebuildDependencies::METHOD,
@@ -190,6 +196,40 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         }),
         ListSearchMatches::METHOD => call(params, |request: ListSearchMatches| state.list_search_matches(&request)),
         ReplaceSearchMatches::METHOD => call(params, |request: ReplaceSearchMatches| state.replace_search_matches(&request)),
+        GetOptimizerOptions::METHOD => call(params, |_: GetOptimizerOptions| Ok(OptimizerOptionValues { options: optimizer_option_values(&settings.optimizer_options()) })),
+        OptimizePack::METHOD => call(params, |request: OptimizePack| {
+            report_stage("Optimizing the pack");
+            let options = optimizer_options_with(&settings.optimizer_options(), &request.options)?;
+            state.optimize_pack_files(&request.pack, &options)
+        }),
+        PatchSiegeAi::METHOD => call(params, |request: PatchSiegeAi| state.patch_siege_ai_files(&request.pack)),
+        PackMap::METHOD => call(params, |request: PackMap| {
+            let tiles = request.tiles.into_iter().map(|tile| (tile.path, tile.folder)).collect();
+            state.pack_map_files(&request.pack, request.tile_maps, tiles, settings.optimizer_options())
+        }),
+        GenerateMissingLocs::METHOD => call(params, |_: GenerateMissingLocs| state.generate_missing_locs()),
+        UpdateAnimIds::METHOD => call(params, |request: UpdateAnimIds| state.update_anim_id_files(&request.pack, request.starting_id, request.offset)),
+        AnimsBySkeleton::METHOD => call(params, |request: AnimsBySkeleton| Ok(state.anims_by_skeleton(&request.skeleton))),
+        ExportGltf::METHOD => call(params, |request: ExportGltf| state.export_gltf(&request.file, &request.destination).map(|_| Done {})),
+        SetVideoFormat::METHOD => call(params, |request: SetVideoFormat| {
+            let format = serde_json::from_value(Value::String(request.format.clone()))
+                .map_err(|_| ApiError::InvalidParams(format!("Unknown video format: {}. Valid ones: CaVp8, Ivf.", request.format)))?;
+            state.set_video_format(&request.pack, &request.path, format).map(|_| Done {})
+        }),
+        LiveExport::METHOD => call(params, |request: LiveExport| {
+            let keys_first = settings.bool(TABLES_USE_OLD_COLUMN_ORDER_FOR_TSV);
+            state.live_export(&request.pack, settings, settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES), keys_first).map(|_| Done {})
+        }),
+        InitMyMod::METHOD => call(params, |request: InitMyMod| state.init_mymod(&settings.path_buf(MYMOD_BASE_PATH), &request)),
+        RunLuaTests::METHOD => call(params, |request: RunLuaTests| {
+            report_stage("Running the tests");
+            let report = state.lua_run_tests(&request.source, request.campaign, settings)?;
+            Ok(LuaTestResults { report: serde_json::to_value(report)? })
+        }),
+        GetStartposCampaigns::METHOD => call(params, |request: GetStartposCampaigns| state.startpos_campaigns(&request.pack)),
+        StartStartpos::METHOD => call(params, |request: StartStartpos| state.start_startpos(&request, settings).map(|_| Done {})),
+        FinishStartpos::METHOD => call(params, |request: FinishStartpos| state.finish_startpos(request.cancel, settings)),
+
         method => Err(ApiError::MethodNotFound(method.to_owned())),
     };
 
@@ -232,7 +272,7 @@ mod tests {
     #[test]
     fn job_methods_are_the_ones_marked_as_jobs() {
         assert!(SetGame::IS_JOB && GenerateDependenciesCache::IS_JOB && RebuildDependencies::IS_JOB && RunDiagnostics::IS_JOB && RunSearch::IS_JOB);
-        assert!(UpdateSchemas::IS_JOB && UpdateSchemaFromAssemblyKit::IS_JOB);
+        assert!(UpdateSchemas::IS_JOB && UpdateSchemaFromAssemblyKit::IS_JOB && OptimizePack::IS_JOB && RunLuaTests::IS_JOB);
         assert!(JOB_METHODS.iter().all(|method| is_job_method(method)));
         assert!(!is_job_method(GetSessionStatus::METHOD) && !GetSessionStatus::IS_JOB);
     }

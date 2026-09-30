@@ -61,6 +61,11 @@ use rpfm_ipc::api::search::{ListSearchMatches, ReplaceSearchMatches, RunSearch, 
 use rpfm_ipc::api::references::{FindDefinition, FindLoc, FindUsages, GetLocSource, LocSourceLookup, RowLocation, Usages};
 use rpfm_ipc::api::notes::{AddNote, DeleteNote, ListNotes, NoteEntry, NoteList};
 use rpfm_ipc::api::schema::{ListSchemaTables, PatchColumn, RemovePatches, SchemaTables, UpdateSchemaFromAssemblyKit, UpdateSchemas};
+use rpfm_ipc::api::tools::{
+    AnimsBySkeleton, ExportGltf, FilePaths, FilesChanged, FinishStartpos, GenerateMissingLocs, GetOptimizerOptions, GetStartposCampaigns, InitMyMod, LiveExport,
+    MyModCreated, OptimizePack, OptimizerOptionValues, PackMap, PatchSiegeAi, RunLuaTests, SetVideoFormat, SiegeAiPatched, StartStartpos, StartposCampaigns,
+    UpdateAnimIds,
+};
 use rpfm_ipc::api::files::{
     AddFilesFromDisk, CopyFiles, CreateFile, DeleteFiles, DuplicateFiles, ExtractFiles, FileEntry, FileList, FilesAdded, FilesDeleted,
     FilesExtracted, FilesRenamed, ListFiles, RenameFiles,
@@ -218,11 +223,6 @@ pub struct PathArg {
 
 // -- Pack Key Args (multi-pack support) --
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct PackKeyArg {
-    /// The key of the target pack. Use `session_status` to get available keys.
-    pub pack_key: String,
-}
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct PackKeyStringArg {
@@ -381,13 +381,6 @@ pub struct SchemaPatchArgs {
 // -- Diagnostics Args --
 
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct LuaRunTestsArgs {
-    /// Code of the Lua test file.
-    pub test_source: String,
-    /// Campaign whose vanilla scripts to load, like "main_warhammer". Omit it to load only the script libraries and the mods.
-    pub campaign: Option<String>,
-}
 
 
 // -- Notes Args --
@@ -396,13 +389,6 @@ pub struct LuaRunTestsArgs {
 
 // -- Optimization Args --
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct OptimizePackFileArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The JSON representation of the OptimizerOptions struct.
-    pub options: String,
-}
 
 // -- Settings Args --
 
@@ -464,67 +450,11 @@ pub struct SettingsSetVecRawArgs {
 
 // -- Specialized Args --
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct InitializeMyModFolderArgs {
-    /// The mod name.
-    pub name: String,
-    /// The game key.
-    pub game: String,
-    /// Whether to add Sublime Text support.
-    pub sublime: bool,
-    /// Whether to add VS Code support.
-    pub vscode: bool,
-    /// Optional gitignore template content.
-    pub gitignore: Option<String>,
-}
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct PackMapArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The tile map paths.
-    pub tile_maps: Vec<PathBuf>,
-    /// The JSON representation of Vec<(PathBuf, String)> for tile path/name pairs.
-    pub tiles: String,
-}
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct BuildStarposArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The campaign ID.
-    pub campaign_id: String,
-    /// Whether to process HLP/SPD data.
-    pub process_hlp_spd: bool,
-}
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct UpdateAnimIdsArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The starting animation ID.
-    pub starting_id: i32,
-    /// The offset to apply.
-    pub offset: i32,
-}
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct ExportRigidToGltfArgs {
-    /// The JSON representation of the RigidModel struct.
-    pub rigid_model: String,
-    /// The output path.
-    pub output_path: String,
-}
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct SetVideoFormatArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The path of the video file in the pack.
-    pub path: String,
-    /// The JSON representation of the SupportedFormats enum.
-    pub format: String,
-}
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct GetPackTranslationArgs {
@@ -904,7 +834,7 @@ Scripts:
     Example: script/campaign/mod/my_mod_script.lua
     After editing a script, run `run_diagnostics`: it reports Lua syntax errors, invalid DB keys, unknown methods,
     wrong argument counts and unknown events (all but syntax errors need the game's Assembly Kit installed).
-    To check what a script does, write tests for it and run them with `lua_run_tests`.
+    To check what a script does, write tests for it and run them with `run_lua_tests`.
 
 UI Images:
     ui/<path>.png
@@ -1408,6 +1338,168 @@ impl McpServer {
     }
 
     #[tool(
+        name = "optimizer_options",
+        description = "Get the optimizer options as the server's settings have them, by name. Use the names to change them in `optimize_pack`.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<OptimizerOptionValues>(),
+    )]
+    pub async fn optimizer_options(&self) -> Result<CallToolResult, McpError> {
+        self.call_api("optimizer_options", GetOptimizerOptions {}).await
+    }
+
+    #[tool(
+        name = "patch_siege_ai",
+        description = "Patch the siege maps of an open pack so the AI can use them. Warhammer games only.",
+        annotations(read_only_hint = false, destructive_hint = true),
+        output_schema = schema_for_output::<SiegeAiPatched>(),
+    )]
+    pub async fn patch_siege_ai(&self, params: Parameters<PatchSiegeAi>) -> Result<CallToolResult, McpError> {
+        self.call_api("patch_siege_ai", params.0).await
+    }
+
+    #[tool(
+        name = "pack_map",
+        description = "Add the tiles and tile maps of a map exported by Terry to an open pack.",
+        annotations(read_only_hint = false, destructive_hint = false),
+        output_schema = schema_for_output::<FilesChanged>(),
+    )]
+    pub async fn pack_map(&self, params: Parameters<PackMap>) -> Result<CallToolResult, McpError> {
+        self.call_api("pack_map", params.0).await
+    }
+
+    #[tool(
+        name = "generate_missing_locs",
+        description = "Add empty loc entries for the localised columns of the tables of the open packs that don't have them yet.",
+        annotations(read_only_hint = false, destructive_hint = false),
+        output_schema = schema_for_output::<FilesEdited>(),
+    )]
+    pub async fn generate_missing_locs(&self, params: Parameters<GenerateMissingLocs>) -> Result<CallToolResult, McpError> {
+        self.call_api("generate_missing_locs", params.0).await
+    }
+
+    #[tool(
+        name = "update_anim_ids",
+        description = "Offset the animation ids of an open pack from a starting id, like after a game update moves them.",
+        annotations(read_only_hint = false, destructive_hint = true),
+        output_schema = schema_for_output::<FilesEdited>(),
+    )]
+    pub async fn update_anim_ids(&self, params: Parameters<UpdateAnimIds>) -> Result<CallToolResult, McpError> {
+        self.call_api("update_anim_ids", params.0).await
+    }
+
+    #[tool(
+        name = "anims_by_skeleton",
+        description = "Get the paths of the animations using a skeleton, in the open packs and the dependencies.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<FilePaths>(),
+    )]
+    pub async fn anims_by_skeleton(&self, params: Parameters<AnimsBySkeleton>) -> Result<CallToolResult, McpError> {
+        self.call_api("anims_by_skeleton", params.0).await
+    }
+
+    #[tool(
+        name = "export_gltf",
+        description = "Export a RigidModel of any source to a glTF file, with its textures.",
+        annotations(read_only_hint = false, destructive_hint = true),
+        output_schema = schema_for_output::<Done>(),
+    )]
+    pub async fn export_gltf(&self, params: Parameters<ExportGltf>) -> Result<CallToolResult, McpError> {
+        self.call_api("export_gltf", params.0).await
+    }
+
+    #[tool(
+        name = "set_video_format",
+        description = "Change the format of a ca_vp8 video of an open pack: `CaVp8` or `Ivf`.",
+        annotations(read_only_hint = false, destructive_hint = true),
+        output_schema = schema_for_output::<Done>(),
+    )]
+    pub async fn set_video_format(&self, params: Parameters<SetVideoFormat>) -> Result<CallToolResult, McpError> {
+        self.call_api("set_video_format", params.0).await
+    }
+
+    #[tool(
+        name = "live_export",
+        description = "Export the scripts and UI files of an open pack to the game's data folder, to test them without saving the pack.",
+        annotations(read_only_hint = false, destructive_hint = true),
+        output_schema = schema_for_output::<Done>(),
+    )]
+    pub async fn live_export(&self, params: Parameters<LiveExport>) -> Result<CallToolResult, McpError> {
+        self.call_api("live_export", params.0).await
+    }
+
+    #[tool(
+        name = "init_mymod",
+        description = "Create the folder of a new MyMod in the MyMods folder of the settings, with optional editor configs for Lua scripting and a git repository.",
+        annotations(read_only_hint = false, destructive_hint = false),
+        output_schema = schema_for_output::<MyModCreated>(),
+    )]
+    pub async fn init_mymod(&self, params: Parameters<InitMyMod>) -> Result<CallToolResult, McpError> {
+        self.call_api("init_mymod", params.0).await
+    }
+
+    #[tool(
+        name = "startpos_campaigns",
+        description = "Get the campaigns a startpos can be built for, and the one the pack's last startpos was built for.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<StartposCampaigns>(),
+    )]
+    pub async fn startpos_campaigns(&self, params: Parameters<GetStartposCampaigns>) -> Result<CallToolResult, McpError> {
+        self.call_api("startpos_campaigns", params.0).await
+    }
+
+    #[tool(
+        name = "start_startpos",
+        description = "Start building a startpos for a campaign with the tables of an open pack: prepares the Assembly Kit and launches the game. Tell the user to close the game once it's done loading, then call `finish_startpos`.",
+        annotations(read_only_hint = false, destructive_hint = false),
+        output_schema = schema_for_output::<Done>(),
+    )]
+    pub async fn start_startpos(&self, params: Parameters<StartStartpos>) -> Result<CallToolResult, McpError> {
+        self.call_api("start_startpos", params.0).await
+    }
+
+    #[tool(
+        name = "finish_startpos",
+        description = "Finish building a startpos after the game was closed: imports it into the pack, or cancels the build with `cancel: true`. Cleans up the build files either way.",
+        annotations(read_only_hint = false, destructive_hint = false),
+        output_schema = schema_for_output::<FilesEdited>(),
+    )]
+    pub async fn finish_startpos(&self, params: Parameters<FinishStartpos>) -> Result<CallToolResult, McpError> {
+        self.call_api("finish_startpos", params.0).await
+    }
+
+    #[tool(
+        name = "optimize_pack",
+        description = "Remove data of an open pack that's identical to vanilla or unneeded (duplicated rows, unchanged rows and files, empty tables, etc.). Options not set keep the server's settings; see `optimizer_options`. Runs as a job: waits up to 45 seconds and returns its state; if it's still running, call `wait_for_job`.",
+        annotations(read_only_hint = false, destructive_hint = true),
+        output_schema = schema_for_output::<JobStatus>(),
+    )]
+    pub async fn optimize_pack(&self, params: Parameters<OptimizePack>) -> Result<CallToolResult, McpError> {
+        self.call_api("optimize_pack", params.0).await
+    }
+
+    #[tool(
+        name = "run_lua_tests",
+        description = "Run Lua tests against the scripts of all open packs, outside of the game. Scripts run in Lua 5.1 with the game's real script libraries; the game's engine is emulated with objects typed after the Assembly Kit's scripting docs, which record every call made on them. Needs the game's Assembly Kit.
+
+Test file API (a global `rpfm` table):
+- Top-level code runs before the game boots, to set up the world: `local kislev = rpfm.faction { key = \"wh3_main_ksl_kislev\", is_human = true }`. Fields other than `key` are the values returned by the methods with the same name; lists like `region_list` can be plain arrays. Also `rpfm.region { key = ... }`, `rpfm.character { faction = kislev, ... }`, and `rpfm.object(\"TYPE_SCRIPT_INTERFACE\", methods)`. Factions and regions from the game's DB exist even if not set up.
+- `rpfm.test(name, function)` registers a test. Each test runs in a fresh Lua state, after the libraries, the pack's mods (script/campaign/mod/) and the first tick have run.
+- `rpfm.fire(event, { accessor = value, ... })` triggers an event, like `rpfm.fire(\"FactionTurnStart\", { faction = kislev })`.
+- `rpfm.advance_time(seconds)` advances game time, triggering due time triggers, like the ones from `cm:callback`. `rpfm.end_turn()` plays a full round: `WorldStartRound`, `FactionRoundStart` for every faction, then for each faction in creation order its `FactionTurnStart`, the turn events of the regions and characters in its `region_list` and `character_list`, `FactionBeginTurnPhaseNormal`, `FactionAboutToEndTurn` and `FactionTurnEnd`.
+- `rpfm.mock(object, method, value)` changes what a method of an engine object returns after boot, like `rpfm.mock(region, \"owning_faction\", kislev)`; `value` can be a function receiving the call's arguments. Scripts' own globals (like a mod's manager table) can be inspected and changed directly from tests.
+- `rpfm.assert_called(method, args...)`, `rpfm.assert_not_called(method)`, `rpfm.calls_to(method)` and `rpfm.assert_equal(actual, expected)` check what the scripts did. Calls on `cm` are recorded by their method name, like `treasury_mod`.
+
+The report lists each test with its errors (including errors of the pack's scripts, and in listeners), the undocumented methods it called (whose results are placeholders), and the scripts' output.
+
+Runs as a job: waits up to 45 seconds and returns its state, with the report as its result; if it's still running, call `wait_for_job`.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<JobStatus>(),
+    )]
+    pub async fn run_lua_tests(&self, params: Parameters<RunLuaTests>) -> Result<CallToolResult, McpError> {
+        self.call_api("run_lua_tests", params.0).await
+    }
+
+    #[tool(
         name = "job_status",
         description = "Get the state of a job: queued, running (with its current step), finished (with its result), failed (with its error) or cancelled.",
         annotations(read_only_hint = true),
@@ -1737,21 +1829,6 @@ impl McpServer {
     // Diagnostics
     //-----------------------------------------------------------------------//
 
-    #[tool(description = "Run Lua tests against the scripts of all open packs, outside of the game. Scripts run in Lua 5.1 with the game's real script libraries; the game's engine is emulated with objects typed after the Assembly Kit's scripting docs, which record every call made on them. Needs the game's Assembly Kit.
-
-Test file API (a global `rpfm` table):
-- Top-level code runs before the game boots, to set up the world: `local kislev = rpfm.faction { key = \"wh3_main_ksl_kislev\", is_human = true }`. Fields other than `key` are the values returned by the methods with the same name; lists like `region_list` can be plain arrays. Also `rpfm.region { key = ... }`, `rpfm.character { faction = kislev, ... }`, and `rpfm.object(\"TYPE_SCRIPT_INTERFACE\", methods)`. Factions and regions from the game's DB exist even if not set up.
-- `rpfm.test(name, function)` registers a test. Each test runs in a fresh Lua state, after the libraries, the pack's mods (script/campaign/mod/) and the first tick have run.
-- `rpfm.fire(event, { accessor = value, ... })` triggers an event, like `rpfm.fire(\"FactionTurnStart\", { faction = kislev })`.
-- `rpfm.advance_time(seconds)` advances game time, triggering due time triggers, like the ones from `cm:callback`. `rpfm.end_turn()` plays a full round: `WorldStartRound`, `FactionRoundStart` for every faction, then for each faction in creation order its `FactionTurnStart`, the turn events of the regions and characters in its `region_list` and `character_list`, `FactionBeginTurnPhaseNormal`, `FactionAboutToEndTurn` and `FactionTurnEnd`.
-- `rpfm.mock(object, method, value)` changes what a method of an engine object returns after boot, like `rpfm.mock(region, \"owning_faction\", kislev)`; `value` can be a function receiving the call's arguments. Scripts' own globals (like a mod's manager table) can be inspected and changed directly from tests.
-- `rpfm.assert_called(method, args...)`, `rpfm.assert_not_called(method)`, `rpfm.calls_to(method)` and `rpfm.assert_equal(actual, expected)` check what the scripts did. Calls on `cm` are recorded by their method name, like `treasury_mod`.
-
-The report lists each test with its errors (including errors of the pack's scripts, and in listeners), the undocumented methods it called (whose results are placeholders), and the scripts' output.")]
-    pub async fn lua_run_tests(&self, params: Parameters<LuaRunTestsArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "lua_run_tests", Command::LuaRunTests(params.0.test_source, params.0.campaign))
-    }
-
     //-----------------------------------------------------------------------//
     // Notes
     //-----------------------------------------------------------------------//
@@ -1759,17 +1836,6 @@ The report lists each test with its errors (including errors of the pack's scrip
     //-----------------------------------------------------------------------//
     // Optimization
     //-----------------------------------------------------------------------//
-
-    #[tool(description = "Optimize the pack identified by `pack_key` by removing unchanged/duplicate data. The `options` is an OptimizerOptions JSON with boolean fields: pack_remove_itm_files, table_remove_duplicated_entries, table_remove_itm_entries, table_remove_itnr_entries, table_remove_empty_file, db_optimize_datacored_tables, etc. See the `rpfm://examples/optimizer_options` resource for all fields.")]
-    pub async fn optimize_pack_file(&self, params: Parameters<OptimizePackFileArgs>) -> Result<CallToolResult, McpError> {
-        let options = parse_json!(&params.0.options);
-        send_and_respond!(self, "optimize_pack_file", Command::OptimizePackFile(params.0.pack_key, options))
-    }
-
-    #[tool(description = "Get the default optimizer options.")]
-    pub async fn get_optimizer_options(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_optimizer_options", Command::OptimizerOptions)
-    }
 
     //-----------------------------------------------------------------------//
     // Updates
@@ -1951,32 +2017,6 @@ The report lists each test with its errors (including errors of the pack's scrip
     // Specialized
     //-----------------------------------------------------------------------//
 
-    #[tool(description = "Initialize a MyMod folder for mod development.")]
-    pub async fn initialize_my_mod_folder(&self, params: Parameters<InitializeMyModFolderArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "initialize_my_mod_folder", Command::InitializeMyModFolder(params.0.name, params.0.game, params.0.sublime, params.0.vscode, params.0.gitignore))
-    }
-
-    #[tool(description = "Live export the pack identified by `pack_key` to the game folder for testing.")]
-    pub async fn live_export(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "live_export", Command::LiveExport(params.0.pack_key))
-    }
-
-    #[tool(description = "Patch the SiegeAI of a Siege Map in the pack identified by `pack_key` for Warhammer games.")]
-    pub async fn patch_siege_ai(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "patch_siege_ai", Command::PatchSiegeAI(params.0.pack_key))
-    }
-
-    #[tool(description = "Pack map tiles into the pack identified by `pack_key`. The `tile_maps` is a list of tile map file paths on disk. The `tiles` is a JSON array of [path, name] pairs, e.g. [[\"/path/to/tile\", \"tile_name\"]].")]
-    pub async fn pack_map(&self, params: Parameters<PackMapArgs>) -> Result<CallToolResult, McpError> {
-        let tiles: Vec<(PathBuf, String)> = parse_json!(&params.0.tiles);
-        send_and_respond!(self, "pack_map", Command::PackMap(params.0.pack_key, params.0.tile_maps, tiles))
-    }
-
-    #[tool(description = "Generate all missing loc entries for the pack identified by `pack_key`.")]
-    pub async fn generate_missing_loc_data(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "generate_missing_loc_data", Command::GenerateMissingLocData(params.0.pack_key))
-    }
-
     #[tool(description = "Get pack translation data for a language from the pack identified by `pack_key`.")]
     pub async fn get_pack_translation(&self, params: Parameters<GetPackTranslationArgs>) -> Result<CallToolResult, McpError> {
         send_and_respond!(self, "get_pack_translation", Command::GetPackTranslation(params.0.pack_key, params.0.src_lang, params.0.language))
@@ -1985,53 +2025,6 @@ The report lists each test with its errors (including errors of the pack's scrip
     #[tool(description = "Generate the vanilla texts of a source language from the game's locale packs. Returns whether vanilla texts for that language are available.")]
     pub async fn generate_vanilla_translation_source(&self, params: Parameters<SrcLangArg>) -> Result<CallToolResult, McpError> {
         send_and_respond!(self, "generate_vanilla_translation_source", Command::GenerateVanillaTranslationSource(params.0.src_lang))
-    }
-
-    #[tool(description = "Get campaign IDs for starpos building in the pack identified by `pack_key`.")]
-    pub async fn build_starpos_get_campaign_ids(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "build_starpos_get_campaign_ids", Command::BuildStarposGetCampaingIds(params.0.pack_key))
-    }
-
-    #[tool(description = "Check if victory conditions file exists for starpos building in the pack identified by `pack_key`.")]
-    pub async fn build_starpos_check_victory_conditions(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "build_starpos_check_victory_conditions", Command::BuildStarposCheckVictoryConditions(params.0.pack_key))
-    }
-
-    #[tool(description = "Build starpos (pre-processing step) for the pack identified by `pack_key`.")]
-    pub async fn build_starpos(&self, params: Parameters<BuildStarposArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "build_starpos", Command::BuildStarpos(params.0.pack_key, params.0.campaign_id, params.0.process_hlp_spd))
-    }
-
-    #[tool(description = "Build starpos (post-processing step) for the pack identified by `pack_key`.")]
-    pub async fn build_starpos_post(&self, params: Parameters<BuildStarposArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "build_starpos_post", Command::BuildStarposPost(params.0.pack_key, params.0.campaign_id, params.0.process_hlp_spd))
-    }
-
-    #[tool(description = "Clean up starpos temporary files for the pack identified by `pack_key`.")]
-    pub async fn build_starpos_cleanup(&self, params: Parameters<BuildStarposArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "build_starpos_cleanup", Command::BuildStarposCleanup(params.0.pack_key, params.0.campaign_id, params.0.process_hlp_spd))
-    }
-
-    #[tool(description = "Update animation IDs with an offset in the pack identified by `pack_key`.")]
-    pub async fn update_anim_ids(&self, params: Parameters<UpdateAnimIdsArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "update_anim_ids", Command::UpdateAnimIds(params.0.pack_key, params.0.starting_id, params.0.offset))
-    }
-
-    #[tool(description = "Get animation paths by skeleton name.")]
-    pub async fn get_anim_paths_by_skeleton_name(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_anim_paths_by_skeleton_name", Command::GetAnimPathsBySkeletonName(params.0.value))
-    }
-
-    #[tool(description = "Export a RigidModel to glTF format. The `rigid_model` is a RigidModel JSON object (as returned by decoding a .rigid_model_v2 file with `decode_packed_file`). The `output_path` is the destination file path on disk.")]
-    pub async fn export_rigid_to_gltf(&self, params: Parameters<ExportRigidToGltfArgs>) -> Result<CallToolResult, McpError> {
-        let rigid = parse_json!(&params.0.rigid_model);
-        send_and_respond!(self, "export_rigid_to_gltf", Command::ExportRigidToGltf(rigid, params.0.output_path))
-    }
-
-    #[tool(description = "Change the format of a ca_vp8 video file in the pack identified by `pack_key`. Valid formats: \"CaVp8\" (CA custom VP8) or \"Ivf\" (standard VP8 IVF).")]
-    pub async fn set_video_format(&self, params: Parameters<SetVideoFormatArgs>) -> Result<CallToolResult, McpError> {
-        let format = parse_json!(&params.0.format);
-        send_and_respond!(self, "set_video_format", Command::SetVideoFormat(params.0.pack_key, params.0.path, format))
     }
 
     //-----------------------------------------------------------------------//
@@ -2113,7 +2106,7 @@ Workflow:
 Tips:
 - Use `get_reference_data_from_definition` to discover valid values for referenced columns,
   or `table_rows` on the referenced table in the game files.
-- Mods usually only keep the rows they change: `optimize_pack_file` removes rows identical to vanilla.
+- Mods usually only keep the rows they change: `optimize_pack` removes rows identical to vanilla.
 - After saving, you can run `run_diagnostics` to validate the pack.
 ",
         )]
@@ -2146,8 +2139,8 @@ Workflow:
 
 Optional steps:
 - `update_pack` to change the pack's type or the packs it depends on.
-- `initialize_my_mod_folder` to set up a mod development folder with IDE support.
-- `optimize_pack_file` to strip unchanged rows that match vanilla data.
+- `init_mymod` to set up a mod development folder with IDE support.
+- `optimize_pack` to strip unchanged rows that match vanilla data.
 - `run_diagnostics` to validate everything before release.
 ",
         )]
@@ -2257,7 +2250,7 @@ Workflow:
 7. **Re-check** – After fixes, call `run_diagnostics` with the `paths` of the fixed files to check
    only them again, and confirm the issues are resolved.
 
-8. **Optimize** – Optionally run `optimize_pack_file` to remove rows that are identical
+8. **Optimize** – Optionally run `optimize_pack` to remove rows that are identical
    to vanilla, reducing pack size.
 ",
         )]
@@ -2491,7 +2484,7 @@ Loc files contain key-value pairs for in-game text. Each entry has:
 
 ## Generating Missing Loc Data
 
-Call `generate_missing_loc_data` with the pack key to auto-generate
+Call `generate_missing_locs` to auto-generate
 loc entries for DB fields that reference loc keys but don't have entries yet.
 
 ## Finding Loc Keys

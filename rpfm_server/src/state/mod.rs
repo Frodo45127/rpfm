@@ -57,7 +57,8 @@ mod tools;
 pub use self::files::{DecodedFile, PathsByPack};
 use self::diagnostics::DiagnosticsResults;
 pub use self::tables::MergeOutcome;
-pub use self::tools::{MyModOptions, plugin_scripts};
+pub use self::tools::{MyModOptions, optimizer_option_values, optimizer_options_with, plugin_scripts};
+use self::tools::PendingStartpos;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -95,6 +96,9 @@ pub struct SessionState {
 
     /// The last search, with its matches, if any.
     search: Option<GlobalSearch>,
+
+    /// Startpos build started and not yet finished, if any.
+    pending_startpos: Option<PendingStartpos>,
 
     /// Results of the last diagnostics check, if any.
     diagnostics: Option<DiagnosticsResults>,
@@ -183,6 +187,7 @@ impl SessionState {
             clipboard: Clipboard::default(),
             dependencies: Dependencies::default(),
             search: None,
+            pending_startpos: None,
             diagnostics: None,
             lua_api_cache: None,
             backup_settings: SETTINGS.read().unwrap().clone(),

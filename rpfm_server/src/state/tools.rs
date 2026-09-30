@@ -13,7 +13,9 @@
 
 use anyhow::{anyhow, Result};
 
-use std::collections::{HashMap, HashSet};
+use serde_json::Value;
+
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::env::temp_dir;
 use std::fs::{DirBuilder, File};
 use std::io::{BufWriter, Write};
@@ -36,7 +38,13 @@ use rpfm_telemetry::{error, info, warn};
 use crate::ceo_builder::{build_ceo, build_ceo_entries, build_ceo_post, get_trait_ceos};
 use crate::settings::{lua_autogen_game_path, scripts_path, translations_local_path, translations_remote_path, Settings};
 
-use super::{ExtractOptions, SessionState, encode_extra_data, loaded_schema, pack, pack_mut};
+use rpfm_ipc::api::ApiError;
+use rpfm_ipc::api::files::FileRef;
+use rpfm_ipc::api::tables::FilesEdited;
+use rpfm_ipc::api::tools::{FilePaths, FilesChanged, InitMyMod, MyModCreated, SiegeAiPatched, StartStartpos, StartposCampaigns};
+
+use super::{DecodedFile, ExtractOptions, SessionState, encode_extra_data, loaded_schema, pack, pack_mut};
+use super::files::{legacy_source, raw_paths};
 
 /// Filename prefix for community-maintained vanilla loc fix TSVs in the
 /// [Total War Translation Hub][tlh] repo (e.g. `vanilla_fixes_es.tsv`).
@@ -48,6 +56,17 @@ const VANILLA_FIXES_NAME: &str = "vanilla_fixes_";
 
 /// Sub-startpos each Three Kingdoms campaign has.
 const THREE_KINGDOMS_SUB_STARTPOS: [&str; 2] = ["historical", "romance"];
+
+/// Pack setting with the campaign the last startpos of a pack was built for.
+const STARTPOS_LAST_CAMPAIGN_SETTING: &str = "starpos_last_campaign";
+
+/// A startpos build started, waiting for the game to build it.
+#[derive(Debug, Clone)]
+pub(super) struct PendingStartpos {
+    pack: String,
+    campaign: String,
+    process_hlp_spd_data: bool,
+}
 
 /// Editor support to set up in a new MyMod folder.
 #[derive(Debug, Clone, Default)]
@@ -416,6 +435,147 @@ impl SessionState {
     }
 }
 
+impl SessionState {
+
+    /// Removes unneeded data from a pack, returning the paths changed.
+    pub fn optimize_pack_files(&mut self, pack_key: &str, options: &OptimizerOptions) -> Result<FilesChanged> {
+        let (deleted, added) = self.optimize_pack(pack_key, options)?;
+        Ok(FilesChanged { added: sorted(added), deleted: sorted(deleted) })
+    }
+
+    /// Patches the siege maps of a pack, returning what was patched.
+    pub fn patch_siege_ai_files(&mut self, pack_key: &str) -> Result<SiegeAiPatched> {
+        let (message, deleted) = self.patch_siege_ai(pack_key)?;
+        Ok(SiegeAiPatched { message, deleted: raw_paths(&deleted) })
+    }
+
+    /// Packs map tiles and tile maps into a pack, returning the paths changed.
+    pub fn pack_map_files(&mut self, pack_key: &str, tile_maps: Vec<PathBuf>, tiles: Vec<(PathBuf, String)>, options: OptimizerOptions) -> Result<FilesChanged> {
+        let (added, deleted) = self.pack_map(pack_key, tile_maps, tiles, options)?;
+        Ok(FilesChanged { added: raw_paths(&added), deleted: raw_paths(&deleted) })
+    }
+
+    /// Adds the missing loc entries of the tables of the open packs, returning the paths edited.
+    pub fn generate_missing_locs(&mut self) -> Result<FilesEdited> {
+        Ok(FilesEdited { edited: raw_paths(&self.generate_missing_loc_data()?) })
+    }
+
+    /// Offsets the animation ids of a pack, returning the paths edited.
+    pub fn update_anim_id_files(&mut self, pack_key: &str, starting_id: i32, offset: i32) -> Result<FilesEdited> {
+        Ok(FilesEdited { edited: raw_paths(&self.update_anim_ids(pack_key, starting_id, offset)?) })
+    }
+
+    /// Returns the sorted paths of the animations using a skeleton.
+    pub fn anims_by_skeleton(&mut self, skeleton: &str) -> FilePaths {
+        FilePaths { paths: sorted(self.anim_paths_by_skeleton(skeleton)) }
+    }
+
+    /// Exports a RigidModel from any source to a glTF file.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the file is not a RigidModel, or if it can't be exported.
+    pub fn export_gltf(&mut self, file: &FileRef, destination: &Path) -> Result<()> {
+        let (pack_key, data_source) = legacy_source(&file.source);
+        let pack_key = pack_key.to_owned();
+        match self.decode_file(&pack_key, &file.path, data_source, false)? {
+            DecodedFile::Decoded(decoded, _) => match *decoded {
+                RFileDecoded::RigidModel(rigid_model) => self.export_rigid_to_gltf(&rigid_model, destination),
+                _ => Err(ApiError::InvalidParams(format!("The file {} is not a RigidModel.", file.path)).into()),
+            },
+            _ => Err(ApiError::InvalidParams(format!("The file {} is not a RigidModel.", file.path)).into()),
+        }
+    }
+
+    /// Creates the folder of a new MyMod.
+    ///
+    /// # Arguments
+    ///
+    /// * `mymod_base_path` - Folder containing the MyMods of all games.
+    /// * `request` - The MyMod to create.
+    pub fn init_mymod(&self, mymod_base_path: &Path, request: &InitMyMod) -> Result<MyModCreated> {
+        let options = MyModOptions {
+            sublime_support: request.sublime_support,
+            vscode_support: request.vscode_support,
+            gitignore: request.gitignore.clone(),
+        };
+
+        Ok(MyModCreated { pack_path: self.initialize_mymod_folder(mymod_base_path, &request.game_folder, &request.name, &options)? })
+    }
+
+    /// Returns the campaigns a startpos can be built for, and the one the last startpos of a pack was built for.
+    pub fn startpos_campaigns(&self, pack_key: &str) -> Result<StartposCampaigns> {
+        let last_used = pack(&self.packs, pack_key)?.settings().settings_text().get(STARTPOS_LAST_CAMPAIGN_SETTING).cloned();
+        let campaigns = sorted(self.column_values("campaigns_tables", "campaign_name", true, true));
+        Ok(StartposCampaigns { campaigns, last_used })
+    }
+
+    /// Starts building a startpos: checks the pack, prepares the Assembly Kit and launches the game.
+    ///
+    /// The campaign is saved in the pack's settings, to suggest it next time.
+    pub fn start_startpos(&mut self, request: &StartStartpos, settings: &Settings) -> Result<()> {
+        self.check_starpos_victory_conditions(&request.pack)?;
+        self.build_starpos(&request.pack, &request.campaign, request.process_hlp_spd_data, settings)?;
+
+        pack_mut(&mut self.packs, &request.pack)?.settings_mut().settings_text_mut().insert(STARTPOS_LAST_CAMPAIGN_SETTING.to_owned(), request.campaign.clone());
+        self.pending_startpos = Some(PendingStartpos {
+            pack: request.pack.clone(),
+            campaign: request.campaign.clone(),
+            process_hlp_spd_data: request.process_hlp_spd_data,
+        });
+
+        Ok(())
+    }
+
+    /// Finishes building a startpos: imports it into its pack, or cancels the build, and cleans up the build files.
+    ///
+    /// # Errors
+    ///
+    /// Fails if there's no build started.
+    pub fn finish_startpos(&mut self, cancel: bool, settings: &Settings) -> Result<FilesEdited> {
+        let pending = self.pending_startpos.take()
+            .ok_or_else(|| ApiError::InvalidParams("There's no startpos build started. Call startpos.start first.".to_owned()))?;
+
+        let added = self.build_starpos_post(&pending.pack, &pending.campaign, pending.process_hlp_spd_data, cancel, settings)?;
+        Ok(FilesEdited { edited: raw_paths(&added) })
+    }
+}
+
+/// Returns the optimizer options of the settings, by name.
+pub fn optimizer_option_values(options: &OptimizerOptions) -> BTreeMap<String, bool> {
+    match serde_json::to_value(options) {
+        Ok(Value::Object(values)) => values.into_iter().filter_map(|(name, value)| value.as_bool().map(|value| (name, value))).collect(),
+        _ => BTreeMap::new(),
+    }
+}
+
+/// Returns optimizer options with some of them changed, by name.
+///
+/// # Errors
+///
+/// Fails if a name isn't an optimizer option.
+pub fn optimizer_options_with(base: &OptimizerOptions, changes: &BTreeMap<String, bool>) -> Result<OptimizerOptions, ApiError> {
+
+    // The options are set by name through serde, as the optimizer has a field per option.
+    let mut values = optimizer_option_values(base);
+    for (name, value) in changes {
+        match values.get_mut(name) {
+            Some(option) => *option = *value,
+            None => return Err(ApiError::InvalidParams(format!("Unknown optimizer option: {name}. Valid ones: {}.", values.keys().cloned().collect::<Vec<_>>().join(", ")))),
+        }
+    }
+
+    serde_json::from_value(serde_json::to_value(values).map_err(|error| ApiError::Internal(error.to_string()))?)
+        .map_err(|error| ApiError::Internal(error.to_string()))
+}
+
+/// Returns the items of a collection, sorted.
+fn sorted(items: impl IntoIterator<Item = String>) -> Vec<String> {
+    let mut items = items.into_iter().collect::<Vec<_>>();
+    items.sort_unstable();
+    items
+}
+
 /// Returns the paths of the plugin scripts in the config's scripts folder.
 pub fn plugin_scripts() -> Result<Vec<String>> {
     let mut scripts = std::fs::read_dir(scripts_path()?)
@@ -528,4 +688,29 @@ fn write_lua_editor_configs(mymod_path: &Path, mod_name: &str, lua_autogen_folde
     }
 
     Ok(())
+}
+
+//-------------------------------------------------------------------------------//
+//                                   Tests
+//-------------------------------------------------------------------------------//
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn optimizer_options_change_only_the_named_ones() {
+        let base = OptimizerOptions::default();
+        let base_values = optimizer_option_values(&base);
+        assert!(base_values.contains_key("table_remove_itm_entries"));
+
+        let flipped = !base_values["table_remove_itm_entries"];
+        let changed = optimizer_options_with(&base, &BTreeMap::from([("table_remove_itm_entries".to_owned(), flipped)])).unwrap();
+        let changed_values = optimizer_option_values(&changed);
+
+        assert_eq!(changed_values["table_remove_itm_entries"], flipped);
+        assert!(changed_values.iter().filter(|(name, _)| *name != "table_remove_itm_entries").all(|(name, value)| base_values[name] == *value));
+
+        assert!(matches!(optimizer_options_with(&base, &BTreeMap::from([("nope".to_owned(), true)])), Err(ApiError::InvalidParams(_))));
+    }
 }
