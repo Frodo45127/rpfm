@@ -24,6 +24,7 @@ use rpfm_ipc::api::schema::{ListSchemaTables, PatchColumn, RemovePatches, Update
 use rpfm_ipc::api::session::{GenerateDependenciesCache, GetSessionStatus, RebuildDependencies, SetGame};
 use rpfm_ipc::api::references::{FindDefinition, FindLoc, FindUsages, GetLocSource, LocSourceLookup};
 use rpfm_ipc::api::tables::{AddKeyDeletes, EditTable, ExportTsv, GetColumnValues, GetTableDefinition, GetTableInfo, GetTableRows, ImportTsv, MergeTables, RenameKey, UpgradeTable};
+use rpfm_ipc::api::updates::{ApplyUpdate, CheckUpdate};
 use rpfm_ipc::api::tools::{
     AnimsBySkeleton, ExportGltf, FinishStartpos, GenerateMissingLocs, GetOptimizerOptions, GetStartposCampaigns, InitMyMod, LiveExport, LuaTestResults,
     OptimizePack, OptimizerOptionValues, PackMap, PatchSiegeAi, RunLuaTests, SetVideoFormat, StartStartpos, UpdateAnimIds,
@@ -34,7 +35,7 @@ use rpfm_lib::schema::{SCHEMA_BRANCH, SCHEMA_REMOTE, SCHEMA_REPO};
 
 use crate::settings::{schemas_path, Settings};
 use crate::state::{ExtractOptions, SaveOptions, SessionState, optimizer_option_values, optimizer_options_with};
-use crate::updater::git_update_repo;
+use crate::updater::{apply_component, check_component, git_update_repo};
 
 /// Methods that run as jobs.
 const JOB_METHODS: [&str; 9] = [
@@ -230,6 +231,32 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         StartStartpos::METHOD => call(params, |request: StartStartpos| state.start_startpos(&request, settings).map(|_| Done {})),
         FinishStartpos::METHOD => call(params, |request: FinishStartpos| state.finish_startpos(request.cancel, settings)),
 
+        method => Err(ApiError::MethodNotFound(method.to_owned())),
+    };
+
+    RpcResponse::new(request.id, result)
+}
+
+/// Returns if a method doesn't touch the session's state, so it can run without waiting for the session's other requests.
+pub fn is_stateless_method(method: &str) -> bool {
+    matches!(method, CheckUpdate::METHOD | ApplyUpdate::METHOD)
+}
+
+/// Runs a request that doesn't touch the session's state. See [`is_stateless_method`].
+///
+/// # Arguments
+///
+/// * `request` - The request to run.
+/// * `settings` - Settings, for the options the request doesn't set.
+///
+/// # Returns
+///
+/// The response to the request.
+pub fn dispatch_stateless(request: RpcRequest, settings: &Settings) -> RpcResponse {
+    let params = request.params;
+    let result = match request.method.as_str() {
+        CheckUpdate::METHOD => call(params, |request: CheckUpdate| check_component(request.component, settings)),
+        ApplyUpdate::METHOD => call(params, |request: ApplyUpdate| apply_component(request.component).map(|_| Done {})),
         method => Err(ApiError::MethodNotFound(method.to_owned())),
     };
 

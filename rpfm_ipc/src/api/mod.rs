@@ -26,6 +26,7 @@
 //! - [`schema`]: tables, local patches and updates of the schema.
 //! - [`notes`]: notes attached to the files of the open packs.
 //! - [`tools`]: the optimizer, map packing, startpos building, animations, glTF export, MyMods and Lua tests.
+//! - [`updates`]: checking for and downloading updates.
 //! - [`jobs`]: following and cancelling methods that run as jobs.
 //!
 //! Lists are paginated: requests take an `offset` and an optional `limit`, and responses
@@ -47,6 +48,7 @@ pub mod search;
 pub mod session;
 pub mod tables;
 pub mod tools;
+pub mod updates;
 
 /// Version string of the JSON-RPC protocol, sent in every message.
 pub const JSONRPC_VERSION: &str = "2.0";

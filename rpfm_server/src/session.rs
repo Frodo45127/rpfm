@@ -60,6 +60,7 @@ use rpfm_telemetry::info;
 use crate::api;
 use crate::background_thread;
 use crate::jobs::{self, JobRegistry};
+use crate::settings::SETTINGS;
 
 /// Error messages for session communication.
 pub const SESSION_SENDER_ERROR: &str = "Error in session communication system. Sender failed to send message.";
@@ -294,6 +295,18 @@ impl Session {
 
         if jobs::is_job_control_method(&request.method) {
             jobs::handle_request(self.jobs.clone(), request, sender_back);
+            return receiver_back;
+        }
+
+        if api::is_stateless_method(&request.method) {
+            tokio::spawn(async move {
+                let id = request.id;
+                let settings = SETTINGS.read().unwrap().clone();
+                let response = tokio::task::spawn_blocking(move || api::dispatch_stateless(request, &settings)).await
+                    .unwrap_or_else(|error| RpcResponse::new(id, Err(ApiError::Internal(format!("The background task failed: {error}")))));
+
+                let _ = sender_back.send(response);
+            });
             return receiver_back;
         }
 

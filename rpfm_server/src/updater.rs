@@ -39,12 +39,16 @@ use std::fs::{self, DirBuilder, File};
 use std::io;
 use std::path::{Path, PathBuf};
 
+use rpfm_ipc::api::ApiError;
+use rpfm_ipc::api::updates::{UpdateComponent, UpdateStatus};
 use rpfm_ipc::helpers::*;
 
+use rpfm_lib::games::{LUA_BRANCH, LUA_REMOTE, LUA_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE, OLD_AK_REPO, TRANSLATIONS_BRANCH, TRANSLATIONS_REMOTE, TRANSLATIONS_REPO};
 use rpfm_lib::integrations::git::{GitIntegration, GitResponse};
+use rpfm_lib::schema::{SCHEMA_BRANCH, SCHEMA_REMOTE, SCHEMA_REPO};
 use rpfm_lib::utils::files_from_subdir;
 
-use crate::settings::Settings;
+use crate::settings::{lua_autogen_base_path, old_ak_files_path, schemas_path, translations_remote_path, Settings};
 
 const UPDATE_EXTENSION: &str = "zip";
 const REPO_OWNER: &str = "Frodo45127";
@@ -344,4 +348,56 @@ pub fn git_check_update(path_fn: fn() -> Result<PathBuf>, repo: &str, branch: &s
 /// * `remote` - Name of the remote.
 pub fn git_update_repo(path_fn: fn() -> Result<PathBuf>, repo: &str, branch: &str, remote: &str) -> Result<()> {
     Ok(GitIntegration::new(&path_fn()?, repo, branch, remote).update_repo()?)
+}
+
+/// Checks if something has an update.
+///
+/// # Arguments
+///
+/// * `component` - What to check.
+/// * `settings` - Settings, for the update channel of the program.
+pub fn check_component(component: UpdateComponent, settings: &Settings) -> Result<UpdateStatus> {
+    let git_status = |response: GitResponse| {
+        let (available, state) = match response {
+            GitResponse::NewUpdate => (true, "new_update"),
+            GitResponse::NoUpdate => (false, "no_update"),
+            GitResponse::NoLocalFiles => (true, "no_local_files"),
+            GitResponse::Diverged => (true, "diverged"),
+        };
+
+        UpdateStatus { available, state: state.to_owned(), version: None }
+    };
+
+    Ok(match component {
+        UpdateComponent::Program => {
+            let (available, state, version) = match check_updates_rpfm(settings)? {
+                APIResponse::NewBetaUpdate(version) => (true, "new_beta_update", Some(version)),
+                APIResponse::NewStableUpdate(version) => (true, "new_stable_update", Some(version)),
+                APIResponse::NewUpdateHotfix(version) => (true, "new_update_hotfix", Some(version)),
+                APIResponse::NoUpdate => (false, "no_update", None),
+                APIResponse::UnknownVersion => (false, "unknown_version", None),
+            };
+
+            UpdateStatus { available, state: state.to_owned(), version }
+        }
+        UpdateComponent::Schemas => git_status(git_check_update(schemas_path, SCHEMA_REPO, SCHEMA_BRANCH, SCHEMA_REMOTE)?),
+        UpdateComponent::LuaAutogen => git_status(git_check_update(lua_autogen_base_path, LUA_REPO, LUA_BRANCH, LUA_REMOTE)?),
+        UpdateComponent::OldAssemblyKit => git_status(git_check_update(old_ak_files_path, OLD_AK_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE)?),
+        UpdateComponent::Translations => git_status(git_check_update(translations_remote_path, TRANSLATIONS_REPO, TRANSLATIONS_BRANCH, TRANSLATIONS_REMOTE)?),
+    })
+}
+
+/// Downloads the update of something.
+///
+/// # Errors
+///
+/// Fails for the program and the schemas, which are updated elsewhere, or if downloading fails.
+pub fn apply_component(component: UpdateComponent) -> Result<()> {
+    match component {
+        UpdateComponent::Program => Err(ApiError::InvalidParams("The program is updated by its UI.".to_owned()).into()),
+        UpdateComponent::Schemas => Err(ApiError::InvalidParams("Schemas are updated with schema.update, as they need reloading.".to_owned()).into()),
+        UpdateComponent::LuaAutogen => git_update_repo(lua_autogen_base_path, LUA_REPO, LUA_BRANCH, LUA_REMOTE),
+        UpdateComponent::OldAssemblyKit => git_update_repo(old_ak_files_path, OLD_AK_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE),
+        UpdateComponent::Translations => git_update_repo(translations_remote_path, TRANSLATIONS_REPO, TRANSLATIONS_BRANCH, TRANSLATIONS_REMOTE),
+    }
 }

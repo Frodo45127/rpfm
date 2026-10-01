@@ -66,6 +66,7 @@ use rpfm_ipc::api::tools::{
     MyModCreated, OptimizePack, OptimizerOptionValues, PackMap, PatchSiegeAi, RunLuaTests, SetVideoFormat, SiegeAiPatched, StartStartpos, StartposCampaigns,
     UpdateAnimIds,
 };
+use rpfm_ipc::api::updates::{ApplyUpdate, CheckUpdate, UpdateStatus};
 use rpfm_ipc::api::files::{
     AddFilesFromDisk, CopyFiles, CreateFile, DeleteFiles, DuplicateFiles, ExtractFiles, FileEntry, FileList, FilesAdded, FilesDeleted,
     FilesExtracted, FilesRenamed, ListFiles, RenameFiles,
@@ -1500,6 +1501,26 @@ Runs as a job: waits up to 45 seconds and returns its state, with the report as 
     }
 
     #[tool(
+        name = "check_update",
+        description = "Check if there is an update of RPFM (`program`), the `schemas`, the Lua type definitions (`lua_autogen`), the Empire and Napoleon Assembly Kit data (`old_assembly_kit`), or the community `translations`.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<UpdateStatus>(),
+    )]
+    pub async fn check_update(&self, params: Parameters<CheckUpdate>) -> Result<CallToolResult, McpError> {
+        self.call_api("check_update", params.0).await
+    }
+
+    #[tool(
+        name = "apply_update",
+        description = "Download the update of the Lua type definitions (`lua_autogen`), the Empire and Napoleon Assembly Kit data (`old_assembly_kit`), or the community `translations`. Schemas are updated with `update_schemas`, and the program by its UI.",
+        annotations(read_only_hint = false, destructive_hint = false),
+        output_schema = schema_for_output::<Done>(),
+    )]
+    pub async fn apply_update(&self, params: Parameters<ApplyUpdate>) -> Result<CallToolResult, McpError> {
+        self.call_api("apply_update", params.0).await
+    }
+
+    #[tool(
         name = "job_status",
         description = "Get the state of a job: queued, running (with its current step), finished (with its result), failed (with its error) or cancelled.",
         annotations(read_only_hint = true),
@@ -1840,46 +1861,6 @@ Runs as a job: waits up to 45 seconds and returns its state, with the report as 
     //-----------------------------------------------------------------------//
     // Updates
     //-----------------------------------------------------------------------//
-
-    #[tool(description = "Check if there is an RPFM update available.")]
-    pub async fn check_updates(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "check_updates", Command::CheckUpdates)
-    }
-
-    #[tool(description = "Check if there is a schema update available.")]
-    pub async fn check_schema_updates(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "check_schema_updates", Command::CheckSchemaUpdates)
-    }
-
-    #[tool(description = "Check for Lua autogen updates.")]
-    pub async fn check_lua_autogen_updates(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "check_lua_autogen_updates", Command::CheckLuaAutogenUpdates)
-    }
-
-    #[tool(description = "Check for Empire/Napoleon Assembly Kit updates.")]
-    pub async fn check_empire_and_napoleon_ak_updates(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "check_empire_and_napoleon_ak_updates", Command::CheckEmpireAndNapoleonAKUpdates)
-    }
-
-    #[tool(description = "Check for translation updates.")]
-    pub async fn check_translations_updates(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "check_translations_updates", Command::CheckTranslationsUpdates)
-    }
-
-    #[tool(description = "Update the Lua autogen repository.")]
-    pub async fn update_lua_autogen(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "update_lua_autogen", Command::UpdateLuaAutogen)
-    }
-
-    #[tool(description = "Update the Empire/Napoleon Assembly Kit files.")]
-    pub async fn update_empire_and_napoleon_ak(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "update_empire_and_napoleon_ak", Command::UpdateEmpireAndNapoleonAK)
-    }
-
-    #[tool(description = "Update the translations repository.")]
-    pub async fn update_translations(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "update_translations", Command::UpdateTranslations)
-    }
 
     //-----------------------------------------------------------------------//
     // Settings Getters
