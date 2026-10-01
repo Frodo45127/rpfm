@@ -1491,10 +1491,19 @@ impl PackNotes {
             .collect()
     }
 
-    /// This function adds a note for an specific path.
+    /// This function adds a note for an specific path, or replaces the one with the same id.
     ///
     /// Note: for DB tables, notes are added for all tables with the same table name instead of specific tables.
-    pub fn add_note(&mut self, mut note: Note) -> Note {
+    ///
+    /// # Arguments
+    ///
+    /// * `note` - The note. Its id is ignored unless `replace` is set.
+    /// * `replace` - If the note replaces the note of the same path with its id, instead of getting a new id.
+    ///
+    /// # Returns
+    ///
+    /// The added note, with its final path and id.
+    pub fn add_note(&mut self, mut note: Note, replace: bool) -> Note {
 
         // For tables, share notes between same-type tables.
         let mut path = note.path().to_lowercase();
@@ -1507,26 +1516,15 @@ impl PackNotes {
         }
         note.set_path(path.to_owned());
 
-        match self.file_notes_mut().get_mut(&path) {
-            Some(notes) => {
-
-                // If it already has an id greater than 0, we're trying to replace and existing note if found.
-                if *note.id() == 0 {
-                    let id = notes.iter().map(|note| note.id()).max().unwrap();
-                    note.set_id(*id + 1);
-                } else {
-                    notes.retain(|x| x.id() != note.id());
-                }
-
-                notes.push(note.clone());
-                note
-            },
-            None => {
-                let notes = vec![note.clone()];
-                self.file_notes_mut().insert(path.to_owned(), notes);
-                note
-            }
+        let notes = self.file_notes_mut().entry(path).or_default();
+        if replace {
+            notes.retain(|x| x.id() != note.id());
+        } else {
+            note.set_id(notes.iter().map(|note| *note.id() + 1).max().unwrap_or_default());
         }
+
+        notes.push(note.clone());
+        note
     }
 
     /// This function deletes a note with the specified path and id.

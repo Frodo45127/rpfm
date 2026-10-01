@@ -15,7 +15,9 @@ use std::fs::{File, remove_file};
 use std::path::{Path, PathBuf};
 
 use crate::files::*;
-use super::Pack;
+use crate::notes::Note;
+
+use super::{Pack, PackNotes};
 
 #[test]
 fn test_decode_pfh6() {
@@ -360,4 +362,49 @@ fn test_db_table_folders_matches_db_and_ceo_db() {
     paths.sort();
 
     assert_eq!(paths, vec!["ceo_db/foo_tables/data__".to_owned(), "db/foo_tables/data__".to_owned()]);
+}
+
+/// Builds a note with a message and a path.
+fn note(path: &str, message: &str) -> Note {
+    let mut note = Note::default();
+    note.set_path(path.to_owned());
+    note.set_message(message.to_owned());
+    note
+}
+
+#[test]
+fn add_note_assigns_new_ids() {
+    let mut notes = PackNotes::default();
+
+    let first = notes.add_note(note("text/readme.txt", "first"), false);
+    let second = notes.add_note(note("text/readme.txt", "second"), false);
+
+    assert_eq!(*first.id(), 0);
+    assert_eq!(*second.id(), 1);
+    assert_eq!(notes.notes_by_path("text/readme.txt").len(), 2);
+}
+
+#[test]
+fn add_note_replaces_the_first_note() {
+    let mut notes = PackNotes::default();
+    let first = notes.add_note(note("text/readme.txt", "first"), false);
+    notes.add_note(note("text/readme.txt", "second"), false);
+
+    let mut edited = note("text/readme.txt", "edited");
+    edited.set_id(*first.id());
+    notes.add_note(edited, true);
+
+    let mut messages = notes.notes_by_path("text/readme.txt").iter().map(|note| note.message().to_owned()).collect::<Vec<_>>();
+    messages.sort();
+    assert_eq!(messages, vec!["edited".to_owned(), "second".to_owned()]);
+}
+
+#[test]
+fn add_note_shares_notes_between_tables_of_the_same_type() {
+    let mut notes = PackNotes::default();
+
+    let added = notes.add_note(note("db/units_tables/data", "units"), false);
+
+    assert_eq!(added.path(), "db/units_tables");
+    assert_eq!(notes.notes_by_path("db/units_tables/other").len(), 1);
 }

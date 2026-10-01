@@ -71,6 +71,10 @@ pub struct AddNote {
     /// Link to attach to the note.
     #[serde(default)]
     pub url: Option<String>,
+
+    /// ID of a note attached to the same path, to replace it instead of adding a new one.
+    #[serde(default)]
+    pub id: Option<u64>,
 }
 
 /// `notes.delete`: deletes a note of an open pack.

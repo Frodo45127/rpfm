@@ -425,7 +425,8 @@ impl SessionState {
         note.set_path(request.path.clone());
         note.set_message(request.message.clone());
         note.set_url(request.url.clone());
-        Ok(note_entry(&self.add_note(&request.pack, note)?))
+        note.set_id(request.id.unwrap_or_default());
+        Ok(note_entry(&self.add_note(&request.pack, note, request.id.is_some())?))
     }
 
     /// Returns the notes of a pack under a path.
@@ -438,8 +439,8 @@ impl SessionState {
     /// # Returns
     ///
     /// The added note, with its ID assigned.
-    pub fn add_note(&mut self, pack_key: &str, note: Note) -> Result<Note> {
-        Ok(pack_mut(&mut self.packs, pack_key)?.notes_mut().add_note(note))
+    pub fn add_note(&mut self, pack_key: &str, note: Note, replace: bool) -> Result<Note> {
+        Ok(pack_mut(&mut self.packs, pack_key)?.notes_mut().add_note(note, replace))
     }
 
     /// Deletes a note from a pack.
