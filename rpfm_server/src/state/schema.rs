@@ -17,7 +17,7 @@ use rayon::prelude::*;
 use std::collections::HashMap;
 
 use rpfm_ipc::api::ApiError;
-use rpfm_ipc::api::schema::{PATCH_KEYS, PatchColumn, RemovePatches, SchemaTables};
+use rpfm_ipc::api::schema::{DeleteDefinition, ImportPatches, PATCH_KEYS, PatchColumn, RawDefinitions, ReferencingColumns, RemovePatches, SchemaTables, SetDefinition};
 use rpfm_ipc::api::tables::{GetTableDefinition, TableDefinition};
 
 use rpfm_lib::files::{Container, db::DB, FileType, RFileDecoded};
@@ -226,6 +226,78 @@ impl SessionState {
             None => self.remove_local_schema_patches_for_table(&request.table_name)?,
         }
 
+        self.reload_schema(disable_uuid_regeneration);
+        Ok(())
+    }
+
+    /// Returns the definitions of a table as the schema stores them, newest first.
+    pub fn raw_definitions(&self, table_name: &str, version: Option<i32>) -> Result<RawDefinitions> {
+        let definitions = self.definitions_by_table_name(table_name)?.iter()
+            .filter(|definition| version.is_none_or(|version| *definition.version() == version))
+            .map(serde_json::to_value)
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(RawDefinitions { definitions })
+    }
+
+    /// Adds a definition to the schema, or replaces the one with its version, then saves and reloads the schema.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - The definition.
+    /// * `disable_uuid_regeneration` - If tables keep their GUID when re-encoded to reload the schema.
+    pub fn set_definition(&mut self, request: &SetDefinition, disable_uuid_regeneration: bool) -> Result<()> {
+        let definition = serde_json::from_value::<Definition>(request.definition.clone())
+            .map_err(|error| ApiError::InvalidParams(format!("Invalid definition: {error}")))?;
+
+        let mut schema = loaded_schema(&self.schema)?.clone();
+        schema.add_definition(&request.table_name, &definition);
+        self.save_schema(schema)?;
+        self.reload_schema(disable_uuid_regeneration);
+        Ok(())
+    }
+
+    /// Removes a definition from the schema, then saves and reloads the schema.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - The definition to remove.
+    /// * `disable_uuid_regeneration` - If tables keep their GUID when re-encoded to reload the schema.
+    pub fn delete_definition_and_save(&mut self, request: &DeleteDefinition, disable_uuid_regeneration: bool) -> Result<()> {
+        let mut schema = loaded_schema(&self.schema)?.clone();
+        schema.remove_definition(&request.table_name, request.version);
+        self.save_schema(schema)?;
+        self.reload_schema(disable_uuid_regeneration);
+        Ok(())
+    }
+
+    /// Returns the columns of other tables referencing each column of a table.
+    pub fn referencing_columns_of(&self, table_name: &str) -> Result<ReferencingColumns> {
+        let version = self.table_definition(&GetTableDefinition { table_name: table_name.to_owned(), version: None })?.version;
+        let definition = loaded_schema(&self.schema)?.definition_by_name_and_version(table_name, version)
+            .ok_or_else(|| ApiError::DefinitionNotFound(table_name.to_owned()))?;
+
+        let columns = self.referencing_columns(table_name, definition)?.into_iter()
+            .map(|(column, tables)| (column, tables.into_iter().collect()))
+            .collect();
+
+        Ok(ReferencingColumns { columns })
+    }
+
+    /// Adds patches to the schema itself, saves it, and reloads it.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - The patches.
+    /// * `disable_uuid_regeneration` - If tables keep their GUID when re-encoded to reload the schema.
+    pub fn import_patches(&mut self, request: &ImportPatches, disable_uuid_regeneration: bool) -> Result<()> {
+        let patches = request.patches.iter()
+            .map(|(table, columns)| (table.clone(), columns.iter()
+                .map(|(column, patch)| (column.clone(), patch.iter().map(|(key, value)| (key.clone(), value.clone())).collect()))
+                .collect()))
+            .collect::<HashMap<String, DefinitionPatch>>();
+
+        self.import_schema_patches(&patches)?;
         self.reload_schema(disable_uuid_regeneration);
         Ok(())
     }

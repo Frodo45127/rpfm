@@ -53,14 +53,17 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::path::PathBuf;
 
-use rpfm_extensions::translator::DEFAULT_SRC_LANG;
 
 use rpfm_ipc::api::{ApiError, Done, Request, RpcError, RpcOutcome, RpcRequest, RpcResponse};
 use rpfm_ipc::api::diagnostics::{DiagnosticList, IgnoreDiagnostics, ListDiagnostics, RunDiagnostics};
 use rpfm_ipc::api::search::{ListSearchMatches, ReplaceSearchMatches, RunSearch, SearchMatchList, SearchReplaced};
-use rpfm_ipc::api::references::{FindDefinition, FindLoc, FindUsages, GetLocSource, LocSourceLookup, RowLocation, Usages};
+use rpfm_ipc::api::references::{FindDefinition, FindLoc, FindUsages, GetLocSource, GetReferenceValues, LocSourceLookup, ReferenceValues, RowLocation, Usages};
 use rpfm_ipc::api::notes::{AddNote, DeleteNote, ListNotes, NoteEntry, NoteList};
-use rpfm_ipc::api::schema::{ListSchemaTables, PatchColumn, RemovePatches, SchemaTables, UpdateSchemaFromAssemblyKit, UpdateSchemas};
+use rpfm_ipc::api::schema::{
+    DeleteDefinition, GetRawDefinitions, GetReferencingColumns, ImportPatches, ListSchemaTables, PatchColumn, RawDefinitions, ReferencingColumns, RemovePatches,
+    SchemaTables, SetDefinition, UpdateSchemaFromAssemblyKit, UpdateSchemas,
+};
+use rpfm_ipc::api::translations::{GenerateVanillaTexts, ListTranslations, Translations, VanillaTextsAvailable};
 use rpfm_ipc::api::tools::{
     AnimsBySkeleton, ExportGltf, FilePaths, FilesChanged, FinishStartpos, GenerateMissingLocs, GetOptimizerOptions, GetStartposCampaigns, InitMyMod, LiveExport,
     MyModCreated, OptimizePack, OptimizerOptionValues, PackMap, PatchSiegeAi, RunLuaTests, SetVideoFormat, SiegeAiPatched, StartStartpos, StartposCampaigns,
@@ -247,26 +250,10 @@ pub struct StringsArg {
 
 
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct GetReferenceDataFromDefinitionArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The table name.
-    pub table_name: String,
-    /// The JSON representation of the Definition struct.
-    pub definition: String,
-    /// Force local reference regeneration.
-    pub force: bool,
-}
 
 
 // -- Schema Args --
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct SaveSchemaArgs {
-    /// The JSON representation of the Schema struct.
-    pub schema: String,
-}
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct StringI32Args {
@@ -276,19 +263,7 @@ pub struct StringI32Args {
     pub version: i32,
 }
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct ReferencingColumnsForDefinitionArgs {
-    /// The table name.
-    pub table_name: String,
-    /// The JSON representation of the Definition struct.
-    pub definition: String,
-}
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct SchemaPatchArgs {
-    /// The JSON representation of HashMap<String, DefinitionPatch>.
-    pub patches: String,
-}
 
 // -- Table Ops Args --
 
@@ -373,26 +348,8 @@ pub struct SettingsSetVecRawArgs {
 
 
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct GetPackTranslationArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The source language code these translations are based on (e.g. "EN").
-    #[serde(default = "default_src_lang")]
-    pub src_lang: String,
-    /// The target language code.
-    pub language: String,
-}
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct SrcLangArg {
-    /// The source language code (e.g. "SP").
-    pub src_lang: String,
-}
 
-fn default_src_lang() -> String {
-    DEFAULT_SRC_LANG.to_owned()
-}
 
 //-------------------------------------------------------------------------------//
 //                             Implementations
@@ -1365,6 +1322,86 @@ Runs as a job: waits up to 45 seconds and returns its state, with the report as 
     }
 
     #[tool(
+        name = "raw_definitions",
+        description = "Get the definitions of a table as the schema stores them, to edit them with `set_definition`. Their fields are the raw on-disk layout, which can differ from the columns rows have: use `table_definition` for those.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<RawDefinitions>(),
+    )]
+    pub async fn raw_definitions(&self, params: Parameters<GetRawDefinitions>) -> Result<CallToolResult, McpError> {
+        self.call_api("raw_definitions", params.0).await
+    }
+
+    #[tool(
+        name = "set_definition",
+        description = "Add a definition to the selected game's schema, or replace the one with its version, then save and reload the schema. For schema maintainers; use `patch_column` to change column metadata locally instead.",
+        annotations(read_only_hint = false, destructive_hint = true),
+        output_schema = schema_for_output::<Done>(),
+    )]
+    pub async fn set_definition(&self, params: Parameters<SetDefinition>) -> Result<CallToolResult, McpError> {
+        self.call_api("set_definition", params.0).await
+    }
+
+    #[tool(
+        name = "delete_definition",
+        description = "Remove a definition from the selected game's schema, then save and reload the schema. For schema maintainers.",
+        annotations(read_only_hint = false, destructive_hint = true),
+        output_schema = schema_for_output::<Done>(),
+    )]
+    pub async fn delete_definition(&self, params: Parameters<DeleteDefinition>) -> Result<CallToolResult, McpError> {
+        self.call_api("delete_definition", params.0).await
+    }
+
+    #[tool(
+        name = "referencing_columns",
+        description = "Get the columns of other tables referencing each column of a table, according to the schema.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<ReferencingColumns>(),
+    )]
+    pub async fn referencing_columns(&self, params: Parameters<GetReferencingColumns>) -> Result<CallToolResult, McpError> {
+        self.call_api("referencing_columns", params.0).await
+    }
+
+    #[tool(
+        name = "import_patches",
+        description = "Add patches to the selected game's schema itself, and save it. Unlike `patch_column`, they're part of the schema, so a schema update replaces them. For schema maintainers.",
+        annotations(read_only_hint = false, destructive_hint = true),
+        output_schema = schema_for_output::<Done>(),
+    )]
+    pub async fn import_patches(&self, params: Parameters<ImportPatches>) -> Result<CallToolResult, McpError> {
+        self.call_api("import_patches", params.0).await
+    }
+
+    #[tool(
+        name = "reference_values",
+        description = "Get the values a reference column of a table can have, with their display text (like the name of each referenced row), from the open packs and the dependencies. Filter by prefix and page with offset/limit (500 by default).",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<ReferenceValues>(),
+    )]
+    pub async fn reference_values(&self, params: Parameters<GetReferenceValues>) -> Result<CallToolResult, McpError> {
+        self.call_api("reference_values", params.0).await
+    }
+
+    #[tool(
+        name = "list_translations",
+        description = "Get the translation of the texts of an open pack to a language, reusing vanilla and previous translations. Filter to the `untranslated` entries or the ones that `needs_review`, and page with offset/limit (200 by default).",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<Translations>(),
+    )]
+    pub async fn list_translations(&self, params: Parameters<ListTranslations>) -> Result<CallToolResult, McpError> {
+        self.call_api("list_translations", params.0).await
+    }
+
+    #[tool(
+        name = "generate_vanilla_texts",
+        description = "Generate the vanilla texts of a language from the game's locale packs, so translations to and from it can reuse them.",
+        annotations(read_only_hint = false, destructive_hint = false),
+        output_schema = schema_for_output::<VanillaTextsAvailable>(),
+    )]
+    pub async fn generate_vanilla_texts(&self, params: Parameters<GenerateVanillaTexts>) -> Result<CallToolResult, McpError> {
+        self.call_api("generate_vanilla_texts", params.0).await
+    }
+
+    #[tool(
         name = "job_status",
         description = "Get the state of a job: queued, running (with its current step), finished (with its result), failed (with its error) or cancelled.",
         annotations(read_only_hint = true),
@@ -1586,53 +1623,9 @@ Runs as a job: waits up to 45 seconds and returns its state, with the report as 
     // Search
     //-----------------------------------------------------------------------//
 
-    #[tool(description = "Get valid reference values for columns in a table definition for the pack identified by `pack_key`. The `definition` is a Definition JSON (as returned by `definition_by_table_name_and_version`). Set `force` to true to regenerate cached reference data.")]
-    pub async fn get_reference_data_from_definition(&self, params: Parameters<GetReferenceDataFromDefinitionArgs>) -> Result<CallToolResult, McpError> {
-        let def = parse_json!(&params.0.definition);
-        send_and_respond!(self, "get_reference_data_from_definition", Command::GetReferenceDataFromDefinition(params.0.pack_key, params.0.table_name, def, params.0.force))
-    }
-
     //-----------------------------------------------------------------------//
     // Schema
     //-----------------------------------------------------------------------//
-
-    #[tool(description = "Save the provided schema to disk. The `schema` is the full Schema JSON object (as returned by `get_schema`). Use this after modifying definitions or applying patches.")]
-    pub async fn save_schema(&self, params: Parameters<SaveSchemaArgs>) -> Result<CallToolResult, McpError> {
-        let schema = parse_json!(&params.0.schema);
-        send_and_respond!(self, "save_schema", Command::SaveSchema(schema))
-    }
-
-    #[tool(description = "Get the current schema.")]
-    pub async fn get_schema(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_schema", Command::Schema)
-    }
-
-    #[tool(description = "Get all definitions for a table name. NOTE: the returned `fields` list is the raw on-disk field layout, not what row data looks like (e.g. colour columns are split into separate r/g/b fields here). Use `table_definition` to get the columns rows actually have.")]
-    pub async fn definitions_by_table_name(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "definitions_by_table_name", Command::DefinitionsByTableName(params.0.value))
-    }
-
-    #[tool(description = "Get a specific definition by table name and version. NOTE: the returned `fields` list is the raw on-disk field layout, not what row data looks like (e.g. colour columns are split into separate r/g/b fields here). Do not use `fields.len()` to size a row for saving — use `table_definition` to get the columns and types rows actually have.")]
-    pub async fn definition_by_table_name_and_version(&self, params: Parameters<StringI32Args>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "definition_by_table_name_and_version", Command::DefinitionByTableNameAndVersion(params.0.name, params.0.version))
-    }
-
-    #[tool(description = "Delete a definition by table name and version.")]
-    pub async fn delete_definition(&self, params: Parameters<StringI32Args>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "delete_definition", Command::DeleteDefinition(params.0.name, params.0.version))
-    }
-
-    #[tool(description = "Get columns from other tables that reference the given table's definition. The `definition` is a Definition JSON (as returned by `definition_by_table_name_and_version` or `definitions_by_table_name`).")]
-    pub async fn referencing_columns_for_definition(&self, params: Parameters<ReferencingColumnsForDefinitionArgs>) -> Result<CallToolResult, McpError> {
-        let def = parse_json!(&params.0.definition);
-        send_and_respond!(self, "referencing_columns_for_definition", Command::ReferencingColumnsForDefinition(params.0.table_name, def))
-    }
-
-    #[tool(description = "Import a schema patch from an external source. The `patches` is a JSON object mapping table names to DefinitionPatch objects (a map of column names to maps of patch keys and values).")]
-    pub async fn import_schema_patch(&self, params: Parameters<SchemaPatchArgs>) -> Result<CallToolResult, McpError> {
-        let patches = parse_json!(&params.0.patches);
-        send_and_respond!(self, "import_schema_patch", Command::ImportSchemaPatch(patches))
-    }
 
     //-----------------------------------------------------------------------//
     // Table Operations
@@ -1790,16 +1783,6 @@ Runs as a job: waits up to 45 seconds and returns its state, with the report as 
     // Specialized
     //-----------------------------------------------------------------------//
 
-    #[tool(description = "Get pack translation data for a language from the pack identified by `pack_key`.")]
-    pub async fn get_pack_translation(&self, params: Parameters<GetPackTranslationArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_pack_translation", Command::GetPackTranslation(params.0.pack_key, params.0.src_lang, params.0.language))
-    }
-
-    #[tool(description = "Generate the vanilla texts of a source language from the game's locale packs. Returns whether vanilla texts for that language are available.")]
-    pub async fn generate_vanilla_translation_source(&self, params: Parameters<SrcLangArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "generate_vanilla_translation_source", Command::GenerateVanillaTranslationSource(params.0.src_lang))
-    }
-
     //-----------------------------------------------------------------------//
     // Multi-Pack Management
     //-----------------------------------------------------------------------//
@@ -1877,8 +1860,7 @@ Workflow:
 7. **Save the pack** – `save_pack` (with a `path` to save it somewhere else).
 
 Tips:
-- Use `get_reference_data_from_definition` to discover valid values for referenced columns,
-  or `table_rows` on the referenced table in the game files.
+- Use `reference_values` to discover valid values for referenced columns, with their names.
 - Mods usually only keep the rows they change: `optimize_pack` removes rows identical to vanilla.
 - After saving, you can run `run_diagnostics` to validate the pack.
 ",
@@ -2041,32 +2023,28 @@ Workflow:
 1. **Check schema status** – `session_status` to verify a schema is loaded (`schema_loaded`).
    If not, call `update_schemas` to download the latest from the repository.
 
-2. **Get the full schema** – `get_schema` returns the entire schema object.
+2. **List tables** – `schema_tables` lists the tables of the schema and their versions.
 
-3. **Inspect a table definition** – `definitions_by_table_name` with a table name
-   returns all known versions. Use `definition_by_table_name_and_version` for a
-   specific version.
-
-4. **See the columns rows have** – `table_definition` returns the columns of a table
+3. **See the columns rows have** – `table_definition` returns the columns of a table
    as rows see them, with bitwise expansion, enum conversions, and colour-group merging
-   applied. `definitions_by_table_name` and `definition_by_table_name_and_version` return
-   the raw on-disk field list instead (e.g. a colour column split into separate r/g/b
-   fields), which has a different length/order than actual row data. Use those only to
-   edit the schema itself.
+   applied. `raw_definitions` returns the raw on-disk field list instead (e.g. a colour
+   column split into separate r/g/b fields), which has a different length/order than
+   actual row data. Use it only to edit the schema itself.
 
-5. **Find referencing columns** – `referencing_columns_for_definition` shows which
-   other tables reference a given table's columns.
+4. **Find referencing columns** – `referencing_columns` shows which columns of other
+   tables reference each column of a table.
+
+5. **Edit definitions** – `set_definition` adds or replaces a definition and
+   `delete_definition` removes one. Both save and reload the schema.
 
 6. **Patch a column** – To customise column metadata (descriptions, references,
    default values) without modifying the upstream schema, call `patch_column` with the
    table, the column and the keys to set. Use `remove_patches` to undo them.
 
-7. **Import patches** – `import_schema_patch` applies a patch from another source.
+7. **Import patches** – `import_patches` adds patches to the schema itself.
 
 8. **Update from Assembly Kit** – `update_schema_from_assembly_kit` merges
    definition data from the game's Assembly Kit into the loaded schema.
-
-9. **Save the schema** – `save_schema` writes the current in-memory schema to disk.
 ",
         )]
     }
@@ -2243,8 +2221,8 @@ Loc files contain key-value pairs for in-game text. Each entry has:
    filtering by `key` or `text` to find specific entries.
 
 3. **Get translation overview**:
-   Call `get_pack_translation` with the pack key and a language code
-   (e.g. `\"en\"`, `\"fr\"`, `\"de\"`, `\"es\"`, `\"it\"`, `\"zh\"`, `\"ru\"`, etc.).
+   Call `list_translations` with the pack key and a language code (e.g. `\"FR\"`, `\"DE\"`,
+   `\"ES\"`, `\"IT\"`, `\"ZH\"`, `\"RU\"`), filtering to the `untranslated` entries if there are many.
 
 ## Creating New Translations
 

@@ -16,6 +16,9 @@ use serde::{Deserialize, Serialize};
 use super::Request;
 use super::files::FileSource;
 
+/// Default amount of values returned by [`GetReferenceValues`].
+pub const DEFAULT_REFERENCE_VALUES_LIMIT: usize = 500;
+
 /// Default amount of usages returned by [`FindUsages`].
 pub const DEFAULT_USAGES_LIMIT: usize = 200;
 
@@ -169,4 +172,57 @@ impl Request for FindLoc {
 impl Request for GetLocSource {
     const METHOD: &'static str = "references.loc_source";
     type Response = LocSourceLookup;
+}
+
+/// `references.values`: returns the values a reference column of a table can have, with their display text.
+///
+/// The values come from the referenced column, in the open packs and the dependencies.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct GetReferenceValues {
+
+    /// Name of the table with the reference column, like `units_tables`.
+    pub table_name: String,
+
+    /// Name of the reference column.
+    pub column: String,
+
+    /// Only values starting with this are returned.
+    #[serde(default)]
+    pub prefix: String,
+
+    /// Amount of values to skip.
+    #[serde(default)]
+    pub offset: usize,
+
+    /// Maximum amount of values to return. Defaults to [`DEFAULT_REFERENCE_VALUES_LIMIT`].
+    #[serde(default)]
+    pub limit: Option<usize>,
+}
+
+/// A page of the values a reference column can have.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ReferenceValues {
+
+    /// The values in the page, sorted.
+    pub values: Vec<ReferenceValue>,
+
+    /// Amount of values matching the request, in all pages.
+    pub total: usize,
+}
+
+/// A value a reference column can have.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ReferenceValue {
+
+    /// The value.
+    pub value: String,
+
+    /// Text shown next to the value, like the name of the referenced row. Empty if there's none.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub lookup: String,
+}
+
+impl Request for GetReferenceValues {
+    const METHOD: &'static str = "references.values";
+    type Response = ReferenceValues;
 }

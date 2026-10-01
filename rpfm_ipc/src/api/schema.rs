@@ -15,6 +15,8 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use serde_json::Value;
+
 use std::collections::BTreeMap;
 
 use super::{Done, Request};
@@ -118,4 +120,101 @@ impl Request for UpdateSchemaFromAssemblyKit {
     const METHOD: &'static str = "schema.update_from_assembly_kit";
     type Response = SessionStatus;
     const IS_JOB: bool = true;
+}
+
+/// `schema.raw_definitions`: returns definitions of a table as the schema stores them, to edit them.
+///
+/// Their fields are the raw on-disk layout, which can differ from the columns rows have
+/// (see [`GetTableDefinition`](super::tables::GetTableDefinition) for those).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct GetRawDefinitions {
+
+    /// Name of the table, like `units_tables`.
+    pub table_name: String,
+
+    /// If set, only the definition of this version is returned.
+    #[serde(default)]
+    pub version: Option<i32>,
+}
+
+/// Definitions of a table, as the schema stores them.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct RawDefinitions {
+
+    /// The definitions, newest first.
+    pub definitions: Vec<Value>,
+}
+
+/// `schema.set_definition`: adds a definition to the schema of the selected game, or replaces the one with
+/// its version, then saves and reloads the schema.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct SetDefinition {
+
+    /// Name of the table, like `units_tables`.
+    pub table_name: String,
+
+    /// The definition, in the format `schema.raw_definitions` returns.
+    pub definition: Value,
+}
+
+/// `schema.delete_definition`: removes a definition from the schema of the selected game, then saves and reloads the schema.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct DeleteDefinition {
+
+    /// Name of the table, like `units_tables`.
+    pub table_name: String,
+
+    /// Version of the definition.
+    pub version: i32,
+}
+
+/// `schema.referencing_columns`: returns the columns of other tables referencing each column of a table.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct GetReferencingColumns {
+
+    /// Name of the table, like `factions_tables`.
+    pub table_name: String,
+}
+
+/// Columns of other tables referencing the columns of a table.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ReferencingColumns {
+
+    /// For each referenced column, the referencing columns by table name.
+    pub columns: BTreeMap<String, BTreeMap<String, Vec<String>>>,
+}
+
+/// `schema.import_patches`: adds patches to the schema of the selected game itself, and saves it.
+///
+/// Unlike [`PatchColumn`], these patches are part of the schema, so a schema update replaces them.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ImportPatches {
+
+    /// Patches, by table name, column name and patch key. See [`PATCH_KEYS`] for the keys.
+    pub patches: BTreeMap<String, BTreeMap<String, BTreeMap<String, String>>>,
+}
+
+impl Request for GetRawDefinitions {
+    const METHOD: &'static str = "schema.raw_definitions";
+    type Response = RawDefinitions;
+}
+
+impl Request for SetDefinition {
+    const METHOD: &'static str = "schema.set_definition";
+    type Response = Done;
+}
+
+impl Request for DeleteDefinition {
+    const METHOD: &'static str = "schema.delete_definition";
+    type Response = Done;
+}
+
+impl Request for GetReferencingColumns {
+    const METHOD: &'static str = "schema.referencing_columns";
+    type Response = ReferencingColumns;
+}
+
+impl Request for ImportPatches {
+    const METHOD: &'static str = "schema.import_patches";
+    type Response = Done;
 }

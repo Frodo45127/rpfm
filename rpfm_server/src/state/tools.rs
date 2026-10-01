@@ -41,6 +41,7 @@ use crate::settings::{lua_autogen_game_path, scripts_path, translations_local_pa
 use rpfm_ipc::api::ApiError;
 use rpfm_ipc::api::files::FileRef;
 use rpfm_ipc::api::tables::FilesEdited;
+use rpfm_ipc::api::translations::{DEFAULT_TRANSLATIONS_LIMIT, ListTranslations, TranslationEntry, TranslationFilter, Translations};
 use rpfm_ipc::api::tools::{FilePaths, FilesChanged, InitMyMod, MyModCreated, SiegeAiPatched, StartStartpos, StartposCampaigns};
 
 use super::{DecodedFile, ExtractOptions, SessionState, encode_extra_data, loaded_schema, pack, pack_mut};
@@ -501,6 +502,35 @@ impl SessionState {
         };
 
         Ok(MyModCreated { pack_path: self.initialize_mymod_folder(mymod_base_path, &request.game_folder, &request.name, &options)? })
+    }
+
+    /// Returns a page of the translation of the texts of a pack, sorted by key.
+    pub fn list_translations(&self, request: &ListTranslations) -> Result<Translations> {
+        let translation = self.pack_translation(&request.pack, &request.source_language, &request.language)?;
+        let mut entries = translation.translations().iter()
+            .filter(|(_, entry)| match request.filter {
+                TranslationFilter::All => true,
+                TranslationFilter::Untranslated => entry.dst().is_empty() && !*entry.rem(),
+                TranslationFilter::NeedsReview => *entry.retr() || *entry.aut(),
+            })
+            .map(|(key, entry)| TranslationEntry {
+                key: key.clone(),
+                source: entry.src().clone(),
+                translation: entry.dst().clone(),
+                needs_retranslation: *entry.retr(),
+                automatic: *entry.aut(),
+                removed: *entry.rem(),
+            })
+            .collect::<Vec<_>>();
+        entries.sort_unstable_by(|a, b| a.key.cmp(&b.key));
+
+        let total = entries.len();
+        let entries = entries.into_iter()
+            .skip(request.offset)
+            .take(request.limit.unwrap_or(DEFAULT_TRANSLATIONS_LIMIT))
+            .collect();
+
+        Ok(Translations { entries, total })
     }
 
     /// Returns the campaigns a startpos can be built for, and the one the last startpos of a pack was built for.

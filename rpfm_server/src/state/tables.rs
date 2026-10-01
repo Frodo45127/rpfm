@@ -27,7 +27,7 @@ use rpfm_extensions::merge::{db_baseline, delta_merge_db, delta_merge_loc, loc_b
 
 use rpfm_ipc::api::ApiError;
 use rpfm_ipc::api::files::{ASSEMBLY_KIT_TABLE_FILE_NAME, FileRef, FileSource};
-use rpfm_ipc::api::references::{DEFAULT_USAGES_LIMIT, FindUsages, LocSource, RowLocation, Usage, Usages};
+use rpfm_ipc::api::references::{DEFAULT_REFERENCE_VALUES_LIMIT, DEFAULT_USAGES_LIMIT, FindUsages, GetReferenceValues, LocSource, ReferenceValue, ReferenceValues, RowLocation, Usage, Usages};
 use rpfm_ipc::api::tables::{AddKeyDeletes, ExportTsv, FilesEdited, ImportTsv, MergeTables, RenameKey, TableUpgraded, TablesMerged, UpgradeTable};
 use rpfm_ipc::api::tables::{ColumnInfo, ColumnValues, DEFAULT_VALUES_LIMIT, GetColumnValues, GetTableDefinition, ColumnReference, DEFAULT_ROWS_LIMIT, EditTable, FilterOp, GetTableRows, RowEdit, RowFilter, TableEdited, TableInfo, TableRow, TableRows};
 use rpfm_ipc::helpers::{DataSource, RFileInfo};
@@ -433,6 +433,39 @@ impl SessionState {
             .collect();
 
         ColumnValues { values, total }
+    }
+
+    /// Returns a page of the values a reference column of a table can have, with their display text.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the table has no column with the provided name, or if the column is not a reference.
+    pub fn reference_values(&mut self, request: &GetReferenceValues) -> Result<ReferenceValues> {
+        let version = self.table_definition(&GetTableDefinition { table_name: request.table_name.clone(), version: None })?.version;
+        let definition = loaded_schema(&self.schema)?.definition_by_name_and_version(&request.table_name, version)
+            .ok_or_else(|| ApiError::DefinitionNotFound(request.table_name.clone()))?
+            .clone();
+
+        let column_index = definition.fields_processed().iter()
+            .position(|field| field.name() == request.column)
+            .ok_or_else(|| ApiError::InvalidParams(format!("The table has no column named {}.", request.column)))?;
+
+        let references = self.reference_data(&request.table_name, &definition, false).remove(&(column_index as i32))
+            .ok_or_else(|| ApiError::InvalidParams(format!("The column {} is not a reference column.", request.column)))?;
+
+        let mut values = references.data().iter()
+            .filter(|(value, _)| value.starts_with(&request.prefix))
+            .map(|(value, lookup)| ReferenceValue { value: value.clone(), lookup: lookup.clone() })
+            .collect::<Vec<_>>();
+        values.sort_unstable_by(|a, b| a.value.cmp(&b.value));
+
+        let total = values.len();
+        let values = values.into_iter()
+            .skip(request.offset)
+            .take(request.limit.unwrap_or(DEFAULT_REFERENCE_VALUES_LIMIT))
+            .collect();
+
+        Ok(ReferenceValues { values, total })
     }
 
     /// Returns the table, column and key values a loc key was generated from, if it can be found in the dependencies.
