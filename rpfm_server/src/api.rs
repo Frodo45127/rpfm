@@ -34,15 +34,16 @@ use rpfm_ipc::api::references::{FindDefinition, FindLoc, FindUsages, GetLocSourc
 use rpfm_ipc::api::tables::{AddKeyDeletes, EditTable, ExportTsv, GetColumnValues, GetTableDefinition, GetTableInfo, GetTableRows, ImportTsv, MergeTables, RenameKey, UpgradeTable};
 use rpfm_ipc::api::updates::{ApplyUpdate, CheckUpdate};
 use rpfm_ipc::api::tools::{
-    AnimsBySkeleton, ExportGltf, FinishStartpos, GenerateMissingLocs, GetOptimizerOptions, GetStartposCampaigns, InitMyMod, LiveExport, LuaTestResults,
-    OptimizePack, OptimizerOptionValues, PackMap, optimizer_option_values, PatchSiegeAi, RunLuaTests, SetVideoFormat, StartStartpos, UpdateAnimIds,
+    AddCeoEntries, AnimsBySkeleton, BuildCeo, ExportGltf, FinishStartpos, GenerateMissingLocs, GetLuaHovers, GetOptimizerOptions, GetStartposCampaigns,
+    ImportCeo, InitMyMod, ListPluginScripts, ListTraitCeos, LiveExport, LuaHover, LuaHovers, LuaTestResults, OptimizePack, OptimizerOptionValues, PackMap,
+    optimizer_option_values, PatchSiegeAi, PluginScripts, RunLuaTests, RunPluginScript, SetVideoFormat, StartStartpos, TraitCeos, UpdateAnimIds,
 };
 use rpfm_ipc::settings_keys::{ALLOW_EDITING_OF_CA_PACKFILES, ENABLE_ESF_EDITOR, MYMOD_BASE_PATH, DISABLE_UUID_REGENERATION_ON_DB_TABLES, IGNORE_GAME_FILES_IN_AK, INCLUDE_BASE_FOLDER_ON_ADD_FROM_FOLDER, TABLES_USE_OLD_COLUMN_ORDER_FOR_TSV, USE_LAZY_LOADING};
 
 use rpfm_lib::schema::{SCHEMA_BRANCH, SCHEMA_REMOTE, SCHEMA_REPO};
 
 use rpfm_ipc::settings::{schemas_path, Settings};
-use crate::state::{ExtractOptions, SaveOptions, SessionState, optimizer_options_with};
+use crate::state::{ExtractOptions, SaveOptions, SessionState, optimizer_options_with, plugin_scripts};
 use crate::translation_hub::{self, SubmitOutcome};
 use crate::updater::{apply_component, check_component, git_update_repo};
 
@@ -263,6 +264,26 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         GenerateVanillaTexts::METHOD => call(params, |request: GenerateVanillaTexts| {
             Ok(VanillaTextsAvailable { available: state.generate_vanilla_translation_source(&request.language, settings)? })
         }),
+        ListPluginScripts::METHOD => call(params, |_: ListPluginScripts| Ok(PluginScripts { scripts: plugin_scripts()? })),
+        RunPluginScript::METHOD => call(params, |request: RunPluginScript| {
+            let options = ExtractOptions {
+                disable_uuid_regeneration: settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES),
+                tsv_keys_first: settings.bool(TABLES_USE_OLD_COLUMN_ORDER_FOR_TSV),
+            };
+
+            state.run_plugin_script(&request, options)
+        }),
+        GetLuaHovers::METHOD => call(params, |request: GetLuaHovers| {
+            let hovers = state.lua_hovers(&request.source, settings).into_iter()
+                .map(|(start_line, start_column, end_line, end_column, docs)| LuaHover { start_line, start_column, end_line, end_column, docs })
+                .collect();
+
+            Ok(LuaHovers { hovers })
+        }),
+        ListTraitCeos::METHOD => call(params, |_: ListTraitCeos| Ok(TraitCeos { traits: state.trait_ceos() })),
+        AddCeoEntries::METHOD => call(params, |request: AddCeoEntries| state.build_ceo_entries(&request.pack, &request.entries)),
+        BuildCeo::METHOD => call(params, |request: BuildCeo| state.build_ceo(&request.pack, &request.assembly_kit, &request.bob).map(|_| Done {})),
+        ImportCeo::METHOD => call(params, |request: ImportCeo| state.build_ceo_post(&request.pack, &request.assembly_kit)),
         GetPackTranslation::METHOD => call(params, |request: GetPackTranslation| state.pack_translation(&request.pack, &request.source_language, &request.language)),
         SubmitTranslation::METHOD => call(params, |request: SubmitTranslation| {
             Ok(match translation_hub::submit(state.game().key(), &request.pack_name, &request.source_language, &request.language)? {

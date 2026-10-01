@@ -1191,7 +1191,7 @@ fn writable_file<'a>(packs: &'a mut BTreeMap<String, Pack>, dependencies: &'a mu
 }
 
 /// Returns a path as a file path if `has_file` says there's a file at it, or as a folder path otherwise.
-fn container_path(has_file: impl Fn(&str) -> bool, path: &str) -> ContainerPath {
+pub(super) fn container_path(has_file: impl Fn(&str) -> bool, path: &str) -> ContainerPath {
     if has_file(path) {
         ContainerPath::File(path.to_owned())
     } else {

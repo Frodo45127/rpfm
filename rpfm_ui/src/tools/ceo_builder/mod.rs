@@ -27,18 +27,18 @@ use anyhow::Result;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use rpfm_ipc::messages::CeoEntryData;
+use rpfm_ipc::api::tools::{AddCeoEntries, BuildCeo, CeoEntryData, ImportCeo, ListTraitCeos};
 use rpfm_lib::files::ContainerPath;
 
 use rpfm_ui_common::utils::{find_widget, load_template};
 
 use crate::app_ui::AppUI;
-use crate::communications::{Command, Response, send_ipc_command_result, send_ipc_command_result_async};
+use crate::communications::{call_api, call_api_async};
 use crate::GAME_SELECTED;
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::settings_ui::backend::settings_path_buf;
-use crate::utils::{qtr, show_dialog};
+use crate::utils::{file_paths, qtr, show_dialog};
 use crate::UI_STATE;
 
 use rpfm_ipc::helpers::DataSource;
@@ -90,16 +90,11 @@ pub unsafe fn build_ceo(app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileC
     let dialog_ptr = dialog.as_ptr();
     let build_ceo_button_ptr = build_ceo_button.as_ptr();
     let ceo_done_button_ptr = ceo_done_button.as_ptr();
-    let pack_key_closure = pack_key.clone();
-    let akit_path_closure = akit_path.clone();
-    let bob_exe_str = bob_exe.to_string_lossy().to_string();
+    let request = BuildCeo { pack: pack_key.clone(), assembly_kit: PathBuf::from(&akit_path), bob: bob_exe.clone() };
 
     let start_build = SlotNoArgs::new(&dialog, move || {
         build_ceo_button_ptr.set_enabled(false);
-        match send_ipc_command_result_async(
-            Command::BuildCeo(pack_key_closure.clone(), akit_path_closure.clone(), bob_exe_str.clone()),
-            response_extractor!()
-        ) {
+        match call_api_async(&request) {
             Ok(_) => ceo_done_button_ptr.set_enabled(true),
             Err(error) => {
                 build_ceo_button_ptr.set_enabled(true);
@@ -113,10 +108,7 @@ pub unsafe fn build_ceo(app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileC
 
     // After dialog closes via ceo_done_button, import ceo_data.ccd into the pack.
     if dialog.exec() == 1 {
-        let paths = send_ipc_command_result_async(
-            Command::BuildCeoPost(pack_key.clone(), akit_path.clone()),
-            response_extractor!(Response::VecContainerPath)
-        )?;
+        let paths = file_paths(call_api_async(&ImportCeo { pack: pack_key.clone(), assembly_kit: PathBuf::from(&akit_path) })?.edited);
         if !paths.is_empty() {
             pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(paths), DataSource::PackFile, &pack_key);
             UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
@@ -173,11 +165,8 @@ pub unsafe fn build_ceo_builder(app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<P
     }
 
     // ── Trait data (fetched from dependencies at runtime) ─────────────────
-    let trait_ceos: Vec<(String, String)> = match send_ipc_command_result(
-        Command::GetTraitCeos,
-        response_extractor!(Response::VecStringTuples)
-    ) {
-        Ok(traits) => traits,
+    let trait_ceos: Vec<(String, String)> = match call_api(&ListTraitCeos {}) {
+        Ok(traits) => traits.traits,
         Err(error) => {
             return Err(anyhow::anyhow!(
                 "Failed to load trait CEOs from the Assembly Kit dependencies. \
@@ -382,10 +371,7 @@ pub unsafe fn build_ceo_builder(app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<P
         run_button_ptr.set_enabled(false);
         status_ptr.set_text(&QString::from_std_str("Running..."));
 
-        match send_ipc_command_result_async(
-            Command::BuildCeoEntries(pack_key_closure.clone(), entries),
-            response_extractor!(Response::VecContainerPath)
-        ) {
+        match call_api_async(&AddCeoEntries { pack: pack_key_closure.clone(), entries }).map(|added| file_paths(added.edited)) {
             Ok(paths) => {
                 status_ptr.set_text(&QString::from_std_str(
                     format!("OK: {} file(s) updated.", paths.len())

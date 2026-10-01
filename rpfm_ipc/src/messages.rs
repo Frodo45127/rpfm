@@ -100,16 +100,6 @@ pub enum OperationalMode {
 }
 
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CeoEntryData {
-    pub name: String,
-    pub option: String,
-    pub element: String,
-    pub gender: String,
-    pub traits: Vec<(String, String)>, // (uuid, internal_key)
-    pub expanded: bool,
-}
-
 /// This enum defines the commands (messages) you can send to the background thread in order to execute actions.
 ///
 /// Each command should include the data needed for his own execution. For a more detailed explanation, check the
@@ -510,13 +500,6 @@ pub enum Command {
     // Diagnostics Commands
     //-----------------------------------------------------------------------//
 
-    /// Get the docs of the documented functions, accessors and events used in a Lua script, for showing them on hover.
-    /// The field is the code of the script.
-    ///
-    /// Response: [`Response::VecU64U64U64U64String`], with the range of each use (start line, start column,
-    /// end line, end column, all 0-based) and its docs as Qt rich text. Empty if the game's Lua API is not available.
-    LuaHovers(String),
-
     //-----------------------------------------------------------------------//
     // Pack Settings Commands
     //-----------------------------------------------------------------------//
@@ -651,21 +634,6 @@ pub enum Command {
     // CEO Commands
     //-----------------------------------------------------------------------//
 
-    BuildCeo(String, String, String),
-
-    /// Import ceo_data.ccd into the open pack after BOB has run.
-    /// Field is the pack key.
-    ///
-    /// Response:
-    /// - [`Response::VecContainerPath`] on success.
-    /// - [`Response::Error`] on failure.
-    BuildCeoPost(String, String),  // pack_key, akit_path
-
-    BuildCeoEntries(String, Vec<CeoEntryData>),  // pack_key, entries
-
-
-    GetTraitCeos,
-
     //-----------------------------------------------------------------------//
     // Animation Commands
     //-----------------------------------------------------------------------//
@@ -687,23 +655,6 @@ pub enum Command {
     /// Response: [`Response::VecField`].
     FieldsProcessed(Definition),
 
-    /// List the user plugin scripts available under the config `scripts` folder.
-    ///
-    /// Response: [`Response::VecString`] with the absolute path of each script.
-    GetPluginScripts,
-
-    /// Run a plugin script against a selection of files/folders from an open Pack.
-    ///
-    /// First field is the pack key, then the absolute path of the script to run, then the
-    /// selected container paths. The selected files are extracted to a temp folder mirroring
-    /// their in-pack structure (DB/Loc tables as TSV, everything else as raw binary), the script
-    /// is run with those file paths as arguments, and their (possibly modified) contents are read
-    /// back into the Pack afterwards.
-    ///
-    /// Response:
-    /// - [`Response::VecContainerPathOptionString`] (re-imported paths, optional script output/error message).
-    /// - [`Response::Error`] on failure.
-    RunPluginScript(String, PathBuf, Vec<ContainerPath>),
 }
 
 /// This enum defines the responses (messages) you can send to the UI thread as result of a command.
@@ -764,11 +715,8 @@ pub enum Response {
     VecContainerPathVecString(Vec<ContainerPath>, Vec<String>),
     VecField(Vec<Field>),
     VecRFileInfo(Vec<RFileInfo>),
-    VecString(Vec<String>),
-    VecStringTuples(Vec<(String, String)>),
     VecStringContainerInfo(Vec<(String, ContainerInfo)>),
     VecU8(Vec<u8>),
-    VecU64U64U64U64String(Vec<(u64, u64, u64, u64, String)>),
     VideoInfoRFileInfo(VideoInfo, RFileInfo),
     VMDRFileInfo(Text, RFileInfo),
     WSModelRFileInfo(Text, RFileInfo),

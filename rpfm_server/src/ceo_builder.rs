@@ -14,7 +14,7 @@ use std::time::Instant;
 use rpfm_lib::files::{Container, ContainerPath, db::DB, DecodeableExtraData, FileType, loc::Loc, pack::Pack, RFile, RFileDecoded, table::DecodedData};
 use rpfm_lib::schema::*;
 
-use rpfm_ipc::messages::CeoEntryData;
+use rpfm_ipc::api::tools::CeoEntryData;
 
 use rpfm_telemetry::*;
 

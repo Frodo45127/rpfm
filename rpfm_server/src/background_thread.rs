@@ -29,7 +29,6 @@
 use anyhow::Result;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
-use std::path::Path;
 use std::sync::Arc;
 
 use rpfm_ipc::messages::{Command, Response};
@@ -43,7 +42,7 @@ use crate::comms::CentralCommand;
 use crate::api;
 use crate::session::{Session, SessionMessage};
 use rpfm_ipc::settings::*;
-use crate::state::{DecodedFile, ExtractOptions, SaveOptions, SessionState, plugin_scripts};
+use crate::state::{DecodedFile, ExtractOptions, SaveOptions, SessionState};
 
 /// Extracts the variant name (e.g. `"NewPack"`) from a [`Command`] for telemetry.
 ///
@@ -241,15 +240,8 @@ async fn dispatch(state: &mut SessionState, command: Command, sender: &Unbounded
         Command::FieldsProcessed(definition) => send(sender, Response::VecField(definition.fields_processed())),
 
         // Diagnostics and Lua.
-        Command::LuaHovers(source) => send(sender, Response::VecU64U64U64U64String(state.lua_hovers(&source, &settings))),
 
         // Tools.
-        Command::BuildCeo(pack_key, akit_path, bob_exe_path) => reply(sender, state.build_ceo(&pack_key, Path::new(&akit_path), Path::new(&bob_exe_path)), done),
-        Command::BuildCeoPost(pack_key, akit_path) => reply(sender, state.build_ceo_post(&pack_key, &akit_path), Response::VecContainerPath),
-        Command::BuildCeoEntries(pack_key, entries) => reply(sender, state.build_ceo_entries(&pack_key, &entries), Response::VecContainerPath),
-        Command::GetTraitCeos => send(sender, Response::VecStringTuples(state.trait_ceos())),
-        Command::GetPluginScripts => reply(sender, plugin_scripts(), Response::VecString),
-        Command::RunPluginScript(pack_key, script_path, paths) => reply(sender, state.run_plugin_script(&pack_key, &script_path, &paths, extract_options), |(paths, message)| Response::VecContainerPathOptionString(paths, message)),
 
         // GitHub and the Translation Hub.
 

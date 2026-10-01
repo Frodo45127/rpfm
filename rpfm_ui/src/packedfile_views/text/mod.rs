@@ -22,6 +22,8 @@ use qt_core::QString;
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 
+use rpfm_ipc::api::tools::GetLuaHovers;
+
 use rpfm_lib::files::{FileType, text::*};
 
 use crate::app_ui::AppUI;
@@ -156,12 +158,12 @@ impl PackedFileTextView {
         }
 
         let source = get_text_safe(&self.editor).to_std_string();
-        let hovers = send_ipc_command_async(Command::LuaHovers(source), response_extractor!(Response::VecU64U64U64U64String));
+        let hovers = call_api_async(&GetLuaHovers { source }).map(|hovers| hovers.hovers).unwrap_or_default();
 
         let editor = self.editor.as_ptr();
         clear_text_hovers_safe(&editor);
-        for (start_line, start_column, end_line, end_column, html) in hovers {
-            add_text_hover_safe(&editor, ((start_line, start_column), (end_line, end_column)), &QString::from_std_str(html).as_ptr());
+        for hover in hovers {
+            add_text_hover_safe(&editor, ((hover.start_line, hover.start_column), (hover.end_line, hover.end_column)), &QString::from_std_str(hover.docs).as_ptr());
         }
     }
 }

@@ -25,7 +25,6 @@ use rpfm_extensions::gltf::{gltf_from_rigid, save_gltf_to_disk};
 use rpfm_extensions::optimizer::{OptimizableContainer, OptimizerOptions};
 use rpfm_extensions::translator::PackTranslation;
 
-use rpfm_ipc::messages::CeoEntryData;
 use rpfm_ipc::settings_keys::ASSEMBLY_KIT_SUFFIX;
 
 use rpfm_lib::files::{Container, ContainerPath, RFile, RFileDecoded, rigidmodel::RigidModel};
@@ -41,10 +40,10 @@ use rpfm_ipc::api::ApiError;
 use rpfm_ipc::api::files::FileRef;
 use rpfm_ipc::api::tables::FilesEdited;
 use rpfm_ipc::api::translations::{DEFAULT_TRANSLATIONS_LIMIT, ListTranslations, TranslationEntry, TranslationFilter, Translations};
-use rpfm_ipc::api::tools::{optimizer_option_values, FilePaths, FilesChanged, InitMyMod, MyModCreated, SiegeAiPatched, StartStartpos, StartposCampaigns};
+use rpfm_ipc::api::tools::{optimizer_option_values, CeoEntryData, FilePaths, FilesChanged, InitMyMod, MyModCreated, PluginScriptRun, RunPluginScript, SiegeAiPatched, StartStartpos, StartposCampaigns};
 
 use super::{DecodedFile, ExtractOptions, SessionState, encode_extra_data, loaded_schema, pack, pack_mut};
-use super::files::{legacy_source, raw_paths};
+use super::files::{container_path, legacy_source, raw_paths};
 
 /// Filename prefix for community-maintained vanilla loc fix TSVs in the
 /// [Total War Translation Hub][tlh] repo (e.g. `vanilla_fixes_es.tsv`).
@@ -309,8 +308,9 @@ impl SessionState {
     /// # Returns
     ///
     /// The paths added to the pack.
-    pub fn build_ceo_post(&mut self, pack_key: &str, akit_path: &str) -> Result<Vec<ContainerPath>> {
-        build_ceo_post(pack_mut(&mut self.packs, pack_key)?, akit_path)
+    pub fn build_ceo_post(&mut self, pack_key: &str, akit_path: &Path) -> Result<FilesEdited> {
+        let added = build_ceo_post(pack_mut(&mut self.packs, pack_key)?, &akit_path.to_string_lossy())?;
+        Ok(FilesEdited { edited: raw_paths(&added) })
     }
 
     /// Adds CEO entries (armour, career, traits and their locs) to a pack.
@@ -318,9 +318,10 @@ impl SessionState {
     /// # Returns
     ///
     /// The paths added to the pack.
-    pub fn build_ceo_entries(&mut self, pack_key: &str, entries: &[CeoEntryData]) -> Result<Vec<ContainerPath>> {
+    pub fn build_ceo_entries(&mut self, pack_key: &str, entries: &[CeoEntryData]) -> Result<FilesEdited> {
         let schema = loaded_schema(&self.schema)?;
-        build_ceo_entries(pack_mut(&mut self.packs, pack_key)?, schema, entries)
+        let added = build_ceo_entries(pack_mut(&mut self.packs, pack_key)?, schema, entries)?;
+        Ok(FilesEdited { edited: raw_paths(&added) })
     }
 
     /// Returns the key and name of the trait CEOs in the Assembly Kit.
@@ -357,26 +358,26 @@ impl SessionState {
     ///
     /// # Arguments
     ///
-    /// * `pack_key` - Key of the pack with the files.
-    /// * `script_path` - Path of the script.
-    /// * `container_paths` - Paths of the files and folders to pass to the script.
+    /// * `request` - The script, its pack, and the paths of the files and folders to pass to it.
     /// * `options` - Options for extracting the files.
     ///
     /// # Returns
     ///
     /// The paths read back into the pack, and an error message if the script failed.
-    pub fn run_plugin_script(&mut self, pack_key: &str, script_path: &Path, container_paths: &[ContainerPath], options: ExtractOptions) -> Result<(Vec<ContainerPath>, Option<String>)> {
+    pub fn run_plugin_script(&mut self, request: &RunPluginScript, options: ExtractOptions) -> Result<PluginScriptRun> {
+        let script_path = &request.script;
         let interpreter = plugin_script_interpreter(script_path)
             .ok_or_else(|| anyhow!("Unsupported plugin script type: {}", script_path.display()))?;
 
-        let pack = pack_mut(&mut self.packs, pack_key)?;
+        let pack = pack_mut(&mut self.packs, &request.pack)?;
+        let container_paths = request.paths.iter().map(|path| container_path(|path| pack.has_file(path), path)).collect::<Vec<_>>();
         let base_folder = temp_dir().join("rpfm_plugins").join(pack.disk_file_name());
         let _ = std::fs::remove_dir_all(&base_folder);
 
         let extra_data = encode_extra_data(&self.game, pack.compression_format(), options.disable_uuid_regeneration);
         let mut extracted_paths = vec![];
         for container_path in container_paths {
-            let mut paths = pack.extract(container_path.clone(), &base_folder, true, &self.schema, false, options.tsv_keys_first, &extra_data)
+            let mut paths = pack.extract(container_path, &base_folder, true, &self.schema, false, options.tsv_keys_first, &extra_data)
                 .map_err(|error| anyhow!("Error extracting files for the plugin script: {}", error))?;
             extracted_paths.append(&mut paths);
         }
@@ -425,13 +426,13 @@ impl SessionState {
 
             if let Some(file) = pack.file_mut(&container_path, false) {
                 if file.encode_from_external_data(&self.schema, disk_path).is_ok() {
-                    reimported_paths.push(ContainerPath::File(container_path));
+                    reimported_paths.push(container_path);
                 }
             }
         }
 
         let _ = std::fs::remove_dir_all(&base_folder);
-        Ok((reimported_paths, message))
+        Ok(PluginScriptRun { edited: reimported_paths, error: message })
     }
 }
 
@@ -598,12 +599,11 @@ fn sorted(items: impl IntoIterator<Item = String>) -> Vec<String> {
 }
 
 /// Returns the paths of the plugin scripts in the config's scripts folder.
-pub fn plugin_scripts() -> Result<Vec<String>> {
+pub fn plugin_scripts() -> Result<Vec<PathBuf>> {
     let mut scripts = std::fs::read_dir(scripts_path()?)
         .map(|entries| entries.flatten()
             .map(|entry| entry.path())
             .filter(|path| path.is_file() && plugin_script_interpreter(path).is_some())
-            .map(|path| path.to_string_lossy().to_string())
             .collect::<Vec<_>>())
         .unwrap_or_default();
 

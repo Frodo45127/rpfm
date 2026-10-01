@@ -35,7 +35,7 @@ use std::rc::Rc;
 
 
 use rpfm_ipc::api::tables::{MergeTables, TableUpgraded, TablesMerged, UpgradeTable};
-use rpfm_ipc::api::tools::{GenerateMissingLocs, LiveExport, MapTile, PackMap, PatchSiegeAi};
+use rpfm_ipc::api::tools::{GenerateMissingLocs, ListPluginScripts, LiveExport, MapTile, PackMap, PatchSiegeAi};
 use rpfm_ipc::helpers::DataSource;
 use rpfm_ipc::settings_keys::*;
 
@@ -1149,7 +1149,10 @@ impl PackFileContentsSlots {
                 let menu = &pack_file_contents_ui.context_menu_run_script;
                 menu.clear();
 
-                let scripts = send_ipc_command(Command::GetPluginScripts, response_extractor!(Response::VecString));
+                let scripts = call_api(&ListPluginScripts {}).map(|scripts| scripts.scripts).unwrap_or_default()
+                    .into_iter()
+                    .map(|path| path.to_string_lossy().to_string())
+                    .collect::<Vec<_>>();
                 for script_path in &scripts {
 
                     // Use the file name as the display name, falling back to the full path.

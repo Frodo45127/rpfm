@@ -48,6 +48,7 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::rc::Rc;
 
+use rpfm_ipc::api::tools::{PluginScriptRun, RunPluginScript};
 use rpfm_ipc::settings_keys::*;
 use rpfm_ipc::helpers::DataSource;
 
@@ -56,13 +57,13 @@ use rpfm_lib::files::{ContainerPath, pack::RESERVED_NAME_NOTES};
 use rpfm_ui_common::utils::{find_widget, load_template};
 
 use crate::app_ui::AppUI;
-use crate::communications::{Command, Response, send_ipc_command, send_ipc_command_result, send_ipc_command_result_async};
+use crate::communications::{Command, Response, call_api_async, send_ipc_command, send_ipc_command_result, send_ipc_command_result_async};
 use crate::ffi::*;
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::settings_ui::backend::{settings_bool, settings_path_buf, settings_set_bool};
 use crate::ui_state::OperationalMode;
 use crate::UI_STATE;
-use crate::utils::{add_action_to_menu, qtr, show_dialog, show_message_info};
+use crate::utils::{add_action_to_menu, file_paths, qtr, show_dialog, show_message_info};
 
 pub mod connections;
 pub mod slots;
@@ -782,8 +783,15 @@ impl PackFileContentsUI {
         }
 
         app_ui.toggle_main_window(false);
-        match send_ipc_command_result_async(Command::RunPluginScript(pack_key.clone(), PathBuf::from(script_path), selected_items), response_extractor!(Response::VecContainerPathOptionString, paths, message)) {
-            Ok((paths, message)) => {
+        let request = RunPluginScript {
+            pack: pack_key.clone(),
+            script: PathBuf::from(script_path),
+            paths: selected_items.iter().map(|path| path.path_raw().to_owned()).collect(),
+        };
+
+        match call_api_async(&request) {
+            Ok(PluginScriptRun { edited, error: message }) => {
+                let paths = file_paths(edited);
                 if !paths.is_empty() {
                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths.to_vec()), DataSource::PackFile, &pack_key);
                     UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);

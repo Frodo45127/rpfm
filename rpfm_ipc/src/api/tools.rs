@@ -351,3 +351,182 @@ impl Request for FinishStartpos {
     const METHOD: &'static str = "startpos.finish";
     type Response = FilesEdited;
 }
+
+/// `tools.plugin_scripts`: returns the plugin scripts in the scripts folder of the config.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ListPluginScripts {}
+
+/// Plugin scripts available.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PluginScripts {
+
+    /// Paths of the scripts.
+    pub scripts: Vec<PathBuf>,
+}
+
+/// `tools.run_plugin_script`: runs a plugin script over files of an open pack, reading back the files it changes.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RunPluginScript {
+
+    /// Key of the pack.
+    pub pack: String,
+
+    /// Path of the script.
+    pub script: PathBuf,
+
+    /// Paths of the files and folders passed to the script.
+    pub paths: Vec<String>,
+}
+
+/// Result of running a plugin script.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PluginScriptRun {
+
+    /// Paths of the files read back into the pack.
+    pub edited: Vec<String>,
+
+    /// Error message of the script, if it failed.
+    pub error: Option<String>,
+}
+
+/// `lua.hovers`: returns the docs of the game's Lua API for the symbols of a Lua script, to show on hover.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GetLuaHovers {
+
+    /// Source of the script.
+    pub source: String,
+}
+
+/// Docs of the symbols of a Lua script. Empty if the game's Lua API is not available.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LuaHovers {
+
+    /// The hovers.
+    pub hovers: Vec<LuaHover>,
+}
+
+/// Docs of a symbol of a Lua script. Lines and columns are 0-based.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LuaHover {
+
+    /// Line where the symbol starts.
+    pub start_line: u64,
+
+    /// Column where the symbol starts.
+    pub start_column: u64,
+
+    /// Line where the symbol ends.
+    pub end_line: u64,
+
+    /// Column where the symbol ends.
+    pub end_column: u64,
+
+    /// The docs, as rich text.
+    pub docs: String,
+}
+
+/// `ceo.traits`: returns the trait CEOs of the Assembly Kit tables.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ListTraitCeos {}
+
+/// Trait CEOs of the Assembly Kit tables.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TraitCeos {
+
+    /// UUID and key of each trait CEO.
+    pub traits: Vec<(String, String)>,
+}
+
+/// `ceo.add_entries`: adds CEO entries (armour, career, traits and their locs) to an open pack.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AddCeoEntries {
+
+    /// Key of the pack.
+    pub pack: String,
+
+    /// The entries.
+    pub entries: Vec<CeoEntryData>,
+}
+
+/// A CEO entry to add.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CeoEntryData {
+
+    /// Name of the entry, used to build the keys of its rows.
+    pub name: String,
+
+    /// Kind of entry: `unique` for unique ones.
+    pub option: String,
+
+    /// Element of the entry.
+    pub element: String,
+
+    /// Gender of the entry.
+    pub gender: String,
+
+    /// UUID and key of each trait of the entry.
+    pub traits: Vec<(String, String)>,
+
+    /// If the entry also starts with a sword and shield.
+    pub expanded: bool,
+}
+
+/// `ceo.build`: builds `ceo_data.ccd` in the Assembly Kit from the CEO tables of an open pack, running BOB.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BuildCeo {
+
+    /// Key of the pack.
+    pub pack: String,
+
+    /// Root folder of the Assembly Kit.
+    pub assembly_kit: PathBuf,
+
+    /// Path of BOB's executable.
+    pub bob: PathBuf,
+}
+
+/// `ceo.import`: imports the `ceo_data.ccd` built by `ceo.build` into an open pack.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ImportCeo {
+
+    /// Key of the pack.
+    pub pack: String,
+
+    /// Root folder of the Assembly Kit.
+    pub assembly_kit: PathBuf,
+}
+
+impl Request for ListPluginScripts {
+    const METHOD: &'static str = "tools.plugin_scripts";
+    type Response = PluginScripts;
+}
+
+impl Request for RunPluginScript {
+    const METHOD: &'static str = "tools.run_plugin_script";
+    type Response = PluginScriptRun;
+}
+
+impl Request for GetLuaHovers {
+    const METHOD: &'static str = "lua.hovers";
+    type Response = LuaHovers;
+}
+
+impl Request for ListTraitCeos {
+    const METHOD: &'static str = "ceo.traits";
+    type Response = TraitCeos;
+}
+
+impl Request for AddCeoEntries {
+    const METHOD: &'static str = "ceo.add_entries";
+    type Response = FilesEdited;
+}
+
+impl Request for BuildCeo {
+    const METHOD: &'static str = "ceo.build";
+    type Response = Done;
+}
+
+impl Request for ImportCeo {
+    const METHOD: &'static str = "ceo.import";
+    type Response = FilesEdited;
+}
