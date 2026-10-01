@@ -57,7 +57,6 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Debug;
 use std::path::PathBuf;
 
-use rpfm_extensions::dependencies::TableReferences;
 use rpfm_extensions::lua::harness::LuaTestReport;
 use rpfm_extensions::merge::{MergeConflict, MergeOptions};
 use rpfm_extensions::optimizer::OptimizerOptions;
@@ -556,12 +555,6 @@ pub enum Command {
     // Search Commands
     //-----------------------------------------------------------------------//
 
-    /// Get reference data for columns in a definition from a specific pack.
-    /// First field is the pack key, then table name, definition, force flag.
-    ///
-    /// Response: [`Response::HashMapI32TableReferences`].
-    GetReferenceDataFromDefinition(String, String, Definition, bool),
-
     /// Get the list of PackFiles marked as dependencies of a specific pack.
     /// The field is the pack key.
     ///
@@ -731,34 +724,6 @@ pub enum Command {
     //-----------------------------------------------------------------------//
     // Navigation Commands
     //-----------------------------------------------------------------------//
-
-    /// Go to the definition of a reference in a specific pack.
-    /// First field is the pack key, then table, column, values to search.
-    ///
-    /// Response:
-    /// - [`Response::DataSourceStringUsizeUsize`] on success.
-    /// - [`Response::Error`] if not found.
-    GoToDefinition(String, String, String, Vec<String>),
-
-    /// Get the source data of a loc key from a specific pack.
-    /// First field is the pack key, second is the loc key.
-    ///
-    /// Response: [`Response::OptionStringStringVecString`].
-    GetSourceDataFromLocKey(String, String),
-
-    /// Go to a loc key's location in a specific pack.
-    /// First field is the pack key, second is the loc key to search.
-    ///
-    /// Response:
-    /// - [`Response::DataSourceStringUsizeUsize`] on success.
-    /// - [`Response::Error`] if not found.
-    GoToLoc(String, String),
-
-    /// Find all references to a value in a specific pack.
-    /// First field is the pack key, then map of table -> columns to search, value to search.
-    ///
-    /// Response: [`Response::VecDataSourceStringStringStringUsizeUsize`].
-    SearchReferences(String, HashMap<String, Vec<String>>, String),
 
     /// Get the name of a specific open PackFile.
     /// The field is the pack key.
@@ -1103,7 +1068,6 @@ pub enum Response {
     ContainerInfo(ContainerInfo),
     ContainerInfoVecRFileInfo((ContainerInfo, Vec<RFileInfo>)),
     StringContainerInfo(String, ContainerInfo),
-    DataSourceStringUsizeUsize(DataSource, String, usize, usize),
     DBRFileInfo(DB, RFileInfo),
     Definition(Definition),
     DependenciesInfo(DependenciesInfo),
@@ -1114,7 +1078,6 @@ pub enum Response {
     GroupFormationsRFileInfo(GroupFormations, RFileInfo),
     HashMapDataSourceHashMapStringRFile(HashMap<DataSource, HashMap<String, RFile>>),
     HashMapDataSourceHashSetContainerPath(HashMap<DataSource, HashSet<ContainerPath>>),
-    HashMapI32TableReferences(HashMap<i32, TableReferences>),
     HashSetString(HashSet<String>),
     HashSetStringHashSetString(HashSet<String>, HashSet<String>),
     I32(i32),
@@ -1127,7 +1090,6 @@ pub enum Response {
     OptionContainerPath(Option<ContainerPath>),
     OptionRFileInfo(Option<RFileInfo>),
     OptionString(Option<String>),
-    OptionStringStringVecString(Option<(String, String, Vec<String>)>),
     PackSettings(PackSettings),
     PackTranslation(PackTranslation),
     PathBuf(PathBuf),
@@ -1151,7 +1113,6 @@ pub enum Response {
     VecContainerPathBTreeMapStringVecContainerPath(Vec<ContainerPath>, BTreeMap<String, Vec<ContainerPath>>),
     VecContainerPathVecRFileInfo(Vec<ContainerPath>, Vec<RFileInfo>),
     VecContainerPathVecString(Vec<ContainerPath>, Vec<String>),
-    VecDataSourceStringStringStringUsizeUsize(Vec<(DataSource, String, String, String, usize, usize)>),
     VecField(Vec<Field>),
     VecRFile(Vec<RFile>),
     VecRFileInfo(Vec<RFileInfo>),

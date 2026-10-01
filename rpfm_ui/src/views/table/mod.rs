@@ -80,6 +80,7 @@ use std::rc::Rc;
 
 use rpfm_extensions::dependencies::{KEY_DELETES_TABLE_NAME, TableReferences};
 
+use rpfm_ipc::api::references::{FindDefinition, FindLoc, GetLocSource, RowLocation};
 use rpfm_ipc::api::schema::{PatchColumn, RemovePatches};
 use rpfm_ipc::helpers::DataSource;
 use rpfm_ipc::settings_keys::*;
@@ -419,7 +420,7 @@ impl TableView {
 
         // Get the dependency data of this Table.
         let table_name_for_ref = if let Some(name) = table_name { name.to_owned() } else { "".to_owned() };
-        let dependency_data = get_reference_data(packed_file_type, &table_name_for_ref, &table_definition, false, &pack_key.read().unwrap())?;
+        let dependency_data = get_reference_data(packed_file_type, &table_name_for_ref, &table_definition, false)?;
 
         // Do not bother getting hashed data for tables that are not modded.
         let vanilla_hashed_tables = {
@@ -3778,7 +3779,9 @@ impl TableView {
                 FileType::Loc => {
                     let index_row = self.table_filter.map_to_source(self.table_view.selection_model().selection().indexes().at(0)).row();
                     let key = self.table_model.index_2a(index_row, 0).data_0a().to_string().to_std_string();
-                    send_ipc_command_async(Command::GetSourceDataFromLocKey(self.pack_key.read().unwrap().clone(), key), response_extractor!(Response::OptionStringStringVecString))
+                    call_api_async(&GetLocSource { key }).ok()
+                        .and_then(|lookup| lookup.source)
+                        .map(|source| (source.table, source.column, source.key_values))
                 }
                 _ => None,
             };
@@ -3794,7 +3797,11 @@ impl TableView {
                 });
 
                 // Then ask the backend to do the heavy work.
-                match send_ipc_command_result_async(Command::GoToDefinition(self.pack_key.read().unwrap().clone(), ref_table, ref_column, ref_data), response_extractor!(Response::DataSourceStringUsizeUsize, v1, v2, v3, v4)) {
+                let request = ref_data.first().cloned()
+                    .ok_or_else(|| anyhow!("No value to search for."))
+                    .map(|value| FindDefinition { table: ref_table, column: ref_column, value, pack: Some(self.pack_key.read().unwrap().clone()) });
+
+                match request.and_then(|request| call_api_async(&request)).map(row_location) {
 
                     // We receive a path/column/row, so we know what to open/select.
                     Ok((data_source, path, column, row)) => {
@@ -4035,7 +4042,7 @@ impl TableView {
                 let loc_key = format!("{table_name}_{loc_column_name}_{key}");
 
                 // Then ask the backend to do the heavy work.
-                match send_ipc_command_result_async(Command::GoToLoc(self.pack_key.read().unwrap().clone(), loc_key), response_extractor!(Response::DataSourceStringUsizeUsize, v1, v2, v3, v4)) {
+                match call_api_async(&FindLoc { key: loc_key, pack: Some(self.pack_key.read().unwrap().clone()) }).map(row_location) {
 
                     // We receive a path/column/row, so we know what to open/select.
                     Ok((data_source, path, column, row)) => {
@@ -4178,4 +4185,9 @@ impl Default for FilterChipState {
             group: -1,
         }
     }
+}
+
+/// Returns the data source, path, column and row of a row location.
+fn row_location(location: RowLocation) -> (DataSource, String, usize, usize) {
+    (DataSource::from(&location.source), location.path, location.column_index, location.row_index)
 }

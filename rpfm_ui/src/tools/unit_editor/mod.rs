@@ -756,7 +756,7 @@ impl ToolUnitEditor {
 
         if let Some(table) = Tool::get_table_data(data, processed_data, TABLE_NAME, &["key"], Some(("main_units".to_owned(), "land_unit".to_owned())))? {
             let table_name_full = TABLE_NAME.to_owned() + "_tables";
-            let reference_data = get_reference_data(FileType::DB, &table_name_full, table.definition(), false, self.tool.pack_key())?;
+            let reference_data = get_reference_data(FileType::DB, &table_name_full, table.definition(), false)?;
 
             let schema_patches = table.definition().patches();
             for field in table.definition().fields_processed() {
@@ -777,7 +777,7 @@ impl ToolUnitEditor {
 
         if let Some(table) = Tool::get_table_data(data, processed_data, TABLE_NAME, &["unit"], None)? {
             let table_name_full = TABLE_NAME.to_owned() + "_tables";
-            let reference_data = get_reference_data(FileType::DB, &table_name_full, table.definition(), false, self.tool.pack_key())?;
+            let reference_data = get_reference_data(FileType::DB, &table_name_full, table.definition(), false)?;
 
             let schema_patches = table.definition().patches();
             for field in table.definition().fields_processed() {

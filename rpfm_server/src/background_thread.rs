@@ -34,9 +34,6 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use rpfm_ipc::api::files::FileSource;
-use rpfm_ipc::api::references::RowLocation;
-use rpfm_ipc::helpers::DataSource;
 use rpfm_ipc::messages::{Command, Response};
 use rpfm_ipc::settings_keys::*;
 
@@ -250,27 +247,6 @@ async fn dispatch(state: &mut SessionState, command: Command, sender: &Unbounded
         Command::CascadeEdition(pack_key, table_name, definition, changes) => reply(sender, state.cascade_edition(&pack_key, &table_name, &definition, &changes), |(paths, info)| Response::VecContainerPathVecRFileInfo(paths, info)),
         Command::GetTablesByTableName(pack_key, table_name) => reply(sender, state.table_paths_by_name(&pack_key, &table_name), Response::VecString),
         Command::AddKeysToKeyDeletes(pack_key, table_file_name, key_table_name, keys) => reply(sender, state.add_keys_to_key_deletes(&pack_key, &table_file_name, &key_table_name, &keys), Response::OptionContainerPath),
-        Command::GetReferenceDataFromDefinition(_pack_key, table_name, definition, force) => send(sender, Response::HashMapI32TableReferences(state.reference_data(&table_name, &definition, force))),
-        Command::GoToDefinition(pack_key, table_name, column_name, values) => {
-            let result = values.first()
-                .ok_or_else(|| anyhow!("No value to search for."))
-                .and_then(|value| state.find_definition(Some(&pack_key), &table_name, &column_name, value));
-            reply(sender, result, row_location_response);
-        }
-        Command::GoToLoc(pack_key, loc_key) => reply(sender, state.find_loc(Some(&pack_key), &loc_key), row_location_response),
-        Command::SearchReferences(pack_key, reference_map, value) => reply(sender, state.search_references(Some(&pack_key), &reference_map, &value), |usages| {
-            Response::VecDataSourceStringStringStringUsizeUsize(usages.into_iter()
-                .map(|usage| {
-                    let pack_key = match usage.location.source {
-                        FileSource::Pack(ref pack_key) => pack_key.clone(),
-                        _ => String::new(),
-                    };
-
-                    (data_source(&usage.location.source), pack_key, usage.location.path, usage.column, usage.location.column_index, usage.location.row_index)
-                })
-                .collect())
-        }),
-        Command::GetSourceDataFromLocKey(_pack_key, loc_key) => send(sender, Response::OptionStringStringVecString(state.loc_key_source(&loc_key))),
         Command::LocalArtSetIds(_pack_key) => send(sender, Response::HashSetString(state.column_values("campaign_character_arts_tables", "art_set_id", true, false))),
         Command::DependenciesArtSetIds => send(sender, Response::HashSetString(state.column_values("campaign_character_arts_tables", "art_set_id", false, true))),
         Command::DependenciesColumnValues(table_name, column_name) => send(sender, Response::HashSetString(state.column_values(&table_name, &column_name, true, true))),
@@ -390,21 +366,6 @@ where
     tokio::spawn(async move {
         reply(&sender, run_blocking(job).await, wrap);
     });
-}
-
-/// Legacy response for the location of a row.
-fn row_location_response(location: RowLocation) -> Response {
-    Response::DataSourceStringUsizeUsize(data_source(&location.source), location.path, location.column_index, location.row_index)
-}
-
-/// Legacy data source of a file source.
-fn data_source(source: &FileSource) -> DataSource {
-    match source {
-        FileSource::Pack(_) => DataSource::PackFile,
-        FileSource::GameFiles => DataSource::GameFiles,
-        FileSource::ParentFiles => DataSource::ParentFiles,
-        FileSource::AssemblyKit => DataSource::AssKitFiles,
-    }
 }
 
 /// Legacy response for a decoded file. Each file type has its own response variant.

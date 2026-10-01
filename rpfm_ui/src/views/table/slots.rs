@@ -32,6 +32,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{Arc, atomic::Ordering, RwLock};
 
+use rpfm_ipc::api::references::FindUsages;
 use rpfm_ipc::helpers::DataSource;
 
 use rpfm_lib::files::{ContainerPath, RFileDecoded};
@@ -584,8 +585,7 @@ impl TableViewSlots {
                                     *view.reference_map.write().unwrap() = referencing_columns_for_table(&table_name, &definition).unwrap_or_default();
 
                                     // Regenerate the references for this table, as we may have different columns with new references.
-                                    let pack_key = view.pack_key.read().unwrap().clone();
-                                    if let Ok(data) = get_reference_data(*view.packed_file_type, &table_name, &definition, true, &pack_key) {
+                                    if let Ok(data) = get_reference_data(*view.packed_file_type, &table_name, &definition, true) {
                                         view.set_dependency_data(&data);
                                     }
                                 }
@@ -726,18 +726,26 @@ impl TableViewSlots {
                 let index = view.table_filter.map_to_source(filter_index.as_ref());
                 if index.is_valid() && !view.table_model.item_from_index(&index).is_checkable() {
                     if let Some(field) = view.table_definition.read().unwrap().fields_processed().get(index.column() as usize) {
-                        if let Some(reference_data) = view.reference_map.read().unwrap().get(field.name()) {
+                        if view.reference_map.read().unwrap().contains_key(field.name()) {
 
                             // Stop if we have another find already running.
                             if references_ui.references_table_view().is_enabled() {
                                 references_ui.references_dock_widget().show();
                                 references_ui.references_table_view().set_enabled(false);
 
-                                let pack_key = view.pack_key.read().unwrap().clone();
-                                let selected_value = index.data_0a().to_string().to_std_string();
-                                match send_ipc_command_result_async(Command::SearchReferences(pack_key, reference_data.clone(), selected_value), response_extractor!(Response::VecDataSourceStringStringStringUsizeUsize)) {
-                                    Ok(data) => {
-                                        references_ui.load_references_to_ui(data);
+                                let request = FindUsages {
+                                    table_name: view.table_name.clone().unwrap_or_default(),
+                                    column: field.name().to_owned(),
+                                    value: index.data_0a().to_string().to_std_string(),
+                                    version: Some(*view.table_definition.read().unwrap().version()),
+                                    pack: Some(view.pack_key.read().unwrap().clone()),
+                                    offset: 0,
+                                    limit: Some(usize::MAX),
+                                };
+
+                                match call_api_async(&request) {
+                                    Ok(usages) => {
+                                        references_ui.load_references_to_ui(&usages.usages);
 
                                         // Reenable the table.
                                         references_ui.references_table_view().set_enabled(true);

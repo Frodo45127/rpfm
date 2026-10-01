@@ -13,6 +13,10 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use std::collections::HashMap;
+
+use rpfm_extensions::dependencies::TableReferences;
+
 use super::Request;
 use super::files::FileSource;
 
@@ -75,6 +79,10 @@ pub struct FindUsages {
     pub value: String,
 
     /// If set, only this open pack is searched, instead of all of them.
+    /// Version of the table's definition, to know which columns reference it. Defaults to the version in the game files, or the newest one.
+    #[serde(default)]
+    pub version: Option<i32>,
+
     #[serde(default)]
     pub pack: Option<String>,
 
@@ -220,6 +228,36 @@ pub struct ReferenceValue {
     /// Text shown next to the value, like the name of the referenced row. Empty if there's none.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub lookup: String,
+}
+
+/// `references.table_data`: returns the values each column of a table can reference, with their lookups.
+///
+/// Meant for clients editing whole tables, to fill their dropdowns. Others should use `references.values`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GetTableReferenceData {
+
+    /// Name of the table, like `units_tables`.
+    pub table_name: String,
+
+    /// Version of the table's definition.
+    pub version: i32,
+
+    /// If the references to the tables of the open packs are generated again, instead of reusing the cached ones.
+    #[serde(default)]
+    pub regenerate: bool,
+}
+
+/// Values each column of a table can reference.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct TableReferenceData {
+
+    /// Referenceable values, by column index.
+    pub columns: HashMap<i32, TableReferences>,
+}
+
+impl Request for GetTableReferenceData {
+    const METHOD: &'static str = "references.table_data";
+    type Response = TableReferenceData;
 }
 
 impl Request for GetReferenceValues {

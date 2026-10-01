@@ -29,7 +29,7 @@ use rpfm_ipc::api::schema::{
 };
 use rpfm_ipc::api::translations::{GenerateVanillaTexts, ListTranslations, VanillaTextsAvailable};
 use rpfm_ipc::api::session::{GenerateDependenciesCache, GetSessionStatus, RebuildDependencies, SetGame};
-use rpfm_ipc::api::references::{FindDefinition, FindLoc, FindUsages, GetLocSource, GetReferenceValues, LocSourceLookup};
+use rpfm_ipc::api::references::{FindDefinition, FindLoc, FindUsages, GetLocSource, GetReferenceValues, GetTableReferenceData, LocSourceLookup};
 use rpfm_ipc::api::tables::{AddKeyDeletes, EditTable, ExportTsv, GetColumnValues, GetTableDefinition, GetTableInfo, GetTableRows, ImportTsv, MergeTables, RenameKey, UpgradeTable};
 use rpfm_ipc::api::updates::{ApplyUpdate, CheckUpdate};
 use rpfm_ipc::api::tools::{
@@ -194,6 +194,7 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
 
         FindDefinition::METHOD => call(params, |request: FindDefinition| state.find_definition(request.pack.as_deref(), &request.table, &request.column, &request.value)),
         FindUsages::METHOD => call(params, |request: FindUsages| state.find_usages(&request)),
+        GetTableReferenceData::METHOD => call(params, |request: GetTableReferenceData| state.table_reference_data(&request)),
         FindLoc::METHOD => call(params, |request: FindLoc| state.find_loc(request.pack.as_deref(), &request.key)),
         GetLocSource::METHOD => call(params, |request: GetLocSource| Ok(LocSourceLookup { source: state.loc_source(&request.key) })),
 

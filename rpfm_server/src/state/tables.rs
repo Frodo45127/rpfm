@@ -27,7 +27,7 @@ use rpfm_extensions::merge::{db_baseline, delta_merge_db, delta_merge_loc, loc_b
 
 use rpfm_ipc::api::ApiError;
 use rpfm_ipc::api::files::{ASSEMBLY_KIT_TABLE_FILE_NAME, FileRef, FileSource};
-use rpfm_ipc::api::references::{DEFAULT_REFERENCE_VALUES_LIMIT, DEFAULT_USAGES_LIMIT, FindUsages, GetReferenceValues, LocSource, ReferenceValue, ReferenceValues, RowLocation, Usage, Usages};
+use rpfm_ipc::api::references::{DEFAULT_REFERENCE_VALUES_LIMIT, DEFAULT_USAGES_LIMIT, FindUsages, GetReferenceValues, GetTableReferenceData, TableReferenceData, LocSource, ReferenceValue, ReferenceValues, RowLocation, Usage, Usages};
 use rpfm_ipc::api::tables::{AddKeyDeletes, ExportTsv, FilesEdited, ImportTsv, MergeTables, RenameKey, TableUpgraded, TablesMerged, UpgradeTable};
 use rpfm_ipc::api::tables::{ColumnInfo, ColumnValues, DEFAULT_VALUES_LIMIT, GetColumnValues, GetTableDefinition, ColumnReference, DEFAULT_ROWS_LIMIT, EditTable, FilterOp, GetTableRows, RowEdit, RowFilter, TableEdited, TableInfo, TableRow, TableRows};
 use rpfm_ipc::helpers::{DataSource, RFileInfo};
@@ -261,6 +261,19 @@ impl SessionState {
         self.dependencies.db_reference_data(schema, &self.packs, table_name, definition, &None)
     }
 
+    /// Returns the values each column of a table can reference, with their lookups.
+    ///
+    /// # Errors
+    ///
+    /// Fails if there is no schema, or it has no definition of the table with the requested version.
+    pub fn table_reference_data(&mut self, request: &GetTableReferenceData) -> Result<TableReferenceData> {
+        let definition = loaded_schema(&self.schema)?.definition_by_name_and_version(&request.table_name, request.version)
+            .cloned()
+            .ok_or_else(|| ApiError::DefinitionNotFound(request.table_name.clone()))?;
+
+        Ok(TableReferenceData { columns: self.reference_data(&request.table_name, &definition, request.regenerate) })
+    }
+
     /// Finds the first row with a value in a column of a table.
     ///
     /// Searches the open packs (starting with `pack_key`), then the parent packs, the game files and the Assembly Kit tables.
@@ -382,8 +395,12 @@ impl SessionState {
     /// Finds the rows of other tables referencing a value of a table, taking the referencing columns from the schema.
     pub fn find_usages(&self, request: &FindUsages) -> Result<Usages> {
         let schema = loaded_schema(&self.schema)?;
-        let definition = self.table_definition(&GetTableDefinition { table_name: request.table_name.clone(), version: None })?;
-        let definition = schema.definition_by_name_and_version(&request.table_name, definition.version)
+        let version = match request.version {
+            Some(version) => version,
+            None => self.table_definition(&GetTableDefinition { table_name: request.table_name.clone(), version: None })?.version,
+        };
+
+        let definition = schema.definition_by_name_and_version(&request.table_name, version)
             .ok_or_else(|| ApiError::DefinitionNotFound(request.table_name.clone()))?;
 
         let reference_map = schema.referencing_columns_for_table(&request.table_name, definition)

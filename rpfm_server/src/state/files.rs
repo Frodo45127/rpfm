@@ -941,7 +941,7 @@ impl SessionState {
                 Ok(FilesAdded { added: raw_paths(&added), not_added: not_found, error: None })
             }
             FileSource::GameFiles | FileSource::ParentFiles => {
-                let data_source = data_source(&request.from).expect("dependency sources always have a data source");
+                let data_source = DataSource::from(&request.from);
                 let (include_vanilla, include_parent) = (data_source == DataSource::GameFiles, data_source == DataSource::ParentFiles);
                 let (paths, mut not_found) = split_found(
                     &request.paths,
@@ -1008,7 +1008,7 @@ impl SessionState {
         let (pack_key, data_source, paths) = match request.source {
             FileSource::Pack(ref pack_key) => (pack_key.as_str(), DataSource::PackFile, self.pack_container_paths(pack_key, &request.paths)?),
             FileSource::GameFiles | FileSource::ParentFiles => {
-                let data_source = data_source(&request.source).expect("dependency sources always have a data source");
+                let data_source = DataSource::from(&request.source);
                 let (include_vanilla, include_parent) = (data_source == DataSource::GameFiles, data_source == DataSource::ParentFiles);
                 let paths = request.paths.iter()
                     .map(|path| container_path(|path| self.dependencies.file_exists(path, include_vanilla, include_parent, false), path))
@@ -1227,22 +1227,12 @@ fn split_found(paths: &[String], resolve: impl Fn(&str) -> ContainerPath, exists
 
 /// Returns the key of the pack of a file source (empty for other sources), and its legacy data source.
 pub(super) fn legacy_source(source: &FileSource) -> (&str, DataSource) {
-    match source {
-        FileSource::Pack(pack_key) => (pack_key, DataSource::PackFile),
-        FileSource::GameFiles => ("", DataSource::GameFiles),
-        FileSource::ParentFiles => ("", DataSource::ParentFiles),
-        FileSource::AssemblyKit => ("", DataSource::AssKitFiles),
-    }
-}
+    let pack_key = match source {
+        FileSource::Pack(pack_key) => pack_key.as_str(),
+        _ => "",
+    };
 
-/// Returns the legacy data source of a file source, or `None` for open packs.
-fn data_source(source: &FileSource) -> Option<DataSource> {
-    match source {
-        FileSource::Pack(_) => None,
-        FileSource::GameFiles => Some(DataSource::GameFiles),
-        FileSource::ParentFiles => Some(DataSource::ParentFiles),
-        FileSource::AssemblyKit => Some(DataSource::AssKitFiles),
-    }
+    (pack_key, DataSource::from(source))
 }
 
 /// Returns the raw paths of container paths.

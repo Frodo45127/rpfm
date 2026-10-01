@@ -48,6 +48,8 @@ use std::sync::{atomic::AtomicPtr, RwLock};
 
 use rpfm_extensions::dependencies::TableReferences;
 
+use rpfm_ipc::api::references::GetTableReferenceData;
+
 
 use rpfm_lib::binary::WriteBytes;
 use rpfm_lib::files::{ContainerPath, RFileDecoded, rigidmodel::materials::TextureType, table::Table};
@@ -1072,15 +1074,15 @@ pub unsafe fn get_vanilla_hashed_tables(file_type: FileType, table_name: &str) -
 }
 
 /// This function returns the reference data for an entire table.
-pub unsafe fn get_reference_data(file_type: FileType, table_name: &str, definition: &Definition, force_regen: bool, pack_key: &str) -> Result<HashMap<i32, TableReferences>> {
+pub unsafe fn get_reference_data(file_type: FileType, table_name: &str, definition: &Definition, force_regen: bool) -> Result<HashMap<i32, TableReferences>> {
     match file_type {
 
         // For AnimFragmentBattle files, return the custom lookups for the animation id column.
         FileType::AnimFragmentBattle => Ok(read_anim_ids_file().unwrap_or_else(|_| HashMap::new())),
         FileType::DB => {
 
-            // Call the backend passing it the files we have open (so we don't get them from the backend too), and get the frontend data while we wait for it to finish.
-            send_ipc_command_result(Command::GetReferenceDataFromDefinition(pack_key.to_owned(), table_name.to_owned(), definition.clone(), force_regen), response_extractor!(Response::HashMapI32TableReferences))
+            let request = GetTableReferenceData { table_name: table_name.to_owned(), version: *definition.version(), regenerate: force_regen };
+            call_api(&request).map(|data| data.columns)
         }
         FileType::RigidModel => Ok(texture_type_strings()),
 

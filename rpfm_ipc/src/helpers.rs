@@ -61,6 +61,8 @@ use std::fmt::{self, Display};
 
 use rpfm_extensions::dependencies::Dependencies;
 
+use crate::api::files::FileSource;
+
 use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::games::{*, pfh_file_type::PFHFileType, pfh_version::PFHVersion};
 use rpfm_lib::files::{animpack::*, Container, ContainerPath, db::*, FileType, pack::*, RFile, text::TextFormat, video::*};
@@ -412,6 +414,18 @@ impl RFileInfo {
             container_name: None,
             timestamp: None,
             file_type: FileType::DB,
+        }
+    }
+}
+
+/// Data source of the files of a file source.
+impl From<&FileSource> for DataSource {
+    fn from(source: &FileSource) -> Self {
+        match source {
+            FileSource::Pack(_) => Self::PackFile,
+            FileSource::GameFiles => Self::GameFiles,
+            FileSource::ParentFiles => Self::ParentFiles,
+            FileSource::AssemblyKit => Self::AssKitFiles,
         }
     }
 }

@@ -42,6 +42,8 @@ use getset::Getters;
 
 use std::rc::Rc;
 
+use rpfm_ipc::api::files::FileSource;
+use rpfm_ipc::api::references::Usage;
 use rpfm_ipc::helpers::DataSource;
 use rpfm_ipc::settings_keys::*;
 
@@ -129,14 +131,19 @@ impl ReferencesUI {
     }
 
     /// This function takes care of loading the results of a reference search into the table.
-    pub unsafe fn load_references_to_ui(&self, references: Vec<(DataSource, String, String, String, usize, usize)>) {
+    pub unsafe fn load_references_to_ui(&self, references: &[Usage]) {
 
         // First, clean the current diagnostics.
         self.references_table_model.clear();
 
         if !references.is_empty() {
             let blocker = QSignalBlocker::from_q_object(&self.references_table_model);
-            for (index, (data_source, pack_key, path, column_name, column_number, row_number)) in references.iter().enumerate() {
+            for (index, usage) in references.iter().enumerate() {
+                let data_source = DataSource::from(&usage.location.source);
+                let pack_key = match usage.location.source {
+                    FileSource::Pack(ref pack_key) => pack_key.as_str(),
+                    _ => "",
+                };
 
                 // Unlock in the last step.
                 if index == references.len() - 1 {
@@ -154,12 +161,12 @@ impl ReferencesUI {
                 let pack_key_item = QStandardItem::new();
 
                 data_source_item.set_text(&QString::from_std_str(format!("{data_source}")));
-                path_item.set_text(&QString::from_std_str(path));
-                column_name_item.set_text(&QString::from_std_str(column_name));
-                column_number_item.set_data_2a(&QVariant::from_int(*column_number as i32), 2);
-                column_number_item.set_data_1a(&QVariant::from_int(*column_number as i32));
-                row_number_item.set_data_2a(&QVariant::from_int(*row_number as i32), 2);
-                row_number_item.set_data_1a(&QVariant::from_int(*row_number as i32));
+                path_item.set_text(&QString::from_std_str(&usage.location.path));
+                column_name_item.set_text(&QString::from_std_str(&usage.column));
+                column_number_item.set_data_2a(&QVariant::from_int(usage.location.column_index as i32), 2);
+                column_number_item.set_data_1a(&QVariant::from_int(usage.location.column_index as i32));
+                row_number_item.set_data_2a(&QVariant::from_int(usage.location.row_index as i32), 2);
+                row_number_item.set_data_1a(&QVariant::from_int(usage.location.row_index as i32));
                 pack_key_item.set_text(&QString::from_std_str(pack_key));
 
                 data_source_item.set_editable(false);
