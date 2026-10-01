@@ -25,6 +25,7 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 
+use rpfm_ipc::api::packs::{PackDependency, PackSettingsValues, UpdatePack, UpdatePackSettings};
 use rpfm_ipc::api::tools::SetVideoFormat;
 use rpfm_ipc::helpers::DataSource;
 
@@ -382,15 +383,15 @@ impl FileView {
 
                                         ", false);
                                 } else {
-                                    let mut entries = vec![];
+                                    let mut dependencies = vec![];
                                     for row in 0..model.row_count_0a() {
-                                        let hard = model.item_2a(row, 0).check_state() == CheckState::Checked;
-                                        let pack = model.item_2a(row, 1).text().to_std_string();
-                                        entries.push((hard, pack));
+                                        let enabled = model.item_2a(row, 0).check_state() == CheckState::Checked;
+                                        let name = model.item_2a(row, 1).text().to_std_string();
+                                        dependencies.push(PackDependency { enabled, name });
                                     }
 
                                     // Save the new list and return Ok.
-                                    let _ = CENTRAL_COMMAND.read().unwrap().send(Command::SetDependencyPackFilesList(self.pack_key_copy(), entries));
+                                    call_api(&UpdatePack { pack: self.pack_key_copy(), dependencies: Some(dependencies), ..Default::default() })?;
 
                                     // Set the packfile as modified. This one is special, as this is a "simulated PackedFile", so we have to mark the PackFile manually.
                                     pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::Folder(String::new())]), DataSource::PackFile, &self.pack_key_copy());
@@ -405,7 +406,7 @@ impl FileView {
                             View::MatchedCombatDebug(_) => return Ok(()),
                             View::PackFile(_) => return Ok(()),
                             View::PackSettings(view) => {
-                                let _ = CENTRAL_COMMAND.read().unwrap().send(Command::SetPackSettings(self.pack_key_copy(), view.save_view()));
+                                call_api(&UpdatePackSettings { pack: self.pack_key_copy(), values: PackSettingsValues::from(&view.save_view()) })?;
                                 return Ok(())
                             },
 

@@ -49,6 +49,7 @@ use std::sync::atomic::Ordering;
 use std::time::Instant;
 
 use rpfm_ipc::api::schema::{ImportPatches, UpdateSchemaFromAssemblyKit};
+use rpfm_ipc::api::packs::{BackupPack, NewPack, OpenVanillaPacks, PackSettingsValues, PackSummary, UpdatePack, UpdatePackSettings};
 use rpfm_ipc::api::session::{GenerateDependenciesCache, GetDependenciesInfo, GetSessionStatus};
 use rpfm_ipc::api::tools::InitMyMod;
 use rpfm_ipc::settings_keys::*;
@@ -63,8 +64,7 @@ use rpfm_ui_common::clone;
 use rpfm_ui_common::utils::{create_grid_layout, ref_from_atomic};
 
 use crate::app_ui::{AppUI, Pane};
-use crate::CENTRAL_COMMAND;
-use crate::communications::{RECONNECT_COMPLETE, THREADS_COMMUNICATION_ERROR, Command, Response, send_ipc_command, send_ipc_command_result, send_ipc_command_result_async, call_api_async, run_job};
+use crate::communications::{RECONNECT_COMPLETE, call_api_async, run_job, pack_details, open_packs, call_api, save_pack};
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::DISCORD_URL;
@@ -638,9 +638,8 @@ impl AppUISlots {
                 rpfm_telemetry::track_action("Save All");
 
                 // Get all open packs from the server. Packs never saved to disk get a Save As dialog.
-                let pack_list = send_ipc_command(Command::ListOpenPacks, response_extractor!(Response::VecStringContainerInfo));
                 let mut all_saved = true;
-                for (pack_key, _) in &pack_list {
+                for pack_key in open_packs().into_iter().map(|pack| pack.key) {
                     if let Err(error) = AppUI::save_packfile_by_key(&app_ui, &pack_file_contents_ui, Some(pack_key.clone()), false) {
                         show_dialog(app_ui.main_window(), error, false);
                         all_saved = false;
@@ -648,7 +647,7 @@ impl AppUISlots {
                     }
 
                     // A cancelled Save As dialog returns Ok, so confirm the pack actually exists on disk now.
-                    let saved = send_ipc_command_result(Command::GetPackFilePath(pack_key.clone()), response_extractor!(Response::PathBuf))
+                    let saved = pack_details(&pack_key).map(|details| PathBuf::from(details.summary.path))
                         .is_ok_and(|path| path.is_absolute() && path.is_file());
                     all_saved &= saved;
                 }
@@ -694,8 +693,8 @@ impl AppUISlots {
                 GlobalSearchUI::clear(&global_search_ui);
                 let _ = AppUI::purge_them_all(&app_ui, &pack_file_contents_ui, false);
 
-                match send_ipc_command_result_async(Command::LoadAllCAPackFiles, response_extractor!(Response::StringContainerInfo, v1, v2)) {
-                    Ok((pack_key, _)) => {
+                match call_api_async(&OpenVanillaPacks {}) {
+                    Ok(PackSummary { key: pack_key, .. }) => {
 
                         // Update the TreeView.
                         let mut build_data = BuildData::new();
@@ -810,12 +809,11 @@ impl AppUISlots {
 
                                 // Rebuild the tree view from the new session's pack file data.
                                 // Enumerate the packs the new session has open and append a tree entry per pack.
-                                let pack_list = send_ipc_command(Command::ListOpenPacks, response_extractor!(Response::VecStringContainerInfo));
-                                for (pack_key, _) in &pack_list {
+                                for pack_key in open_packs().into_iter().map(|pack| pack.key) {
                                     let mut build_data = BuildData::new();
                                     build_data.editable = true;
                                     build_data.pack_key = Some(pack_key.clone());
-                                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::AddPack(build_data), DataSource::PackFile, pack_key);
+                                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::AddPack(build_data), DataSource::PackFile, &pack_key);
                                 }
                                 global_search_ui.update_pack_sources(&pack_file_contents_ui);
 
@@ -998,57 +996,46 @@ impl AppUISlots {
                                         app_ui.timer_backup_autosave.start_0a();
                                     }
 
-                                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::NewPack);
-                                    let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-                                    let pack_key = if let Response::String(key) = response { key } else { panic!("{THREADS_COMMUNICATION_ERROR}{response:?}") };
-                                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackSettings(pack_key.to_owned()));
-                                    let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-                                    match response {
-                                        Response::PackSettings(mut pack_settings) => {
+                                    // Create the pack, setting what to ignore when importing, and save it in the MyMod folder.
+                                    let created = call_api_async(&NewPack {}).and_then(|pack| {
+                                        let mut values = PackSettingsValues::default();
+                                        values.text.insert("import_files_to_ignore".to_owned(), paths_ignore_on_import);
+                                        call_api(&UpdatePackSettings { pack: pack.key.clone(), values })?;
 
-                                            // Prepare the settings depending on what we choose to ignore.
-                                            pack_settings.settings_text_mut().insert("import_files_to_ignore".to_owned(), paths_ignore_on_import);
+                                        let pack_file_info = save_pack(&pack.key, Some(mymod_pack_path.clone()), false)?;
+                                        Ok((pack.key, pack_file_info))
+                                    });
 
-                                            let _ = CENTRAL_COMMAND.read().unwrap().send(Command::SetPackSettings(pack_key.clone(), pack_settings));
-                                            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::SavePackAs(pack_key.clone(), mymod_pack_path.clone()));
-                                            let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-                                            match response {
-                                                Response::ContainerInfo(pack_file_info) => {
+                                    match created {
+                                        Ok((pack_key, pack_file_info)) => {
+                                            let mut build_data = BuildData::new();
+                                            build_data.pack_key = Some(pack_key.to_owned());
+                                            build_data.editable = true;
+                                            build_data.is_mymod = true;
+                                            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile, &pack_key);
+                                            let packfile_item = pack_file_contents_ui.packfile_contents_tree_model().item_1a(0);
+                                            packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
+                                            packfile_item.set_text(&QString::from_std_str(full_mod_name));
 
-                                                    let mut build_data = BuildData::new();
-                                                    build_data.pack_key = Some(pack_key.to_owned());
-                                                    build_data.editable = true;
-                                                    build_data.is_mymod = true;
-                                                    pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile, &pack_key);
-                                                    let packfile_item = pack_file_contents_ui.packfile_contents_tree_model().item_1a(0);
-                                                    packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
-                                                    packfile_item.set_text(&QString::from_std_str(full_mod_name));
+                                            AppUI::enable_packfile_actions(&app_ui, true);
 
-                                                    AppUI::enable_packfile_actions(&app_ui, true);
-
-                                                    // Mark this pack as a MyMod on the server.
-                                                    let mod_name_for_mode = mymod_pack_path.file_name().unwrap().to_string_lossy().to_string();
-                                                    let game_folder_for_mode = mymod_pack_path.parent().and_then(|p| p.file_name()).map(|f| f.to_string_lossy().to_string()).unwrap_or_default();
-                                                    send_ipc_command(Command::SetPackOperationalMode(pack_key.clone(), OperationalMode::MyMod(game_folder_for_mode, mod_name_for_mode)), response_extractor!());
-
-                                                    UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
-
-                                                    AppUI::build_open_mymod_submenus(&app_ui);
-                                                    app_ui.toggle_main_window(true);
-                                                }
-
-                                                Response::Error(error) => {
-                                                    app_ui.toggle_main_window(true);
-                                                    show_dialog(&app_ui.main_window, error, false);
-                                                }
-
-                                                // In ANY other situation, it's a message problem.
-                                                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                                            // Mark this pack as a MyMod on the server.
+                                            let mod_name_for_mode = mymod_pack_path.file_name().unwrap().to_string_lossy().to_string();
+                                            let game_folder_for_mode = mymod_pack_path.parent().and_then(|p| p.file_name()).map(|f| f.to_string_lossy().to_string()).unwrap_or_default();
+                                            let request = UpdatePack { pack: pack_key.clone(), operational_mode: Some(OperationalMode::MyMod(game_folder_for_mode, mod_name_for_mode)), ..Default::default() };
+                                            if let Err(error) = call_api(&request) {
+                                                show_dialog(&app_ui.main_window, error, false);
                                             }
-                                        }
 
-                                        // In ANY other situation, it's a message problem.
-                                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                                            UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
+
+                                            AppUI::build_open_mymod_submenus(&app_ui);
+                                            app_ui.toggle_main_window(true);
+                                        }
+                                        Err(error) => {
+                                            app_ui.toggle_main_window(true);
+                                            show_dialog(&app_ui.main_window, error, false);
+                                        }
                                     }
 
                                 }
@@ -1591,7 +1578,9 @@ impl AppUISlots {
                 // If the pack has been edited, autosave.
                 if UI_STATE.get_is_modified() {
                     let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    let _ = CENTRAL_COMMAND.read().unwrap().send(Command::TriggerBackupAutosave(pack_key));
+                    if let Err(error) = call_api(&BackupPack { pack: pack_key }) {
+                        warn!("Failed to autosave the pack: {error}");
+                    }
                     log_to_status_bar(&tr("autosaving"));
                 }
 

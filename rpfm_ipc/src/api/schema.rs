@@ -246,3 +246,24 @@ impl Request for ImportPatches {
     const METHOD: &'static str = "schema.import_patches";
     type Response = Done;
 }
+
+/// `schema.missing_definitions`: returns the tables of an open pack with rows that can't be decoded with the schema.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct GetMissingDefinitions {
+
+    /// Key of the pack.
+    pub pack: String,
+}
+
+/// Tables that need a new definition in the schema.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct MissingDefinitions {
+
+    /// Paths of the tables, sorted.
+    pub paths: Vec<String>,
+}
+
+impl Request for GetMissingDefinitions {
+    const METHOD: &'static str = "schema.missing_definitions";
+    type Response = MissingDefinitions;
+}

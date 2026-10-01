@@ -59,9 +59,9 @@ impl DependenciesManagerView {
     ) -> Result<Option<RFileInfo>> {
 
         // Get the decoded Table.
-        let table = send_ipc_command_result(Command::GetDependencyPackFilesList(file_view.pack_key_copy()), response_extractor!(Response::VecBoolString))?;
-        let table_data = TableType::DependencyManager(table.iter()
-            .map(|(hard, pack)| vec![DecodedData::Boolean(hard.to_owned()), DecodedData::StringU8(pack.to_owned())])
+        let dependencies = pack_details(&file_view.pack_key_copy())?.dependencies;
+        let table_data = TableType::DependencyManager(dependencies.into_iter()
+            .map(|dependency| vec![DecodedData::Boolean(dependency.enabled), DecodedData::StringU8(dependency.name)])
             .collect::<Vec<Vec<DecodedData>>>());
 
         let table_view = TableView::new_view(

@@ -79,6 +79,16 @@ impl Request for Configure {
     type Response = Done;
 }
 
+/// `session.disconnect`: tells the server the client is closing, so its WebSocket session is removed right away
+/// instead of waiting for the timeout. Only for WebSocket clients.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Disconnect {}
+
+impl Request for Disconnect {
+    const METHOD: &'static str = "session.disconnect";
+    type Response = Done;
+}
+
 /// `session.set_game`: selects a game, loading its schema and, optionally, its dependencies. Runs as a job.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct SetGame {

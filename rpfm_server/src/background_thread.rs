@@ -34,7 +34,7 @@ use std::sync::Arc;
 use rpfm_ipc::messages::{Command, Response};
 use rpfm_ipc::settings_keys::*;
 
-use rpfm_lib::files::{Container, pack::PFHFlags, RFileDecoded};
+use rpfm_lib::files::{Container, RFileDecoded};
 
 use rpfm_telemetry::info;
 
@@ -42,7 +42,7 @@ use crate::comms::CentralCommand;
 use crate::api;
 use crate::session::{Session, SessionMessage};
 use rpfm_ipc::settings::*;
-use crate::state::{DecodedFile, ExtractOptions, SaveOptions, SessionState};
+use crate::state::{DecodedFile, ExtractOptions, SessionState};
 
 /// Extracts the variant name (e.g. `"NewPack"`) from a [`Command`] for telemetry.
 ///
@@ -132,12 +132,6 @@ async fn dispatch(state: &mut SessionState, command: Command, sender: &Unbounded
         tsv_keys_first: settings.bool(TABLES_USE_OLD_COLUMN_ORDER_FOR_TSV),
     };
 
-    let save_options = SaveOptions {
-        disable_uuid_regeneration,
-        allow_editing_of_ca_packfiles: settings.bool(ALLOW_EDITING_OF_CA_PACKFILES),
-        clean: false,
-    };
-
     match command {
 
         // Handled by the loop.
@@ -147,40 +141,9 @@ async fn dispatch(state: &mut SessionState, command: Command, sender: &Unbounded
         Command::ClientDisconnecting => success(sender),
 
         // Packs.
-        Command::NewPack => send(sender, Response::String(state.new_pack(&settings))),
-        Command::OpenPackFiles(paths) => reply(sender, state.open_packs(&paths, settings.bool(USE_LAZY_LOADING)), |(key, info)| Response::StringContainerInfo(key, info)),
-        Command::LoadAllCAPackFiles => reply(sender, state.open_ca_packs(&settings), |(key, info)| Response::StringContainerInfo(key, info)),
-        Command::ClosePack(pack_key) => reply(sender, state.close_pack(&pack_key), done),
-        Command::CloseAllPacks => {
-            state.close_all_packs();
-            success(sender);
-        }
-        Command::ListOpenPacks => send(sender, Response::VecStringContainerInfo(state.open_packs_info())),
-        Command::SavePack(pack_key) => reply(sender, state.save_pack(&pack_key, None, save_options), Response::ContainerInfo),
-        Command::SavePackAs(pack_key, path) => reply(sender, state.save_pack(&pack_key, Some(&path), save_options), Response::ContainerInfo),
 
         // Cleaning is the last resort when saving fails, so it doesn't check the pack's type.
-        Command::CleanAndSavePackAs(pack_key, path) => {
-            let options = SaveOptions { allow_editing_of_ca_packfiles: true, clean: true, ..save_options };
-            reply(sender, state.save_pack(&pack_key, Some(&path), options), Response::ContainerInfo);
-        }
         Command::GetPackFileDataForTreeView(pack_key) => reply(sender, state.pack_tree_data(&pack_key), Response::ContainerInfoVecRFileInfo),
-        Command::GetPackFilePath(pack_key) => reply(sender, state.pack_path(&pack_key), Response::PathBuf),
-        Command::GetPackFileName(pack_key) => reply(sender, state.pack_name(&pack_key), Response::String),
-        Command::SetPackFileType(pack_key, pack_type) => reply(sender, state.set_pack_file_type(&pack_key, pack_type), done),
-        Command::ChangeIndexIncludesTimestamp(pack_key, enabled) => reply(sender, state.set_pack_flag(&pack_key, PFHFlags::HAS_INDEX_WITH_TIMESTAMPS, enabled), done),
-        Command::ChangeIndexIsEncrypted(pack_key, enabled) => reply(sender, state.set_pack_flag(&pack_key, PFHFlags::HAS_ENCRYPTED_INDEX, enabled), done),
-        Command::ChangeDataIsEncrypted(pack_key, enabled) => reply(sender, state.set_pack_flag(&pack_key, PFHFlags::HAS_ENCRYPTED_DATA, enabled), done),
-        Command::ChangeCompressionFormat(pack_key, format) => reply(sender, state.set_compression_format(&pack_key, format), Response::CompressionFormat),
-        Command::GetDependencyPackFilesList(pack_key) => reply(sender, state.pack_dependencies(&pack_key), Response::VecBoolString),
-        Command::SetDependencyPackFilesList(pack_key, dependencies) => reply(sender, state.set_pack_dependencies(&pack_key, dependencies), done),
-        Command::GetPackSettings(pack_key) => reply(sender, state.pack_settings(&pack_key), Response::PackSettings),
-        Command::SetPackSettings(pack_key, pack_settings) => reply(sender, state.set_pack_settings(&pack_key, pack_settings), done),
-        Command::SetPackOperationalMode(pack_key, mode) => reply(sender, state.set_pack_operational_mode(&pack_key, mode), done),
-        Command::GetPackOperationalMode(pack_key) => send(sender, Response::OperationalMode(state.pack_operational_mode(&pack_key))),
-        Command::TriggerBackupAutosave(pack_key) => reply(sender, state.backup_autosave(&pack_key, &settings, disable_uuid_regeneration, settings.i32(AUTOSAVE_AMOUNT) as usize), done),
-        Command::GetMissingDefinitions(pack_key) => reply(sender, state.export_missing_definitions(&pack_key), done),
-        Command::OpenContainingFolder(pack_key) => reply(sender, state.open_containing_folder(&pack_key), done),
 
         // Files.
         Command::GetRFileInfo(pack_key, path) => reply(sender, state.file_info(&pack_key, &path), Response::OptionRFileInfo),

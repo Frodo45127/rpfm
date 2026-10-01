@@ -26,6 +26,7 @@ use qt_core::QPtr;
 use qt_core::QString;
 use qt_core::{SlotNoArgs, SlotOfBool, SlotOfQModelIndexInt, SlotOfQString};
 
+use anyhow::{anyhow, Result};
 use itertools::Itertools;
 
 use std::collections::HashSet;
@@ -34,6 +35,7 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 
+use rpfm_ipc::api::packs::{ClosePack, PackDetails, UpdatePack};
 use rpfm_ipc::api::tables::{MergeTables, TableUpgraded, TablesMerged, UpgradeTable};
 use rpfm_ipc::api::tools::{GenerateMissingLocs, ListPluginScripts, LiveExport, MapTile, PackMap, PatchSiegeAi};
 use rpfm_ipc::helpers::DataSource;
@@ -48,10 +50,9 @@ use rpfm_lib::utils::*;
 use rpfm_ui_common::clone;
 
 use crate::app_ui::AppUI;
-use crate::CENTRAL_COMMAND;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
-use crate::communications::{Command, Response, call_api, call_api_async, send_ipc_command, send_ipc_command_result, send_ipc_command_result_async, send_ipc_command_async};
+use crate::communications::{Command, Response, call_api, call_api_async, send_ipc_command, send_ipc_command_result, pack_details, pack_operational_mode, open_packs, save_pack};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::lua_tests_ui;
 use crate::pack_tree::{PackTree, TreeViewOperation};
@@ -689,7 +690,7 @@ impl PackFileContentsSlots {
                     let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
 
                     // Query the pack's operational mode for MyMod action visibility.
-                    let mode = send_ipc_command(Command::GetPackOperationalMode(pack_key.clone()), response_extractor!(Response::OperationalMode));
+                    let mode = pack_operational_mode(&pack_key);
                     let is_mymod = matches!(mode, OperationalMode::MyMod(..));
                     pack_file_contents_ui.context_menu_mymod_import.set_visible(is_mymod);
                     pack_file_contents_ui.context_menu_mymod_export.set_visible(is_mymod);
@@ -700,9 +701,9 @@ impl PackFileContentsSlots {
                     // (e.g. just-closed pack, stale selection after a save-as). A dialog here would be
                     // noisy — the menu items stay at their previous state instead.
                     if !pack_key.is_empty() {
-                        if let Ok((ui_data, _)) = send_ipc_command_result(Command::GetPackFileDataForTreeView(pack_key), response_extractor!(Response::ContainerInfoVecRFileInfo)) {
+                        if let Ok(details) = pack_details(&pack_key) {
                             pack_file_contents_ui.context_menu_packfile_type_group.block_signals(true);
-                            match ui_data.pfh_file_type() {
+                            match details.summary.pack_type {
                                 PFHFileType::Boot => pack_file_contents_ui.context_menu_packfile_type_boot.set_checked(true),
                                 PFHFileType::Release => pack_file_contents_ui.context_menu_packfile_type_release.set_checked(true),
                                 PFHFileType::Patch => pack_file_contents_ui.context_menu_packfile_type_patch.set_checked(true),
@@ -712,7 +713,7 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_packfile_type_group.block_signals(false);
 
                             pack_file_contents_ui.context_menu_compression_group.block_signals(true);
-                            match ui_data.compress() {
+                            match details.compression {
                                 CompressionFormat::None => pack_file_contents_ui.context_menu_compression_none.set_checked(true),
                                 CompressionFormat::Lzma1 => pack_file_contents_ui.context_menu_compression_lzma1.set_checked(true),
                                 CompressionFormat::Lz4 => pack_file_contents_ui.context_menu_compression_lz4.set_checked(true),
@@ -720,12 +721,12 @@ impl PackFileContentsSlots {
                             }
                             pack_file_contents_ui.context_menu_compression_group.block_signals(false);
 
-                            pack_file_contents_ui.context_menu_data_is_encrypted.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_ENCRYPTED_DATA));
-                            pack_file_contents_ui.context_menu_index_includes_timestamp.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS));
-                            pack_file_contents_ui.context_menu_index_is_encrypted.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_ENCRYPTED_INDEX));
-                            pack_file_contents_ui.context_menu_header_is_extended.set_checked(ui_data.bitmask().contains(PFHFlags::HAS_EXTENDED_HEADER));
+                            pack_file_contents_ui.context_menu_data_is_encrypted.set_checked(details.data_encrypted);
+                            pack_file_contents_ui.context_menu_index_includes_timestamp.set_checked(details.index_includes_timestamp);
+                            pack_file_contents_ui.context_menu_index_is_encrypted.set_checked(details.index_encrypted);
+                            pack_file_contents_ui.context_menu_header_is_extended.set_checked(details.extended_header);
 
-                            let supports_encryption = ui_data.pfh_version().supports_encryption();
+                            let supports_encryption = details.version.supports_encryption();
                             pack_file_contents_ui.context_menu_index_is_encrypted.set_enabled(supports_encryption);
                             pack_file_contents_ui.context_menu_data_is_encrypted.set_enabled(supports_encryption);
                         }
@@ -770,7 +771,7 @@ impl PackFileContentsSlots {
 
                 // Query the selected pack's operational mode to set the initial directory.
                 let selected_pack_key_for_mode = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                let pack_mode = send_ipc_command(Command::GetPackOperationalMode(selected_pack_key_for_mode), response_extractor!(Response::OperationalMode));
+                let pack_mode = pack_operational_mode(&selected_pack_key_for_mode);
 
                 match pack_mode {
 
@@ -921,7 +922,7 @@ impl PackFileContentsSlots {
 
                 // Query the selected pack's operational mode to set the initial directory.
                 let selected_pack_key_for_mode = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                let pack_mode = send_ipc_command(Command::GetPackOperationalMode(selected_pack_key_for_mode), response_extractor!(Response::OperationalMode));
+                let pack_mode = pack_operational_mode(&selected_pack_key_for_mode);
 
                 match pack_mode {
 
@@ -1070,21 +1071,16 @@ impl PackFileContentsSlots {
                 let source_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
 
                 // Query all open packs from the server.
-                let pack_list = send_ipc_command(Command::ListOpenPacks, response_extractor!(Response::VecStringContainerInfo));
-                for (pack_key, pack_info) in &pack_list {
+                for pack in &open_packs() {
                     // Skip the source pack itself.
-                    if *pack_key == source_key {
+                    if pack.key == source_key {
                         continue;
                     }
 
-                    // Use the file name from the pack path as the display name, or fallback to the key.
-                    let display_name = std::path::Path::new(pack_info.file_path())
-                        .file_name()
-                        .map(|n| n.to_string_lossy().to_string())
-                        .unwrap_or_else(|| pack_key.clone());
-
-                    let action = menu.add_action_q_string(&QString::from_std_str(&display_name));
-                    action.set_data(&qt_core::QVariant::from_q_string(&QString::from_std_str(pack_key)));
+                    // Use the file name of the pack as the display name, or fallback to the key.
+                    let display_name = if pack.name.is_empty() { &pack.key } else { &pack.name };
+                    let action = menu.add_action_q_string(&QString::from_std_str(display_name));
+                    action.set_data(&qt_core::QVariant::from_q_string(&QString::from_std_str(&pack.key)));
                 }
 
                 // If the menu is empty, add a disabled placeholder.
@@ -1619,7 +1615,7 @@ impl PackFileContentsSlots {
             app_ui,
             pack_file_contents_ui => move |_| {
             let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-            if let Err(error) = send_ipc_command_result(Command::OpenContainingFolder(pack_key), response_extractor!()) {
+            if let Err(error) = open_containing_folder(&pack_key) {
                 show_dialog(app_ui.main_window(), error, false);
             }
         }));
@@ -1945,7 +1941,7 @@ impl PackFileContentsSlots {
                     Some(key) => key,
                     None => return show_dialog(app_ui.main_window(), "No pack is open.", false),
                 };
-                let pack_path = match send_ipc_command_result(Command::GetPackFilePath(pack_key), response_extractor!(Response::PathBuf)) {
+                let pack_path = match pack_details(&pack_key).map(|details| PathBuf::from(details.summary.path)) {
                     Ok(path) => path,
                     Err(error) => return show_dialog(app_ui.main_window(), error, false),
                 };
@@ -2002,7 +1998,7 @@ impl PackFileContentsSlots {
                     Some(key) => key,
                     None => return show_dialog(app_ui.main_window(), "No pack is open.", false),
                 };
-                let pack_path = match send_ipc_command_result(Command::GetPackFilePath(pack_key), response_extractor!(Response::PathBuf)) {
+                let pack_path = match pack_details(&pack_key).map(|details| PathBuf::from(details.summary.path)) {
                     Ok(path) => path,
                     Err(error) => return show_dialog(app_ui.main_window(), error, false),
                 };
@@ -2067,8 +2063,7 @@ impl PackFileContentsSlots {
                 };
 
                 let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                let _ = CENTRAL_COMMAND.read().unwrap().send(Command::SetPackFileType(pack_key, packfile_type));
-                UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+                update_pack(&app_ui, &pack_file_contents_ui, UpdatePack { pack: pack_key, pack_type: Some(packfile_type), ..Default::default() });
             }
         ));
 
@@ -2077,16 +2072,15 @@ impl PackFileContentsSlots {
             pack_file_contents_ui => move |_| {
                 let compression_format = CompressionFormat::from(pack_file_contents_ui.context_menu_compression_group.checked_action().text().remove_q_string(&QString::from_std_str("&")).to_std_string().as_str());
                 let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                let cf = send_ipc_command_async(Command::ChangeCompressionFormat(pack_key, compression_format), response_extractor!(Response::CompressionFormat));
+                let Some(details) = update_pack(&app_ui, &pack_file_contents_ui, UpdatePack { pack: pack_key, compression: Some(compression_format), ..Default::default() }) else { return };
                 pack_file_contents_ui.context_menu_compression_group.block_signals(true);
-                match cf {
+                match details.compression {
                     CompressionFormat::None => pack_file_contents_ui.context_menu_compression_none.set_checked(true),
                     CompressionFormat::Lzma1 => pack_file_contents_ui.context_menu_compression_lzma1.set_checked(true),
                     CompressionFormat::Lz4 => pack_file_contents_ui.context_menu_compression_lz4.set_checked(true),
                     CompressionFormat::Zstd => pack_file_contents_ui.context_menu_compression_zstd.set_checked(true),
                 }
                 pack_file_contents_ui.context_menu_compression_group.block_signals(false);
-                UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
             }
         ));
 
@@ -2095,8 +2089,7 @@ impl PackFileContentsSlots {
             pack_file_contents_ui => move |_| {
                 let state = pack_file_contents_ui.context_menu_index_includes_timestamp.is_checked();
                 let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ChangeIndexIncludesTimestamp(pack_key, state));
-                UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+                update_pack(&app_ui, &pack_file_contents_ui, UpdatePack { pack: pack_key, index_includes_timestamp: Some(state), ..Default::default() });
             }
         ));
 
@@ -2105,8 +2098,7 @@ impl PackFileContentsSlots {
             pack_file_contents_ui => move |_| {
                 let state = pack_file_contents_ui.context_menu_index_is_encrypted.is_checked();
                 let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ChangeIndexIsEncrypted(pack_key, state));
-                UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+                update_pack(&app_ui, &pack_file_contents_ui, UpdatePack { pack: pack_key, index_encrypted: Some(state), ..Default::default() });
             }
         ));
 
@@ -2115,8 +2107,7 @@ impl PackFileContentsSlots {
             pack_file_contents_ui => move |_| {
                 let state = pack_file_contents_ui.context_menu_data_is_encrypted.is_checked();
                 let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ChangeDataIsEncrypted(pack_key, state));
-                UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+                update_pack(&app_ui, &pack_file_contents_ui, UpdatePack { pack: pack_key, data_encrypted: Some(state), ..Default::default() });
             }
         ));
 
@@ -2251,7 +2242,7 @@ impl PackFileContentsSlots {
                         let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
                         let file_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
                         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                        match send_ipc_command_result_async(Command::CleanAndSavePackAs(pack_key.clone(), path), response_extractor!(Response::ContainerInfo)) {
+                        match save_pack(&pack_key, Some(path), true) {
                             Ok(pack_file_info) => {
                                 let mut build_data = BuildData::new();
                                 build_data.editable = true;
@@ -2338,7 +2329,7 @@ impl PackFileContentsSlots {
                     rpfm_telemetry::track_action("Delete MyMod");
 
                     let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    let mode = send_ipc_command(Command::GetPackOperationalMode(pack_key.clone()), response_extractor!(Response::OperationalMode));
+                    let mode = pack_operational_mode(&pack_key);
 
                     if let OperationalMode::MyMod(ref game_folder_name, ref mod_name) = mode {
                         let old_mod_name = mod_name.clone();
@@ -2368,7 +2359,7 @@ impl PackFileContentsSlots {
 
                             AppUI::build_open_mymod_submenus(&app_ui);
 
-                            let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ClosePack(pack_key.clone()));
+                            let _ = call_api(&ClosePack { pack: pack_key.clone() });
                             AppUI::enable_packfile_actions(&app_ui, false);
                             pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clear, DataSource::PackFile, &pack_key);
                             global_search_ui.update_pack_sources(&pack_file_contents_ui);
@@ -2387,7 +2378,7 @@ impl PackFileContentsSlots {
             app_ui,
             pack_file_contents_ui => move |_| {
                 let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                let mode = send_ipc_command(Command::GetPackOperationalMode(pack_key), response_extractor!(Response::OperationalMode));
+                let mode = pack_operational_mode(&pack_key);
 
                 if let OperationalMode::MyMod(ref game_folder_name, ref mod_name) = mode {
                     let mymods_base_path = settings_path_buf(MYMOD_BASE_PATH);
@@ -2496,4 +2487,40 @@ impl PackFileContentsSlots {
             packfile_contents_tree_view_collapse_all,
 		}
 	}
+}
+
+/// Changes the header of a pack, marking the UI as modified if it worked, and showing the error otherwise.
+///
+/// # Returns
+///
+/// The details of the pack after the change, or `None` if it failed.
+unsafe fn update_pack(app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>, request: UpdatePack) -> Option<PackDetails> {
+    match call_api(&request) {
+        Ok(details) => {
+            UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
+            Some(details)
+        }
+        Err(error) => {
+            show_dialog(app_ui.main_window(), error, false);
+            None
+        }
+    }
+}
+
+/// Opens the folder containing a pack in the system's file manager.
+fn open_containing_folder(pack_key: &str) -> Result<()> {
+    let path = pack_details(pack_key)?.summary.path;
+
+    // Canonicalized Windows paths break opening them.
+    let path = path.strip_prefix("//?/").or_else(|| path.strip_prefix("\\\\?\\")).unwrap_or(&path);
+    let path = PathBuf::from(path);
+    if !path.is_file() {
+        return Err(anyhow!("This Pack doesn't exists as a file in the disk."));
+    }
+
+    if let Some(folder) = path.parent() {
+        open::that(folder)?;
+    }
+
+    Ok(())
 }

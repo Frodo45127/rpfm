@@ -62,6 +62,7 @@ use std::fmt::{self, Display};
 use rpfm_extensions::dependencies::Dependencies;
 
 use crate::api::files::FileSource;
+use crate::api::packs::PackDetails;
 
 use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::games::{*, pfh_file_type::PFHFileType, pfh_version::PFHVersion};
@@ -287,6 +288,29 @@ impl From<&Pack> for ContainerInfo {
             bitmask: *pack.header().bitmask(),
             timestamp: *pack.header().internal_timestamp(),
             compress: pack.compression_format(),
+        }
+    }
+}
+
+impl From<&PackDetails> for ContainerInfo {
+    fn from(details: &PackDetails) -> Self {
+        let mut bitmask = PFHFlags::empty();
+        bitmask.set(PFHFlags::HAS_ENCRYPTED_INDEX, details.index_encrypted);
+        bitmask.set(PFHFlags::HAS_ENCRYPTED_DATA, details.data_encrypted);
+        bitmask.set(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS, details.index_includes_timestamp);
+        bitmask.set(PFHFlags::HAS_EXTENDED_HEADER, details.extended_header);
+
+        // Packs never saved have no name, like in the conversion from packs.
+        let file_name = if details.summary.name.is_empty() { "new_file.pack" } else { &details.summary.name };
+
+        Self {
+            file_name: file_name.to_owned(),
+            file_path: details.summary.path.clone(),
+            pfh_version: details.version,
+            pfh_file_type: details.summary.pack_type,
+            bitmask,
+            compress: details.compression,
+            timestamp: details.timestamp,
         }
     }
 }

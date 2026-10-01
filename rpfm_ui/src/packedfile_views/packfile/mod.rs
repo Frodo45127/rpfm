@@ -38,15 +38,15 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use getset::Getters;
 
+use rpfm_ipc::api::packs::OpenPack;
 use rpfm_ipc::helpers::DataSource;
 
 use rpfm_ui_common::utils::{find_widget, load_template};
 
 use crate::app_ui::AppUI;
-use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::ffi::{new_treeview_filter_safe, trigger_treeview_filter_safe};
 use crate::packedfile_views::{FileView, View, ViewType};
@@ -100,13 +100,7 @@ impl PackFileExtraView {
     ) -> Result<()> {
 
         // Load the extra PackFile to memory via the unified packs map. Its key is its path on disk.
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::OpenPackFiles(vec![pack_file_path.clone()]));
-        let response = CentralCommand::recv(&receiver);
-        let pack_key = match response {
-            Response::StringContainerInfo(key, _) => key,
-            Response::Error(error) => return Err(anyhow!(error)),
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-        };
+        let pack_key = call_api(&OpenPack { paths: vec![pack_file_path.clone()], lazy_loading: None })?.key;
 
         // Load the UI Template.
         let template_path = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };

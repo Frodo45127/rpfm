@@ -17,6 +17,7 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use rpfm_lib::compression::CompressionFormat;
+use rpfm_lib::files::pack::PackSettings;
 use rpfm_lib::games::{pfh_file_type::PFHFileType, pfh_version::PFHVersion};
 
 use crate::messages::OperationalMode;
@@ -76,6 +77,12 @@ pub struct PackDetails {
 
     /// If the index of the pack includes the timestamp of each file.
     pub index_includes_timestamp: bool,
+
+    /// If the pack has the extended header of some Arena packs.
+    pub extended_header: bool,
+
+    /// Unix time of the last time the pack was saved.
+    pub timestamp: u64,
 
     /// Packs this pack depends on, loaded as parent files.
     pub dependencies: Vec<PackDependency>,
@@ -196,6 +203,20 @@ pub struct UpdatePack {
     pub operational_mode: Option<OperationalMode>,
 }
 
+/// `pack.backup`: saves a backup copy of an open pack in the autosave folder, removing the oldest copies over the
+/// limit in the settings. Vanilla packs and packs with autosaves disabled are skipped.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BackupPack {
+
+    /// Key of the pack.
+    pub pack: String,
+}
+
+impl Request for BackupPack {
+    const METHOD: &'static str = "pack.backup";
+    type Response = Done;
+}
+
 impl Request for NewPack {
     const METHOD: &'static str = "pack.new";
     type Response = PackSummary;
@@ -270,6 +291,28 @@ pub struct UpdatePackSettings {
     /// Settings to set.
     #[serde(flatten)]
     pub values: PackSettingsValues,
+}
+
+impl From<&PackSettings> for PackSettingsValues {
+    fn from(settings: &PackSettings) -> Self {
+        Self {
+            text: settings.settings_text().clone(),
+            string: settings.settings_string().clone(),
+            bool: settings.settings_bool().clone(),
+            number: settings.settings_number().clone(),
+        }
+    }
+}
+
+impl From<PackSettingsValues> for PackSettings {
+    fn from(values: PackSettingsValues) -> Self {
+        let mut settings = PackSettings::default();
+        *settings.settings_text_mut() = values.text;
+        *settings.settings_string_mut() = values.string;
+        *settings.settings_bool_mut() = values.bool;
+        *settings.settings_number_mut() = values.number;
+        settings
+    }
 }
 
 impl Request for GetPackSettings {

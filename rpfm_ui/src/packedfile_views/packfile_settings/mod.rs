@@ -31,6 +31,8 @@ use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use rpfm_ipc::api::packs::GetPackSettings;
+
 use rpfm_lib::files::pack::{PackSettings, SETTING_KEY_CF};
 
 use rpfm_ui_common::utils::create_grid_layout;
@@ -73,7 +75,7 @@ impl PackFileSettingsView {
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>
     ) -> Result<()> {
-        let settings = send_ipc_command_result(Command::GetPackSettings(pack_file_view.pack_key_copy()), response_extractor!(Response::PackSettings))?;
+        let settings = PackSettings::from(call_api(&GetPackSettings { pack: pack_file_view.pack_key_copy() })?);
 
         let layout: QPtr<QGridLayout> = pack_file_view.main_widget().layout().static_downcast();
 

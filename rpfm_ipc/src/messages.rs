@@ -58,15 +58,13 @@ use std::fmt::Debug;
 use std::path::PathBuf;
 
 
-use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::files::{
     anim_fragment_battle::AnimFragmentBattle, anims_table::AnimsTable, atlas::Atlas, audio::Audio,
     bmd::Bmd, db::DB, esf::ESF, group_formations::GroupFormations, image::Image, loc::Loc,
-    matched_combat::MatchedCombat, pack::PackSettings, portrait_settings::PortraitSettings,
+    matched_combat::MatchedCombat, portrait_settings::PortraitSettings,
     rigidmodel::RigidModel, text::Text, uic::UIC, unit_variant::UnitVariant,
     ContainerPath, RFile, RFileDecoded,
 };
-use rpfm_lib::games::pfh_file_type::PFHFileType;
 use rpfm_lib::schema::{Definition, Field};
 
 use crate::helpers::*;
@@ -125,51 +123,6 @@ pub enum Command {
     // PackFile Operations
     //-----------------------------------------------------------------------//
 
-    /// Closes a specific open Pack identified by its pack key.
-    ///
-    /// Response: [`Response::Success`].
-    ClosePack(String),
-
-    /// Closes all currently open Packs.
-    ///
-    /// Response: [`Response::Success`].
-    CloseAllPacks,
-
-    /// Clean a specific open Pack from corrupted/undecoded files and try to save it to disk.
-    /// First field is the pack key, second is the destination path.
-    ///
-    /// Only use this command if your Pack is not save-able otherwise.
-    ///
-    /// Response:
-    /// - [`Response::ContainerInfo`] on success.
-    /// - [`Response::Error`] on failure.
-    CleanAndSavePackAs(String, PathBuf),
-
-    /// List all currently open packs with their keys and metadata.
-    ///
-    /// Response: [`Response::VecStringContainerInfo`].
-    ListOpenPacks,
-
-    /// Creates a new empty Pack.
-    ///
-    /// Response: [`Response::String`] with the assigned pack key.
-    NewPack,
-
-    /// Save a specific open Pack to disk. The field is the pack key.
-    ///
-    /// Response:
-    /// - [`Response::ContainerInfo`] on success.
-    /// - [`Response::Error`] on failure.
-    SavePack(String),
-
-    /// Save a specific open Pack to a new path.
-    /// First field is the pack key, second is the destination path.
-    ///
-    /// Response:
-    /// - [`Response::ContainerInfo`] on success.
-    /// - [`Response::Error`] on failure.
-    SavePackAs(String, PathBuf),
-
     /// Get the data used to build the `TreeView` for a specific pack.
     /// The field is the pack key.
     ///
@@ -177,66 +130,11 @@ pub enum Command {
     /// - [`Response::ContainerInfoVecRFileInfo`].
     GetPackFileDataForTreeView(String),
 
-    /// Open one or more `PackFiles` and merge them. Requires the paths of the `PackFiles`].
-    ///
-    /// Response:
-    /// - [`Response::StringContainerInfo`] (pack_key, info) on success.
-    /// - [`Response::Error`] on failure.
-    OpenPackFiles(Vec<PathBuf>),
-
-    /// Open all the CA PackFiles for the selected game as one merged PackFile.
-    ///
-    /// Response:
-    /// - [`Response::StringContainerInfo`] (pack_key, info) on success.
-    /// - [`Response::Error`] on failure.
-    LoadAllCAPackFiles,
-
     /// Get the `RFileInfo` of one or more `PackedFiles` from a specific pack.
     /// First field is the pack key, second is the list of file paths.
     ///
     /// Response: [`Response::VecRFileInfo`].
     GetPackedFilesInfo(String, Vec<String>),
-
-    /// Change the `Type` of a specific open Pack.
-    /// First field is the pack key, second is the new type.
-    ///
-    /// Response: [`Response::Success`].
-    SetPackFileType(String, PFHFileType),
-
-    /// Change the `Index Includes Timestamp` flag in a specific open Pack.
-    /// First field is the pack key, second is the flag value.
-    ///
-    /// Response: [`Response::Success`].
-    ChangeIndexIncludesTimestamp(String, bool),
-
-    /// Change the `Index Is Encrypted` flag in a specific open Pack.
-    /// First field is the pack key, second is the flag value.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] if enabling it on a Pack older than PFH4.
-    ChangeIndexIsEncrypted(String, bool),
-
-    /// Change the `Data Is Encrypted` flag in a specific open Pack.
-    /// First field is the pack key, second is the flag value.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] if enabling it on a Pack older than PFH4.
-    ChangeDataIsEncrypted(String, bool),
-
-    /// Change the compression format of a specific open Pack.
-    /// First field is the pack key, second is the compression format.
-    ///
-    /// Response:
-    /// - [`Response::CompressionFormat`] (the actual format set, may differ if unsupported).
-    ChangeCompressionFormat(String, CompressionFormat),
-
-    /// Get the current path of a specific open Pack.
-    /// The field is the pack key.
-    ///
-    /// Response: [`Response::PathBuf`].
-    GetPackFilePath(String),
 
     /// Get the info of a single `PackedFile` from a specific pack.
     /// First field is the pack key, second is the file path.
@@ -414,18 +312,6 @@ pub enum Command {
     // Search Commands
     //-----------------------------------------------------------------------//
 
-    /// Get the list of PackFiles marked as dependencies of a specific pack.
-    /// The field is the pack key.
-    ///
-    /// Response: [`Response::VecBoolString`].
-    GetDependencyPackFilesList(String),
-
-    /// Set the list of PackFiles marked as dependencies of a specific pack.
-    /// First field is the pack key, second is the dependency list.
-    ///
-    /// Response: [`Response::Success`].
-    SetDependencyPackFilesList(String, Vec<(bool, String)>),
-
     /// Get PackedFiles from all known sources (PackFile, GameFiles, ParentFiles).
     /// Requires: paths to get, whether to lowercase paths.
     ///
@@ -462,14 +348,6 @@ pub enum Command {
     // External Program Commands
     //-----------------------------------------------------------------------//
 
-    /// Open the folder containing a specific open PackFile in the file manager.
-    /// The field is the pack key.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] if pack doesn't exist on disk.
-    OpenContainingFolder(String),
-
     /// Open a PackedFile in an external program.
     /// First field is the pack key, then data source and container path.
     ///
@@ -490,12 +368,6 @@ pub enum Command {
     // Program Update Commands
     //-----------------------------------------------------------------------//
 
-    /// Trigger an autosave to a backup for a specific pack.
-    /// The field is the pack key.
-    ///
-    /// Response: [`Response::Success`].
-    TriggerBackupAutosave(String),
-
     //-----------------------------------------------------------------------//
     // Diagnostics Commands
     //-----------------------------------------------------------------------//
@@ -504,27 +376,9 @@ pub enum Command {
     // Pack Settings Commands
     //-----------------------------------------------------------------------//
 
-    /// Get the settings of a specific open PackFile.
-    /// The field is the pack key.
-    ///
-    /// Response: [`Response::PackSettings`].
-    GetPackSettings(String),
-
-    /// Set the settings of a specific open PackFile.
-    /// First field is the pack key, second is the settings.
-    ///
-    /// Response: [`Response::Success`].
-    SetPackSettings(String, PackSettings),
-
     //-----------------------------------------------------------------------//
     // Debug Commands
     //-----------------------------------------------------------------------//
-
-    /// Export missing table definitions from a specific pack to a file (for debugging).
-    /// The field is the pack key.
-    ///
-    /// Response: [`Response::Success`].
-    GetMissingDefinitions(String),
 
     //-----------------------------------------------------------------------//
     // Dependencies Commands
@@ -537,12 +391,6 @@ pub enum Command {
     //-----------------------------------------------------------------------//
     // Navigation Commands
     //-----------------------------------------------------------------------//
-
-    /// Get the name of a specific open PackFile.
-    /// The field is the pack key.
-    ///
-    /// Response: [`Response::String`].
-    GetPackFileName(String),
 
     /// Get the raw binary data of a PackedFile from a specific pack.
     /// First field is the pack key, second is the file path.
@@ -592,18 +440,6 @@ pub enum Command {
     //-----------------------------------------------------------------------//
     // MyMod Commands
     //-----------------------------------------------------------------------//
-
-    /// Set the operational mode for a specific pack.
-    /// First field is the pack key, second is the new operational mode.
-    ///
-    /// Response: [`Response::Success`].
-    SetPackOperationalMode(String, OperationalMode),
-
-    /// Get the operational mode for a specific pack.
-    /// The field is the pack key.
-    ///
-    /// Response: [`Response::OperationalMode`].
-    GetPackOperationalMode(String),
 
     //-----------------------------------------------------------------------//
     // Map Packing Commands
@@ -680,10 +516,7 @@ pub enum Response {
     AtlasRFileInfo(Atlas, RFileInfo),
     AudioRFileInfo(Audio, RFileInfo),
     Bool(bool),
-    CompressionFormat(CompressionFormat),
-    ContainerInfo(ContainerInfo),
     ContainerInfoVecRFileInfo((ContainerInfo, Vec<RFileInfo>)),
-    StringContainerInfo(String, ContainerInfo),
     DBRFileInfo(DB, RFileInfo),
     ESFRFileInfo(ESF, RFileInfo),
     GroupFormationsRFileInfo(GroupFormations, RFileInfo),
@@ -692,21 +525,17 @@ pub enum Response {
     ImageRFileInfo(Image, RFileInfo),
     LocRFileInfo(Loc, RFileInfo),
     MatchedCombatRFileInfo(MatchedCombat, RFileInfo),
-    OperationalMode(OperationalMode),
     OptionRFileInfo(Option<RFileInfo>),
-    PackSettings(PackSettings),
     PathBuf(PathBuf),
     PortraitSettingsRFileInfo(PortraitSettings, RFileInfo),
     RFileDecoded(RFileDecoded),
     RigidModelRFileInfo(RigidModel, RFileInfo),
-    String(String),
     StringVecPathBuf(String, Vec<PathBuf>),
     Text(Text),
     TextRFileInfo(Text, RFileInfo),
     UICRFileInfo(UIC, RFileInfo),
     UnitVariantRFileInfo(UnitVariant, RFileInfo),
     Unknown,
-    VecBoolString(Vec<(bool, String)>),
     VecContainerPath(Vec<ContainerPath>),
     VecContainerPathContainerPath(Vec<(ContainerPath, ContainerPath)>),
     VecContainerPathOptionString(Vec<ContainerPath>, Option<String>),
@@ -715,7 +544,6 @@ pub enum Response {
     VecContainerPathVecString(Vec<ContainerPath>, Vec<String>),
     VecField(Vec<Field>),
     VecRFileInfo(Vec<RFileInfo>),
-    VecStringContainerInfo(Vec<(String, ContainerInfo)>),
     VecU8(Vec<u8>),
     VideoInfoRFileInfo(VideoInfo, RFileInfo),
     VMDRFileInfo(Text, RFileInfo),

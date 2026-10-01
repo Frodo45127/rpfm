@@ -21,6 +21,7 @@ use tokio::sync::mpsc::{unbounded_channel, UnboundedSender, UnboundedReceiver};
 use tokio_tungstenite::{connect_async_with_config, tungstenite::protocol::{Message as WsMessage, WebSocketConfig}};
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::fmt::Debug;
 use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -28,7 +29,10 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 pub use rpfm_ipc::messages::{Command, Response, Message as IpcMessage};
 use rpfm_ipc::api::{ApiError, Request, RpcOutcome, RpcRequest, RpcResponse};
 use rpfm_ipc::api::jobs::{JobStarted, JobState, WaitForJob};
-use rpfm_ipc::api::session::Configure;
+use rpfm_ipc::api::packs::{GetPackInfo, PackDetails, PackSummary, SavePack};
+use rpfm_ipc::helpers::ContainerInfo;
+use rpfm_ipc::api::session::{Configure, Disconnect, GetSessionStatus};
+use rpfm_ipc::messages::OperationalMode;
 
 use rpfm_telemetry::*;
 
@@ -322,6 +326,38 @@ pub fn api_result<T: serde::de::DeserializeOwned>(response: RpcResponse) -> Resu
     }
 }
 
+/// Returns the details of an open pack.
+pub fn pack_details(pack_key: &str) -> Result<PackDetails> {
+    call_api(&GetPackInfo { pack: pack_key.to_owned() })
+}
+
+/// Returns the operational mode of an open pack, or the normal one if the pack isn't open.
+pub fn pack_operational_mode(pack_key: &str) -> OperationalMode {
+    pack_details(pack_key).map(|details| details.operational_mode).unwrap_or_default()
+}
+
+/// Saves an open pack, keeping the settings of the session for the rest of the options.
+///
+/// # Arguments
+///
+/// * `pack_key` - Key of the pack.
+/// * `path` - Path to save the pack to. If `None`, the pack is saved to its current path.
+/// * `clean` - If files that failed to decode are removed before saving.
+///
+/// # Returns
+///
+/// The info of the pack after saving it.
+pub fn save_pack(pack_key: &str, path: Option<PathBuf>, clean: bool) -> Result<ContainerInfo> {
+    let request = SavePack { pack: pack_key.to_owned(), path, clean, disable_uuid_regeneration: None, allow_editing_ca_packs: None };
+    call_api_async(&request)?;
+    pack_details(pack_key).map(|details| ContainerInfo::from(&details))
+}
+
+/// Returns the packs open in the session.
+pub fn open_packs() -> Vec<PackSummary> {
+    call_api(&GetSessionStatus {}).map(|status| status.packs).unwrap_or_default()
+}
+
 /// Request a reconnection to a specific session ID.
 ///
 /// This will signal the WebSocket loop to disconnect from the current session and
@@ -338,7 +374,7 @@ pub fn request_reconnect(session_id: u64) {
 /// the upcoming connection drop from an unexpected disconnect and skip reconnection.
 pub fn request_disconnect() {
     SHUTDOWN_REQUESTED.store(true, Ordering::SeqCst);
-    let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ClientDisconnecting);
+    let _ = CENTRAL_COMMAND.read().unwrap().call(&Disconnect {});
 }
 
 /// Wait for the reconnection to complete, processing Qt events to keep the UI responsive.

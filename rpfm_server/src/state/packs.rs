@@ -14,14 +14,15 @@ use anyhow::{anyhow, Result};
 use rayon::prelude::*;
 
 use std::collections::BTreeMap;
-use std::fs::{DirBuilder, File};
-use std::io::{BufWriter, Cursor, Write};
+use std::fs::DirBuilder;
+use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 use rpfm_ipc::api::ApiError;
 use rpfm_ipc::api::notes::{AddNote, NoteEntry};
 use rpfm_ipc::api::packs::{PackDependency, PackDetails, PackSettingsValues, PackSummary, UpdatePack, UpdatePackSettings};
+use rpfm_ipc::api::schema::MissingDefinitions;
 use rpfm_ipc::helpers::{ContainerInfo, RFileInfo};
 use rpfm_ipc::messages::OperationalMode;
 
@@ -33,7 +34,7 @@ use rpfm_lib::utils::files_in_folder_from_newest_to_oldest;
 
 use rpfm_ipc::settings::{backup_autosave_path, Settings};
 
-use super::{SaveOptions, SessionState, decode_tables, encode_extra_data, pack, pack_mut, pack_summary};
+use super::{SaveOptions, SessionState, decode_tables, encode_extra_data, loaded_schema, pack, pack_mut, pack_summary};
 
 /// Stem used to seed names for newly created Packs (`new_pack.pack`, `new_pack_2.pack`, …).
 const DEFAULT_PACK_STEM: &str = "new_pack";
@@ -149,13 +150,6 @@ impl SessionState {
 
         self.packs.clear();
         self.pack_modes.clear();
-    }
-
-    /// Returns the key and info of every open pack.
-    pub fn open_packs_info(&self) -> Vec<(String, ContainerInfo)> {
-        self.packs.iter()
-            .map(|(key, pack)| (key.clone(), ContainerInfo::from(pack)))
-            .collect()
     }
 
     /// Saves a pack to disk.
@@ -275,6 +269,8 @@ impl SessionState {
             index_encrypted: bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX),
             data_encrypted: bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA),
             index_includes_timestamp: bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS),
+            extended_header: bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER),
+            timestamp: pack.internal_timestamp(),
             dependencies: pack.dependencies().iter()
                 .map(|(enabled, name)| PackDependency { enabled: *enabled, name: name.clone() })
                 .collect(),
@@ -292,37 +288,6 @@ impl SessionState {
         Ok(pack(&self.packs, pack_key)?.disk_file_name())
     }
 
-    /// Changes the type of a pack.
-    pub fn set_pack_file_type(&mut self, pack_key: &str, pack_type: PFHFileType) -> Result<()> {
-        pack_mut(&mut self.packs, pack_key)?.set_pfh_file_type(pack_type);
-        Ok(())
-    }
-
-    /// Sets or clears one of the flags of a pack.
-    ///
-    /// # Arguments
-    ///
-    /// * `pack_key` - Key of the pack to change.
-    /// * `flag` - Flag to change.
-    /// * `state` - If the flag should be set or cleared.
-    ///
-    /// # Errors
-    ///
-    /// Fails if the flag is one of the encryption ones and the pack's version doesn't support encryption.
-    pub fn set_pack_flag(&mut self, pack_key: &str, flag: PFHFlags, state: bool) -> Result<()> {
-        let pack = pack_mut(&mut self.packs, pack_key)?;
-
-        let is_encryption_flag = flag == PFHFlags::HAS_ENCRYPTED_INDEX || flag == PFHFlags::HAS_ENCRYPTED_DATA;
-        if is_encryption_flag && state && !pack.pfh_version().supports_encryption() {
-            return Err(anyhow!("Encryption is not supported in {} Packs.", pack.pfh_version().value()));
-        }
-
-        let mut bitmask = pack.bitmask();
-        bitmask.set(flag, state);
-        pack.set_bitmask(bitmask);
-        Ok(())
-    }
-
     /// Changes the compression format of a pack.
     ///
     /// # Returns
@@ -332,26 +297,9 @@ impl SessionState {
         Ok(pack_mut(&mut self.packs, pack_key)?.set_compression_format(compression_format, &self.game))
     }
 
-    /// Returns the parent packs of a pack, and if each one is enabled.
-    pub fn pack_dependencies(&self, pack_key: &str) -> Result<Vec<(bool, String)>> {
-        Ok(pack(&self.packs, pack_key)?.dependencies().to_vec())
-    }
-
-    /// Replaces the parent packs of a pack.
-    pub fn set_pack_dependencies(&mut self, pack_key: &str, dependencies: Vec<(bool, String)>) -> Result<()> {
-        pack_mut(&mut self.packs, pack_key)?.set_dependencies(dependencies);
-        Ok(())
-    }
-
     /// Returns the settings of a pack.
     pub fn pack_settings(&self, pack_key: &str) -> Result<PackSettings> {
         Ok(pack(&self.packs, pack_key)?.settings().clone())
-    }
-
-    /// Replaces the settings of a pack.
-    pub fn set_pack_settings(&mut self, pack_key: &str, settings: PackSettings) -> Result<()> {
-        pack_mut(&mut self.packs, pack_key)?.set_settings(settings);
-        Ok(())
     }
 
     /// Appends a line to the list of files a pack ignores in the diagnostics.
@@ -366,13 +314,6 @@ impl SessionState {
         Ok(())
     }
 
-    /// Changes the operational mode of a pack.
-    pub fn set_pack_operational_mode(&mut self, pack_key: &str, mode: OperationalMode) -> Result<()> {
-        pack(&self.packs, pack_key)?;
-        self.pack_modes.insert(pack_key.to_owned(), mode);
-        Ok(())
-    }
-
     /// Returns the operational mode of a pack. Unknown packs are in normal mode.
     pub fn pack_operational_mode(&self, pack_key: &str) -> OperationalMode {
         self.pack_modes.get(pack_key).cloned().unwrap_or(OperationalMode::Normal)
@@ -380,13 +321,7 @@ impl SessionState {
 
     /// Returns the settings of a pack.
     pub fn pack_settings_values(&self, pack_key: &str) -> Result<PackSettingsValues> {
-        let settings = pack(&self.packs, pack_key)?.settings();
-        Ok(PackSettingsValues {
-            text: settings.settings_text().clone(),
-            string: settings.settings_string().clone(),
-            bool: settings.settings_bool().clone(),
-            number: settings.settings_number().clone(),
-        })
+        Ok(PackSettingsValues::from(pack(&self.packs, pack_key)?.settings()))
     }
 
     /// Changes settings of a pack. Only the keys set in the request are changed.
@@ -495,43 +430,35 @@ impl SessionState {
         Ok(())
     }
 
-    /// Writes the list of tables of a pack with no definition in the schema to `missing_table_definitions.txt`.
+    /// Returns the tables of a pack with rows that can't be decoded with the schema, sorted by path.
     ///
     /// This is slow, and only useful when a new patch lands and you want to know what tables need decoding.
-    pub fn export_missing_definitions(&mut self, pack_key: &str) -> Result<()> {
+    pub fn missing_definitions(&mut self, pack_key: &str) -> Result<MissingDefinitions> {
         let pack = pack_mut(&mut self.packs, pack_key)?;
+        let schema = loaded_schema(&self.schema)?;
 
-        let mut counter = 0;
-        let mut table_list = String::new();
-        if let Some(ref schema) = self.schema {
-            let mut extra_data = DecodeableExtraData::default();
-            extra_data.set_schema(Some(schema));
-            let extra_data = Some(extra_data);
+        let mut extra_data = DecodeableExtraData::default();
+        extra_data.set_schema(Some(schema));
+        let extra_data = Some(extra_data);
 
-            let mut files = pack.files_by_type_mut(&[FileType::DB]);
-            files.sort_by_key(|file| file.path_in_container_raw().to_lowercase());
+        let mut files = pack.files_by_type_mut(&[FileType::DB]);
+        files.sort_by_key(|file| file.path_in_container_raw().to_lowercase());
 
-            for file in files {
-                if file.decode(&extra_data, false, false).is_err() && file.load().is_ok() {
-                    if let Ok(raw_data) = file.cached() {
-                        let mut reader = Cursor::new(raw_data);
-                        if let Ok((_, _, _, entry_count)) = DB::read_header(&mut reader) {
-                            if entry_count > 0 {
-                                counter += 1;
-                                table_list.push_str(&format!("{}, {:?}\n", counter, file.path_in_container_raw()))
-                            }
+        let mut paths = vec![];
+        for file in files {
+            if file.decode(&extra_data, false, false).is_err() && file.load().is_ok() {
+                if let Ok(raw_data) = file.cached() {
+                    let mut reader = Cursor::new(raw_data);
+                    if let Ok((_, _, _, entry_count)) = DB::read_header(&mut reader) {
+                        if entry_count > 0 {
+                            paths.push(file.path_in_container_raw().to_owned());
                         }
                     }
                 }
             }
         }
 
-        if let Ok(file) = File::create(exe_path().join("missing_table_definitions.txt")) {
-            let mut file = BufWriter::new(file);
-            let _ = file.write_all(table_list.as_bytes());
-        }
-
-        Ok(())
+        Ok(MissingDefinitions { paths })
     }
 
     /// Exports the files of a pack to the game's data folder, so they can be tested without saving the pack.
@@ -546,29 +473,6 @@ impl SessionState {
         let pack = pack_mut(&mut self.packs, pack_key)?;
         let game_path = settings.path_buf(self.game.key());
         pack.live_export(&self.game, &game_path, disable_uuid_regeneration, tsv_keys_first)?;
-        Ok(())
-    }
-
-    /// Opens the folder containing a pack in the system's file manager.
-    ///
-    /// # Errors
-    ///
-    /// Fails if the pack doesn't exist on disk.
-    pub fn open_containing_folder(&self, pack_key: &str) -> Result<()> {
-        let mut path_str = pack(&self.packs, pack_key)?.disk_file_path().to_owned();
-
-        // Remove canonicalization, as it breaks the open thingy.
-        if path_str.starts_with("//?/") || path_str.starts_with("\\\\?\\") {
-            path_str = path_str[4..].to_string();
-        }
-
-        let mut path = PathBuf::from(path_str);
-        if !path.exists() {
-            return Err(anyhow!("This Pack doesn't exists as a file in the disk."));
-        }
-
-        path.pop();
-        let _ = open::that(&path);
         Ok(())
     }
 
@@ -622,16 +526,4 @@ fn unique_pack_key(key: &str, packs: &BTreeMap<String, Pack>) -> String {
         })
         .find(|candidate| !packs.contains_key(candidate))
         .expect("an unbounded range always finds a free key")
-}
-
-/// In debug mode, this function returns the base folder of the repo.
-/// In release mode, it returns the folder where the executable of the program is.
-fn exe_path() -> PathBuf {
-    if cfg!(debug_assertions) {
-        std::env::current_dir().unwrap()
-    } else {
-        let mut path = std::env::current_exe().unwrap();
-        path.pop();
-        path
-    }
 }

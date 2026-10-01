@@ -22,9 +22,9 @@ use rpfm_ipc::api::files::{
 };
 use rpfm_ipc::api::search::{GetSearchReport, ListSearchMatches, ReplaceSearchMatches, RunSearch};
 use rpfm_ipc::api::notes::{AddNote, DeleteNote, ListNotes, NoteList};
-use rpfm_ipc::api::packs::{ClosePack, CloseAllPacks, GetPackInfo, GetPackSettings, NewPack, OpenPack, OpenVanillaPacks, SavePack, UpdatePack, UpdatePackSettings};
+use rpfm_ipc::api::packs::{BackupPack, ClosePack, CloseAllPacks, GetPackInfo, GetPackSettings, NewPack, OpenPack, OpenVanillaPacks, SavePack, UpdatePack, UpdatePackSettings};
 use rpfm_ipc::api::schema::{
-    DeleteDefinition, GetRawDefinitions, GetReferencingColumns, GetTablePatches, ImportPatches, ListSchemaTables, PatchColumn, RemovePatches, SetDefinition,
+    DeleteDefinition, GetMissingDefinitions, GetRawDefinitions, GetReferencingColumns, GetTablePatches, ImportPatches, ListSchemaTables, PatchColumn, RemovePatches, SetDefinition,
     UpdateSchemaFromAssemblyKit, UpdateSchemas,
 };
 use rpfm_ipc::api::github::{GetGitHubAccount, GitHubAccount, PollGitHubSignIn, SignOutOfGitHub, StartGitHubSignIn};
@@ -38,7 +38,7 @@ use rpfm_ipc::api::tools::{
     ImportCeo, InitMyMod, ListPluginScripts, ListTraitCeos, LiveExport, LuaHover, LuaHovers, LuaTestResults, OptimizePack, OptimizerOptionValues, PackMap,
     optimizer_option_values, PatchSiegeAi, PluginScripts, RunLuaTests, RunPluginScript, SetVideoFormat, StartStartpos, TraitCeos, UpdateAnimIds,
 };
-use rpfm_ipc::settings_keys::{ALLOW_EDITING_OF_CA_PACKFILES, ENABLE_ESF_EDITOR, MYMOD_BASE_PATH, DISABLE_UUID_REGENERATION_ON_DB_TABLES, IGNORE_GAME_FILES_IN_AK, INCLUDE_BASE_FOLDER_ON_ADD_FROM_FOLDER, TABLES_USE_OLD_COLUMN_ORDER_FOR_TSV, USE_LAZY_LOADING};
+use rpfm_ipc::settings_keys::{ALLOW_EDITING_OF_CA_PACKFILES, AUTOSAVE_AMOUNT, ENABLE_ESF_EDITOR, MYMOD_BASE_PATH, DISABLE_UUID_REGENERATION_ON_DB_TABLES, IGNORE_GAME_FILES_IN_AK, INCLUDE_BASE_FOLDER_ON_ADD_FROM_FOLDER, TABLES_USE_OLD_COLUMN_ORDER_FOR_TSV, USE_LAZY_LOADING};
 
 use rpfm_lib::schema::{SCHEMA_BRANCH, SCHEMA_REMOTE, SCHEMA_REPO};
 
@@ -102,6 +102,10 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         GetDependencyTableData::METHOD => call(params, |request: GetDependencyTableData| state.dependency_table_data(&request.table_name)),
 
         GetPackInfo::METHOD => call(params, |request: GetPackInfo| state.pack_details(&request.pack)),
+        BackupPack::METHOD => call(params, |request: BackupPack| {
+            let disable_uuid_regeneration = settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES);
+            state.backup_autosave(&request.pack, settings, disable_uuid_regeneration, settings.i32(AUTOSAVE_AMOUNT) as usize).map(|_| Done {})
+        }),
         NewPack::METHOD => call(params, |_: NewPack| {
             let key = state.new_pack(settings);
             state.pack_summary(&key)
@@ -258,6 +262,7 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         DeleteDefinition::METHOD => call(params, |request: DeleteDefinition| state.delete_definition_and_save(&request, settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES)).map(|_| Done {})),
         GetReferencingColumns::METHOD => call(params, |request: GetReferencingColumns| state.referencing_columns_of(&request)),
         GetTablePatches::METHOD => call(params, |request: GetTablePatches| state.table_patches(&request)),
+        GetMissingDefinitions::METHOD => call(params, |request: GetMissingDefinitions| state.missing_definitions(&request.pack)),
         ImportPatches::METHOD => call(params, |request: ImportPatches| state.import_patches(&request, settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES)).map(|_| Done {})),
         GetReferenceValues::METHOD => call(params, |request: GetReferenceValues| state.reference_values(&request)),
         ListTranslations::METHOD => call(params, |request: ListTranslations| state.list_translations(&request)),

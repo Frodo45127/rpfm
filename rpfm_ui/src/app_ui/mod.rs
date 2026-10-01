@@ -81,6 +81,8 @@ use std::time::Instant;
 
 use rpfm_extensions::merge::{MergeConflict, MergeResolution};
 
+use rpfm_ipc::api::packs::{ClosePack, CloseAllPacks, GetPackSettings, NewPack, OpenPack, UpdatePack};
+use rpfm_ipc::api::schema::GetMissingDefinitions;
 use rpfm_ipc::api::session::{GetDependenciesInfo, ListDependencyTables, RebuildDependencies, SetGame};
 use rpfm_ipc::api::tables::GetColumnValues;
 use rpfm_ipc::api::tools::{FinishStartpos, GetStartposCampaigns, OptimizePack, StartStartpos, UpdateAnimIds, optimizer_option_values};
@@ -93,13 +95,13 @@ use rpfm_telemetry::*;
 use rpfm_lib::utils::*;
 
 use rpfm_ui_common::utils::{create_grid_layout, find_widget, load_template};
-use rpfm_ui_common::ASSETS_PATH;
+use rpfm_ui_common::{ASSETS_PATH, PROGRAM_PATH};
 use rpfm_ui_common::clone;
 use rpfm_ui_common::FULL_DATE_FORMAT;
 use rpfm_ui_common::icons::IconType;
 
 use crate::CENTRAL_COMMAND;
-use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR, call_api, call_api_async, run_job, send_ipc_command, send_ipc_command_result, send_ipc_command_result_async, send_ipc_command_async};
+use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR, call_api, call_api_async, run_job, send_ipc_command, send_ipc_command_result, send_ipc_command_async, pack_details, pack_operational_mode, open_packs, save_pack};
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::*;
@@ -1286,11 +1288,11 @@ impl AppUI {
 
         // Refuse to (re)open a pack that's already open. In non-additive mode the server-side
         // check would be bypassed by the CloseAllPacks call below, so check up-front here.
-        let open_packs = send_ipc_command(Command::ListOpenPacks, response_extractor!(Response::VecStringContainerInfo));
+        let open_packs = open_packs();
         for path in pack_file_paths {
             let pack_key = path.to_string_lossy().to_string();
             let normalized = pack_key.replace('\\', "/");
-            if open_packs.iter().any(|(_, info)| info.file_path() == &normalized) {
+            if open_packs.iter().any(|pack| pack.path == normalized) {
                 return Err(anyhow!("Pack '{}' is already open. Close it first if you want to reopen it.", pack_key));
             }
         }
@@ -1320,13 +1322,16 @@ impl AppUI {
         // In additive mode, each pack is opened individually and added to the tree.
         // In non-additive mode, close all existing packs on the backend first, then open the new ones.
         if !additive {
-            send_ipc_command(Command::CloseAllPacks, response_extractor!());
+            if let Err(error) = call_api(&CloseAllPacks {}) {
+                app_ui.toggle_main_window(true);
+                return Err(error);
+            }
         }
 
         if additive {
             for pack_file_path in pack_file_paths {
-                let (pack_key, _) = match send_ipc_command_result_async(Command::OpenPackFiles(vec![pack_file_path.clone()]), response_extractor!(Response::StringContainerInfo, v1, v2)) {
-                    Ok(result) => result,
+                let pack_key = match call_api_async(&OpenPack { paths: vec![pack_file_path.clone()], lazy_loading: None }) {
+                    Ok(pack) => pack.key,
                     Err(error) => {
                         app_ui.toggle_main_window(true);
                         return Err(error);
@@ -1339,8 +1344,8 @@ impl AppUI {
                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::AddPack(build_data), DataSource::PackFile, &pack_key);
             }
         } else {
-            let (pack_key, _) = match send_ipc_command_result_async(Command::OpenPackFiles(pack_file_paths.to_vec()), response_extractor!(Response::StringContainerInfo, v1, v2)) {
-                Ok(result) => result,
+            let pack_key = match call_api_async(&OpenPack { paths: pack_file_paths.to_vec(), lazy_loading: None }) {
+                Ok(pack) => pack.key,
                 Err(error) => {
                     app_ui.toggle_main_window(true);
                     return Err(error);
@@ -1366,7 +1371,10 @@ impl AppUI {
             let mod_name = path.file_name().unwrap().to_string_lossy().to_string();
             let game_folder_name = path.parent().and_then(|p| p.file_name()).map(|f| f.to_string_lossy().to_string()).unwrap_or_default();
 
-            send_ipc_command(Command::SetPackOperationalMode(pack_key, OperationalMode::MyMod(game_folder_name, mod_name)), response_extractor!());
+            let request = UpdatePack { pack: pack_key, operational_mode: Some(OperationalMode::MyMod(game_folder_name, mod_name)), ..Default::default() };
+            if let Err(error) = call_api(&request) {
+                show_dialog(&app_ui.main_window, error, false);
+            }
         }
 
         // Rebuild parent packs in the dependencies so they reflect the newly opened pack.
@@ -1473,7 +1481,7 @@ impl AppUI {
         // First, we need to save all open `PackedFiles` to the backend. If one fails, we want to know what one.
         AppUI::back_to_back_end_all(app_ui, pack_file_contents_ui)?;
 
-        let mut path = match send_ipc_command_result(Command::GetPackFilePath(pack_key.clone()), response_extractor!(Response::PathBuf)) {
+        let mut path = match pack_details(&pack_key).map(|details| PathBuf::from(details.summary.path)) {
             Ok(path) => path,
             Err(error) => {
                 app_ui.toggle_main_window(true);
@@ -1512,7 +1520,7 @@ impl AppUI {
                 let recent_path = file_dialog.selected_files().at(0).to_std_string();
                 let path = PathBuf::from(&recent_path);
                 let file_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
-                match send_ipc_command_result_async(Command::SavePackAs(pack_key.clone(), path), response_extractor!(Response::ContainerInfo)) {
+                match save_pack(&pack_key, Some(path), false) {
                     Ok(pack_file_info) => {
                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile, &pack_key);
                         let packfile_item = root_item_for_pack(&pack_key);
@@ -1535,7 +1543,7 @@ impl AppUI {
         }
 
         else {
-            match send_ipc_command_result_async(Command::SavePack(pack_key.clone()), response_extractor!(Response::ContainerInfo)) {
+            match save_pack(&pack_key, None, false) {
                 Ok(pack_file_info) => {
                     pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Clean, DataSource::PackFile, &pack_key);
                     let packfile_item = root_item_for_pack(&pack_key);
@@ -1572,7 +1580,10 @@ impl AppUI {
         dependencies_ui: &Rc<DependenciesUI>,
         pack_key: &str,
     ) {
-        let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ClosePack(pack_key.to_string()));
+        if let Err(error) = call_api(&ClosePack { pack: pack_key.to_owned() }) {
+            show_dialog(&app_ui.main_window, error, false);
+        }
+
         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::RemovePack(pack_key.to_string()), DataSource::PackFile, pack_key);
         global_search_ui.update_pack_sources(pack_file_contents_ui);
 
@@ -1597,8 +1608,7 @@ impl AppUI {
         UI_STATE.set_open_packedfiles().retain(|v| v.pack_key_copy() != pack_key);
 
         // If no packs remain, disable pack-dependent actions.
-        let remaining = send_ipc_command(Command::ListOpenPacks, response_extractor!(Response::VecStringContainerInfo));
-        if remaining.is_empty() {
+        if open_packs().is_empty() {
             Self::enable_packfile_actions(app_ui, false);
         }
 
@@ -1835,14 +1845,14 @@ impl AppUI {
         }
 
         // Query the server for all open packs.
-        let pack_list = send_ipc_command(Command::ListOpenPacks, response_extractor!(Response::VecStringContainerInfo));
-
-        for (pack_key, container_info) in &pack_list {
+        let pack_list = open_packs();
+        for pack in &pack_list {
+            let pack_key = pack.key.clone();
 
             // The action label tracks the pack's *current* file name so renames via Save As
             // are reflected on the next menu redraw. The slot still captures `pack_key`,
             // which is the stable backend identifier (a HashMap key that survives renames).
-            let label = QString::from_std_str(container_info.file_name());
+            let label = QString::from_std_str(&pack.name);
 
             // Close Pack action.
             let close_action = app_ui.packfile_close_pack_menu.add_action_q_string(&label);
@@ -3151,7 +3161,7 @@ impl AppUI {
         //
         // That's because usually modders name many of the mod files like that.
         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-        let pack_name = send_ipc_command(Command::GetPackFileName(pack_key.clone()), response_extractor!(Response::String));
+        let pack_name = pack_details(&pack_key).map(|details| details.summary.name).unwrap_or_default();
         let pack_name = if pack_name.to_lowercase().ends_with(".pack") {
             let mut pack_name = pack_name;
             pack_name.pop();
@@ -3307,7 +3317,7 @@ impl AppUI {
         let accept_button = QPushButton::from_q_string(&qtr("gen_loc_accept"));
 
         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-        let packfile_name = send_ipc_command(Command::GetPackFileName(pack_key), response_extractor!(Response::String));
+        let packfile_name = pack_details(&pack_key).map(|details| details.summary.name).unwrap_or_default();
         let packfile_name = if packfile_name.to_lowercase().ends_with(".pack") {
             let mut packfile_name = packfile_name;
             packfile_name.pop();
@@ -3343,7 +3353,7 @@ impl AppUI {
         let name_line_edit = QLineEdit::new();
 
         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-        let packfile_name = send_ipc_command(Command::GetPackFileName(pack_key), response_extractor!(Response::String));
+        let packfile_name = pack_details(&pack_key).map(|details| details.summary.name).unwrap_or_default();
         let packfile_name = if packfile_name.to_lowercase().ends_with(".pack") {
             let mut packfile_name = packfile_name;
             packfile_name.pop();
@@ -3862,9 +3872,9 @@ impl AppUI {
         let open_packedfiles = UI_STATE.get_open_packedfiles();
 
         // Resolve each pack's current display name from the backend, keyed by its (stable) pack key.
-        let pack_name_by_key: HashMap<String, String> = send_ipc_command(Command::ListOpenPacks, response_extractor!(Response::VecStringContainerInfo))
+        let pack_name_by_key: HashMap<String, String> = open_packs()
             .into_iter()
-            .map(|(key, info)| (key, info.file_name().to_owned()))
+            .map(|pack| (pack.key, pack.name))
             .collect();
 
         // Collect distinct pack keys among PackFile-sourced open tabs. When more than one pack
@@ -4006,7 +4016,7 @@ impl AppUI {
                         // follows the reserved prefix in this view's path. Close it so we don't leak it.
                         let path_split = path.split('/').collect::<Vec<_>>();
                         let pack_key = path_split[1..].join("/");
-                        let _ = CENTRAL_COMMAND.read().unwrap().send(Command::ClosePack(pack_key));
+                        let _ = call_api(&ClosePack { pack: pack_key });
                     }
                     else if path.ends_with(DECODER_EXTENSION) {
                         purge_on_delete.push(path.to_owned());
@@ -4159,7 +4169,15 @@ impl AppUI {
         // If we have the setting enabled, ask the backend to generate the missing definition list.
         if settings_bool(CHECK_FOR_MISSING_TABLE_DEFINITIONS) {
             let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-            let _ = CENTRAL_COMMAND.read().unwrap().send(Command::GetMissingDefinitions(pack_key));
+            match call_api(&GetMissingDefinitions { pack: pack_key }) {
+                Ok(missing) => {
+                    let list = missing.paths.iter().enumerate().map(|(index, path)| format!("{}, {path:?}\n", index + 1)).collect::<String>();
+                    if let Err(error) = std::fs::write(PROGRAM_PATH.join("missing_table_definitions.txt"), list) {
+                        warn!("Failed to write the list of missing table definitions: {error}");
+                    }
+                }
+                Err(error) => warn!("Failed to get the missing table definitions: {error}"),
+            }
         }
     }
 
@@ -4172,7 +4190,10 @@ impl AppUI {
     ) {
 
         // Tell the Background Thread to create a new PackFile and get the pack key.
-        let pack_key = send_ipc_command_async(Command::NewPack, response_extractor!(Response::String));
+        let pack_key = match call_api_async(&NewPack {}) {
+            Ok(pack) => pack.key,
+            Err(error) => return show_dialog(&app_ui.main_window, error, false),
+        };
 
         // Reset the autosave timer.
         let timer = settings_i32(AUTOSAVE_INTERVAL);
@@ -4223,7 +4244,7 @@ impl AppUI {
     ) {
         app_ui.toggle_main_window(false);
 
-        let mode = send_ipc_command(Command::GetPackOperationalMode(pack_key.to_string()), response_extractor!(Response::OperationalMode));
+        let mode = pack_operational_mode(pack_key);
 
         match mode {
 
@@ -4260,9 +4281,9 @@ impl AppUI {
                         paths_packedfile.push(ContainerPath::File(filtered_path.to_string_lossy().to_string()));
                     }
 
-                    let settings = send_ipc_command(Command::GetPackSettings(pack_key.to_string()), response_extractor!(Response::PackSettings));
+                    let settings = call_api(&GetPackSettings { pack: pack_key.to_string() }).unwrap_or_default();
 
-                    let files_to_ignore = settings.setting_text("import_files_to_ignore").map(|files_to_ignore| {
+                    let files_to_ignore = settings.text.get("import_files_to_ignore").map(|files_to_ignore| {
                         if files_to_ignore.is_empty() { vec![] } else {
                             files_to_ignore.split('\n')
                                 .filter(|x| !x.is_empty())
@@ -4344,7 +4365,7 @@ impl AppUI {
                 continue;
             }
 
-            let mode = send_ipc_command(Command::GetPackOperationalMode(key.clone()), response_extractor!(Response::OperationalMode));
+            let mode = pack_operational_mode(&key);
             if matches!(mode, OperationalMode::MyMod(..)) {
                 keys.push(key);
             }

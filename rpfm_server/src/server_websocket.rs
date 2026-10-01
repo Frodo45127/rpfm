@@ -40,7 +40,8 @@ use tokio::sync::{broadcast, mpsc};
 
 use std::sync::Arc;
 
-use rpfm_ipc::api::{ApiError, JOB_UPDATED_NOTIFICATION, JSONRPC_VERSION, RpcNotification, RpcRequest, RpcResponse};
+use rpfm_ipc::api::{ApiError, Done, JOB_UPDATED_NOTIFICATION, JSONRPC_VERSION, Request, RpcNotification, RpcRequest, RpcResponse};
+use rpfm_ipc::api::session::Disconnect;
 use rpfm_ipc::messages::{Command, Message as IpcMessage, Response};
 use rpfm_telemetry::{info, warn};
 
@@ -194,6 +195,15 @@ async fn handle_socket(socket: WebSocket, session_manager: Arc<SessionManager>, 
                     // would be escaped, so only a key can match this.
                     if t.contains("\"jsonrpc\"") {
                         if let Ok(request) = serde_json::from_str::<RpcRequest>(&t) {
+
+                            // Disconnecting needs the session manager, so it's answered here, before cleaning up.
+                            if request.method == Disconnect::METHOD {
+                                let done = serde_json::to_value(Done {}).map_err(|error| ApiError::Internal(error.to_string()));
+                                let _ = tx.send(Outgoing::Api(RpcResponse::new(request.id, done)));
+                                graceful_disconnect = true;
+                                break;
+                            }
+
                             handle_api_request(request, &session, &tx);
                             continue;
                         }

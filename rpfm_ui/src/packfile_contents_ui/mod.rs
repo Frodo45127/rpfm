@@ -57,7 +57,7 @@ use rpfm_lib::files::{ContainerPath, pack::RESERVED_NAME_NOTES};
 use rpfm_ui_common::utils::{find_widget, load_template};
 
 use crate::app_ui::AppUI;
-use crate::communications::{Command, Response, call_api_async, send_ipc_command, send_ipc_command_result, send_ipc_command_result_async};
+use crate::communications::{Command, Response, call_api_async, send_ipc_command_result, send_ipc_command_result_async, pack_operational_mode};
 use crate::ffi::*;
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::settings_ui::backend::{settings_bool, settings_path_buf, settings_set_bool};
@@ -699,7 +699,7 @@ impl PackFileContentsUI {
             Some(key) => key.to_owned(),
             None => pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default(),
         };
-        let pack_mode = send_ipc_command(Command::GetPackOperationalMode(selected_pack_key.clone()), response_extractor!(Response::OperationalMode));
+        let pack_mode = pack_operational_mode(&selected_pack_key);
 
         let extraction_path = match pack_mode {
 

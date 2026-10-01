@@ -60,7 +60,7 @@ use rpfm_ipc::api::search::{ListSearchMatches, ReplaceSearchMatches, RunSearch, 
 use rpfm_ipc::api::references::{FindDefinition, FindLoc, FindUsages, GetLocSource, GetReferenceValues, LocSourceLookup, ReferenceValues, RowLocation, Usages};
 use rpfm_ipc::api::notes::{AddNote, DeleteNote, ListNotes, NoteEntry, NoteList};
 use rpfm_ipc::api::schema::{
-    DeleteDefinition, GetRawDefinitions, GetReferencingColumns, GetTablePatches, ImportPatches, ListSchemaTables, PatchColumn, RawDefinitions, ReferencingColumns, RemovePatches, TablePatches,
+    DeleteDefinition, GetRawDefinitions, GetMissingDefinitions, GetReferencingColumns, GetTablePatches, ImportPatches, ListSchemaTables, PatchColumn, RawDefinitions, ReferencingColumns, MissingDefinitions, RemovePatches, TablePatches,
     SchemaTables, SetDefinition, UpdateSchemaFromAssemblyKit, UpdateSchemas,
 };
 use rpfm_ipc::api::translations::{GenerateVanillaTexts, ListTranslations, Translations, VanillaTextsAvailable};
@@ -1321,6 +1321,16 @@ Runs as a job: waits up to 45 seconds and returns its state, with the report as 
     )]
     pub async fn table_patches(&self, params: Parameters<GetTablePatches>) -> Result<CallToolResult, McpError> {
         self.call_api("table_patches", params.0).await
+    }
+
+    #[tool(
+        name = "missing_definitions",
+        description = "List the tables of an open pack with rows the schema can't decode, which need a new definition. Slow on big packs.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<MissingDefinitions>(),
+    )]
+    pub async fn missing_definitions(&self, params: Parameters<GetMissingDefinitions>) -> Result<CallToolResult, McpError> {
+        self.call_api("missing_definitions", params.0).await
     }
 
     #[tool(
