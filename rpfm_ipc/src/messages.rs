@@ -58,8 +58,6 @@ use std::fmt::Debug;
 use std::path::PathBuf;
 
 use rpfm_extensions::merge::{MergeConflict, MergeOptions};
-use rpfm_extensions::translator::PackTranslation;
-use rpfm_extensions::translator::hub::SubmissionResult;
 
 use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::files::{
@@ -70,7 +68,6 @@ use rpfm_lib::files::{
     ContainerPath, RFile, RFileDecoded,
 };
 use rpfm_lib::games::pfh_file_type::PFHFileType;
-use rpfm_lib::integrations::github::DeviceCode;
 use rpfm_lib::schema::{Definition, Field};
 
 use crate::helpers::*;
@@ -103,26 +100,6 @@ pub enum OperationalMode {
     Normal,
 }
 
-
-/// State of a GitHub sign-in, as reported to the frontend. The token itself never leaves the server.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum GitHubSignInState {
-
-    /// The user hasn't approved the sign-in yet.
-    Pending,
-
-    /// Polling too fast. Contains the new minimum seconds between polls.
-    SlowDown(u64),
-
-    /// Signed in. Contains the account's login.
-    SignedIn(String),
-
-    /// The code expired before the user approved it.
-    Expired,
-
-    /// The user rejected the sign-in.
-    Denied,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CeoEntryData {
@@ -773,63 +750,9 @@ pub enum Command {
     // Translation Commands
     //-----------------------------------------------------------------------//
 
-    /// Get pack translation data for a language from a specific pack.
-    /// Fields are: pack key, source language code, target language code.
-    ///
-    /// Response:
-    /// - [`Response::PackTranslation`] on success.
-    /// - [`Response::Error`] on failure.
-    GetPackTranslation(String, String, String),
-
-    /// Generate the vanilla texts of a source language from the game's locale packs, if the game has them.
-    /// The field is the source language code.
-    ///
-    /// Response:
-    /// - [`Response::Bool`] on success: whether vanilla texts for that language are available.
-    /// - [`Response::Error`] on failure.
-    GenerateVanillaTranslationSource(String),
-
     //-----------------------------------------------------------------------//
     // Translation Hub Commands
     //-----------------------------------------------------------------------//
-
-    /// Start signing in to GitHub with the device flow.
-    ///
-    /// Response:
-    /// - [`Response::GitHubDeviceCode`] on success, with the code to show to the user.
-    /// - [`Response::Error`] on failure.
-    GitHubSignInStart,
-
-    /// Check whether the user approved a sign-in started with [`Command::GitHubSignInStart`].
-    /// The field is the device code. Once approved, the server keeps the token in the OS keyring.
-    ///
-    /// Response:
-    /// - [`Response::GitHubSignInState`] on success.
-    /// - [`Response::Error`] on failure.
-    GitHubSignInPoll(String),
-
-    /// Get the GitHub account the user is signed in as.
-    ///
-    /// Response:
-    /// - [`Response::OptionString`] with the account's login, or `None` if not signed in.
-    /// - [`Response::Error`] on failure.
-    GitHubAccount,
-
-    /// Sign out of GitHub, deleting the stored token.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    GitHubSignOut,
-
-    /// Submit a saved translation to the Translation Hub as a pull request, or update its open one.
-    /// Fields are: pack name, source language code, target language code.
-    ///
-    /// Response:
-    /// - [`Response::SubmissionResult`] on success.
-    /// - [`Response::GitHubSignInRequired`] if not signed in, or if GitHub rejected the stored sign-in.
-    /// - [`Response::Error`] on failure.
-    SubmitTranslation(String, String, String),
 
     //-----------------------------------------------------------------------//
     // Starpos Commands
@@ -946,9 +869,6 @@ pub enum Response {
     Definition(Definition),
     DependenciesInfo(DependenciesInfo),
     ESFRFileInfo(ESF, RFileInfo),
-    GitHubDeviceCode(DeviceCode),
-    GitHubSignInRequired,
-    GitHubSignInState(GitHubSignInState),
     GroupFormationsRFileInfo(GroupFormations, RFileInfo),
     HashMapDataSourceHashMapStringRFile(HashMap<DataSource, HashMap<String, RFile>>),
     HashMapDataSourceHashSetContainerPath(HashMap<DataSource, HashSet<ContainerPath>>),
@@ -962,16 +882,13 @@ pub enum Response {
     OperationalMode(OperationalMode),
     OptionContainerPath(Option<ContainerPath>),
     OptionRFileInfo(Option<RFileInfo>),
-    OptionString(Option<String>),
     PackSettings(PackSettings),
-    PackTranslation(PackTranslation),
     PathBuf(PathBuf),
     PortraitSettingsRFileInfo(PortraitSettings, RFileInfo),
     RFileDecoded(RFileDecoded),
     RigidModelRFileInfo(RigidModel, RFileInfo),
     String(String),
     StringVecPathBuf(String, Vec<PathBuf>),
-    SubmissionResult(SubmissionResult),
     Text(Text),
     TextRFileInfo(Text, RFileInfo),
     UICRFileInfo(UIC, RFileInfo),

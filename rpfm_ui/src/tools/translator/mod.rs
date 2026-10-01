@@ -67,13 +67,14 @@ use std::time::{Duration, Instant};
 
 use rpfm_extensions::translator::*;
 
+use rpfm_ipc::api::translations::{GenerateVanillaTexts, GetPackTranslation};
 use rpfm_ipc::api::updates::{ApplyUpdate, CheckUpdate, UpdateComponent};
 use rpfm_ipc::settings_keys::*;
 
 use rpfm_lib::files::{Container, ContainerPath, FileType, pack::Pack, RFileDecoded, table::DecodedData};
 use rpfm_lib::games::{*, supported_games::*};
 
-use crate::communications::{Command, Response, call_api_async, send_ipc_command, send_ipc_command_result};
+use crate::communications::{Command, Response, call_api, call_api_async, send_ipc_command};
 use crate::references_ui::ReferencesUI;
 use crate::settings_ui::backend::{settings_bool, settings_path_buf, settings_set_bool, settings_set_string, settings_string};
 use crate::views::table::{FilterChipState, TableType, TableView, utils::get_table_from_view};
@@ -430,7 +431,7 @@ impl ToolTranslator {
         // The Translation Hub only has English vanilla texts, so other languages have to come from the game files.
         let is_default_src_lang = src_lang.eq_ignore_ascii_case(DEFAULT_SRC_LANG);
         if !is_default_src_lang {
-            let available = send_ipc_command_result(Command::GenerateVanillaTranslationSource(src_lang.clone()), response_extractor!(Response::Bool))?;
+            let available = call_api(&GenerateVanillaTexts { language: src_lang.clone() })?.available;
             if !available {
                 show_message(app_ui.main_window(), Icon::Warning, &qtr("translator_vanilla_source_title"), &qtre("translator_vanilla_source_missing", &[&src_lang, &src_lang, &src_lang]));
             }
@@ -544,7 +545,7 @@ impl ToolTranslator {
 
         // Unlike other tools, data is loaded here, because we need it to generate the table widget.
         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-        let data = send_ipc_command_result(Command::GetPackTranslation(pack_key.clone(), src_lang.clone(), language), response_extractor!(Response::PackTranslation))?;
+        let data = call_api(&GetPackTranslation { pack: pack_key.clone(), source_language: src_lang.clone(), language })?;
 
         let pack_key_arc = Arc::new(RwLock::new(pack_key));
         let ds_pack = Arc::new(RwLock::new(DataSource::PackFile));

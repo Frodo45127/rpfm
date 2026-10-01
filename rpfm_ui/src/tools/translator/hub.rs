@@ -33,10 +33,11 @@ use qt_core::WindowModality;
 use anyhow::{anyhow, Result};
 
 use rpfm_extensions::translator::PackTranslation;
-use rpfm_extensions::translator::hub::SubmissionResult;
+
+use rpfm_ipc::api::translations::{SubmitTranslation, TranslationSubmission};
 
 use crate::GAME_SELECTED;
-use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR, send_ipc_command_result_async};
+use crate::communications::call_api_async;
 use crate::github_ui;
 use crate::settings_ui::backend::translations_local_path;
 use crate::utils::{qtr, qtre, tr, tre};
@@ -69,11 +70,11 @@ impl ToolTranslator {
         // A missing or rejected sign-in gets one chance to sign in and retry.
         for _ in 0..2 {
             match self.send_submission(&pack_tr)? {
-                Some(result) => {
-                    self.show_submission_result(&result);
+                TranslationSubmission::Submitted { url, created } => {
+                    self.show_submission_result(&url, created);
                     return Ok(());
                 },
-                None => if github_ui::sign_in(self.tool.main_widget())?.is_none() {
+                TranslationSubmission::SignInRequired => if github_ui::sign_in(self.tool.main_widget())?.is_none() {
                     return Ok(());
                 },
             }
@@ -163,8 +164,8 @@ impl ToolTranslator {
     ///
     /// # Returns
     ///
-    /// The submission's result, or `None` if the user has to sign in to GitHub first.
-    unsafe fn send_submission(&self, pack_tr: &PackTranslation) -> Result<Option<SubmissionResult>> {
+    /// The submission's result.
+    unsafe fn send_submission(&self, pack_tr: &PackTranslation) -> Result<TranslationSubmission> {
 
         // A null cancel text means no cancel button: the server can't stop a submission halfway.
         let progress = QProgressDialog::new_5a(&qtr("translator_submit_progress"), &QString::new(), 0, 0, self.tool.main_widget());
@@ -173,26 +174,32 @@ impl ToolTranslator {
         progress.set_minimum_duration(0);
         progress.show();
 
-        let command = Command::SubmitTranslation(pack_tr.pack_name().to_owned(), pack_tr.src_lang().to_owned(), pack_tr.language().to_owned());
-        let result = send_ipc_command_result_async(command, |response| match response {
-            Response::SubmissionResult(result) => Some(result),
-            Response::GitHubSignInRequired => None,
-            response => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-        });
+        let request = SubmitTranslation {
+            pack_name: pack_tr.pack_name().to_owned(),
+            source_language: pack_tr.src_lang().to_owned(),
+            language: pack_tr.language().to_owned(),
+        };
+
+        let result = call_api_async(&request);
 
         progress.close();
         result
     }
 
     /// Tell the user the pull request is ready, offering to open it.
-    unsafe fn show_submission_result(&self, result: &SubmissionResult) {
-        let text = if *result.created() { qtr("translator_submit_created") } else { qtr("translator_submit_updated") };
+    ///
+    /// # Arguments
+    ///
+    /// * `url` - Web page of the pull request.
+    /// * `created` - If the pull request is new, instead of an updated one.
+    unsafe fn show_submission_result(&self, url: &str, created: bool) {
+        let text = if created { qtr("translator_submit_created") } else { qtr("translator_submit_updated") };
         let message_box = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(Icon::Information, &qtr("translator_submit_title"), &text, QFlags::from(StandardButton::Close), self.tool.main_widget());
         let open_button = message_box.add_button_q_string_button_role(&qtr("translator_submit_open"), ButtonRole::ActionRole);
         message_box.exec();
 
         if message_box.clicked_button().as_raw_ptr() == open_button.static_upcast::<QAbstractButton>().as_raw_ptr() {
-            QDesktopServices::open_url(&QUrl::new_1a(&QString::from_std_str(result.url())));
+            QDesktopServices::open_url(&QUrl::new_1a(&QString::from_std_str(url)));
         }
     }
 }

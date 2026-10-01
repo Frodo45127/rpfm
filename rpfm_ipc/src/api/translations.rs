@@ -13,7 +13,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use rpfm_extensions::translator::DEFAULT_SRC_LANG;
+use rpfm_extensions::translator::{DEFAULT_SRC_LANG, PackTranslation};
 
 use super::Request;
 
@@ -114,6 +114,65 @@ pub struct VanillaTextsAvailable {
 
     /// If they're available, generated now or before.
     pub available: bool,
+}
+
+/// `translations.pack`: returns the whole translation of an open pack to a language, as the translator works with it.
+///
+/// Meant for clients editing whole translations. Others should use `translations.list`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GetPackTranslation {
+
+    /// Key of the pack.
+    pub pack: String,
+
+    /// Language code of the source texts, like `en`.
+    pub source_language: String,
+
+    /// Language code of the translation, like `es`.
+    pub language: String,
+}
+
+/// `translations.submit`: submits the saved translation of a pack to the Translation Hub, opening or updating a pull request.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SubmitTranslation {
+
+    /// Name of the pack the translation is for.
+    pub pack_name: String,
+
+    /// Language code of the source texts, like `en`.
+    pub source_language: String,
+
+    /// Language code of the translation, like `es`.
+    pub language: String,
+}
+
+/// Result of submitting a translation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum TranslationSubmission {
+
+    /// The translation was submitted.
+    Submitted {
+
+        /// Web page of the pull request.
+        url: String,
+
+        /// If a new pull request was opened. `false` means an open one was updated.
+        created: bool,
+    },
+
+    /// The user has to sign in to GitHub first, because they never did or GitHub rejected their sign-in.
+    SignInRequired,
+}
+
+impl Request for GetPackTranslation {
+    const METHOD: &'static str = "translations.pack";
+    type Response = PackTranslation;
+}
+
+impl Request for SubmitTranslation {
+    const METHOD: &'static str = "translations.submit";
+    type Response = TranslationSubmission;
 }
 
 impl Request for ListTranslations {

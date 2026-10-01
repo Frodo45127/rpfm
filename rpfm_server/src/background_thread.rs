@@ -20,15 +20,13 @@
 //! across many concurrent requests in the same session: a `SavePack`
 //! followed by a `ClosePack` always sees the right Pack, even when the
 //! WebSocket multiplexer is firing requests as fast as the client sends
-//! them. Commands that don't touch the session's state (update checks,
-//! GitHub sign-in, …) run on the blocking thread pool instead, so they don't
-//! hold the loop.
+//! them.
 //!
 //! Telemetry: each dispatched command is recorded via
 //! [`rpfm_telemetry::record_action`] so usage counters reflect what the
 //! session actually did.
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use std::path::Path;
@@ -46,7 +44,6 @@ use crate::api;
 use crate::session::{Session, SessionMessage};
 use rpfm_ipc::settings::*;
 use crate::state::{DecodedFile, ExtractOptions, MergeOutcome, SaveOptions, SessionState, plugin_scripts};
-use crate::translation_hub::{self, SubmitOutcome};
 
 /// Extracts the variant name (e.g. `"NewPack"`) from a [`Command`] for telemetry.
 ///
@@ -278,8 +275,6 @@ async fn dispatch(state: &mut SessionState, command: Command, sender: &Unbounded
         Command::LuaHovers(source) => send(sender, Response::VecU64U64U64U64String(state.lua_hovers(&source, &settings))),
 
         // Tools.
-        Command::GetPackTranslation(pack_key, src_lang, language) => reply(sender, state.pack_translation(&pack_key, &src_lang, &language), Response::PackTranslation),
-        Command::GenerateVanillaTranslationSource(src_lang) => reply(sender, state.generate_vanilla_translation_source(&src_lang, &settings), Response::Bool),
         Command::BuildCeo(pack_key, akit_path, bob_exe_path) => reply(sender, state.build_ceo(&pack_key, Path::new(&akit_path), Path::new(&bob_exe_path)), done),
         Command::BuildCeoPost(pack_key, akit_path) => reply(sender, state.build_ceo_post(&pack_key, &akit_path), Response::VecContainerPath),
         Command::BuildCeoEntries(pack_key, entries) => reply(sender, state.build_ceo_entries(&pack_key, &entries), Response::VecContainerPath),
@@ -288,17 +283,6 @@ async fn dispatch(state: &mut SessionState, command: Command, sender: &Unbounded
         Command::RunPluginScript(pack_key, script_path, paths) => reply(sender, state.run_plugin_script(&pack_key, &script_path, &paths, extract_options), |(paths, message)| Response::VecContainerPathOptionString(paths, message)),
 
         // GitHub and the Translation Hub.
-        Command::GitHubSignInStart => spawn_reply(sender, translation_hub::sign_in_start, Response::GitHubDeviceCode),
-        Command::GitHubSignInPoll(device_code) => spawn_reply(sender, move || translation_hub::sign_in_poll(&device_code), Response::GitHubSignInState),
-        Command::GitHubAccount => spawn_reply(sender, translation_hub::account, Response::OptionString),
-        Command::GitHubSignOut => spawn_reply(sender, translation_hub::sign_out, done),
-        Command::SubmitTranslation(pack_name, src_lang, language) => {
-            let game_key = state.game().key().to_owned();
-            spawn_reply(sender, move || translation_hub::submit(&game_key, &pack_name, &src_lang, &language), |outcome| match outcome {
-                SubmitOutcome::Submitted(result) => Response::SubmissionResult(result),
-                SubmitOutcome::SignInRequired => Response::GitHubSignInRequired,
-            });
-        }
 
     }
 }
@@ -326,27 +310,6 @@ fn reply<T>(sender: &UnboundedSender<Response>, result: Result<T>, wrap: impl Fn
 /// Response wrapper for operations that return nothing on success.
 fn done<T>(_: T) -> Response {
     Response::Success
-}
-
-/// Runs a blocking job on the blocking thread pool, so it doesn't stall the async runtime.
-async fn run_blocking<T: Send + 'static>(job: impl FnOnce() -> Result<T> + Send + 'static) -> Result<T> {
-    tokio::task::spawn_blocking(job).await
-        .unwrap_or_else(|error| Err(anyhow!("The background task failed: {error}")))
-}
-
-/// Runs a job that doesn't need the session's state on the blocking thread pool, replying when it's done.
-///
-/// The loop moves on to the next command without waiting for the job.
-fn spawn_reply<T, J, W>(sender: &UnboundedSender<Response>, job: J, wrap: W)
-where
-    T: Send + 'static,
-    J: FnOnce() -> Result<T> + Send + 'static,
-    W: FnOnce(T) -> Response + Send + 'static,
-{
-    let sender = sender.clone();
-    tokio::spawn(async move {
-        reply(&sender, run_blocking(job).await, wrap);
-    });
 }
 
 /// Legacy response for a decoded file. Each file type has its own response variant.

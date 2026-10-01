@@ -37,9 +37,9 @@ use anyhow::{anyhow, Result};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use rpfm_ipc::messages::GitHubSignInState;
+use rpfm_ipc::api::github::{GetGitHubAccount, GitHubSignInState, PollGitHubSignIn, SignOutOfGitHub, StartGitHubSignIn};
 
-use crate::communications::{Command, Response, send_ipc_command_result_async};
+use crate::communications::call_api_async;
 use crate::utils::{qtr, tr};
 
 /// Sign in to GitHub with the device flow.
@@ -59,7 +59,7 @@ use crate::utils::{qtr, tr};
 ///
 /// Returns an error if the sign-in can't be started, the code expires, or the user rejects it on GitHub.
 pub unsafe fn sign_in(parent: impl CastInto<Ptr<QWidget>>) -> Result<Option<String>> {
-    let code = send_ipc_command_result_async(Command::GitHubSignInStart, response_extractor!(Response::GitHubDeviceCode))?;
+    let code = call_api_async(&StartGitHubSignIn {})?;
     QGuiApplication::clipboard().set_text_1a(&QString::from_std_str(code.user_code()));
     open_url(code.verification_uri());
 
@@ -98,7 +98,7 @@ pub unsafe fn sign_in(parent: impl CastInto<Ptr<QWidget>>) -> Result<Option<Stri
     let device_code = code.device_code().to_owned();
     let poll_result = result.clone();
     let poll_slot = SlotNoArgs::new(&dialog, move || {
-        let state = send_ipc_command_result_async(Command::GitHubSignInPoll(device_code.to_owned()), response_extractor!(Response::GitHubSignInState));
+        let state = call_api_async(&PollGitHubSignIn { device_code: device_code.to_owned() });
 
         // The user may have cancelled while the poll was running.
         if !dialog_ptr.is_visible() {
@@ -162,7 +162,7 @@ pub unsafe fn sign_in(parent: impl CastInto<Ptr<QWidget>>) -> Result<Option<Stri
 ///
 /// Returns an error if the server can't read the stored sign-in, usually because the system's keyring isn't available.
 pub fn account() -> Result<Option<String>> {
-    send_ipc_command_result_async(Command::GitHubAccount, response_extractor!(Response::OptionString))
+    call_api_async(&GetGitHubAccount {}).map(|account| account.login)
 }
 
 /// Sign out of GitHub.
@@ -171,7 +171,7 @@ pub fn account() -> Result<Option<String>> {
 ///
 /// Returns an error if the server can't delete the stored sign-in.
 pub fn sign_out() -> Result<()> {
-    send_ipc_command_result_async(Command::GitHubSignOut, response_extractor!())
+    call_api_async(&SignOutOfGitHub {}).map(|_| ())
 }
 
 /// Open a URL in the user's browser.

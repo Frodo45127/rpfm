@@ -27,7 +27,8 @@ use rpfm_ipc::api::schema::{
     DeleteDefinition, GetRawDefinitions, GetReferencingColumns, GetTablePatches, ImportPatches, ListSchemaTables, PatchColumn, RemovePatches, SetDefinition,
     UpdateSchemaFromAssemblyKit, UpdateSchemas,
 };
-use rpfm_ipc::api::translations::{GenerateVanillaTexts, ListTranslations, VanillaTextsAvailable};
+use rpfm_ipc::api::github::{GetGitHubAccount, GitHubAccount, PollGitHubSignIn, SignOutOfGitHub, StartGitHubSignIn};
+use rpfm_ipc::api::translations::{GenerateVanillaTexts, GetPackTranslation, ListTranslations, SubmitTranslation, TranslationSubmission, VanillaTextsAvailable};
 use rpfm_ipc::api::session::{GenerateDependenciesCache, GetSessionStatus, RebuildDependencies, SetGame};
 use rpfm_ipc::api::references::{FindDefinition, FindLoc, FindUsages, GetLocSource, GetReferenceValues, GetTableReferenceData, LocSourceLookup};
 use rpfm_ipc::api::tables::{AddKeyDeletes, EditTable, ExportTsv, GetColumnValues, GetTableDefinition, GetTableInfo, GetTableRows, ImportTsv, MergeTables, RenameKey, UpgradeTable};
@@ -42,6 +43,7 @@ use rpfm_lib::schema::{SCHEMA_BRANCH, SCHEMA_REMOTE, SCHEMA_REPO};
 
 use rpfm_ipc::settings::{schemas_path, Settings};
 use crate::state::{ExtractOptions, SaveOptions, SessionState, optimizer_options_with};
+use crate::translation_hub::{self, SubmitOutcome};
 use crate::updater::{apply_component, check_component, git_update_repo};
 
 /// Methods that run as jobs.
@@ -258,6 +260,13 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         GenerateVanillaTexts::METHOD => call(params, |request: GenerateVanillaTexts| {
             Ok(VanillaTextsAvailable { available: state.generate_vanilla_translation_source(&request.language, settings)? })
         }),
+        GetPackTranslation::METHOD => call(params, |request: GetPackTranslation| state.pack_translation(&request.pack, &request.source_language, &request.language)),
+        SubmitTranslation::METHOD => call(params, |request: SubmitTranslation| {
+            Ok(match translation_hub::submit(state.game().key(), &request.pack_name, &request.source_language, &request.language)? {
+                SubmitOutcome::Submitted(result) => TranslationSubmission::Submitted { url: result.url().to_owned(), created: *result.created() },
+                SubmitOutcome::SignInRequired => TranslationSubmission::SignInRequired,
+            })
+        }),
 
         method => Err(ApiError::MethodNotFound(method.to_owned())),
     };
@@ -267,7 +276,7 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
 
 /// Returns if a method doesn't touch the session's state, so it can run without waiting for the session's other requests.
 pub fn is_stateless_method(method: &str) -> bool {
-    matches!(method, CheckUpdate::METHOD | ApplyUpdate::METHOD)
+    matches!(method, CheckUpdate::METHOD | ApplyUpdate::METHOD | StartGitHubSignIn::METHOD | PollGitHubSignIn::METHOD | GetGitHubAccount::METHOD | SignOutOfGitHub::METHOD)
 }
 
 /// Runs a request that doesn't touch the session's state. See [`is_stateless_method`].
@@ -285,6 +294,10 @@ pub fn dispatch_stateless(request: RpcRequest, settings: &Settings) -> RpcRespon
     let result = match request.method.as_str() {
         CheckUpdate::METHOD => call(params, |request: CheckUpdate| check_component(request.component, settings)),
         ApplyUpdate::METHOD => call(params, |request: ApplyUpdate| apply_component(request.component, settings).map(|_| Done {})),
+        StartGitHubSignIn::METHOD => call(params, |_: StartGitHubSignIn| translation_hub::sign_in_start()),
+        PollGitHubSignIn::METHOD => call(params, |request: PollGitHubSignIn| translation_hub::sign_in_poll(&request.device_code)),
+        GetGitHubAccount::METHOD => call(params, |_: GetGitHubAccount| Ok(GitHubAccount { login: translation_hub::account()? })),
+        SignOutOfGitHub::METHOD => call(params, |_: SignOutOfGitHub| translation_hub::sign_out().map(|_| Done {})),
         method => Err(ApiError::MethodNotFound(method.to_owned())),
     };
 

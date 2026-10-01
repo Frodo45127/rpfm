@@ -21,7 +21,7 @@ use std::fs;
 use rpfm_extensions::translator::PackTranslation;
 use rpfm_extensions::translator::hub::SubmissionResult;
 
-use rpfm_ipc::messages::GitHubSignInState;
+use rpfm_ipc::api::github::GitHubSignInState;
 
 use rpfm_lib::error::RLibError;
 use rpfm_lib::games::{TRANSLATIONS_REPO_NAME, TRANSLATIONS_REPO_OWNER};
@@ -106,13 +106,20 @@ pub fn sign_in_poll(device_code: &str) -> Result<GitHubSignInState> {
 ///
 /// # Errors
 ///
-/// Returns an error if the keyring can't be read.
+/// Returns an error if the keyring can't be read, or the login can't be asked to GitHub.
 pub fn account() -> Result<Option<String>> {
-    if token()?.is_none() {
+    let Some(token) = token()? else {
         return Ok(None);
+    };
+
+    // Sign-ins from before the login was kept in the keyring only have the token, so the login is asked to GitHub once.
+    if let Some(login) = keyring_password(KEYRING_GITHUB_LOGIN)? {
+        return Ok(Some(login));
     }
 
-    Ok(Some(keyring_password(KEYRING_GITHUB_LOGIN)?.unwrap_or_default()))
+    let login = GitHubClient::new(&token)?.user_login()?;
+    keyring_entry(KEYRING_GITHUB_LOGIN)?.set_password(&login).map_err(keyring_error)?;
+    Ok(Some(login))
 }
 
 /// Sign out of GitHub, deleting the stored token and login.

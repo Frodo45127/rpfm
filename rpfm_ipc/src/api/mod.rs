@@ -40,6 +40,7 @@ use thiserror::Error;
 
 pub mod diagnostics;
 pub mod files;
+pub mod github;
 pub mod jobs;
 pub mod notes;
 pub mod packs;
