@@ -632,11 +632,6 @@ impl SessionState {
         Ok(pack_mut(&mut self.packs, pack_key)?.move_paths(renames)?)
     }
 
-    /// Returns if a folder exists in a pack.
-    pub fn folder_exists(&self, pack_key: &str, path: &str) -> Result<bool> {
-        Ok(pack(&self.packs, pack_key)?.has_folder(path))
-    }
-
     /// Returns if a file exists in a pack.
     pub fn file_exists(&self, pack_key: &str, path: &str) -> Result<bool> {
         Ok(pack(&self.packs, pack_key)?.has_file(path))
@@ -763,35 +758,6 @@ impl SessionState {
             (DataSource::GameFiles, game_files),
             (DataSource::PackFile, pack_files),
         ])
-    }
-
-    /// Returns the paths of the files under a path in the open packs, the parent packs and the game files.
-    ///
-    /// # Returns
-    ///
-    /// The paths found, by source. Sources with no files are not included.
-    pub fn file_paths_from_all_sources(&self, path: &ContainerPath) -> HashMap<DataSource, HashSet<ContainerPath>> {
-        let mut files: HashMap<DataSource, HashSet<ContainerPath>> = HashMap::new();
-
-        let parent_files = self.dependencies.files_by_path(from_ref(path), false, true, true);
-        if !parent_files.is_empty() {
-            files.insert(DataSource::ParentFiles, parent_files.into_keys().map(ContainerPath::File).collect());
-        }
-
-        let game_files = self.dependencies.files_by_path(from_ref(path), true, false, true);
-        if !game_files.is_empty() {
-            files.insert(DataSource::GameFiles, game_files.into_keys().map(ContainerPath::File).collect());
-        }
-
-        let pack_files = self.packs.values()
-            .flat_map(|pack| pack.files_by_path(path, true))
-            .map(|file| file.path_in_container())
-            .collect::<HashSet<_>>();
-        if !pack_files.is_empty() {
-            files.insert(DataSource::PackFile, pack_files);
-        }
-
-        files
     }
 
     /// Returns the paths of the animations using a skeleton, from the open packs, the parent packs and the game files.

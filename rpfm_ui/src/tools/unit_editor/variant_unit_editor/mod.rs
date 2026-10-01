@@ -44,7 +44,7 @@ use std::collections::HashMap;
 
 use rpfm_lib::files::{ContainerPath, FileType};
 
-use crate::communications::{Command, Response, send_ipc_command};
+use crate::communications::{Command, Response, send_ipc_command, file_paths_in_all_sources};
 use crate::views::table::utils::get_reference_data;
 use self::slots::SubToolVariantUnitEditorSlots;
 use super::*;
@@ -377,16 +377,10 @@ impl SubToolVariantUnitEditor {
 
     /// This function loads all available icon paths to the UI.
     unsafe fn load_icon_paths(&self) -> Result<()> {
-        let icon_keys = send_ipc_command(Command::GetPackedFilesNamesStartingWitPathFromAllSources(ContainerPath::Folder(UNIT_ICONS_PATH.to_owned())), response_extractor!(Response::HashMapDataSourceHashSetContainerPath));
-        let icon_keys_sorted = icon_keys.values()
-            .flat_map(|paths| paths.iter()
-                .map(|path| path.path_raw().to_owned())
-                .collect::<Vec<String>>())
-            .sorted()
-            .collect::<Vec<String>>();
+        let icon_keys = file_paths_in_all_sources(UNIT_ICONS_PATH);
 
         self.unit_variants_unit_card_combobox.add_item_q_string(&QString::from_std_str(""));
-        for icon_key in &icon_keys_sorted {
+        for icon_key in &icon_keys {
             let name_without_extension = icon_key.split('.').collect::<Vec<&str>>()[0];
             self.unit_variants_unit_card_combobox.add_item_q_string(&QString::from_std_str(name_without_extension));
         }
@@ -396,16 +390,10 @@ impl SubToolVariantUnitEditor {
 
     /// This function loads all available variantmesh paths to the UI.
     unsafe fn load_variant_mesh_paths(&self) -> Result<()> {
-        let variant_keys = send_ipc_command(Command::GetPackedFilesNamesStartingWitPathFromAllSources(ContainerPath::Folder(VARIANT_MESH_PATH.to_owned())), response_extractor!(Response::HashMapDataSourceHashSetContainerPath));
-        let variant_keys_sorted = variant_keys.values()
-            .flat_map(|paths| paths.iter()
-                .map(|path| path.path_raw().to_owned())
-                .collect::<Vec<String>>())
-            .sorted()
-            .collect::<Vec<String>>();
+        let variant_keys = file_paths_in_all_sources(VARIANT_MESH_PATH);
 
         self.variants_variant_filename_combobox.add_item_q_string(&QString::from_std_str(""));
-        for variant_key in &variant_keys_sorted {
+        for variant_key in &variant_keys {
             let name_without_extension = variant_key.split('.').collect::<Vec<&str>>()[0];
             self.variants_variant_filename_combobox.add_item_q_string(&QString::from_std_str(name_without_extension));
         }

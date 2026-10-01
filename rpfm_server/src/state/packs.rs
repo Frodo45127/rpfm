@@ -21,13 +21,14 @@ use std::time::SystemTime;
 
 use rpfm_ipc::api::ApiError;
 use rpfm_ipc::api::notes::{AddNote, NoteEntry};
+use rpfm_ipc::api::files::{FilesInfo, GetFilesInfo};
 use rpfm_ipc::api::packs::{PackDependency, PackDetails, PackSettingsValues, PackSummary, UpdatePack, UpdatePackSettings};
 use rpfm_ipc::api::schema::MissingDefinitions;
-use rpfm_ipc::helpers::{ContainerInfo, RFileInfo};
+use rpfm_ipc::helpers::ContainerInfo;
 use rpfm_ipc::messages::OperationalMode;
 
 use rpfm_lib::compression::CompressionFormat;
-use rpfm_lib::files::{Container, ContainerPath, DecodeableExtraData, db::DB, FileType, pack::{Pack, PackSettings, PFHFlags}};
+use rpfm_lib::files::{Container, DecodeableExtraData, db::DB, FileType, pack::{Pack, PackSettings, PFHFlags}};
 use rpfm_lib::games::pfh_file_type::PFHFileType;
 use rpfm_lib::notes::Note;
 use rpfm_lib::utils::files_in_folder_from_newest_to_oldest;
@@ -240,21 +241,15 @@ impl SessionState {
         Ok(pack_summary(pack_key, pack(&self.packs, pack_key)?))
     }
 
-    /// Returns the info of a pack and of every file in it.
-    pub fn pack_tree_data(&self, pack_key: &str) -> Result<(ContainerInfo, Vec<RFileInfo>)> {
-        let pack = pack(&self.packs, pack_key)?;
-        Ok((ContainerInfo::from(pack), pack.files().par_iter().map(|(_, file)| From::from(file)).collect()))
-    }
+    /// Returns the info of files of a pack: the ones at the requested paths, or all of them.
+    pub fn files_info(&self, request: &GetFilesInfo) -> Result<FilesInfo> {
+        let pack = pack(&self.packs, &request.pack)?;
+        let files = match request.paths {
+            Some(ref paths) => paths.iter().filter_map(|path| pack.files().get(path)).map(From::from).collect(),
+            None => pack.files().par_iter().map(|(_, file)| From::from(file)).collect(),
+        };
 
-    /// Returns the info of a file in a pack, or `None` if it's not in the pack.
-    pub fn file_info(&self, pack_key: &str, path: &str) -> Result<Option<RFileInfo>> {
-        Ok(pack(&self.packs, pack_key)?.files().get(path).map(From::from))
-    }
-
-    /// Returns the info of the files at the provided paths of a pack.
-    pub fn files_info(&self, pack_key: &str, paths: &[String]) -> Result<Vec<RFileInfo>> {
-        let paths = paths.iter().map(|path| ContainerPath::File(path.to_owned())).collect::<Vec<_>>();
-        Ok(pack(&self.packs, pack_key)?.files_by_paths(&paths, false).into_iter().map(From::from).collect())
+        Ok(FilesInfo { files })
     }
 
     /// Returns the details of an open pack.

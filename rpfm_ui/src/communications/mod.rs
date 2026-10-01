@@ -21,7 +21,7 @@ use futures::{SinkExt, StreamExt};
 use tokio::sync::mpsc::{unbounded_channel, UnboundedSender, UnboundedReceiver};
 use tokio_tungstenite::{connect_async_with_config, tungstenite::protocol::{Message as WsMessage, WebSocketConfig}};
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::path::PathBuf;
 use std::fmt::Debug;
 use std::sync::{Arc, RwLock};
@@ -30,9 +30,9 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 pub use rpfm_ipc::messages::{Command, Response, Message as IpcMessage};
 use rpfm_ipc::api::{ApiError, Request, RpcOutcome, RpcRequest, RpcResponse};
 use rpfm_ipc::api::jobs::{JobStarted, JobState, WaitForJob};
-use rpfm_ipc::api::files::{FileData, FileRef, ReadFile, ReadFormat, WriteFile};
+use rpfm_ipc::api::files::{FileData, FileRef, FileSource, GetFilesInfo, ListFiles, ReadFile, ReadFormat, WriteFile};
 use rpfm_ipc::api::packs::{GetPackInfo, PackDetails, PackSummary, SavePack};
-use rpfm_ipc::helpers::ContainerInfo;
+use rpfm_ipc::helpers::{ContainerInfo, RFileInfo};
 
 use rpfm_lib::files::RFileDecoded;
 use rpfm_ipc::api::session::{Configure, Disconnect, GetSessionStatus};
@@ -369,6 +369,43 @@ pub fn raw_file_data(file: FileRef) -> Result<Vec<u8>> {
         FileData::Raw { base64 } => STANDARD.decode(base64).map_err(From::from),
         _ => Err(anyhow!("The server didn't return the bytes of the file.")),
     }
+}
+
+/// Returns the info of files of an open pack: the ones at the provided paths, or all of them. Empty if the pack isn't open.
+pub fn files_info(pack_key: &str, paths: Option<Vec<String>>) -> Vec<RFileInfo> {
+    call_api(&GetFilesInfo { pack: pack_key.to_owned(), paths }).map(|info| info.files).unwrap_or_default()
+}
+
+/// Returns if a file exists in an open pack.
+pub fn file_exists(pack_key: &str, path: &str) -> bool {
+    !files_info(pack_key, Some(vec![path.to_owned()])).is_empty()
+}
+
+/// Returns if a folder exists in an open pack.
+pub fn folder_exists(pack_key: &str, path: &str) -> bool {
+    let request = ListFiles {
+        source: FileSource::Pack(pack_key.to_owned()),
+        prefix: format!("{}/", path.trim_end_matches('/')),
+        recursive: true,
+        file_types: None,
+        offset: 0,
+        limit: Some(1),
+    };
+
+    call_api(&request).is_ok_and(|list| list.total > 0)
+}
+
+/// Returns the paths of the files under a folder in the open packs, the parent packs and the game files, sorted.
+pub fn file_paths_in_all_sources(folder: &str) -> Vec<String> {
+    let sources = [FileSource::ParentFiles, FileSource::GameFiles].into_iter()
+        .chain(open_packs().into_iter().map(|pack| FileSource::Pack(pack.key)));
+
+    let paths = sources.flat_map(|source| {
+        let request = ListFiles { source, prefix: format!("{}/", folder.trim_end_matches('/')), recursive: true, file_types: None, offset: 0, limit: Some(usize::MAX) };
+        call_api(&request).map(|list| list.files).unwrap_or_default()
+    });
+
+    paths.map(|file| file.path).collect::<BTreeSet<_>>().into_iter().collect()
 }
 
 /// Returns the packs open in the session.

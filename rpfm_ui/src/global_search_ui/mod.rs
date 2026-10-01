@@ -81,7 +81,7 @@ use rpfm_lib::utils::closest_valid_char_byte;
 use rpfm_ui_common::utils::{atomic_from_cpp_box, find_widget, load_template, ptr_from_atomic, ref_from_atomic};
 
 use crate::app_ui::AppUI;
-use crate::communications::{Command, Response, call_api, call_api_async, run_job, send_ipc_command};
+use crate::communications::{call_api, call_api_async, run_job, files_info};
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::{kline_edit_configure_safe, new_eliding_check_box_safe, new_search_match_item_delegate_safe, new_treeview_filter_safe, scroll_to_row_safe, trigger_treeview_filter_safe};
@@ -851,8 +851,8 @@ impl GlobalSearchUI {
         // Update the tooltips of the edited files in every open pack.
         let pack_keys = global_search_pack_keys(&UI_STATE.get_global_search());
         for pack_key in &pack_keys {
-            let files_info = send_ipc_command(Command::GetPackedFilesInfo(pack_key.clone(), replaced.edited.clone()), response_extractor!(Response::VecRFileInfo));
-            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(files_info), DataSource::PackFile, pack_key);
+            let edited_info = files_info(pack_key, Some(replaced.edited.clone()));
+            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(edited_info), DataSource::PackFile, pack_key);
         }
 
         true

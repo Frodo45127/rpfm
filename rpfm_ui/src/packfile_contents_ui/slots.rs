@@ -52,7 +52,7 @@ use rpfm_ui_common::clone;
 use crate::app_ui::AppUI;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
-use crate::communications::{Command, Response, call_api, call_api_async, send_ipc_command, send_ipc_command_result, pack_details, pack_operational_mode, open_packs, save_pack};
+use crate::communications::{Command, Response, call_api, call_api_async, send_ipc_command, send_ipc_command_result, pack_details, pack_operational_mode, open_packs, save_pack, folder_exists};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::lua_tests_ui;
 use crate::pack_tree::{PackTree, TreeViewOperation};
@@ -1564,10 +1564,10 @@ impl PackFileContentsSlots {
 
                         // Check if the folder exists.
                         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                        let folder_exists = send_ipc_command(Command::FolderExists(pack_key.clone(), complete_path.to_owned()), response_extractor!(Response::Bool));
+                        let exists = folder_exists(&pack_key, &complete_path);
 
                         // If the folder already exists, return an error.
-                        if folder_exists { return show_dialog(app_ui.main_window(), "That folder already exists in the current path.", false)}
+                        if exists { return show_dialog(app_ui.main_window(), "That folder already exists in the current path.", false)}
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![ContainerPath::Folder(complete_path); 1]), DataSource::PackFile, &pack_key);
                         UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                     }

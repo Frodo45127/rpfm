@@ -3456,7 +3456,7 @@ impl TableView {
             }
 
             let edited = edited.into_iter().collect::<Vec<_>>();
-            let packed_files_info = send_ipc_command(Command::GetPackedFilesInfo(pack_key.clone(), edited.clone()), response_extractor!(Response::VecRFileInfo));
+            let packed_files_info = files_info(&pack_key, Some(edited.clone()));
             let edited_paths = file_paths(edited);
 
             // If it worked, get the list of edited PackedFiles and update the TreeView to reflect the change.

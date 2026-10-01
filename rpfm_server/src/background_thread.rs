@@ -142,11 +142,8 @@ async fn dispatch(state: &mut SessionState, command: Command, sender: &Unbounded
         // Packs.
 
         // Cleaning is the last resort when saving fails, so it doesn't check the pack's type.
-        Command::GetPackFileDataForTreeView(pack_key) => reply(sender, state.pack_tree_data(&pack_key), Response::ContainerInfoVecRFileInfo),
 
         // Files.
-        Command::GetRFileInfo(pack_key, path) => reply(sender, state.file_info(&pack_key, &path), Response::OptionRFileInfo),
-        Command::GetPackedFilesInfo(pack_key, paths) => reply(sender, state.files_info(&pack_key, &paths), Response::VecRFileInfo),
         Command::NewPackedFile(pack_key, path, new_file) => reply(sender, state.new_file(&pack_key, &path, new_file), done),
         Command::AddPackedFiles(pack_key, source_paths, destination_paths, paths_to_ignore) => {
             let result = state.add_files_from_disk(&pack_key, &source_paths, &destination_paths, &paths_to_ignore, settings.bool(INCLUDE_BASE_FOLDER_ON_ADD_FROM_FOLDER));
@@ -172,8 +169,6 @@ async fn dispatch(state: &mut SessionState, command: Command, sender: &Unbounded
             reply(sender, result, |paths| Response::StringVecPathBuf("files_extracted_success".to_owned(), paths));
         }
         Command::RenamePackedFiles(pack_key, renames) => reply(sender, state.rename_files(&pack_key, &renames), Response::VecContainerPathContainerPath),
-        Command::FolderExists(pack_key, path) => reply(sender, state.folder_exists(&pack_key, &path), Response::Bool),
-        Command::PackedFileExists(pack_key, path) => reply(sender, state.file_exists(&pack_key, &path), Response::Bool),
         Command::OpenPackedFileInExternalProgram(pack_key, data_source, path) => reply(sender, state.open_in_external_program(&pack_key, data_source, &path, extract_options), Response::PathBuf),
         Command::SavePackedFileFromExternalView(pack_key, path, external_path) => reply(sender, state.save_file_from_external(&pack_key, &path, &external_path), done),
         Command::CleanCache(pack_key, paths) => reply(sender, state.clean_cache(&pack_key, &paths, disable_uuid_regeneration), done),
@@ -182,7 +177,6 @@ async fn dispatch(state: &mut SessionState, command: Command, sender: &Unbounded
             reply(sender, result, |(added, deleted)| Response::VecContainerPathVecContainerPath(added, deleted));
         }
         Command::GetRFilesFromAllSources(paths, lowercase_paths) => send(sender, Response::HashMapDataSourceHashMapStringRFile(state.files_from_all_sources(&paths, lowercase_paths))),
-        Command::GetPackedFilesNamesStartingWitPathFromAllSources(path) => send(sender, Response::HashMapDataSourceHashSetContainerPath(state.file_paths_from_all_sources(&path))),
         Command::ImportDependenciesToOpenPackFile(pack_key, paths_by_source) => reply(sender, state.import_dependencies(&pack_key, &paths_by_source), |(added, not_added)| Response::VecContainerPathVecString(added, not_added)),
 
         // Tables.

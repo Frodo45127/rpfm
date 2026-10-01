@@ -102,7 +102,7 @@ use rpfm_ui_common::FULL_DATE_FORMAT;
 use rpfm_ui_common::icons::IconType;
 
 use crate::CENTRAL_COMMAND;
-use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR, call_api, call_api_async, run_job, send_ipc_command, send_ipc_command_result, send_ipc_command_async, pack_details, pack_operational_mode, open_packs, save_pack, api_result};
+use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR, call_api, call_api_async, run_job, send_ipc_command_result, pack_details, pack_operational_mode, open_packs, save_pack, api_result, file_exists, folder_exists};
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::*;
@@ -2948,7 +2948,7 @@ impl AppUI {
 
                     // Check if the File already exists, and report it if so.
                     let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    let exists = send_ipc_command(Command::PackedFileExists(pack_key.clone(), full_path.to_owned()), response_extractor!(Response::Bool));
+                    let exists = file_exists(&pack_key, &full_path);
                     if exists {
                         return show_dialog(&app_ui.main_window, format!("A file with this path ({full_path})' already exists in the Pack."), false)
                     }
@@ -3052,7 +3052,7 @@ impl AppUI {
 
                 // Check if the PackedFile already exists, and report it if so.
                 let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                let exists = send_ipc_command(Command::PackedFileExists(pack_key.clone(), new_path.to_owned()), response_extractor!(Response::Bool));
+                let exists = file_exists(&pack_key, &new_path);
                 if exists { return show_dialog(&app_ui.main_window, "The provided file/s already exists in the current path.", false)}
 
                 // Create the PackFile.
@@ -3528,7 +3528,7 @@ impl AppUI {
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(tile_map.to_string_lossy())), 20);
             item.set_editable(false);
 
-            let exists = send_ipc_command_async(Command::FolderExists(pack_key.clone(), format!("terrain/battles/{tile_map_name}")), response_extractor!(Response::Bool));
+            let exists = folder_exists(&pack_key, &format!("terrain/battles/{tile_map_name}"));
             if exists {
                 tile_maps_to_add_model.append_row_q_standard_item(item.into_ptr());
             } else {
@@ -3549,7 +3549,7 @@ impl AppUI {
                 item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(tile.to_string_lossy())), 20);
                 item.set_editable(false);
 
-                let exists = send_ipc_command_async(Command::FolderExists(pack_key.clone(), format!("terrain/tiles/battle/{tile_name}")), response_extractor!(Response::Bool));
+                let exists = folder_exists(&pack_key, &format!("terrain/tiles/battle/{tile_name}"));
                 if exists {
                     tiles_to_add_model.append_row_q_standard_item(item.into_ptr());
                 } else {

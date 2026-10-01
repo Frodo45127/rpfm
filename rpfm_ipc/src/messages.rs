@@ -53,7 +53,7 @@
 
 use serde::{Serialize, Deserialize};
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 use std::path::PathBuf;
 
@@ -118,25 +118,6 @@ pub enum Command {
     //-----------------------------------------------------------------------//
     // PackFile Operations
     //-----------------------------------------------------------------------//
-
-    /// Get the data used to build the `TreeView` for a specific pack.
-    /// The field is the pack key.
-    ///
-    /// Response:
-    /// - [`Response::ContainerInfoVecRFileInfo`].
-    GetPackFileDataForTreeView(String),
-
-    /// Get the `RFileInfo` of one or more `PackedFiles` from a specific pack.
-    /// First field is the pack key, second is the list of file paths.
-    ///
-    /// Response: [`Response::VecRFileInfo`].
-    GetPackedFilesInfo(String, Vec<String>),
-
-    /// Get the info of a single `PackedFile` from a specific pack.
-    /// First field is the pack key, second is the file path.
-    ///
-    /// Response: [`Response::OptionRFileInfo`].
-    GetRFileInfo(String, String),
 
     //-----------------------------------------------------------------------//
     // Update Commands
@@ -253,18 +234,6 @@ pub enum Command {
     /// - [`Response::Error`] on failure.
     RenamePackedFiles(String, Vec<(ContainerPath, ContainerPath)>),
 
-    /// Check if a folder exists in a specific open PackFile.
-    /// First field is the pack key, second is the folder path.
-    ///
-    /// Response: [`Response::Bool`].
-    FolderExists(String, String),
-
-    /// Check if a PackedFile exists in a specific open PackFile.
-    /// First field is the pack key, second is the file path.
-    ///
-    /// Response: [`Response::Bool`].
-    PackedFileExists(String, String),
-
     //-----------------------------------------------------------------------//
     // Dependency Commands
     //-----------------------------------------------------------------------//
@@ -361,11 +330,6 @@ pub enum Command {
     /// - [`Response::Error`] on failure.
     SavePackedFilesToPackFileAndClean(String, Vec<RFile>, bool),
 
-    /// Get all file names under a path in all dependencies.
-    ///
-    /// Response: [`Response::HashMapDataSourceHashSetContainerPath`].
-    GetPackedFilesNamesStartingWitPathFromAllSources(ContainerPath),
-
     //-----------------------------------------------------------------------//
     // Notes Commands
     //-----------------------------------------------------------------------//
@@ -454,11 +418,7 @@ pub enum Response {
     /// Contains the session ID that the client is connected to.
     SessionConnected(u64),
 
-    Bool(bool),
-    ContainerInfoVecRFileInfo((ContainerInfo, Vec<RFileInfo>)),
     HashMapDataSourceHashMapStringRFile(HashMap<DataSource, HashMap<String, RFile>>),
-    HashMapDataSourceHashSetContainerPath(HashMap<DataSource, HashSet<ContainerPath>>),
-    OptionRFileInfo(Option<RFileInfo>),
     PathBuf(PathBuf),
     StringVecPathBuf(String, Vec<PathBuf>),
     VecContainerPath(Vec<ContainerPath>),
@@ -468,5 +428,4 @@ pub enum Response {
     VecContainerPathBTreeMapStringVecContainerPath(Vec<ContainerPath>, BTreeMap<String, Vec<ContainerPath>>),
     VecContainerPathVecString(Vec<ContainerPath>, Vec<String>),
     VecField(Vec<Field>),
-    VecRFileInfo(Vec<RFileInfo>),
 }

@@ -574,3 +574,30 @@ impl Request for GetViewData {
     const METHOD: &'static str = "file.view_data";
     type Response = ViewData;
 }
+
+/// `files.info`: returns the info of files of an open pack, like their original pack and last modification time.
+///
+/// Meant for clients showing the files of a pack as a tree. Others should use `files.list`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GetFilesInfo {
+
+    /// Key of the pack.
+    pub pack: String,
+
+    /// Paths of the files. If not set, the info of every file of the pack is returned. Paths without a file are skipped.
+    #[serde(default)]
+    pub paths: Option<Vec<String>>,
+}
+
+/// Info of files of a pack.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct FilesInfo {
+
+    /// The info of each file.
+    pub files: Vec<RFileInfo>,
+}
+
+impl Request for GetFilesInfo {
+    const METHOD: &'static str = "files.info";
+    type Response = FilesInfo;
+}
