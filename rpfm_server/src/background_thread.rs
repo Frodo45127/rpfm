@@ -43,8 +43,6 @@ use rpfm_ipc::messages::{Command, Response};
 use rpfm_ipc::settings_keys::*;
 
 use rpfm_lib::files::{Container, pack::PFHFlags, RFileDecoded};
-use rpfm_lib::games::{LUA_BRANCH, LUA_REMOTE, LUA_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE, OLD_AK_REPO, TRANSLATIONS_BRANCH, TRANSLATIONS_REMOTE, TRANSLATIONS_REPO};
-use rpfm_lib::schema::{SCHEMA_BRANCH, SCHEMA_REMOTE, SCHEMA_REPO};
 
 use rpfm_telemetry::info;
 
@@ -54,7 +52,6 @@ use crate::session::{Session, SessionMessage};
 use rpfm_ipc::settings::*;
 use crate::state::{DecodedFile, ExtractOptions, MergeOutcome, MyModOptions, SaveOptions, SessionState, plugin_scripts};
 use crate::translation_hub::{self, SubmitOutcome};
-use crate::updater::{self, git_check_update, git_update_repo};
 
 /// Extracts the variant name (e.g. `"NewPack"`) from a [`Command`] for telemetry.
 ///
@@ -191,9 +188,6 @@ async fn dispatch(state: &mut SessionState, command: Command, sender: &Unbounded
         Command::AddLineToPackIgnoredDiagnostics(pack_key, line) => reply(sender, state.add_pack_ignored_diagnostics_line(&pack_key, line), done),
         Command::SetPackOperationalMode(pack_key, mode) => reply(sender, state.set_pack_operational_mode(&pack_key, mode), done),
         Command::GetPackOperationalMode(pack_key) => send(sender, Response::OperationalMode(state.pack_operational_mode(&pack_key))),
-        Command::NotesForPath(pack_key, path) => reply(sender, state.notes_for_path(&pack_key, &path), Response::VecNote),
-        Command::AddNote(pack_key, note) => reply(sender, state.add_note(&pack_key, note), Response::Note),
-        Command::DeleteNote(pack_key, path, id) => reply(sender, state.delete_note(&pack_key, &path, id), done),
         Command::TriggerBackupAutosave(pack_key) => reply(sender, state.backup_autosave(&pack_key, &settings, disable_uuid_regeneration, settings.i32(AUTOSAVE_AMOUNT) as usize), done),
         Command::GetMissingDefinitions(pack_key) => reply(sender, state.export_missing_definitions(&pack_key), done),
         Command::LiveExport(pack_key) => reply(sender, state.live_export(&pack_key, &settings, disable_uuid_regeneration, extract_options.tsv_keys_first), done),
@@ -363,28 +357,6 @@ async fn dispatch(state: &mut SessionState, command: Command, sender: &Unbounded
         Command::ExportRigidToGltf(rigid_model, path) => reply(sender, state.export_rigid_to_gltf(&rigid_model, &PathBuf::from(path)), done),
         Command::GetPluginScripts => reply(sender, plugin_scripts(), Response::VecString),
         Command::RunPluginScript(pack_key, script_path, paths) => reply(sender, state.run_plugin_script(&pack_key, &script_path, &paths, extract_options), |(paths, message)| Response::VecContainerPathOptionString(paths, message)),
-
-        // Updates.
-        Command::CheckUpdates => spawn_reply(sender, move || updater::check_updates_rpfm(&settings), Response::APIResponse),
-        Command::UpdateMainProgram => spawn_reply(sender, move || updater::update_main_program(&settings), done),
-        Command::CheckSchemaUpdates => spawn_reply(sender, || git_check_update(schemas_path, SCHEMA_REPO, SCHEMA_BRANCH, SCHEMA_REMOTE), Response::APIResponseGit),
-        Command::CheckLuaAutogenUpdates => spawn_reply(sender, || git_check_update(lua_autogen_base_path, LUA_REPO, LUA_BRANCH, LUA_REMOTE), Response::APIResponseGit),
-        Command::CheckEmpireAndNapoleonAKUpdates => spawn_reply(sender, || git_check_update(old_ak_files_path, OLD_AK_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE), Response::APIResponseGit),
-        Command::CheckTranslationsUpdates => spawn_reply(sender, || git_check_update(translations_remote_path, TRANSLATIONS_REPO, TRANSLATIONS_BRANCH, TRANSLATIONS_REMOTE), Response::APIResponseGit),
-        Command::UpdateLuaAutogen => spawn_reply(sender, || git_update_repo(lua_autogen_base_path, LUA_REPO, LUA_BRANCH, LUA_REMOTE), done),
-        Command::UpdateEmpireAndNapoleonAK => spawn_reply(sender, || git_update_repo(old_ak_files_path, OLD_AK_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE), done),
-        Command::UpdateTranslations => spawn_reply(sender, || git_update_repo(translations_remote_path, TRANSLATIONS_REPO, TRANSLATIONS_BRANCH, TRANSLATIONS_REMOTE), done),
-
-        // The schema is replaced after downloading, so this one waits for the download instead of running detached.
-        Command::UpdateSchemas => {
-            let result = run_blocking(|| git_update_repo(schemas_path, SCHEMA_REPO, SCHEMA_BRANCH, SCHEMA_REMOTE)).await
-                .and_then(|_| {
-                    state.reload_schema(disable_uuid_regeneration);
-                    state.rebuild_dependencies_after_schema_update(&settings)
-                });
-
-            reply(sender, result, done);
-        }
 
         // GitHub and the Translation Hub.
         Command::GitHubSignInStart => spawn_reply(sender, translation_hub::sign_in_start, Response::GitHubDeviceCode),

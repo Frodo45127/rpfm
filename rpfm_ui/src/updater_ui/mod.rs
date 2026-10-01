@@ -26,10 +26,9 @@ use std::cell::RefCell;
 use std::fmt::Display;
 use std::rc::Rc;
 
-use rpfm_ipc::helpers::APIResponse;
+use rpfm_ipc::api::RpcResponse;
+use rpfm_ipc::api::updates::{CheckUpdate, UpdateComponent, UpdateStatus};
 use rpfm_ipc::settings_keys::*;
-
-use rpfm_lib::integrations::git::GitResponse;
 
 use rpfm_telemetry::warn;
 
@@ -73,17 +72,19 @@ pub struct UpdaterUI {
     cancel_button: QPtr<QPushButton>,
 }
 
-/// Update checks launched on start. Each receiver is dropped once its check answers or disconnects.
-#[derive(Default)]
+/// An update check. Its receiver is dropped once the check answers or disconnects.
+struct UpdateCheck {
+    component: UpdateComponent,
+    receiver: Option<Receiver<RpcResponse>>,
+    status: Option<UpdateStatus>,
+}
+
+/// Update checks launched on start.
 struct Precheck {
-    receiver_program: Option<Receiver<Response>>,
-    receiver_schema: Option<Receiver<Response>>,
-    receiver_twautogen: Option<Receiver<Response>>,
-    receiver_old_ak: Option<Receiver<Response>>,
-    program: Option<APIResponse>,
-    schema: Option<GitResponse>,
-    twautogen: Option<GitResponse>,
-    old_ak: Option<GitResponse>,
+    program: Option<UpdateCheck>,
+    schema: Option<UpdateCheck>,
+    twautogen: Option<UpdateCheck>,
+    old_ak: Option<UpdateCheck>,
 }
 
 /// This enum controls the channels through where RPFM will try to update.
@@ -97,69 +98,113 @@ pub enum UpdateChannel {
 //                              UI functions
 //---------------------------------------------------------------------------//
 
+impl UpdateCheck {
+
+    /// Launches the update check of a component.
+    fn start(component: UpdateComponent) -> Self {
+        Self {
+            component,
+            receiver: Some(CENTRAL_COMMAND.read().unwrap().call(&CheckUpdate { component })),
+            status: None,
+        }
+    }
+
+    /// Returns the check of a component, launching it unless it was already done with the provided result.
+    fn start_unless_done(component: UpdateComponent, status: Option<UpdateStatus>) -> Self {
+        match status {
+            Some(status) => Self { component, receiver: None, status: Some(status) },
+            None => Self::start(component),
+        }
+    }
+
+    /// Returns if the check is waiting for its answer.
+    fn is_pending(&self) -> bool {
+        self.receiver.is_some()
+    }
+
+    /// Checks for the answer once, without blocking.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the check has finished, `false` otherwise.
+    fn poll(&mut self) -> bool {
+        let Some(receiver) = self.receiver.as_ref() else { return true };
+        match receiver.try_recv() {
+            Ok(response) => {
+                self.status = match api_result(response) {
+                    Ok(status) => Some(status),
+                    Err(error) => {
+                        warn!("Update check ({:?}) failed: {error}", self.component);
+                        None
+                    }
+                };
+                self.receiver = None;
+            }
+            Err(error) => if error.is_disconnected() {
+                warn!("Update check ({:?}) skipped: background channel disconnected.", self.component);
+                self.receiver = None;
+            }
+        }
+
+        self.receiver.is_none()
+    }
+
+    /// Returns if the check found an update.
+    fn update_available(&self) -> bool {
+        self.status.as_ref().is_some_and(|status| status.available)
+    }
+}
+
 impl Precheck {
 
-    /// Checks all pending receivers once, without blocking.
+    /// Returns the prechecks, in the order the dialog shows them.
+    fn checks_mut(&mut self) -> [&mut Option<UpdateCheck>; 4] {
+        [&mut self.program, &mut self.schema, &mut self.twautogen, &mut self.old_ak]
+    }
+
+    /// Checks all pending checks once, without blocking.
     ///
     /// # Returns
     ///
     /// `true` if all checks have finished, `false` otherwise.
     fn poll(&mut self) -> bool {
-        poll_check(&mut self.receiver_program, &mut self.program, "program", |response| match response {
-            Response::APIResponse(response) => Some(response),
-            Response::Error(_) => None,
-            response => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-        });
-        poll_check(&mut self.receiver_schema, &mut self.schema, "schema", git_response);
-        poll_check(&mut self.receiver_twautogen, &mut self.twautogen, "TW autogen", git_response);
-        poll_check(&mut self.receiver_old_ak, &mut self.old_ak, "Empire/Napoleon AK", git_response);
+        let mut finished = true;
+        for check in self.checks_mut().into_iter().flatten() {
+            finished &= check.poll();
+        }
 
-        self.is_finished()
-    }
-
-    /// Returns `true` if there are no checks waiting for an answer.
-    fn is_finished(&self) -> bool {
-        self.receiver_program.is_none() &&
-        self.receiver_schema.is_none() &&
-        self.receiver_twautogen.is_none() &&
-        self.receiver_old_ak.is_none()
+        finished
     }
 
     /// Returns `true` if any of the finished checks found an update.
-    fn update_available(&self) -> bool {
-        matches!(self.program, Some(APIResponse::NewStableUpdate(_) | APIResponse::NewBetaUpdate(_) | APIResponse::NewUpdateHotfix(_))) ||
-        [&self.schema, &self.twautogen, &self.old_ak].iter().any(|response| matches!(response, Some(GitResponse::NoLocalFiles | GitResponse::NewUpdate | GitResponse::Diverged)))
+    fn update_available(&mut self) -> bool {
+        self.checks_mut().into_iter().flatten().any(|check| check.update_available())
+    }
+
+    /// Takes the result of a precheck.
+    fn take_status(check: &mut Option<UpdateCheck>) -> Option<UpdateStatus> {
+        check.take().and_then(|check| check.status)
     }
 }
 
-/// Checks a pending receiver without blocking, storing its answer and dropping it once it's done.
+/// Shows the result of an update check in its button, enabling it if there is an update.
 ///
 /// # Arguments
 ///
-/// * `receiver` - The receiver of the check. Set to `None` once the check answers or disconnects.
-/// * `result` - Where the answer of the check is stored.
-/// * `name` - Name of the check, used for logging.
-/// * `extract` - Turns the response into the answer of the check. `None` means the check failed.
-fn poll_check<T>(receiver: &mut Option<Receiver<Response>>, result: &mut Option<T>, name: &str, extract: fn(Response) -> Option<T>) {
-    let Some(pending) = receiver.as_ref() else { return };
-    match pending.try_recv() {
-        Ok(response) => {
-            *result = extract(response);
-            *receiver = None;
+/// * `button` - Button of the component.
+/// * `texts` - Prefix of the keys of the button's texts.
+/// * `status` - Result of the check. `None` if it failed.
+unsafe fn show_status(button: &QPtr<QPushButton>, texts: &str, status: Option<&UpdateStatus>) {
+    match status {
+        Some(status) if status.available => {
+            let key = format!("{texts}_available");
+            match &status.version {
+                Some(version) => button.set_text(&qtre(&key, &[version])),
+                None => button.set_text(&qtr(&key)),
+            }
+            button.set_enabled(true);
         }
-        Err(error) => if error.is_disconnected() {
-            warn!("Update precheck ({name}) skipped: background channel disconnected.");
-            *receiver = None;
-        }
-    }
-}
-
-/// Extracts the answer of a git update check from its response.
-fn git_response(response: Response) -> Option<GitResponse> {
-    match response {
-        Response::APIResponseGit(response) => Some(response),
-        Response::Error(_) => None,
-        response => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+        _ => button.set_text(&qtr(&format!("{texts}_no_updates"))),
     }
 }
 
@@ -173,25 +218,15 @@ impl UpdaterUI {
     ///
     /// * `app_ui` - The main UI, used as parent for the polling timer and the update dialog.
     pub unsafe fn new_with_precheck(app_ui: &Rc<AppUI>) {
-        let mut precheck = Precheck::default();
+        let start_if = |enabled: bool, component| enabled.then(|| UpdateCheck::start(component));
+        let mut precheck = Precheck {
+            program: start_if(!cfg!(target_os = "linux") && settings_bool(CHECK_UPDATES_ON_START), UpdateComponent::Program),
+            schema: start_if(settings_bool(CHECK_SCHEMA_UPDATES_ON_START), UpdateComponent::Schemas),
+            twautogen: start_if(settings_bool(CHECK_LUA_AUTOGEN_UPDATES_ON_START), UpdateComponent::LuaAutogen),
+            old_ak: start_if(settings_bool(CHECK_OLD_AK_UPDATES_ON_START), UpdateComponent::OldAssemblyKit),
+        };
 
-        if !cfg!(target_os = "linux") && settings_bool(CHECK_UPDATES_ON_START) {
-            precheck.receiver_program = Some(CENTRAL_COMMAND.read().unwrap().send(Command::CheckUpdates));
-        }
-
-        if settings_bool(CHECK_SCHEMA_UPDATES_ON_START) {
-            precheck.receiver_schema = Some(CENTRAL_COMMAND.read().unwrap().send(Command::CheckSchemaUpdates));
-        }
-
-        if settings_bool(CHECK_LUA_AUTOGEN_UPDATES_ON_START) {
-            precheck.receiver_twautogen = Some(CENTRAL_COMMAND.read().unwrap().send(Command::CheckLuaAutogenUpdates));
-        }
-
-        if settings_bool(CHECK_OLD_AK_UPDATES_ON_START) {
-            precheck.receiver_old_ak = Some(CENTRAL_COMMAND.read().unwrap().send(Command::CheckEmpireAndNapoleonAKUpdates));
-        }
-
-        if precheck.is_finished() {
+        if precheck.checks_mut().iter().all(|check| check.is_none()) {
             return;
         }
 
@@ -215,7 +250,12 @@ impl UpdaterUI {
                         return;
                     }
 
-                    (precheck.program.take(), precheck.schema.take(), precheck.twautogen.take(), precheck.old_ak.take())
+                    (
+                        Precheck::take_status(&mut precheck.program),
+                        Precheck::take_status(&mut precheck.schema),
+                        Precheck::take_status(&mut precheck.twautogen),
+                        Precheck::take_status(&mut precheck.old_ak),
+                    )
                 };
 
                 if let Err(error) = Self::new(&app_ui, program, schema, twautogen, old_ak) {
@@ -231,7 +271,7 @@ impl UpdaterUI {
         timer.start_0a();
     }
 
-    pub unsafe fn new(app_ui: &Rc<AppUI>, precheck_program: Option<APIResponse>, precheck_schema: Option<GitResponse>, precheck_twautogen: Option<GitResponse>, precheck_old_ak: Option<GitResponse>) -> Result<()> {
+    pub unsafe fn new(app_ui: &Rc<AppUI>, precheck_program: Option<UpdateStatus>, precheck_schema: Option<UpdateStatus>, precheck_twautogen: Option<UpdateStatus>, precheck_old_ak: Option<UpdateStatus>) -> Result<()> {
 
         // Load the UI Template.
         let template_path = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };
@@ -282,231 +322,32 @@ impl UpdaterUI {
         main_widget.static_downcast::<QDialog>().set_window_title(&qtr("updater_title"));
         main_widget.static_downcast::<QDialog>().show();
 
-        let receiver_program = if !cfg!(target_os = "linux") {
-            Some(CENTRAL_COMMAND.read().unwrap().send(Command::CheckUpdates))
-        } else {
-            None
-        };
-        let receiver_schemas = CENTRAL_COMMAND.read().unwrap().send(Command::CheckSchemaUpdates);
-        let receiver_twautogen = CENTRAL_COMMAND.read().unwrap().send(Command::CheckLuaAutogenUpdates);
-        let receiver_old_ak = CENTRAL_COMMAND.read().unwrap().send(Command::CheckEmpireAndNapoleonAKUpdates);
+        // Checks that weren't done before are launched now, and their buttons updated as they answer.
+        let mut checks = vec![
+            (UpdateCheck::start_unless_done(UpdateComponent::Schemas, precheck_schema), &update_schemas_button, "updater_update_schemas"),
+            (UpdateCheck::start_unless_done(UpdateComponent::LuaAutogen, precheck_twautogen), &update_twautogen_button, "updater_update_twautogen"),
+            (UpdateCheck::start_unless_done(UpdateComponent::OldAssemblyKit, precheck_old_ak), &update_old_ak_button, "updater_update_old_ak"),
+        ];
 
-        // Apply prechecks immediately for any that were already resolved.
-        let mut pending_program = if cfg!(target_os = "linux") {
-            false
-        } else {
-            match precheck_program {
-                Some(response) => {
-                    match response {
-                        APIResponse::NewStableUpdate(last_release) |
-                        APIResponse::NewBetaUpdate(last_release) |
-                        APIResponse::NewUpdateHotfix(last_release) => {
-                            update_program_button.set_text(&qtre("updater_update_program_available", &[&last_release]));
-                            update_program_button.set_enabled(true);
-                        }
-                        APIResponse::NoUpdate |
-                        APIResponse::UnknownVersion => {
-                            update_program_button.set_text(&qtr("updater_update_program_no_updates"));
-                        }
-                    }
-                    false
-                }
-                None => true,
+        if !cfg!(target_os = "linux") {
+            checks.push((UpdateCheck::start_unless_done(UpdateComponent::Program, precheck_program), &update_program_button, "updater_update_program"));
+        }
+
+        for (check, button, texts) in &checks {
+            if !check.is_pending() {
+                show_status(button, texts, check.status.as_ref());
             }
-        };
+        }
 
-        let mut pending_schema = match precheck_schema {
-            Some(response) => {
-                match response {
-                    GitResponse::NoLocalFiles |
-                    GitResponse::NewUpdate |
-                    GitResponse::Diverged => {
-                        update_schemas_button.set_text(&qtr("updater_update_schemas_available"));
-                        update_schemas_button.set_enabled(true);
-                    }
-                    GitResponse::NoUpdate => {
-                        update_schemas_button.set_text(&qtr("updater_update_schemas_no_updates"));
-                    }
+        let event_loop = QEventLoop::new_0a();
+        while checks.iter().any(|(check, _, _)| check.is_pending()) {
+            for (check, button, texts) in &mut checks {
+                if check.is_pending() && check.poll() {
+                    show_status(button, texts, check.status.as_ref());
                 }
-                false
             }
-            None => true,
-        };
 
-        let mut pending_twautogen = match precheck_twautogen {
-            Some(response) => {
-                match response {
-                    GitResponse::NoLocalFiles |
-                    GitResponse::NewUpdate |
-                    GitResponse::Diverged => {
-                        update_twautogen_button.set_text(&qtr("updater_update_twautogen_available"));
-                        update_twautogen_button.set_enabled(true);
-                    }
-                    GitResponse::NoUpdate => {
-                        update_twautogen_button.set_text(&qtr("updater_update_twautogen_no_updates"));
-                    }
-                }
-                false
-            }
-            None => true,
-        };
-
-        let mut pending_old_ak = match precheck_old_ak {
-            Some(response) => {
-                match response {
-                    GitResponse::NoLocalFiles |
-                    GitResponse::NewUpdate |
-                    GitResponse::Diverged => {
-                        update_old_ak_button.set_text(&qtr("updater_update_old_ak_available"));
-                        update_old_ak_button.set_enabled(true);
-                    }
-                    GitResponse::NoUpdate => {
-                        update_old_ak_button.set_text(&qtr("updater_update_old_ak_no_updates"));
-                    }
-                }
-                false
-            }
-            None => true,
-        };
-
-        // Poll all pending receivers concurrently so no check blocks the others.
-        if pending_program || pending_schema || pending_twautogen || pending_old_ak {
-            let event_loop = QEventLoop::new_0a();
-
-            while pending_program || pending_schema || pending_twautogen || pending_old_ak {
-                if pending_program {
-                    if let Some(ref receiver_program) = receiver_program {
-                        match receiver_program.try_recv() {
-                            Ok(response) => {
-                                pending_program = false;
-                                match response {
-                                    Response::APIResponse(response) => {
-                                        match response {
-                                            APIResponse::NewStableUpdate(last_release) |
-                                            APIResponse::NewBetaUpdate(last_release) |
-                                            APIResponse::NewUpdateHotfix(last_release) => {
-                                                update_program_button.set_text(&qtre("updater_update_program_available", &[&last_release]));
-                                                update_program_button.set_enabled(true);
-                                            }
-                                            APIResponse::NoUpdate |
-                                            APIResponse::UnknownVersion => {
-                                                update_program_button.set_text(&qtr("updater_update_program_no_updates"));
-                                            }
-                                        }
-                                    }
-                                    Response::Error(_) => {
-                                        update_program_button.set_text(&qtr("updater_update_program_no_updates"));
-                                    }
-                                    _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-                                }
-                            }
-                            Err(error) => if error.is_disconnected() {
-                                warn!("Update refresh (program) skipped: background channel disconnected.");
-                                pending_program = false;
-                                update_program_button.set_text(&qtr("updater_update_program_no_updates"));
-                            }
-                        }
-                    }
-                }
-
-                if pending_schema {
-                    match receiver_schemas.try_recv() {
-                        Ok(response) => {
-                            pending_schema = false;
-                            match response {
-                                Response::APIResponseGit(response) => {
-                                    match response {
-                                        GitResponse::NoLocalFiles |
-                                        GitResponse::NewUpdate |
-                                        GitResponse::Diverged => {
-                                            update_schemas_button.set_text(&qtr("updater_update_schemas_available"));
-                                            update_schemas_button.set_enabled(true);
-                                        }
-                                        GitResponse::NoUpdate => {
-                                            update_schemas_button.set_text(&qtr("updater_update_schemas_no_updates"));
-                                        }
-                                    }
-                                }
-                                Response::Error(_) => {
-                                    update_schemas_button.set_text(&qtr("updater_update_schemas_no_updates"));
-                                }
-                                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-                            }
-                        }
-                        Err(error) => if error.is_disconnected() {
-                            warn!("Update refresh (schema) skipped: background channel disconnected.");
-                            pending_schema = false;
-                            update_schemas_button.set_text(&qtr("updater_update_schemas_no_updates"));
-                        }
-                    }
-                }
-
-                if pending_twautogen {
-                    match receiver_twautogen.try_recv() {
-                        Ok(response) => {
-                            pending_twautogen = false;
-                            match response {
-                                Response::APIResponseGit(response) => {
-                                    match response {
-                                        GitResponse::NoLocalFiles |
-                                        GitResponse::NewUpdate |
-                                        GitResponse::Diverged => {
-                                            update_twautogen_button.set_text(&qtr("updater_update_twautogen_available"));
-                                            update_twautogen_button.set_enabled(true);
-                                        }
-                                        GitResponse::NoUpdate => {
-                                            update_twautogen_button.set_text(&qtr("updater_update_twautogen_no_updates"));
-                                        }
-                                    }
-                                }
-                                Response::Error(_) => {
-                                    update_twautogen_button.set_text(&qtr("updater_update_twautogen_no_updates"));
-                                }
-                                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-                            }
-                        }
-                        Err(error) => if error.is_disconnected() {
-                            warn!("Update refresh (TW autogen) skipped: background channel disconnected.");
-                            pending_twautogen = false;
-                            update_twautogen_button.set_text(&qtr("updater_update_twautogen_no_updates"));
-                        }
-                    }
-                }
-
-                if pending_old_ak {
-                    match receiver_old_ak.try_recv() {
-                        Ok(response) => {
-                            pending_old_ak = false;
-                            match response {
-                                Response::APIResponseGit(response) => {
-                                    match response {
-                                        GitResponse::NoLocalFiles |
-                                        GitResponse::NewUpdate |
-                                        GitResponse::Diverged => {
-                                            update_old_ak_button.set_text(&qtr("updater_update_old_ak_available"));
-                                            update_old_ak_button.set_enabled(true);
-                                        }
-                                        GitResponse::NoUpdate => {
-                                            update_old_ak_button.set_text(&qtr("updater_update_old_ak_no_updates"));
-                                        }
-                                    }
-                                }
-                                Response::Error(_) => {
-                                    update_old_ak_button.set_text(&qtr("updater_update_old_ak_no_updates"));
-                                }
-                                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-                            }
-                        }
-                        Err(error) => if error.is_disconnected() {
-                            warn!("Update refresh (Empire/Napoleon AK) skipped: background channel disconnected.");
-                            pending_old_ak = false;
-                            update_old_ak_button.set_text(&qtr("updater_update_old_ak_no_updates"));
-                        }
-                    }
-                }
-
-                event_loop.process_events();
-            }
+            event_loop.process_events();
         }
 
         let ui = Rc::new(Self {

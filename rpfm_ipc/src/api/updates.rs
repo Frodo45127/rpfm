@@ -23,7 +23,7 @@ use super::{Done, Request};
 #[serde(rename_all = "snake_case")]
 pub enum UpdateComponent {
 
-    /// RPFM itself. Can only be checked: the program is updated by its UI.
+    /// RPFM itself. Updating it replaces its files with the latest release, and needs a restart.
     Program,
 
     /// The schemas with the table definitions of every game.
@@ -54,15 +54,45 @@ pub struct UpdateStatus {
     /// If there is an update.
     pub available: bool,
 
-    /// Details of the state, like `new_stable_update`, `no_update`, `no_local_files` or `diverged`.
-    pub state: String,
+    /// Details of the state.
+    pub state: UpdateState,
 
     /// Version of the update, for program updates.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub version: Option<String>,
 }
 
-/// `updates.apply`: downloads an update. The program and the schemas can't be updated with this.
+/// Details of the state of the updates of something.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum UpdateState {
+
+    /// There is a new stable release of the program.
+    NewStableUpdate,
+
+    /// There is a new beta release of the program.
+    NewBetaUpdate,
+
+    /// There is a new hotfix release of the program.
+    NewUpdateHotfix,
+
+    /// The program's version couldn't be compared with the latest release.
+    UnknownVersion,
+
+    /// There is a new version of the files.
+    NewUpdate,
+
+    /// The files were never downloaded.
+    NoLocalFiles,
+
+    /// The local files diverged from the remote ones, and need to be downloaded again.
+    Diverged,
+
+    /// Everything is up to date.
+    NoUpdate,
+}
+
+/// `updates.apply`: downloads an update. Schemas can't be updated with this, as they need reloading: use `schema.update`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct ApplyUpdate {
 

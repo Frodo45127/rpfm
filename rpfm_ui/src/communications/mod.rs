@@ -26,7 +26,8 @@ use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 pub use rpfm_ipc::messages::{Command, Response, Message as IpcMessage};
-use rpfm_ipc::api::{RpcOutcome, RpcRequest, RpcResponse};
+use rpfm_ipc::api::{ApiError, Request, RpcOutcome, RpcRequest, RpcResponse};
+use rpfm_ipc::api::jobs::{JobStarted, JobState, WaitForJob};
 use rpfm_ipc::api::session::Configure;
 
 use rpfm_telemetry::*;
@@ -67,8 +68,18 @@ pub const THREADS_SENDER_ERROR: &str = "Error in thread communication system. Se
 ///
 /// You can use them by using the send/recv functions implemented for it.
 pub struct CentralCommand<T: Send + Sync + Debug> {
-    sender: UnboundedSender<(IpcMessage<Command>, Sender<T>)>,
+    sender: UnboundedSender<Outgoing<T>>,
     try_lock: AtomicBool,
+}
+
+/// A message for the server, with where to send its response.
+pub enum Outgoing<T> {
+
+    /// A command of the legacy protocol.
+    Legacy(Box<IpcMessage<Command>>, Sender<T>),
+
+    /// A request of the version 2 API.
+    Api(RpcRequest, Sender<RpcResponse>),
 }
 
 //-------------------------------------------------------------------------------//
@@ -92,7 +103,7 @@ impl<T: Send + Sync + Debug> CentralCommand<T> {
     /// This function initializes a new central command, and returns the sender to send messages to it.
     ///
     /// Use it to replace the default one on runtime.
-    pub fn init() -> (Self, UnboundedReceiver<(IpcMessage<Command>, Sender<T>)>) {
+    pub fn init() -> (Self, UnboundedReceiver<Outgoing<T>>) {
         let (sender, receiver) = unbounded_channel();
         let try_lock = AtomicBool::new(false);
         (Self {
@@ -112,8 +123,26 @@ impl<T: Send + Sync + Debug + for<'a> serde::Deserialize<'a>> CentralCommand<T> 
         let (sender_back, receiver_back) = unbounded();
         let id = MESSAGE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let message = IpcMessage { id, data };
-        if let Err(error) = self.sender.send((message, sender_back)) {
-            panic!("{THREADS_SENDER_ERROR}: {error}");
+        if self.sender.send(Outgoing::Legacy(Box::new(message), sender_back)).is_err() {
+            panic!("{THREADS_SENDER_ERROR}");
+        }
+
+        receiver_back
+    }
+
+    /// This function sends a request of the version 2 API to the backend.
+    ///
+    /// It returns the receiver which will receive the response.
+    pub fn call<R: Request>(&self, request: &R) -> Receiver<RpcResponse> {
+        let (sender_back, receiver_back) = unbounded();
+        let id = MESSAGE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        match RpcRequest::new(id, request) {
+            Ok(request) => if self.sender.send(Outgoing::Api(request, sender_back)).is_err() {
+                panic!("{THREADS_SENDER_ERROR}");
+            },
+            Err(error) => {
+                let _ = sender_back.send(RpcResponse::new(id, Err(ApiError::InvalidParams(error.to_string()))));
+            }
         }
 
         receiver_back
@@ -169,7 +198,7 @@ impl<T: Send + Sync + Debug + for<'a> serde::Deserialize<'a>> CentralCommand<T> 
     /// Non-panicking variant of [`Self::recv_try`]. Returns `None` if the sender is
     /// already disconnected — used by call sites where a lost backend should fail
     /// gracefully (e.g. the updater) instead of crashing the whole UI.
-    pub fn recv_try_checked(&self, receiver: &Receiver<T>) -> Option<T> {
+    pub fn recv_try_checked<U: Debug>(&self, receiver: &Receiver<U>) -> Option<U> {
         let event_loop = unsafe { QEventLoop::new_0a() };
 
         if !self.try_lock.load(Ordering::SeqCst) {
@@ -248,6 +277,51 @@ where
     extractor(response)
 }
 
+/// Calls a method of the server's API, and waits for its response.
+pub fn call_api<R: Request>(request: &R) -> Result<R::Response> {
+    debug_assert!(!R::IS_JOB, "{} runs as a job. Use run_job instead.", R::METHOD);
+    let receiver = CENTRAL_COMMAND.read().unwrap().call(request);
+    match receiver.recv() {
+        Ok(response) => api_result(response),
+        Err(_) => panic!("{THREADS_COMMUNICATION_ERROR}Disconnected"),
+    }
+}
+
+/// Calls a method of the server's API, and waits for its response while keeping the UI alive.
+pub fn call_api_async<R: Request>(request: &R) -> Result<R::Response> {
+    debug_assert!(!R::IS_JOB, "{} runs as a job. Use run_job instead.", R::METHOD);
+    api_result(call_api_async_raw(request)?)
+}
+
+/// Runs a method of the server's API that runs as a job, and waits for it to end while keeping the UI alive.
+pub fn run_job<R: Request>(request: &R) -> Result<R::Response> {
+    debug_assert!(R::IS_JOB, "{} doesn't run as a job. Use call_api instead.", R::METHOD);
+    let JobStarted { job } = api_result(call_api_async_raw(request)?)?;
+    loop {
+        let status = call_api_async(&WaitForJob { job, timeout_secs: None })?;
+        match status.state {
+            JobState::Finished { result } => return serde_json::from_value(result).map_err(From::from),
+            JobState::Failed { error } => return Err(ApiError::from(error).into()),
+            JobState::Cancelled => return Err(anyhow!("The job was cancelled before it started.")),
+            JobState::Queued | JobState::Running { .. } => {}
+        }
+    }
+}
+
+/// Sends a request of the server's API, and waits for its response while keeping the UI alive.
+fn call_api_async_raw<R: Request>(request: &R) -> Result<RpcResponse> {
+    let receiver = CENTRAL_COMMAND.read().unwrap().call(request);
+    CENTRAL_COMMAND.read().unwrap().recv_try_checked(&receiver).ok_or_else(|| anyhow!("{THREADS_COMMUNICATION_ERROR}Disconnected"))
+}
+
+/// Turns the response of a request into its result. Errors are [`ApiError`]s, so callers can downcast them.
+pub fn api_result<T: serde::de::DeserializeOwned>(response: RpcResponse) -> Result<T> {
+    match response.outcome {
+        RpcOutcome::Result(value) => serde_json::from_value(value).map_err(From::from),
+        RpcOutcome::Error(error) => Err(ApiError::from(error).into()),
+    }
+}
+
 /// Request a reconnection to a specific session ID.
 ///
 /// This will signal the WebSocket loop to disconnect from the current session and
@@ -286,11 +360,12 @@ pub fn wait_for_reconnect(timeout_ms: u64) -> bool {
 }
 
 /// This function is the one that actually handles the WebSocket communication with the server.
-pub async fn websocket_loop(mut receiver: UnboundedReceiver<(IpcMessage<Command>, Sender<Response>)>) {
+pub async fn websocket_loop(mut receiver: UnboundedReceiver<Outgoing<Response>>) {
     let base_url = "ws://localhost:45127/ws";
     let mut current_session_id: Option<u64> = None;
 
     let mut response_channels = HashMap::new();
+    let mut api_channels: HashMap<u64, Sender<RpcResponse>> = HashMap::new();
 
     loop {
         // Exit cleanly once the UI has requested disconnection — the server tears the
@@ -306,6 +381,7 @@ pub async fn websocket_loop(mut receiver: UnboundedReceiver<(IpcMessage<Command>
             info!("Reconnection requested to session: {:?}", current_session_id);
             // Clear any pending response channels from the old connection.
             response_channels.clear();
+            api_channels.clear();
         }
 
         // Build the URL with optional session ID parameter.
@@ -339,14 +415,22 @@ pub async fn websocket_loop(mut receiver: UnboundedReceiver<(IpcMessage<Command>
                         }
 
                         // New command from the UI. The server must have the current settings before running it.
-                        Some((message, sender)) = receiver.recv() => {
+                        Some(outgoing) = receiver.recv() => {
                             if !send_changed_settings(&mut ws_stream).await {
                                 error!("Failed to send the settings over WebSocket.");
                                 break;
                             }
 
-                            response_channels.insert(message.id, sender);
-                            let json = serde_json::to_string(&message).unwrap();
+                            let json = match outgoing {
+                                Outgoing::Legacy(message, sender) => {
+                                    response_channels.insert(message.id, sender);
+                                    serde_json::to_string(&message).unwrap()
+                                }
+                                Outgoing::Api(request, sender) => {
+                                    api_channels.insert(request.id, sender);
+                                    serde_json::to_string(&request).unwrap()
+                                }
+                            };
                             if ws_stream.send(WsMessage::Text(json.into())).await.is_err() {
                                 error!("Failed to send message over WebSocket.");
                                 break;
@@ -358,10 +442,12 @@ pub async fn websocket_loop(mut receiver: UnboundedReceiver<(IpcMessage<Command>
                             match msg {
                                 Ok(WsMessage::Text(text)) => {
 
-                                    // Version 2 messages: the answers to the settings sent, and notifications.
+                                    // Version 2 messages. Notifications have no ID, so they don't parse as responses.
                                     if text.contains("\"jsonrpc\"") {
                                         if let Ok(response) = serde_json::from_str::<RpcResponse>(&text) {
-                                            if let RpcOutcome::Error(error) = response.outcome {
+                                            if let Some(sender) = api_channels.remove(&response.id) {
+                                                let _ = sender.send(response);
+                                            } else if let RpcOutcome::Error(error) = response.outcome {
                                                 error!("The server rejected a request [ID {}]: {}", response.id, error.message);
                                             }
                                         }

@@ -75,9 +75,7 @@ use rpfm_lib::files::{
     video::SupportedFormats, ContainerPath, RFile, RFileDecoded,
 };
 use rpfm_lib::games::pfh_file_type::PFHFileType;
-use rpfm_lib::integrations::git::GitResponse;
 use rpfm_lib::integrations::github::DeviceCode;
-use rpfm_lib::notes::Note;
 use rpfm_lib::schema::{Definition, DefinitionPatch, Field, Schema};
 
 use crate::helpers::*;
@@ -337,27 +335,6 @@ pub enum Command {
     //-----------------------------------------------------------------------//
     // Update Commands
     //-----------------------------------------------------------------------//
-
-    /// Check if there is an RPFM update available.
-    ///
-    /// Response:
-    /// - [`Response::APIResponse`] on success.
-    /// - [`Response::Error`] on failure.
-    CheckUpdates,
-
-    /// Check if there is a Schema update available.
-    ///
-    /// Response:
-    /// - [`Response::APIResponseGit`] on success.
-    /// - [`Response::Error`] on failure.
-    CheckSchemaUpdates,
-
-    /// Update the schemas from the remote repository.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    UpdateSchemas,
 
     /// Check if there is a Dependency Database loaded in memory.
     /// Pass true to ensure dependencies were built with the AssKit.
@@ -716,13 +693,6 @@ pub enum Command {
     // Program Update Commands
     //-----------------------------------------------------------------------//
 
-    /// Update the program to the latest version available.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    UpdateMainProgram,
-
     /// Trigger an autosave to a backup for a specific pack.
     /// The field is the pack key.
     ///
@@ -880,24 +850,6 @@ pub enum Command {
     // Notes Commands
     //-----------------------------------------------------------------------//
 
-    /// Get all notes under a path in a specific pack.
-    /// First field is the pack key, second is the path.
-    ///
-    /// Response: [`Response::VecNote`].
-    NotesForPath(String, String),
-
-    /// Add a note to a specific pack.
-    /// First field is the pack key, second is the note.
-    ///
-    /// Response: [`Response::Note`].
-    AddNote(String, Note),
-
-    /// Delete a note from a specific pack.
-    /// First field is the pack key, then path and note ID.
-    ///
-    /// Response: [`Response::Success`].
-    DeleteNote(String, String, u64),
-
     //-----------------------------------------------------------------------//
     // Schema Patch Commands
     //-----------------------------------------------------------------------//
@@ -945,20 +897,6 @@ pub enum Command {
     //-----------------------------------------------------------------------//
     // Lua Autogen Commands
     //-----------------------------------------------------------------------//
-
-    /// Check for updates on the tw_autogen repository.
-    ///
-    /// Response:
-    /// - [`Response::APIResponseGit`] on success.
-    /// - [`Response::Error`] on failure.
-    CheckLuaAutogenUpdates,
-
-    /// Update the tw_autogen repository.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    UpdateLuaAutogen,
 
     //-----------------------------------------------------------------------//
     // MyMod Commands
@@ -1018,20 +956,6 @@ pub enum Command {
     // Empire/Napoleon AK Commands
     //-----------------------------------------------------------------------//
 
-    /// Check for updates on the old AK files repository.
-    ///
-    /// Response:
-    /// - [`Response::APIResponseGit`] on success.
-    /// - [`Response::Error`] on failure.
-    CheckEmpireAndNapoleonAKUpdates,
-
-    /// Update the old AK files repository.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    UpdateEmpireAndNapoleonAK,
-
     //-----------------------------------------------------------------------//
     // Translation Commands
     //-----------------------------------------------------------------------//
@@ -1051,20 +975,6 @@ pub enum Command {
     /// - [`Response::Bool`] on success: whether vanilla texts for that language are available.
     /// - [`Response::Error`] on failure.
     GenerateVanillaTranslationSource(String),
-
-    /// Check for translation updates.
-    ///
-    /// Response:
-    /// - [`Response::APIResponseGit`] on success.
-    /// - [`Response::Error`] on failure.
-    CheckTranslationsUpdates,
-
-    /// Update the translations repository.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    UpdateTranslations,
 
     //-----------------------------------------------------------------------//
     // Translation Hub Commands
@@ -1315,8 +1225,6 @@ pub enum Response {
     AnimFragmentBattleRFileInfo(AnimFragmentBattle, RFileInfo),
     AnimPackRFileInfo(Vec<RFileInfo>, RFileInfo),
     AnimsTableRFileInfo(AnimsTable, RFileInfo),
-    APIResponse(APIResponse),
-    APIResponseGit(GitResponse),
     AtlasRFileInfo(Atlas, RFileInfo),
     AudioRFileInfo(Audio, RFileInfo),
     Bool(bool),
@@ -1351,7 +1259,6 @@ pub enum Response {
     LocRFileInfo(Loc, RFileInfo),
     MatchedCombatRFileInfo(MatchedCombat, RFileInfo),
     MergeConflicts(Vec<MergeConflict>),
-    Note(Note),
     OperationalMode(OperationalMode),
     OptionContainerPath(Option<ContainerPath>),
     OptionRFileInfo(Option<RFileInfo>),
@@ -1385,7 +1292,6 @@ pub enum Response {
     VecDataSourceStringStringStringUsizeUsize(Vec<(DataSource, String, String, String, usize, usize)>),
     VecDefinition(Vec<Definition>),
     VecField(Vec<Field>),
-    VecNote(Vec<Note>),
     VecRFile(Vec<RFile>),
     VecRFileInfo(Vec<RFileInfo>),
     VecString(Vec<String>),

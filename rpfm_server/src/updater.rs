@@ -40,7 +40,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use rpfm_ipc::api::ApiError;
-use rpfm_ipc::api::updates::{UpdateComponent, UpdateStatus};
+use rpfm_ipc::api::updates::{UpdateComponent, UpdateState, UpdateStatus};
 use rpfm_ipc::helpers::*;
 
 use rpfm_lib::games::{LUA_BRANCH, LUA_REMOTE, LUA_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE, OLD_AK_REPO, TRANSLATIONS_BRANCH, TRANSLATIONS_REMOTE, TRANSLATIONS_REPO};
@@ -359,26 +359,26 @@ pub fn git_update_repo(path_fn: fn() -> settings::Result<PathBuf>, repo: &str, b
 pub fn check_component(component: UpdateComponent, settings: &Settings) -> Result<UpdateStatus> {
     let git_status = |response: GitResponse| {
         let (available, state) = match response {
-            GitResponse::NewUpdate => (true, "new_update"),
-            GitResponse::NoUpdate => (false, "no_update"),
-            GitResponse::NoLocalFiles => (true, "no_local_files"),
-            GitResponse::Diverged => (true, "diverged"),
+            GitResponse::NewUpdate => (true, UpdateState::NewUpdate),
+            GitResponse::NoUpdate => (false, UpdateState::NoUpdate),
+            GitResponse::NoLocalFiles => (true, UpdateState::NoLocalFiles),
+            GitResponse::Diverged => (true, UpdateState::Diverged),
         };
 
-        UpdateStatus { available, state: state.to_owned(), version: None }
+        UpdateStatus { available, state, version: None }
     };
 
     Ok(match component {
         UpdateComponent::Program => {
             let (available, state, version) = match check_updates_rpfm(settings)? {
-                APIResponse::NewBetaUpdate(version) => (true, "new_beta_update", Some(version)),
-                APIResponse::NewStableUpdate(version) => (true, "new_stable_update", Some(version)),
-                APIResponse::NewUpdateHotfix(version) => (true, "new_update_hotfix", Some(version)),
-                APIResponse::NoUpdate => (false, "no_update", None),
-                APIResponse::UnknownVersion => (false, "unknown_version", None),
+                APIResponse::NewBetaUpdate(version) => (true, UpdateState::NewBetaUpdate, Some(version)),
+                APIResponse::NewStableUpdate(version) => (true, UpdateState::NewStableUpdate, Some(version)),
+                APIResponse::NewUpdateHotfix(version) => (true, UpdateState::NewUpdateHotfix, Some(version)),
+                APIResponse::NoUpdate => (false, UpdateState::NoUpdate, None),
+                APIResponse::UnknownVersion => (false, UpdateState::UnknownVersion, None),
             };
 
-            UpdateStatus { available, state: state.to_owned(), version }
+            UpdateStatus { available, state, version }
         }
         UpdateComponent::Schemas => git_status(git_check_update(schemas_path, SCHEMA_REPO, SCHEMA_BRANCH, SCHEMA_REMOTE)?),
         UpdateComponent::LuaAutogen => git_status(git_check_update(lua_autogen_base_path, LUA_REPO, LUA_BRANCH, LUA_REMOTE)?),
@@ -391,10 +391,10 @@ pub fn check_component(component: UpdateComponent, settings: &Settings) -> Resul
 ///
 /// # Errors
 ///
-/// Fails for the program and the schemas, which are updated elsewhere, or if downloading fails.
-pub fn apply_component(component: UpdateComponent) -> Result<()> {
+/// Fails for the schemas, which are updated elsewhere, or if downloading fails.
+pub fn apply_component(component: UpdateComponent, settings: &Settings) -> Result<()> {
     match component {
-        UpdateComponent::Program => Err(ApiError::InvalidParams("The program is updated by its UI.".to_owned()).into()),
+        UpdateComponent::Program => update_main_program(settings),
         UpdateComponent::Schemas => Err(ApiError::InvalidParams("Schemas are updated with schema.update, as they need reloading.".to_owned()).into()),
         UpdateComponent::LuaAutogen => git_update_repo(lua_autogen_base_path, LUA_REPO, LUA_BRANCH, LUA_REMOTE),
         UpdateComponent::OldAssemblyKit => git_update_repo(old_ak_files_path, OLD_AK_REPO, OLD_AK_BRANCH, OLD_AK_REMOTE),

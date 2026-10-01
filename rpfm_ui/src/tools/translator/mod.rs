@@ -67,14 +67,13 @@ use std::time::{Duration, Instant};
 
 use rpfm_extensions::translator::*;
 
+use rpfm_ipc::api::updates::{ApplyUpdate, CheckUpdate, UpdateComponent};
 use rpfm_ipc::settings_keys::*;
 
 use rpfm_lib::files::{Container, ContainerPath, FileType, pack::Pack, RFileDecoded, table::DecodedData};
 use rpfm_lib::games::{*, supported_games::*};
-use rpfm_lib::integrations::git::GitResponse;
 
-use crate::CENTRAL_COMMAND;
-use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR, send_ipc_command, send_ipc_command_result};
+use crate::communications::{Command, Response, call_api_async, send_ipc_command, send_ipc_command_result};
 use crate::references_ui::ReferencesUI;
 use crate::settings_ui::backend::{settings_bool, settings_path_buf, settings_set_bool, settings_set_string, settings_string};
 use crate::views::table::{FilterChipState, TableType, TableView, utils::get_table_from_view};
@@ -531,31 +530,16 @@ impl ToolTranslator {
             }
         }
 
-        // Check if the repo needs updating, and update it if so.
-        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::CheckTranslationsUpdates);
-        let response_thread = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-        match response_thread {
-            Response::APIResponseGit(ref response) => {
-                match response {
-                    GitResponse::NewUpdate |
-                    GitResponse::NoLocalFiles |
-                    GitResponse::Diverged => {
-                        let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::UpdateTranslations);
-                        let response_thread = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
+        // Check if the repo needs updating, and update it if so. Errors are shown, but we continue anyway.
+        let update = call_api_async(&CheckUpdate { component: UpdateComponent::Translations })
+            .and_then(|status| if status.available {
+                call_api_async(&ApplyUpdate { component: UpdateComponent::Translations }).map(|_| ())
+            } else {
+                Ok(())
+            });
 
-                        // Show the error, but continue anyway.
-                        if let Response::Error(error) = response_thread {
-                            show_dialog(app_ui.main_window(), tre("translation_download_error", &[&error.to_string()]), false);
-                        }
-                    }
-                    GitResponse::NoUpdate => {}
-                }
-            }
-
-            Response::Error(error) => {
-                show_dialog(app_ui.main_window(), tre("translation_download_error", &[&error.to_string()]), false);
-            }
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response_thread:?}"),
+        if let Err(error) = update {
+            show_dialog(app_ui.main_window(), tre("translation_download_error", &[&error.to_string()]), false);
         }
 
         // Unlike other tools, data is loaded here, because we need it to generate the table widget.

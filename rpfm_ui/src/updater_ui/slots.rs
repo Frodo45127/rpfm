@@ -19,6 +19,9 @@ use std::env::current_exe;
 use std::process::{Command as SystemCommand, exit};
 use std::rc::Rc;
 
+use rpfm_ipc::api::schema::UpdateSchemas;
+use rpfm_ipc::api::updates::{ApplyUpdate, UpdateComponent};
+
 use rpfm_ui_common::clone;
 
 use crate::communications::*;
@@ -51,8 +54,8 @@ impl UpdaterUISlots {
                 ui.update_program_button.set_text(&qtr("updater_update_program_updating"));
                 ui.update_program_button.set_enabled(false);
 
-                match send_ipc_command_result_async(Command::UpdateMainProgram, response_extractor!()) {
-                    Ok(()) => {
+                match call_api_async(&ApplyUpdate { component: UpdateComponent::Program }) {
+                    Ok(_) => {
                         ui.update_program_button.set_text(&qtr("updater_update_program_updated"));
 
                         // Re-enable the button so it can be used to restart the program.
@@ -82,8 +85,8 @@ impl UpdaterUISlots {
                 ui.update_schemas_button.set_text(&qtr("updater_update_schemas_updating"));
                 ui.update_schemas_button.set_enabled(false);
 
-                match send_ipc_command_result_async(Command::UpdateSchemas, response_extractor!()) {
-                    Ok(()) => {
+                match run_job(&UpdateSchemas {}) {
+                    Ok(_) => {
                         ui.update_schemas_button.set_text(&qtr("updater_update_schemas_updated"));
                     },
                     Err(error) => {
@@ -100,8 +103,8 @@ impl UpdaterUISlots {
                 ui.update_twautogen_button.set_text(&qtr("updater_update_twautogen_updating"));
                 ui.update_twautogen_button.set_enabled(false);
 
-                match send_ipc_command_result_async(Command::UpdateLuaAutogen, response_extractor!()) {
-                    Ok(()) => {
+                match call_api_async(&ApplyUpdate { component: UpdateComponent::LuaAutogen }) {
+                    Ok(_) => {
                         ui.update_twautogen_button.set_text(&qtr("updater_update_twautogen_updated"));
                     },
                     Err(error) => {
@@ -118,8 +121,8 @@ impl UpdaterUISlots {
                 ui.update_old_ak_button.set_text(&qtr("updater_update_old_ak_updating"));
                 ui.update_old_ak_button.set_enabled(false);
 
-                match send_ipc_command_result_async(Command::UpdateEmpireAndNapoleonAK, response_extractor!()) {
-                    Ok(()) => {
+                match call_api_async(&ApplyUpdate { component: UpdateComponent::OldAssemblyKit }) {
+                    Ok(_) => {
                         ui.update_old_ak_button.set_text(&qtr("updater_update_old_ak_updated"));
                     },
                     Err(error) => {

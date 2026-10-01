@@ -43,12 +43,11 @@ use std::fs::File;
 use std::io::{Read, BufReader};
 use std::sync::{Arc, RwLock};
 
-use rpfm_lib::notes::Note;
+use rpfm_ipc::api::notes::{AddNote, DeleteNote, ListNotes, NoteEntry};
 
 use rpfm_ui_common::ASSETS_PATH;
 use rpfm_ui_common::utils::find_widget;
 
-use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::ffi::new_tips_item_delegate_safe;
 use crate::utils::{qtr, show_dialog, tr};
@@ -144,13 +143,13 @@ impl NotesView {
             return;
         }
 
-        let mut notes = match send_ipc_command_result(Command::NotesForPath(pack_key, self.path.read().unwrap().to_owned()), response_extractor!(Response::VecNote)) {
-            Ok(notes) => notes,
+        let mut notes = match call_api(&ListNotes { pack: pack_key, path: self.path.read().unwrap().to_owned() }) {
+            Ok(list) => list.notes,
             Err(_) => return,
         };
 
         if !notes.is_empty() {
-            notes.sort_by_key(|note| *note.id());
+            notes.sort_by_key(|note| note.id);
             notes.iter().for_each(|note| self.add_item_to_notes_list(note));
 
             let parent = self.list.parent().static_downcast::<QWidget>();
@@ -162,9 +161,9 @@ impl NotesView {
     }
 
     /// This function saves a note on the currently open Pack.
-    pub unsafe fn save_data(&self, note: Note) {
+    pub unsafe fn save_data(&self, note: AddNote) {
 
-        match send_ipc_command_result(Command::AddNote(self.pack_key.read().unwrap().clone(), note), response_extractor!(Response::Note)) {
+        match call_api(&note) {
             Ok(note) => self.add_item_to_notes_list(&note),
             Err(error) => show_dialog(&self.list, error, false),
         }
@@ -198,9 +197,9 @@ impl NotesView {
         // Setup data.
         if edit {
             let note = self.note_from_selection();
-            link_line_edit.set_text(&QString::from_std_str(note.url().clone().unwrap_or("".to_string())));
-            tip_text_edit.set_text(&QString::from_std_str(note.message()));
-            path_line_edit.set_text(&QString::from_std_str(note.path()));
+            link_line_edit.set_text(&QString::from_std_str(note.url.clone().unwrap_or_default()));
+            tip_text_edit.set_text(&QString::from_std_str(&note.message));
+            path_line_edit.set_text(&QString::from_std_str(&note.path));
         } else {
             path_line_edit.set_text(&QString::from_std_str(self.path.read().unwrap().to_string()));
         }
@@ -213,22 +212,18 @@ impl NotesView {
 
         // If we hit accept, build the tip and save it.
         if dialog.exec() == 1 {
-            let mut note = Note::default();
-            note.set_message(tip_text_edit.to_plain_text().to_std_string());
-
             let url = link_line_edit.text().to_std_string();
-            if url.is_empty() {
-                note.set_url(None);
-            } else {
-                note.set_url(Some(url));
-            }
+            let mut note = AddNote {
+                pack: self.pack_key.read().unwrap().clone(),
+                path: path_line_edit.text().to_std_string(),
+                message: tip_text_edit.to_plain_text().to_std_string(),
+                url: if url.is_empty() { None } else { Some(url) },
+                id: None,
+            };
 
-            note.set_path(path_line_edit.text().to_std_string());
-
-            // If it's an edit, overwrite the default id with the old one.
+            // If it's an edit, replace the old note.
             if edit {
-                let old_note = self.note_from_selection();
-                note.set_id(*old_note.id());
+                note.id = Some(self.note_from_selection().id);
 
                 let indexes = self.filter.map_selection_to_source(&self.list.selection_model().selection()).indexes();
                 self.model.remove_row_1a(indexes.at(0).row());
@@ -241,21 +236,21 @@ impl NotesView {
     }
 
     /// This function adds a new note to the notes list.
-    unsafe fn add_item_to_notes_list(&self, note: &Note) {
+    unsafe fn add_item_to_notes_list(&self, note: &NoteEntry) {
         let item = QStandardItem::new();
 
         item.set_editable(false);
-        item.set_text(&QString::from_std_str(note.message()));
-        item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(note.url().clone().unwrap_or("".to_string()))), ROLE_URL);
-        item.set_data_2a(&QVariant::from_ulonglong(*note.id()), ROLE_ID);
-        item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(note.path())), ROLE_PATH);
+        item.set_text(&QString::from_std_str(&note.message));
+        item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(note.url.clone().unwrap_or_default())), ROLE_URL);
+        item.set_data_2a(&QVariant::from_ulonglong(note.id), ROLE_ID);
+        item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&note.path)), ROLE_PATH);
 
         let mut tooltip = String::new();
         tooltip.push_str(&tr("tip_id"));
-        tooltip.push_str(&note.id().to_string());
+        tooltip.push_str(&note.id.to_string());
         tooltip.push('\n');
 
-        if let Some(url) = note.url() {
+        if let Some(url) = &note.url {
             tooltip.push_str(&tr("tip_link"));
             tooltip.push_str(url);
             tooltip.push('\n');
@@ -266,24 +261,17 @@ impl NotesView {
     }
 
     /// This function builds a note from the selected item.
-    unsafe fn note_from_selection(&self) -> Note {
-        let mut note = Note::default();
-
+    unsafe fn note_from_selection(&self) -> NoteEntry {
         let indexes = self.filter.map_selection_to_source(&self.list.selection_model().selection()).indexes();
         let index = indexes.at(0);
-        note.set_id(self.model.data_2a(index, ROLE_ID).to_u_long_long_0a());
-
         let url = self.model.data_2a(index, ROLE_URL).to_string().to_std_string();
-        if url.is_empty() {
-            note.set_url(None);
-        } else {
-            note.set_url(Some(url));
+
+        NoteEntry {
+            id: self.model.data_2a(index, ROLE_ID).to_u_long_long_0a(),
+            path: self.model.data_2a(index, ROLE_PATH).to_string().to_std_string(),
+            message: self.model.data_2a(index, 2).to_string().to_std_string(),
+            url: if url.is_empty() { None } else { Some(url) },
         }
-
-        note.set_path(self.model.data_2a(index, ROLE_PATH).to_string().to_std_string());
-        note.set_message(self.model.data_2a(index, 2).to_string().to_std_string());
-
-        note
     }
 
     unsafe fn context_menu_update(&self) {
@@ -298,7 +286,10 @@ impl NotesView {
     unsafe fn delete_selected_note(&self) {
         let note = self.note_from_selection();
 
-        let _ = CENTRAL_COMMAND.read().unwrap().send(Command::DeleteNote(self.pack_key.read().unwrap().clone(), note.path().to_owned(), *note.id()));
+        if let Err(error) = call_api(&DeleteNote { pack: self.pack_key.read().unwrap().clone(), path: note.path, id: note.id }) {
+            return show_dialog(&self.list, error, false);
+        }
+
         let indexes = self.filter.map_selection_to_source(&self.list.selection_model().selection()).indexes();
         self.model.remove_row_1a(indexes.at(0).row());
     }

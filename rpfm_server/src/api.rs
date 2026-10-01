@@ -280,7 +280,7 @@ pub fn dispatch_stateless(request: RpcRequest, settings: &Settings) -> RpcRespon
     let params = request.params;
     let result = match request.method.as_str() {
         CheckUpdate::METHOD => call(params, |request: CheckUpdate| check_component(request.component, settings)),
-        ApplyUpdate::METHOD => call(params, |request: ApplyUpdate| apply_component(request.component).map(|_| Done {})),
+        ApplyUpdate::METHOD => call(params, |request: ApplyUpdate| apply_component(request.component, settings).map(|_| Done {})),
         method => Err(ApiError::MethodNotFound(method.to_owned())),
     };
 

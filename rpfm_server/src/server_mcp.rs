@@ -893,7 +893,7 @@ impl McpServer {
 
     #[tool(
         name = "add_note",
-        description = "Attach a note (comment, with an optional link) to a file or folder of an open pack.",
+        description = "Attach a note (comment, with an optional link) to a file or folder of an open pack, or replace one by passing its `id`.",
         annotations(read_only_hint = false, destructive_hint = false),
         output_schema = schema_for_output::<NoteEntry>(),
     )]
@@ -1195,8 +1195,8 @@ Runs as a job: waits up to 45 seconds and returns its state, with the report as 
 
     #[tool(
         name = "apply_update",
-        description = "Download the update of the Lua type definitions (`lua_autogen`), the Empire and Napoleon Assembly Kit data (`old_assembly_kit`), or the community `translations`. Schemas are updated with `update_schemas`, and the program by its UI.",
-        annotations(read_only_hint = false, destructive_hint = false),
+        description = "Download the update of the Lua type definitions (`lua_autogen`), the Empire and Napoleon Assembly Kit data (`old_assembly_kit`), the community `translations`, or RPFM itself (`program`, which replaces its files and needs a restart: only do it if the user asks). Schemas are updated with `update_schemas`.",
+        annotations(read_only_hint = false, destructive_hint = true),
         output_schema = schema_for_output::<Done>(),
     )]
     pub async fn apply_update(&self, params: Parameters<ApplyUpdate>) -> Result<CallToolResult, McpError> {
