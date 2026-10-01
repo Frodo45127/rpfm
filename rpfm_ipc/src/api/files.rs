@@ -17,7 +17,9 @@ use serde_json::Value;
 
 use std::path::PathBuf;
 
-use rpfm_lib::files::{FileType, text::TextFormat};
+use rpfm_lib::files::{FileType, RFileDecoded, text::{Text, TextFormat}};
+
+use crate::helpers::{RFileInfo, VideoInfo};
 
 use super::{default_true, Done, Request};
 
@@ -533,4 +535,42 @@ impl Request for ExtractFromAnimPack {
 impl Request for DeleteFromAnimPack {
     const METHOD: &'static str = "animpack.delete";
     type Response = Done;
+}
+
+/// `file.view_data`: returns a file decoded as a client opening it in a view needs it.
+///
+/// Meant for clients with views for each type of file. Others should use `file.read`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GetViewData {
+
+    /// The file.
+    pub file: FileRef,
+}
+
+/// A file decoded for a view.
+//
+// The decoded file is not boxed so clients can match the type of file in the same pattern as the variant.
+#[allow(clippy::large_enum_variant)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ViewData {
+
+    /// The decoded file, and its info.
+    Decoded(RFileDecoded, RFileInfo),
+
+    /// The info of the files of an AnimPack, and of the AnimPack itself.
+    AnimPack(Vec<RFileInfo>, RFileInfo),
+
+    /// The info of a video, without its frames, and of the file.
+    Video(VideoInfo, RFileInfo),
+
+    /// The notes of a pack, as markdown.
+    Notes(Text),
+
+    /// The file is of a type that is not decoded.
+    Unsupported,
+}
+
+impl Request for GetViewData {
+    const METHOD: &'static str = "file.view_data";
+    type Response = ViewData;
 }

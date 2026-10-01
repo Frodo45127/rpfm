@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 use rpfm_ui_common::clone;
 
-use crate::communications::{Command, send_ipc_command_result_async};
+use crate::communications::save_decoded_file;
 use crate::views::debug::DebugView;
 use crate::utils::{log_to_status_bar, show_dialog, tr};
 
@@ -51,7 +51,7 @@ impl DebugViewSlots {
             match view.save_view() {
                 Ok(decoded_packed_file) => {
                     let pack_key = view.pack_key.read().unwrap().to_owned();
-                    match send_ipc_command_result_async(Command::SavePackedFileFromView(pack_key, view.get_path(), Box::new(decoded_packed_file)), response_extractor!()) {
+                    match save_decoded_file(&pack_key, &view.get_path(), &decoded_packed_file) {
                         Ok(()) => log_to_status_bar(&tr("debug_view_save_success")),
                         Err(error) => show_dialog(&view.editor, error, false),
                     }

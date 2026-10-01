@@ -27,6 +27,7 @@ use rpfm_ipc::api::files::{
     AddToAnimPack, DeleteFromAnimPack, ExtractFromAnimPack, FileContents, FileData, FileRef, ReadFile, ReadFormat, WriteFile,
     AddFilesFromDisk, ASSEMBLY_KIT_TABLE_FILE_NAME, CopyFiles, CreateFile, DEFAULT_FILES_LIMIT, DeleteFiles, DuplicateFiles, ExtractFiles,
     FileEntry, FileList, FileRename, FileSource, FilesAdded, FilesDeleted, FilesExtracted, FilesRenamed, ListFiles, NewFileKind, RenameFiles,
+    ViewData,
 };
 use rpfm_ipc::api::tables::GetTableDefinition;
 use rpfm_ipc::helpers::{DataSource, NewFile, RFileInfo};
@@ -335,6 +336,53 @@ impl SessionState {
         Ok(())
     }
 
+    /// Decodes a file as a client opening it in a view needs it.
+    ///
+    /// # Arguments
+    ///
+    /// * `file` - The file.
+    /// * `enable_esf_editor` - If ESF files are decoded.
+    pub fn view_data(&mut self, file: &FileRef, enable_esf_editor: bool) -> Result<ViewData> {
+        let (pack_key, data_source) = legacy_source(&file.source);
+        let pack_key = pack_key.to_owned();
+        let (decoded, info) = match self.decode_file(&pack_key, &file.path, data_source, enable_esf_editor)? {
+            DecodedFile::Decoded(decoded, info) => (decoded, info),
+            DecodedFile::Notes(notes) => return Ok(ViewData::Notes(notes)),
+            DecodedFile::Unsupported | DecodedFile::External => return Ok(ViewData::Unsupported),
+        };
+
+        Ok(match *decoded {
+            RFileDecoded::AnimPack(data) => ViewData::AnimPack(data.files().values().map(From::from).collect(), info),
+            RFileDecoded::Video(data) => ViewData::Video(From::from(&data), info),
+            RFileDecoded::Anim(_) |
+            RFileDecoded::BMD(_) |
+            RFileDecoded::BMDVegetation(_) |
+            RFileDecoded::Dat(_) |
+            RFileDecoded::Font(_) |
+            RFileDecoded::HlslCompiled(_) |
+            RFileDecoded::Pack(_) |
+            RFileDecoded::SoundBank(_) |
+            RFileDecoded::Unknown(_) => ViewData::Unsupported,
+            decoded @ (RFileDecoded::AnimFragmentBattle(_) |
+                RFileDecoded::AnimsTable(_) |
+                RFileDecoded::Atlas(_) |
+                RFileDecoded::Audio(_) |
+                RFileDecoded::DB(_) |
+                RFileDecoded::ESF(_) |
+                RFileDecoded::GroupFormations(_) |
+                RFileDecoded::Image(_) |
+                RFileDecoded::Loc(_) |
+                RFileDecoded::MatchedCombat(_) |
+                RFileDecoded::PortraitSettings(_) |
+                RFileDecoded::RigidModel(_) |
+                RFileDecoded::Text(_) |
+                RFileDecoded::UIC(_) |
+                RFileDecoded::UnitVariant(_) |
+                RFileDecoded::VMD(_) |
+                RFileDecoded::WSModel(_)) => ViewData::Decoded(decoded, info),
+        })
+    }
+
     /// Decodes a file.
     ///
     /// # Arguments
@@ -592,23 +640,6 @@ impl SessionState {
     /// Returns if a file exists in a pack.
     pub fn file_exists(&self, pack_key: &str, path: &str) -> Result<bool> {
         Ok(pack(&self.packs, pack_key)?.has_file(path))
-    }
-
-    /// Returns the binary data of a file of a pack, encoding it first if it's decoded.
-    pub fn file_raw_data(&mut self, pack_key: &str, path: &str, disable_uuid_regeneration: bool) -> Result<Vec<u8>> {
-        let pack = pack_mut(&mut self.packs, pack_key)?;
-        let extra_data = encode_extra_data(&self.game, pack.compression_format(), disable_uuid_regeneration);
-        let file = pack.files_mut().get_mut(path)
-            .ok_or_else(|| anyhow!("This PackedFile no longer exists in the PackFile."))?;
-
-        file.load()?;
-        if let Ok(data) = file.cached() {
-            return Ok(data.to_vec());
-        }
-
-        // NOTE: This breaks the table decoder if the table was badly decoded.
-        file.encode(&extra_data, false, false, true)?
-            .ok_or_else(|| anyhow!("The file {} returned no data when encoded.", path))
     }
 
     /// Extracts a file of a pack to a temp folder and opens it in the system's default program for its type.

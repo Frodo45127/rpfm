@@ -34,9 +34,9 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{Arc, atomic::Ordering, RwLock};
 
-use rpfm_ipc::api::files::FileRef;
+use rpfm_ipc::api::files::{FileRef, FileSource, GetViewData, ViewData};
 use rpfm_ipc::api::references::FindUsages;
-use rpfm_ipc::api::tables::ExportTsv;
+use rpfm_ipc::api::tables::{ExportTsv, ImportTsv};
 use rpfm_ipc::helpers::DataSource;
 
 use rpfm_lib::files::{ContainerPath, RFileDecoded};
@@ -560,11 +560,15 @@ impl TableViewSlots {
                         let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
 
                         let pack_key = view.pack_key.read().unwrap().clone();
-                        match send_ipc_command_result_async(Command::ImportTSV(pack_key, packed_file_path.read().unwrap().to_owned(), path), response_extractor!(Response::RFileDecoded)) {
-                            Ok(data) => {
-                                let data = match data {
-                                    RFileDecoded::DB(data) => TableType::DB(data),
-                                    RFileDecoded::Loc(data) => TableType::Loc(data),
+                        let file_path = packed_file_path.read().unwrap().to_owned();
+                        let imported = call_api_async(&ImportTsv { pack: pack_key.clone(), path: file_path.clone(), source: path })
+                            .and_then(|_| call_api_async(&GetViewData { file: FileRef { source: FileSource::Pack(pack_key), path: file_path } }));
+
+                        match imported {
+                            Ok(view_data) => {
+                                let data = match view_data {
+                                    ViewData::Decoded(RFileDecoded::DB(data), _) => TableType::DB(data),
+                                    ViewData::Decoded(RFileDecoded::Loc(data), _) => TableType::Loc(data),
                                     _ => unimplemented!(),
                                 };
                                 //let old_data = view.get_copy_of_table();

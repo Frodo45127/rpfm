@@ -17,7 +17,7 @@ use serde_json::{Map, Value};
 use rpfm_ipc::api::{ApiError, Done, Request, RpcRequest, RpcResponse};
 use rpfm_ipc::api::diagnostics::{GetDiagnosticsReport, IgnoreDiagnostics, ListDiagnostics, RunDiagnostics};
 use rpfm_ipc::api::files::{
-    AddFilesFromDisk, AddToAnimPack, CopyFiles, CreateFile, DeleteFiles, DeleteFromAnimPack, DuplicateFiles, ExtractFiles, ExtractFromAnimPack, ListAnimPack,
+    AddFilesFromDisk, AddToAnimPack, CopyFiles, CreateFile, DeleteFiles, DeleteFromAnimPack, DuplicateFiles, ExtractFiles, ExtractFromAnimPack, GetViewData, ListAnimPack,
     ListFiles, ReadFile, RenameFiles, WriteFile,
 };
 use rpfm_ipc::api::search::{GetSearchReport, ListSearchMatches, ReplaceSearchMatches, RunSearch};
@@ -157,6 +157,7 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         DeleteFiles::METHOD => call(params, |request: DeleteFiles| state.delete_paths(&request)),
         RenameFiles::METHOD => call(params, |request: RenameFiles| state.rename_paths(&request)),
         DuplicateFiles::METHOD => call(params, |request: DuplicateFiles| state.duplicate_paths(&request)),
+        GetViewData::METHOD => call(params, |request: GetViewData| state.view_data(&request.file, settings.bool(ENABLE_ESF_EDITOR))),
         ExtractFiles::METHOD => call(params, |request: ExtractFiles| {
             let options = ExtractOptions {
                 disable_uuid_regeneration: settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES),

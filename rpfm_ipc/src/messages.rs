@@ -59,11 +59,7 @@ use std::path::PathBuf;
 
 
 use rpfm_lib::files::{
-    anim_fragment_battle::AnimFragmentBattle, anims_table::AnimsTable, atlas::Atlas, audio::Audio,
-    bmd::Bmd, db::DB, esf::ESF, group_formations::GroupFormations, image::Image, loc::Loc,
-    matched_combat::MatchedCombat, portrait_settings::PortraitSettings,
-    rigidmodel::RigidModel, text::Text, uic::UIC, unit_variant::UnitVariant,
-    ContainerPath, RFile, RFileDecoded,
+    ContainerPath, RFile,
 };
 use rpfm_lib::schema::{Definition, Field};
 
@@ -164,41 +160,6 @@ pub enum Command {
     /// Response:
     /// - [`Response::VecContainerPathOptionString`] (added paths, optional error message).
     AddPackedFiles(String, Vec<PathBuf>, Vec<ContainerPath>, Option<Vec<PathBuf>>),
-
-    /// Decode a PackedFile to be shown on the UI.
-    /// First field is the pack key, then the path of the file and its data source.
-    ///
-    /// Response:
-    /// - [`Response::AnimFragmentBattleRFileInfo`] for AnimFragmentBattle files.
-    /// - [`Response::AnimPackRFileInfo`] for AnimPack files.
-    /// - [`Response::AnimsTableRFileInfo`] for AnimsTable files.
-    /// - [`Response::AtlasRFileInfo`] for Atlas files.
-    /// - [`Response::AudioRFileInfo`] for Audio files.
-    /// - [`Response::BmdRFileInfo`] for BMD files.
-    /// - [`Response::DBRFileInfo`] for DB table files.
-    /// - [`Response::ESFRFileInfo`] for ESF files.
-    /// - [`Response::GroupFormationsRFileInfo`] for GroupFormations files.
-    /// - [`Response::ImageRFileInfo`] for Image files.
-    /// - [`Response::LocRFileInfo`] for Loc files.
-    /// - [`Response::MatchedCombatRFileInfo`] for MatchedCombat files.
-    /// - [`Response::PortraitSettingsRFileInfo`] for PortraitSettings files.
-    /// - [`Response::RigidModelRFileInfo`] for RigidModel files.
-    /// - [`Response::TextRFileInfo`] for Text files.
-    /// - [`Response::UICRFileInfo`] for UIC files.
-    /// - [`Response::UnitVariantRFileInfo`] for UnitVariant files.
-    /// - [`Response::VideoInfoRFileInfo`] for Video files.
-    /// - [`Response::VMDRFileInfo`] for VMD files.
-    /// - [`Response::WSModelRFileInfo`] for WSModel files.
-    /// - [`Response::Text`] for pack notes.
-    /// - [`Response::Unknown`] for unsupported types.
-    /// - [`Response::Error`] on failure.
-    DecodePackedFile(String, String, DataSource),
-
-    /// Save an edited `PackedFile` back to a specific Pack.
-    /// First field is the pack key, then path and decoded file data.
-    ///
-    /// Response: [`Response::Success`].
-    SavePackedFileFromView(String, String, Box<RFileDecoded>),
 
     /// Add PackedFiles from one open pack into another.
     /// First field is the target pack key, second is the source pack key, third is the paths to copy.
@@ -336,14 +297,6 @@ pub enum Command {
     // TSV Commands
     //-----------------------------------------------------------------------//
 
-    /// Import a TSV as a table into a specific pack.
-    /// First field is the pack key, then internal path, source TSV path.
-    ///
-    /// Response:
-    /// - [`Response::RFileDecoded`] on success.
-    /// - [`Response::Error`] on failure.
-    ImportTSV(String, String, PathBuf),
-
     //-----------------------------------------------------------------------//
     // External Program Commands
     //-----------------------------------------------------------------------//
@@ -391,14 +344,6 @@ pub enum Command {
     //-----------------------------------------------------------------------//
     // Navigation Commands
     //-----------------------------------------------------------------------//
-
-    /// Get the raw binary data of a PackedFile from a specific pack.
-    /// First field is the pack key, second is the file path.
-    ///
-    /// Response:
-    /// - [`Response::VecU8`] on success.
-    /// - [`Response::Error`] on failure.
-    GetPackedFileRawData(String, String),
 
     /// Import files from dependencies into a specific open PackFile.
     /// First field is the pack key, second is the paths by data source.
@@ -509,33 +454,13 @@ pub enum Response {
     /// Contains the session ID that the client is connected to.
     SessionConnected(u64),
 
-    #[allow(dead_code)]BmdRFileInfo(Box<Bmd>, RFileInfo),
-    AnimFragmentBattleRFileInfo(AnimFragmentBattle, RFileInfo),
-    AnimPackRFileInfo(Vec<RFileInfo>, RFileInfo),
-    AnimsTableRFileInfo(AnimsTable, RFileInfo),
-    AtlasRFileInfo(Atlas, RFileInfo),
-    AudioRFileInfo(Audio, RFileInfo),
     Bool(bool),
     ContainerInfoVecRFileInfo((ContainerInfo, Vec<RFileInfo>)),
-    DBRFileInfo(DB, RFileInfo),
-    ESFRFileInfo(ESF, RFileInfo),
-    GroupFormationsRFileInfo(GroupFormations, RFileInfo),
     HashMapDataSourceHashMapStringRFile(HashMap<DataSource, HashMap<String, RFile>>),
     HashMapDataSourceHashSetContainerPath(HashMap<DataSource, HashSet<ContainerPath>>),
-    ImageRFileInfo(Image, RFileInfo),
-    LocRFileInfo(Loc, RFileInfo),
-    MatchedCombatRFileInfo(MatchedCombat, RFileInfo),
     OptionRFileInfo(Option<RFileInfo>),
     PathBuf(PathBuf),
-    PortraitSettingsRFileInfo(PortraitSettings, RFileInfo),
-    RFileDecoded(RFileDecoded),
-    RigidModelRFileInfo(RigidModel, RFileInfo),
     StringVecPathBuf(String, Vec<PathBuf>),
-    Text(Text),
-    TextRFileInfo(Text, RFileInfo),
-    UICRFileInfo(UIC, RFileInfo),
-    UnitVariantRFileInfo(UnitVariant, RFileInfo),
-    Unknown,
     VecContainerPath(Vec<ContainerPath>),
     VecContainerPathContainerPath(Vec<(ContainerPath, ContainerPath)>),
     VecContainerPathOptionString(Vec<ContainerPath>, Option<String>),
@@ -544,8 +469,4 @@ pub enum Response {
     VecContainerPathVecString(Vec<ContainerPath>, Vec<String>),
     VecField(Vec<Field>),
     VecRFileInfo(Vec<RFileInfo>),
-    VecU8(Vec<u8>),
-    VideoInfoRFileInfo(VideoInfo, RFileInfo),
-    VMDRFileInfo(Text, RFileInfo),
-    WSModelRFileInfo(Text, RFileInfo),
 }

@@ -81,6 +81,7 @@ use std::time::Instant;
 
 use rpfm_extensions::merge::{MergeConflict, MergeResolution};
 
+use rpfm_ipc::api::files::{FileRef, FileSource, GetViewData, ViewData};
 use rpfm_ipc::api::packs::{ClosePack, CloseAllPacks, GetPackSettings, NewPack, OpenPack, UpdatePack};
 use rpfm_ipc::api::schema::GetMissingDefinitions;
 use rpfm_ipc::api::session::{GetDependenciesInfo, ListDependencyTables, RebuildDependencies, SetGame};
@@ -89,7 +90,7 @@ use rpfm_ipc::api::tools::{FinishStartpos, GetStartposCampaigns, OptimizePack, S
 use rpfm_ipc::settings_keys::*;
 use rpfm_ipc::helpers::{ContainerInfo, DataSource, NewFile};
 
-use rpfm_lib::files::{animpack, ContainerPath, FileType, loc, text, pack::*, portrait_settings, text::TextFormat};
+use rpfm_lib::files::{animpack, ContainerPath, FileType, RFileDecoded, loc, text, pack::*, portrait_settings, text::TextFormat};
 use rpfm_lib::games::{pfh_file_type::PFHFileType, supported_games::*};
 use rpfm_telemetry::*;
 use rpfm_lib::utils::*;
@@ -101,7 +102,7 @@ use rpfm_ui_common::FULL_DATE_FORMAT;
 use rpfm_ui_common::icons::IconType;
 
 use crate::CENTRAL_COMMAND;
-use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR, call_api, call_api_async, run_job, send_ipc_command, send_ipc_command_result, send_ipc_command_async, pack_details, pack_operational_mode, open_packs, save_pack};
+use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR, call_api, call_api_async, run_job, send_ipc_command, send_ipc_command_result, send_ipc_command_async, pack_details, pack_operational_mode, open_packs, save_pack, api_result};
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::*;
@@ -2163,7 +2164,8 @@ impl AppUI {
                 tab.set_data_source(data_source);
 
                 if !is_external {
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::DecodePackedFile(pack_key.clone(), path.to_string(), tab.data_source()));
+                    let file = FileRef { source: tab.data_source().file_source(&pack_key).unwrap_or(FileSource::GameFiles), path: path.to_string() };
+                    let receiver = CENTRAL_COMMAND.read().unwrap().call(&GetViewData { file });
 
                     tab.set_is_preview(is_preview);
                     let icon_type = IconType::File(path.to_owned());
@@ -2172,10 +2174,18 @@ impl AppUI {
                     // If we're here, it's always a new file view. The line next to this one disables the variable.
                     NEW_FILE_VIEW_CREATED.store(true, std::sync::atomic::Ordering::SeqCst);
                     let tab_index = target_tab_widget.add_tab_3a(tab.main_widget(), icon, &QString::from_std_str(""));
-                    let response = CentralCommand::recv(&receiver);
-                    match response {
+                    let response = receiver.recv().map_err(|_| anyhow!("{THREADS_COMMUNICATION_ERROR}Disconnected")).and_then(api_result::<ViewData>);
+                    let view_data = match response {
+                        Ok(view_data) => view_data,
+                        Err(error) => {
+                            target_tab_widget.remove_tab(tab_index);
+                            return show_dialog(&app_ui.main_window, error, false);
+                        }
+                    };
 
-                        Response::AnimFragmentBattleRFileInfo(data, ref file_info) => {
+                    match view_data {
+
+                        ViewData::Decoded(RFileDecoded::AnimFragmentBattle(data), ref file_info) => {
                             let file_info = file_info.clone();
                             match FileAnimFragmentBattleView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, data) {
                                 Ok(_) => {
@@ -2200,7 +2210,7 @@ impl AppUI {
                             }
                         },
 
-                        Response::AnimPackRFileInfo(files_info, file_info) => {
+                        ViewData::AnimPack(files_info, file_info) => {
                             match PackedFileAnimPackView::new_view(&mut tab, app_ui, pack_file_contents_ui, &file_info, &files_info) {
                                 Ok(_) => {
 
@@ -2225,7 +2235,7 @@ impl AppUI {
                             }
                         },
 
-                        Response::AnimsTableRFileInfo(data, ref file_info) => {
+                        ViewData::Decoded(RFileDecoded::AnimsTable(data), ref file_info) => {
                             let file_info = file_info.clone();
                             match FileAnimsTableDebugView::new_view(&mut tab, data) {
                                 Ok(_) => {
@@ -2250,9 +2260,8 @@ impl AppUI {
                             }
                         },
 
-                        Response::AtlasRFileInfo(_, ref file_info) => {
-                            let file_info = file_info.clone();
-                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, response) {
+                        ViewData::Decoded(decoded @ RFileDecoded::Atlas(_), file_info) => {
+                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, decoded) {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
@@ -2275,7 +2284,7 @@ impl AppUI {
                             }
                         }
 
-                        Response::AudioRFileInfo(data, file_info) => {
+                        ViewData::Decoded(RFileDecoded::Audio(data), file_info) => {
                             match FileAudioView::new_view(&mut tab, &data) {
                                 Ok(_) => {
 
@@ -2300,7 +2309,7 @@ impl AppUI {
                             }
                         }
 
-                        Response::BmdRFileInfo(data, file_info) => {
+                        ViewData::Decoded(RFileDecoded::BMD(data), file_info) => {
                             match FileBMDView::new_view(&mut tab, app_ui, pack_file_contents_ui, &data) {
                                 Ok(_) => {
 
@@ -2326,9 +2335,8 @@ impl AppUI {
                         }
 
                         // If the file is a DB PackedFile...
-                        Response::DBRFileInfo(_, ref file_info) => {
-                            let file_info = file_info.clone();
-                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, response) {
+                        ViewData::Decoded(decoded @ RFileDecoded::DB(_), file_info) => {
+                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, decoded) {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
@@ -2346,22 +2354,12 @@ impl AppUI {
                                 },
                                 Err(error) => {
                                     target_tab_widget.remove_tab(tab_index);
-
-                                    // Try to get the data of the table to send it for decoding.
-                                    /*let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GetPackedFileRawData(path.to_owned()));
-                                    let response = CentralCommand::recv(&receiver);
-                                    let data = match response {
-                                        Response::VecU8(data) => data,
-                                        Response::Error(_) => return show_dialog(&app_ui.main_window, error, false),
-                                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-                                    };*/
-
                                     return show_dialog_decode_button(app_ui.main_window.static_upcast::<qt_widgets::QWidget>().as_ptr(), error);
                                 },
                             }
                         }
 
-                        Response::ESFRFileInfo(data, file_info) => {
+                        ViewData::Decoded(RFileDecoded::ESF(data), file_info) => {
                             match PackedFileESFView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, data) {
                                 Ok(_) => {
 
@@ -2386,7 +2384,7 @@ impl AppUI {
                             }
                         }
 
-                        Response::GroupFormationsRFileInfo(data, file_info) => {
+                        ViewData::Decoded(RFileDecoded::GroupFormations(data), file_info) => {
                             let file_info = file_info.clone();
                             let result = if settings_bool(USE_DEBUG_VIEW_GROUP_FORMATIONS) {
                                 FileGroupFormationsDebugView::new_view(&mut tab, data)
@@ -2418,7 +2416,7 @@ impl AppUI {
                         }
 
                         // If the file is a Image PackedFile, ignore failures while opening.
-                        Response::ImageRFileInfo(data, file_info) => {
+                        ViewData::Decoded(RFileDecoded::Image(data), file_info) => {
                             match PackedFileImageView::new_view(&mut tab, &data) {
                                 Ok(_) => {
 
@@ -2444,9 +2442,8 @@ impl AppUI {
                         }
 
                         // If the file is a Loc PackedFile...
-                        Response::LocRFileInfo(_, ref file_info) => {
-                            let file_info = file_info.clone();
-                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, response) {
+                        ViewData::Decoded(decoded @ RFileDecoded::Loc(_), file_info) => {
+                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, dependencies_ui, references_ui, decoded) {
                                 Ok(_) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
@@ -2469,7 +2466,7 @@ impl AppUI {
                             }
                         }
 
-                        Response::MatchedCombatRFileInfo(data, ref file_info) => {
+                        ViewData::Decoded(RFileDecoded::MatchedCombat(data), ref file_info) => {
                             let file_info = file_info.clone();
                             match FileMatchedCombatDebugView::new_view(&mut tab, data) {
                                 Ok(_) => {
@@ -2494,7 +2491,7 @@ impl AppUI {
                             }
                         }
 
-                        Response::PortraitSettingsRFileInfo(mut data, file_info) => {
+                        ViewData::Decoded(RFileDecoded::PortraitSettings(mut data), file_info) => {
                             match PortraitSettingsView::new_view(&mut tab, &mut data, app_ui, pack_file_contents_ui) {
                                 Ok(_) => {
 
@@ -2519,7 +2516,7 @@ impl AppUI {
                         }
 
                         // If the file is a RigidModel PackedFile...
-                        Response::RigidModelRFileInfo(data, file_info) => {
+                        ViewData::Decoded(RFileDecoded::RigidModel(data), file_info) => {
                             match RigidModelView::new_view(&mut tab, &data, app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui) {
                                 Ok(_) => {
 
@@ -2545,7 +2542,7 @@ impl AppUI {
                         }
 
                         // If the file is a Text PackedFile...
-                        Response::TextRFileInfo(data, file_info) => {
+                        ViewData::Decoded(RFileDecoded::Text(data), file_info) => {
                             PackedFileTextView::new_view(&mut tab, app_ui, pack_file_contents_ui, &data);
 
                             // Add the file to the 'Currently open' list and make it visible.
@@ -2564,7 +2561,7 @@ impl AppUI {
                         }
 
                         // If the file is the notes...
-                        Response::Text(data) => {
+                        ViewData::Notes(data) => {
                             PackedFileTextView::new_view(&mut tab, app_ui, pack_file_contents_ui, &data);
 
                             // Add the file to the 'Currently open' list and make it visible.
@@ -2578,7 +2575,7 @@ impl AppUI {
                             open_list.push(tab);
                         }
 
-                        Response::UnitVariantRFileInfo(mut data, file_info) => {
+                        ViewData::Decoded(RFileDecoded::UnitVariant(mut data), file_info) => {
                             if settings_bool(USE_DEBUG_VIEW_UNIT_VARIANT) {
                                 match UnitVariantDebugView::new_view(&mut tab, data.clone()) {
                                     Ok(_) => {
@@ -2627,7 +2624,7 @@ impl AppUI {
                         }
 
                         #[cfg(feature = "support_uic")]
-                        Response::UICRFileInfo(mut data, file_info) => {
+                        ViewData::Decoded(RFileDecoded::UIC(mut data), file_info) => {
                             match FileUICView::new_view(&mut tab, &mut data) {
                                 Ok(_) => {
 
@@ -2651,10 +2648,8 @@ impl AppUI {
                             }
                         }
 
-                        Response::Unknown => target_tab_widget.remove_tab(tab_index),
-
                         // If the file is a CA_VP8 PackedFile...
-                        Response::VideoInfoRFileInfo(data, file_info) => {
+                        ViewData::Video(data, file_info) => {
                             PackedFileVideoView::new_view(&mut tab, app_ui, pack_file_contents_ui, &data);
 
                             // Add the file to the 'Currently open' list and make it visible.
@@ -2671,7 +2666,7 @@ impl AppUI {
                             }
                         }
 
-                        Response::VMDRFileInfo(data, file_info) => {
+                        ViewData::Decoded(RFileDecoded::VMD(data), file_info) => {
                             FileVMDView::new_view(&mut tab, app_ui, pack_file_contents_ui, &data, FileType::VMD);
 
                             // Add the file to the 'Currently open' list and make it visible.
@@ -2689,7 +2684,7 @@ impl AppUI {
                             }
                         },
 
-                        Response::WSModelRFileInfo(data, file_info) => {
+                        ViewData::Decoded(RFileDecoded::WSModel(data), file_info) => {
                             FileVMDView::new_view(&mut tab, app_ui, pack_file_contents_ui, &data, FileType::WSModel);
 
                             // Add the file to the 'Currently open' list and make it visible.
@@ -2707,11 +2702,7 @@ impl AppUI {
                             }
                         },
 
-                        Response::Error(error) => {
-                            target_tab_widget.remove_tab(tab_index);
-                            return show_dialog(&app_ui.main_window, error, false);
-                        }
-                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                        ViewData::Unsupported | ViewData::Decoded(..) => target_tab_widget.remove_tab(tab_index),
                     };
                 }
 

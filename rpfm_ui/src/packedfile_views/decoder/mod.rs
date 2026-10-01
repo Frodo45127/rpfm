@@ -60,6 +60,8 @@ use std::io::{Cursor, Seek, SeekFrom};
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 
+use rpfm_ipc::api::files::{FileRef, FileSource};
+
 use rpfm_lib::binary::ReadBytes;
 use rpfm_lib::integrations::assembly_kit::{get_raw_definition_paths, table_definition::RawDefinition, table_data::RawTable, localisable_fields::RawLocalisableFields};
 use rpfm_lib::files::{ContainerPath, db::DB, Decodeable, DecodeableExtraData, table::DecodedData};
@@ -180,7 +182,8 @@ impl PackedFileDecoderView {
         let table_name = container_path.db_table_name_from_path()
             .ok_or_else(|| anyhow!("The decoder cannot be use for this file."))?;
 
-        let mut data = Cursor::new(send_ipc_command_result(Command::GetPackedFileRawData(file_view.pack_key_copy(), path.to_owned()), response_extractor!(Response::VecU8))?);
+        let file = FileRef { source: FileSource::Pack(file_view.pack_key_copy()), path: path.to_owned() };
+        let mut data = Cursor::new(raw_file_data(file)?);
 
         // Create the hex view on the left side.
         let layout: QPtr<QGridLayout> = file_view.main_widget().layout().static_downcast();

@@ -17,10 +17,9 @@ use anyhow::{Result, anyhow};
 use std::sync::Arc;
 use std::rc::Rc;
 
-use rpfm_lib::files::FileType;
+use rpfm_lib::files::{FileType, RFileDecoded};
 
 use crate::app_ui::AppUI;
-use crate::communications::*;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
@@ -54,16 +53,15 @@ impl PackedFileTableView {
         diagnostics_ui: &Rc<DiagnosticsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
         references_ui: &Rc<ReferencesUI>,
-        response: Response
+        decoded: RFileDecoded
     ) -> Result<()> {
 
         // Get the decoded Table.
-        let table_data = match response {
-            Response::AtlasRFileInfo(table, _) => TableType::Atlas(From::from(table)),
-            Response::DBRFileInfo(table, _) => TableType::DB(table),
-            Response::LocRFileInfo(table, _) => TableType::Loc(table),
-            Response::Error(error) => return Err(anyhow!(error)),
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+        let table_data = match decoded {
+            RFileDecoded::Atlas(table) => TableType::Atlas(From::from(table)),
+            RFileDecoded::DB(table) => TableType::DB(table),
+            RFileDecoded::Loc(table) => TableType::Loc(table),
+            _ => return Err(anyhow!("The file is not a table.")),
         };
 
         let packed_file_type = match table_data {

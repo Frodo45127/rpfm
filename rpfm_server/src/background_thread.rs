@@ -34,7 +34,6 @@ use std::sync::Arc;
 use rpfm_ipc::messages::{Command, Response};
 use rpfm_ipc::settings_keys::*;
 
-use rpfm_lib::files::{Container, RFileDecoded};
 
 use rpfm_telemetry::info;
 
@@ -42,7 +41,7 @@ use crate::comms::CentralCommand;
 use crate::api;
 use crate::session::{Session, SessionMessage};
 use rpfm_ipc::settings::*;
-use crate::state::{DecodedFile, ExtractOptions, SessionState};
+use crate::state::{ExtractOptions, SessionState};
 
 /// Extracts the variant name (e.g. `"NewPack"`) from a [`Command`] for telemetry.
 ///
@@ -157,11 +156,6 @@ async fn dispatch(state: &mut SessionState, command: Command, sender: &Unbounded
         Command::AddPackedFilesFromPackFileToAnimpack(source_key, anim_pack_key, anim_pack_path, paths) => reply(sender, state.add_files_to_animpack(&source_key, &anim_pack_key, &anim_pack_path, &paths), Response::VecContainerPath),
         Command::AddPackedFilesFromAnimpack(anim_pack_key, dest_key, data_source, anim_pack_path, paths) => reply(sender, state.add_files_from_animpack(&anim_pack_key, &dest_key, data_source, &anim_pack_path, &paths), Response::VecContainerPath),
         Command::DeleteFromAnimpack(pack_key, anim_pack_path, paths) => reply(sender, state.delete_from_animpack(&pack_key, &anim_pack_path, &paths), done),
-        Command::DecodePackedFile(pack_key, path, data_source) => {
-            info!("Trying to decode a file. Path: {}. Data Source: {}", path, data_source);
-            reply(sender, state.decode_file(&pack_key, &path, data_source, settings.bool(ENABLE_ESF_EDITOR)), decoded_file_response);
-        }
-        Command::SavePackedFileFromView(pack_key, path, decoded) => reply(sender, state.save_file_from_view(&pack_key, &path, *decoded), done),
         Command::DeletePackedFiles(pack_key, paths) => reply(sender, state.delete_files(&pack_key, &paths), Response::VecContainerPath),
         Command::CopyPackedFiles(paths_by_pack) => {
             state.copy_files(&paths_by_pack, false);
@@ -180,7 +174,6 @@ async fn dispatch(state: &mut SessionState, command: Command, sender: &Unbounded
         Command::RenamePackedFiles(pack_key, renames) => reply(sender, state.rename_files(&pack_key, &renames), Response::VecContainerPathContainerPath),
         Command::FolderExists(pack_key, path) => reply(sender, state.folder_exists(&pack_key, &path), Response::Bool),
         Command::PackedFileExists(pack_key, path) => reply(sender, state.file_exists(&pack_key, &path), Response::Bool),
-        Command::GetPackedFileRawData(pack_key, path) => reply(sender, state.file_raw_data(&pack_key, &path, disable_uuid_regeneration), Response::VecU8),
         Command::OpenPackedFileInExternalProgram(pack_key, data_source, path) => reply(sender, state.open_in_external_program(&pack_key, data_source, &path, extract_options), Response::PathBuf),
         Command::SavePackedFileFromExternalView(pack_key, path, external_path) => reply(sender, state.save_file_from_external(&pack_key, &path, &external_path), done),
         Command::CleanCache(pack_key, paths) => reply(sender, state.clean_cache(&pack_key, &paths, disable_uuid_regeneration), done),
@@ -193,7 +186,6 @@ async fn dispatch(state: &mut SessionState, command: Command, sender: &Unbounded
         Command::ImportDependenciesToOpenPackFile(pack_key, paths_by_source) => reply(sender, state.import_dependencies(&pack_key, &paths_by_source), |(added, not_added)| Response::VecContainerPathVecString(added, not_added)),
 
         // Tables.
-        Command::ImportTSV(pack_key, internal_path, external_path) => reply(sender, state.import_tsv(&pack_key, &internal_path, &external_path), Response::RFileDecoded),
 
         // Search.
 
@@ -236,43 +228,3 @@ fn done<T>(_: T) -> Response {
     Response::Success
 }
 
-/// Legacy response for a decoded file. Each file type has its own response variant.
-fn decoded_file_response(decoded: DecodedFile) -> Response {
-    let (decoded, info) = match decoded {
-        DecodedFile::Decoded(decoded, info) => (decoded, info),
-        DecodedFile::Notes(notes) => return Response::Text(notes),
-        DecodedFile::Unsupported => return Response::Unknown,
-        DecodedFile::External => return Response::Success,
-    };
-
-    match *decoded {
-        RFileDecoded::AnimFragmentBattle(data) => Response::AnimFragmentBattleRFileInfo(data, info),
-        RFileDecoded::AnimPack(data) => Response::AnimPackRFileInfo(data.files().values().map(From::from).collect(), info),
-        RFileDecoded::AnimsTable(data) => Response::AnimsTableRFileInfo(data, info),
-        RFileDecoded::Atlas(data) => Response::AtlasRFileInfo(data, info),
-        RFileDecoded::Audio(data) => Response::AudioRFileInfo(data, info),
-        RFileDecoded::DB(table) => Response::DBRFileInfo(table, info),
-        RFileDecoded::ESF(data) => Response::ESFRFileInfo(data, info),
-        RFileDecoded::GroupFormations(data) => Response::GroupFormationsRFileInfo(data, info),
-        RFileDecoded::Image(image) => Response::ImageRFileInfo(image, info),
-        RFileDecoded::Loc(table) => Response::LocRFileInfo(table, info),
-        RFileDecoded::MatchedCombat(data) => Response::MatchedCombatRFileInfo(data, info),
-        RFileDecoded::PortraitSettings(data) => Response::PortraitSettingsRFileInfo(data, info),
-        RFileDecoded::RigidModel(data) => Response::RigidModelRFileInfo(data, info),
-        RFileDecoded::Text(text) => Response::TextRFileInfo(text, info),
-        RFileDecoded::UIC(uic) => Response::UICRFileInfo(uic, info),
-        RFileDecoded::UnitVariant(data) => Response::UnitVariantRFileInfo(data, info),
-        RFileDecoded::Video(data) => Response::VideoInfoRFileInfo(From::from(&data), info),
-        RFileDecoded::VMD(data) => Response::VMDRFileInfo(data, info),
-        RFileDecoded::WSModel(data) => Response::WSModelRFileInfo(data, info),
-        RFileDecoded::Anim(_) |
-        RFileDecoded::BMD(_) |
-        RFileDecoded::BMDVegetation(_) |
-        RFileDecoded::Dat(_) |
-        RFileDecoded::Font(_) |
-        RFileDecoded::HlslCompiled(_) |
-        RFileDecoded::Pack(_) |
-        RFileDecoded::SoundBank(_) |
-        RFileDecoded::Unknown(_) => Response::Unknown,
-    }
-}

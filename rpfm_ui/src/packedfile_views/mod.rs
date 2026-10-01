@@ -25,6 +25,7 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 
+use rpfm_ipc::api::files::{FileRef, GetViewData, ViewData};
 use rpfm_ipc::api::packs::{PackDependency, PackSettingsValues, UpdatePack, UpdatePackSettings};
 use rpfm_ipc::api::tools::SetVideoFormat;
 use rpfm_ipc::helpers::DataSource;
@@ -35,8 +36,7 @@ use rpfm_lib::files::{atlas::Atlas, ContainerPath, db::DB, loc::Loc, FileType, R
 use rpfm_ui_common::utils::create_grid_layout;
 
 use crate::app_ui::AppUI;
-use crate::CENTRAL_COMMAND;
-use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR, call_api, send_ipc_command_result_async};
+use crate::communications::{Command, call_api, send_ipc_command_result_async, save_decoded_file};
 use crate::ffi::get_text_safe;
 use crate::pack_tree::*;
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -477,7 +477,7 @@ impl FileView {
                         };
 
                         // Save the PackedFile, and trigger the stuff that needs to be triggered after a save.
-                        if let Err(error) = send_ipc_command_result_async(Command::SavePackedFileFromView(self.pack_key_copy(), self.path_copy(), Box::new(data)), response_extractor!()) {
+                        if let Err(error) = save_decoded_file(&self.pack_key_copy(), &self.path_copy(), &data) {
                             show_dialog(pack_file_contents_ui.packfile_contents_tree_view(), error, false);
                         }
                         Ok(())
@@ -510,12 +510,12 @@ impl FileView {
         if data_source != DataSource::ExternalFile {
             match self.view_type_mut() {
                 ViewType::Internal(view) => {
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::DecodePackedFile(pack_key.clone(), path.to_owned(), data_source));
-                    let response = CentralCommand::recv(&receiver);
+                    let source = data_source.file_source(&pack_key).ok_or_else(|| anyhow!(RFILE_RELOAD_ERROR))?;
+                    let view_data = call_api(&GetViewData { file: FileRef { source, path: path.to_owned() } })?;
 
-                    match response {
+                    match view_data {
 
-                        Response::AnimFragmentBattleRFileInfo(fragment, packed_file_info) => {
+                        ViewData::Decoded(RFileDecoded::AnimFragmentBattle(fragment), packed_file_info) => {
                             if let View::AnimFragmentBattle(old_fragment) = view {
                                 if old_fragment.reload_view(fragment).is_err() {
                                     return Err(anyhow!(RFILE_RELOAD_ERROR));
@@ -528,7 +528,7 @@ impl FileView {
                             }
                         },
 
-                        Response::AnimPackRFileInfo(files_info, file_info) => {
+                        ViewData::AnimPack(files_info, file_info) => {
                             if let View::AnimPack(old_anim_pack) = view {
                                 old_anim_pack.reload_view((&file_info, files_info));
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), DataSource::PackFile, &pack_key);
@@ -539,7 +539,7 @@ impl FileView {
                             }
                         },
 
-                        Response::AnimsTableRFileInfo(table, file_info) => {
+                        ViewData::Decoded(RFileDecoded::AnimsTable(table), file_info) => {
                             if let View::AnimsTableDebug(old_table) = view {
                                 if old_table.reload_view(table).is_err() {
                                     return Err(anyhow!(RFILE_RELOAD_ERROR));
@@ -551,7 +551,7 @@ impl FileView {
                             }
                         },
 
-                        Response::AtlasRFileInfo(table, packed_file_info) => {
+                        ViewData::Decoded(RFileDecoded::Atlas(table), packed_file_info) => {
                             if let View::Table(old_table) = view {
                                 let old_table = old_table.get_ref_table();
                                 old_table.reload_view(TableType::Atlas(From::from(table)));
@@ -562,7 +562,7 @@ impl FileView {
                             }
                         },
 
-                        Response::AudioRFileInfo(audio, packed_file_info) => {
+                        ViewData::Decoded(RFileDecoded::Audio(audio), packed_file_info) => {
                             if let View::Audio(old_audio) = view {
                                 old_audio.reload_view(&audio);
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile, &pack_key);
@@ -572,7 +572,7 @@ impl FileView {
                             }
                         },
 
-                        Response::BmdRFileInfo(data, packed_file_info) => {
+                        ViewData::Decoded(RFileDecoded::BMD(data), packed_file_info) => {
                             if let View::Bmd(old_data) = view {
                                 old_data.reload_view(&data);
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile, &pack_key);
@@ -582,7 +582,7 @@ impl FileView {
                             }
                         },
 
-                        Response::DBRFileInfo(table, packed_file_info) => {
+                        ViewData::Decoded(RFileDecoded::DB(table), packed_file_info) => {
                             if let View::Table(old_table) = view {
                                 let old_table = old_table.get_ref_table();
                                 old_table.reload_view(TableType::DB(table));
@@ -594,7 +594,7 @@ impl FileView {
                             }
                         },
 
-                        Response::ESFRFileInfo(esf, packed_file_info) => {
+                        ViewData::Decoded(RFileDecoded::ESF(esf), packed_file_info) => {
                             if let View::Esf(old_esf) = view {
                                 old_esf.reload_view(&esf);
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile, &pack_key);
@@ -605,7 +605,7 @@ impl FileView {
                             }
                         },
 
-                        Response::GroupFormationsRFileInfo(new, packed_file_info) => {
+                        ViewData::Decoded(RFileDecoded::GroupFormations(new), packed_file_info) => {
                             if let View::GroupFormations(old) = view {
                                 old.reload_view(new);
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile, &pack_key);
@@ -619,7 +619,7 @@ impl FileView {
                             }
                         },
 
-                        Response::ImageRFileInfo(image, packed_file_info) => {
+                        ViewData::Decoded(RFileDecoded::Image(image), packed_file_info) => {
                             if let View::Image(old_image) = view {
                                 old_image.reload_view(&image);
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile, &pack_key);
@@ -629,7 +629,7 @@ impl FileView {
                             }
                         },
 
-                        Response::LocRFileInfo(table, packed_file_info) => {
+                        ViewData::Decoded(RFileDecoded::Loc(table), packed_file_info) => {
                             if let View::Table(old_table) = view {
                                 let old_table = old_table.get_ref_table();
                                 old_table.reload_view(TableType::Loc(table));
@@ -640,7 +640,7 @@ impl FileView {
                             }
                         },
 
-                        Response::MatchedCombatRFileInfo(data, file_info) => {
+                        ViewData::Decoded(RFileDecoded::MatchedCombat(data), file_info) => {
                             if let View::MatchedCombatDebug(old_data) = view {
                                 old_data.reload_view(data)?;
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), DataSource::PackFile, &pack_key);
@@ -650,7 +650,7 @@ impl FileView {
                             }
                         },
 
-                        Response::PortraitSettingsRFileInfo(mut portrait_settings, packed_file_info) => {
+                        ViewData::Decoded(RFileDecoded::PortraitSettings(mut portrait_settings), packed_file_info) => {
                             if let View::PortraitSettings(old_portrait_settings) = view {
                                 old_portrait_settings.reload_view(&mut portrait_settings)?;
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile, &pack_key);
@@ -660,7 +660,7 @@ impl FileView {
                             }
                         },
 
-                        Response::RigidModelRFileInfo(rigidmodel, packed_file_info) => {
+                        ViewData::Decoded(RFileDecoded::RigidModel(rigidmodel), packed_file_info) => {
                             if let View::RigidModel(old_rigidmodel) = view {
                                 old_rigidmodel.reload_view(&rigidmodel)?;
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile, &pack_key);
@@ -670,7 +670,7 @@ impl FileView {
                             }
                         },
 
-                        Response::TextRFileInfo(text, packed_file_info) => {
+                        ViewData::Decoded(RFileDecoded::Text(text), packed_file_info) => {
                             if let View::Text(old_text) = view {
                                 old_text.reload_view(&text);
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile, &pack_key);
@@ -680,7 +680,7 @@ impl FileView {
                             }
                         },
 
-                        Response::Text(text) => {
+                        ViewData::Notes(text) => {
                             if let View::Text(old_text) = view {
                                 old_text.reload_view(&text);
                             }
@@ -689,7 +689,7 @@ impl FileView {
                             }
                         },
 
-                        Response::UnitVariantRFileInfo(mut variant, file_info) => {
+                        ViewData::Decoded(RFileDecoded::UnitVariant(mut variant), file_info) => {
                             if let View::UnitVariant(old_variant) = view {
                                 let _ = old_variant.reload_view(&mut variant);
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![file_info;1]), DataSource::PackFile, &pack_key);
@@ -701,7 +701,7 @@ impl FileView {
                             }
                         }
 
-                        Response::VideoInfoRFileInfo(video, packed_file_info) => {
+                        ViewData::Video(video, packed_file_info) => {
                             if let View::Video(old_video) = view {
                                 old_video.reload_view(&video);
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile, &pack_key);
@@ -711,7 +711,7 @@ impl FileView {
                             }
                         },
 
-                        Response::VMDRFileInfo(text, packed_file_info) => {
+                        ViewData::Decoded(RFileDecoded::VMD(text), packed_file_info) => {
                             if let View::VMD(old_text) = view {
                                 old_text.reload_view(&text);
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile, &pack_key);
@@ -721,7 +721,7 @@ impl FileView {
                             }
                         },
 
-                        Response::WSModelRFileInfo(text, packed_file_info) => {
+                        ViewData::Decoded(RFileDecoded::WSModel(text), packed_file_info) => {
                             if let View::WSModel(old_text) = view {
                                 old_text.reload_view(&text);
                                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]), DataSource::PackFile, &pack_key);
@@ -731,9 +731,7 @@ impl FileView {
                             }
                         },
 
-                        Response::Error(error) => return Err(anyhow!(error)),
-                        Response::Unknown => return Err(anyhow!("File Type Unknown.")),
-                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                        ViewData::Unsupported | ViewData::Decoded(..) => return Err(anyhow!("File Type Unknown.")),
                     }
 
                     Ok(())

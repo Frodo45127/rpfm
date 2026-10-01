@@ -35,14 +35,14 @@ use qt_core::WindowModality;
 
 use cpp_core::{CastInto, CppBox, Ptr};
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 
 use std::rc::Rc;
 
 use rpfm_extensions::lua::harness::{LuaTestReport, LuaTestResult};
 
+use rpfm_ipc::api::files::{FileData, FileRef, FileSource, ReadFile, ReadFormat};
 use rpfm_ipc::api::tools::RunLuaTests;
-use rpfm_ipc::helpers::DataSource;
 
 use rpfm_lib::files::ContainerPath;
 
@@ -126,8 +126,13 @@ unsafe fn progress_dialog(parent: impl CastInto<Ptr<QWidget>>) -> (QBox<QDialog>
 
 /// This function runs the tests of a test file of a pack.
 fn run_test_file(pack_key: &str, path: &str) -> Result<LuaTestReport> {
-    let (text, _) = send_ipc_command_result_async(Command::DecodePackedFile(pack_key.to_owned(), path.to_owned(), DataSource::PackFile), response_extractor!(Response::TextRFileInfo, text, info))?;
-    let results = run_job(&RunLuaTests { source: text.contents().to_owned(), campaign: None })?;
+    let file = FileRef { source: FileSource::Pack(pack_key.to_owned()), path: path.to_owned() };
+    let source = match call_api_async(&ReadFile { file, format: ReadFormat::Text })?.contents {
+        FileData::Text { text } => text,
+        _ => return Err(anyhow!("The file {path} is not a text file.")),
+    };
+
+    let results = run_job(&RunLuaTests { source, campaign: None })?;
     serde_json::from_value(results.report).map_err(From::from)
 }
 

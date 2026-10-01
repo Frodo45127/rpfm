@@ -15,6 +15,7 @@ This module defines the code used for thread communication.
 use qt_core::QEventLoop;
 
 use anyhow::{Result, anyhow};
+use base64::{Engine, engine::general_purpose::STANDARD};
 use crossbeam::channel::{Receiver, Sender, unbounded};
 use futures::{SinkExt, StreamExt};
 use tokio::sync::mpsc::{unbounded_channel, UnboundedSender, UnboundedReceiver};
@@ -29,8 +30,11 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 pub use rpfm_ipc::messages::{Command, Response, Message as IpcMessage};
 use rpfm_ipc::api::{ApiError, Request, RpcOutcome, RpcRequest, RpcResponse};
 use rpfm_ipc::api::jobs::{JobStarted, JobState, WaitForJob};
+use rpfm_ipc::api::files::{FileData, FileRef, ReadFile, ReadFormat, WriteFile};
 use rpfm_ipc::api::packs::{GetPackInfo, PackDetails, PackSummary, SavePack};
 use rpfm_ipc::helpers::ContainerInfo;
+
+use rpfm_lib::files::RFileDecoded;
 use rpfm_ipc::api::session::{Configure, Disconnect, GetSessionStatus};
 use rpfm_ipc::messages::OperationalMode;
 
@@ -351,6 +355,20 @@ pub fn save_pack(pack_key: &str, path: Option<PathBuf>, clean: bool) -> Result<C
     let request = SavePack { pack: pack_key.to_owned(), path, clean, disable_uuid_regeneration: None, allow_editing_ca_packs: None };
     call_api_async(&request)?;
     pack_details(pack_key).map(|details| ContainerInfo::from(&details))
+}
+
+/// Replaces the contents of a file of an open pack with a decoded file, like the one a view edits.
+pub fn save_decoded_file(pack_key: &str, path: &str, decoded: &RFileDecoded) -> Result<()> {
+    let contents = FileData::Decoded { data: serde_json::to_value(decoded)? };
+    call_api_async(&WriteFile { pack: pack_key.to_owned(), path: path.to_owned(), contents }).map(|_| ())
+}
+
+/// Returns the bytes of a file.
+pub fn raw_file_data(file: FileRef) -> Result<Vec<u8>> {
+    match call_api(&ReadFile { file, format: ReadFormat::Raw })?.contents {
+        FileData::Raw { base64 } => STANDARD.decode(base64).map_err(From::from),
+        _ => Err(anyhow!("The server didn't return the bytes of the file.")),
+    }
 }
 
 /// Returns the packs open in the session.
