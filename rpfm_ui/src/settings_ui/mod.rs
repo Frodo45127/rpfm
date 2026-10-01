@@ -54,6 +54,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::rc::Rc;
 
+use rpfm_ipc::settings::{custom_config_path, set_custom_config_path};
 use rpfm_ipc::settings_keys::*;
 
 use rpfm_lib::games::supported_games::*;
@@ -70,7 +71,7 @@ use crate::app_ui::AppUI;
 use crate::ffi::*;
 use crate::SUPPORTED_GAMES;
 use crate::github_ui;
-use crate::settings_ui::backend::{backup_autosave_path, config_path, custom_config_path, set_custom_config_path, settings_get_all, settings_set_bool, settings_set_i32, settings_set_string};
+use crate::settings_ui::backend::{backup_autosave_path, config_path, settings_get_all, settings_set_bool, settings_set_i32, settings_set_string};
 use crate::updater_ui::{BETA, STABLE, update_channel, UpdateChannel};
 use crate::utils::{show_dialog_flatpak_permissions, tr, qtr, qtre};
 
@@ -844,7 +845,7 @@ impl SettingsUI {
         let get_bool = |key: &str| settings.bool.get(key).copied().unwrap_or_default();
 
         // Load the custom config folder. It's stored apart from the settings JSON, so fetch it on its own.
-        let custom_config = custom_config_path().map(|path| path.to_string_lossy().to_string()).unwrap_or_default();
+        let custom_config = custom_config_path().ok().flatten().map(|path| path.to_string_lossy().to_string()).unwrap_or_default();
         self.paths_config_line_edit.set_text(&QString::from_std_str(&custom_config));
 
         // Load the MyMod and secondary paths.
@@ -945,9 +946,9 @@ impl SettingsUI {
 
         // Only touch the custom config folder if it actually changed, as applying it recreates the whole config tree.
         let new_config = self.paths_config_line_edit.text().to_std_string();
-        let old_config = custom_config_path().map(|path| path.to_string_lossy().to_string()).unwrap_or_default();
+        let old_config = custom_config_path().ok().flatten().map(|path| path.to_string_lossy().to_string()).unwrap_or_default();
         if new_config != old_config {
-            let _ = set_custom_config_path(Path::new(&new_config));
+            let _ = set_custom_config_path(Some(Path::new(&new_config)));
         }
 
         let _ = settings_set_string(MYMOD_BASE_PATH, &self.paths_mymod_line_edit.text().to_std_string());

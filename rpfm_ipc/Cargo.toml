@@ -15,6 +15,16 @@ rpfm_extensions.workspace = true
 serde.workspace = true
 serde_derive.workspace = true
 serde_json.workspace = true
+ron.workspace = true
+
+# Config support.
+directories.workspace = true
+
+# Random ID generation (anonymous telemetry distinct_id).
+uuid.workspace = true
+
+# Logging.
+log.workspace = true
 
 # Error management.
 thiserror.workspace = true
@@ -27,3 +37,6 @@ getset.workspace = true
 
 # MCP support.
 schemars.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

@@ -23,7 +23,7 @@ use rpfm_lib::files::{Container, ContainerPath};
 
 use rpfm_telemetry::info;
 
-use crate::settings::Settings;
+use rpfm_ipc::settings::Settings;
 
 use super::{SessionState, cached_lua_api};
 

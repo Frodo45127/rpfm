@@ -14,9 +14,9 @@
 //! managed by a [`SessionManager`]. Sessions are isolated: open packs in one
 //! session aren't visible from another, and each one owns a dedicated
 //! background thread (see [`crate::background_thread`]) that processes its
-//! commands serially. The one exception is application settings, which live
-//! in [`crate::settings::SETTINGS`], a single store shared by every session
-//! in this process.
+//! commands serially, with its own settings. Sessions start with the settings
+//! in the settings file, and clients owning their own settings (the UI) replace
+//! them with a `session.configure` request.
 //!
 //! ## Lifecycle
 //!
@@ -51,16 +51,18 @@ use tokio::time::{Duration, Instant};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock, atomic::{AtomicBool, AtomicU32, Ordering}};
 
-use rpfm_ipc::api::{ApiError, RpcOutcome, RpcRequest, RpcResponse};
+use rpfm_ipc::api::{ApiError, Done, Request, RpcOutcome, RpcRequest, RpcResponse};
 use rpfm_ipc::api::jobs::JobStarted;
+use rpfm_ipc::api::session::Configure;
 use rpfm_ipc::helpers::SessionInfo;
 use rpfm_ipc::messages::{Command, Response};
+use rpfm_ipc::settings::Settings;
 use rpfm_telemetry::info;
 
 use crate::api;
 use crate::background_thread;
+use crate::apply_telemetry_settings;
 use crate::jobs::{self, JobRegistry};
-use crate::settings::SETTINGS;
 
 /// Error messages for session communication.
 pub const SESSION_SENDER_ERROR: &str = "Error in session communication system. Sender failed to send message.";
@@ -152,6 +154,9 @@ pub struct Session {
 
     /// Jobs of this session.
     jobs: Arc<JobRegistry>,
+
+    /// Settings the session runs with. Behind an `Arc` so requests can hold them without copying.
+    settings: RwLock<Arc<Settings>>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -176,6 +181,7 @@ impl Session {
             shutdown_requested: AtomicBool::new(false),
             pack_names: RwLock::new(Vec::new()),
             jobs: Arc::new(JobRegistry::default()),
+            settings: RwLock::new(Arc::new(Settings::init(false))),
         });
 
         // Spawn a dedicated background thread for this session.
@@ -283,15 +289,36 @@ impl Session {
         &self.jobs
     }
 
+    /// Returns the settings of this session.
+    pub fn settings(&self) -> Arc<Settings> {
+        self.settings.read().unwrap().clone()
+    }
+
+    /// Replaces the settings of this session, applying their telemetry choices to the whole process.
+    fn configure(&self, request: RpcRequest) -> RpcResponse {
+        let result = api::parse_params::<Configure>(request.params).and_then(|configure| {
+            apply_telemetry_settings(&configure.settings);
+            *self.settings.write().unwrap() = Arc::new(configure.settings);
+            serde_json::to_value(Done {}).map_err(|error| ApiError::Internal(error.to_string()))
+        });
+
+        RpcResponse::new(request.id, result)
+    }
+
     /// Send a request of the version 2 API to this session's background thread.
     ///
-    /// Job control requests are answered without waiting for the background thread, and jobs are
-    /// answered right away with their ID, before they run.
+    /// Configuration and job control requests are answered without waiting for the background thread,
+    /// and jobs are answered right away with their ID, before they run.
     ///
     /// Returns a receiver to get the response.
     pub fn call(&self, request: RpcRequest) -> UnboundedReceiver<RpcResponse> {
         self.touch();
         let (sender_back, receiver_back) = unbounded_channel();
+
+        if request.method == Configure::METHOD {
+            let _ = sender_back.send(self.configure(request));
+            return receiver_back;
+        }
 
         if jobs::is_job_control_method(&request.method) {
             jobs::handle_request(self.jobs.clone(), request, sender_back);
@@ -299,9 +326,9 @@ impl Session {
         }
 
         if api::is_stateless_method(&request.method) {
+            let settings = self.settings();
             tokio::spawn(async move {
                 let id = request.id;
-                let settings = SETTINGS.read().unwrap().clone();
                 let response = tokio::task::spawn_blocking(move || api::dispatch_stateless(request, &settings)).await
                     .unwrap_or_else(|error| RpcResponse::new(id, Err(ApiError::Internal(format!("The background task failed: {error}")))));
 
@@ -584,5 +611,40 @@ pub async fn recv_response(receiver: &mut UnboundedReceiver<Response>) -> Respon
             info!("Session response channel closed unexpectedly.");
             Response::Error("Session response channel closed unexpectedly".to_owned())
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rpfm_ipc::api::JSONRPC_VERSION;
+    use rpfm_ipc::settings_keys::MYMOD_BASE_PATH;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn configure_replaces_the_settings_of_the_session() {
+        let session = Session::new(1, true);
+        let mut settings = Settings::default();
+        settings.set_block_write(true);
+        settings.set_string(MYMOD_BASE_PATH, "/mymods").unwrap();
+        let request = RpcRequest::new(7, &Configure { settings }).unwrap();
+
+        let response = session.call(request).recv().await.unwrap();
+
+        assert_eq!(response.id, 7);
+        assert!(matches!(response.outcome, RpcOutcome::Result(_)));
+        assert_eq!(session.settings().string(MYMOD_BASE_PATH), "/mymods");
+    }
+
+    #[tokio::test]
+    async fn configure_with_invalid_params_keeps_the_settings() {
+        let session = Session::new(1, true);
+        let before = session.settings();
+        let request = RpcRequest { jsonrpc: JSONRPC_VERSION.to_owned(), id: 1, method: Configure::METHOD.to_owned(), params: serde_json::json!({ "settings": 5 }) };
+
+        let response = session.call(request).recv().await.unwrap();
+
+        assert!(matches!(response.outcome, RpcOutcome::Error(_)));
+        assert_eq!(session.settings(), before);
     }
 }

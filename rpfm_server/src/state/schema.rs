@@ -24,7 +24,7 @@ use rpfm_lib::files::{Container, db::DB, FileType, RFileDecoded};
 use rpfm_lib::integrations::assembly_kit::update_schema_from_raw_files;
 use rpfm_lib::schema::{Definition, DefinitionPatch, Schema};
 
-use crate::settings::{schemas_path, table_patches_path, Settings};
+use rpfm_ipc::settings::{schemas_path, table_patches_path, Settings};
 
 use super::{SessionState, load_schema, loaded_schema, loaded_schema_mut};
 use super::tables::columns_info;

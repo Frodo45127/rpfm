@@ -4778,15 +4778,20 @@ dependencies = [
 name = "rpfm_ipc"
 version = "5.1.0"
 dependencies = [
+ "directories",
  "getset",
+ "log",
  "rayon",
+ "ron",
  "rpfm_extensions",
  "rpfm_lib",
  "schemars",
  "serde",
  "serde_derive",
  "serde_json",
+ "tempfile",
  "thiserror 2.0.18",
+ "uuid",
 ]
 
 [[package]]
@@ -4844,7 +4849,6 @@ dependencies = [
  "anyhow",
  "axum",
  "base64 0.22.1",
- "directories",
  "futures",
  "itertools",
  "keyring",
@@ -4867,7 +4871,6 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
- "uuid",
  "winres",
  "zip 8.6.0",
 ]

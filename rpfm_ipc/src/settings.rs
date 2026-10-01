@@ -14,34 +14,43 @@
 //! directory (resolved through [`directories::ProjectDirs`]) and exposed as a
 //! per-type [`Settings`] map: `bool`, `i32`, `f32`, `String`, raw bytes,
 //! and `Vec<String>`. Both the UI and the server side use the same
-//! [`rpfm_ipc::settings_keys`] constants when reading and writing, so a typo
+//! [`crate::settings_keys`] constants when reading and writing, so a typo
 //! becomes a compile error rather than a silently-missed setting.
+//!
+//! The UI owns the file: it's the only one writing it. The server reads it
+//! once per session, as defaults for sessions no UI configures.
 
-use anyhow::{anyhow, Result};
 use directories::ProjectDirs;
 use ron::ser::{PrettyConfig, to_string_pretty};
 use serde_derive::{Serialize, Deserialize};
-
-use tokio::sync::broadcast;
+use thiserror::Error;
 
 use std::collections::HashMap;
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::fs::{DirBuilder, File};
 use std::path::{Path, PathBuf};
-use std::sync::{LazyLock, RwLock};
 
 use rpfm_extensions::optimizer::OptimizerOptions;
 use rpfm_extensions::translator::DEFAULT_SRC_LANG;
 
-use rpfm_ipc::settings_keys::*;
+use crate::settings_keys::*;
 
 use rpfm_lib::error::RLibError;
 use rpfm_lib::games::{GameInfo, LUA_AUTOGEN_FOLDER, supported_games::*};
 use rpfm_lib::schema::{DefinitionPatch, SCHEMA_FOLDER};
 
-use crate::*;
+/// Organisation domain used to derive the OS-specific config directory
+/// (mirrors `QCoreApplication::organizationDomain` on the UI side).
+const ORG_DOMAIN: &str = "com";
 
-const SETTINGS_FILE_NAME: &str = "settings.json";
+/// Organisation name used to derive the OS-specific config directory.
+const ORG_NAME: &str = "FrodoWazEre";
+
+/// Application name used to derive the OS-specific config directory.
+const APP_NAME: &str = "rpfm";
+
+/// Name of the settings file, inside [`config_path`].
+pub const SETTINGS_FILE_NAME: &str = "settings.json";
 
 /// File for storing the path to the user-chosen custom config folder.
 const CONFIG_REDIRECT_FILE_NAME: &str = "config_folder.txt";
@@ -57,38 +66,42 @@ const TRANSLATIONS_LOCAL_FOLDER: &str = "translations_local";
 const TRANSLATIONS_REMOTE_FOLDER: &str = "translations_remote";
 
 //-------------------------------------------------------------------------------//
-//                                  Macros
-//-------------------------------------------------------------------------------//
-
-/// Macro to set a batch of settings in one go in an efficient way.
-///
-/// It expects a list of the following:
-///
-/// - $rtype: The setting's setter (set_bool, set_i32, etc.)
-/// - $id: The ID of the setting as a string literal.
-/// - $source: The expression to get the value.
-///
-/// You can add more settings by adding another 3 arguments to the macro.
-#[macro_export]
-macro_rules! set_batch {
-    ($( $rtype:ident, $id:literal, $source:expr), *) => {
-        {
-            let mut set = SETTINGS.write().unwrap();
-            set.set_block_write(true);
-            $(
-                let _ = set.$rtype($id, $source);
-            )*
-            set.set_block_write(false);
-            let _ = set.write();
-        }
-    };
-}
-
-//-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
-/// Snapshot of every persisted setting.
+/// Errors of the settings store and the config-path helpers.
+#[derive(Debug, Error)]
+pub enum SettingsError {
+
+    /// The OS didn't provide a config folder.
+    #[error("Failed to get the config path.")]
+    ConfigPathNotFound,
+
+    /// The game has no Lua Autogen data.
+    #[error("Lua Autogen not available for this game.")]
+    LuaAutogenNotAvailable,
+
+    /// The folder asked to be cleared is missing, or outside the config folder.
+    #[error("Path is not a valid directory to clear or does not exist")]
+    InvalidClearPath,
+
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
+
+    #[error(transparent)]
+    Ron(#[from] ron::Error),
+
+    #[error(transparent)]
+    RLib(#[from] RLibError),
+}
+
+/// Result type of the settings store.
+pub type Result<T> = std::result::Result<T, SettingsError>;
+
+/// Every persisted setting.
 ///
 /// Each typed sub-map keeps its own keys; lookups never cross types, so
 /// `settings.bool("X")` and `settings.i32("X")` are independent. Lookups for
@@ -96,13 +109,14 @@ macro_rules! set_batch {
 ///
 /// Values mutate through the typed `set_*` / `initialize_*` methods. Each
 /// successful set persists to disk immediately, unless [`set_block_write`]
-/// is set to `true` (used for batch updates via the [`set_batch!`] macro).
+/// is set to `true` (used for batch updates).
 ///
 /// [`set_block_write`]: Self::set_block_write
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Settings {
 
-    /// When `true`, [`Self::write`] becomes a no-op. Used by [`set_batch!`]
+    /// When `true`, [`Self::write`] becomes a no-op. Used for batch updates,
     /// to coalesce many updates into a single disk write.
     #[serde(skip_serializing, skip_deserializing)]
     pub block_write: bool,
@@ -123,54 +137,23 @@ pub struct Settings {
 }
 
 //-------------------------------------------------------------------------------//
-//                              Shared state
-//-------------------------------------------------------------------------------//
-
-/// The single [`Settings`] instance for this server process.
-///
-/// One server process serves every locally-running `rpfm_ui` instance, each
-/// getting its own [`crate::session::Session`]. All sessions read and write
-/// through this one lock, so every session in the process sees the same
-/// values.
-pub static SETTINGS: LazyLock<RwLock<Settings>> = LazyLock::new(|| {
-    RwLock::new(Settings::init(false).unwrap_or_else(|error| {
-        rpfm_telemetry::warn!("Failed to initialize settings, falling back to defaults. Error: {error}");
-        Settings::default()
-    }))
-});
-
-/// Broadcasts the [`SettingsSnapshot`] resulting from every successful write to
-/// [`SETTINGS`], so every connected session can push it to its own client and
-/// keep their settings caches in sync without requiring a reconnect.
-pub static SETTINGS_CHANGED: LazyLock<broadcast::Sender<SettingsSnapshot>> = LazyLock::new(|| broadcast::channel(16).0);
-
-/// Applies a mutation to the shared [`SETTINGS`] store and broadcasts the
-/// resulting snapshot on [`SETTINGS_CHANGED`] if it succeeds.
-pub fn mutate_settings<T>(mutator: impl FnOnce(&mut Settings) -> Result<T>) -> Result<T> {
-    let mut settings = SETTINGS.write().unwrap();
-    let result = mutator(&mut settings)?;
-    let _ = SETTINGS_CHANGED.send(settings.snapshot());
-    Ok(result)
-}
-
-//-------------------------------------------------------------------------------//
 //                         Settings implementation
 //-------------------------------------------------------------------------------//
 
 impl Settings {
 
     /// Build a fresh `Settings` instance, loading from disk and applying
-    /// per-key default initialisation.
+    /// per-key default initialisation. Nothing is written to disk.
     ///
     /// If `as_new` is `true` the on-disk file is ignored and a fully default
     /// settings struct is returned (still applying the per-key defaults).
     /// Otherwise the settings are loaded with [`Self::load_or_recover`].
-    pub fn init(as_new: bool) -> Result<Self> {
+    pub fn init(as_new: bool) -> Self {
         let mut settings = if !as_new {
             match config_path() {
                 Ok(config) => Self::load_or_recover(&config.join(SETTINGS_FILE_NAME)),
                 Err(error) => {
-                    rpfm_telemetry::warn!("Failed to find the settings folder, using defaults. Error: {error}");
+                    log::warn!("Failed to find the settings folder, using defaults. Error: {error}");
                     Settings::default()
                 }
             }
@@ -325,7 +308,6 @@ impl Settings {
         settings.initialize_string(DEEPL_API_KEY, "");
         settings.initialize_string(TRANSLATOR_SOURCE_LANGUAGE, DEFAULT_SRC_LANG);
         settings.initialize_bool(TRANSLATOR_USE_DEEPL_GLOSSARY, true);
-        settings.initialize_string(GITHUB_LOGIN, "");
 
         settings.initialize_vec_string(RECENT_FILE_LIST, &[]);
         settings.initialize_vec_string(DIAGNOSTICS_DISABLED, &["label_field_with_path_not_found".to_owned()]);
@@ -366,12 +348,7 @@ impl Settings {
         settings.initialize_bool(PTS_REMOVE_EMPTY_FILE, *opt.pts_remove_empty_file());
 
         settings.set_block_write(false);
-
-        if let Err(error) = settings.write() {
-            rpfm_telemetry::warn!("Failed to persist settings file, continuing with in-memory settings. Error: {error}");
-        }
-
-        Ok(settings)
+        settings
     }
 
     /// Read the on-disk settings file (`settings.json` under [`config_path`]).
@@ -412,10 +389,10 @@ impl Settings {
                 settings
             },
             Err(error) => {
-                rpfm_telemetry::warn!("Failed to read settings file. Error: {error}");
+                log::warn!("Failed to read settings file. Error: {error}");
                 match Self::read_from(&backup_path) {
                     Ok(settings) => {
-                        rpfm_telemetry::warn!("Restored the settings from their backup.");
+                        log::warn!("Restored the settings from their backup.");
                         settings
                     },
                     Err(_) => {
@@ -423,7 +400,7 @@ impl Settings {
                             let _ = std::fs::copy(path, &backup_path);
                         }
 
-                        rpfm_telemetry::warn!("Failed to read the settings backup, using defaults.");
+                        log::warn!("Failed to read the settings backup, using defaults.");
                         Settings::default()
                     },
                 }
@@ -496,18 +473,6 @@ impl Settings {
     /// Read a `Vec<String>` setting; returns an empty `Vec` if `setting` isn't set.
     pub fn vec_string(&self, setting: &str) -> Vec<String> {
         self.vec_string.get(setting).map(|x| x.to_vec()).unwrap_or_default()
-    }
-
-    /// Build a [`SettingsSnapshot`] of every currently persisted setting.
-    pub fn snapshot(&self) -> SettingsSnapshot {
-        SettingsSnapshot {
-            bool: self.bool.clone(),
-            i32: self.i32.clone(),
-            f32: self.f32.clone(),
-            string: self.string.clone(),
-            raw_data: self.raw_data.clone(),
-            vec_string: self.vec_string.clone(),
-        }
     }
 
     /// Set a `bool` setting and persist to disk (subject to `block_write`).
@@ -669,7 +634,7 @@ pub fn default_config_path() -> Result<PathBuf> {
     } else {
         match ProjectDirs::from(ORG_DOMAIN, ORG_NAME, APP_NAME) {
             Some(proj_dirs) => Ok(proj_dirs.config_dir().to_path_buf()),
-            None => Err(anyhow!("Failed to get the config path."))
+            None => Err(SettingsError::ConfigPathNotFound)
         }
     }
 }
@@ -805,7 +770,7 @@ pub fn lua_autogen_base_path() -> Result<PathBuf> {
 pub fn lua_autogen_game_path(game: &GameInfo) -> Result<PathBuf> {
     match game.lua_autogen_folder() {
         Some(folder) => Ok(config_path()?.join(LUA_AUTOGEN_FOLDER).join(folder)),
-        None => Err(anyhow!("Lua Autogen not available for this game."))
+        None => Err(SettingsError::LuaAutogenNotAvailable)
     }
 }
 
@@ -854,6 +819,10 @@ pub fn clear_config_path(path: &Path) -> Result<()> {
         std::fs::remove_dir_all(path)?;
         init_config_path()
     } else {
-        Err(anyhow!("Path is not a valid directory to clear or does not exist"))
+        Err(SettingsError::InvalidClearPath)
     }
 }
+
+#[cfg(test)]
+#[path = "settings_test.rs"]
+mod settings_test;

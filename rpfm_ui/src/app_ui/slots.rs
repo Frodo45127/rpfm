@@ -1212,7 +1212,7 @@ impl AppUISlots {
                     rpfm_telemetry::track_action("Generate Dependencies Cache");
 
                     if (GAME_SELECTED.read().unwrap().raw_db_version() > &0 && !settings_path_buf(&format!("{}_assembly_kit", GAME_SELECTED.read().unwrap().key())).is_dir()) ||
-                        (*GAME_SELECTED.read().unwrap().raw_db_version() == 0 && !old_ak_data_path().unwrap_or_default().join(GAME_SELECTED.read().unwrap().key()).is_dir()) {
+                        (*GAME_SELECTED.read().unwrap().raw_db_version() == 0 && !old_ak_files_path().unwrap_or_default().join(GAME_SELECTED.read().unwrap().key()).is_dir()) {
                         show_dialog(&app_ui.main_window, tr("generate_dependencies_cache_warn"), false);
                     }
 

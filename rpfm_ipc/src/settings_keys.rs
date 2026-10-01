@@ -13,10 +13,6 @@
 //! Using these constants instead of raw string literals prevents typos
 //! and provides a single source of truth for settings key names.
 
-use serde::{Deserialize, Serialize};
-
-use std::collections::HashMap;
-
 // Path settings.
 pub const MYMOD_BASE_PATH: &str = "mymods_base_path";
 pub const SECONDARY_PATH: &str = "secondary_path";
@@ -127,9 +123,6 @@ pub const DEEPL_API_KEY: &str = "deepl_api_key";
 pub const TRANSLATOR_SOURCE_LANGUAGE: &str = "translator_source_language";
 pub const TRANSLATOR_USE_DEEPL_GLOSSARY: &str = "translator_use_deepl_glossary";
 
-// GitHub settings. The token itself lives in the OS keyring; only the account's login is kept here, for display.
-pub const GITHUB_LOGIN: &str = "github_login";
-
 // Optimizer settings.
 pub const PACK_REMOVE_ITM_FILES: &str = "pack_remove_itm_files";
 pub const PACK_APPLY_COMPRESSION: &str = "pack_apply_compression";
@@ -173,15 +166,3 @@ pub const COLOUR_DARK_TABLE_MODIFIED: &str = "colour_dark_table_modified";
 pub const COLOUR_DARK_DIAGNOSTIC_ERROR: &str = "colour_dark_diagnostic_error";
 pub const COLOUR_DARK_DIAGNOSTIC_WARNING: &str = "colour_dark_diagnostic_warning";
 pub const COLOUR_DARK_DIAGNOSTIC_INFO: &str = "colour_dark_diagnostic_info";
-
-/// A snapshot of all typed settings for batch transfer between server and UI.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-#[serde(default)]
-pub struct SettingsSnapshot {
-    pub bool: HashMap<String, bool>,
-    pub i32: HashMap<String, i32>,
-    pub f32: HashMap<String, f32>,
-    pub string: HashMap<String, String>,
-    pub raw_data: HashMap<String, Vec<u8>>,
-    pub vec_string: HashMap<String, Vec<String>>,
-}

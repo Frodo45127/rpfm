@@ -31,7 +31,7 @@ use rpfm_lib::games::pfh_file_type::PFHFileType;
 use rpfm_lib::notes::Note;
 use rpfm_lib::utils::files_in_folder_from_newest_to_oldest;
 
-use crate::settings::{backup_autosave_path, Settings};
+use rpfm_ipc::settings::{backup_autosave_path, Settings};
 
 use super::{SaveOptions, SessionState, decode_tables, encode_extra_data, pack, pack_mut, pack_summary};
 

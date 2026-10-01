@@ -36,7 +36,7 @@ use rpfm_lib::integrations::git::GitIntegration;
 use rpfm_telemetry::{error, info, warn};
 
 use crate::ceo_builder::{build_ceo, build_ceo_entries, build_ceo_post, get_trait_ceos};
-use crate::settings::{lua_autogen_game_path, scripts_path, translations_local_path, translations_remote_path, Settings};
+use rpfm_ipc::settings::{lua_autogen_game_path, scripts_path, translations_local_path, translations_remote_path, Settings};
 
 use rpfm_ipc::api::ApiError;
 use rpfm_ipc::api::files::FileRef;

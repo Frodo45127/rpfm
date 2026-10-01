@@ -22,20 +22,22 @@ use rpfm_extensions::translator::PackTranslation;
 use rpfm_extensions::translator::hub::SubmissionResult;
 
 use rpfm_ipc::messages::GitHubSignInState;
-use rpfm_ipc::settings_keys::GITHUB_LOGIN;
 
 use rpfm_lib::error::RLibError;
 use rpfm_lib::games::{TRANSLATIONS_REPO_NAME, TRANSLATIONS_REPO_OWNER};
 use rpfm_lib::integrations::github::{self, DeviceCode, DeviceFlowPoll, GitHubClient, PUBLIC_REPO_SCOPE};
 
 use crate::GITHUB_OAUTH_CLIENT_ID;
-use crate::settings::{mutate_settings, translations_local_path, SETTINGS};
+use rpfm_ipc::settings::translations_local_path;
 
 /// Service name of RPFM's entries in the OS keyring.
 const KEYRING_SERVICE: &str = "rpfm";
 
 /// Name of the keyring entry holding the GitHub token.
 const KEYRING_GITHUB_TOKEN: &str = "github_token";
+
+/// Name of the keyring entry holding the login of the GitHub account.
+const KEYRING_GITHUB_LOGIN: &str = "github_login";
 
 /// Environment variable to submit to another repository (`owner/name`) instead of the real hub. Debug builds only.
 #[cfg(debug_assertions)]
@@ -72,7 +74,7 @@ pub fn sign_in_start() -> Result<DeviceCode> {
     github::request_device_code(GITHUB_OAUTH_CLIENT_ID, PUBLIC_REPO_SCOPE).map_err(From::from)
 }
 
-/// Check a GitHub sign-in. Once approved, keeps the token in the OS keyring and the account's login in the settings.
+/// Check a GitHub sign-in. Once approved, keeps the token and the account's login in the OS keyring.
 ///
 /// # Arguments
 ///
@@ -89,8 +91,8 @@ pub fn sign_in_poll(device_code: &str) -> Result<GitHubSignInState> {
         DeviceFlowPoll::Denied => GitHubSignInState::Denied,
         DeviceFlowPoll::Granted(token) => {
             let login = GitHubClient::new(&token)?.user_login()?;
-            keyring_entry()?.set_password(&token).map_err(keyring_error)?;
-            mutate_settings(|settings| settings.set_string(GITHUB_LOGIN, &login))?;
+            keyring_entry(KEYRING_GITHUB_TOKEN)?.set_password(&token).map_err(keyring_error)?;
+            keyring_entry(KEYRING_GITHUB_LOGIN)?.set_password(&login).map_err(keyring_error)?;
             GitHubSignInState::SignedIn(login)
         },
     })
@@ -110,22 +112,22 @@ pub fn account() -> Result<Option<String>> {
         return Ok(None);
     }
 
-    let login = SETTINGS.read().unwrap().string(GITHUB_LOGIN);
-    Ok(Some(login))
+    Ok(Some(keyring_password(KEYRING_GITHUB_LOGIN)?.unwrap_or_default()))
 }
 
 /// Sign out of GitHub, deleting the stored token and login.
 ///
 /// # Errors
 ///
-/// Returns an error if the keyring or the settings can't be written.
+/// Returns an error if the keyring can't be written.
 pub fn sign_out() -> Result<()> {
-    match keyring_entry()?.delete_credential() {
-        Ok(()) | Err(KeyringError::NoEntry) => {},
-        Err(error) => return Err(keyring_error(error)),
+    for name in [KEYRING_GITHUB_TOKEN, KEYRING_GITHUB_LOGIN] {
+        match keyring_entry(name)?.delete_credential() {
+            Ok(()) | Err(KeyringError::NoEntry) => {},
+            Err(error) => return Err(keyring_error(error)),
+        }
     }
 
-    mutate_settings(|settings| settings.set_string(GITHUB_LOGIN, ""))?;
     Ok(())
 }
 
@@ -167,16 +169,21 @@ pub fn submit(game_key: &str, pack_name: &str, src_lang: &str, language: &str) -
 
 /// Stored GitHub token, if the user is signed in.
 fn token() -> Result<Option<String>> {
-    match keyring_entry()?.get_password() {
-        Ok(token) => Ok(Some(token)),
+    keyring_password(KEYRING_GITHUB_TOKEN)
+}
+
+/// Value of an entry of RPFM in the keyring, if it exists.
+fn keyring_password(name: &str) -> Result<Option<String>> {
+    match keyring_entry(name)?.get_password() {
+        Ok(password) => Ok(Some(password)),
         Err(KeyringError::NoEntry) => Ok(None),
         Err(error) => Err(keyring_error(error)),
     }
 }
 
-/// Keyring entry holding the GitHub token.
-fn keyring_entry() -> Result<Entry> {
-    Entry::new(KEYRING_SERVICE, KEYRING_GITHUB_TOKEN).map_err(keyring_error)
+/// Entry of RPFM in the keyring with the provided name.
+fn keyring_entry(name: &str) -> Result<Entry> {
+    Entry::new(KEYRING_SERVICE, name).map_err(keyring_error)
 }
 
 /// Explain keyring errors, as they're usually about the system's keyring being unavailable.

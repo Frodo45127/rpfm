@@ -16,106 +16,72 @@ use qt_core::QString;
 use qt_core::QVariant;
 
 use anyhow::Result;
-use directories::ProjectDirs;
 
 use std::{collections::HashMap, path::{Path, PathBuf}};
 use std::sync::{LazyLock, RwLock};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use rpfm_extensions::optimizer::OptimizerOptions;
 
 use rpfm_ipc::messages::{Command, Response};
+use rpfm_ipc::settings::{self as settings_store, Settings};
 use rpfm_ipc::settings_keys::*;
 
 use rpfm_lib::schema::{Definition, DefinitionPatch, Schema};
 
+use rpfm_telemetry::warn;
+
 use crate::app_ui::AppUI;
-use crate::communications::{send_ipc_command, send_ipc_command_async, send_ipc_command_result, send_ipc_command_result_async};
+use crate::communications::{send_ipc_command, send_ipc_command_result};
+use crate::GAME_SELECTED;
+
+pub use rpfm_ipc::settings::{backup_autosave_path, clear_config_path, config_path, dependencies_cache_path, old_ak_files_path, schemas_path, table_profiles_path, translations_local_path};
 
 //-------------------------------------------------------------------------------//
-//                          Settings cache
+//                          Settings store
 //-------------------------------------------------------------------------------//
 
-/// Filename of the on-disk settings JSON file the server writes.
-/// Mirrors `rpfm_server::settings::SETTINGS_FILE_NAME`.
-const SETTINGS_FILE_NAME: &str = "settings.json";
+/// Settings of the UI. The UI owns the settings file: changes are saved to it, and sent to the server.
+static SETTINGS: LazyLock<RwLock<Settings>> = LazyLock::new(|| RwLock::new(Settings::default()));
 
-/// `ProjectDirs` triple shared with the server so both processes resolve to
-/// the same config directory.
-const ORG_DOMAIN: &str = "com";
-const ORG_NAME: &str = "FrodoWazEre";
-const APP_NAME: &str = "rpfm";
+/// If the settings changed since they were last sent to the server.
+static SETTINGS_CHANGED: AtomicBool = AtomicBool::new(true);
 
-/// Name of the custom-config-folder redirect file. Mirrors
-/// `rpfm_server::settings::CONFIG_REDIRECT_FILE_NAME`.
-const CONFIG_REDIRECT_FILE_NAME: &str = "config_folder.txt";
-
-/// Settings cache for the UI.
-static SETTINGS_CACHE: LazyLock<RwLock<Option<SettingsSnapshot>>> = LazyLock::new(|| RwLock::new(None));
-
-/// Returns the snapshot from the cache, or [`SettingsSnapshot::default`] when
-/// the cache hasn't been seeded yet.
-fn with_cache<T>(f: impl FnOnce(&SettingsSnapshot) -> T) -> T {
-
-    // Fast path: the cache is already seeded, so a shared read lock is enough.
-    if let Some(snapshot) = SETTINGS_CACHE.read().unwrap().as_ref() {
-        return f(snapshot);
+/// Loads the settings from disk, initializing the missing ones to their defaults, and saves them back.
+pub fn init_settings() {
+    if let Err(error) = settings_store::init_config_path() {
+        warn!("Failed to initialize the config folder. Error: {error}");
     }
 
-    // Seed an empty default once, then read it back.
-    let mut write = SETTINGS_CACHE.write().unwrap();
-    if write.is_none() {
-        *write = Some(SettingsSnapshot::default());
+    let settings = Settings::init(false);
+    if let Err(error) = settings.write() {
+        warn!("Failed to save the settings file, continuing with in-memory settings. Error: {error}");
     }
-    f(write.as_ref().unwrap())
+
+    replace_settings(settings);
 }
 
-/// Resolve RPFM's default config directory, ignoring any custom-folder redirect.
-fn default_config_dir() -> Option<PathBuf> {
-    if cfg!(debug_assertions) {
-        std::env::current_dir().ok()
-    } else {
-        Some(ProjectDirs::from(ORG_DOMAIN, ORG_NAME, APP_NAME)?.config_dir().to_path_buf())
-    }
+/// Replaces all the settings, without saving them to disk.
+pub fn replace_settings(settings: Settings) {
+    *SETTINGS.write().unwrap() = settings;
+    mark_settings_changed();
 }
 
-/// Resolve the active config directory, mirroring `rpfm_server::settings::config_path`
-/// so both processes hit the same folder before the server is even up.
-fn config_dir() -> Option<PathBuf> {
-    let default = default_config_dir()?;
-    let redirect_file = default.join(CONFIG_REDIRECT_FILE_NAME);
-    if let Ok(raw) = std::fs::read_to_string(&redirect_file) {
-        let trimmed = raw.trim();
-        if !trimmed.is_empty() {
-            return Some(PathBuf::from(trimmed));
-        }
-    }
-    Some(default)
+/// Marks the settings as changed, so they're sent to the server before the next message.
+pub fn mark_settings_changed() {
+    SETTINGS_CHANGED.store(true, Ordering::SeqCst);
 }
 
-/// Resolve the on-disk settings file path so both processes hit the same JSON.
-fn settings_file_path() -> Option<PathBuf> {
-    Some(config_dir()?.join(SETTINGS_FILE_NAME))
+/// Returns the settings if they changed since the last call, so they can be sent to the server.
+pub fn take_changed_settings() -> Option<Settings> {
+    SETTINGS_CHANGED.swap(false, Ordering::SeqCst).then(settings_get_all)
 }
 
-/// Populate the settings cache from the on-disk JSON file the server persists.
-pub fn load_settings_cache_from_disk() {
-    let Some(path) = settings_file_path() else { return; };
-    let Ok(data) = std::fs::read(&path) else { return; };
-    let Ok(snapshot) = serde_json::from_slice::<SettingsSnapshot>(&data) else { return; };
-    *SETTINGS_CACHE.write().unwrap() = Some(snapshot);
-}
-
-/// Replace the cached snapshot with the one from the server.
-pub fn load_settings_cache_from_server() {
-    let snapshot = send_ipc_command_async(Command::SettingsGetAll, response_extractor!(Response::SettingsAll));
-    *SETTINGS_CACHE.write().unwrap() = Some(snapshot);
-}
-
-/// Replace the cached snapshot with one pushed unsolicited by the server.
-///
-/// This may happen when another connected UI instance changes a setting.
-pub fn apply_settings_snapshot(snapshot: SettingsSnapshot) {
-    *SETTINGS_CACHE.write().unwrap() = Some(snapshot);
+/// Applies a change to the settings, saving them to disk.
+fn set_setting(change: impl FnOnce(&mut Settings) -> settings_store::Result<()>) -> Result<()> {
+    let result = change(&mut SETTINGS.write().unwrap());
+    mark_settings_changed();
+    result.map_err(From::from)
 }
 
 //-------------------------------------------------------------------------------//
@@ -152,160 +118,92 @@ pub unsafe fn init_app_exclusive_settings(app_ui: &AppUI) {
     app_ui.menu_bar_debug().menu_action().set_visible(settings_bool(ENABLE_DEBUG_MENU));
 }
 
-/// Get all settings from the cache (fetching from server on first call).
-pub fn settings_get_all() -> SettingsSnapshot {
-    with_cache(|s| s.clone())
+/// Get a copy of all the settings.
+pub fn settings_get_all() -> Settings {
+    SETTINGS.read().unwrap().clone()
 }
 
-/// Get a boolean setting from the cache.
+/// Get a boolean setting.
 pub fn settings_bool(key: &str) -> bool {
-    with_cache(|s| s.bool.get(key).copied().unwrap_or_default())
+    SETTINGS.read().unwrap().bool(key)
 }
 
-/// Get an i32 setting from the cache.
+/// Get an i32 setting.
 pub fn settings_i32(key: &str) -> i32 {
-    with_cache(|s| s.i32.get(key).copied().unwrap_or_default())
+    SETTINGS.read().unwrap().i32(key)
 }
 
-/// Get an f32 setting from the cache.
+/// Get an f32 setting.
 #[allow(dead_code)]
 pub fn settings_f32(key: &str) -> f32 {
-    with_cache(|s| s.f32.get(key).copied().unwrap_or_default())
+    SETTINGS.read().unwrap().f32(key)
 }
 
-/// Get a string setting from the cache.
+/// Get a string setting.
 pub fn settings_string(key: &str) -> String {
-    with_cache(|s| s.string.get(key).cloned().unwrap_or_default())
+    SETTINGS.read().unwrap().string(key)
 }
 
-/// Get a PathBuf setting from the cache.
+/// Get a PathBuf setting.
 pub fn settings_path_buf(key: &str) -> PathBuf {
-    with_cache(|s| PathBuf::from(s.string.get(key).cloned().unwrap_or_default()))
+    SETTINGS.read().unwrap().path_buf(key)
 }
 
-/// Get a Vec<String> setting from the cache.
+/// Get a Vec<String> setting.
 pub fn settings_vec_string(key: &str) -> Vec<String> {
-    with_cache(|s| s.vec_string.get(key).cloned().unwrap_or_default())
+    SETTINGS.read().unwrap().vec_string(key)
 }
 
-/// Get a Vec<u8> setting from the cache.
+/// Get a Vec<u8> setting.
 pub fn settings_raw_data(key: &str) -> Vec<u8> {
-    with_cache(|s| s.raw_data.get(key).cloned().unwrap_or_default())
+    SETTINGS.read().unwrap().raw_data(key)
 }
 
-/// Set a boolean setting on the server and update the local cache.
+/// Set a boolean setting.
 pub fn settings_set_bool(key: &str, value: bool) -> Result<()> {
-    send_ipc_command_result(Command::SettingsSetBool(key.to_string(), value), response_extractor!())?;
-    if let Some(ref mut s) = *SETTINGS_CACHE.write().unwrap() {
-        s.bool.insert(key.to_owned(), value);
-    }
-    Ok(())
+    set_setting(|settings| settings.set_bool(key, value))
 }
 
-/// Set an i32 setting on the server and update the local cache.
+/// Set an i32 setting.
 pub fn settings_set_i32(key: &str, value: i32) -> Result<()> {
-    send_ipc_command_result(Command::SettingsSetI32(key.to_string(), value), response_extractor!())?;
-    if let Some(ref mut s) = *SETTINGS_CACHE.write().unwrap() {
-        s.i32.insert(key.to_owned(), value);
-    }
-    Ok(())
+    set_setting(|settings| settings.set_i32(key, value))
 }
 
-/// Set an f32 setting on the server and update the local cache.
+/// Set an f32 setting.
 #[allow(dead_code)]
 pub fn settings_set_f32(key: &str, value: f32) -> Result<()> {
-    send_ipc_command_result(Command::SettingsSetF32(key.to_string(), value), response_extractor!())?;
-    if let Some(ref mut s) = *SETTINGS_CACHE.write().unwrap() {
-        s.f32.insert(key.to_owned(), value);
-    }
-    Ok(())
+    set_setting(|settings| settings.set_f32(key, value))
 }
 
-/// Set a string setting on the server and update the local cache.
+/// Set a string setting.
 pub fn settings_set_string(key: &str, value: &str) -> Result<()> {
-    send_ipc_command_result(Command::SettingsSetString(key.to_string(), value.to_string()), response_extractor!())?;
-    if let Some(ref mut s) = *SETTINGS_CACHE.write().unwrap() {
-        s.string.insert(key.to_owned(), value.to_owned());
-    }
-    Ok(())
+    set_setting(|settings| settings.set_string(key, value))
 }
 
-/// Set a PathBuf setting on the server and update the local cache.
+/// Set a PathBuf setting.
 #[allow(dead_code)]
 pub fn settings_set_path_buf(key: &str, value: &Path) -> Result<()> {
-    send_ipc_command_result(Command::SettingsSetPathBuf(key.to_string(), value.to_path_buf()), response_extractor!())?;
-    if let Some(ref mut s) = *SETTINGS_CACHE.write().unwrap() {
-        s.string.insert(key.to_owned(), value.to_string_lossy().to_string());
-    }
-    Ok(())
+    set_setting(|settings| settings.set_path_buf(key, value))
 }
 
-/// Set a Vec<String> setting on the server and update the local cache.
+/// Set a Vec<String> setting.
 pub fn settings_set_vec_string(key: &str, value: &[String]) -> Result<()> {
-    send_ipc_command_result(Command::SettingsSetVecString(key.to_string(), value.to_vec()), response_extractor!())?;
-    if let Some(ref mut s) = *SETTINGS_CACHE.write().unwrap() {
-        s.vec_string.insert(key.to_owned(), value.to_vec());
-    }
-    Ok(())
+    set_setting(|settings| settings.set_vec_string(key, value))
 }
 
-/// Set a Vec<u8> setting on the server and update the local cache.
+/// Set a Vec<u8> setting.
 pub fn settings_set_raw_data(key: &str, value: &[u8]) -> Result<()> {
-    send_ipc_command_result_async(Command::SettingsSetVecRaw(key.to_string(), value.to_vec()), response_extractor!())?;
-    if let Some(ref mut s) = *SETTINGS_CACHE.write().unwrap() {
-        s.raw_data.insert(key.to_owned(), value.to_vec());
-    }
-    Ok(())
+    set_setting(|settings| settings.set_raw_data(key, value))
 }
 
-pub fn config_path() -> Result<PathBuf> {
-    send_ipc_command_result(Command::ConfigPath, response_extractor!(Response::PathBuf))
-}
-
+/// Path of the Assembly Kit db files of the selected game.
 pub fn assembly_kit_path() -> Result<PathBuf> {
-    send_ipc_command_result(Command::AssemblyKitPath, response_extractor!(Response::PathBuf))
+    SETTINGS.read().unwrap().assembly_kit_path(&GAME_SELECTED.read().unwrap()).map_err(From::from)
 }
 
-pub fn backup_autosave_path() -> Result<PathBuf> {
-    send_ipc_command_result(Command::BackupAutosavePath, response_extractor!(Response::PathBuf))
-}
-
-pub fn old_ak_data_path() -> Result<PathBuf> {
-    send_ipc_command_result(Command::OldAkDataPath, response_extractor!(Response::PathBuf))
-}
-
-pub fn schemas_path() -> Result<PathBuf> {
-    send_ipc_command_result(Command::SchemasPath, response_extractor!(Response::PathBuf))
-}
-
-pub fn table_profiles_path() -> Result<PathBuf> {
-    send_ipc_command_result(Command::TableProfilesPath, response_extractor!(Response::PathBuf))
-}
-
-pub fn translations_local_path() -> Result<PathBuf> {
-    send_ipc_command_result(Command::TranslationsLocalPath, response_extractor!(Response::PathBuf))
-}
-
-pub fn dependencies_cache_path() -> Result<PathBuf> {
-    send_ipc_command_result(Command::DependenciesCachePath, response_extractor!(Response::PathBuf))
-}
-
-pub fn settings_clear_path(path: &Path) -> Result<()> {
-    send_ipc_command_result(Command::SettingsClearPath(path.to_path_buf()), response_extractor!())
-}
-
-/// Fetch the user-configured custom config folder. An empty path means RPFM uses the default one.
-pub fn custom_config_path() -> Result<PathBuf> {
-    send_ipc_command_result(Command::CustomConfigPath, response_extractor!(Response::PathBuf))
-}
-
-/// Set the custom config folder, or clear it when given an empty path. Takes effect on restart.
-pub fn set_custom_config_path(path: &Path) -> Result<()> {
-    send_ipc_command_result(Command::SetCustomConfigPath(path.to_path_buf()), response_extractor!())
-}
-
+/// The optimizer options in the settings.
 pub fn optimizer_options() -> OptimizerOptions {
-    send_ipc_command_result(Command::OptimizerOptions, response_extractor!(Response::OptimizerOptions)).unwrap()
+    SETTINGS.read().unwrap().optimizer_options()
 }
 
 pub fn is_schema_loaded() -> bool {

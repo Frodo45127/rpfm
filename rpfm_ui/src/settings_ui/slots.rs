@@ -30,12 +30,11 @@ use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::process::Command as SystemCommand;
 
-use rpfm_ipc::messages::Command;
+use rpfm_ipc::settings::Settings;
 use rpfm_ipc::settings_keys::*;
 
 use rpfm_ui_common::clone;
 
-use crate::CENTRAL_COMMAND;
 use crate::app_ui::AppUI;
 use crate::ffi;
 use crate::github_ui;
@@ -87,15 +86,16 @@ impl SettingsUISlots {
 
                 // Restore RPFM settings and reload the view, WITHOUT SAVING THE SETTINGS.
                 // An exception are the original states. We need to keep those.
-                CENTRAL_COMMAND.read().unwrap().send(Command::BackupSettings);
+                let backup = settings_get_all();
 
                 // Fonts are a bit special. Init picks them up from the running app, not from a fixed value,
                 // so we need to manually overwrite them here before init_settings gets triggered.
                 let original_font_name = settings_string(ORIGINAL_FONT_NAME);
                 let original_font_size = settings_i32(ORIGINAL_FONT_SIZE);
 
-                CENTRAL_COMMAND.read().unwrap().send(Command::ClearSettings);
-                load_settings_cache_from_server();
+                let mut defaults = Settings::init(true);
+                defaults.set_block_write(true);
+                replace_settings(defaults);
                 init_app_exclusive_settings(&app_ui);
 
                 let _ = settings_set_string(FONT_NAME, &original_font_name);
@@ -107,8 +107,7 @@ impl SettingsUISlots {
 
                 // Once the original settings are reloaded, wipe them out from the backend again and put the old ones in.
                 // That way, if the user cancels, we still have the old settings.
-                CENTRAL_COMMAND.read().unwrap().send(Command::RestoreBackupSettings);
-                load_settings_cache_from_server();
+                replace_settings(backup);
 
                 // Set this value to indicate future operations that a reset has taken place.
                 let _ = settings_set_bool(FACTORY_RESET, true);
@@ -195,7 +194,7 @@ impl SettingsUISlots {
         let clear_dependencies_cache = SlotNoArgs::new(&ui.dialog, clone!(mut ui => move || {
             rpfm_telemetry::track_action("Settings: Clear Dependencies Cache");
             match dependencies_cache_path() {
-                Ok(path) => match settings_clear_path(&path) {
+                Ok(path) => match clear_config_path(&path) {
                     Ok(_) => show_dialog(&ui.dialog, tr("dependencies_cache_cleared"), true),
                     Err(error) => show_dialog(&ui.dialog, error, false),
                 }
@@ -206,7 +205,7 @@ impl SettingsUISlots {
         let clear_autosaves = SlotNoArgs::new(&ui.dialog, clone!(mut ui => move || {
             rpfm_telemetry::track_action("Settings: Clear Autosaves");
             match backup_autosave_path() {
-                Ok(path) => match settings_clear_path(&path) {
+                Ok(path) => match clear_config_path(&path) {
                     Ok(_) => {
                         ui.debug_clear_autosave_folder_size_label.set_text(&QString::from_std_str(super::autosave_folder_size_text()));
                         show_dialog(&ui.dialog, tr("autosaves_cleared"), true);
@@ -228,7 +227,7 @@ impl SettingsUISlots {
                         let _ = SystemCommand::new("attrib").arg("-r").arg(path).arg("/s").output();
                     }
 
-                    match settings_clear_path(&path) {
+                    match clear_config_path(&path) {
                         Ok(_) => show_dialog(&ui.dialog, tr("schemas_cleared"), true),
                         Err(error) => show_dialog(&ui.dialog, error, false),
                     }

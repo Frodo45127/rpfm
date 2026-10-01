@@ -21,7 +21,7 @@ use rpfm_lib::compression::CompressionFormat;
 
 use rpfm_telemetry::info;
 
-use crate::settings::{dependencies_cache_path, Settings};
+use rpfm_ipc::settings::{dependencies_cache_path, Settings};
 
 use super::{SessionState, load_schema, loaded_schema, parent_pack_names};
 

@@ -39,7 +39,6 @@
 //! - **Dependency Operations**: Query and manage game dependencies.
 //! - **Search Operations**: Global search and reference lookups.
 //! - **Schema Operations**: Load, save, and update table schemas.
-//! - **Settings Operations**: Get and set application settings.
 //! - **Update Operations**: Check for and apply updates to schemas, translations, etc.
 //! - **Diagnostics**: Run diagnostic checks on PackFiles.
 //! - **Navigation**: Go-to-definition and reference search features.
@@ -82,7 +81,6 @@ use rpfm_lib::notes::Note;
 use rpfm_lib::schema::{Definition, DefinitionPatch, Field, Schema};
 
 use crate::helpers::*;
-use crate::settings_keys::SettingsSnapshot;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -1225,213 +1223,6 @@ pub enum Command {
     ExportRigidToGltf(RigidModel, String),
 
     //-----------------------------------------------------------------------//
-    // Settings Getter Commands
-    //-----------------------------------------------------------------------//
-
-    /// Get a boolean setting value.
-    ///
-    /// Response: [`Response::Bool`].
-    SettingsGetBool(String),
-
-    /// Get an i32 setting value.
-    ///
-    /// Response: [`Response::I32`].
-    SettingsGetI32(String),
-
-    /// Get an f32 setting value.
-    ///
-    /// Response: [`Response::F32`].
-    SettingsGetF32(String),
-
-    /// Get a string setting value.
-    ///
-    /// Response: [`Response::String`].
-    SettingsGetString(String),
-
-    /// Get a PathBuf setting value.
-    ///
-    /// Response: [`Response::PathBuf`].
-    SettingsGetPathBuf(String),
-
-    /// Get a `Vec<String>` setting value.
-    ///
-    /// Response: [`Response::VecString`].
-    SettingsGetVecString(String),
-
-    /// Get raw data setting value.
-    ///
-    /// Response: [`Response::VecU8`].
-    SettingsGetVecRaw(String),
-
-    /// Get all settings at once (for batch loading).
-    ///
-    /// This is much more efficient than calling individual SettingsGet* commands
-    /// when you need multiple settings, as it requires only one IPC round-trip.
-    ///
-    /// Response: [`Response::SettingsAll`].
-    SettingsGetAll,
-
-    //-----------------------------------------------------------------------//
-    // Settings Setter Commands
-    //-----------------------------------------------------------------------//
-
-    /// Set a boolean setting value.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    SettingsSetBool(String, bool),
-
-    /// Set an i32 setting value.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    SettingsSetI32(String, i32),
-
-    /// Set an f32 setting value.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    SettingsSetF32(String, f32),
-
-    /// Set a string setting value.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    SettingsSetString(String, String),
-
-    /// Set a PathBuf setting value.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    SettingsSetPathBuf(String, PathBuf),
-
-    /// Set a `Vec<String>` setting value.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    SettingsSetVecString(String, Vec<String>),
-
-    /// Set raw data setting value.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    SettingsSetVecRaw(String, Vec<u8>),
-
-    //-----------------------------------------------------------------------//
-    // Path Commands
-    //-----------------------------------------------------------------------//
-
-    /// Get the config path.
-    ///
-    /// Response:
-    /// - [`Response::PathBuf`] on success.
-    /// - [`Response::Error`] on failure.
-    ConfigPath,
-
-    /// Get the Assembly Kit path for the current game.
-    ///
-    /// Response:
-    /// - [`Response::PathBuf`] on success.
-    /// - [`Response::Error`] on failure.
-    AssemblyKitPath,
-
-    /// Get the backup autosave path.
-    ///
-    /// Response:
-    /// - [`Response::PathBuf`] on success.
-    /// - [`Response::Error`] on failure.
-    BackupAutosavePath,
-
-    /// Get the old AK data path.
-    ///
-    /// Response:
-    /// - [`Response::PathBuf`] on success.
-    /// - [`Response::Error`] on failure.
-    OldAkDataPath,
-
-    /// Get the schemas path.
-    ///
-    /// Response:
-    /// - [`Response::PathBuf`] on success.
-    /// - [`Response::Error`] on failure.
-    SchemasPath,
-
-    /// Get the table profiles path.
-    ///
-    /// Response:
-    /// - [`Response::PathBuf`] on success.
-    /// - [`Response::Error`] on failure.
-    TableProfilesPath,
-
-    /// Get the translations local path.
-    ///
-    /// Response:
-    /// - [`Response::PathBuf`] on success.
-    /// - [`Response::Error`] on failure.
-    TranslationsLocalPath,
-
-    /// Get the dependencies cache path.
-    ///
-    /// Response:
-    /// - [`Response::PathBuf`] on success.
-    /// - [`Response::Error`] on failure.
-    DependenciesCachePath,
-
-    /// Clear a config path.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    SettingsClearPath(PathBuf),
-
-    /// Get the user-configured custom config folder (empty path if RPFM uses the default one).
-    ///
-    /// Response:
-    /// - [`Response::PathBuf`] on success.
-    /// - [`Response::Error`] on failure.
-    CustomConfigPath,
-
-    /// Set the custom config folder, or clear it when given an empty path. Takes effect on restart.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    SetCustomConfigPath(PathBuf),
-
-    //-----------------------------------------------------------------------//
-    // Settings Backup Commands
-    //-----------------------------------------------------------------------//
-
-    /// Backup the current settings to memory.
-    ///
-    /// Response: [`Response::Success`].
-    BackupSettings,
-
-    /// Clear settings and reset to defaults.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    ClearSettings,
-
-    /// Restore settings from the backup.
-    ///
-    /// Response: [`Response::Success`].
-    RestoreBackupSettings,
-
-    /// Get the optimizer options.
-    ///
-    /// Response: [`Response::OptimizerOptions`].
-    OptimizerOptions,
-
-    //-----------------------------------------------------------------------//
     // Schema Query Commands
     //-----------------------------------------------------------------------//
 
@@ -1520,10 +1311,6 @@ pub enum Response {
     /// Contains the session ID that the client is connected to.
     SessionConnected(u64),
 
-    /// Unsolicited push sent to every connected client whenever any session changes the
-    /// shared settings store, so other open UI instances can refresh their local settings cache.
-    SettingsChanged(SettingsSnapshot),
-
     #[allow(dead_code)]BmdRFileInfo(Box<Bmd>, RFileInfo),
     AnimFragmentBattleRFileInfo(AnimFragmentBattle, RFileInfo),
     AnimPackRFileInfo(Vec<RFileInfo>, RFileInfo),
@@ -1566,7 +1353,6 @@ pub enum Response {
     MergeConflicts(Vec<MergeConflict>),
     Note(Note),
     OperationalMode(OperationalMode),
-    OptimizerOptions(OptimizerOptions),
     OptionContainerPath(Option<ContainerPath>),
     OptionRFileInfo(Option<RFileInfo>),
     OptionString(Option<String>),
@@ -1611,7 +1397,4 @@ pub enum Response {
     VideoInfoRFileInfo(VideoInfo, RFileInfo),
     VMDRFileInfo(Text, RFileInfo),
     WSModelRFileInfo(Text, RFileInfo),
-
-    /// All settings in one response (for batch loading).
-    SettingsAll(SettingsSnapshot),
 }

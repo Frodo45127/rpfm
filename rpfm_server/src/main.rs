@@ -72,7 +72,7 @@ use rpfm_telemetry::{Logger, SentryLayer, SENTRY_DSN, info, release_name, warn};
 
 use crate::server_mcp::McpServer;
 use crate::session::SessionManager;
-use crate::settings::{error_path, init_config_path, Settings};
+use rpfm_ipc::settings::{error_path, init_config_path, Settings};
 use crate::server_websocket::ws_handler;
 
 pub mod api;
@@ -83,8 +83,6 @@ pub mod jobs;
 pub mod server_mcp;
 pub mod server_websocket;
 pub mod session;
-pub mod settings;
-#[cfg(test)] mod settings_test;
 pub mod state;
 pub mod translation_hub;
 pub mod updater;
@@ -122,16 +120,6 @@ const DEFAULT_ADDRESS: [u8; 4] = [127, 0, 0, 1];
 
 /// Default TCP port the HTTP server listens on.
 const DEFAULT_PORT: u16 = 45127;
-
-/// Organisation domain used to derive the OS-specific config directory
-/// (mirrors `QCoreApplication::organizationDomain` on the UI side).
-const ORG_DOMAIN: &str = "com";
-
-/// Organisation name used to derive the OS-specific config directory.
-const ORG_NAME: &str = "FrodoWazEre";
-
-/// Application name used to derive the OS-specific config directory.
-const APP_NAME: &str = "rpfm";
 
 //-------------------------------------------------------------------------------//
 //                                  Functions
@@ -175,17 +163,8 @@ async fn main() {
     }
 
     // Read telemetry settings from disk before any sessions spin up so early commands
-    // are counted and crash reports respect the user's choice. Background threads will
-    // refresh these whenever the settings change.
-    if let Ok(settings) = Settings::init(false) {
-        rpfm_telemetry::set_usage_telemetry_enabled(settings.bool(ENABLE_USAGE_TELEMETRY));
-        rpfm_telemetry::set_crash_reports_enabled(settings.bool(ENABLE_CRASH_REPORTS));
-
-        let id = settings.string(ANONYMOUS_TELEMETRY_ID);
-        if !id.is_empty() {
-            rpfm_telemetry::set_distinct_id(&id);
-        }
-    }
+    // are counted and crash reports respect the user's choice. Configured sessions refresh them.
+    apply_telemetry_settings(&Settings::init(false));
 
     // Attach breakdown dimensions to every PostHog event in the next flush.
     rpfm_telemetry::set_event_property("release", serde_json::Value::from(env!("CARGO_PKG_VERSION")));
@@ -225,6 +204,17 @@ async fn main() {
         Err(err) => {
             warn!("Failed to bind to address {}: {}\n\nThis usually means you got another copy of the server running. Either use that one, or stop it and try again.", addr, err);
         }
+    }
+}
+
+/// Applies the telemetry toggles and the anonymous telemetry ID of the provided settings to the whole process.
+pub fn apply_telemetry_settings(settings: &Settings) {
+    rpfm_telemetry::set_usage_telemetry_enabled(settings.bool(ENABLE_USAGE_TELEMETRY));
+    rpfm_telemetry::set_crash_reports_enabled(settings.bool(ENABLE_CRASH_REPORTS));
+
+    let id = settings.string(ANONYMOUS_TELEMETRY_ID);
+    if !id.is_empty() {
+        rpfm_telemetry::set_distinct_id(&id);
     }
 }
 

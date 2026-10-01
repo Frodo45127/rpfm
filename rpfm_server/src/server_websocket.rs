@@ -45,7 +45,6 @@ use rpfm_ipc::messages::{Command, Message as IpcMessage, Response};
 use rpfm_telemetry::{info, warn};
 
 use crate::session::{DEFAULT_SESSION_TIMEOUT_SECS, Session, SessionId, SessionManager, recv_response};
-use crate::settings::SETTINGS_CHANGED;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -163,26 +162,6 @@ async fn handle_socket(socket: WebSocket, session_manager: Arc<SessionManager>, 
         }
     });
 
-    // Task to forward settings changes made by any session to this client, so
-    // other open UI instances refresh without needing to reconnect.
-    let mut settings_changed_rx = SETTINGS_CHANGED.subscribe();
-    let settings_tx = tx.clone();
-    let settings_forward_task = tokio::spawn(async move {
-        loop {
-            match settings_changed_rx.recv().await {
-                Ok(snapshot) => {
-                    let msg = IpcMessage { id: 0, data: Response::SettingsChanged(snapshot) };
-                    let _ = settings_tx.send(Outgoing::Legacy(Box::new(msg)));
-                }
-
-                // We missed some updates because we were too slow, but there's always a newer
-                // one coming right after, so just keep going instead of tearing down the task.
-                Err(broadcast::error::RecvError::Lagged(_)) => continue,
-                Err(broadcast::error::RecvError::Closed) => break,
-            }
-        }
-    });
-
     // Task to notify the client of every change of the session's jobs.
     let mut job_updates = session.jobs().subscribe();
     let jobs_tx = tx.clone();
@@ -237,11 +216,10 @@ async fn handle_socket(socket: WebSocket, session_manager: Arc<SessionManager>, 
                                 break;
                             }
 
-                            // Route other commands through the session's background thread.
+                            // Enqueue the command before spawning, so commands run in the order they arrived.
+                            let mut receiver = session.send(msg.data);
                             let tx = tx.clone();
-                            let session = session.clone();
                             tokio::spawn(async move {
-                                let mut receiver = session.send(msg.data);
                                 let response = recv_response(&mut receiver).await;
                                 let response_msg = IpcMessage {
                                     id: msg.id,
@@ -282,7 +260,6 @@ async fn handle_socket(socket: WebSocket, session_manager: Arc<SessionManager>, 
     }
 
     sender_task.abort();
-    settings_forward_task.abort();
     jobs_forward_task.abort();
 
     // Client requested graceful disconnect - remove session immediately.
@@ -313,10 +290,11 @@ fn handle_api_request(request: RpcRequest, session: &Arc<Session>, tx: &mpsc::Un
         return;
     }
 
+    // Enqueue the request before spawning, so requests run in the order they arrived.
+    let mut receiver = session.call(request);
     let tx = tx.clone();
-    let session = session.clone();
     tokio::spawn(async move {
-        let response = session.call(request).recv().await
+        let response = receiver.recv().await
             .unwrap_or_else(|| RpcResponse::new(id, Err(ApiError::Internal("Session response channel closed unexpectedly".to_owned()))));
 
         let _ = tx.send(Outgoing::Api(response));

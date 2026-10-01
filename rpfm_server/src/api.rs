@@ -40,7 +40,7 @@ use rpfm_ipc::settings_keys::{ALLOW_EDITING_OF_CA_PACKFILES, ENABLE_ESF_EDITOR, 
 
 use rpfm_lib::schema::{SCHEMA_BRANCH, SCHEMA_REMOTE, SCHEMA_REPO};
 
-use crate::settings::{schemas_path, Settings};
+use rpfm_ipc::settings::{schemas_path, Settings};
 use crate::state::{ExtractOptions, SaveOptions, SessionState, optimizer_option_values, optimizer_options_with};
 use crate::updater::{apply_component, check_component, git_update_repo};
 
@@ -322,8 +322,8 @@ mod tests {
 
     #[test]
     fn job_methods_are_the_ones_marked_as_jobs() {
-        assert!(SetGame::IS_JOB && GenerateDependenciesCache::IS_JOB && RebuildDependencies::IS_JOB && RunDiagnostics::IS_JOB && RunSearch::IS_JOB);
-        assert!(UpdateSchemas::IS_JOB && UpdateSchemaFromAssemblyKit::IS_JOB && OptimizePack::IS_JOB && RunLuaTests::IS_JOB);
+        const { assert!(SetGame::IS_JOB && GenerateDependenciesCache::IS_JOB && RebuildDependencies::IS_JOB && RunDiagnostics::IS_JOB && RunSearch::IS_JOB) };
+        const { assert!(UpdateSchemas::IS_JOB && UpdateSchemaFromAssemblyKit::IS_JOB && OptimizePack::IS_JOB && RunLuaTests::IS_JOB) };
         assert!(JOB_METHODS.iter().all(|method| is_job_method(method)));
         assert!(!is_job_method(GetSessionStatus::METHOD) && !GetSessionStatus::IS_JOB);
     }

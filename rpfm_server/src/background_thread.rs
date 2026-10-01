@@ -14,8 +14,7 @@
 //! Each [`Session`] spawns one task running [`background_loop`]. The loop
 //! pulls [`SessionMessage`]s off the session's mpsc channel,
 //! runs the matching operation on the session's [`SessionState`], reading any
-//! option it needs from the process-wide [`crate::settings::SETTINGS`] store,
-//! and ships the result back as a [`Response`] over the per-request `reply_sender`.
+//! option it needs from the session's settings, and ships the result back as a [`Response`] over the per-request `reply_sender`.
 //!
 //! Running commands serially per session is what keeps state consistent
 //! across many concurrent requests in the same session: a `SavePack`
@@ -52,7 +51,7 @@ use rpfm_telemetry::info;
 use crate::comms::CentralCommand;
 use crate::api;
 use crate::session::{Session, SessionMessage};
-use crate::settings::*;
+use rpfm_ipc::settings::*;
 use crate::state::{DecodedFile, ExtractOptions, MergeOutcome, MyModOptions, SaveOptions, SessionState, plugin_scripts};
 use crate::translation_hub::{self, SubmitOutcome};
 use crate::updater::{self, git_check_update, git_update_repo};
@@ -100,17 +99,13 @@ fn command_name(cmd: &Command) -> String {
 pub async fn background_loop(mut receiver: UnboundedReceiver<SessionMessage>, session: Arc<Session>) {
     let mut state = SessionState::new(session.clone());
 
-    // Sync the telemetry toggles with the current settings.
-    rpfm_telemetry::set_usage_telemetry_enabled(SETTINGS.read().unwrap().bool(ENABLE_USAGE_TELEMETRY));
-    rpfm_telemetry::set_crash_reports_enabled(SETTINGS.read().unwrap().bool(ENABLE_CRASH_REPORTS));
-
     info!("Background Thread looping around…");
     while let Some(message) = receiver.recv().await {
         let (command, sender) = match message {
             SessionMessage::Command(command, sender) => (*command, sender),
             SessionMessage::Api(request, sender) => {
                 rpfm_telemetry::record_action(&request.method);
-                let settings = SETTINGS.read().unwrap().clone();
+                let settings = session.settings();
                 let _ = sender.send(api::dispatch(&mut state, request, &settings, &|_| {}));
                 continue;
             }
@@ -121,7 +116,7 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<SessionMessage>, se
                 }
 
                 rpfm_telemetry::record_action(&request.method);
-                let settings = SETTINGS.read().unwrap().clone();
+                let settings = session.settings();
                 let response = api::dispatch(&mut state, request, &settings, &|stage| jobs.set_stage(job, stage));
                 jobs.finish(job, response.outcome);
                 continue;
@@ -136,15 +131,13 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<SessionMessage>, se
             command => rpfm_telemetry::record_action(&command_name(command)),
         }
 
-        // Snapshot of the shared settings store, refreshed on every command so
-        // operations always see changes made through other sessions.
-        let settings = SETTINGS.read().unwrap().clone();
+        let settings = session.settings();
         dispatch(&mut state, command, &sender, settings).await;
     }
 }
 
 /// Runs a command on the session's state, and sends its response back.
-async fn dispatch(state: &mut SessionState, command: Command, sender: &UnboundedSender<Response>, settings: Settings) {
+async fn dispatch(state: &mut SessionState, command: Command, sender: &UnboundedSender<Response>, settings: Arc<Settings>) {
     let disable_uuid_regeneration = settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES);
     let extract_options = ExtractOptions {
         disable_uuid_regeneration,
@@ -406,62 +399,6 @@ async fn dispatch(state: &mut SessionState, command: Command, sender: &Unbounded
             });
         }
 
-        // Settings.
-        Command::SettingsGetBool(key) => send(sender, Response::Bool(settings.bool(&key))),
-        Command::SettingsGetI32(key) => send(sender, Response::I32(settings.i32(&key))),
-        Command::SettingsGetF32(key) => send(sender, Response::F32(settings.f32(&key))),
-        Command::SettingsGetString(key) => send(sender, Response::String(settings.string(&key))),
-        Command::SettingsGetPathBuf(key) => send(sender, Response::PathBuf(settings.path_buf(&key))),
-        Command::SettingsGetVecString(key) => send(sender, Response::VecString(settings.vec_string(&key))),
-        Command::SettingsGetVecRaw(key) => send(sender, Response::VecU8(settings.raw_data(&key))),
-        Command::SettingsGetAll => send(sender, Response::SettingsAll(settings.snapshot())),
-        Command::SettingsSetBool(key, value) => {
-            let result = mutate_settings(|settings| settings.set_bool(&key, value));
-            if result.is_ok() {
-                match key.as_str() {
-                    ENABLE_USAGE_TELEMETRY => rpfm_telemetry::set_usage_telemetry_enabled(value),
-                    ENABLE_CRASH_REPORTS => rpfm_telemetry::set_crash_reports_enabled(value),
-                    _ => {}
-                }
-            }
-
-            reply(sender, result, done);
-        }
-        Command::SettingsSetI32(key, value) => reply(sender, mutate_settings(|settings| settings.set_i32(&key, value)), done),
-        Command::SettingsSetF32(key, value) => reply(sender, mutate_settings(|settings| settings.set_f32(&key, value)), done),
-        Command::SettingsSetString(key, value) => reply(sender, mutate_settings(|settings| settings.set_string(&key, &value)), done),
-        Command::SettingsSetPathBuf(key, value) => reply(sender, mutate_settings(|settings| settings.set_path_buf(&key, &value)), done),
-        Command::SettingsSetVecString(key, value) => reply(sender, mutate_settings(|settings| settings.set_vec_string(&key, &value)), done),
-        Command::SettingsSetVecRaw(key, value) => reply(sender, mutate_settings(|settings| settings.set_raw_data(&key, &value)), done),
-        Command::ConfigPath => reply(sender, config_path(), Response::PathBuf),
-        Command::AssemblyKitPath => reply(sender, settings.assembly_kit_path(state.game()), Response::PathBuf),
-        Command::BackupAutosavePath => reply(sender, backup_autosave_path(), Response::PathBuf),
-        Command::OldAkDataPath => reply(sender, old_ak_files_path(), Response::PathBuf),
-        Command::SchemasPath => reply(sender, schemas_path(), Response::PathBuf),
-        Command::TableProfilesPath => reply(sender, table_profiles_path(), Response::PathBuf),
-        Command::TranslationsLocalPath => reply(sender, translations_local_path(), Response::PathBuf),
-        Command::DependenciesCachePath => reply(sender, dependencies_cache_path(), Response::PathBuf),
-        Command::SettingsClearPath(path) => reply(sender, clear_config_path(&path), done),
-        Command::CustomConfigPath => reply(sender, custom_config_path(), |path| Response::PathBuf(path.unwrap_or_default())),
-        Command::SetCustomConfigPath(path) => {
-            let path = if path.as_os_str().is_empty() { None } else { Some(path.as_path()) };
-            reply(sender, set_custom_config_path(path), done);
-        }
-        Command::BackupSettings => {
-            state.backup_settings(settings);
-            success(sender);
-        }
-        Command::ClearSettings => reply(sender, Settings::init(true), |defaults| {
-            let snapshot = defaults.snapshot();
-            *SETTINGS.write().unwrap() = defaults;
-            let _ = SETTINGS_CHANGED.send(snapshot);
-            Response::Success
-        }),
-        Command::RestoreBackupSettings => {
-            state.restore_backup_settings();
-            success(sender);
-        }
-        Command::OptimizerOptions => send(sender, Response::OptimizerOptions(settings.optimizer_options())),
     }
 }
 

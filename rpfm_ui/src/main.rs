@@ -63,7 +63,7 @@ use rpfm_ui_common::ORG_NAME;
 use rpfm_ui_common::utils::*;
 
 use crate::communications::{CentralCommand, Response, websocket_loop};
-use crate::settings_ui::backend::{load_settings_cache_from_disk, settings_string};
+use crate::settings_ui::backend::{init_settings, settings_string};
 use crate::ui::*;
 use crate::ui_state::UIState;
 
@@ -221,8 +221,8 @@ fn main() {
         QGuiApplication::set_desktop_file_name(&QString::from_std_str("rpfm"));
     }
 
-    // At this point we don't have the server for querying for settings, so we have to manually load them.
-    load_settings_cache_from_disk();
+    // The UI owns the settings: load them before anything needs them. They're sent to the server once it connects.
+    init_settings();
 
     // Set the distinct_id from the pre-generated anonymous telemetry id setting, if available.
     let anonymous_id = settings_string(ANONYMOUS_TELEMETRY_ID);

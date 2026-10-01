@@ -48,7 +48,7 @@ use rpfm_lib::integrations::git::{GitIntegration, GitResponse};
 use rpfm_lib::schema::{SCHEMA_BRANCH, SCHEMA_REMOTE, SCHEMA_REPO};
 use rpfm_lib::utils::files_from_subdir;
 
-use crate::settings::{lua_autogen_base_path, old_ak_files_path, schemas_path, translations_remote_path, Settings};
+use rpfm_ipc::settings::{self, lua_autogen_base_path, old_ak_files_path, schemas_path, translations_remote_path, Settings};
 
 const UPDATE_EXTENSION: &str = "zip";
 const REPO_OWNER: &str = "Frodo45127";
@@ -334,7 +334,7 @@ impl Display for UpdateChannel {
 /// * `repo` - URL of the repository.
 /// * `branch` - Branch to check.
 /// * `remote` - Name of the remote.
-pub fn git_check_update(path_fn: fn() -> Result<PathBuf>, repo: &str, branch: &str, remote: &str) -> Result<GitResponse> {
+pub fn git_check_update(path_fn: fn() -> settings::Result<PathBuf>, repo: &str, branch: &str, remote: &str) -> Result<GitResponse> {
     Ok(GitIntegration::new(&path_fn()?, repo, branch, remote).check_update()?)
 }
 
@@ -346,7 +346,7 @@ pub fn git_check_update(path_fn: fn() -> Result<PathBuf>, repo: &str, branch: &s
 /// * `repo` - URL of the repository.
 /// * `branch` - Branch to update.
 /// * `remote` - Name of the remote.
-pub fn git_update_repo(path_fn: fn() -> Result<PathBuf>, repo: &str, branch: &str, remote: &str) -> Result<()> {
+pub fn git_update_repo(path_fn: fn() -> settings::Result<PathBuf>, repo: &str, branch: &str, remote: &str) -> Result<()> {
     Ok(GitIntegration::new(&path_fn()?, repo, branch, remote).update_repo()?)
 }
 

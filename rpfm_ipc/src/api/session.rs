@@ -13,7 +13,9 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use super::{default_true, Request};
+use crate::settings::Settings;
+
+use super::{default_true, Done, Request};
 use super::packs::PackSummary;
 
 /// `session.status`: returns the selected game, what's loaded for it, and the open packs.
@@ -54,6 +56,22 @@ pub struct DependenciesStatus {
 impl Request for GetSessionStatus {
     const METHOD: &'static str = "session.status";
     type Response = SessionStatus;
+}
+
+/// `session.configure`: replaces the settings the session runs with.
+///
+/// Sessions start with the settings in the settings file. Clients owning their own settings send them
+/// with this before anything else, and again whenever they change.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct Configure {
+
+    /// The settings.
+    pub settings: Settings,
+}
+
+impl Request for Configure {
+    const METHOD: &'static str = "session.configure";
+    type Response = Done;
 }
 
 /// `session.set_game`: selects a game, loading its schema and, optionally, its dependencies. Runs as a job.

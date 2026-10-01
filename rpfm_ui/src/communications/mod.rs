@@ -26,11 +26,13 @@ use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 pub use rpfm_ipc::messages::{Command, Response, Message as IpcMessage};
+use rpfm_ipc::api::{RpcOutcome, RpcRequest, RpcResponse};
+use rpfm_ipc::api::session::Configure;
 
 use rpfm_telemetry::*;
 
 use crate::CENTRAL_COMMAND;
-use crate::settings_ui::backend::apply_settings_snapshot;
+use crate::settings_ui::backend::{mark_settings_changed, take_changed_settings};
 
 pub mod server;
 
@@ -336,8 +338,13 @@ pub async fn websocket_loop(mut receiver: UnboundedReceiver<(IpcMessage<Command>
                             }
                         }
 
-                        // New command from the UI.
+                        // New command from the UI. The server must have the current settings before running it.
                         Some((message, sender)) = receiver.recv() => {
+                            if !send_changed_settings(&mut ws_stream).await {
+                                error!("Failed to send the settings over WebSocket.");
+                                break;
+                            }
+
                             response_channels.insert(message.id, sender);
                             let json = serde_json::to_string(&message).unwrap();
                             if ws_stream.send(WsMessage::Text(json.into())).await.is_err() {
@@ -350,20 +357,30 @@ pub async fn websocket_loop(mut receiver: UnboundedReceiver<(IpcMessage<Command>
                         Some(msg) = ws_stream.next() => {
                             match msg {
                                 Ok(WsMessage::Text(text)) => {
+
+                                    // Version 2 messages: the answers to the settings sent, and notifications.
+                                    if text.contains("\"jsonrpc\"") {
+                                        if let Ok(response) = serde_json::from_str::<RpcResponse>(&text) {
+                                            if let RpcOutcome::Error(error) = response.outcome {
+                                                error!("The server rejected a request [ID {}]: {}", response.id, error.message);
+                                            }
+                                        }
+                                        continue;
+                                    }
+
                                     match serde_json::from_str::<IpcMessage<Response>>(&text) {
                                         Ok(msg) => {
                                             // Handle SessionConnected message specially to update current session ID.
                                             if let Response::SessionConnected(session_id) = &msg.data {
                                                 info!("Connected to session ID: {}", session_id);
                                                 *CURRENT_SESSION_ID.write().unwrap() = Some(*session_id);
-                                                continue;
-                                            }
 
-                                            // Unsolicited push: another session changed a setting.
-                                            //
-                                            // Refresh our local cache so this instance doesn't overwrite it with stale data.
-                                            if let Response::SettingsChanged(snapshot) = &msg.data {
-                                                apply_settings_snapshot(snapshot.clone());
+                                                // A new or adopted session doesn't have our settings yet.
+                                                mark_settings_changed();
+                                                if !send_changed_settings(&mut ws_stream).await {
+                                                    error!("Failed to send the settings over WebSocket.");
+                                                    break;
+                                                }
                                                 continue;
                                             }
 
@@ -400,4 +417,24 @@ pub async fn websocket_loop(mut receiver: UnboundedReceiver<(IpcMessage<Command>
             }
         }
     }
+}
+
+/// Sends the settings to the session of the server if they changed since they were last sent.
+///
+/// Returns false if the message couldn't be sent.
+async fn send_changed_settings<S: SinkExt<WsMessage> + Unpin>(ws_stream: &mut S) -> bool {
+    let Some(settings) = take_changed_settings() else {
+        return true;
+    };
+
+    let id = MESSAGE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+    let json = match RpcRequest::new(id, &Configure { settings }).and_then(|request| serde_json::to_string(&request)) {
+        Ok(json) => json,
+        Err(error) => {
+            error!("Failed to serialize the settings: {error}");
+            return true;
+        }
+    };
+
+    ws_stream.send(WsMessage::Text(json.into())).await.is_ok()
 }

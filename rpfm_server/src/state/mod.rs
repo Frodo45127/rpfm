@@ -42,7 +42,7 @@ use rpfm_lib::schema::Schema;
 use rpfm_telemetry::info;
 
 use crate::session::Session;
-use crate::settings::{schemas_path, table_patches_path, Settings, SETTINGS};
+use rpfm_ipc::settings::{schemas_path, table_patches_path, Settings};
 
 mod dependencies;
 mod diagnostics;
@@ -50,7 +50,6 @@ mod files;
 mod packs;
 mod schema;
 mod search;
-mod settings;
 mod tables;
 mod tools;
 
@@ -105,9 +104,6 @@ pub struct SessionState {
 
     /// Lua scripting API of the selected game, built on first use. See [`cached_lua_api`].
     lua_api_cache: Option<LuaApiCache>,
-
-    /// Snapshot of the settings, so the settings dialog can undo a "Restore Defaults".
-    backup_settings: Settings,
 }
 
 /// Options for operations that write files of a pack to disk.
@@ -190,7 +186,6 @@ impl SessionState {
             pending_startpos: None,
             diagnostics: None,
             lua_api_cache: None,
-            backup_settings: SETTINGS.read().unwrap().clone(),
         }
     }
 

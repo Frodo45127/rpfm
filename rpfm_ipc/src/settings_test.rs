@@ -15,7 +15,7 @@ use tempfile::TempDir;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::settings::*;
+use super::*;
 
 const KEY: &str = "test_key";
 

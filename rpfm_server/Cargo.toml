@@ -43,14 +43,8 @@ tempfile.workspace = true
 reqwest.workspace = true
 zip.workspace = true
 
-# Config support.
-directories.workspace = true
-
 # Secure storage of the GitHub token in the OS keyring.
 keyring.workspace = true
-
-# Random ID generation (anonymous telemetry distinct_id).
-uuid.workspace = true
 
 # Serialization support.
 base64.workspace = true

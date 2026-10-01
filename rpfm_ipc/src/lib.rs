@@ -61,4 +61,5 @@
 pub mod api;
 pub mod helpers;
 pub mod messages;
+pub mod settings;
 pub mod settings_keys;
