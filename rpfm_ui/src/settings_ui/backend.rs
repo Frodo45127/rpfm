@@ -15,7 +15,7 @@ use qt_core::QSettings;
 use qt_core::QString;
 use qt_core::QVariant;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 
 use std::{collections::HashMap, path::{Path, PathBuf}};
 use std::sync::{LazyLock, RwLock};
@@ -23,16 +23,17 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use rpfm_extensions::optimizer::OptimizerOptions;
 
-use rpfm_ipc::messages::{Command, Response};
+use rpfm_ipc::api::schema::{DeleteDefinition, GetRawDefinitions, GetReferencingColumns, GetTablePatches};
+use rpfm_ipc::api::session::GetSessionStatus;
 use rpfm_ipc::settings::{self as settings_store, Settings};
 use rpfm_ipc::settings_keys::*;
 
-use rpfm_lib::schema::{Definition, DefinitionPatch, Schema};
+use rpfm_lib::schema::{Definition, DefinitionPatch};
 
 use rpfm_telemetry::warn;
 
 use crate::app_ui::AppUI;
-use crate::communications::{send_ipc_command, send_ipc_command_result};
+use crate::communications::call_api;
 use crate::GAME_SELECTED;
 
 pub use rpfm_ipc::settings::{backup_autosave_path, clear_config_path, config_path, dependencies_cache_path, old_ak_files_path, schemas_path, table_profiles_path, translations_local_path};
@@ -206,30 +207,43 @@ pub fn optimizer_options() -> OptimizerOptions {
     SETTINGS.read().unwrap().optimizer_options()
 }
 
+/// If a schema is loaded for the selected game.
 pub fn is_schema_loaded() -> bool {
-    send_ipc_command_result(Command::IsSchemaLoaded, response_extractor!(Response::Bool)).unwrap()
+    call_api(&GetSessionStatus {}).is_ok_and(|status| status.schema_loaded)
 }
 
+/// All the definitions of a table. Empty if the table is not in the schema.
 pub fn definitions_by_table_name(name: &str) -> Result<Vec<Definition>> {
-    send_ipc_command_result(Command::DefinitionsByTableName(name.to_owned()), response_extractor!(Response::VecDefinition))
+    raw_definitions(name, None)
 }
 
+/// The definitions of a table, optionally only the one with a version.
+fn raw_definitions(name: &str, version: Option<i32>) -> Result<Vec<Definition>> {
+    call_api(&GetRawDefinitions { table_name: name.to_owned(), version })?.definitions
+        .into_iter()
+        .map(|definition| serde_json::from_value(definition).map_err(From::from))
+        .collect()
+}
+
+/// The columns of other tables referencing each column of a table definition.
 pub fn referencing_columns_for_table(name: &str, definition: &Definition) -> Result<HashMap<String, HashMap<String, Vec<String>>>> {
-    send_ipc_command_result(Command::ReferencingColumnsForDefinition(name.to_owned(), definition.clone()), response_extractor!(Response::HashMapStringHashMapStringVecString))
+    let columns = call_api(&GetReferencingColumns { table_name: name.to_owned(), version: Some(*definition.version()) })?.columns;
+    Ok(columns.into_iter().map(|(column, tables)| (column, tables.into_iter().collect())).collect())
 }
 
-pub fn schema() -> Result<Schema> {
-    send_ipc_command_result(Command::Schema, response_extractor!(Response::Schema))
-}
-
+/// The definition of a table with a version.
 pub fn definition_by_table_name_and_version(name: &str, version: i32) -> Result<Definition> {
-    send_ipc_command_result(Command::DefinitionByTableNameAndVersion(name.to_owned(), version), response_extractor!(Response::Definition))
+    raw_definitions(name, Some(version))?.into_iter().next()
+        .ok_or_else(|| anyhow!("No definition found for table '{name}' with version {version}."))
 }
 
+/// The patches of a definition of a table.
 pub fn definition_patches(name: &str, version: i32) -> Result<DefinitionPatch> {
-    send_ipc_command_result(Command::DefinitionPatches(name.to_owned(), version), response_extractor!(Response::DefinitionPatch))
+    let patches = call_api(&GetTablePatches { table_name: name.to_owned(), version })?.patches;
+    Ok(patches.into_iter().map(|(column, patch)| (column, patch.into_iter().collect())).collect())
 }
 
-pub fn delete_definition(name: &str, version: i32) {
-    send_ipc_command(Command::DeleteDefinition(name.to_owned(), version), response_extractor!())
+/// Removes a definition of a table from the schema, and saves it.
+pub fn delete_definition(name: &str, version: i32) -> Result<()> {
+    call_api(&DeleteDefinition { table_name: name.to_owned(), version }).map(|_| ())
 }

@@ -304,23 +304,7 @@ async fn dispatch(state: &mut SessionState, command: Command, sender: &Unbounded
         Command::IsThereADependencyDatabase(include_asskit) => send(sender, Response::Bool(state.is_dependency_database_loaded(include_asskit))),
 
         // Schema.
-        Command::UpdateCurrentSchemaFromAssKit => reply(sender, state.update_schema_from_asskit(&settings, settings.bool(IGNORE_GAME_FILES_IN_AK), disable_uuid_regeneration), done),
-        Command::SaveSchema(schema) => reply(sender, state.save_schema(schema), done),
-        Command::SaveLocalSchemaPatch(patches) => reply(sender, state.save_local_schema_patches(&patches), done),
-        Command::RemoveLocalSchemaPatchesForTable(table_name) => reply(sender, state.remove_local_schema_patches_for_table(&table_name), done),
-        Command::RemoveLocalSchemaPatchesForTableAndField(table_name, field_name) => reply(sender, state.remove_local_schema_patches_for_table_and_field(&table_name, &field_name), done),
-        Command::ImportSchemaPatch(patches) => reply(sender, state.import_schema_patches(&patches), done),
-        Command::IsSchemaLoaded => send(sender, Response::Bool(state.is_schema_loaded())),
-        Command::Schema => reply(sender, state.schema(), Response::Schema),
         Command::GetCustomTableList => reply(sender, state.custom_table_names(), Response::VecString),
-        Command::DefinitionsByTableName(table_name) => reply(sender, state.definitions_by_table_name(&table_name), Response::VecDefinition),
-        Command::DefinitionByTableNameAndVersion(table_name, version) => reply(sender, state.definition(&table_name, version), Response::Definition),
-        Command::DefinitionPatches(table_name, version) => reply(sender, state.definition_patches(&table_name, version), Response::DefinitionPatch),
-        Command::ReferencingColumnsForDefinition(table_name, definition) => reply(sender, state.referencing_columns(&table_name, &definition), Response::HashMapStringHashMapStringVecString),
-        Command::DeleteDefinition(table_name, version) => {
-            state.delete_definition(&table_name, version);
-            success(sender);
-        }
         Command::FieldsProcessed(definition) => send(sender, Response::VecField(definition.fields_processed())),
 
         // Diagnostics and Lua.

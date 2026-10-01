@@ -74,7 +74,7 @@ use crate::FONT_MONOSPACE;
 use crate::GAME_SELECTED;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{FileView, View, ViewType};
-use crate::settings_ui::backend::{assembly_kit_path, definition_by_table_name_and_version, definitions_by_table_name, schema};
+use crate::settings_ui::backend::{assembly_kit_path, definition_by_table_name_and_version, definitions_by_table_name};
 use crate::utils::*;
 
 use self::slots::PackedFileDecoderViewSlots;
@@ -154,7 +154,6 @@ pub struct PackedFileDecoderView {
     save_button: QBox<QPushButton>,
 
     packed_file_path: String,
-    pack_key: String,
     data: Arc<RwLock<Cursor<Vec<u8>>>>,
     table_name: String,
     version: i32,
@@ -483,7 +482,6 @@ impl PackedFileDecoderView {
             save_button,
 
             packed_file_path: file_view.path_copy(),
-            pack_key: file_view.pack_key_copy(),
             data: Arc::new(RwLock::new(data)),
             table_name: table_name.to_owned(),
             version,
@@ -1307,14 +1305,11 @@ impl PackedFileDecoderView {
         fields
     }
 
-    /// This function adds the definition currently in the view to a temporal schema, and returns it.
-    unsafe fn add_definition_to_schema(&self) -> Result<Schema> {
-        let mut schema = schema()?;
+    /// This function returns the definition currently in the view.
+    unsafe fn definition_from_view(&self) -> Definition {
         let mut definition = Definition::new(self.version, None);
         *definition.fields_mut() = self.get_fields_from_view(None);
-        schema.add_definition(&self.table_name, &definition);
-
-        Ok(schema)
+        definition
     }
 
     /// This function generates a valid definition using the assembly kit as reference. To stop decoding manually.

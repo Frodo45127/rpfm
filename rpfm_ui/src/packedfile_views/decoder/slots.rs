@@ -28,13 +28,14 @@ use std::sync::Arc;
 
 use rpfm_lib::error::RLibError;
 use rpfm_lib::files::{ContainerPath, Decodeable, DecodeableExtraData, db::DB};
-use rpfm_lib::schema::{Definition, FieldType};
+use rpfm_ipc::api::schema::SetDefinition;
+
+use rpfm_lib::schema::{Definition, FieldType, Schema};
 
 use rpfm_ui_common::clone;
 
 use crate::app_ui::AppUI;
-use crate::CENTRAL_COMMAND;
-use crate::communications::{Command, send_ipc_command_result};
+use crate::communications::call_api;
 use crate::packedfile_views::DataSource;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::UI_STATE;
@@ -506,7 +507,9 @@ impl PackedFileDecoderViewSlots {
                     let model_index = indexes.at(0);
                     let version = view.table_model_old_versions.item_from_index(model_index).text().to_std_string().parse::<i32>().unwrap();
 
-                    delete_definition(view.table_name(), version);
+                    if let Err(error) = delete_definition(view.table_name(), version) {
+                        show_dialog(&view.table_view, error, false);
+                    }
 
                     view.load_versions_list();
                 }
@@ -546,29 +549,26 @@ impl PackedFileDecoderViewSlots {
             app_ui,
             view => move || {
                 rpfm_telemetry::track_action("Decoder: Test Definition");
-                match view.add_definition_to_schema() {
-                    Ok(schema) => {
+                let mut schema = Schema::default();
+                schema.add_definition(view.table_name(), &view.definition_from_view());
 
-                        let mut extra_data = DecodeableExtraData::default();
-                        extra_data.set_schema(Some(&schema));
-                        extra_data.set_return_incomplete(true);
-                        extra_data.set_table_name(Some(view.table_name()));
-                        let extra_data = Some(extra_data);
-                        let mut data = view.data.read().unwrap().clone();
-                        let _ = data.rewind();
+                let mut extra_data = DecodeableExtraData::default();
+                extra_data.set_schema(Some(&schema));
+                extra_data.set_return_incomplete(true);
+                extra_data.set_table_name(Some(view.table_name()));
+                let extra_data = Some(extra_data);
+                let mut data = view.data.read().unwrap().clone();
+                let _ = data.rewind();
 
-                        match DB::decode(&mut data, &extra_data) {
-                            Ok(_) => show_dialog(&view.table_view, "Seems ok.", true),
-                            Err(error) => {
-                                if let RLibError::DecodingTableIncomplete(error, _) = error {
-                                    show_debug_dialog(app_ui.main_window(), error);
-                                } else {
-                                    show_dialog(app_ui.main_window(), error, true);
-                                }
-                            }
+                match DB::decode(&mut data, &extra_data) {
+                    Ok(_) => show_dialog(&view.table_view, "Seems ok.", true),
+                    Err(error) => {
+                        if let RLibError::DecodingTableIncomplete(error, _) = error {
+                            show_debug_dialog(app_ui.main_window(), error);
+                        } else {
+                            show_dialog(app_ui.main_window(), error, true);
                         }
-                    },
-                    Err(error) => show_dialog(&view.table_view, error, false),
+                    }
                 }
             }
         ));
@@ -591,41 +591,39 @@ impl PackedFileDecoderViewSlots {
             pack_file_contents_ui,
             view => move || {
                 rpfm_telemetry::track_action("Decoder: Save Definition");
-                match view.add_definition_to_schema() {
-                    Ok(schema) => {
+                let definition = serde_json::to_value(view.definition_from_view());
 
-                        // Save and close all PackedFiles that use our definition.
-                        let mut packed_files_to_save = vec![];
-                        let table_path = view.packed_file_path().replace(DECODER_EXTENSION, "");
-                        for open_path in UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).map(|x| x.path_read()) {
-                            if *open_path == table_path {
-                                packed_files_to_save.push(ContainerPath::File(open_path.to_owned()));
-                            }
-                        }
+                // Save and close all PackedFiles that use our definition.
+                let mut packed_files_to_save = vec![];
+                let table_path = view.packed_file_path().replace(DECODER_EXTENSION, "");
+                for open_path in UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).map(|x| x.path_read()) {
+                    if *open_path == table_path {
+                        packed_files_to_save.push(ContainerPath::File(open_path.to_owned()));
+                    }
+                }
 
-                        for path in &packed_files_to_save {
-                            if let Err(error) = AppUI::purge_that_one_specifically(
-                                &app_ui,
-                                &pack_file_contents_ui,
-                                path.path_raw(),
-                                DataSource::PackFile,
-                                true,
-                            ) {
-                                show_dialog(&view.table_view, error, false);
-                            }
-                        }
+                for path in &packed_files_to_save {
+                    if let Err(error) = AppUI::purge_that_one_specifically(
+                        &app_ui,
+                        &pack_file_contents_ui,
+                        path.path_raw(),
+                        DataSource::PackFile,
+                        true,
+                    ) {
+                        show_dialog(&view.table_view, error, false);
+                    }
+                }
 
-                        let pack_key = view.pack_key().to_owned();
-                        let _ = CENTRAL_COMMAND.read().unwrap().send(Command::CleanCache(pack_key, packed_files_to_save));
-                        match send_ipc_command_result(Command::SaveSchema(schema), response_extractor!()) {
-                            Ok(()) => show_dialog(&view.table_view, "Schema successfully saved.", true),
-                            Err(error) => show_dialog(&view.table_view, error, false),
-                        }
+                // Saving the definition reloads the schema, decoding again the tables using it.
+                let result = definition.map_err(From::from)
+                    .and_then(|definition| call_api(&SetDefinition { table_name: view.table_name().to_owned(), definition }));
 
-                        view.load_versions_list();
-                    },
+                match result {
+                    Ok(_) => show_dialog(&view.table_view, "Schema successfully saved.", true),
                     Err(error) => show_dialog(&view.table_view, error, false),
                 }
+
+                view.load_versions_list();
             }
         ));
 

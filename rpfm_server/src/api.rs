@@ -24,7 +24,7 @@ use rpfm_ipc::api::search::{ListSearchMatches, ReplaceSearchMatches, RunSearch};
 use rpfm_ipc::api::notes::{AddNote, DeleteNote, ListNotes, NoteList};
 use rpfm_ipc::api::packs::{ClosePack, CloseAllPacks, GetPackInfo, GetPackSettings, NewPack, OpenPack, OpenVanillaPacks, SavePack, UpdatePack, UpdatePackSettings};
 use rpfm_ipc::api::schema::{
-    DeleteDefinition, GetRawDefinitions, GetReferencingColumns, ImportPatches, ListSchemaTables, PatchColumn, RemovePatches, SetDefinition,
+    DeleteDefinition, GetRawDefinitions, GetReferencingColumns, GetTablePatches, ImportPatches, ListSchemaTables, PatchColumn, RemovePatches, SetDefinition,
     UpdateSchemaFromAssemblyKit, UpdateSchemas,
 };
 use rpfm_ipc::api::translations::{GenerateVanillaTexts, ListTranslations, VanillaTextsAvailable};
@@ -247,7 +247,8 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         GetRawDefinitions::METHOD => call(params, |request: GetRawDefinitions| state.raw_definitions(&request.table_name, request.version)),
         SetDefinition::METHOD => call(params, |request: SetDefinition| state.set_definition(&request, settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES)).map(|_| Done {})),
         DeleteDefinition::METHOD => call(params, |request: DeleteDefinition| state.delete_definition_and_save(&request, settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES)).map(|_| Done {})),
-        GetReferencingColumns::METHOD => call(params, |request: GetReferencingColumns| state.referencing_columns_of(&request.table_name)),
+        GetReferencingColumns::METHOD => call(params, |request: GetReferencingColumns| state.referencing_columns_of(&request)),
+        GetTablePatches::METHOD => call(params, |request: GetTablePatches| state.table_patches(&request)),
         ImportPatches::METHOD => call(params, |request: ImportPatches| state.import_patches(&request, settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES)).map(|_| Done {})),
         GetReferenceValues::METHOD => call(params, |request: GetReferenceValues| state.reference_values(&request)),
         ListTranslations::METHOD => call(params, |request: ListTranslations| state.list_translations(&request)),

@@ -174,6 +174,29 @@ pub struct GetReferencingColumns {
 
     /// Name of the table, like `factions_tables`.
     pub table_name: String,
+
+    /// Version of the table's definition. Defaults to the version in the game files, or the newest one.
+    #[serde(default)]
+    pub version: Option<i32>,
+}
+
+/// `schema.patches`: returns the patches applied to the columns of a table.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct GetTablePatches {
+
+    /// Name of the table, like `factions_tables`.
+    pub table_name: String,
+
+    /// Version of the table's definition. If the table has no definition with this version, the patches of the table are returned.
+    pub version: i32,
+}
+
+/// Patches applied to the columns of a table.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct TablePatches {
+
+    /// Patches by column name, as key-value pairs. See the valid keys in `schema.patch_column`.
+    pub patches: BTreeMap<String, BTreeMap<String, String>>,
 }
 
 /// Columns of other tables referencing the columns of a table.
@@ -212,6 +235,11 @@ impl Request for DeleteDefinition {
 impl Request for GetReferencingColumns {
     const METHOD: &'static str = "schema.referencing_columns";
     type Response = ReferencingColumns;
+}
+
+impl Request for GetTablePatches {
+    const METHOD: &'static str = "schema.patches";
+    type Response = TablePatches;
 }
 
 impl Request for ImportPatches {

@@ -48,6 +48,7 @@ use std::rc::Rc;
 use std::sync::atomic::Ordering;
 use std::time::Instant;
 
+use rpfm_ipc::api::schema::{ImportPatches, UpdateSchemaFromAssemblyKit};
 use rpfm_ipc::settings_keys::*;
 use rpfm_ipc::helpers::{ContainerInfo, DataSource};
 
@@ -61,7 +62,7 @@ use rpfm_ui_common::utils::{create_grid_layout, ref_from_atomic};
 
 use crate::app_ui::{AppUI, Pane};
 use crate::CENTRAL_COMMAND;
-use crate::communications::{RECONNECT_COMPLETE, THREADS_COMMUNICATION_ERROR, Command, Response, send_ipc_command, send_ipc_command_result, send_ipc_command_result_async, send_ipc_command_async};
+use crate::communications::{RECONNECT_COMPLETE, THREADS_COMMUNICATION_ERROR, Command, Response, send_ipc_command, send_ipc_command_result, send_ipc_command_result_async, send_ipc_command_async, call_api_async, run_job};
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::DISCORD_URL;
@@ -1458,7 +1459,7 @@ impl AppUISlots {
                 // If there is no problem, ere we go.
                 app_ui.toggle_main_window(false);
 
-                match send_ipc_command_result_async(Command::UpdateCurrentSchemaFromAssKit, response_extractor!()) {
+                match run_job(&UpdateSchemaFromAssemblyKit { ignore_game_files: None }) {
                     Ok(_) => show_dialog(&app_ui.main_window, tr("update_current_schema_from_asskit_success"), true),
                     Err(error) => show_dialog(&app_ui.main_window, error, false),
                 }
@@ -1492,8 +1493,8 @@ impl AppUISlots {
 
                 if dialog.exec() == 1 {
                     match serde_json::from_str(&patch_text_edit.to_plain_text().to_std_string()) {
-                        Ok(patch) => {
-                            match send_ipc_command_result_async(Command::ImportSchemaPatch(patch), response_extractor!()) {
+                        Ok(patches) => {
+                            match call_api_async(&ImportPatches { patches }) {
                                 Ok(_) => show_dialog(&app_ui.main_window, tr("import_schema_patch_success"), true),
                                 Err(error) => show_dialog(&app_ui.main_window, error, false),
                             }

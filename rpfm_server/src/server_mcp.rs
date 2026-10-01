@@ -60,7 +60,7 @@ use rpfm_ipc::api::search::{ListSearchMatches, ReplaceSearchMatches, RunSearch, 
 use rpfm_ipc::api::references::{FindDefinition, FindLoc, FindUsages, GetLocSource, GetReferenceValues, LocSourceLookup, ReferenceValues, RowLocation, Usages};
 use rpfm_ipc::api::notes::{AddNote, DeleteNote, ListNotes, NoteEntry, NoteList};
 use rpfm_ipc::api::schema::{
-    DeleteDefinition, GetRawDefinitions, GetReferencingColumns, ImportPatches, ListSchemaTables, PatchColumn, RawDefinitions, ReferencingColumns, RemovePatches,
+    DeleteDefinition, GetRawDefinitions, GetReferencingColumns, GetTablePatches, ImportPatches, ListSchemaTables, PatchColumn, RawDefinitions, ReferencingColumns, RemovePatches, TablePatches,
     SchemaTables, SetDefinition, UpdateSchemaFromAssemblyKit, UpdateSchemas,
 };
 use rpfm_ipc::api::translations::{GenerateVanillaTexts, ListTranslations, Translations, VanillaTextsAvailable};
@@ -1301,6 +1301,16 @@ Runs as a job: waits up to 45 seconds and returns its state, with the report as 
     )]
     pub async fn referencing_columns(&self, params: Parameters<GetReferencingColumns>) -> Result<CallToolResult, McpError> {
         self.call_api("referencing_columns", params.0).await
+    }
+
+    #[tool(
+        name = "table_patches",
+        description = "Get the patches applied to the columns of a table definition: the local ones made with `patch_column`, and the ones included in the schema.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<TablePatches>(),
+    )]
+    pub async fn table_patches(&self, params: Parameters<GetTablePatches>) -> Result<CallToolResult, McpError> {
+        self.call_api("table_patches", params.0).await
     }
 
     #[tool(

@@ -10,14 +10,14 @@
 
 //! Schema operations: definitions, local patches, and updating the schema from the Assembly Kit.
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use itertools::Itertools;
 use rayon::prelude::*;
 
 use std::collections::HashMap;
 
 use rpfm_ipc::api::ApiError;
-use rpfm_ipc::api::schema::{DeleteDefinition, ImportPatches, PATCH_KEYS, PatchColumn, RawDefinitions, ReferencingColumns, RemovePatches, SchemaTables, SetDefinition};
+use rpfm_ipc::api::schema::{DeleteDefinition, GetReferencingColumns, GetTablePatches, ImportPatches, PATCH_KEYS, PatchColumn, RawDefinitions, ReferencingColumns, RemovePatches, SchemaTables, SetDefinition, TablePatches};
 use rpfm_ipc::api::tables::{GetTableDefinition, TableDefinition};
 
 use rpfm_lib::files::{Container, db::DB, FileType, RFileDecoded};
@@ -148,11 +148,6 @@ impl SessionState {
         Ok(())
     }
 
-    /// Returns a copy of the loaded schema.
-    pub fn schema(&self) -> Result<Schema> {
-        Ok(loaded_schema(&self.schema)?.clone())
-    }
-
     /// Returns the names of the startpos and twad tables in the schema.
     pub fn custom_table_names(&self) -> Result<Vec<String>> {
         Ok(loaded_schema(&self.schema)?.definitions().par_iter()
@@ -272,8 +267,13 @@ impl SessionState {
     }
 
     /// Returns the columns of other tables referencing each column of a table.
-    pub fn referencing_columns_of(&self, table_name: &str) -> Result<ReferencingColumns> {
-        let version = self.table_definition(&GetTableDefinition { table_name: table_name.to_owned(), version: None })?.version;
+    pub fn referencing_columns_of(&self, request: &GetReferencingColumns) -> Result<ReferencingColumns> {
+        let table_name = &request.table_name;
+        let version = match request.version {
+            Some(version) => version,
+            None => self.table_definition(&GetTableDefinition { table_name: table_name.to_owned(), version: None })?.version,
+        };
+
         let definition = loaded_schema(&self.schema)?.definition_by_name_and_version(table_name, version)
             .ok_or_else(|| ApiError::DefinitionNotFound(table_name.to_owned()))?;
 
@@ -309,13 +309,6 @@ impl SessionState {
             .unwrap_or_default())
     }
 
-    /// Returns a definition of a table.
-    pub fn definition(&self, table_name: &str, version: i32) -> Result<Definition> {
-        loaded_schema(&self.schema)?.definition_by_name_and_version(table_name, version)
-            .cloned()
-            .ok_or_else(|| anyhow!("No definition found for table '{}' with version {}.", table_name, version))
-    }
-
     /// Returns the patches of a definition of a table, or of the table if the definition doesn't exist.
     ///
     /// Definitions lose their patches when serialized, so clients need to request them separately.
@@ -327,15 +320,17 @@ impl SessionState {
         })
     }
 
+    /// Returns the patches of a definition of a table, by column name.
+    pub fn table_patches(&self, request: &GetTablePatches) -> Result<TablePatches> {
+        let patches = self.definition_patches(&request.table_name, request.version)?.into_iter()
+            .map(|(column, patch)| (column, patch.into_iter().collect()))
+            .collect();
+
+        Ok(TablePatches { patches })
+    }
+
     /// Returns the columns of other tables referencing a table, by table name and column name.
     pub fn referencing_columns(&self, table_name: &str, definition: &Definition) -> Result<HashMap<String, HashMap<String, Vec<String>>>> {
         Ok(loaded_schema(&self.schema)?.referencing_columns_for_table(table_name, definition))
-    }
-
-    /// Removes a definition of a table from the loaded schema, without saving it.
-    pub fn delete_definition(&mut self, table_name: &str, version: i32) {
-        if let Some(ref mut schema) = self.schema {
-            schema.remove_definition(table_name, version);
-        }
     }
 }

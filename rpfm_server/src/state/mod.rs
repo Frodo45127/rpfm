@@ -194,11 +194,6 @@ impl SessionState {
         &self.game
     }
 
-    /// Returns if a schema is loaded for the selected game.
-    pub fn is_schema_loaded(&self) -> bool {
-        self.schema.is_some()
-    }
-
     /// Returns the selected game, what's loaded for it, and the open packs.
     pub fn session_status(&self) -> SessionStatus {
         SessionStatus {

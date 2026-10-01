@@ -80,6 +80,7 @@ use std::rc::Rc;
 
 use rpfm_extensions::dependencies::{KEY_DELETES_TABLE_NAME, TableReferences};
 
+use rpfm_ipc::api::schema::{PatchColumn, RemovePatches};
 use rpfm_ipc::helpers::DataSource;
 use rpfm_ipc::settings_keys::*;
 
@@ -3563,8 +3564,8 @@ impl TableView {
         button_box.button(StandardButton::RestoreDefaults).released().connect(&SlotNoArgs::new(self.table_view(), clone!(
             dialog,
             edited_table_name => move || {
-                match send_ipc_command_result(Command::RemoveLocalSchemaPatchesForTable(edited_table_name.to_owned()), response_extractor!()) {
-                    Ok(()) => show_dialog(&dialog, tr("patch_removed_table"), true),
+                match call_api(&RemovePatches { table_name: edited_table_name.to_owned(), column: None }) {
+                    Ok(_) => show_dialog(&dialog, tr("patch_removed_table"), true),
                     Err(error) => show_dialog(&dialog, error.to_string(), false),
                 }
 
@@ -3576,8 +3577,8 @@ impl TableView {
             dialog,
             field,
             edited_table_name => move || {
-                match send_ipc_command_result(Command::RemoveLocalSchemaPatchesForTableAndField(edited_table_name.to_owned(), field.name().to_owned()), response_extractor!()) {
-                    Ok(()) => show_dialog(&dialog, tr("patch_removed_column"), true),
+                match call_api(&RemovePatches { table_name: edited_table_name.to_owned(), column: Some(field.name().to_owned()) }) {
+                    Ok(_) => show_dialog(&dialog, tr("patch_removed_column"), true),
                     Err(error) => show_dialog(&dialog, error.to_string(), false),
                 }
 
@@ -3627,6 +3628,9 @@ impl TableView {
         }
 
         is_numeric_checkbox.set_checked(field.is_numeric(patches));
+
+        // The library doesn't support this patch yet.
+        is_numeric_checkbox.set_enabled(false);
         not_empty_checkbox.set_checked(field.cannot_be_empty(patches));
         unused_checkbox.set_checked(field.unused(patches));
         description_text_edit.set_text(&QString::from_std_str(field.description(patches)));
@@ -3668,10 +3672,6 @@ impl TableView {
                 column_data.insert("lookup".to_owned(), lookup_line_edit.text().to_std_string());
             }
 
-            if field.is_numeric(patches) != is_numeric_checkbox.is_checked() {
-                column_data.insert("is_numeric".to_owned(), is_numeric_checkbox.is_checked().to_string());
-            }
-
             if field.cannot_be_empty(patches) != not_empty_checkbox.is_checked() {
                 column_data.insert("not_empty".to_owned(), not_empty_checkbox.is_checked().to_string());
             }
@@ -3686,13 +3686,14 @@ impl TableView {
                 column_data.insert("description".to_owned(), description_value_new);
             }
 
-            let mut patch = HashMap::new();
-            let mut table_data = HashMap::new();
-            table_data.insert(field.name().to_owned(), column_data);
-            patch.insert(edited_table_name.to_owned(), table_data);
+            let patch = PatchColumn {
+                table_name: edited_table_name.to_owned(),
+                column: field.name().to_owned(),
+                patch: column_data.into_iter().collect(),
+            };
 
-            match send_ipc_command_result(Command::SaveLocalSchemaPatch(patch), response_extractor!()) {
-                Ok(()) => show_dialog(self.table_view(), tr("patch_success"), true),
+            match call_api(&patch) {
+                Ok(_) => show_dialog(self.table_view(), tr("patch_success"), true),
                 Err(error) => return Err(error),
             }
         }

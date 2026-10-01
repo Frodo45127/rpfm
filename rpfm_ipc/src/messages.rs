@@ -76,7 +76,7 @@ use rpfm_lib::files::{
 };
 use rpfm_lib::games::pfh_file_type::PFHFileType;
 use rpfm_lib::integrations::github::DeviceCode;
-use rpfm_lib::schema::{Definition, DefinitionPatch, Field, Schema};
+use rpfm_lib::schema::{Definition, Field};
 
 use crate::helpers::*;
 
@@ -267,13 +267,6 @@ pub enum Command {
     /// - [`Response::DependenciesInfo`] on success.
     /// - [`Response::Error`] on failure.
     GenerateDependenciesCache,
-
-    /// Update the currently loaded Schema with data from the game's Assembly Kit.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    UpdateCurrentSchemaFromAssKit,
 
     /// Trigger an optimization pass over a specific open Pack.
     /// First field is the pack key, second is the optimizer options.
@@ -628,13 +621,6 @@ pub enum Command {
     // Schema Commands
     //-----------------------------------------------------------------------//
 
-    /// Save the provided schema to disk.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    SaveSchema(Schema),
-
     /// Encode and clean the cache for the provided paths in a specific pack.
     /// First field is the pack key, second is the paths to clean.
     ///
@@ -853,34 +839,6 @@ pub enum Command {
     //-----------------------------------------------------------------------//
     // Schema Patch Commands
     //-----------------------------------------------------------------------//
-
-    /// Save local schema patches.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    SaveLocalSchemaPatch(HashMap<String, DefinitionPatch>),
-
-    /// Remove local schema patches for a table.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    RemoveLocalSchemaPatchesForTable(String),
-
-    /// Remove local schema patches for a specific field in a table.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    RemoveLocalSchemaPatchesForTableAndField(String, String),
-
-    /// Import a schema patch into the local schema patches.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    ImportSchemaPatch(HashMap<String, DefinitionPatch>),
 
     //-----------------------------------------------------------------------//
     // Loc Generation Commands
@@ -1136,51 +1094,6 @@ pub enum Command {
     // Schema Query Commands
     //-----------------------------------------------------------------------//
 
-    /// Check if a schema is loaded.
-    ///
-    /// Response: [`Response::Bool`].
-    IsSchemaLoaded,
-
-    /// Get all definitions for a table name.
-    ///
-    /// Response:
-    /// - [`Response::VecDefinition`] on success.
-    /// - [`Response::Error`] if no schema.
-    DefinitionsByTableName(String),
-
-    /// Get columns that reference a table's definition.
-    ///
-    /// Response:
-    /// - [`Response::HashMapStringHashMapStringVecString`] on success.
-    /// - [`Response::Error`] if no schema.
-    ReferencingColumnsForDefinition(String, Definition),
-
-    /// Get the current schema.
-    ///
-    /// Response:
-    /// - [`Response::Schema`] on success.
-    /// - [`Response::Error`] if no schema.
-    Schema,
-
-    /// Get a specific definition by table name and version.
-    ///
-    /// Response:
-    /// - [`Response::Definition`] on success.
-    /// - [`Response::Error`] if not found or no schema.
-    DefinitionByTableNameAndVersion(String, i32),
-
-    /// Get the patches (including local ones) applied to a specific definition by table name and version.
-    ///
-    /// Response:
-    /// - [`Response::DefinitionPatch`] on success.
-    /// - [`Response::Error`] if no schema.
-    DefinitionPatches(String, i32),
-
-    /// Delete a definition by table name and version.
-    ///
-    /// Response: [`Response::Success`].
-    DeleteDefinition(String, i32),
-
     /// Get the processed fields from a definition (bitwise expansion, enum conversion, colour merging applied).
     ///
     /// Response: [`Response::VecField`].
@@ -1236,11 +1149,9 @@ pub enum Response {
     DataSourceStringUsizeUsize(DataSource, String, usize, usize),
     DBRFileInfo(DB, RFileInfo),
     Definition(Definition),
-    DefinitionPatch(DefinitionPatch),
     DependenciesInfo(DependenciesInfo),
     Diagnostics(Diagnostics),
     ESFRFileInfo(ESF, RFileInfo),
-    F32(f32),
     GitHubDeviceCode(DeviceCode),
     GitHubSignInRequired,
     GitHubSignInState(GitHubSignInState),
@@ -1249,11 +1160,9 @@ pub enum Response {
     HashMapDataSourceHashMapStringRFile(HashMap<DataSource, HashMap<String, RFile>>),
     HashMapDataSourceHashSetContainerPath(HashMap<DataSource, HashSet<ContainerPath>>),
     HashMapI32TableReferences(HashMap<i32, TableReferences>),
-    HashMapStringHashMapStringVecString(HashMap<String, HashMap<String, Vec<String>>>),
     HashSetString(HashSet<String>),
     HashSetStringHashSetString(HashSet<String>, HashSet<String>),
     I32(i32),
-    I32I32(i32, i32),
     I32I32VecStringVecString(i32, i32, Vec<String>, Vec<String>),
     ImageRFileInfo(Image, RFileInfo),
     LocRFileInfo(Loc, RFileInfo),
@@ -1270,7 +1179,6 @@ pub enum Response {
     PortraitSettingsRFileInfo(PortraitSettings, RFileInfo),
     RFileDecoded(RFileDecoded),
     RigidModelRFileInfo(RigidModel, RFileInfo),
-    Schema(Schema),
     String(String),
     StringVecContainerPath(String, Vec<ContainerPath>),
     StringVecPathBuf(String, Vec<PathBuf>),
@@ -1286,11 +1194,9 @@ pub enum Response {
     VecContainerPathOptionString(Vec<ContainerPath>, Option<String>),
     VecContainerPathVecContainerPath(Vec<ContainerPath>, Vec<ContainerPath>),
     VecContainerPathBTreeMapStringVecContainerPath(Vec<ContainerPath>, BTreeMap<String, Vec<ContainerPath>>),
-    VecContainerPathVecContainerPathString(Vec<ContainerPath>, Vec<ContainerPath>, String),
     VecContainerPathVecRFileInfo(Vec<ContainerPath>, Vec<RFileInfo>),
     VecContainerPathVecString(Vec<ContainerPath>, Vec<String>),
     VecDataSourceStringStringStringUsizeUsize(Vec<(DataSource, String, String, String, usize, usize)>),
-    VecDefinition(Vec<Definition>),
     VecField(Vec<Field>),
     VecRFile(Vec<RFile>),
     VecRFileInfo(Vec<RFileInfo>),
