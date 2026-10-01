@@ -418,6 +418,28 @@ impl RFileInfo {
     }
 }
 
+impl DataSource {
+
+    /// Returns the file source of the files of this data source.
+    ///
+    /// # Arguments
+    ///
+    /// * `pack_key` - Key of the pack, for files of open packs.
+    ///
+    /// # Returns
+    ///
+    /// The file source, or `None` for external files.
+    pub fn file_source(&self, pack_key: &str) -> Option<FileSource> {
+        match self {
+            Self::PackFile => Some(FileSource::Pack(pack_key.to_owned())),
+            Self::GameFiles => Some(FileSource::GameFiles),
+            Self::ParentFiles => Some(FileSource::ParentFiles),
+            Self::AssKitFiles => Some(FileSource::AssemblyKit),
+            Self::ExternalFile => None,
+        }
+    }
+}
+
 /// Data source of the files of a file source.
 impl From<&FileSource> for DataSource {
     fn from(source: &FileSource) -> Self {

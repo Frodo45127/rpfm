@@ -17,6 +17,8 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
+use rpfm_extensions::optimizer::OptimizerOptions;
+
 use super::{Done, Request};
 use super::files::FileRef;
 use super::tables::FilesEdited;
@@ -263,6 +265,14 @@ pub struct FinishStartpos {
     /// If the build is cancelled instead of imported.
     #[serde(default)]
     pub cancel: bool,
+}
+
+/// Returns the values of optimizer options, by name, as `tools.optimize` takes them.
+pub fn optimizer_option_values(options: &OptimizerOptions) -> BTreeMap<String, bool> {
+    match serde_json::to_value(options) {
+        Ok(Value::Object(values)) => values.into_iter().filter_map(|(name, value)| value.as_bool().map(|value| (name, value))).collect(),
+        _ => BTreeMap::new(),
+    }
 }
 
 impl Request for GetOptimizerOptions {

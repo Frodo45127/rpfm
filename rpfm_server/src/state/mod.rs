@@ -56,7 +56,7 @@ mod tools;
 pub use self::files::{DecodedFile, PathsByPack};
 use self::diagnostics::DiagnosticsResults;
 pub use self::tables::MergeOutcome;
-pub use self::tools::{MyModOptions, optimizer_option_values, optimizer_options_with, plugin_scripts};
+pub use self::tools::{MyModOptions, optimizer_options_with, plugin_scripts};
 use self::tools::PendingStartpos;
 
 //-------------------------------------------------------------------------------//

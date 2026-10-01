@@ -81,6 +81,7 @@ use std::time::Instant;
 
 use rpfm_extensions::merge::{MergeConflict, MergeResolution};
 
+use rpfm_ipc::api::tools::{FinishStartpos, GetStartposCampaigns, OptimizePack, StartStartpos, UpdateAnimIds, optimizer_option_values};
 use rpfm_ipc::settings_keys::*;
 use rpfm_ipc::helpers::{ContainerInfo, DataSource, NewFile};
 
@@ -96,7 +97,7 @@ use rpfm_ui_common::FULL_DATE_FORMAT;
 use rpfm_ui_common::icons::IconType;
 
 use crate::CENTRAL_COMMAND;
-use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR, send_ipc_command, send_ipc_command_result, send_ipc_command_result_async, send_ipc_command_async};
+use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR, call_api_async, run_job, send_ipc_command, send_ipc_command_result, send_ipc_command_result_async, send_ipc_command_async};
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::*;
@@ -3815,13 +3816,11 @@ impl AppUI {
             let pack_key = target_pack_key
                 .or_else(|| pack_file_contents_ui.pack_key_from_selection())
                 .unwrap_or_default();
-            let options = optimizer_options();
-            let (response_1, response_2) = send_ipc_command_result_async(Command::OptimizePackFile(pack_key.clone(), options), response_extractor!(Response::HashSetStringHashSetString, v1, v2))?;
-            let response_1 = response_1.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<ContainerPath>>();
-            let response_2 = response_2.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<ContainerPath>>();
+            let request = OptimizePack { pack: pack_key.clone(), options: optimizer_option_values(&optimizer_options()) };
+            let changed = run_job(&request)?;
 
-            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(response_1, true), DataSource::PackFile, &pack_key);
-            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(response_2), DataSource::PackFile, &pack_key);
+            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(file_paths(changed.deleted), true), DataSource::PackFile, &pack_key);
+            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(file_paths(changed.added)), DataSource::PackFile, &pack_key);
             Ok(Some(()))
         } else {
             let _ = settings_set_bool(PACK_REMOVE_ITM_FILES, pack_remove_itm_files_checkbox.is_checked());
@@ -4380,28 +4379,22 @@ impl AppUI {
 
         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
 
-        let ids = send_ipc_command_async(Command::BuildStarposGetCampaingIds(pack_key.clone()), response_extractor!(Response::HashSetString));
-        let mut ids = ids.into_iter().collect::<Vec<_>>();
-        ids.sort();
-
-        if ids.is_empty() {
+        let campaigns = call_api_async(&GetStartposCampaigns { pack: pack_key.clone() })?;
+        if campaigns.campaigns.is_empty() {
             return Err(anyhow!("Campaigns table either not found or found without campaign entries. Fix it, then try again."));
         }
 
-        for id in &ids {
-            campaign_id_combobox.add_item_q_string(&QString::from_std_str(id));
+        for campaign in &campaigns.campaigns {
+            campaign_id_combobox.add_item_q_string(&QString::from_std_str(campaign));
         }
 
-        // Restore the last selected campaign from pack settings.
-        let settings = send_ipc_command(Command::GetPackSettings(pack_key.clone()), response_extractor!(Response::PackSettings));
-        if let Some(last_campaign) = settings.setting_text("starpos_last_campaign") {
+        // Restore the last selected campaign.
+        if let Some(last_campaign) = campaigns.last_used {
             let index = campaign_id_combobox.find_text_1a(&QString::from_std_str(last_campaign));
             if index >= 0 {
                 campaign_id_combobox.set_current_index(index);
             }
         }
-
-        send_ipc_command_result_async(Command::BuildStarposCheckVictoryConditions(pack_key.clone()), response_extractor!())?;
 
         // Actions
         let dialog_ptr = dialog.as_ptr();
@@ -4413,11 +4406,18 @@ impl AppUI {
         let start_build_process = SlotNoArgs::new(&dialog, move || {
             build_starpos_button_ptr.set_enabled(false);
 
-            let campaign_id = campaign_id_combobox_ptr.current_text().to_std_string();
-            let process_hlp_spd_data = process_hlp_spd_data_checkbox_ptr.is_checked();
-            match send_ipc_command_result_async(Command::BuildStarpos(pack_key_for_closure.clone(), campaign_id, process_hlp_spd_data), response_extractor!()) {
+            let request = StartStartpos {
+                pack: pack_key_for_closure.clone(),
+                campaign: campaign_id_combobox_ptr.current_text().to_std_string(),
+                process_hlp_spd_data: process_hlp_spd_data_checkbox_ptr.is_checked(),
+            };
+
+            match call_api_async(&request) {
                 Ok(_) => games_closed_button_ptr.set_enabled(true),
-                Err(error) => show_dialog(dialog_ptr, error, false),
+                Err(error) => {
+                    build_starpos_button_ptr.set_enabled(true);
+                    show_dialog(dialog_ptr, error, false);
+                }
             }
         });
 
@@ -4426,17 +4426,9 @@ impl AppUI {
 
         // Once the game has been closed, we need to cleanup the userscript file, then add the starpos to the open pack.
         if dialog.exec() == 1 {
-            let campaign_id = campaign_id_combobox.current_text().to_std_string();
-            let process_hlp_spd_data = process_hlp_spd_data_checkbox.is_checked();
-
-            // Save the selected campaign to pack settings for next time.
-            let mut settings = send_ipc_command(Command::GetPackSettings(pack_key.clone()), response_extractor!(Response::PackSettings));
-            settings.settings_text_mut().insert("starpos_last_campaign".to_owned(), campaign_id.clone());
-            let _ = CENTRAL_COMMAND.read().unwrap().send(Command::SetPackSettings(pack_key.clone(), settings));
-
-            let paths = send_ipc_command_result_async(Command::BuildStarposPost(pack_key.clone(), campaign_id, process_hlp_spd_data), response_extractor!(Response::VecContainerPath))?;
-            if !paths.is_empty() {
-                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(paths), DataSource::PackFile, &pack_key);
+            let added = call_api_async(&FinishStartpos { cancel: false })?.edited;
+            if !added.is_empty() {
+                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(file_paths(added)), DataSource::PackFile, &pack_key);
                 UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
             }
 
@@ -4444,9 +4436,7 @@ impl AppUI {
         } else if games_closed_button.is_enabled() {
 
             // If the user did not properly followed the procedure, do a post-cleanup pass anyway to avoid the idiot's stupidity causing problems.
-            let campaign_id = campaign_id_combobox.current_text().to_std_string();
-            let process_hlp_spd_data = process_hlp_spd_data_checkbox.is_checked();
-            send_ipc_command_result_async(Command::BuildStarposCleanup(pack_key.clone(), campaign_id, process_hlp_spd_data), response_extractor!())?;
+            call_api_async(&FinishStartpos { cancel: true })?;
             Ok(())
         } else {
             Ok(())
@@ -4485,7 +4475,7 @@ impl AppUI {
             let starting_id = starting_id_spinbox.value();
             let offset = offset_spinbox.value();
             let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-            let paths = send_ipc_command_result_async(Command::UpdateAnimIds(pack_key.clone(), starting_id, offset), response_extractor!(Response::VecContainerPath))?;
+            let paths = file_paths(call_api_async(&UpdateAnimIds { pack: pack_key.clone(), starting_id, offset })?.edited);
             if !paths.is_empty() {
                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Modify(paths.clone()), DataSource::PackFile, &pack_key);
                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths), DataSource::PackFile, &pack_key);

@@ -57,9 +57,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Debug;
 use std::path::PathBuf;
 
-use rpfm_extensions::lua::harness::LuaTestReport;
 use rpfm_extensions::merge::{MergeConflict, MergeOptions};
-use rpfm_extensions::optimizer::OptimizerOptions;
 use rpfm_extensions::translator::PackTranslation;
 use rpfm_extensions::translator::hub::SubmissionResult;
 
@@ -69,7 +67,7 @@ use rpfm_lib::files::{
     bmd::Bmd, db::DB, esf::ESF, group_formations::GroupFormations, image::Image, loc::Loc,
     matched_combat::MatchedCombat, pack::PackSettings, portrait_settings::PortraitSettings,
     rigidmodel::RigidModel, text::Text, uic::UIC, unit_variant::UnitVariant,
-    video::SupportedFormats, ContainerPath, RFile, RFileDecoded,
+    ContainerPath, RFile, RFileDecoded,
 };
 use rpfm_lib::games::pfh_file_type::PFHFileType;
 use rpfm_lib::integrations::github::DeviceCode;
@@ -257,22 +255,6 @@ pub enum Command {
     /// - [`Response::DependenciesInfo`] on success.
     /// - [`Response::Error`] on failure.
     GenerateDependenciesCache,
-
-    /// Trigger an optimization pass over a specific open Pack.
-    /// First field is the pack key, second is the optimizer options.
-    ///
-    /// Response:
-    /// - [`Response::HashSetStringHashSetString`] (deleted paths, added paths) on success.
-    /// - [`Response::Error`] on failure.
-    OptimizePackFile(String, OptimizerOptions),
-
-    /// Patch the SiegeAI of a Siege Map for Warhammer games in a specific pack.
-    /// The field is the pack key.
-    ///
-    /// Response:
-    /// - [`Response::StringVecContainerPath`] on success.
-    /// - [`Response::Error`] on failure.
-    PatchSiegeAI(String),
 
     /// Change the `Index Includes Timestamp` flag in a specific open Pack.
     /// First field is the pack key, second is the flag value.
@@ -577,14 +559,6 @@ pub enum Command {
     // Video Commands
     //-----------------------------------------------------------------------//
 
-    /// Change the format of a ca_vp8 video PackedFile in a specific pack.
-    /// First field is the pack key, then file path and format.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    SetVideoFormat(String, String, SupportedFormats),
-
     //-----------------------------------------------------------------------//
     // Schema Commands
     //-----------------------------------------------------------------------//
@@ -663,15 +637,6 @@ pub enum Command {
     /// Response: [`Response::VecU64U64U64U64String`], with the range of each use (start line, start column,
     /// end line, end column, all 0-based) and its docs as Qt rich text. Empty if the game's Lua API is not available.
     LuaHovers(String),
-
-    /// Run Lua tests against the scripts of all open packs, together with the game's script libraries.
-    /// First field is the code of the test file, then the campaign whose vanilla scripts to load (like
-    /// `main_warhammer`), or `None` to load only the script libraries and the mods.
-    ///
-    /// Response:
-    /// - [`Response::LuaTestReport`] on success.
-    /// - [`Response::Error`] if the game's Lua API is not available or the test file can't be loaded.
-    LuaRunTests(String, Option<String>),
 
     //-----------------------------------------------------------------------//
     // Pack Settings Commands
@@ -772,14 +737,6 @@ pub enum Command {
     // Loc Generation Commands
     //-----------------------------------------------------------------------//
 
-    /// Generate all missing loc entries for a specific open PackFile.
-    /// The field is the pack key.
-    ///
-    /// Response:
-    /// - [`Response::VecContainerPath`] on success.
-    /// - [`Response::Error`] on failure.
-    GenerateMissingLocData(String),
-
     //-----------------------------------------------------------------------//
     // Lua Autogen Commands
     //-----------------------------------------------------------------------//
@@ -787,22 +744,6 @@ pub enum Command {
     //-----------------------------------------------------------------------//
     // MyMod Commands
     //-----------------------------------------------------------------------//
-
-    /// Initialize a MyMod folder.
-    /// Requires: mod name, game key, sublime support, vscode support, git support (gitignore content).
-    ///
-    /// Response:
-    /// - [`Response::PathBuf`] (path to the new pack) on success.
-    /// - [`Response::Error`] on failure.
-    InitializeMyModFolder(String, String, bool, bool, Option<String>),
-
-    /// Live export a specific PackFile to the game folder.
-    /// The field is the pack key.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    LiveExport(String),
 
     /// Set the operational mode for a specific pack.
     /// First field is the pack key, second is the new operational mode.
@@ -819,14 +760,6 @@ pub enum Command {
     //-----------------------------------------------------------------------//
     // Map Packing Commands
     //-----------------------------------------------------------------------//
-
-    /// Pack map tiles into a specific PackFile.
-    /// First field is the pack key, then tile map paths, list of (tile path, name).
-    ///
-    /// Response:
-    /// - [`Response::VecContainerPathVecContainerPath`] (added paths, deleted paths) on success.
-    /// - [`Response::Error`] on failure.
-    PackMap(String, Vec<PathBuf>, Vec<(PathBuf, String)>),
 
     //-----------------------------------------------------------------------//
     // Diagnostics Ignore Commands
@@ -902,44 +835,6 @@ pub enum Command {
     // Starpos Commands
     //-----------------------------------------------------------------------//
 
-    /// Build starpos (pre-processing step) for a specific pack.
-    /// First field is the pack key, then campaign ID, process HLP/SPD data.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    BuildStarpos(String, String, bool),
-
-    /// Build starpos (post-processing step) for a specific pack.
-    /// First field is the pack key, then campaign ID, process HLP/SPD data.
-    ///
-    /// Response:
-    /// - [`Response::VecContainerPath`] on success.
-    /// - [`Response::Error`] on failure.
-    BuildStarposPost(String, String, bool),
-
-    /// Clean up starpos temporary files for a specific pack.
-    /// First field is the pack key, then campaign ID, process HLP/SPD data.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    BuildStarposCleanup(String, String, bool),
-
-    /// Get campaign IDs for starpos building from a specific pack.
-    /// The field is the pack key.
-    ///
-    /// Response: [`Response::HashSetString`].
-    BuildStarposGetCampaingIds(String),
-
-    /// Check if victory conditions file exists in a specific pack (required for some games).
-    /// The field is the pack key.
-    ///
-    /// Response:
-    /// - [`Response::Success`] if exists or not needed.
-    /// - [`Response::Error`] if missing.
-    BuildStarposCheckVictoryConditions(String),
-
 
     //-----------------------------------------------------------------------//
     // CEO Commands
@@ -963,19 +858,6 @@ pub enum Command {
     //-----------------------------------------------------------------------//
     // Animation Commands
     //-----------------------------------------------------------------------//
-
-    /// Update animation IDs with offset in a specific pack.
-    /// First field is the pack key, then starting ID, offset.
-    ///
-    /// Response:
-    /// - [`Response::VecContainerPath`] on success.
-    /// - [`Response::Error`] on failure.
-    UpdateAnimIds(String, i32, i32),
-
-    /// Get animation paths by skeleton name.
-    ///
-    /// Response: [`Response::HashSetString`].
-    GetAnimPathsBySkeletonName(String),
 
     //-----------------------------------------------------------------------//
     // Table Commands
@@ -1003,14 +885,6 @@ pub enum Command {
     //-----------------------------------------------------------------------//
     // 3D Export Commands
     //-----------------------------------------------------------------------//
-
-    /// Export a RigidModel to glTF format.
-    /// Requires: RigidModel, output path.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    ExportRigidToGltf(RigidModel, String),
 
     //-----------------------------------------------------------------------//
     // Schema Query Commands
@@ -1079,7 +953,6 @@ pub enum Response {
     HashMapDataSourceHashMapStringRFile(HashMap<DataSource, HashMap<String, RFile>>),
     HashMapDataSourceHashSetContainerPath(HashMap<DataSource, HashSet<ContainerPath>>),
     HashSetString(HashSet<String>),
-    HashSetStringHashSetString(HashSet<String>, HashSet<String>),
     I32(i32),
     I32I32VecStringVecString(i32, i32, Vec<String>, Vec<String>),
     ImageRFileInfo(Image, RFileInfo),
@@ -1097,7 +970,6 @@ pub enum Response {
     RFileDecoded(RFileDecoded),
     RigidModelRFileInfo(RigidModel, RFileInfo),
     String(String),
-    StringVecContainerPath(String, Vec<ContainerPath>),
     StringVecPathBuf(String, Vec<PathBuf>),
     SubmissionResult(SubmissionResult),
     Text(Text),
@@ -1120,7 +992,6 @@ pub enum Response {
     VecStringTuples(Vec<(String, String)>),
     VecStringContainerInfo(Vec<(String, ContainerInfo)>),
     VecU8(Vec<u8>),
-    LuaTestReport(LuaTestReport),
     VecU64U64U64U64String(Vec<(u64, u64, u64, u64, String)>),
     VideoInfoRFileInfo(VideoInfo, RFileInfo),
     VMDRFileInfo(Text, RFileInfo),

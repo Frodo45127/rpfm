@@ -49,6 +49,7 @@ use std::sync::atomic::Ordering;
 use std::time::Instant;
 
 use rpfm_ipc::api::schema::{ImportPatches, UpdateSchemaFromAssemblyKit};
+use rpfm_ipc::api::tools::InitMyMod;
 use rpfm_ipc::settings_keys::*;
 use rpfm_ipc::helpers::{ContainerInfo, DataSource};
 
@@ -981,10 +982,9 @@ impl AppUISlots {
                             app_ui.toggle_main_window(false);
 
                             // Initialize the folder structure of the MyMod.
-                            let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::InitializeMyModFolder(mod_name.to_owned(), mod_game, sublime_support, vscode_support, git_support));
-                            let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-                            match response {
-                                Response::PathBuf(mymod_pack_path) => {
+                            let request = InitMyMod { game_folder: mod_game, name: mod_name.to_owned(), sublime_support, vscode_support, gitignore: git_support };
+                            match call_api_async(&request).map(|created| created.pack_path) {
+                                Ok(mymod_pack_path) => {
 
                                     // Destroy whatever it's in the file's views and clear the global search UI.
                                     let _ = AppUI::purge_them_all(&app_ui, &pack_file_contents_ui, false);
@@ -1051,13 +1051,10 @@ impl AppUISlots {
                                     }
 
                                 }
-                                Response::Error(error) => {
+                                Err(error) => {
                                     app_ui.toggle_main_window(true);
                                     show_dialog(&app_ui.main_window, error, false);
                                 }
-
-                                // In ANY other situation, it's a message problem.
-                                _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                             }
                         }
                     }

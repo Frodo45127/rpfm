@@ -57,6 +57,8 @@ use rpfm_ui_common::utils::*;
 
 use rpfm_ipc::settings_keys::{THEME, THEME_LIGHT, THEME_DARK};
 
+use rpfm_lib::files::ContainerPath;
+
 use crate::LOCALE;
 use crate::LOCALE_FALLBACK;
 use crate::app_ui::AppUI;
@@ -93,6 +95,11 @@ pub const INFO_PRESSED_LIGHT: &str = "#99ccff";
 pub(crate) fn log_to_status_bar(text: &str) {
     unsafe { q_ptr_from_atomic(&STATUS_BAR).show_message_2a(&QString::from_std_str(text), 2500); }
     info!("{text}");
+}
+
+/// Turns the file paths of a server response into the container paths the pack tree uses.
+pub fn file_paths(paths: Vec<String>) -> Vec<ContainerPath> {
+    paths.into_iter().map(ContainerPath::File).collect()
 }
 
 /// This function takes the received KMessageWidget, and pushes a message onto it, making it visible in the process as an Error.

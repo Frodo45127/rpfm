@@ -34,14 +34,14 @@ use rpfm_ipc::api::tables::{AddKeyDeletes, EditTable, ExportTsv, GetColumnValues
 use rpfm_ipc::api::updates::{ApplyUpdate, CheckUpdate};
 use rpfm_ipc::api::tools::{
     AnimsBySkeleton, ExportGltf, FinishStartpos, GenerateMissingLocs, GetOptimizerOptions, GetStartposCampaigns, InitMyMod, LiveExport, LuaTestResults,
-    OptimizePack, OptimizerOptionValues, PackMap, PatchSiegeAi, RunLuaTests, SetVideoFormat, StartStartpos, UpdateAnimIds,
+    OptimizePack, OptimizerOptionValues, PackMap, optimizer_option_values, PatchSiegeAi, RunLuaTests, SetVideoFormat, StartStartpos, UpdateAnimIds,
 };
 use rpfm_ipc::settings_keys::{ALLOW_EDITING_OF_CA_PACKFILES, ENABLE_ESF_EDITOR, MYMOD_BASE_PATH, DISABLE_UUID_REGENERATION_ON_DB_TABLES, IGNORE_GAME_FILES_IN_AK, INCLUDE_BASE_FOLDER_ON_ADD_FROM_FOLDER, TABLES_USE_OLD_COLUMN_ORDER_FOR_TSV, USE_LAZY_LOADING};
 
 use rpfm_lib::schema::{SCHEMA_BRANCH, SCHEMA_REMOTE, SCHEMA_REPO};
 
 use rpfm_ipc::settings::{schemas_path, Settings};
-use crate::state::{ExtractOptions, SaveOptions, SessionState, optimizer_option_values, optimizer_options_with};
+use crate::state::{ExtractOptions, SaveOptions, SessionState, optimizer_options_with};
 use crate::updater::{apply_component, check_component, git_update_repo};
 
 /// Methods that run as jobs.

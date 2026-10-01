@@ -31,7 +31,7 @@
 use anyhow::{anyhow, Result};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 
 use rpfm_ipc::messages::{Command, Response};
@@ -45,7 +45,7 @@ use crate::comms::CentralCommand;
 use crate::api;
 use crate::session::{Session, SessionMessage};
 use rpfm_ipc::settings::*;
-use crate::state::{DecodedFile, ExtractOptions, MergeOutcome, MyModOptions, SaveOptions, SessionState, plugin_scripts};
+use crate::state::{DecodedFile, ExtractOptions, MergeOutcome, SaveOptions, SessionState, plugin_scripts};
 use crate::translation_hub::{self, SubmitOutcome};
 
 /// Extracts the variant name (e.g. `"NewPack"`) from a [`Command`] for telemetry.
@@ -184,7 +184,6 @@ async fn dispatch(state: &mut SessionState, command: Command, sender: &Unbounded
         Command::GetPackOperationalMode(pack_key) => send(sender, Response::OperationalMode(state.pack_operational_mode(&pack_key))),
         Command::TriggerBackupAutosave(pack_key) => reply(sender, state.backup_autosave(&pack_key, &settings, disable_uuid_regeneration, settings.i32(AUTOSAVE_AMOUNT) as usize), done),
         Command::GetMissingDefinitions(pack_key) => reply(sender, state.export_missing_definitions(&pack_key), done),
-        Command::LiveExport(pack_key) => reply(sender, state.live_export(&pack_key, &settings, disable_uuid_regeneration, extract_options.tsv_keys_first), done),
         Command::OpenContainingFolder(pack_key) => reply(sender, state.open_containing_folder(&pack_key), done),
 
         // Files.
@@ -230,10 +229,8 @@ async fn dispatch(state: &mut SessionState, command: Command, sender: &Unbounded
             let result = state.save_files_and_optimize(&pack_key, files, optimize.then(|| settings.optimizer_options()));
             reply(sender, result, |(added, deleted)| Response::VecContainerPathVecContainerPath(added, deleted));
         }
-        Command::SetVideoFormat(pack_key, path, format) => reply(sender, state.set_video_format(&pack_key, &path, format), done),
         Command::GetRFilesFromAllSources(paths, lowercase_paths) => send(sender, Response::HashMapDataSourceHashMapStringRFile(state.files_from_all_sources(&paths, lowercase_paths))),
         Command::GetPackedFilesNamesStartingWitPathFromAllSources(path) => send(sender, Response::HashMapDataSourceHashSetContainerPath(state.file_paths_from_all_sources(&path))),
-        Command::GetAnimPathsBySkeletonName(skeleton_name) => send(sender, Response::HashSetString(state.anim_paths_by_skeleton(&skeleton_name))),
         Command::ImportDependenciesToOpenPackFile(pack_key, paths_by_source) => reply(sender, state.import_dependencies(&pack_key, &paths_by_source), |(added, not_added)| Response::VecContainerPathVecString(added, not_added)),
 
         // Tables.
@@ -279,30 +276,14 @@ async fn dispatch(state: &mut SessionState, command: Command, sender: &Unbounded
 
         // Diagnostics and Lua.
         Command::LuaHovers(source) => send(sender, Response::VecU64U64U64U64String(state.lua_hovers(&source, &settings))),
-        Command::LuaRunTests(test_source, campaign) => reply(sender, state.lua_run_tests(&test_source, campaign, &settings), Response::LuaTestReport),
 
         // Tools.
-        Command::OptimizePackFile(pack_key, options) => reply(sender, state.optimize_pack(&pack_key, &options), |(deleted, added)| Response::HashSetStringHashSetString(deleted, added)),
-        Command::PatchSiegeAI(pack_key) => reply(sender, state.patch_siege_ai(&pack_key), |(message, paths)| Response::StringVecContainerPath(message, paths)),
-        Command::PackMap(pack_key, tile_maps, tiles) => reply(sender, state.pack_map(&pack_key, tile_maps, tiles, settings.optimizer_options()), |(added, deleted)| Response::VecContainerPathVecContainerPath(added, deleted)),
-        Command::GenerateMissingLocData(_pack_key) => reply(sender, state.generate_missing_loc_data(), Response::VecContainerPath),
-        Command::InitializeMyModFolder(mod_name, mod_game, sublime_support, vscode_support, gitignore) => {
-            let options = MyModOptions { sublime_support, vscode_support, gitignore };
-            reply(sender, state.initialize_mymod_folder(&settings.path_buf(MYMOD_BASE_PATH), &mod_game, &mod_name, &options), Response::PathBuf);
-        }
         Command::GetPackTranslation(pack_key, src_lang, language) => reply(sender, state.pack_translation(&pack_key, &src_lang, &language), Response::PackTranslation),
         Command::GenerateVanillaTranslationSource(src_lang) => reply(sender, state.generate_vanilla_translation_source(&src_lang, &settings), Response::Bool),
-        Command::BuildStarposGetCampaingIds(_pack_key) => send(sender, Response::HashSetString(state.column_values("campaigns_tables", "campaign_name", true, true))),
-        Command::BuildStarposCheckVictoryConditions(pack_key) => reply(sender, state.check_starpos_victory_conditions(&pack_key), done),
-        Command::BuildStarpos(pack_key, campaign_id, process_hlp_spd_data) => reply(sender, state.build_starpos(&pack_key, &campaign_id, process_hlp_spd_data, &settings), done),
-        Command::BuildStarposPost(pack_key, campaign_id, process_hlp_spd_data) => reply(sender, state.build_starpos_post(&pack_key, &campaign_id, process_hlp_spd_data, false, &settings), Response::VecContainerPath),
-        Command::BuildStarposCleanup(pack_key, campaign_id, process_hlp_spd_data) => reply(sender, state.build_starpos_post(&pack_key, &campaign_id, process_hlp_spd_data, true, &settings), done),
         Command::BuildCeo(pack_key, akit_path, bob_exe_path) => reply(sender, state.build_ceo(&pack_key, Path::new(&akit_path), Path::new(&bob_exe_path)), done),
         Command::BuildCeoPost(pack_key, akit_path) => reply(sender, state.build_ceo_post(&pack_key, &akit_path), Response::VecContainerPath),
         Command::BuildCeoEntries(pack_key, entries) => reply(sender, state.build_ceo_entries(&pack_key, &entries), Response::VecContainerPath),
         Command::GetTraitCeos => send(sender, Response::VecStringTuples(state.trait_ceos())),
-        Command::UpdateAnimIds(pack_key, starting_id, offset) => reply(sender, state.update_anim_ids(&pack_key, starting_id, offset), Response::VecContainerPath),
-        Command::ExportRigidToGltf(rigid_model, path) => reply(sender, state.export_rigid_to_gltf(&rigid_model, &PathBuf::from(path)), done),
         Command::GetPluginScripts => reply(sender, plugin_scripts(), Response::VecString),
         Command::RunPluginScript(pack_key, script_path, paths) => reply(sender, state.run_plugin_script(&pack_key, &script_path, &paths, extract_options), |(paths, message)| Response::VecContainerPathOptionString(paths, message)),
 

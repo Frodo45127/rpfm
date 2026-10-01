@@ -25,6 +25,7 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 
+use rpfm_ipc::api::tools::SetVideoFormat;
 use rpfm_ipc::helpers::DataSource;
 
 use rpfm_telemetry::*;
@@ -34,7 +35,7 @@ use rpfm_ui_common::utils::create_grid_layout;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
-use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR, send_ipc_command_result, send_ipc_command_result_async};
+use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR, call_api, send_ipc_command_result_async};
 use crate::ffi::get_text_safe;
 use crate::pack_tree::*;
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -453,7 +454,8 @@ impl FileView {
                             View::UnitVariant(view) => RFileDecoded::UnitVariant(view.save_view()),
                             View::UnitVariantDebug(_) => return Ok(()),
                             View::Video(view) => {
-                                send_ipc_command_result(Command::SetVideoFormat(self.pack_key_copy(), self.path_copy(), view.get_current_format()), response_extractor!())?;
+                                let format = serde_json::to_value(view.get_current_format())?.as_str().unwrap_or_default().to_owned();
+                                call_api(&SetVideoFormat { pack: self.pack_key_copy(), path: self.path_copy(), format })?;
                                 return Ok(());
                             }
                             View::VMD(view) => {

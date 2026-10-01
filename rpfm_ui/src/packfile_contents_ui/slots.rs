@@ -35,6 +35,7 @@ use std::rc::Rc;
 
 use rpfm_extensions::merge::MergeOptions;
 
+use rpfm_ipc::api::tools::{GenerateMissingLocs, LiveExport, MapTile, PackMap, PatchSiegeAi};
 use rpfm_ipc::helpers::DataSource;
 use rpfm_ipc::settings_keys::*;
 
@@ -50,7 +51,7 @@ use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
-use crate::communications::{Command, Response, send_ipc_command, send_ipc_command_result, send_ipc_command_result_async, send_ipc_command_async};
+use crate::communications::{Command, Response, call_api, call_api_async, send_ipc_command, send_ipc_command_result, send_ipc_command_result_async, send_ipc_command_async};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::lua_tests_ui;
 use crate::pack_tree::{PackTree, TreeViewOperation};
@@ -62,7 +63,7 @@ use crate::GAME_SELECTED;
 use crate::UI_STATE;
 use crate::ui_state::OperationalMode;
 use crate::pack_tree::{BuildData, new_pack_file_tooltip};
-use crate::utils::{check_regex, log_to_status_bar, qtr, show_dialog, show_message_info, tr, tre};
+use crate::utils::{check_regex, file_paths, log_to_status_bar, qtr, show_dialog, show_message_info, tr, tre};
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -1840,7 +1841,7 @@ impl PackFileContentsSlots {
             let _ = AppUI::back_to_back_end_all(&app_ui, &pack_file_contents_ui);
 
             let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-            match send_ipc_command_result(Command::GenerateMissingLocData(pack_key.clone()), response_extractor!(Response::VecContainerPath)) {
+            match call_api(&GenerateMissingLocs {}).map(|edited| file_paths(edited.edited)) {
                 Ok(paths_to_add) => {
                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths_to_add.to_vec()), DataSource::PackFile, &pack_key);
 
@@ -2146,10 +2147,10 @@ impl PackFileContentsSlots {
                 GlobalSearchUI::clear(&global_search_ui);
 
                 let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                match send_ipc_command_result_async(Command::PatchSiegeAI(pack_key.clone()), response_extractor!(Response::StringVecContainerPath, message, paths)) {
-                    Ok((message, paths)) => {
-                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(paths, true), DataSource::PackFile, &pack_key);
-                        show_dialog(app_ui.main_window(), message, true);
+                match call_api_async(&PatchSiegeAi { pack: pack_key.clone() }) {
+                    Ok(patched) => {
+                        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(file_paths(patched.deleted), true), DataSource::PackFile, &pack_key);
+                        show_dialog(app_ui.main_window(), patched.message, true);
                     }
                     Err(error) => show_dialog(app_ui.main_window(), error, false),
                 }
@@ -2168,8 +2169,8 @@ impl PackFileContentsSlots {
                 let _ = AppUI::back_to_back_end_all(&app_ui, &pack_file_contents_ui);
 
                 let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                match send_ipc_command_result_async(Command::LiveExport(pack_key), response_extractor!()) {
-                    Ok(()) => show_message_info(app_ui.message_widget(), tr("live_export_success")),
+                match call_api_async(&LiveExport { pack: pack_key }) {
+                    Ok(_) => show_message_info(app_ui.message_widget(), tr("live_export_success")),
                     Err(error) => show_dialog(app_ui.main_window(), error, false),
                 }
 
@@ -2188,8 +2189,10 @@ impl PackFileContentsSlots {
 
                 if let Ok(Some((tile_maps, tiles))) = AppUI::pack_map_dialog(&app_ui, &pack_file_contents_ui) {
                     let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    match send_ipc_command_result_async(Command::PackMap(pack_key.clone(), tile_maps, tiles), response_extractor!(Response::VecContainerPathVecContainerPath, paths_to_add, paths_to_delete)) {
-                        Ok((paths_to_add, paths_to_delete)) => {
+                    let tiles = tiles.into_iter().map(|(path, folder)| MapTile { path, folder }).collect();
+                    match call_api_async(&PackMap { pack: pack_key.clone(), tile_maps, tiles }) {
+                        Ok(changed) => {
+                            let (paths_to_add, paths_to_delete) = (file_paths(changed.added), file_paths(changed.deleted));
                             pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(paths_to_add.to_vec()), DataSource::PackFile, &pack_key);
 
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);

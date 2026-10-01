@@ -41,11 +41,15 @@ use qt_core::QVariant;
 use cpp_core::CppBox;
 use cpp_core::CppDeletable;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use getset::*;
 
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
+
+use rpfm_ipc::api::files::FileRef;
+use rpfm_ipc::api::tools::ExportGltf;
 
 use rpfm_lib::files::{FileType, rigidmodel::{*, materials::{Texture, TextureType}}, table::{DecodedData, local::TableInMemory, Table}};
 use rpfm_lib::schema::{Definition, Field};
@@ -571,8 +575,11 @@ impl RigidModelView {
         );
 
         if !extraction_path.is_empty() {
-            let rigid = self.data.read().unwrap().clone();
-            send_ipc_command_result(Command::ExportRigidToGltf(rigid, extraction_path.to_std_string()), response_extractor!())?;
+            let source = self.data_source.read().unwrap().file_source(&self.pack_key.read().unwrap())
+                .ok_or_else(|| anyhow!("External files can't be exported to glTF."))?;
+
+            let file = FileRef { source, path: self.path.read().unwrap().clone() };
+            call_api(&ExportGltf { file, destination: PathBuf::from(extraction_path.to_std_string()) })?;
             Ok(())
         } else {
             Ok(())

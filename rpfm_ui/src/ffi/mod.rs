@@ -59,11 +59,13 @@ use cpp_core::Ptr;
 
 #[cfg(feature = "support_model_renderer")] use std::collections::HashMap;
 
+#[cfg(feature = "support_model_renderer")] use rpfm_ipc::api::tools::AnimsBySkeleton;
 use rpfm_ipc::settings_keys::*;
 #[cfg(feature = "support_model_renderer")] use rpfm_lib::files::ContainerPath;
-#[cfg(feature = "support_model_renderer")] use rpfm_telemetry::info;
+#[cfg(feature = "support_model_renderer")] use rpfm_telemetry::{error, info};
 
 #[cfg(feature = "support_model_renderer")] use crate::CENTRAL_COMMAND;
+#[cfg(feature = "support_model_renderer")] use crate::communications::call_api;
 use crate::communications::request_disconnect;
 #[cfg(feature = "support_model_renderer")] use crate::communications::{Command, THREADS_COMMUNICATION_ERROR};
 #[cfg(feature = "support_model_renderer")] use crate::GAME_SELECTED;
@@ -872,16 +874,12 @@ pub extern fn anim_paths_by_skeleton_callback(skeleton_name: *mut QString, out: 
 
         info!("Anim Paths requested for skeleton: {}", &skeleton_name);
 
-        let receiver = CENTRAL_COMMAND.read().unwrap().send_background(Command::GetAnimPathsBySkeletonName(skeleton_name));
-        let response = CentralCommand::recv(&receiver);
-        match response {
-            Response::HashSetString(paths) => {
-                for path in &paths {
-                    out.append_q_string(&QString::from_std_str(path));
-                }
+        match call_api(&AnimsBySkeleton { skeleton: skeleton_name }) {
+            Ok(anims) => for path in &anims.paths {
+                out.append_q_string(&QString::from_std_str(path));
             },
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-        };
+            Err(error) => error!("Failed to get the animations of the skeleton: {error}"),
+        }
     }
 }
 

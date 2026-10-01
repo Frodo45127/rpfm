@@ -13,7 +13,6 @@
 
 use anyhow::{anyhow, Result};
 
-use serde_json::Value;
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::env::temp_dir;
@@ -42,7 +41,7 @@ use rpfm_ipc::api::ApiError;
 use rpfm_ipc::api::files::FileRef;
 use rpfm_ipc::api::tables::FilesEdited;
 use rpfm_ipc::api::translations::{DEFAULT_TRANSLATIONS_LIMIT, ListTranslations, TranslationEntry, TranslationFilter, Translations};
-use rpfm_ipc::api::tools::{FilePaths, FilesChanged, InitMyMod, MyModCreated, SiegeAiPatched, StartStartpos, StartposCampaigns};
+use rpfm_ipc::api::tools::{optimizer_option_values, FilePaths, FilesChanged, InitMyMod, MyModCreated, SiegeAiPatched, StartStartpos, StartposCampaigns};
 
 use super::{DecodedFile, ExtractOptions, SessionState, encode_extra_data, loaded_schema, pack, pack_mut};
 use super::files::{legacy_source, raw_paths};
@@ -568,14 +567,6 @@ impl SessionState {
 
         let added = self.build_starpos_post(&pending.pack, &pending.campaign, pending.process_hlp_spd_data, cancel, settings)?;
         Ok(FilesEdited { edited: raw_paths(&added) })
-    }
-}
-
-/// Returns the optimizer options of the settings, by name.
-pub fn optimizer_option_values(options: &OptimizerOptions) -> BTreeMap<String, bool> {
-    match serde_json::to_value(options) {
-        Ok(Value::Object(values)) => values.into_iter().filter_map(|(name, value)| value.as_bool().map(|value| (name, value))).collect(),
-        _ => BTreeMap::new(),
     }
 }
 

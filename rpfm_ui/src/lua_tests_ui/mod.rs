@@ -41,6 +41,7 @@ use std::rc::Rc;
 
 use rpfm_extensions::lua::harness::{LuaTestReport, LuaTestResult};
 
+use rpfm_ipc::api::tools::RunLuaTests;
 use rpfm_ipc::helpers::DataSource;
 
 use rpfm_lib::files::ContainerPath;
@@ -126,7 +127,8 @@ unsafe fn progress_dialog(parent: impl CastInto<Ptr<QWidget>>) -> (QBox<QDialog>
 /// This function runs the tests of a test file of a pack.
 fn run_test_file(pack_key: &str, path: &str) -> Result<LuaTestReport> {
     let (text, _) = send_ipc_command_result_async(Command::DecodePackedFile(pack_key.to_owned(), path.to_owned(), DataSource::PackFile), response_extractor!(Response::TextRFileInfo, text, info))?;
-    send_ipc_command_result_async(Command::LuaRunTests(text.contents().to_owned(), None), response_extractor!(Response::LuaTestReport))
+    let results = run_job(&RunLuaTests { source: text.contents().to_owned(), campaign: None })?;
+    serde_json::from_value(results.report).map_err(From::from)
 }
 
 /// This function shows the results of running test files.
