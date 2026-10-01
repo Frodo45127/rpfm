@@ -55,6 +55,7 @@ use std::rc::Rc;
 
 use rpfm_extensions::diagnostics::{*, anim_fragment_battle::*, config::*, dependency::*, group_formations::*, pack::*, portrait_settings::*, table::*, text::*};
 
+use rpfm_ipc::api::diagnostics::{GetDiagnosticsReport, RunDiagnostics};
 use rpfm_ipc::helpers::DataSource;
 use rpfm_ipc::settings_keys::*;
 
@@ -63,7 +64,7 @@ use rpfm_lib::files::{ContainerPath, portrait_settings::Variant};
 use rpfm_ui_common::utils::{atomic_from_cpp_box, find_widget, load_template, ref_from_atomic};
 
 use crate::app_ui::AppUI;
-use crate::communications::{Command, Response, send_ipc_command_async};
+use crate::communications::{call_api_async, run_job};
 use crate::dependencies_ui::DependenciesUI;
 use crate::ffi::{add_text_diagnostic_safe, clear_text_diagnostics_safe, new_tableview_filter_safe, scroll_to_pos_and_select_safe, trigger_tableview_filter_safe};
 use crate::global_search_ui::GlobalSearchUI;
@@ -534,13 +535,8 @@ impl DiagnosticsUI {
             return;
         }
 
-        let diagnostics_ignored = diagnostics_ui.diagnostics_ignored();
         rpfm_telemetry::track_action("Diagnostics Check");
-        let diagnostics = send_ipc_command_async(Command::DiagnosticsCheck(diagnostics_ignored, diagnostics_ui.diagnostics_button_check_ak_only_refs().is_checked()), response_extractor!(Response::Diagnostics));
-        Self::load_diagnostics_to_ui(app_ui, diagnostics_ui, diagnostics.results());
-        Self::filter(app_ui, diagnostics_ui);
-        Self::update_level_counts(diagnostics_ui, diagnostics.results());
-        UI_STATE.set_diagnostics(&diagnostics);
+        Self::run_check(app_ui, diagnostics_ui, vec![]);
     }
 
     /// This function takes care of updating the results of a diagnostics check for the provided paths.
@@ -551,10 +547,27 @@ impl DiagnosticsUI {
             return;
         }
 
-        let mut diagnostics = UI_STATE.get_diagnostics();
-        *diagnostics.diagnostics_ignored_mut() = diagnostics_ui.diagnostics_ignored();
         rpfm_telemetry::track_action("Diagnostics Check Update");
-        let diagnostics = send_ipc_command_async(Command::DiagnosticsUpdate(diagnostics, paths, diagnostics_ui.diagnostics_button_check_ak_only_refs().is_checked()), response_extractor!(Response::Diagnostics));
+        Self::run_check(app_ui, diagnostics_ui, paths.iter().map(|path| path.path_raw().to_owned()).collect());
+    }
+
+    /// Checks the open packs for problems, and shows the results.
+    ///
+    /// # Arguments
+    ///
+    /// * `paths` - Paths to check again, keeping the results of the last check for the rest. If empty, everything is checked.
+    unsafe fn run_check(app_ui: &Rc<AppUI>, diagnostics_ui: &Rc<Self>, paths: Vec<String>) {
+        let request = RunDiagnostics {
+            paths,
+            ignored_types: diagnostics_ui.diagnostics_ignored(),
+            check_assembly_kit_only_references: diagnostics_ui.diagnostics_button_check_ak_only_refs().is_checked(),
+        };
+
+        let diagnostics = match run_job(&request).and_then(|_| call_api_async(&GetDiagnosticsReport {})) {
+            Ok(diagnostics) => diagnostics,
+            Err(error) => return show_dialog(&diagnostics_ui.diagnostics_dock_widget, error, false),
+        };
+
         Self::load_diagnostics_to_ui(app_ui, diagnostics_ui, diagnostics.results());
         Self::filter(app_ui, diagnostics_ui);
         Self::update_level_counts(diagnostics_ui, diagnostics.results());

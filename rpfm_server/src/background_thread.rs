@@ -34,8 +34,6 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use rpfm_extensions::diagnostics::Diagnostics;
-
 use rpfm_ipc::api::files::FileSource;
 use rpfm_ipc::api::references::RowLocation;
 use rpfm_ipc::helpers::DataSource;
@@ -185,7 +183,6 @@ async fn dispatch(state: &mut SessionState, command: Command, sender: &Unbounded
         Command::SetDependencyPackFilesList(pack_key, dependencies) => reply(sender, state.set_pack_dependencies(&pack_key, dependencies), done),
         Command::GetPackSettings(pack_key) => reply(sender, state.pack_settings(&pack_key), Response::PackSettings),
         Command::SetPackSettings(pack_key, pack_settings) => reply(sender, state.set_pack_settings(&pack_key, pack_settings), done),
-        Command::AddLineToPackIgnoredDiagnostics(pack_key, line) => reply(sender, state.add_pack_ignored_diagnostics_line(&pack_key, line), done),
         Command::SetPackOperationalMode(pack_key, mode) => reply(sender, state.set_pack_operational_mode(&pack_key, mode), done),
         Command::GetPackOperationalMode(pack_key) => send(sender, Response::OperationalMode(state.pack_operational_mode(&pack_key))),
         Command::TriggerBackupAutosave(pack_key) => reply(sender, state.backup_autosave(&pack_key, &settings, disable_uuid_regeneration, settings.i32(AUTOSAVE_AMOUNT) as usize), done),
@@ -308,12 +305,6 @@ async fn dispatch(state: &mut SessionState, command: Command, sender: &Unbounded
         Command::FieldsProcessed(definition) => send(sender, Response::VecField(definition.fields_processed())),
 
         // Diagnostics and Lua.
-        Command::DiagnosticsCheck(diagnostics_ignored, check_ak_only_refs) => {
-            let mut diagnostics = Diagnostics::default();
-            *diagnostics.diagnostics_ignored_mut() = diagnostics_ignored;
-            send(sender, Response::Diagnostics(state.check_diagnostics(diagnostics, &[], check_ak_only_refs, &settings)));
-        }
-        Command::DiagnosticsUpdate(diagnostics, paths, check_ak_only_refs) => send(sender, Response::Diagnostics(state.check_diagnostics(diagnostics, &paths, check_ak_only_refs, &settings))),
         Command::LuaHovers(source) => send(sender, Response::VecU64U64U64U64String(state.lua_hovers(&source, &settings))),
         Command::LuaRunTests(test_source, campaign) => reply(sender, state.lua_run_tests(&test_source, campaign, &settings), Response::LuaTestReport),
 

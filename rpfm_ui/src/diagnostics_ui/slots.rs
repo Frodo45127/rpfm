@@ -23,19 +23,20 @@ use getset::Getters;
 
 use std::rc::Rc;
 
+use rpfm_ipc::api::diagnostics::IgnoreDiagnostics;
 use rpfm_ipc::helpers::DataSource;
 use rpfm_lib::files::ContainerPath;
 use rpfm_ui_common::clone;
 
 use crate::app_ui::AppUI;
-use crate::CENTRAL_COMMAND;
-use crate::communications::Command;
+use crate::communications::call_api;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::references_ui::ReferencesUI;
 use crate::UI_STATE;
+use crate::utils::show_dialog;
 
 //-------------------------------------------------------------------------------//
 //                                  Macros
@@ -178,22 +179,7 @@ impl DiagnosticsUISlots {
             pack_file_contents_ui,
             diagnostics_ui => move || {
                 rpfm_telemetry::track_action("Diagnostics: Ignore Parent Folder");
-                let selection = diagnostics_ui.selection_sorted_and_deduped();
-                let mut string = String::new();
-
-                for index in &selection {
-                    let path = index.model().index_2a(index.row(), 3).data_0a().to_string().to_std_string();
-                    let (path, _) = path.rsplit_once('/').unwrap();
-                    if !path.is_empty() {
-                        string.push_str(path);
-                        string.push('\n');
-                    }
-                }
-
-                if !string.is_empty() {
-                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(pack_key, format!("\n{string}")));
-                }
+                ignore_selection(&diagnostics_ui, &pack_file_contents_ui, IgnoreScope::ParentFolder, false, false);
             }
         ));
 
@@ -201,29 +187,7 @@ impl DiagnosticsUISlots {
             pack_file_contents_ui,
             diagnostics_ui => move || {
                 rpfm_telemetry::track_action("Diagnostics: Ignore Parent Folder Field");
-                let selection = diagnostics_ui.selection_sorted_and_deduped();
-                let mut string = String::new();
-
-                for index in &selection {
-                    let path = index.model().index_2a(index.row(), 3).data_0a().to_string().to_std_string();
-                    let (path, _) = path.rsplit_once('/').unwrap();
-                    let fields = index.model().index_2a(index.row(), 6).data_0a().to_string().to_std_string();
-                    let fields: Vec<String> = if fields.is_empty() {
-                        vec![]
-                    } else {
-                        serde_json::from_str(&fields).unwrap()
-                    };
-
-                    if !path.is_empty() && !fields.is_empty() {
-                        string.push_str(&format!("{path};{}", fields.join(",")));
-                        string.push('\n');
-                    }
-                }
-
-                if !string.is_empty() {
-                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(pack_key, format!("\n{string}")));
-                }
+                ignore_selection(&diagnostics_ui, &pack_file_contents_ui, IgnoreScope::ParentFolder, true, false);
             }
         ));
 
@@ -231,21 +195,7 @@ impl DiagnosticsUISlots {
             pack_file_contents_ui,
             diagnostics_ui => move || {
                 rpfm_telemetry::track_action("Diagnostics: Ignore File");
-                let selection = diagnostics_ui.selection_sorted_and_deduped();
-                let mut string = String::new();
-
-                for index in &selection {
-                    let path = index.model().index_2a(index.row(), 3).data_0a().to_string().to_std_string();
-                    if !path.is_empty() {
-                        string.push_str(&path);
-                        string.push('\n');
-                    }
-                }
-
-                if !string.is_empty() {
-                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(pack_key, format!("\n{string}")));
-                }
+                ignore_selection(&diagnostics_ui, &pack_file_contents_ui, IgnoreScope::File, false, false);
             }
         ));
 
@@ -253,28 +203,7 @@ impl DiagnosticsUISlots {
             pack_file_contents_ui,
             diagnostics_ui => move || {
                 rpfm_telemetry::track_action("Diagnostics: Ignore File Field");
-                let selection = diagnostics_ui.selection_sorted_and_deduped();
-                let mut string = String::new();
-
-                for index in &selection {
-                    let path = index.model().index_2a(index.row(), 3).data_0a().to_string().to_std_string();
-                    let fields = index.model().index_2a(index.row(), 6).data_0a().to_string().to_std_string();
-                    let fields: Vec<String> = if fields.is_empty() {
-                        vec![]
-                    } else {
-                        serde_json::from_str(&fields).unwrap()
-                    };
-
-                    if !path.is_empty() && !fields.is_empty() {
-                        string.push_str(&format!("{path};{}", fields.join(",")));
-                        string.push('\n');
-                    }
-                }
-
-                if !string.is_empty() {
-                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(pack_key, format!("\n{string}")));
-                }
+                ignore_selection(&diagnostics_ui, &pack_file_contents_ui, IgnoreScope::File, true, false);
             }
         ));
 
@@ -282,24 +211,7 @@ impl DiagnosticsUISlots {
             pack_file_contents_ui,
             diagnostics_ui => move || {
                 rpfm_telemetry::track_action("Diagnostics: Ignore Diagnostic for Parent Folder");
-                let selection = diagnostics_ui.selection_sorted_and_deduped();
-                let mut string = String::new();
-
-                for index in &selection {
-                    let path = index.model().index_2a(index.row(), 3).data_0a().to_string().to_std_string();
-                    let (path, _) = path.rsplit_once('/').unwrap();
-                    let diagnostic = index.model().index_2a(index.row(), 5).data_0a().to_string().to_std_string();
-
-                    if !path.is_empty() && !diagnostic.is_empty() {
-                        string.push_str(&format!("{path};;{diagnostic}"));
-                        string.push('\n');
-                    }
-                }
-
-                if !string.is_empty() {
-                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(pack_key, format!("\n{string}")));
-                }
+                ignore_selection(&diagnostics_ui, &pack_file_contents_ui, IgnoreScope::ParentFolder, false, true);
             }
         ));
 
@@ -307,30 +219,7 @@ impl DiagnosticsUISlots {
             pack_file_contents_ui,
             diagnostics_ui => move || {
                 rpfm_telemetry::track_action("Diagnostics: Ignore Diagnostic for Parent Folder Field");
-                let selection = diagnostics_ui.selection_sorted_and_deduped();
-                let mut string = String::new();
-
-                for index in &selection {
-                    let path = index.model().index_2a(index.row(), 3).data_0a().to_string().to_std_string();
-                    let (path, _) = path.rsplit_once('/').unwrap();
-                    let diagnostic = index.model().index_2a(index.row(), 5).data_0a().to_string().to_std_string();
-                    let fields = index.model().index_2a(index.row(), 6).data_0a().to_string().to_std_string();
-                    let fields: Vec<String> = if fields.is_empty() {
-                        vec![]
-                    } else {
-                        serde_json::from_str(&fields).unwrap()
-                    };
-
-                    if !path.is_empty() && !fields.is_empty() && !diagnostic.is_empty() {
-                        string.push_str(&format!("{path};{};{diagnostic}", fields.join(",")));
-                        string.push('\n');
-                    }
-                }
-
-                if !string.is_empty() {
-                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(pack_key, format!("\n{string}")));
-                }
+                ignore_selection(&diagnostics_ui, &pack_file_contents_ui, IgnoreScope::ParentFolder, true, true);
             }
         ));
 
@@ -338,22 +227,7 @@ impl DiagnosticsUISlots {
             pack_file_contents_ui,
             diagnostics_ui => move || {
                 rpfm_telemetry::track_action("Diagnostics: Ignore Diagnostic for File");
-                let selection = diagnostics_ui.selection_sorted_and_deduped();
-                let mut string = String::new();
-
-                for index in &selection {
-                    let path = index.model().index_2a(index.row(), 3).data_0a().to_string().to_std_string();
-                    let diagnostic = index.model().index_2a(index.row(), 5).data_0a().to_string().to_std_string();
-                    if !path.is_empty() && !diagnostic.is_empty() {
-                        string.push_str(&format!("{path};;{diagnostic}"));
-                        string.push('\n');
-                    }
-                }
-
-                if !string.is_empty() {
-                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(pack_key, format!("\n{string}")));
-                }
+                ignore_selection(&diagnostics_ui, &pack_file_contents_ui, IgnoreScope::File, false, true);
             }
         ));
 
@@ -361,29 +235,7 @@ impl DiagnosticsUISlots {
             pack_file_contents_ui,
             diagnostics_ui => move || {
                 rpfm_telemetry::track_action("Diagnostics: Ignore Diagnostic for File Field");
-                let selection = diagnostics_ui.selection_sorted_and_deduped();
-                let mut string = String::new();
-
-                for index in &selection {
-                    let path = index.model().index_2a(index.row(), 3).data_0a().to_string().to_std_string();
-                    let diagnostic = index.model().index_2a(index.row(), 5).data_0a().to_string().to_std_string();
-                    let fields = index.model().index_2a(index.row(), 6).data_0a().to_string().to_std_string();
-                    let fields: Vec<String> = if fields.is_empty() {
-                        vec![]
-                    } else {
-                        serde_json::from_str(&fields).unwrap()
-                    };
-
-                    if !path.is_empty() && !fields.is_empty() && !diagnostic.is_empty() {
-                        string.push_str(&format!("{path};{};{diagnostic}", fields.join(",")));
-                        string.push('\n');
-                    }
-                }
-
-                if !string.is_empty() {
-                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(pack_key, format!("\n{string}")));
-                }
+                ignore_selection(&diagnostics_ui, &pack_file_contents_ui, IgnoreScope::File, true, true);
             }
         ));
 
@@ -391,21 +243,7 @@ impl DiagnosticsUISlots {
             pack_file_contents_ui,
             diagnostics_ui => move || {
                 rpfm_telemetry::track_action("Diagnostics: Ignore Diagnostic for Pack");
-                let selection = diagnostics_ui.selection_sorted_and_deduped();
-                let mut string = String::new();
-
-                for index in &selection {
-                    let diagnostic = index.model().index_2a(index.row(), 5).data_0a().to_string().to_std_string();
-                    if !diagnostic.is_empty() {
-                        string.push_str(&format!(";;{diagnostic}"));
-                        string.push('\n');
-                    }
-                }
-
-                if !string.is_empty() {
-                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    CENTRAL_COMMAND.read().unwrap().send(Command::AddLineToPackIgnoredDiagnostics(pack_key, format!("\n{string}")));
-                }
+                ignore_selection(&diagnostics_ui, &pack_file_contents_ui, IgnoreScope::Pack, false, true);
             }
         ));
 
@@ -516,6 +354,60 @@ impl DiagnosticsUISlots {
             show_hide_extra_filters,
             toggle_filters,
             toggle_filters_all,
+        }
+    }
+}
+
+/// Where an ignore rule made from the selected diagnostics applies.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum IgnoreScope {
+
+    /// The whole pack.
+    Pack,
+
+    /// The folder containing the file of each diagnostic.
+    ParentFolder,
+
+    /// The file of each diagnostic.
+    File,
+}
+
+/// Makes the next checks of the selected pack skip the selected diagnostics.
+///
+/// Diagnostics missing what the rule needs (a path, columns or a type) are skipped.
+///
+/// # Arguments
+///
+/// * `diagnostics_ui` - The diagnostics panel, with the selection.
+/// * `pack_file_contents_ui` - The pack tree, to know the selected pack.
+/// * `scope` - Where the rules apply.
+/// * `with_columns` - If the rules only cover the columns of each diagnostic.
+/// * `with_type` - If the rules only cover the type of each diagnostic.
+unsafe fn ignore_selection(diagnostics_ui: &Rc<DiagnosticsUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>, scope: IgnoreScope, with_columns: bool, with_type: bool) {
+    let pack = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+    for index in &diagnostics_ui.selection_sorted_and_deduped() {
+        let cell = |column| index.model().index_2a(index.row(), column).data_0a().to_string().to_std_string();
+        let file_path = cell(3);
+        let path = match scope {
+            IgnoreScope::Pack => String::new(),
+            IgnoreScope::ParentFolder => file_path.rsplit_once('/').map(|(folder, _)| folder.to_owned()).unwrap_or_default(),
+            IgnoreScope::File => file_path,
+        };
+
+        let columns = if with_columns {
+            let columns = cell(6);
+            if columns.is_empty() { vec![] } else { serde_json::from_str::<Vec<String>>(&columns).unwrap_or_default() }
+        } else {
+            vec![]
+        };
+
+        let report_types = if with_type { vec![cell(5)].into_iter().filter(|report_type| !report_type.is_empty()).collect() } else { vec![] };
+        if (scope != IgnoreScope::Pack && path.is_empty()) || (with_columns && columns.is_empty()) || (with_type && report_types.is_empty()) {
+            continue;
+        }
+
+        if let Err(error) = call_api(&IgnoreDiagnostics { pack: pack.clone(), path, columns, report_types }) {
+            return show_dialog(&diagnostics_ui.diagnostics_dock_widget, error, false);
         }
     }
 }

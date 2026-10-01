@@ -15,7 +15,7 @@
 use serde_json::{Map, Value};
 
 use rpfm_ipc::api::{ApiError, Done, Request, RpcRequest, RpcResponse};
-use rpfm_ipc::api::diagnostics::{IgnoreDiagnostics, ListDiagnostics, RunDiagnostics};
+use rpfm_ipc::api::diagnostics::{GetDiagnosticsReport, IgnoreDiagnostics, ListDiagnostics, RunDiagnostics};
 use rpfm_ipc::api::files::{
     AddFilesFromDisk, AddToAnimPack, CopyFiles, CreateFile, DeleteFiles, DeleteFromAnimPack, DuplicateFiles, ExtractFiles, ExtractFromAnimPack, ListAnimPack,
     ListFiles, ReadFile, RenameFiles, WriteFile,
@@ -203,6 +203,7 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         }),
         ListDiagnostics::METHOD => call(params, |request: ListDiagnostics| state.list_diagnostics(&request)),
         IgnoreDiagnostics::METHOD => call(params, |request: IgnoreDiagnostics| state.ignore_diagnostics(&request)),
+        GetDiagnosticsReport::METHOD => call(params, |_: GetDiagnosticsReport| state.diagnostics_report()),
 
         RunSearch::METHOD => call(params, |request: RunSearch| {
             report_stage("Searching");

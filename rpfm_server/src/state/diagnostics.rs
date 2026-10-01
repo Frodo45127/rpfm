@@ -127,6 +127,15 @@ impl SessionState {
         Ok(DiagnosticList { results: page, total })
     }
 
+    /// Returns the results of the last diagnostics check, as the check returns them.
+    ///
+    /// # Errors
+    ///
+    /// Fails if there are no results yet.
+    pub fn diagnostics_report(&self) -> Result<Diagnostics> {
+        Ok(self.diagnostics.as_ref().ok_or(ApiError::DiagnosticsNotRun)?.diagnostics.clone())
+    }
+
     /// Makes the next diagnostics checks of a pack skip some results, saving the rule in the pack's settings.
     ///
     /// # Errors

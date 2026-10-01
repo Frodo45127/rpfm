@@ -18,6 +18,8 @@ use serde::{Deserialize, Serialize};
 
 use std::collections::BTreeMap;
 
+use rpfm_extensions::diagnostics::Diagnostics;
+
 use super::{Done, Request};
 
 /// Default amount of results returned by [`ListDiagnostics`].
@@ -170,6 +172,17 @@ impl Request for RunDiagnostics {
 impl Request for ListDiagnostics {
     const METHOD: &'static str = "diagnostics.list";
     type Response = DiagnosticList;
+}
+
+/// `diagnostics.report`: returns the results of the last diagnostics check, as the check returns them.
+///
+/// Meant for clients showing the results with all their details. Others should use `diagnostics.list`.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GetDiagnosticsReport {}
+
+impl Request for GetDiagnosticsReport {
+    const METHOD: &'static str = "diagnostics.report";
+    type Response = Diagnostics;
 }
 
 impl Request for IgnoreDiagnostics {

@@ -58,7 +58,6 @@ use std::fmt::Debug;
 use std::path::PathBuf;
 
 use rpfm_extensions::dependencies::TableReferences;
-use rpfm_extensions::diagnostics::Diagnostics;
 use rpfm_extensions::lua::harness::LuaTestReport;
 use rpfm_extensions::merge::{MergeConflict, MergeOptions};
 use rpfm_extensions::optimizer::OptimizerOptions;
@@ -689,18 +688,6 @@ pub enum Command {
     // Diagnostics Commands
     //-----------------------------------------------------------------------//
 
-    /// Trigger a full diagnostics check over all open Packs.
-    /// First field is ignored diagnostics, then check AK-only references.
-    ///
-    /// Response: [`Response::Diagnostics`].
-    DiagnosticsCheck(Vec<String>, bool),
-
-    /// Trigger a partial diagnostics update over all open packs.
-    /// First field is existing diagnostics, then paths to check, check AK-only references.
-    ///
-    /// Response: [`Response::Diagnostics`].
-    DiagnosticsUpdate(Diagnostics, Vec<ContainerPath>, bool),
-
     /// Get the docs of the documented functions, accessors and events used in a Lua script, for showing them on hover.
     /// The field is the code of the script.
     ///
@@ -903,12 +890,6 @@ pub enum Command {
     //-----------------------------------------------------------------------//
     // Diagnostics Ignore Commands
     //-----------------------------------------------------------------------//
-
-    /// Add a line to a specific pack's ignored diagnostics.
-    /// First field is the pack key, second is the diagnostic line.
-    ///
-    /// Response: [`Response::Success`].
-    AddLineToPackIgnoredDiagnostics(String, String),
 
     //-----------------------------------------------------------------------//
     // Empire/Napoleon AK Commands
@@ -1150,7 +1131,6 @@ pub enum Response {
     DBRFileInfo(DB, RFileInfo),
     Definition(Definition),
     DependenciesInfo(DependenciesInfo),
-    Diagnostics(Diagnostics),
     ESFRFileInfo(ESF, RFileInfo),
     GitHubDeviceCode(DeviceCode),
     GitHubSignInRequired,
