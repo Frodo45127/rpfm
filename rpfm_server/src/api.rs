@@ -16,7 +16,10 @@ use serde_json::{Map, Value};
 
 use rpfm_ipc::api::{ApiError, Done, Request, RpcRequest, RpcResponse};
 use rpfm_ipc::api::diagnostics::{IgnoreDiagnostics, ListDiagnostics, RunDiagnostics};
-use rpfm_ipc::api::files::{AddFilesFromDisk, CopyFiles, CreateFile, DeleteFiles, DuplicateFiles, ExtractFiles, ListFiles, RenameFiles};
+use rpfm_ipc::api::files::{
+    AddFilesFromDisk, AddToAnimPack, CopyFiles, CreateFile, DeleteFiles, DeleteFromAnimPack, DuplicateFiles, ExtractFiles, ExtractFromAnimPack, ListAnimPack,
+    ListFiles, ReadFile, RenameFiles, WriteFile,
+};
 use rpfm_ipc::api::search::{ListSearchMatches, ReplaceSearchMatches, RunSearch};
 use rpfm_ipc::api::notes::{AddNote, DeleteNote, ListNotes, NoteList};
 use rpfm_ipc::api::packs::{ClosePack, CloseAllPacks, GetPackInfo, GetPackSettings, NewPack, OpenPack, OpenVanillaPacks, SavePack, UpdatePack, UpdatePackSettings};
@@ -29,7 +32,7 @@ use rpfm_ipc::api::tools::{
     AnimsBySkeleton, ExportGltf, FinishStartpos, GenerateMissingLocs, GetOptimizerOptions, GetStartposCampaigns, InitMyMod, LiveExport, LuaTestResults,
     OptimizePack, OptimizerOptionValues, PackMap, PatchSiegeAi, RunLuaTests, SetVideoFormat, StartStartpos, UpdateAnimIds,
 };
-use rpfm_ipc::settings_keys::{ALLOW_EDITING_OF_CA_PACKFILES, MYMOD_BASE_PATH, DISABLE_UUID_REGENERATION_ON_DB_TABLES, IGNORE_GAME_FILES_IN_AK, INCLUDE_BASE_FOLDER_ON_ADD_FROM_FOLDER, TABLES_USE_OLD_COLUMN_ORDER_FOR_TSV, USE_LAZY_LOADING};
+use rpfm_ipc::settings_keys::{ALLOW_EDITING_OF_CA_PACKFILES, ENABLE_ESF_EDITOR, MYMOD_BASE_PATH, DISABLE_UUID_REGENERATION_ON_DB_TABLES, IGNORE_GAME_FILES_IN_AK, INCLUDE_BASE_FOLDER_ON_ADD_FROM_FOLDER, TABLES_USE_OLD_COLUMN_ORDER_FOR_TSV, USE_LAZY_LOADING};
 
 use rpfm_lib::schema::{SCHEMA_BRANCH, SCHEMA_REMOTE, SCHEMA_REPO};
 
@@ -131,6 +134,12 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
             state.add_disk_files(&request, include_base_folder)
         }),
         CopyFiles::METHOD => call(params, |request: CopyFiles| state.copy_files_to_pack(&request)),
+        ReadFile::METHOD => call(params, |request: ReadFile| state.read_file(&request, settings.bool(ENABLE_ESF_EDITOR), settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES))),
+        WriteFile::METHOD => call(params, |request: WriteFile| state.write_file(&request).map(|_| Done {})),
+        ListAnimPack::METHOD => call(params, |request: ListAnimPack| state.list_animpack(&request.file)),
+        AddToAnimPack::METHOD => call(params, |request: AddToAnimPack| state.add_to_animpack(&request)),
+        ExtractFromAnimPack::METHOD => call(params, |request: ExtractFromAnimPack| state.extract_from_animpack(&request)),
+        DeleteFromAnimPack::METHOD => call(params, |request: DeleteFromAnimPack| state.delete_in_animpack(&request).map(|_| Done {})),
         DeleteFiles::METHOD => call(params, |request: DeleteFiles| state.delete_paths(&request)),
         RenameFiles::METHOD => call(params, |request: RenameFiles| state.rename_paths(&request)),
         DuplicateFiles::METHOD => call(params, |request: DuplicateFiles| state.duplicate_paths(&request)),

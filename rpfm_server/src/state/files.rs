@@ -12,6 +12,7 @@
 //! and read files from every data source.
 
 use anyhow::{anyhow, Result};
+use base64::{Engine, engine::general_purpose::STANDARD};
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::env::temp_dir;
@@ -23,6 +24,7 @@ use rpfm_extensions::optimizer::{OptimizableContainer, OptimizerOptions};
 
 use rpfm_ipc::api::ApiError;
 use rpfm_ipc::api::files::{
+    AddToAnimPack, DeleteFromAnimPack, ExtractFromAnimPack, FileContents, FileData, FileRef, ReadFile, ReadFormat, WriteFile,
     AddFilesFromDisk, ASSEMBLY_KIT_TABLE_FILE_NAME, CopyFiles, CreateFile, DEFAULT_FILES_LIMIT, DeleteFiles, DuplicateFiles, ExtractFiles,
     FileEntry, FileList, FileRename, FileSource, FilesAdded, FilesDeleted, FilesExtracted, FilesRenamed, ListFiles, NewFileKind, RenameFiles,
 };
@@ -34,6 +36,7 @@ use rpfm_lib::files::{
     pack::{Pack, RESERVED_NAME_NOTES}, portrait_settings::PortraitSettings, RFile, RFileDecoded,
     text::{Text, TextFormat}, video::SupportedFormats,
 };
+use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::games::{GameInfo, VanillaDBTableNameLogic};
 use rpfm_lib::schema::Schema;
 
@@ -889,6 +892,12 @@ impl SessionState {
             NewFileKind::Loc => NewFile::Loc(request.path.clone()),
             NewFileKind::Text { format } => NewFile::Text(request.path.clone(), format.unwrap_or(TextFormat::Plain)),
             NewFileKind::AnimPack => NewFile::AnimPack(request.path.clone()),
+            NewFileKind::PortraitSettings { version, ref copy_entries } => {
+                let entries = copy_entries.iter().map(|entry| (entry.from.clone(), entry.to.clone())).collect();
+                NewFile::PortraitSettings(request.path.clone(), version, entries)
+            }
+            NewFileKind::Vmd => NewFile::VMD(request.path.clone()),
+            NewFileKind::WsModel => NewFile::WSModel(request.path.clone()),
         };
 
         self.new_file(&request.pack, &request.path, new_file)?;
@@ -1014,10 +1023,170 @@ impl SessionState {
         Ok(FilesExtracted { extracted })
     }
 
+    /// Returns the contents of a file of any source.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - The file, and how to return it.
+    /// * `enable_esf_editor` - If ESF files are decoded.
+    /// * `disable_uuid_regeneration` - If tables keep their GUID when encoded to return their bytes.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the file doesn't exist, or can't be returned in the requested format.
+    pub fn read_file(&mut self, request: &ReadFile, enable_esf_editor: bool, disable_uuid_regeneration: bool) -> Result<FileContents> {
+        if request.format == ReadFormat::Raw {
+            let compression_format = match request.file.source {
+                FileSource::Pack(ref pack_key) => pack(&self.packs, pack_key)?.compression_format(),
+                _ => CompressionFormat::None,
+            };
+
+            let extra_data = encode_extra_data(&self.game, compression_format, disable_uuid_regeneration);
+            let file = writable_file(&mut self.packs, &mut self.dependencies, &request.file)?;
+            file.load()?;
+
+            let file_type = file.file_type();
+            let bytes = match file.cached() {
+                Ok(data) => data.to_vec(),
+                Err(_) => file.encode(&extra_data, false, false, true)?
+                    .ok_or_else(|| anyhow!("The file {} returned no data when encoded.", request.file.path))?,
+            };
+
+            return Ok(FileContents { file_type, contents: FileData::Raw { base64: STANDARD.encode(bytes) } });
+        }
+
+        let (pack_key, data_source) = legacy_source(&request.file.source);
+        let pack_key = pack_key.to_owned();
+        let (decoded, file_type) = match self.decode_file(&pack_key, &request.file.path, data_source, enable_esf_editor)? {
+            DecodedFile::Decoded(decoded, info) => (*decoded, *info.file_type()),
+            DecodedFile::Notes(notes) => (RFileDecoded::Text(notes), FileType::Text),
+            DecodedFile::Unsupported | DecodedFile::External => {
+                return Err(ApiError::InvalidParams(format!("The file {} can't be decoded. Read it as raw instead.", request.file.path)).into());
+            }
+        };
+
+        let contents = match request.format {
+            ReadFormat::Text => match decoded {
+                RFileDecoded::Text(text) | RFileDecoded::VMD(text) | RFileDecoded::WSModel(text) => FileData::Text { text: text.contents().to_owned() },
+                _ => return Err(ApiError::InvalidParams(format!("The file {} is not a text file.", request.file.path)).into()),
+            },
+            ReadFormat::Decoded | ReadFormat::Raw => FileData::Decoded { data: serde_json::to_value(decoded)? },
+        };
+
+        Ok(FileContents { file_type, contents })
+    }
+
+    /// Replaces the contents of a file of an open pack.
+    ///
+    /// With raw contents, the file is created if it doesn't exist.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the file doesn't exist (except for raw contents), or if the contents don't fit the file.
+    pub fn write_file(&mut self, request: &WriteFile) -> Result<()> {
+        let pack = pack_mut(&mut self.packs, &request.pack)?;
+        match request.contents {
+            FileData::Raw { ref base64 } => {
+                let bytes = STANDARD.decode(base64).map_err(|error| ApiError::InvalidParams(format!("Invalid base64: {error}")))?;
+                let file_type = pack.files().get(&request.path).map_or(FileType::Unknown, |file| file.file_type());
+                let mut file = RFile::new_from_vec(&bytes, file_type, 0, &request.path);
+                if file_type == FileType::Unknown {
+                    let _ = file.guess_file_type();
+                }
+
+                pack.insert(file)?;
+            }
+            FileData::Text { ref text } => {
+                let file = pack.files_mut().get_mut(&request.path).ok_or_else(|| ApiError::FileNotFound(request.path.clone()))?;
+                let _ = file.decode(&Some(DecodeableExtraData::default()), true, false);
+                match file.decoded_mut() {
+                    Ok(RFileDecoded::Text(data)) | Ok(RFileDecoded::VMD(data)) | Ok(RFileDecoded::WSModel(data)) => { data.set_contents(text.clone()); }
+                    _ => return Err(ApiError::InvalidParams(format!("The file {} is not a text file.", request.path)).into()),
+                }
+            }
+            FileData::Decoded { ref data } => {
+                if !pack.has_file(&request.path) && request.path != RESERVED_NAME_NOTES {
+                    return Err(ApiError::FileNotFound(request.path.clone()).into());
+                }
+
+                let decoded = serde_json::from_value::<RFileDecoded>(data.clone())
+                    .map_err(|error| ApiError::InvalidParams(format!("Invalid decoded file: {error}")))?;
+                self.save_file_from_view(&request.pack, &request.path, decoded)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Returns the files inside an AnimPack of any source, sorted by path.
+    pub fn list_animpack(&mut self, file: &FileRef) -> Result<FileList> {
+        let (pack_key, data_source) = legacy_source(&file.source);
+        let pack_key = pack_key.to_owned();
+        let files = match self.decode_file(&pack_key, &file.path, data_source, false)? {
+            DecodedFile::Decoded(decoded, _) => match *decoded {
+                RFileDecoded::AnimPack(anim_pack) => {
+                    let mut files = anim_pack.files().values()
+                        .map(|file| FileEntry { path: file.path_in_container_raw().to_owned(), file_type: file.file_type() })
+                        .collect::<Vec<_>>();
+                    files.sort_unstable_by(|a, b| a.path.cmp(&b.path));
+                    files
+                }
+                _ => return Err(ApiError::InvalidParams(format!("The file {} is not an AnimPack.", file.path)).into()),
+            },
+            _ => return Err(ApiError::InvalidParams(format!("The file {} is not an AnimPack.", file.path)).into()),
+        };
+
+        Ok(FileList { total: files.len(), files, folders: vec![] })
+    }
+
+    /// Copies files of an open pack into an AnimPack of an open pack.
+    pub fn add_to_animpack(&mut self, request: &AddToAnimPack) -> Result<FilesAdded> {
+        let paths = self.pack_container_paths(&request.from_pack, &request.paths)?;
+        let added = self.add_files_to_animpack(&request.from_pack, &request.pack, &request.animpack, &paths)?;
+        Ok(FilesAdded { added: raw_paths(&added), ..FilesAdded::default() })
+    }
+
+    /// Copies files of an AnimPack of any source into an open pack.
+    pub fn extract_from_animpack(&mut self, request: &ExtractFromAnimPack) -> Result<FilesAdded> {
+        let paths = self.animpack_container_paths(&request.file, &request.paths)?;
+        let (pack_key, data_source) = legacy_source(&request.file.source);
+        let pack_key = pack_key.to_owned();
+        let added = self.add_files_from_animpack(&pack_key, &request.to_pack, data_source, &request.file.path, &paths)?;
+        Ok(FilesAdded { added: raw_paths(&added), ..FilesAdded::default() })
+    }
+
+    /// Deletes files from an AnimPack of an open pack.
+    pub fn delete_in_animpack(&mut self, request: &DeleteFromAnimPack) -> Result<()> {
+        let file = FileRef { source: FileSource::Pack(request.pack.clone()), path: request.animpack.clone() };
+        let paths = self.animpack_container_paths(&file, &request.paths)?;
+        self.delete_from_animpack(&request.pack, &request.animpack, &paths)
+    }
+
+    /// Resolves paths inside an AnimPack into file or folder paths, depending on if there's a file at each one.
+    fn animpack_container_paths(&mut self, file: &FileRef, paths: &[String]) -> Result<Vec<ContainerPath>> {
+        let files = self.list_animpack(file)?.files.into_iter().map(|file| file.path).collect::<HashSet<_>>();
+        Ok(paths.iter().map(|path| container_path(|path| files.contains(path), path)).collect())
+    }
+
     /// Resolves paths of an open pack into file or folder paths, depending on if there's a file at each one.
     pub(super) fn pack_container_paths(&self, pack_key: &str, paths: &[String]) -> Result<Vec<ContainerPath>> {
         let pack = pack(&self.packs, pack_key)?;
         Ok(paths.iter().map(|path| container_path(|path| pack.has_file(path), path)).collect())
+    }
+}
+
+/// Returns a file of an open pack, the game files or the parent packs, mutably.
+///
+/// # Errors
+///
+/// Fails if the file doesn't exist, or if it's an Assembly Kit table, which isn't stored as a file.
+fn writable_file<'a>(packs: &'a mut BTreeMap<String, Pack>, dependencies: &'a mut Dependencies, file: &FileRef) -> Result<&'a mut RFile> {
+    let not_found = || ApiError::FileNotFound(file.path.clone());
+    match file.source {
+        FileSource::Pack(ref pack_key) => Ok(pack_mut(packs, pack_key)?.files_mut().get_mut(&file.path).ok_or_else(not_found)?),
+        FileSource::GameFiles => dependencies.file_mut(&file.path, true, false).map_err(|_| not_found().into()),
+        FileSource::ParentFiles => dependencies.file_mut(&file.path, false, true).map_err(|_| not_found().into()),
+        FileSource::AssemblyKit => Err(ApiError::InvalidParams("Assembly Kit tables aren't files. Read them with table.rows.".to_owned()).into()),
     }
 }
 

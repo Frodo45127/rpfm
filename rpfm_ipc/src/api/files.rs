@@ -13,11 +13,13 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use serde_json::Value;
+
 use std::path::PathBuf;
 
 use rpfm_lib::files::{FileType, text::TextFormat};
 
-use super::{default_true, Request};
+use super::{default_true, Done, Request};
 
 /// File name of the Assembly Kit tables, in paths like `db/<table_name>/ak_data`.
 pub const ASSEMBLY_KIT_TABLE_FILE_NAME: &str = "ak_data";
@@ -160,6 +162,34 @@ pub enum NewFileKind {
 
     /// An empty AnimPack.
     AnimPack,
+
+    /// A portrait settings file, optionally with entries copied from the vanilla ones.
+    PortraitSettings {
+
+        /// Version of the file format.
+        version: u32,
+
+        /// Vanilla entries to copy into the new file, with the ID each copy gets.
+        #[serde(default)]
+        copy_entries: Vec<EntryCopy>,
+    },
+
+    /// An empty VMD (variant mesh definition) file.
+    Vmd,
+
+    /// An empty WSModel file.
+    WsModel,
+}
+
+/// An entry copied from a vanilla file, with a new ID.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct EntryCopy {
+
+    /// ID of the vanilla entry.
+    pub from: String,
+
+    /// ID of the copy.
+    pub to: String,
 }
 
 /// `files.add_from_disk`: adds files and folders from disk to an open pack.
@@ -338,4 +368,169 @@ impl Request for DuplicateFiles {
 impl Request for ExtractFiles {
     const METHOD: &'static str = "files.extract";
     type Response = FilesExtracted;
+}
+
+/// `file.read`: returns the contents of a file of any source.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ReadFile {
+
+    /// The file.
+    pub file: FileRef,
+
+    /// How to return the contents. Defaults to `decoded`.
+    #[serde(default)]
+    pub format: ReadFormat,
+}
+
+/// How to return the contents of a file.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ReadFormat {
+
+    /// The decoded file, as JSON. For DB and Loc tables, `table.rows` returns only the rows you need,
+    /// and for images and other binary files `raw` is smaller.
+    #[default]
+    Decoded,
+
+    /// The text, for text files like scripts, XML or JSON files.
+    Text,
+
+    /// The bytes of the file, encoded in base64.
+    Raw,
+}
+
+/// Contents of a file.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum FileData {
+
+    /// The text of a text file.
+    Text {
+
+        /// The text.
+        text: String,
+    },
+
+    /// The decoded file, as JSON, in the format `file.read` returns it.
+    Decoded {
+
+        /// The decoded file.
+        data: Value,
+    },
+
+    /// The bytes of the file.
+    Raw {
+
+        /// The bytes, encoded in base64.
+        base64: String,
+    },
+}
+
+/// Contents of a file, with its type.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct FileContents {
+
+    /// Type of the file, like `Text`, `Image` or `RigidModel`.
+    #[schemars(with = "String")]
+    pub file_type: FileType,
+
+    /// The contents.
+    pub contents: FileData,
+}
+
+/// `file.write`: replaces the contents of a file of an open pack.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct WriteFile {
+
+    /// Key of the pack.
+    pub pack: String,
+
+    /// Path of the file. With raw contents, the file is created if it doesn't exist.
+    pub path: String,
+
+    /// The new contents. Text contents only work on files that are text files.
+    pub contents: FileData,
+}
+
+/// `animpack.list`: lists the files inside an AnimPack of any source.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ListAnimPack {
+
+    /// The AnimPack.
+    pub file: FileRef,
+}
+
+/// `animpack.add`: copies files of an open pack into an AnimPack of an open pack.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct AddToAnimPack {
+
+    /// Key of the pack with the AnimPack.
+    pub pack: String,
+
+    /// Path of the AnimPack.
+    pub animpack: String,
+
+    /// Key of the pack to copy the files from.
+    pub from_pack: String,
+
+    /// Paths of the files and folders to copy.
+    pub paths: Vec<String>,
+}
+
+/// `animpack.extract`: copies files of an AnimPack of any source into an open pack.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ExtractFromAnimPack {
+
+    /// The AnimPack.
+    pub file: FileRef,
+
+    /// Paths inside the AnimPack of the files and folders to copy.
+    pub paths: Vec<String>,
+
+    /// Key of the pack to copy them to.
+    pub to_pack: String,
+}
+
+/// `animpack.delete`: deletes files from an AnimPack of an open pack.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct DeleteFromAnimPack {
+
+    /// Key of the pack with the AnimPack.
+    pub pack: String,
+
+    /// Path of the AnimPack.
+    pub animpack: String,
+
+    /// Paths inside the AnimPack of the files and folders to delete.
+    pub paths: Vec<String>,
+}
+
+impl Request for ReadFile {
+    const METHOD: &'static str = "file.read";
+    type Response = FileContents;
+}
+
+impl Request for WriteFile {
+    const METHOD: &'static str = "file.write";
+    type Response = Done;
+}
+
+impl Request for ListAnimPack {
+    const METHOD: &'static str = "animpack.list";
+    type Response = FileList;
+}
+
+impl Request for AddToAnimPack {
+    const METHOD: &'static str = "animpack.add";
+    type Response = FilesAdded;
+}
+
+impl Request for ExtractFromAnimPack {
+    const METHOD: &'static str = "animpack.extract";
+    type Response = FilesAdded;
+}
+
+impl Request for DeleteFromAnimPack {
+    const METHOD: &'static str = "animpack.delete";
+    type Response = Done;
 }

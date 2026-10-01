@@ -68,6 +68,7 @@ use rpfm_ipc::api::tools::{
 };
 use rpfm_ipc::api::updates::{ApplyUpdate, CheckUpdate, UpdateStatus};
 use rpfm_ipc::api::files::{
+    AddToAnimPack, DeleteFromAnimPack, ExtractFromAnimPack, FileContents, ListAnimPack, ReadFile, WriteFile,
     AddFilesFromDisk, CopyFiles, CreateFile, DeleteFiles, DuplicateFiles, ExtractFiles, FileEntry, FileList, FilesAdded, FilesDeleted,
     FilesExtracted, FilesRenamed, ListFiles, RenameFiles,
 };
@@ -78,9 +79,7 @@ use rpfm_ipc::api::tables::{
     AddKeyDeletes, ColumnValues, EditTable, ExportTsv, FilesEdited, GetColumnValues, GetTableDefinition, GetTableInfo, GetTableRows, ImportTsv, MergeTables,
     RenameKey, TableDefinition, TableEdited, TableInfo, TableRows, TablesMerged, TableUpgraded, UpgradeTable,
 };
-use rpfm_ipc::helpers::DataSource;
 use rpfm_ipc::messages::{Command, Response};
-use rpfm_lib::files::{ContainerPath, RFile, RFileDecoded};
 use rpfm_telemetry::sentry;
 
 use crate::session::{Session, recv_response};
@@ -203,15 +202,6 @@ pub struct CallCommandArgs {
 
 
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct DecodePackedFileArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The path of the file inside the data source.
-    pub path: String,
-    /// The data source to decode from.
-    pub source: DataSource,
-}
 
 // -- Pack Lifecycle Args --
 
@@ -225,92 +215,18 @@ pub struct PathArg {
 // -- Pack Key Args (multi-pack support) --
 
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct PackKeyStringArg {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// A string value.
-    pub value: String,
-}
 
 // -- Pack Metadata Args --
 
 
 // -- File Operations Args --
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct NewPackedFileArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The path for the new file inside the pack.
-    pub path: String,
-    /// The JSON representation of the NewFile enum.
-    pub new_file: String,
-}
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct AddPackedFilesFromPackFileToAnimpackArgs {
-    /// The key of the source pack the files are copied from.
-    pub source_pack_key: String,
-    /// The key of the pack that owns the target AnimPack (may differ from the source).
-    pub pack_key: String,
-    /// The animpack path.
-    pub animpack_path: String,
-    /// The JSON representation of Vec<ContainerPath> for files to add.
-    pub container_paths: String,
-}
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct AddPackedFilesFromAnimpackArgs {
-    /// The key of the pack that owns the AnimPack (only used when `source` is a PackFile).
-    pub anim_pack_key: String,
-    /// The key of the destination pack the files are copied into (may differ from the AnimPack's).
-    pub pack_key: String,
-    /// The data source to get the animpack from.
-    pub source: DataSource,
-    /// The animpack path.
-    pub animpack_path: String,
-    /// The JSON representation of Vec<ContainerPath> for files to add.
-    pub container_paths: String,
-}
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct ContainerPathsArg {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The JSON representation of Vec<ContainerPath>.
-    pub paths: String,
-}
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct DeleteFromAnimpackArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The animpack path.
-    pub animpack_path: String,
-    /// The JSON representation of Vec<ContainerPath> for files to delete.
-    pub container_paths: String,
-}
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct SavePackedFileFromViewArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The path of the file inside the pack.
-    pub path: String,
-    /// The JSON representation of the RFileDecoded enum.
-    pub data: String,
-}
 
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct SavePackedFilesToPackFileAndCleanArgs {
-    /// The key of the target pack.
-    pub pack_key: String,
-    /// The JSON representation of Vec<RFile>.
-    pub files: String,
-    /// Whether to optimize after saving.
-    pub optimize: bool,
-}
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct StringArg {
@@ -504,20 +420,19 @@ format used by all modern Total War titles.
 - **PackFile**: An archive containing game data files (DB tables, localisation, textures, models, etc.). \
   Mods are distributed as PackFiles.
 - **pack_key**: When you open one or more PackFiles, each gets a unique key string. Use `session_status` \
-  to discover available keys. Most tools require a `pack_key` parameter.
+  to discover available keys. Tools working on a pack take its key as `pack`.
 - **Reading data**: `list_files`, `table_info`, `table_rows` and `table_definition` return small, \
-  paginated, structured results. Prefer them over `decode_packed_file` for DB and Loc tables.
+  paginated, structured results. `read_file` reads any other file, as text, decoded JSON or raw bytes.
 - **Editing tables**: `edit_table` inserts, updates and deletes rows by index, with values by column \
   name. To change a vanilla table, copy it into your pack with `copy_files` first.
 - **Paths**: tools taking plain path strings treat a path as a file if one exists there, or as a \
   folder otherwise.
-- **Jobs**: slow tools (`set_game`, `generate_dependencies_cache`, `rebuild_dependencies`) run as jobs. \
+- **Jobs**: slow tools (`set_game`, `generate_dependencies_cache`, `run_diagnostics`, `run_search`, `optimize_pack`...) run as jobs. \
   They wait up to 45 seconds and return the job's state, with its result if it finished. If it's still \
   running, call `wait_for_job` with its ID. Other tools called meanwhile wait for the job to end.
-- **DataSource**: Where data lives — `\"PackFile\"` (the user's mod), `\"GameFiles\"` (vanilla game data), \
-  `\"ParentFiles\"` (dependency mods), `\"AssKitFiles\"` (Assembly Kit data), `\"ExternalFile\"` (disk file).
-- **ContainerPath**: A path inside a pack — either `{\"File\": \"db/land_units_tables/my_table\"}` or \
-  `{\"Folder\": \"db/land_units_tables\"}`. Use an empty string for root folder.
+- **Sources**: where a file is — `{\"pack\": <pack key>}` (an open pack), `\"game_files\"` (vanilla game data), \
+  `\"parent_files\"` (packs the open packs depend on), or `\"assembly_kit\"` (Assembly Kit tables). A file is \
+  referenced as `{\"source\": <source>, \"path\": <path>}`.
 
 ## Required Initialization Sequence
 
@@ -547,16 +462,6 @@ Valid game keys: `pharaoh_dynasties`, `pharaoh`, `warhammer_3`, `troy`, `three_k
 
 `\"None\"` (default), `\"Lzma1\"` (legacy), `\"Lz4\"` (WH3 6.2+), `\"Zstd\"` (WH3 6.2+).
 
-## Creating New Files (NewFile)
-
-- DB table: `{\"DB\": [\"file_name\", \"table_name\", version]}` — e.g. `{\"DB\": [\"my_mod\", \"land_units_tables\", 0]}`
-- Loc file: `{\"Loc\": \"file_name\"}`
-- Text file: `{\"Text\": [\"file_name\", \"Plain\"]}` — formats: `\"Plain\"`, `\"Html\"`, `\"Xml\"`, `\"Lua\"`, `\"Cpp\"`, `\"Json\"`, `\"Markdown\"`, `\"Smithy\"`
-- AnimPack: `{\"AnimPack\": \"file_name\"}`
-- PortraitSettings: `{\"PortraitSettings\": [\"file_name\", version, [[\"entry_key\", \"entry_value\"]]]}`
-- VMD: `{\"VMD\": \"file_name\"}`
-- WSModel: `{\"WSModel\": \"file_name\"}`
-
 ## Resources
 
 Use `resources/list` and `resources/read` to browse reference data: valid enum values, game lists, \
@@ -564,7 +469,8 @@ and example JSON payloads without needing tool calls.
 
 ## Responses
 
-All tool responses are JSON-serialized. On failure, an error message is returned instead of the expected data.
+Tools return structured results. On failure, they return a tool error with a `code`, a `message` and, \
+in `data`, the `kind` of error (like `pack_not_found` or `schema_not_loaded`).
 ")
     }
 
@@ -581,11 +487,7 @@ All tool responses are JSON-serialized. On failure, an error message is returned
             resource("rpfm://games", "games", "List of all supported Total War game keys.", "application/json"),
             resource("rpfm://enums/PFHFileType", "PFHFileType", "Valid PackFile type values (Boot, Release, Patch, Mod, Movie).", "application/json"),
             resource("rpfm://enums/CompressionFormat", "CompressionFormat", "Valid compression format values (None, Lzma1, Lz4, Zstd).", "application/json"),
-            resource("rpfm://enums/DataSource", "DataSource", "Valid data source values indicating where data comes from.", "application/json"),
-            resource("rpfm://enums/ContainerPath", "ContainerPath", "ContainerPath enum variants with JSON examples.", "application/json"),
-            resource("rpfm://enums/NewFile", "NewFile", "NewFile enum variants for creating files inside packs, with JSON examples.", "application/json"),
             resource("rpfm://enums/SupportedFormats", "SupportedFormats", "Valid video format values (CaVp8, Ivf).", "application/json"),
-            resource("rpfm://examples/optimizer_options", "OptimizerOptions example", "Example JSON for OptimizerOptions with all boolean fields.", "application/json"),
             resource("rpfm://reference/initialization", "Initialization guide", "Step-by-step guide for initializing the RPFM MCP server session.", "text/plain"),
             resource("rpfm://reference/path_conventions", "Path conventions", "Common file path conventions inside Total War PackFiles.", "text/plain"),
         ];
@@ -657,79 +559,6 @@ All tool responses are JSON-serialized. On failure, an error message is returned
                 "json_example": "\"None\""
             }).to_string(),
 
-            "rpfm://enums/DataSource" => serde_json::json!({
-                "enum": "DataSource",
-                "description": "Identifies where data comes from when working with files.",
-                "variants": [
-                    {"name": "PackFile", "description": "Data from the user's currently open pack (mod files)."},
-                    {"name": "GameFiles", "description": "Data from vanilla game files."},
-                    {"name": "ParentFiles", "description": "Data from parent/dependency pack files."},
-                    {"name": "AssKitFiles", "description": "Data from the Assembly Kit (modding tools)."},
-                    {"name": "ExternalFile", "description": "Data from an external file on disk."}
-                ],
-                "json_example": "\"PackFile\""
-            }).to_string(),
-
-            "rpfm://enums/ContainerPath" => serde_json::json!({
-                "enum": "ContainerPath",
-                "description": "A path reference inside a PackFile, pointing to either a file or a folder.",
-                "variants": [
-                    {
-                        "name": "File",
-                        "description": "Path to a single file inside the pack.",
-                        "json_example": {"File": "db/land_units_tables/my_table"}
-                    },
-                    {
-                        "name": "Folder",
-                        "description": "Path to a folder inside the pack. Use empty string for root.",
-                        "json_example": {"Folder": "db/land_units_tables"}
-                    }
-                ],
-                "usage_notes": "Most tools accept a JSON array of ContainerPath objects, e.g. [{\"File\": \"path1\"}, {\"Folder\": \"path2\"}]"
-            }).to_string(),
-
-            "rpfm://enums/NewFile" => serde_json::json!({
-                "enum": "NewFile",
-                "description": "Specifies what type of file to create inside a pack.",
-                "variants": [
-                    {
-                        "name": "DB",
-                        "description": "Create a new DB table. Args: [file_name, table_name, version].",
-                        "json_example": {"DB": ["my_mod", "land_units_tables", 0]}
-                    },
-                    {
-                        "name": "Loc",
-                        "description": "Create a new localisation file. Arg: file_name.",
-                        "json_example": {"Loc": "my_mod"}
-                    },
-                    {
-                        "name": "Text",
-                        "description": "Create a new text file. Args: [file_name, format]. Formats: Bat, Cpp, Html, Hlsl, Json, Js, Css, Lua, Markdown, Plain, Python, Sql, Xml, Yaml.",
-                        "json_example": {"Text": ["my_script", "Lua"]}
-                    },
-                    {
-                        "name": "AnimPack",
-                        "description": "Create a new AnimPack file. Arg: file_name.",
-                        "json_example": {"AnimPack": "my_anim"}
-                    },
-                    {
-                        "name": "PortraitSettings",
-                        "description": "Create a new portrait settings file. Args: [file_name, version, entries].",
-                        "json_example": {"PortraitSettings": ["my_portraits", 3, []]}
-                    },
-                    {
-                        "name": "VMD",
-                        "description": "Create a new VMD file. Arg: file_name.",
-                        "json_example": {"VMD": "my_vmd"}
-                    },
-                    {
-                        "name": "WSModel",
-                        "description": "Create a new WSModel file. Arg: file_name.",
-                        "json_example": {"WSModel": "my_model"}
-                    }
-                ]
-            }).to_string(),
-
             "rpfm://enums/SupportedFormats" => serde_json::json!({
                 "enum": "SupportedFormats",
                 "description": "Video format options for CA VP8 video files.",
@@ -738,51 +567,6 @@ All tool responses are JSON-serialized. On failure, an error message is returned
                     {"name": "Ivf", "description": "Standard VP8 IVF format."}
                 ],
                 "json_example": "\"CaVp8\""
-            }).to_string(),
-
-
-            "rpfm://examples/optimizer_options" => serde_json::json!({
-                "description": "OptimizerOptions struct with all boolean fields for pack optimization.",
-                "example": {
-                    "pack_remove_itm_files": true,
-                    "pack_apply_compression": true,
-                    "pack_apply_encryption": false,
-                    "pack_remove_duplicated_files": false,
-                    "db_import_datacores_into_twad_key_deletes": false,
-                    "db_optimize_datacored_tables": false,
-                    "table_remove_duplicated_entries": true,
-                    "table_remove_itm_entries": true,
-                    "table_remove_itnr_entries": true,
-                    "table_remove_empty_file": true,
-                    "text_remove_unused_xml_map_folders": false,
-                    "text_remove_unused_xml_prefab_folder": false,
-                    "text_remove_agf_files": false,
-                    "text_remove_model_statistics_files": false,
-                    "pts_remove_unused_art_sets": false,
-                    "pts_remove_unused_variants": false,
-                    "pts_remove_empty_masks": false,
-                    "pts_remove_empty_file": false
-                },
-                "field_descriptions": {
-                    "pack_remove_itm_files": "Remove files identical to vanilla (Identical To Master).",
-                    "pack_apply_compression": "Apply the most modern compression format the active game supports (overriding the pack's configured one), so the next save compresses the files.",
-                    "pack_apply_encryption": "Enable both index and data encryption, so the next save encrypts the pack. No-op on packs older than PFH4.",
-                    "pack_remove_duplicated_files": "Remove case-insensitively duplicated files (same name ignoring casing) when their contents are identical, keeping the all-lowercase one or, failing that, the last one.",
-                    "db_import_datacores_into_twad_key_deletes": "Import datacored tables into TWAD key deletes.",
-                    "db_optimize_datacored_tables": "Optimize datacored tables.",
-                    "table_remove_duplicated_entries": "Remove duplicate rows in tables.",
-                    "table_remove_itm_entries": "Remove rows identical to vanilla.",
-                    "table_remove_itnr_entries": "Remove rows identical to vanilla that are not referenced.",
-                    "table_remove_empty_file": "Remove tables with no rows.",
-                    "text_remove_unused_xml_map_folders": "Remove unused XML files in map folders.",
-                    "text_remove_unused_xml_prefab_folder": "Remove unused XML files in prefab folders.",
-                    "text_remove_agf_files": "Remove AGF files.",
-                    "text_remove_model_statistics_files": "Remove model statistics files.",
-                    "pts_remove_unused_art_sets": "Remove unused art sets in portrait settings.",
-                    "pts_remove_unused_variants": "Remove unused variants in portrait settings.",
-                    "pts_remove_empty_masks": "Remove empty masks in portrait settings.",
-                    "pts_remove_empty_file": "Remove empty portrait settings files."
-                }
             }).to_string(),
 
             "rpfm://reference/initialization" => "\
@@ -1521,6 +1305,66 @@ Runs as a job: waits up to 45 seconds and returns its state, with the report as 
     }
 
     #[tool(
+        name = "read_file",
+        description = "Read a file of an open pack, the game files or the parent packs: as `text` for scripts, XML, JSON and other text files; as `decoded` JSON for structured formats (portrait settings, unit variants, models, etc.); or as `raw` base64 bytes, best for images and other binary files. For DB and Loc tables, prefer `table_rows`, which returns only the rows and columns you ask for.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<FileContents>(),
+    )]
+    pub async fn read_file(&self, params: Parameters<ReadFile>) -> Result<CallToolResult, McpError> {
+        self.call_api("read_file", params.0).await
+    }
+
+    #[tool(
+        name = "write_file",
+        description = "Replace the contents of a file of an open pack: `text` for text files, `decoded` JSON in the format `read_file` returns, or `raw` base64 bytes (which also creates the file if it doesn't exist). For DB and Loc tables, prefer `edit_table`.",
+        annotations(read_only_hint = false, destructive_hint = true),
+        output_schema = schema_for_output::<Done>(),
+    )]
+    pub async fn write_file(&self, params: Parameters<WriteFile>) -> Result<CallToolResult, McpError> {
+        self.call_api("write_file", params.0).await
+    }
+
+    #[tool(
+        name = "list_animpack",
+        description = "List the files inside an AnimPack of an open pack, the game files or the parent packs.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<FileList>(),
+    )]
+    pub async fn list_animpack(&self, params: Parameters<ListAnimPack>) -> Result<CallToolResult, McpError> {
+        self.call_api("list_animpack", params.0).await
+    }
+
+    #[tool(
+        name = "add_to_animpack",
+        description = "Copy files of an open pack into an AnimPack of an open pack.",
+        annotations(read_only_hint = false, destructive_hint = false),
+        output_schema = schema_for_output::<FilesAdded>(),
+    )]
+    pub async fn add_to_animpack(&self, params: Parameters<AddToAnimPack>) -> Result<CallToolResult, McpError> {
+        self.call_api("add_to_animpack", params.0).await
+    }
+
+    #[tool(
+        name = "extract_from_animpack",
+        description = "Copy files of an AnimPack of any source into an open pack.",
+        annotations(read_only_hint = false, destructive_hint = false),
+        output_schema = schema_for_output::<FilesAdded>(),
+    )]
+    pub async fn extract_from_animpack(&self, params: Parameters<ExtractFromAnimPack>) -> Result<CallToolResult, McpError> {
+        self.call_api("extract_from_animpack", params.0).await
+    }
+
+    #[tool(
+        name = "delete_from_animpack",
+        description = "Delete files from an AnimPack of an open pack.",
+        annotations(read_only_hint = false, destructive_hint = true),
+        output_schema = schema_for_output::<Done>(),
+    )]
+    pub async fn delete_from_animpack(&self, params: Parameters<DeleteFromAnimPack>) -> Result<CallToolResult, McpError> {
+        self.call_api("delete_from_animpack", params.0).await
+    }
+
+    #[tool(
         name = "job_status",
         description = "Get the state of a job: queued, running (with its current step), finished (with its result), failed (with its error) or cancelled.",
         annotations(read_only_hint = true),
@@ -1729,58 +1573,6 @@ Runs as a job: waits up to 45 seconds and returns its state, with the report as 
     //-----------------------------------------------------------------------//
     // File Operations
     //-----------------------------------------------------------------------//
-
-    #[tool(description = "Decode a file from the pack identified by `pack_key`. The `path` is the internal file path (e.g. \"db/land_units_tables/my_mod\"). The `source` is the data source: \"PackFile\" (user mod), \"GameFiles\" (vanilla), \"ParentFiles\" (dependency mods), \"AssKitFiles\", or \"ExternalFile\". Returns the whole decoded file as JSON (RFileDecoded). For DB and Loc tables, prefer `table_info` and `table_rows`, which return only the columns and rows you ask for.")]
-    pub async fn decode_packed_file(&self, params: Parameters<DecodePackedFileArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "decode_packed_file", Command::DecodePackedFile(params.0.pack_key, params.0.path, params.0.source))
-    }
-
-    #[tool(description = "Create a new file inside the pack identified by `pack_key`. The `path` is the destination path (e.g. \"db/land_units_tables/my_mod\"). NewFile types: {\"DB\": [\"file_name\", \"table_name\", version]}, {\"Loc\": \"name\"}, {\"Text\": [\"name\", \"Plain\"]}, {\"AnimPack\": \"name\"}, {\"VMD\": \"name\"}, {\"WSModel\": \"name\"}, {\"PortraitSettings\": [\"name\", version, []]}.")]
-    pub async fn new_packed_file(&self, params: Parameters<NewPackedFileArgs>) -> Result<CallToolResult, McpError> {
-        let new_file = parse_json!(&params.0.new_file);
-        send_and_respond!(self, "new_packed_file", Command::NewPackedFile(params.0.pack_key, params.0.path, new_file))
-    }
-
-    #[tool(description = "Copy files from the pack identified by `source_pack_key` into an AnimPack owned by `pack_key` (the two may differ). The `container_paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"animations/anim.anim\"}]. The `animpack_path` is the AnimPack's internal path.")]
-    pub async fn add_packed_files_from_pack_file_to_animpack(&self, params: Parameters<AddPackedFilesFromPackFileToAnimpackArgs>) -> Result<CallToolResult, McpError> {
-        let paths: Vec<ContainerPath> = parse_json!(&params.0.container_paths);
-        send_and_respond!(self, "add_packed_files_from_pack_file_to_animpack", Command::AddPackedFilesFromPackFileToAnimpack(params.0.source_pack_key, params.0.pack_key, params.0.animpack_path, paths))
-    }
-
-    #[tool(description = "Copy files from an AnimPack owned by `anim_pack_key` into the destination pack `pack_key` (the two may differ). The `source` is the DataSource (\"PackFile\", \"GameFiles\", etc.); `anim_pack_key` is only used when it is \"PackFile\". The `animpack_path` is the AnimPack's internal path. The `container_paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"animations/anim.anim\"}].")]
-    pub async fn add_packed_files_from_animpack(&self, params: Parameters<AddPackedFilesFromAnimpackArgs>) -> Result<CallToolResult, McpError> {
-        let paths: Vec<ContainerPath> = parse_json!(&params.0.container_paths);
-        send_and_respond!(self, "add_packed_files_from_animpack", Command::AddPackedFilesFromAnimpack(params.0.anim_pack_key, params.0.pack_key, params.0.source, params.0.animpack_path, paths))
-    }
-
-    #[tool(description = "Delete files from an AnimPack in the pack identified by `pack_key`. The `animpack_path` is the AnimPack's internal path. The `container_paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"animations/anim.anim\"}].")]
-    pub async fn delete_from_animpack(&self, params: Parameters<DeleteFromAnimpackArgs>) -> Result<CallToolResult, McpError> {
-        let paths: Vec<ContainerPath> = parse_json!(&params.0.container_paths);
-        send_and_respond!(self, "delete_from_animpack", Command::DeleteFromAnimpack(params.0.pack_key, params.0.animpack_path, paths))
-    }
-
-    #[tool(description = "Save an edited decoded file back to the pack identified by `pack_key`. The `path` is the internal path (e.g. \"db/land_units_tables/my_mod\"). The `data` is the modified RFileDecoded JSON (same structure returned by `decode_packed_file`).")]
-    pub async fn save_packed_file_from_view(&self, params: Parameters<SavePackedFileFromViewArgs>) -> Result<CallToolResult, McpError> {
-        let data: RFileDecoded = parse_json!(&params.0.data);
-        send_and_respond!(self, "save_packed_file_from_view", Command::SavePackedFileFromView(params.0.pack_key, params.0.path, data))
-    }
-
-    #[tool(description = "Save files to the pack identified by `pack_key` and optionally optimize afterward. The `files` is a JSON array of RFile objects (as returned by decode/get operations). Set `optimize` to true to remove unchanged data after saving.")]
-    pub async fn save_packed_files_to_pack_file_and_clean(&self, params: Parameters<SavePackedFilesToPackFileAndCleanArgs>) -> Result<CallToolResult, McpError> {
-        let files: Vec<RFile> = parse_json!(&params.0.files);
-        send_and_respond!(self, "save_packed_files_to_pack_file_and_clean", Command::SavePackedFilesToPackFileAndClean(params.0.pack_key, files, params.0.optimize))
-    }
-
-    #[tool(description = "Get the raw binary data of a file in the pack identified by `pack_key`.")]
-    pub async fn get_packed_file_raw_data(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_packed_file_raw_data", Command::GetPackedFileRawData(params.0.pack_key, params.0.value))
-    }
-
-    #[tool(description = "Clean the decode cache for the provided paths in the pack identified by `pack_key`. The `paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"db/land_units_tables/my_mod\"}, {\"Folder\": \"db\"}].")]
-    pub async fn clean_cache(&self, params: Parameters<ContainerPathsArg>) -> Result<CallToolResult, McpError> {
-        let paths: Vec<ContainerPath> = parse_json!(&params.0.paths);
-        send_and_respond!(self, "clean_cache", Command::CleanCache(params.0.pack_key, paths))
-    }
 
     //-----------------------------------------------------------------------//
     // Game Selection
@@ -2046,8 +1838,8 @@ Follow these steps in order:
 
 4. **Read tables** – For DB and Loc tables, call `table_info` to see their columns and row count,
    and `table_rows` to read rows, picking only the columns and rows you need with `columns` and
-   `filters`. For other files, call `decode_packed_file` with the pack key, the internal path,
-   and `source: \"PackFile\"`.
+   `filters`. For other files, call `read_file`: as `text` for scripts and other text files,
+   or as `decoded` JSON for the rest.
 
 5. **Inspect metadata** – Use `pack_info` and `pack_settings` to answer questions about the pack itself.
 
@@ -2293,7 +2085,7 @@ Paths are plain strings: a path is treated as a file if one exists there, or as 
 
 **Create files:**
 - `create_file` – Create an empty DB table, Loc table, text file or AnimPack.
-- `new_packed_file` – Create other file types, like portrait settings.
+- `write_file` – Replace the contents of a file: as text, decoded JSON, or raw bytes (which also creates new files).
 
 **Add files:**
 - `add_files_from_disk` – Import files and folders from disk into a folder of the pack.
@@ -2310,12 +2102,13 @@ Paths are plain strings: a path is treated as a file if one exists there, or as 
   Set `as_tsv: true` to export tables as TSV files.
 
 **AnimPack operations:**
-- `add_packed_files_from_pack_file_to_animpack` – Add files to an AnimPack.
-- `add_packed_files_from_animpack` – Extract files from an AnimPack.
+- `list_animpack` – List the files inside an AnimPack.
+- `add_to_animpack` – Add files to an AnimPack.
+- `extract_from_animpack` – Copy files from an AnimPack into a pack.
 - `delete_from_animpack` – Remove files from an AnimPack.
 
 **Other:**
-- `get_packed_file_raw_data` – Get the raw binary content of a file.
+- `read_file` – Read any file as text, decoded JSON, or raw base64 bytes.
 - `merge_tables` – Combine multiple compatible tables into one.
 
 Always call `save_pack` when done to persist changes.
@@ -2333,7 +2126,7 @@ You are an assistant helping the user troubleshoot common RPFM and PackFile issu
 ## Common Issues and Solutions
 
 ### 1. Schema not loaded
-**Symptom**: Files fail to decode, or `decode_packed_file` returns raw data.
+**Symptom**: Files fail to decode, or `read_file` says they can't be decoded.
 **Solution**:
 - Call `session_status()` – if `schema_loaded` is false, call `update_schemas()`.
 - Make sure `set_game` was called for the right game.

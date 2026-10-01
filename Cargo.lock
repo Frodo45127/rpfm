@@ -4843,6 +4843,7 @@ version = "5.1.0"
 dependencies = [
  "anyhow",
  "axum",
+ "base64 0.22.1",
  "directories",
  "futures",
  "itertools",
