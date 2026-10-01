@@ -474,7 +474,7 @@ impl FileView {
                         };
 
                         // Save the PackedFile, and trigger the stuff that needs to be triggered after a save.
-                        if let Err(error) = send_ipc_command_result_async(Command::SavePackedFileFromView(self.pack_key_copy(), self.path_copy(), data), response_extractor!()) {
+                        if let Err(error) = send_ipc_command_result_async(Command::SavePackedFileFromView(self.pack_key_copy(), self.path_copy(), Box::new(data)), response_extractor!()) {
                             show_dialog(pack_file_contents_ui.packfile_contents_tree_view(), error, false);
                         }
                         Ok(())

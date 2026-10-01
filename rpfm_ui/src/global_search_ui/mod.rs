@@ -54,21 +54,24 @@ use anyhow::Result;
 use getset::Getters;
 use rayon::prelude::*;
 
+use std::collections::BTreeSet;
 use std::rc::Rc;
 
-use rpfm_extensions::search::{GlobalSearch, MatchHolder,
-    anim_fragment_battle::{AnimFragmentBattleMatches, AnimFragmentBattleMatch},
-    atlas::{AtlasMatches, AtlasMatch},
-    portrait_settings::{PortraitSettingsMatches, PortraitSettingsMatch},
-    rigid_model::{RigidModelMatches, RigidModelMatch},
+use rpfm_extensions::search::{GlobalSearch, SearchOn,
+    anim_fragment_battle::AnimFragmentBattleMatches,
+    atlas::AtlasMatches,
+    portrait_settings::PortraitSettingsMatches,
+    rigid_model::RigidModelMatches,
     SearchSource,
     schema::SchemaMatches,
-    table::{TableMatches, TableMatch},
-    text::{TextMatches, TextMatch},
-    unit_variant::{UnitVariantMatches, UnitVariantMatch},
-    unknown::{UnknownMatches, UnknownMatch}
+    table::TableMatches,
+    text::TextMatches,
+    unit_variant::UnitVariantMatches,
+    unknown::UnknownMatches
 };
 
+use rpfm_ipc::api::files::FileSource;
+use rpfm_ipc::api::search::{GetSearchReport, ReplaceSearchMatches, RunSearch, SearchReport};
 use rpfm_ipc::helpers::DataSource;
 use rpfm_ipc::settings_keys::*;
 
@@ -78,7 +81,7 @@ use rpfm_lib::utils::closest_valid_char_byte;
 use rpfm_ui_common::utils::{atomic_from_cpp_box, find_widget, load_template, ptr_from_atomic, ref_from_atomic};
 
 use crate::app_ui::AppUI;
-use crate::communications::{Command, Response, send_ipc_command_result};
+use crate::communications::{Command, Response, call_api, call_api_async, run_job, send_ipc_command};
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::{kline_edit_configure_safe, new_eliding_check_box_safe, new_search_match_item_delegate_safe, new_treeview_filter_safe, scroll_to_row_safe, trigger_treeview_filter_safe};
@@ -158,6 +161,9 @@ const MATCH_PACK_KEY: i32 = 49;
 // constants of the same name in search_match_item_delegate.cpp.
 const MATCH_HIGHLIGHT_START: i32 = 50;
 const MATCH_HIGHLIGHT_END: i32 = 51;
+
+/// ID of a match in the server's last search, used to replace it.
+const MATCH_ID: i32 = 52;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -586,7 +592,7 @@ impl GlobalSearchUI {
     }
 
     /// This function is used to search the entire PackFile, using the data in Self for the search.
-    pub unsafe fn search(&self, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
+    pub unsafe fn search(&self) {
 
         // Create the global search and populate it with all the settings for the search.
         let global_search = match self.search_data_from_ui(true, false) {
@@ -594,57 +600,66 @@ impl GlobalSearchUI {
             None => return,
         };
 
-        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+        let request = RunSearch {
+            pattern: global_search.pattern().to_owned(),
+            case_sensitive: *global_search.case_sensitive(),
+            use_regex: *global_search.use_regex(),
+            sources: global_search.sources().iter().map(file_source).collect(),
+            file_types: Some(file_types(global_search.search_on())),
+        };
 
         // Setup all the column's data while waiting for the results.
         self.build_trees();
 
-        // Load the results to their respective models. Then, store the GlobalSearch for future checks.
-        match send_ipc_command_result(Command::GlobalSearch(pack_key.clone(), global_search), response_extractor!(Response::GlobalSearchVecRFileInfo, v1, v2)) {
-            Ok((global_search, packed_files_info)) => {
-
-                // Focus on the tree with the results. We do it before loading because it's quite a lot faster that way.
-                if !global_search.matches().db().is_empty() || !global_search.matches().loc().is_empty() || !global_search.matches().text().is_empty() {
-                    self.matches_tab_widget().set_current_index(0);
-                }
-
-                else if !global_search.matches().schema().matches().is_empty() {
-                    self.matches_tab_widget().set_current_index(1);
-                }
-
-                self.load_anim_fragment_battle_matches_to_ui(global_search.matches().anim_fragment_battle(), FileType::AnimFragmentBattle);
-                self.load_atlas_matches_to_ui(global_search.matches().atlas(), FileType::Atlas);
-                self.load_portrait_settings_matches_to_ui(global_search.matches().portrait_settings(), FileType::PortraitSettings);
-                self.load_rigid_model_matches_to_ui(global_search.matches().rigid_model(), FileType::RigidModel);
-                self.load_table_matches_to_ui(global_search.matches().db(), FileType::DB);
-                self.load_table_matches_to_ui(global_search.matches().loc(), FileType::Loc);
-                self.load_text_matches_to_ui(global_search.matches().text(), FileType::Text);
-                self.load_unit_variant_matches_to_ui(global_search.matches().unit_variant(), FileType::UnitVariant);
-                self.load_unknown_matches_to_ui(global_search.matches().unknown(), FileType::Unknown);
-                self.load_schema_matches_to_ui(global_search.matches().schema());
-
-                // Render the file results as a grouped flat list: expand every file so its matches
-                // are visible without manual clicking, and span each file row into a banner header.
-                // The expansion is skipped when the user opts to keep results collapsed by default.
-                self.matches_table_and_text_tree_view.set_animated(false);
-                if !settings_bool(GLOBAL_SEARCH_COLLAPSE_RESULTS) {
-                    self.matches_table_and_text_tree_view.expand_all();
-                }
-                self.matches_table_and_text_tree_view.set_animated(true);
-                self.span_result_headers();
-
-                // Columns 1 and 2 were auto-sized to their content while loading results. Switch them
-                // to Interactive now so the user can drag-resize them; column 0 stays Stretch to fill the rest.
-                let header = self.matches_table_and_text_tree_view.header();
-                header.set_section_resize_mode_2a(0, ResizeMode::Interactive);
-                header.set_section_resize_mode_2a(1, ResizeMode::Interactive);
-                header.set_section_resize_mode_2a(2, ResizeMode::Interactive);
-
-                UI_STATE.set_global_search(&global_search);
-                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile, &pack_key);
-            },
+        match run_job(&request).and_then(|_| call_api_async(&GetSearchReport {})) {
+            Ok(report) => self.load_report(&report),
             Err(error) => show_dialog(&self.dock_widget, error, false),
         }
+    }
+
+    /// Loads the results of the last search into the UI, and stores the search for future checks.
+    unsafe fn load_report(&self, report: &SearchReport) {
+        let global_search = &report.search;
+        let first_ids = |file_type: &str| report.first_ids.get(file_type).map(Vec::as_slice).unwrap_or_default();
+
+        // Focus on the tree with the results. We do it before loading because it's quite a lot faster that way.
+        if !global_search.matches().db().is_empty() || !global_search.matches().loc().is_empty() || !global_search.matches().text().is_empty() {
+            self.matches_tab_widget().set_current_index(0);
+        }
+
+        else if !global_search.matches().schema().matches().is_empty() {
+            self.matches_tab_widget().set_current_index(1);
+        }
+
+        self.load_anim_fragment_battle_matches_to_ui(global_search.matches().anim_fragment_battle(), FileType::AnimFragmentBattle, first_ids("anim_fragment_battle"));
+        self.load_atlas_matches_to_ui(global_search.matches().atlas(), FileType::Atlas, first_ids("atlas"));
+        self.load_portrait_settings_matches_to_ui(global_search.matches().portrait_settings(), FileType::PortraitSettings, first_ids("portrait_settings"));
+        self.load_rigid_model_matches_to_ui(global_search.matches().rigid_model(), FileType::RigidModel, first_ids("rigid_model"));
+        self.load_table_matches_to_ui(global_search.matches().db(), FileType::DB, first_ids("db"));
+        self.load_table_matches_to_ui(global_search.matches().loc(), FileType::Loc, first_ids("loc"));
+        self.load_text_matches_to_ui(global_search.matches().text(), FileType::Text, first_ids("text"));
+        self.load_unit_variant_matches_to_ui(global_search.matches().unit_variant(), FileType::UnitVariant, first_ids("unit_variant"));
+        self.load_unknown_matches_to_ui(global_search.matches().unknown(), FileType::Unknown, first_ids("unknown"));
+        self.load_schema_matches_to_ui(global_search.matches().schema());
+
+        // Render the file results as a grouped flat list: expand every file so its matches
+        // are visible without manual clicking, and span each file row into a banner header.
+        // The expansion is skipped when the user opts to keep results collapsed by default.
+        self.matches_table_and_text_tree_view.set_animated(false);
+        if !settings_bool(GLOBAL_SEARCH_COLLAPSE_RESULTS) {
+            self.matches_table_and_text_tree_view.expand_all();
+        }
+        self.matches_table_and_text_tree_view.set_animated(true);
+        self.span_result_headers();
+
+        // Columns 1 and 2 were auto-sized to their content while loading results. Switch them
+        // to Interactive now so the user can drag-resize them; column 0 stays Stretch to fill the rest.
+        let header = self.matches_table_and_text_tree_view.header();
+        header.set_section_resize_mode_2a(0, ResizeMode::Interactive);
+        header.set_section_resize_mode_2a(1, ResizeMode::Interactive);
+        header.set_section_resize_mode_2a(2, ResizeMode::Interactive);
+
+        UI_STATE.set_global_search(global_search);
     }
 
     /// This function clears the Global Search result's data, and reset the UI for it.
@@ -742,8 +757,7 @@ impl GlobalSearchUI {
             return show_dialog(app_ui.main_window(), "The dependencies are read-only. You cannot do a Global Replace over them.", false);
         }
 
-        let matches = self.matches_from_selection();
-        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+        let ids = self.match_ids_from_selection();
 
         // Before rebuilding the tree, check what items are expanded, to re-expand them later.
         let filter_model: QPtr<QSortFilterProxyModel> = self.matches_table_and_text_tree_view.model().static_downcast();
@@ -758,44 +772,28 @@ impl GlobalSearchUI {
             }
         }
 
-        match send_ipc_command_result(Command::GlobalSearchReplaceMatches(pack_key.clone(), global_search, matches.to_vec()), response_extractor!(Response::GlobalSearchVecRFileInfo, v1, v2)) {
-            Ok((global_search, packed_files_info)) => {
-
-                // Re-search to update the results.
-                UI_STATE.set_global_search(&global_search);
-                self.search(pack_file_contents_ui);
-
-                // Update the views of the updated PackedFiles.
-                for path in packed_files_info.iter().map(|x| x.path()) {
-                    if let Some(file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| &*x.path_read() == path && x.data_source() == DataSource::PackFile) {
-                        if let Err(error) = file_view.reload(path, pack_file_contents_ui) {
-                            show_dialog(app_ui.main_window(), error, false);
-                        }
-                    }
-                }
-
-                // Re-expand the previously expanded items. We disable animation to avoid the slow opening behaviour of the UI.
-                self.matches_table_and_text_tree_view.set_animated(false);
-
-                let root = self.matches_table_and_text_tree_model.invisible_root_item();
-                for index in 0..root.row_count() {
-                    let source_item = root.child_1a(index);
-
-                    if expanded.iter().any(|old| source_item.text().compare_q_string(old) == 0) {
-                        let source_index = source_item.index();
-                        let view_index = filter_model.map_from_source(&source_index);
-                        if view_index.is_valid() && !self.matches_table_and_text_tree_view.is_expanded(&view_index) {
-                            self.matches_table_and_text_tree_view.expand(&view_index)
-                        }
-                    }
-                }
-
-                self.matches_table_and_text_tree_view.set_animated(true);
-
-                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile, &pack_key);
-            },
-            Err(error) => show_dialog(app_ui.main_window(), error, false),
+        let request = ReplaceSearchMatches { replace_text: global_search.replace_text().to_owned(), matches: Some(ids) };
+        if !self.replace(app_ui, pack_file_contents_ui, &request) {
+            return;
         }
+
+        // Re-expand the previously expanded items. We disable animation to avoid the slow opening behaviour of the UI.
+        self.matches_table_and_text_tree_view.set_animated(false);
+
+        let root = self.matches_table_and_text_tree_model.invisible_root_item();
+        for index in 0..root.row_count() {
+            let source_item = root.child_1a(index);
+
+            if expanded.iter().any(|old| source_item.text().compare_q_string(old) == 0) {
+                let source_index = source_item.index();
+                let view_index = filter_model.map_from_source(&source_index);
+                if view_index.is_valid() && !self.matches_table_and_text_tree_view.is_expanded(&view_index) {
+                    self.matches_table_and_text_tree_view.expand(&view_index)
+                }
+            }
+        }
+
+        self.matches_table_and_text_tree_view.set_animated(true);
     }
 
     /// This function replace all the matches in the current search with the provided text.
@@ -807,7 +805,7 @@ impl GlobalSearchUI {
         }
 
         // Update the search results so we have all the ones we need to update.
-        self.search(pack_file_contents_ui);
+        self.search();
         let global_search = match self.search_data_from_ui(false, true) {
             Some(global_search) => global_search,
             None => return,
@@ -817,27 +815,47 @@ impl GlobalSearchUI {
             return show_dialog(app_ui.main_window(), "The dependencies are read-only. You cannot do a Global Replace over them.", false);
         }
 
-        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+        let request = ReplaceSearchMatches { replace_text: global_search.replace_text().to_owned(), matches: None };
+        self.replace(app_ui, pack_file_contents_ui, &request);
+    }
 
-        match send_ipc_command_result(Command::GlobalSearchReplaceAll(pack_key.clone(), global_search), response_extractor!(Response::GlobalSearchVecRFileInfo, v1, v2)) {
-            Ok((global_search, packed_files_info)) => {
+    /// Replaces matches of the last search, and updates the results and the views of the edited files.
+    ///
+    /// # Returns
+    ///
+    /// If the matches were replaced.
+    unsafe fn replace(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>, request: &ReplaceSearchMatches) -> bool {
+        let replaced = match call_api(request) {
+            Ok(replaced) => replaced,
+            Err(error) => {
+                show_dialog(app_ui.main_window(), error, false);
+                return false;
+            }
+        };
 
-                // Re-search to update the results.
-                UI_STATE.set_global_search(&global_search);
-                self.search(pack_file_contents_ui);
-
-                for path in packed_files_info.iter().map(|x| x.path()) {
-                    if let Some(file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| &*x.path_read() == path && x.data_source() == DataSource::PackFile) {
-                        if let Err(error) = file_view.reload(path, pack_file_contents_ui) {
-                            show_dialog(app_ui.main_window(), error, false);
-                        }
-                    }
-                }
-
-                pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info), DataSource::PackFile, &pack_key);
-            },
-            Err(error) => show_dialog(app_ui.main_window(), error, false),
+        // The server searches the edited files again after replacing, so the results only need reloading.
+        self.build_trees();
+        match call_api(&GetSearchReport {}) {
+            Ok(report) => self.load_report(&report),
+            Err(error) => show_dialog(&self.dock_widget, error, false),
         }
+
+        for path in &replaced.edited {
+            if let Some(file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| &*x.path_read() == path && x.data_source() == DataSource::PackFile) {
+                if let Err(error) = file_view.reload(path, pack_file_contents_ui) {
+                    show_dialog(app_ui.main_window(), error, false);
+                }
+            }
+        }
+
+        // Update the tooltips of the edited files in every open pack.
+        let pack_keys = global_search_pack_keys(&UI_STATE.get_global_search());
+        for pack_key in &pack_keys {
+            let files_info = send_ipc_command(Command::GetPackedFilesInfo(pack_key.clone(), replaced.edited.clone()), response_extractor!(Response::VecRFileInfo));
+            pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(files_info), DataSource::PackFile, pack_key);
+        }
+
+        true
     }
 
     /// This function tries to open the PackedFile where the selected match is.
@@ -1168,7 +1186,7 @@ impl GlobalSearchUI {
 
 
     /// This function takes care of loading the results of a global search of `AnimFragmentBattleMatches` into a model.
-    unsafe fn load_anim_fragment_battle_matches_to_ui(&self, matches: &[AnimFragmentBattleMatches], file_type: FileType) {
+    unsafe fn load_anim_fragment_battle_matches_to_ui(&self, matches: &[AnimFragmentBattleMatches], file_type: FileType, first_ids: &[usize]) {
         let model = &self.matches_table_and_text_tree_model;
 
         if !matches.is_empty() {
@@ -1181,8 +1199,9 @@ impl GlobalSearchUI {
             let file_type_item = atomic_from_cpp_box(file_type_item);
 
             let rows = matches.par_iter()
-                .filter(|match_afb| !match_afb.matches().is_empty())
-                .map(|match_afb| {
+                .zip(first_ids.par_iter())
+                .filter(|(match_afb, _)| !match_afb.matches().is_empty())
+                .map(|(match_afb, first_id)| {
                     let path = match_afb.path();
                     let qlist_daddy = QListOfQStandardItem::new_0a();
                     let file = Self::new_item();
@@ -1200,7 +1219,7 @@ impl GlobalSearchUI {
                     };
                     file.set_data_2a(&QVariant::from_int(source_type), MATCH_SOURCE_TYPE);
 
-                    for match_row in match_afb.matches() {
+                    for (match_index, match_row) in match_afb.matches().iter().enumerate() {
 
                         // Create a new list of StandardItem.
                         let qlist_boi = QListOfQStandardItem::new_0a();
@@ -1280,6 +1299,7 @@ impl GlobalSearchUI {
                         end.set_data_2a(&QVariant::from_uint(*match_row.end() as u32), 2);
 
                         // Add an empty row to the list.
+                        text.set_data_2a(&QVariant::from_ulonglong((first_id + match_index) as u64), MATCH_ID);
                         qlist_boi.append_q_standard_item(&text.into_ptr().as_mut_raw_ptr());
                         qlist_boi.append_q_standard_item(&match_type.into_ptr().as_mut_raw_ptr());
                         qlist_boi.append_q_standard_item(&Self::new_item().into_ptr().as_mut_raw_ptr());
@@ -1314,7 +1334,7 @@ impl GlobalSearchUI {
     }
 
     /// This function takes care of loading the results of a global search of `AtlasMatches` into a model.
-    unsafe fn load_atlas_matches_to_ui(&self, matches: &[AtlasMatches], file_type: FileType) {
+    unsafe fn load_atlas_matches_to_ui(&self, matches: &[AtlasMatches], file_type: FileType, first_ids: &[usize]) {
         let model = &self.matches_table_and_text_tree_model;
 
         if !matches.is_empty() {
@@ -1327,8 +1347,9 @@ impl GlobalSearchUI {
             let file_type_item = atomic_from_cpp_box(file_type_item);
 
             let rows = matches.par_iter()
-                .filter(|match_atlas| !match_atlas.matches().is_empty())
-                .map(|match_atlas| {
+                .zip(first_ids.par_iter())
+                .filter(|(match_atlas, _)| !match_atlas.matches().is_empty())
+                .map(|(match_atlas, first_id)| {
                     let path = match_atlas.path();
                     let qlist_daddy = QListOfQStandardItem::new_0a();
                     let file = Self::new_item();
@@ -1346,7 +1367,7 @@ impl GlobalSearchUI {
                     };
                     file.set_data_2a(&QVariant::from_int(source_type), MATCH_SOURCE_TYPE);
 
-                    for match_row in match_atlas.matches() {
+                    for (match_index, match_row) in match_atlas.matches().iter().enumerate() {
 
                         // Create a new list of StandardItem.
                         let qlist_boi = QListOfQStandardItem::new_0a();
@@ -1366,6 +1387,7 @@ impl GlobalSearchUI {
                         end.set_data_2a(&QVariant::from_uint(*match_row.end() as u32), 2);
 
                         // Add an empty row to the list.
+                        text.set_data_2a(&QVariant::from_ulonglong((first_id + match_index) as u64), MATCH_ID);
                         qlist_boi.append_q_standard_item(&text.into_ptr().as_mut_raw_ptr());
                         qlist_boi.append_q_standard_item(&column_name.into_ptr().as_mut_raw_ptr());
                         qlist_boi.append_q_standard_item(&row.into_ptr().as_mut_raw_ptr());
@@ -1400,7 +1422,7 @@ impl GlobalSearchUI {
     }
 
     /// This function takes care of loading the results of a global search of `PortraitSettingsMatches` into a model.
-    unsafe fn load_portrait_settings_matches_to_ui(&self, matches: &[PortraitSettingsMatches], file_type: FileType) {
+    unsafe fn load_portrait_settings_matches_to_ui(&self, matches: &[PortraitSettingsMatches], file_type: FileType, first_ids: &[usize]) {
         let model = &self.matches_table_and_text_tree_model;
 
         if !matches.is_empty() {
@@ -1413,8 +1435,9 @@ impl GlobalSearchUI {
             let file_type_item = atomic_from_cpp_box(file_type_item);
 
             let rows = matches.par_iter()
-                .filter(|match_ps| !match_ps.matches().is_empty())
-                .map(|match_ps| {
+                .zip(first_ids.par_iter())
+                .filter(|(match_ps, _)| !match_ps.matches().is_empty())
+                .map(|(match_ps, first_id)| {
                     let path = match_ps.path();
                     let qlist_daddy = QListOfQStandardItem::new_0a();
                     let file = Self::new_item();
@@ -1432,7 +1455,7 @@ impl GlobalSearchUI {
                     };
                     file.set_data_2a(&QVariant::from_int(source_type), MATCH_SOURCE_TYPE);
 
-                    for match_row in match_ps.matches() {
+                    for (match_index, match_row) in match_ps.matches().iter().enumerate() {
 
                         // Create a new list of StandardItem.
                         let qlist_boi = QListOfQStandardItem::new_0a();
@@ -1503,6 +1526,7 @@ impl GlobalSearchUI {
                         end.set_data_2a(&QVariant::from_uint(*match_row.end() as u32), 2);
 
                         // Add an empty row to the list.
+                        text.set_data_2a(&QVariant::from_ulonglong((first_id + match_index) as u64), MATCH_ID);
                         qlist_boi.append_q_standard_item(&text.into_ptr().as_mut_raw_ptr());
                         qlist_boi.append_q_standard_item(&match_type.into_ptr().as_mut_raw_ptr());
                         qlist_boi.append_q_standard_item(&Self::new_item().into_ptr().as_mut_raw_ptr());
@@ -1537,7 +1561,7 @@ impl GlobalSearchUI {
     }
 
     /// This function takes care of loading the results of a global search of `RigidModelMatches` into a model.
-    unsafe fn load_rigid_model_matches_to_ui(&self, matches: &[RigidModelMatches], file_type: FileType) {
+    unsafe fn load_rigid_model_matches_to_ui(&self, matches: &[RigidModelMatches], file_type: FileType, first_ids: &[usize]) {
         let model = &self.matches_table_and_text_tree_model;
 
         if !matches.is_empty() {
@@ -1550,8 +1574,9 @@ impl GlobalSearchUI {
             let file_type_item = atomic_from_cpp_box(file_type_item);
 
             let rows = matches.par_iter()
-                .filter(|match_rm| !match_rm.matches().is_empty())
-                .map(|match_rm| {
+                .zip(first_ids.par_iter())
+                .filter(|(match_rm, _)| !match_rm.matches().is_empty())
+                .map(|(match_rm, first_id)| {
                     let path = match_rm.path();
                     let qlist_daddy = QListOfQStandardItem::new_0a();
                     let file = Self::new_item();
@@ -1570,7 +1595,7 @@ impl GlobalSearchUI {
                     };
                     file.set_data_2a(&QVariant::from_int(source_type), MATCH_SOURCE_TYPE);
 
-                    for match_row in match_rm.matches() {
+                    for (match_index, match_row) in match_rm.matches().iter().enumerate() {
                         let qlist_boi = QListOfQStandardItem::new_0a();
 
                         // Create an empty row.
@@ -1644,6 +1669,7 @@ impl GlobalSearchUI {
                         end.set_data_2a(&QVariant::from_uint(*match_row.end() as u32), 2);
 
                         // Add an empty row to the list.
+                        text.set_data_2a(&QVariant::from_ulonglong((first_id + match_index) as u64), MATCH_ID);
                         qlist_boi.append_q_standard_item(&text.into_ptr().as_mut_raw_ptr());
                         qlist_boi.append_q_standard_item(&match_type.into_ptr().as_mut_raw_ptr());
                         qlist_boi.append_q_standard_item(&Self::new_item().into_ptr().as_mut_raw_ptr());
@@ -1678,7 +1704,7 @@ impl GlobalSearchUI {
     }
 
     /// This function takes care of loading the results of a global search of `TableMatches` into a model.
-    unsafe fn load_table_matches_to_ui(&self, matches: &[TableMatches], file_type: FileType) {
+    unsafe fn load_table_matches_to_ui(&self, matches: &[TableMatches], file_type: FileType, first_ids: &[usize]) {
         let model = &self.matches_table_and_text_tree_model;
 
         if !matches.is_empty() {
@@ -1691,8 +1717,9 @@ impl GlobalSearchUI {
             let file_type_item = atomic_from_cpp_box(file_type_item);
 
             let rows = matches.par_iter()
-                .filter(|match_table| !match_table.matches().is_empty())
-                .map(|match_table| {
+                .zip(first_ids.par_iter())
+                .filter(|(match_table, _)| !match_table.matches().is_empty())
+                .map(|(match_table, first_id)| {
                     let path = match_table.path();
                     let qlist_daddy = QListOfQStandardItem::new_0a();
                     let file = Self::new_item();
@@ -1711,7 +1738,7 @@ impl GlobalSearchUI {
                     };
                     file.set_data_2a(&QVariant::from_int(source_type), MATCH_SOURCE_TYPE);
 
-                    for match_row in match_table.matches() {
+                    for (match_index, match_row) in match_table.matches().iter().enumerate() {
 
                         // Create a new list of StandardItem.
                         let qlist_boi = QListOfQStandardItem::new_0a();
@@ -1732,6 +1759,7 @@ impl GlobalSearchUI {
                         end.set_data_2a(&QVariant::from_uint(*match_row.end() as u32), 2);
 
                         // Add an empty row to the list.
+                        text.set_data_2a(&QVariant::from_ulonglong((first_id + match_index) as u64), MATCH_ID);
                         qlist_boi.append_q_standard_item(&text.into_ptr().as_mut_raw_ptr());
                         qlist_boi.append_q_standard_item(&column_name.into_ptr().as_mut_raw_ptr());
                         qlist_boi.append_q_standard_item(&row.into_ptr().as_mut_raw_ptr());
@@ -1766,7 +1794,7 @@ impl GlobalSearchUI {
     }
 
     /// This function takes care of loading the results of a global search of `TextMatches` into a model.
-    unsafe fn load_text_matches_to_ui(&self, matches: &[TextMatches], file_type: FileType) {
+    unsafe fn load_text_matches_to_ui(&self, matches: &[TextMatches], file_type: FileType, first_ids: &[usize]) {
         let model = &self.matches_table_and_text_tree_model;
 
         if !matches.is_empty() {
@@ -1779,8 +1807,9 @@ impl GlobalSearchUI {
             let file_type_item = atomic_from_cpp_box(file_type_item);
 
             let rows = matches.par_iter()
-                .filter(|match_text| !match_text.matches().is_empty())
-                .map(|match_text| {
+                .zip(first_ids.par_iter())
+                .filter(|(match_text, _)| !match_text.matches().is_empty())
+                .map(|(match_text, first_id)| {
                     let path = match_text.path();
                     let qlist_daddy = QListOfQStandardItem::new_0a();
                     let file = Self::new_item();
@@ -1799,7 +1828,7 @@ impl GlobalSearchUI {
                     };
                     file.set_data_2a(&QVariant::from_int(source_type), MATCH_SOURCE_TYPE);
 
-                    for match_row in match_text.matches() {
+                    for (match_index, match_row) in match_text.matches().iter().enumerate() {
 
                         // Create a new list of StandardItem.
                         let qlist_boi = QListOfQStandardItem::new_0a();
@@ -1817,6 +1846,7 @@ impl GlobalSearchUI {
                         end.set_data_2a(&QVariant::from_uint(*match_row.end() as u32), 2);
 
                         // Add an empty row to the list.
+                        text.set_data_2a(&QVariant::from_ulonglong((first_id + match_index) as u64), MATCH_ID);
                         qlist_boi.append_q_standard_item(&text.into_ptr().as_mut_raw_ptr());
                         qlist_boi.append_q_standard_item(&Self::new_item().into_ptr().as_mut_raw_ptr());
                         qlist_boi.append_q_standard_item(&row.into_ptr().as_mut_raw_ptr());
@@ -1851,7 +1881,7 @@ impl GlobalSearchUI {
     }
 
     /// This function takes care of loading the results of a global search of `UnitVariantMatches` into a model.
-    unsafe fn load_unit_variant_matches_to_ui(&self, matches: &[UnitVariantMatches], file_type: FileType) {
+    unsafe fn load_unit_variant_matches_to_ui(&self, matches: &[UnitVariantMatches], file_type: FileType, first_ids: &[usize]) {
         let model = &self.matches_table_and_text_tree_model;
 
         if !matches.is_empty() {
@@ -1864,8 +1894,9 @@ impl GlobalSearchUI {
             let file_type_item = atomic_from_cpp_box(file_type_item);
 
             let rows = matches.par_iter()
-                .filter(|match_uv| !match_uv.matches().is_empty())
-                .map(|match_uv| {
+                .zip(first_ids.par_iter())
+                .filter(|(match_uv, _)| !match_uv.matches().is_empty())
+                .map(|(match_uv, first_id)| {
                     let path = match_uv.path();
                     let qlist_daddy = QListOfQStandardItem::new_0a();
                     let file = Self::new_item();
@@ -1883,7 +1914,7 @@ impl GlobalSearchUI {
                     };
                     file.set_data_2a(&QVariant::from_int(source_type), MATCH_SOURCE_TYPE);
 
-                    for match_row in match_uv.matches() {
+                    for (match_index, match_row) in match_uv.matches().iter().enumerate() {
 
                         // Create a new list of StandardItem.
                         let qlist_boi = QListOfQStandardItem::new_0a();
@@ -1939,6 +1970,7 @@ impl GlobalSearchUI {
                         end.set_data_2a(&QVariant::from_uint(*match_row.end() as u32), 2);
 
                         // Add an empty row to the list.
+                        text.set_data_2a(&QVariant::from_ulonglong((first_id + match_index) as u64), MATCH_ID);
                         qlist_boi.append_q_standard_item(&text.into_ptr().as_mut_raw_ptr());
                         qlist_boi.append_q_standard_item(&match_type.into_ptr().as_mut_raw_ptr());
                         qlist_boi.append_q_standard_item(&Self::new_item().into_ptr().as_mut_raw_ptr());
@@ -1973,7 +2005,7 @@ impl GlobalSearchUI {
     }
 
     /// This function takes care of loading the results of a global search of `UnknownMatches` into a model.
-    unsafe fn load_unknown_matches_to_ui(&self, matches: &[UnknownMatches], file_type: FileType) {
+    unsafe fn load_unknown_matches_to_ui(&self, matches: &[UnknownMatches], file_type: FileType, first_ids: &[usize]) {
         let model = &self.matches_table_and_text_tree_model;
 
         if !matches.is_empty() {
@@ -1986,8 +2018,9 @@ impl GlobalSearchUI {
             let file_type_item = atomic_from_cpp_box(file_type_item);
 
             let rows = matches.par_iter()
-                .filter(|match_unk| !match_unk.matches().is_empty())
-                .map(|match_unk| {
+                .zip(first_ids.par_iter())
+                .filter(|(match_unk, _)| !match_unk.matches().is_empty())
+                .map(|(match_unk, first_id)| {
                     let path = match_unk.path();
                     let qlist_daddy = QListOfQStandardItem::new_0a();
                     let file = Self::new_item();
@@ -2006,7 +2039,7 @@ impl GlobalSearchUI {
                     };
                     file.set_data_2a(&QVariant::from_int(source_type), MATCH_SOURCE_TYPE);
 
-                    for match_row in match_unk.matches() {
+                    for (match_index, match_row) in match_unk.matches().iter().enumerate() {
 
                         // Create a new list of StandardItem.
                         let qlist_boi = QListOfQStandardItem::new_0a();
@@ -2021,6 +2054,7 @@ impl GlobalSearchUI {
                         len.set_data_2a(&QVariant::from_ulonglong(*match_row.len() as u64), 2);
 
                         // Add an empty row to the list.
+                        pos_formatted.set_data_2a(&QVariant::from_ulonglong((first_id + match_index) as u64), MATCH_ID);
                         qlist_boi.append_q_standard_item(&pos_formatted.into_ptr().as_mut_raw_ptr());
                         qlist_boi.append_q_standard_item(&Self::new_item().into_ptr().as_mut_raw_ptr());
                         qlist_boi.append_q_standard_item(&Self::new_item().into_ptr().as_mut_raw_ptr());
@@ -2128,705 +2162,26 @@ impl GlobalSearchUI {
         trigger_treeview_filter_safe(&model_filter, &pattern.as_ptr());
     }
 
-    /// Function to get all the selected matches in the visible selection.
-    unsafe fn matches_from_selection(&self) -> Vec<MatchHolder> {
+    /// Returns the IDs of the selected matches. Selected files count as all their matches.
+    unsafe fn match_ids_from_selection(&self) -> Vec<usize> {
+        if self.matches_tab_widget.current_index() != 0 {
+            return vec![];
+        }
 
-        let (model, tree_view) = match self.matches_tab_widget.current_index() {
-            0 => (&self.matches_table_and_text_tree_model, &self.matches_table_and_text_tree_view),
-            _ => return vec![],
-        };
+        let mut ids = BTreeSet::new();
+        for item in self.matches_table_and_text_tree_view.get_items_from_selection(true) {
+            if item.column() != 0 {
+                continue;
+            }
 
-        let items = tree_view.get_items_from_selection(true);
-
-        let anim_matches: Vec<UnknownMatches> = vec![];
-        let mut anim_fragment_battle_matches: Vec<AnimFragmentBattleMatches> = vec![];
-        let anim_pack_matches: Vec<UnknownMatches> = vec![];
-        let anims_table_matches: Vec<UnknownMatches> = vec![];
-        let mut atlas_matches: Vec<AtlasMatches> = vec![];
-        let audio_matches: Vec<UnknownMatches> = vec![];
-        let bmd_matches: Vec<UnknownMatches> = vec![];
-        let mut db_matches: Vec<TableMatches> = vec![];
-        let esf_matches: Vec<UnknownMatches> = vec![];
-        let group_formations_matches: Vec<UnknownMatches> = vec![];
-        let image_matches: Vec<UnknownMatches> = vec![];
-        let mut loc_matches: Vec<TableMatches> = vec![];
-        let matched_combat_matches: Vec<UnknownMatches> = vec![];
-        let pack_matches: Vec<UnknownMatches> = vec![];
-        let mut portrait_settings_matches: Vec<PortraitSettingsMatches> = vec![];
-        let mut rigid_model_matches: Vec<RigidModelMatches> = vec![];
-        let sound_bank_matches: Vec<UnknownMatches> = vec![];
-        let mut text_matches: Vec<TextMatches> = vec![];
-        let uic_matches: Vec<UnknownMatches> = vec![];
-        let mut unit_variant_matches: Vec<UnitVariantMatches> = vec![];
-        let mut unknown_matches: Vec<UnknownMatches> = vec![];
-        let video_matches: Vec<UnknownMatches> = vec![];
-
-        // For each item we follow the following logic:
-        // - If it's a parent, it's all the matches on a table.
-        // - If it's a child, check if the parent already exists.
-        // - If it does, add another entry to it's matches.
-        // - If not, create it with only that match.
-        for item in items {
-            if item.column() == 0 {
-                let is_match = !item.has_children();
-
-                // If it's a match (not an entire file), get the entry and add it to the tablematches of that table.
-                if is_match {
-                    let parent = item.parent();
-                    let path = parent.text().to_std_string();
-                    let file_type_index = parent.index().sibling_at_column(5);
-                    let file_type = FileType::from(&*model.item_from_index(&file_type_index).text().to_std_string());
-
-                    match file_type {
-                        FileType::Anim => todo!(),
-                        FileType::AnimFragmentBattle => {
-                            let item = parent.child_2a(item.row(), 0);
-                            let start = parent.child_2a(item.row(), 4).text().to_std_string().parse::<usize>().unwrap();
-                            let end = parent.child_2a(item.row(), 5).text().to_std_string().parse::<usize>().unwrap();
-                            let entry_index = item.data_1a(ANIM_FRAGMENT_BATTLE_ENTRY_INDEX).to_u_int_0a() as usize;
-                            let subentry_index = item.data_1a(ANIM_FRAGMENT_BATTLE_SUBENTRY_INDEX).to_u_int_0a() as usize;
-                            let bool_data = item.data_1a(ANIM_FRAGMENT_BATTLE_BOOL_DATA).to_u_int_0a();
-
-                            let match_file = match anim_fragment_battle_matches.iter_mut().find(|x| x.path() == &path) {
-                                Some(match_file) => match_file,
-                                None => {
-                                    let matches = AnimFragmentBattleMatches::new(&path);
-                                    anim_fragment_battle_matches.push(matches);
-                                    anim_fragment_battle_matches.last_mut().unwrap()
-                                }
-                            };
-
-
-                            let match_entry = AnimFragmentBattleMatch::new(
-                                bool_data == 1,
-                                bool_data == 2,
-                                bool_data == 3,
-                                bool_data == 4,
-                                bool_data == 5,
-                                if bool_data > 5 {
-                                    Some((
-                                        entry_index,
-                                        if bool_data > 5 && bool_data < 9 {
-                                            Some((
-                                                subentry_index,
-                                                bool_data == 6,
-                                                bool_data == 7,
-                                                bool_data == 8,
-                                            ))
-                                        } else {
-                                            None
-                                        },
-                                        bool_data == 9,
-                                        bool_data == 10,
-                                        bool_data == 11,
-                                        bool_data == 12,
-                                        bool_data == 13
-                                    ))
-                                } else {
-                                    None
-                                },
-                                start,
-                                end,
-                                item.text().to_std_string()
-                            );
-
-                            if !match_file.matches_mut().contains(&match_entry) {
-                                match_file.matches_mut().push(match_entry);
-                            }
-                        },
-                        FileType::AnimPack => todo!(),
-                        FileType::AnimsTable => todo!(),
-                        FileType::Atlas => {
-                            let column_name = parent.child_2a(item.row(), 1).text().to_std_string();
-                            let column_number = parent.child_2a(item.row(), 3).text().to_std_string().parse().unwrap();
-                            let row_number = parent.child_2a(item.row(), 2).text().to_std_string().parse::<i64>().unwrap() - 1;
-                            let start = parent.child_2a(item.row(), 4).text().to_std_string().parse::<usize>().unwrap();
-                            let end = parent.child_2a(item.row(), 5).text().to_std_string().parse::<usize>().unwrap();
-                            let text = parent.child_2a(item.row(), 0).text().to_std_string();
-                            let match_file = match atlas_matches.iter_mut().find(|x| x.path() == &path) {
-                                Some(match_file) => match_file,
-                                None => {
-                                    let table = AtlasMatches::new(&path);
-                                    atlas_matches.push(table);
-                                    atlas_matches.last_mut().unwrap()
-                                }
-                            };
-
-                            let match_entry = AtlasMatch::new(&column_name, column_number, row_number, start, end, &text);
-
-                            if !match_file.matches_mut().contains(&match_entry) {
-                                match_file.matches_mut().push(match_entry);
-                            }
-                        },
-                        FileType::Audio => todo!(),
-                        FileType::BMD => todo!(),
-                        FileType::BMDVegetation => todo!(),
-                        FileType::Dat => todo!(),
-                        FileType::DB => {
-                            let column_name = parent.child_2a(item.row(), 1).text().to_std_string();
-                            let column_number = parent.child_2a(item.row(), 3).text().to_std_string().parse().unwrap();
-                            let row_number = parent.child_2a(item.row(), 2).text().to_std_string().parse::<i64>().unwrap() - 1;
-                            let start = parent.child_2a(item.row(), 4).text().to_std_string().parse::<usize>().unwrap();
-                            let end = parent.child_2a(item.row(), 5).text().to_std_string().parse::<usize>().unwrap();
-                            let text = parent.child_2a(item.row(), 0).text().to_std_string();
-                            let match_file = match db_matches.iter_mut().find(|x| x.path() == &path) {
-                                Some(match_file) => match_file,
-                                None => {
-                                    let table = TableMatches::new(&path);
-                                    db_matches.push(table);
-                                    db_matches.last_mut().unwrap()
-                                }
-                            };
-
-                            let match_entry = TableMatch::new(&column_name, column_number, row_number, start, end, &text);
-
-                            if !match_file.matches_mut().contains(&match_entry) {
-                                match_file.matches_mut().push(match_entry);
-                            }
-                        },
-                        FileType::ESF => todo!(),
-                        FileType::Font => todo!(),
-                        FileType::GroupFormations => todo!(),
-                        FileType::HlslCompiled => todo!(),
-                        FileType::Image => todo!(),
-                        FileType::Loc => {
-                            let column_name = parent.child_2a(item.row(), 1).text().to_std_string();
-                            let column_number = parent.child_2a(item.row(), 3).text().to_std_string().parse().unwrap();
-                            let row_number = parent.child_2a(item.row(), 2).text().to_std_string().parse::<i64>().unwrap() - 1;
-                            let start = parent.child_2a(item.row(), 4).text().to_std_string().parse::<usize>().unwrap();
-                            let end = parent.child_2a(item.row(), 5).text().to_std_string().parse::<usize>().unwrap();
-                            let text = parent.child_2a(item.row(), 0).text().to_std_string();
-                            let match_file = match loc_matches.iter_mut().find(|x| x.path() == &path) {
-                                Some(match_file) => match_file,
-                                None => {
-                                    let table = TableMatches::new(&path);
-                                    loc_matches.push(table);
-                                    loc_matches.last_mut().unwrap()
-                                }
-                            };
-
-                            let match_entry = TableMatch::new(&column_name, column_number, row_number, start, end, &text);
-
-                            if !match_file.matches_mut().contains(&match_entry) {
-                                match_file.matches_mut().push(match_entry);
-                            }
-                        }
-                        FileType::MatchedCombat => todo!(),
-                        FileType::Pack => todo!(),
-                        FileType::PortraitSettings => {
-                            let item = parent.child_2a(item.row(), 0);
-                            let index = item.data_1a(PORTRAIT_SETTINGS_ENTRY_INDEX).to_u_int_0a() as usize;
-                            let bool_data = item.data_1a(PORTRAIT_SETTINGS_BOOL_DATA).to_u_int_0a();
-                            let vindex = item.data_1a(PORTRAIT_SETTINGS_VARIANT_INDEX).to_u_int_0a() as usize;
-                            let start = parent.child_2a(item.row(), 4).text().to_std_string().parse::<usize>().unwrap();
-                            let end = parent.child_2a(item.row(), 5).text().to_std_string().parse::<usize>().unwrap();
-
-                            let match_file = match portrait_settings_matches.iter_mut().find(|x| x.path() == &path) {
-                                Some(match_file) => match_file,
-                                None => {
-                                    let matches = PortraitSettingsMatches::new(&path);
-                                    portrait_settings_matches.push(matches);
-                                    portrait_settings_matches.last_mut().unwrap()
-                                }
-                            };
-
-                            let match_entry = PortraitSettingsMatch::new(
-                                index,
-                                bool_data == 1,
-                                bool_data == 2,
-                                bool_data == 3,
-                                if bool_data > 3 {
-                                    Some((
-                                        vindex,
-                                        bool_data == 4,
-                                        bool_data == 5,
-                                        bool_data == 6,
-                                        bool_data == 7,
-                                        bool_data == 8
-                                    ))
-                                } else {
-                                    None
-                                },
-                                start,
-                                end,
-                                item.text().to_std_string()
-                            );
-
-                            if !match_file.matches_mut().contains(&match_entry) {
-                                match_file.matches_mut().push(match_entry);
-                            }
-                        },
-                        FileType::RigidModel => {
-                            let item = parent.child_2a(item.row(), 0);
-                            let bool_data = item.data_1a(RIGID_MODEL_BOOL_DATA).to_u_int_0a() as usize;
-                            let l_index = item.data_1a(RIGID_MODEL_MESH_LINDEX).to_u_int_0a() as i32;
-                            let m_index = item.data_1a(RIGID_MODEL_MESH_MINDEX).to_u_int_0a() as i32;
-                            let a_index = item.data_1a(RIGID_MODEL_ATT_INDEX).to_u_int_0a() as i32;
-                            let t_index = item.data_1a(RIGID_MODEL_TEXT_INDEX).to_u_int_0a() as i32;
-                            let start = parent.child_2a(item.row(), 4).text().to_std_string().parse::<usize>().unwrap();
-                            let end = parent.child_2a(item.row(), 5).text().to_std_string().parse::<usize>().unwrap();
-
-                            let match_file = match rigid_model_matches.iter_mut().find(|x| x.path() == &path) {
-                                Some(match_file) => match_file,
-                                None => {
-                                    let matches = RigidModelMatches::new(&path);
-                                    rigid_model_matches.push(matches);
-                                    rigid_model_matches.last_mut().unwrap()
-                                }
-                            };
-
-                            let match_entry = RigidModelMatch::new(
-                                bool_data == 1,
-                                if bool_data > 1 {
-                                    Some((l_index, m_index))
-                                } else {
-                                    None
-                                },
-                                bool_data == 2,
-                                bool_data == 3,
-                                bool_data == 4,
-                                bool_data == 5,
-                                if bool_data == 6 {
-                                    Some(a_index)
-                                } else {
-                                    None
-                                },
-                                if bool_data == 7 {
-                                    Some(t_index)
-                                } else {
-                                    None
-                                },
-                                start,
-                                end,
-                                item.text().to_std_string()
-                            );
-
-                            if !match_file.matches_mut().contains(&match_entry) {
-                                match_file.matches_mut().push(match_entry);
-                            }
-                        }
-                        FileType::SoundBank => todo!(),
-                        FileType::Text | FileType::VMD | FileType::WSModel => {
-                            let row_number = parent.child_2a(item.row(), 2).text().to_std_string().parse::<i64>().unwrap() - 1;
-                            let start = parent.child_2a(item.row(), 4).text().to_std_string().parse::<usize>().unwrap();
-                            let end = parent.child_2a(item.row(), 5).text().to_std_string().parse::<usize>().unwrap();
-
-                            let match_file = match text_matches.iter_mut().find(|x| x.path() == &path) {
-                                Some(match_file) => match_file,
-                                None => {
-                                    let text = TextMatches::new(&path);
-                                    text_matches.push(text);
-                                    text_matches.last_mut().unwrap()
-                                }
-                            };
-
-                            let match_entry = TextMatch::new(row_number as u64, start, end, 0);
-
-                            if !match_file.matches_mut().contains(&match_entry) {
-                                match_file.matches_mut().push(match_entry);
-                            }
-                        }
-                        FileType::UIC => todo!(),
-                        FileType::UnitVariant => {
-                            let item = parent.child_2a(item.row(), 0);
-                            let index = item.data_1a(UNIT_VARIANT_ENTRY_INDEX).to_u_int_0a() as usize;
-                            let bool_data = item.data_1a(UNIT_VARIANT_BOOL_DATA).to_u_int_0a();
-                            let vindex = item.data_1a(UNIT_VARIANT_VARIANT_INDEX).to_u_int_0a() as usize;
-                            let start = parent.child_2a(item.row(), 4).text().to_std_string().parse::<usize>().unwrap();
-                            let end = parent.child_2a(item.row(), 5).text().to_std_string().parse::<usize>().unwrap();
-
-                            let match_file = match unit_variant_matches.iter_mut().find(|x| x.path() == &path) {
-                                Some(match_file) => match_file,
-                                None => {
-                                    let matches = UnitVariantMatches::new(&path);
-                                    unit_variant_matches.push(matches);
-                                    unit_variant_matches.last_mut().unwrap()
-                                }
-                            };
-
-                            let match_entry = UnitVariantMatch::new(
-                                index,
-                                bool_data == 1,
-                                if bool_data > 1 {
-                                    Some((
-                                        vindex,
-                                        bool_data == 2,
-                                        bool_data == 3,
-                                    ))
-                                } else {
-                                    None
-                                },
-                                start,
-                                end,
-                                item.text().to_std_string()
-                            );
-
-                            if !match_file.matches_mut().contains(&match_entry) {
-                                match_file.matches_mut().push(match_entry);
-                            }
-                        },
-                        FileType::Unknown => {
-                            let pos = parent.child_2a(item.row(), 3).text().to_std_string().parse().unwrap();
-                            let len = parent.child_2a(item.row(), 4).text().to_std_string().parse().unwrap();
-
-                            let match_file = match unknown_matches.iter_mut().find(|x| x.path() == &path) {
-                                Some(match_file) => match_file,
-                                None => {
-                                    let matches = UnknownMatches::new(&path);
-                                    unknown_matches.push(matches);
-                                    unknown_matches.last_mut().unwrap()
-                                }
-                            };
-
-                            let match_entry = UnknownMatch::new(pos, len);
-
-                            if !match_file.matches_mut().contains(&match_entry) {
-                                match_file.matches_mut().push(match_entry);
-                            }
-                        }
-                        FileType::Video => todo!(),
-                    }
-                }
-
-                // If it's not a particular match, it's an entire file.
-                else {
-                    let path = item.text().to_std_string();
-                    let file_type_index = item.index().sibling_at_column(5);
-                    let file_type = FileType::from(&*model.item_from_index(&file_type_index).text().to_std_string());
-
-                    // If it already exists, delete it, as the new one contains the entire set for it.
-                    match file_type {
-                        FileType::Anim => todo!(),
-                        FileType::AnimFragmentBattle => {
-                            if let Some(position) = anim_fragment_battle_matches.iter().position(|x| x.path() == &path) {
-                                anim_fragment_battle_matches.remove(position);
-                            }
-
-                            let matches = AnimFragmentBattleMatches::new(&path);
-                            anim_fragment_battle_matches.push(matches);
-                            let match_file = anim_fragment_battle_matches.last_mut().unwrap();
-
-                            // For the individual matches, we have to get them from the view, so the filtered out items are not added.
-                            for row in 0..item.row_count() {
-                                let start = item.child_2a(row, 4).text().to_std_string().parse::<usize>().unwrap();
-                                let end = item.child_2a(row, 5).text().to_std_string().parse::<usize>().unwrap();
-
-                                let item = item.child_2a(row, 0);
-                                let entry_index = item.data_1a(ANIM_FRAGMENT_BATTLE_ENTRY_INDEX).to_u_int_0a() as usize;
-                                let subentry_index = item.data_1a(ANIM_FRAGMENT_BATTLE_SUBENTRY_INDEX).to_u_int_0a() as usize;
-                                let bool_data = item.data_1a(ANIM_FRAGMENT_BATTLE_BOOL_DATA).to_u_int_0a();
-
-                                let match_entry = AnimFragmentBattleMatch::new(
-                                    bool_data == 1,
-                                    bool_data == 2,
-                                    bool_data == 3,
-                                    bool_data == 4,
-                                    bool_data == 5,
-                                    if bool_data > 5 {
-                                        Some((
-                                            entry_index,
-                                            if bool_data > 5 && bool_data < 9 {
-                                                Some((
-                                                    subentry_index,
-                                                    bool_data == 6,
-                                                    bool_data == 7,
-                                                    bool_data == 8,
-                                                ))
-                                            } else {
-                                                None
-                                            },
-                                            bool_data == 9,
-                                            bool_data == 10,
-                                            bool_data == 11,
-                                            bool_data == 12,
-                                            bool_data == 13
-                                        ))
-                                    } else {
-                                        None
-                                    },
-                                    start,
-                                    end,
-                                    item.text().to_std_string()
-                                );
-
-                                match_file.matches_mut().push(match_entry);
-                            }
-                        },
-                        FileType::AnimPack => todo!(),
-                        FileType::AnimsTable => todo!(),
-                        FileType::Atlas => {
-                            if let Some(position) = atlas_matches.iter().position(|x| x.path() == &path) {
-                                atlas_matches.remove(position);
-                            }
-
-                            let table = AtlasMatches::new(&path);
-                            atlas_matches.push(table);
-                            let match_file = atlas_matches.last_mut().unwrap();
-
-                            // For the individual matches, we have to get them from the view, so the filtered out items are not added.
-                            for row in 0..item.row_count() {
-                                let column_name = item.child_2a(row, 1).text().to_std_string();
-                                let column_number = item.child_2a(row, 3).text().to_std_string().parse().unwrap();
-                                let row_number = item.child_2a(row, 2).text().to_std_string().parse::<i64>().unwrap() - 1;
-                                let start = item.child_2a(row, 4).text().to_std_string().parse::<usize>().unwrap();
-                                let end = item.child_2a(row, 5).text().to_std_string().parse::<usize>().unwrap();
-                                let text = item.child_2a(row, 0).text().to_std_string();
-                                let match_entry = AtlasMatch::new(&column_name, column_number, row_number, start, end, &text);
-                                match_file.matches_mut().push(match_entry);
-                            }
-                        },
-                        FileType::Audio => todo!(),
-                        FileType::BMD => todo!(),
-                        FileType::BMDVegetation => todo!(),
-                        FileType::Dat => todo!(),
-                        FileType::DB => {
-                            if let Some(position) = db_matches.iter().position(|x| x.path() == &path) {
-                                db_matches.remove(position);
-                            }
-
-                            let table = TableMatches::new(&path);
-                            db_matches.push(table);
-                            let match_file = db_matches.last_mut().unwrap();
-
-                            // For the individual matches, we have to get them from the view, so the filtered out items are not added.
-                            for row in 0..item.row_count() {
-                                let column_name = item.child_2a(row, 1).text().to_std_string();
-                                let column_number = item.child_2a(row, 3).text().to_std_string().parse().unwrap();
-                                let row_number = item.child_2a(row, 2).text().to_std_string().parse::<i64>().unwrap() - 1;
-                                let start = item.child_2a(row, 4).text().to_std_string().parse::<usize>().unwrap();
-                                let end = item.child_2a(row, 5).text().to_std_string().parse::<usize>().unwrap();
-                                let text = item.child_2a(row, 0).text().to_std_string();
-                                let match_entry = TableMatch::new(&column_name, column_number, row_number, start, end, &text);
-                                match_file.matches_mut().push(match_entry);
-                            }
-                        }
-                        FileType::ESF => todo!(),
-                        FileType::Font => todo!(),
-                        FileType::GroupFormations => todo!(),
-                        FileType::HlslCompiled => todo!(),
-                        FileType::Image => todo!(),
-                        FileType::Loc => {
-                            if let Some(position) = loc_matches.iter().position(|x| x.path() == &path) {
-                                loc_matches.remove(position);
-                            }
-
-                            let table = TableMatches::new(&path);
-                            loc_matches.push(table);
-                            let match_file = loc_matches.last_mut().unwrap();
-
-                            // For the individual matches, we have to get them from the view, so the filtered out items are not added.
-                            for row in 0..item.row_count() {
-                                let column_name = item.child_2a(row, 1).text().to_std_string();
-                                let column_number = item.child_2a(row, 3).text().to_std_string().parse().unwrap();
-                                let row_number = item.child_2a(row, 2).text().to_std_string().parse::<i64>().unwrap() - 1;
-                                let start = item.child_2a(row, 4).text().to_std_string().parse::<usize>().unwrap();
-                                let end = item.child_2a(row, 5).text().to_std_string().parse::<usize>().unwrap();
-                                let text = item.child_2a(row, 0).text().to_std_string();
-                                let match_entry = TableMatch::new(&column_name, column_number, row_number, start, end, &text);
-                                match_file.matches_mut().push(match_entry);
-                            }
-                        }
-                        FileType::MatchedCombat => todo!(),
-                        FileType::Pack => todo!(),
-                        FileType::PortraitSettings => {
-                            if let Some(position) = portrait_settings_matches.iter().position(|x| x.path() == &path) {
-                                portrait_settings_matches.remove(position);
-                            }
-
-                            let matches = PortraitSettingsMatches::new(&path);
-                            portrait_settings_matches.push(matches);
-                            let match_file = portrait_settings_matches.last_mut().unwrap();
-
-                            // For the individual matches, we have to get them from the view, so the filtered out items are not added.
-                            for row in 0..item.row_count() {
-                                let start = item.child_2a(row, 4).text().to_std_string().parse::<usize>().unwrap();
-                                let end = item.child_2a(row, 5).text().to_std_string().parse::<usize>().unwrap();
-
-                                let item = item.child_2a(row, 0);
-                                let index = item.data_1a(PORTRAIT_SETTINGS_ENTRY_INDEX).to_u_int_0a() as usize;
-                                let bool_data = item.data_1a(PORTRAIT_SETTINGS_BOOL_DATA).to_u_int_0a();
-                                let vindex = item.data_1a(PORTRAIT_SETTINGS_VARIANT_INDEX).to_u_int_0a() as usize;
-
-                                let match_entry = PortraitSettingsMatch::new(
-                                    index,
-                                    bool_data == 1,
-                                    bool_data == 2,
-                                    bool_data == 3,
-                                    if bool_data > 3 {
-                                        Some((
-                                            vindex,
-                                            bool_data == 4,
-                                            bool_data == 5,
-                                            bool_data == 6,
-                                            bool_data == 7,
-                                            bool_data == 8
-                                        ))
-                                    } else {
-                                        None
-                                    },
-                                    start,
-                                    end,
-                                    item.text().to_std_string()
-                                );
-
-                                match_file.matches_mut().push(match_entry);
-                            }
-                        },
-                        FileType::RigidModel => {
-                            if let Some(position) = rigid_model_matches.iter().position(|x| x.path() == &path) {
-                                rigid_model_matches.remove(position);
-                            }
-
-                            let matches = RigidModelMatches::new(&path);
-                            rigid_model_matches.push(matches);
-                            let match_file = rigid_model_matches.last_mut().unwrap();
-
-                            for row in 0..item.row_count() {
-                                let item = item.child_2a(row, 0);
-                                let bool_data = item.data_1a(RIGID_MODEL_BOOL_DATA).to_u_int_0a() as usize;
-                                let l_index = item.data_1a(RIGID_MODEL_MESH_LINDEX).to_u_int_0a() as i32;
-                                let m_index = item.data_1a(RIGID_MODEL_MESH_MINDEX).to_u_int_0a() as i32;
-                                let a_index = item.data_1a(RIGID_MODEL_ATT_INDEX).to_u_int_0a() as i32;
-                                let t_index = item.data_1a(RIGID_MODEL_TEXT_INDEX).to_u_int_0a() as i32;
-                                let start = item.child_2a(row, 4).text().to_std_string().parse::<usize>().unwrap();
-                                let end = item.child_2a(row, 5).text().to_std_string().parse::<usize>().unwrap();
-
-                                let match_entry = RigidModelMatch::new(
-                                    bool_data == 1,
-                                    if bool_data > 1 {
-                                        Some((l_index, m_index))
-                                    } else {
-                                        None
-                                    },
-                                    bool_data == 2,
-                                    bool_data == 3,
-                                    bool_data == 4,
-                                    bool_data == 5,
-                                    if bool_data == 6 {
-                                        Some(a_index)
-                                    } else {
-                                        None
-                                    },
-                                    if bool_data == 7 {
-                                        Some(t_index)
-                                    } else {
-                                        None
-                                    },
-                                    start,
-                                    end,
-                                    item.text().to_std_string()
-                                );
-
-                                match_file.matches_mut().push(match_entry);
-                            }
-                        }
-                        FileType::SoundBank => todo!(),
-                        FileType::Text | FileType::VMD | FileType::WSModel => {
-                            if let Some(position) = text_matches.iter().position(|x| x.path() == &path) {
-                                text_matches.remove(position);
-                            }
-
-                            let text = TextMatches::new(&path);
-                            text_matches.push(text);
-                            let match_file = text_matches.last_mut().unwrap();
-
-                            // For the individual matches, we have to get them from the view, so the filtered out items are not added.
-                            for row in 0..item.row_count() {
-                                let row_number = item.child_2a(row, 2).text().to_std_string().parse::<i64>().unwrap() - 1;
-                                let start = item.child_2a(row, 4).text().to_std_string().parse::<usize>().unwrap();
-                                let end = item.child_2a(row, 5).text().to_std_string().parse::<usize>().unwrap();
-                                let match_entry = TextMatch::new(row_number as u64, start, end, 0);
-                                match_file.matches_mut().push(match_entry);
-                            }
-                        }
-                        FileType::UIC => todo!(),
-                        FileType::UnitVariant => {
-                            if let Some(position) = unit_variant_matches.iter().position(|x| x.path() == &path) {
-                                unit_variant_matches.remove(position);
-                            }
-
-                            let matches = UnitVariantMatches::new(&path);
-                            unit_variant_matches.push(matches);
-                            let match_file = unit_variant_matches.last_mut().unwrap();
-
-                            // For the individual matches, we have to get them from the view, so the filtered out items are not added.
-                            for row in 0..item.row_count() {
-                                let item = item.child_2a(row, 0);
-                                let index = item.data_1a(UNIT_VARIANT_ENTRY_INDEX).to_u_int_0a() as usize;
-                                let bool_data = item.data_1a(UNIT_VARIANT_BOOL_DATA).to_u_int_0a();
-                                let vindex = item.data_1a(UNIT_VARIANT_VARIANT_INDEX).to_u_int_0a() as usize;
-                                let start = item.child_2a(row, 4).text().to_std_string().parse::<usize>().unwrap();
-                                let end = item.child_2a(row, 5).text().to_std_string().parse::<usize>().unwrap();
-
-                                let match_entry = UnitVariantMatch::new(
-                                    index,
-                                    bool_data == 1,
-                                    if bool_data > 1 {
-                                        Some((
-                                            vindex,
-                                            bool_data == 2,
-                                            bool_data == 3,
-                                        ))
-                                    } else {
-                                        None
-                                    },
-                                    start,
-                                    end,
-                                    item.text().to_std_string()
-                                );
-
-                                match_file.matches_mut().push(match_entry);
-                            }
-                        },
-                        FileType::Unknown => {
-                            if let Some(position) = unknown_matches.iter().position(|x| x.path() == &path) {
-                                unknown_matches.remove(position);
-                            }
-
-                            let text = UnknownMatches::new(&path);
-                            unknown_matches.push(text);
-                            let match_file = unknown_matches.last_mut().unwrap();
-
-                            // For the individual matches, we have to get them from the view, so the filtered out items are not added.
-                            for row in 0..item.row_count() {
-                                let pos = item.child_2a(row, 3).text().to_std_string().parse().unwrap();
-                                let len = item.child_2a(row, 4).text().to_std_string().parse().unwrap();
-                                let match_entry = UnknownMatch::new(pos, len);
-                                match_file.matches_mut().push(match_entry);
-                            }
-                        }
-                        FileType::Video => todo!(),
-                    }
-                }
+            if item.has_children() {
+                ids.extend((0..item.row_count()).map(|row| item.child_1a(row).data_1a(MATCH_ID).to_u_long_long_0a() as usize));
+            } else {
+                ids.insert(item.data_1a(MATCH_ID).to_u_long_long_0a() as usize);
             }
         }
 
-        let mut matches = vec![];
-
-        matches.append(&mut anim_matches.into_iter().map(MatchHolder::Anim).collect::<Vec<_>>());
-        matches.append(&mut anim_fragment_battle_matches.into_iter().map(MatchHolder::AnimFragmentBattle).collect::<Vec<_>>());
-        matches.append(&mut anim_pack_matches.into_iter().map(MatchHolder::AnimPack).collect::<Vec<_>>());
-        matches.append(&mut anims_table_matches.into_iter().map(MatchHolder::AnimsTable).collect::<Vec<_>>());
-        matches.append(&mut atlas_matches.into_iter().map(MatchHolder::Atlas).collect::<Vec<_>>());
-        matches.append(&mut audio_matches.into_iter().map(MatchHolder::Audio).collect::<Vec<_>>());
-        matches.append(&mut bmd_matches.into_iter().map(MatchHolder::Bmd).collect::<Vec<_>>());
-        matches.append(&mut db_matches.into_iter().map(MatchHolder::Db).collect::<Vec<_>>());
-        matches.append(&mut esf_matches.into_iter().map(MatchHolder::Esf).collect::<Vec<_>>());
-        matches.append(&mut group_formations_matches.into_iter().map(MatchHolder::GroupFormations).collect::<Vec<_>>());
-        matches.append(&mut image_matches.into_iter().map(MatchHolder::Image).collect::<Vec<_>>());
-        matches.append(&mut loc_matches.into_iter().map(MatchHolder::Loc).collect::<Vec<_>>());
-        matches.append(&mut matched_combat_matches.into_iter().map(MatchHolder::MatchedCombat).collect::<Vec<_>>());
-        matches.append(&mut pack_matches.into_iter().map(MatchHolder::Pack).collect::<Vec<_>>());
-        matches.append(&mut portrait_settings_matches.into_iter().map(MatchHolder::PortraitSettings).collect::<Vec<_>>());
-        matches.append(&mut rigid_model_matches.into_iter().map(MatchHolder::RigidModel).collect::<Vec<_>>());
-        matches.append(&mut sound_bank_matches.into_iter().map(MatchHolder::SoundBank).collect::<Vec<_>>());
-        matches.append(&mut text_matches.into_iter().map(MatchHolder::Text).collect::<Vec<_>>());
-        matches.append(&mut uic_matches.into_iter().map(MatchHolder::Uic).collect::<Vec<_>>());
-        matches.append(&mut unit_variant_matches.into_iter().map(MatchHolder::UnitVariant).collect::<Vec<_>>());
-        matches.append(&mut unknown_matches.into_iter().map(MatchHolder::Unknown).collect::<Vec<_>>());
-        matches.append(&mut video_matches.into_iter().map(MatchHolder::Video).collect::<Vec<_>>());
-
-        matches
+        ids.into_iter().collect()
     }
 
     pub unsafe fn search_data_from_ui(&self, reset_data: bool, is_replace: bool) -> Option<GlobalSearch> {
@@ -3060,4 +2415,32 @@ impl GlobalSearchUI {
 
         (display, highlight_start, highlight_end)
     }
+}
+
+/// Returns the file source of a search source.
+fn file_source(source: &SearchSource) -> FileSource {
+    match source {
+        SearchSource::Pack(pack_key) => FileSource::Pack(pack_key.clone()),
+        SearchSource::ParentFiles => FileSource::ParentFiles,
+        SearchSource::GameFiles => FileSource::GameFiles,
+        SearchSource::AssKitFiles => FileSource::AssemblyKit,
+    }
+}
+
+/// Returns the types of files to search, as the server names them: the names of the enabled flags.
+fn file_types(search_on: &SearchOn) -> Vec<String> {
+    match serde_json::to_value(search_on) {
+        Ok(serde_json::Value::Object(flags)) => flags.into_iter().filter(|(_, enabled)| enabled.as_bool() == Some(true)).map(|(file_type, _)| file_type).collect(),
+        _ => vec![],
+    }
+}
+
+/// Returns the keys of the packs a search searched.
+fn global_search_pack_keys(global_search: &GlobalSearch) -> Vec<String> {
+    global_search.sources().iter()
+        .filter_map(|source| match source {
+            SearchSource::Pack(pack_key) => Some(pack_key.clone()),
+            _ => None,
+        })
+        .collect()
 }

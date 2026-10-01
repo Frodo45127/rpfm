@@ -19,6 +19,8 @@ use serde_json::Value;
 
 use std::collections::BTreeMap;
 
+use rpfm_extensions::search::GlobalSearch;
+
 use super::Request;
 use super::files::FileSource;
 
@@ -146,6 +148,29 @@ pub struct SearchReplaced {
 
     /// Summary of the matches left after searching the edited files again.
     pub summary: SearchSummary,
+}
+
+/// `search.report`: returns the last search with all its matches, as the search returns them.
+///
+/// Meant for clients showing the matches with all their details. Others should use `search.matches`.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GetSearchReport {}
+
+/// The last search with all its matches.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct SearchReport {
+
+    /// The search, with its matches.
+    pub search: GlobalSearch,
+
+    /// ID of the first match of each file, by type of file, in the order of the files in the search.
+    /// The other matches of a file follow it, so its match number `n` has the ID `first + n`.
+    pub first_ids: BTreeMap<String, Vec<usize>>,
+}
+
+impl Request for GetSearchReport {
+    const METHOD: &'static str = "search.report";
+    type Response = SearchReport;
 }
 
 impl Request for RunSearch {

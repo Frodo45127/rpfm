@@ -61,7 +61,6 @@ use rpfm_extensions::dependencies::TableReferences;
 use rpfm_extensions::lua::harness::LuaTestReport;
 use rpfm_extensions::merge::{MergeConflict, MergeOptions};
 use rpfm_extensions::optimizer::OptimizerOptions;
-use rpfm_extensions::search::{GlobalSearch, MatchHolder};
 use rpfm_extensions::translator::PackTranslation;
 use rpfm_extensions::translator::hub::SubmissionResult;
 
@@ -235,13 +234,6 @@ pub enum Command {
     /// Response: [`Response::VecRFileInfo`].
     GetPackedFilesInfo(String, Vec<String>),
 
-    /// Perform a `Global Search` on a specific pack. Requires the pack key and search configuration.
-    ///
-    /// Response:
-    /// - [`Response::GlobalSearchVecRFileInfo`] on success.
-    /// - [`Response::Error`] if no schema.
-    GlobalSearch(String, GlobalSearch),
-
     /// Change the `Game Selected`]. Contains the game key and whether to rebuild dependencies.
     ///
     /// Response:
@@ -386,7 +378,7 @@ pub enum Command {
     /// First field is the pack key, then path and decoded file data.
     ///
     /// Response: [`Response::Success`].
-    SavePackedFileFromView(String, String, RFileDecoded),
+    SavePackedFileFromView(String, String, Box<RFileDecoded>),
 
     /// Add PackedFiles from one open pack into another.
     /// First field is the target pack key, second is the source pack key, third is the paths to copy.
@@ -563,22 +555,6 @@ pub enum Command {
     //-----------------------------------------------------------------------//
     // Search Commands
     //-----------------------------------------------------------------------//
-
-    /// Replace specific matches in a Global Search on a specific pack.
-    /// First field is the pack key, then search config and match holders.
-    ///
-    /// Response:
-    /// - [`Response::GlobalSearchVecRFileInfo`] on success.
-    /// - [`Response::Error`] if no schema.
-    GlobalSearchReplaceMatches(String, GlobalSearch, Vec<MatchHolder>),
-
-    /// Replace all matches in a Global Search on a specific pack.
-    /// First field is the pack key, second is the search config.
-    ///
-    /// Response:
-    /// - [`Response::GlobalSearchVecRFileInfo`] on success.
-    /// - [`Response::Error`] if no schema.
-    GlobalSearchReplaceAll(String, GlobalSearch),
 
     /// Get reference data for columns in a definition from a specific pack.
     /// First field is the pack key, then table name, definition, force flag.
@@ -1135,7 +1111,6 @@ pub enum Response {
     GitHubDeviceCode(DeviceCode),
     GitHubSignInRequired,
     GitHubSignInState(GitHubSignInState),
-    GlobalSearchVecRFileInfo(Box<GlobalSearch>, Vec<RFileInfo>),
     GroupFormationsRFileInfo(GroupFormations, RFileInfo),
     HashMapDataSourceHashMapStringRFile(HashMap<DataSource, HashMap<String, RFile>>),
     HashMapDataSourceHashSetContainerPath(HashMap<DataSource, HashSet<ContainerPath>>),

@@ -73,10 +73,9 @@ impl GlobalSearchSlots {
 
         // What happens when we trigger the "Global Search" action.
         let search = SlotNoArgs::new(&global_search_ui.dock_widget, clone!(
-            pack_file_contents_ui,
             global_search_ui => move || {
             rpfm_telemetry::track_action("Global Search");
-            global_search_ui.search(&pack_file_contents_ui);
+            global_search_ui.search();
         }));
 
         // What happens when we trigger the "Clear Search" action.

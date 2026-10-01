@@ -20,7 +20,7 @@ use rpfm_ipc::api::files::{
     AddFilesFromDisk, AddToAnimPack, CopyFiles, CreateFile, DeleteFiles, DeleteFromAnimPack, DuplicateFiles, ExtractFiles, ExtractFromAnimPack, ListAnimPack,
     ListFiles, ReadFile, RenameFiles, WriteFile,
 };
-use rpfm_ipc::api::search::{ListSearchMatches, ReplaceSearchMatches, RunSearch};
+use rpfm_ipc::api::search::{GetSearchReport, ListSearchMatches, ReplaceSearchMatches, RunSearch};
 use rpfm_ipc::api::notes::{AddNote, DeleteNote, ListNotes, NoteList};
 use rpfm_ipc::api::packs::{ClosePack, CloseAllPacks, GetPackInfo, GetPackSettings, NewPack, OpenPack, OpenVanillaPacks, SavePack, UpdatePack, UpdatePackSettings};
 use rpfm_ipc::api::schema::{
@@ -211,6 +211,7 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         }),
         ListSearchMatches::METHOD => call(params, |request: ListSearchMatches| state.list_search_matches(&request)),
         ReplaceSearchMatches::METHOD => call(params, |request: ReplaceSearchMatches| state.replace_search_matches(&request)),
+        GetSearchReport::METHOD => call(params, |_: GetSearchReport| state.search_report()),
         GetOptimizerOptions::METHOD => call(params, |_: GetOptimizerOptions| Ok(OptimizerOptionValues { options: optimizer_option_values(&settings.optimizer_options()) })),
         OptimizePack::METHOD => call(params, |request: OptimizePack| {
             report_stage("Optimizing the pack");

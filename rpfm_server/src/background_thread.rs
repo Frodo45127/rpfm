@@ -206,7 +206,7 @@ async fn dispatch(state: &mut SessionState, command: Command, sender: &Unbounded
             info!("Trying to decode a file. Path: {}. Data Source: {}", path, data_source);
             reply(sender, state.decode_file(&pack_key, &path, data_source, settings.bool(ENABLE_ESF_EDITOR)), decoded_file_response);
         }
-        Command::SavePackedFileFromView(pack_key, path, decoded) => reply(sender, state.save_file_from_view(&pack_key, &path, decoded), done),
+        Command::SavePackedFileFromView(pack_key, path, decoded) => reply(sender, state.save_file_from_view(&pack_key, &path, *decoded), done),
         Command::DeletePackedFiles(pack_key, paths) => reply(sender, state.delete_files(&pack_key, &paths), Response::VecContainerPath),
         Command::CopyPackedFiles(paths_by_pack) => {
             state.copy_files(&paths_by_pack, false);
@@ -280,9 +280,6 @@ async fn dispatch(state: &mut SessionState, command: Command, sender: &Unbounded
         Command::GetTablesFromDependencies(table_name) => reply(sender, state.dependency_tables(&table_name), Response::VecRFile),
 
         // Search.
-        Command::GlobalSearch(_pack_key, search) => reply(sender, state.global_search(search), |(search, info)| Response::GlobalSearchVecRFileInfo(Box::new(search), info)),
-        Command::GlobalSearchReplaceMatches(_pack_key, search, matches) => reply(sender, state.global_search_replace(search, Some(&matches)), |(search, info)| Response::GlobalSearchVecRFileInfo(Box::new(search), info)),
-        Command::GlobalSearchReplaceAll(_pack_key, search) => reply(sender, state.global_search_replace(search, None), |(search, info)| Response::GlobalSearchVecRFileInfo(Box::new(search), info)),
 
         // Game and dependencies.
         Command::GetGameSelected => send(sender, Response::String(state.game().key().to_owned())),

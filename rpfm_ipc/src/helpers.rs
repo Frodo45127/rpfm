@@ -57,11 +57,9 @@ use rayon::prelude::*;
 use schemars::JsonSchema;
 use serde_derive::{Serialize, Deserialize};
 
-use std::collections::BTreeMap;
 use std::fmt::{self, Display};
 
 use rpfm_extensions::dependencies::Dependencies;
-use rpfm_extensions::search::{GlobalSearch, SearchSource};
 
 use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::games::{*, pfh_file_type::PFHFileType, pfh_version::PFHVersion};
@@ -390,18 +388,6 @@ impl DependenciesInfo {
 }
 
 impl RFileInfo {
-
-    /// This function returns the PackedFileInfo for all the PackedFiles the current search has searched on.
-    pub fn info_from_global_search(global_search: &GlobalSearch, packs: &BTreeMap<String, Pack>) -> Vec<Self> {
-        let types = global_search.search_on().types_to_search();
-
-        // Only return info of stuff on the local Packs.
-        if global_search.sources().iter().any(|s| matches!(s, SearchSource::Pack(_))) {
-            packs.values().flat_map(|pack| pack.files_by_type(&types).iter().map(|x| From::from(*x)).collect::<Vec<_>>()).collect()
-        } else {
-            vec![]
-        }
-    }
 
     /// Returns the table name for DB files.
     ///

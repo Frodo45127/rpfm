@@ -31,7 +31,7 @@ use rpfm_ipc::api::ApiError;
 use rpfm_ipc::api::files::FileSource;
 use rpfm_ipc::api::search::{
     DEFAULT_MATCHES_LIMIT, DEFAULT_SEARCH_FILE_TYPES, ListSearchMatches, ReplaceSearchMatches, RunSearch, SearchMatch, SearchMatchList,
-    SearchReplaced, SearchSummary,
+    SearchReplaced, SearchReport, SearchSummary,
 };
 use rpfm_ipc::helpers::RFileInfo;
 
@@ -153,36 +153,19 @@ struct MatchRef {
 
 impl SessionState {
 
-    /// Runs a global search over the open packs and the dependencies.
-    ///
-    /// # Returns
-    ///
-    /// The search with its matches, and the info of the files with matches in the open packs.
-    pub fn global_search(&mut self, mut search: GlobalSearch) -> Result<(GlobalSearch, Vec<RFileInfo>)> {
-        let schema = loaded_schema(&self.schema)?;
-        search.search(&self.game, schema, &mut self.packs, &mut self.dependencies, &[]);
-
-        let files_info = RFileInfo::info_from_global_search(&search, &self.packs);
-        Ok((search, files_info))
-    }
-
     /// Replaces matches of a global search.
     ///
     /// # Arguments
     ///
     /// * `search` - The search the matches come from.
-    /// * `matches` - Matches to replace. If `None`, all the matches of the search are replaced.
+    /// * `matches` - Matches to replace.
     ///
     /// # Returns
     ///
     /// The search, and the info of the edited files.
-    pub fn global_search_replace(&mut self, mut search: GlobalSearch, matches: Option<&[MatchHolder]>) -> Result<(GlobalSearch, Vec<RFileInfo>)> {
+    fn global_search_replace(&mut self, mut search: GlobalSearch, matches: &[MatchHolder]) -> Result<(GlobalSearch, Vec<RFileInfo>)> {
         let schema = loaded_schema(&self.schema)?;
-        let edited_paths = match matches {
-            Some(matches) => search.replace(&self.game, schema, &mut self.packs, &mut self.dependencies, matches)?,
-            None => search.replace_all(&self.game, schema, &mut self.packs, &mut self.dependencies)?,
-        };
-
+        let edited_paths = search.replace(&self.game, schema, &mut self.packs, &mut self.dependencies, matches)?;
         Ok((search, self.files_info_in_all_packs(&edited_paths)))
     }
 
@@ -205,7 +188,9 @@ impl SessionState {
         };
         search.set_search_on(search_on(&file_types)?);
 
-        let (search, _) = self.global_search(search)?;
+        let schema = loaded_schema(&self.schema)?;
+        search.search(&self.game, schema, &mut self.packs, &mut self.dependencies, &[]);
+
         let summary = summarize(search.matches());
         self.search = Some(search);
         Ok(summary)
@@ -266,7 +251,7 @@ impl SessionState {
         };
 
         let result = match selected_match_holders(search.matches(), ids) {
-            Ok(holders) => self.global_search_replace(search.clone(), Some(&holders)),
+            Ok(holders) => self.global_search_replace(search.clone(), &holders),
             Err(error) => Err(error.into()),
         };
 
@@ -287,6 +272,16 @@ impl SessionState {
         let summary = summarize(replaced.matches());
         self.search = Some(replaced);
         Ok(SearchReplaced { edited, summary })
+    }
+
+    /// Returns the last search with all its matches, and the ID of the first match of each file.
+    ///
+    /// # Errors
+    ///
+    /// Fails if there is no search yet.
+    pub fn search_report(&self) -> Result<SearchReport> {
+        let search = self.search.as_ref().ok_or(ApiError::SearchNotRun)?;
+        Ok(SearchReport { search: search.clone(), first_ids: first_ids(&files_by_type(search.matches())) })
     }
 
     /// Returns the info of the files at the provided paths, from every open pack.
@@ -337,6 +332,24 @@ fn match_refs(files: &BTreeMap<&'static str, Vec<&dyn FileMatches>>) -> Vec<Matc
         .flat_map(|(file_type, files)| files.iter().enumerate()
             .flat_map(move |(file_index, file)| (0..file.match_count())
                 .map(move |match_index| MatchRef { file_type, file_index, match_index })))
+        .collect()
+}
+
+/// Returns the ID of the first match of each file, by type of file, numbering the matches like [`match_refs`].
+fn first_ids(files: &BTreeMap<&'static str, Vec<&dyn FileMatches>>) -> BTreeMap<String, Vec<usize>> {
+    let mut next_id = 0;
+    files.iter()
+        .map(|(file_type, files)| {
+            let ids = files.iter()
+                .map(|file| {
+                    let id = next_id;
+                    next_id += file.match_count();
+                    id
+                })
+                .collect();
+
+            ((*file_type).to_owned(), ids)
+        })
         .collect()
 }
 
@@ -463,6 +476,34 @@ mod tests {
         let mut items = vec!["a", "b", "c", "d"];
         retain_indexes(&mut items, &HashSet::from([0, 2, 9]));
         assert_eq!(items, vec!["a", "c"]);
+    }
+
+    /// Matches of a file for tests: only their amount matters.
+    struct FakeMatches(usize);
+
+    impl FileMatches for FakeMatches {
+        fn file_path(&self) -> &str { "" }
+        fn file_source(&self) -> Option<FileSource> { None }
+        fn match_count(&self) -> usize { self.0 }
+        fn match_details(&self, _index: usize) -> Value { Value::Null }
+        fn retain_matches(&mut self, _indexes: &HashSet<usize>) {}
+    }
+
+    #[test]
+    fn first_ids_number_matches_like_match_refs() {
+        let (db, text) = ([FakeMatches(2), FakeMatches(0), FakeMatches(3)], [FakeMatches(1)]);
+        let files: BTreeMap<&'static str, Vec<&dyn FileMatches>> = BTreeMap::from([
+            ("db", db.iter().map(|file| file as &dyn FileMatches).collect()),
+            ("text", text.iter().map(|file| file as &dyn FileMatches).collect()),
+        ]);
+
+        let first_ids = first_ids(&files);
+
+        assert_eq!(first_ids["db"], vec![0, 2, 2]);
+        assert_eq!(first_ids["text"], vec![5]);
+        for (id, match_ref) in match_refs(&files).iter().enumerate() {
+            assert_eq!(first_ids[match_ref.file_type][match_ref.file_index] + match_ref.match_index, id);
+        }
     }
 
     #[test]
