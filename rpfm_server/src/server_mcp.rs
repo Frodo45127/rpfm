@@ -77,7 +77,7 @@ use rpfm_ipc::api::files::{
 };
 use rpfm_ipc::api::packs::{ClosePack, CloseAllPacks, GetPackInfo, GetPackSettings, NewPack, OpenPack, OpenVanillaPacks, PackDetails, PackSettingsValues, PackSummary, SavePack, UpdatePack, UpdatePackSettings};
 use rpfm_ipc::api::jobs::{CancelJob, GetJobStatus, JobStarted, JobState, JobStatus, WaitForJob};
-use rpfm_ipc::api::session::{GenerateDependenciesCache, GetSessionStatus, RebuildDependencies, SessionStatus, SetGame};
+use rpfm_ipc::api::session::{DependencyTables, GenerateDependenciesCache, GetSessionStatus, ListDependencyTables, RebuildDependencies, SessionStatus, SetGame};
 use rpfm_ipc::api::tables::{
     AddKeyDeletes, ColumnValues, EditTable, ExportTsv, FilesEdited, GetColumnValues, GetTableDefinition, GetTableInfo, GetTableRows, ImportTsv, MergeTables,
     RenameKey, TableDefinition, TableEdited, TableInfo, TableRows, TablesMerged, TableUpgraded, UpgradeTable,
@@ -749,6 +749,16 @@ impl McpServer {
     )]
     pub async fn rebuild_dependencies(&self, params: Parameters<RebuildDependencies>) -> Result<CallToolResult, McpError> {
         self.call_api("rebuild_dependencies", params.0).await
+    }
+
+    #[tool(
+        name = "dependency_tables",
+        description = "List the tables of the selected game's files, and the startpos and twad tables of its schema, with the version new tables of each type should use. Empty if the dependencies aren't loaded.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<DependencyTables>(),
+    )]
+    pub async fn dependency_tables(&self, params: Parameters<ListDependencyTables>) -> Result<CallToolResult, McpError> {
+        self.call_api("dependency_tables", params.0).await
     }
 
     #[tool(

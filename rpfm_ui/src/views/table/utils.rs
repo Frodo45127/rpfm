@@ -49,6 +49,7 @@ use std::sync::{atomic::AtomicPtr, RwLock};
 use rpfm_extensions::dependencies::TableReferences;
 
 use rpfm_ipc::api::references::GetTableReferenceData;
+use rpfm_ipc::api::session::GetDependencyTableData;
 
 
 use rpfm_lib::binary::WriteBytes;
@@ -1042,27 +1043,21 @@ pub unsafe fn get_vanilla_hashed_tables(file_type: FileType, table_name: &str) -
     match file_type {
         FileType::DB => {
 
-            // Call the backend passing it the files we have open (so we don't get them from the backend too), and get the frontend data while we wait for it to finish.
-            let files = send_ipc_command_result(Command::GetTablesFromDependencies(table_name.to_owned()), response_extractor!(Response::VecRFile))?;
-            let mut data = Vec::with_capacity(files.len());
-            for file in files {
+            let tables = call_api(&GetDependencyTableData { table_name: table_name.to_owned() })?.tables;
+            let mut data = Vec::with_capacity(tables.len());
+            for table in tables {
+                let key_pos = table.definition().key_column_positions();
+                if !key_pos.is_empty() {
+                    let mut hashes = HashMap::new();
+                    for (index, row) in table.data().iter().enumerate() {
+                        let keys = key_pos.iter()
+                            .map(|x| row[*x].data_to_string())
+                            .join("");
 
-                if let Ok(RFileDecoded::DB(table)) = file.decoded() {
-                    let definition = table.definition();
-                    let key_pos = definition.key_column_positions();
-
-                    if !key_pos.is_empty() {
-                        let mut hashes = HashMap::new();
-                        for (index, row) in table.data().iter().enumerate() {
-                            let keys = key_pos.iter()
-                                .map(|x| row[*x].data_to_string())
-                                .join("");
-
-                            hashes.insert(keys, index as i32);
-                        }
-
-                        data.push((table.clone(), hashes));
+                        hashes.insert(keys, index as i32);
                     }
+
+                    data.push((table, hashes));
                 }
             }
 

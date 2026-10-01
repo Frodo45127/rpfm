@@ -81,6 +81,8 @@ use std::time::Instant;
 
 use rpfm_extensions::merge::{MergeConflict, MergeResolution};
 
+use rpfm_ipc::api::session::{GetDependenciesInfo, ListDependencyTables, RebuildDependencies, SetGame};
+use rpfm_ipc::api::tables::GetColumnValues;
 use rpfm_ipc::api::tools::{FinishStartpos, GetStartposCampaigns, OptimizePack, StartStartpos, UpdateAnimIds, optimizer_option_values};
 use rpfm_ipc::settings_keys::*;
 use rpfm_ipc::helpers::{ContainerInfo, DataSource, NewFile};
@@ -97,7 +99,7 @@ use rpfm_ui_common::FULL_DATE_FORMAT;
 use rpfm_ui_common::icons::IconType;
 
 use crate::CENTRAL_COMMAND;
-use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR, call_api_async, run_job, send_ipc_command, send_ipc_command_result, send_ipc_command_result_async, send_ipc_command_async};
+use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR, call_api, call_api_async, run_job, send_ipc_command, send_ipc_command_result, send_ipc_command_result_async, send_ipc_command_async};
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::*;
@@ -2885,7 +2887,7 @@ impl AppUI {
                 return show_dialog(&app_ui.main_window, "There is no Schema for the Game Selected.", false);
             }
 
-            let it_is = send_ipc_command(Command::IsThereADependencyDatabase(false), response_extractor!(Response::Bool));
+            let it_is = is_dependency_database_loaded(false);
             if !it_is { return show_dialog(&app_ui.main_window, "The dependencies cache for the Game Selected is either missing, outdated, or it was generated without the Assembly Kit. Please, re-generate it and try again.", false); }
         }
 
@@ -2991,7 +2993,7 @@ impl AppUI {
                     let new_path = format!("{path}/{name}");
                     let table = path_split[1];
 
-                    let version = match send_ipc_command_result(Command::GetTableVersionFromDependencyPackFile(table.to_owned()), response_extractor!(Response::I32)) {
+                    let version = match dependency_table_version(table) {
                         Ok(data) => data,
                         Err(error) => return show_dialog(&app_ui.main_window, error, false),
                     };
@@ -3163,17 +3165,9 @@ impl AppUI {
         match file_type {
             FileType::AnimPack => name_line_edit.set_text(&QString::from_std_str(format!("{pack_name}.animpack"))),
             FileType::DB => {
-                let mut tables = send_ipc_command(Command::GetTableListFromDependencyPackFile, response_extractor!(Response::VecString));
-
-                // Also get the custom tables (start_pos) if there's any supported for the game selected.
-                //
-                // These may come duplicated, so we need to dedup them later.
-                let mut custom_tables = send_ipc_command(Command::GetCustomTableList, response_extractor!(Response::VecString));
-
-                tables.append(&mut custom_tables);
-                tables.sort();
-                tables.dedup();
-                tables.iter().for_each(|x| table_model.append_row_q_standard_item(QStandardItem::from_q_string(&QString::from_std_str(x)).into_ptr()));
+                // The game tables, and the startpos and twad ones of the schema. They come sorted.
+                let tables = call_api(&ListDependencyTables {}).map(|tables| tables.tables).unwrap_or_default();
+                tables.keys().for_each(|x| table_model.append_row_q_standard_item(QStandardItem::from_q_string(&QString::from_std_str(x)).into_ptr()));
 
                 name_line_edit.set_text(&QString::from_std_str(&pack_name));
                 table_extra_widget.set_visible(true);
@@ -3181,8 +3175,22 @@ impl AppUI {
             FileType::Loc => name_line_edit.set_text(&QString::from_std_str(format!("{pack_name}.loc"))),
             FileType::Text => name_line_edit.set_text(&QString::from_std_str(format!("{pack_name}.txt"))),
             FileType::PortraitSettings => {
-                let local_art_set_ids = send_ipc_command(Command::LocalArtSetIds(pack_key.clone()), response_extractor!(Response::HashSetString));
-                let dependencies_art_set_ids = send_ipc_command(Command::DependenciesArtSetIds, response_extractor!(Response::HashSetString));
+                let art_set_ids = |include_packs, include_dependencies| {
+                    let request = GetColumnValues {
+                        table_name: "campaign_character_arts_tables".to_owned(),
+                        column: "art_set_id".to_owned(),
+                        include_packs,
+                        include_dependencies,
+                        prefix: String::new(),
+                        offset: 0,
+                        limit: Some(usize::MAX),
+                    };
+
+                    call_api(&request).map(|values| values.values).unwrap_or_default()
+                };
+
+                let local_art_set_ids = art_set_ids(true, false);
+                let dependencies_art_set_ids = art_set_ids(false, true);
 
                 for art_set_id in dependencies_art_set_ids.iter().sorted_unstable() {
                     let item = QStandardItem::from_q_string(&QString::from_std_str(art_set_id));
@@ -3232,7 +3240,7 @@ impl AppUI {
 
                 FileType::DB => {
                     let table = table_dropdown.current_text().to_std_string();
-                    let version = send_ipc_command_result(Command::GetTableVersionFromDependencyPackFile(table.to_owned()), response_extractor!(Response::I32))?;
+                    let version = dependency_table_version(&table)?;
                     Ok(Some(NewFile::DB(file_name, table, version)))
                 },
                 FileType::Loc => {
@@ -4030,7 +4038,7 @@ impl AppUI {
         _pack_file_contents_ui: &Rc<PackFileContentsUI>,
         dependencies_ui: &Rc<DependenciesUI>,
     ) {
-        match send_ipc_command_result_async(Command::RebuildDependencies(true), response_extractor!(Response::DependenciesInfo)) {
+        match run_job(&RebuildDependencies { only_parent_packs: true }).and_then(|_| call_api_async(&GetDependenciesInfo {})) {
             Ok(dep_info) => {
                 let mut parent_build_data = BuildData::new();
                 parent_build_data.data = Some((ContainerInfo::default(), dep_info.parent_packed_files().to_vec()));
@@ -4064,12 +4072,19 @@ impl AppUI {
             // Disable the main window if it's not yet disabled so we can avoid certain issues.
             app_ui.toggle_main_window(false);
 
-            // Send the command to the background thread to set the new `Game Selected`. We expect two responses:
-            // - New compression format.
-            // - Success.
-            let (_cf, dependencies_info) = send_ipc_command_async(Command::SetGameSelected(new_game_selected.to_owned(), rebuild_dependencies), response_extractor!(Response::CompressionFormatDependenciesInfo, v1, v2));
+            // Set the new `Game Selected` in the backend, and get the dependencies if they were rebuilt.
+            let request = SetGame { game: new_game_selected.to_owned(), rebuild_dependencies };
+            match run_job(&request) {
+                Ok(_) => if rebuild_dependencies {
+                    match call_api_async(&GetDependenciesInfo {}) {
+                        Ok(info) => dep_info = Some(info),
+                        Err(error) => show_dialog(&app_ui.main_window, error, false),
+                    }
+                },
+                Err(error) => show_dialog(&app_ui.main_window, error, false),
+            }
+
             *GAME_SELECTED.write().unwrap() = SUPPORTED_GAMES.game(&new_game_selected).unwrap();
-            dep_info = dependencies_info;
 
             // Mark all open packs as modified after a game change.
             if pack_file_contents_ui.packfile_contents_tree_model().row_count_0a() > 0 {
@@ -4185,7 +4200,7 @@ impl AppUI {
         UI_STATE.set_is_modified(false, app_ui, pack_file_contents_ui);
 
         // Force a dependency rebuild.
-        match send_ipc_command_result_async(Command::RebuildDependencies(true), response_extractor!(Response::DependenciesInfo)) {
+        match run_job(&RebuildDependencies { only_parent_packs: true }).and_then(|_| call_api_async(&GetDependenciesInfo {})) {
             Ok(response) => {
                 let mut parent_build_data = BuildData::new();
                 parent_build_data.data = Some((ContainerInfo::default(), response.parent_packed_files().to_vec()));

@@ -27,6 +27,7 @@ use rpfm_extensions::merge::{db_baseline, delta_merge_db, delta_merge_loc, loc_b
 
 use rpfm_ipc::api::ApiError;
 use rpfm_ipc::api::files::{ASSEMBLY_KIT_TABLE_FILE_NAME, FileRef, FileSource};
+use rpfm_ipc::api::session::{DependencyTableData, DependencyTables};
 use rpfm_ipc::api::references::{DEFAULT_REFERENCE_VALUES_LIMIT, DEFAULT_USAGES_LIMIT, FindUsages, GetReferenceValues, GetTableReferenceData, TableReferenceData, LocSource, ReferenceValue, ReferenceValues, RowLocation, Usage, Usages};
 use rpfm_ipc::api::tables::{AddKeyDeletes, ExportTsv, FilesEdited, ImportTsv, MergeTables, RenameKey, TableUpgraded, TablesMerged, UpgradeTable};
 use rpfm_ipc::api::tables::{ColumnInfo, ColumnValues, DEFAULT_VALUES_LIMIT, GetColumnValues, GetTableDefinition, ColumnReference, DEFAULT_ROWS_LIMIT, EditTable, FilterOp, GetTableRows, RowEdit, RowFilter, TableEdited, TableInfo, TableRow, TableRows};
@@ -200,15 +201,6 @@ impl SessionState {
 
         let files_info = pack.files_by_paths(&edited_paths, false).into_par_iter().map(From::from).collect();
         Ok((edited_paths, files_info))
-    }
-
-    /// Returns the paths of the tables of a pack with the provided table name.
-    pub fn table_paths_by_name(&self, pack_key: &str, table_name: &str) -> Result<Vec<String>> {
-        let path = ContainerPath::Folder(format!("db/{table_name}/"));
-        Ok(pack(&self.packs, pack_key)?.files_by_type_and_paths(&[FileType::DB], &[path], true)
-            .iter()
-            .map(|file| file.path_in_container_raw().to_owned())
-            .collect())
     }
 
     /// Adds rows to a key deletes table of a pack, one per key.
@@ -520,24 +512,28 @@ impl SessionState {
             .ok_or_else(|| anyhow!("There are no definitions for this specific table."))
     }
 
-    /// Returns the definition of a table with the version it has in the game files.
-    pub fn dependency_table_definition(&self, table_name: &str) -> Result<Definition> {
-        if !self.dependencies.is_vanilla_data_loaded(false) {
-            return Err(ApiError::DependenciesNotLoaded.into());
-        }
-
-        let schema = loaded_schema(&self.schema)?;
-        let version = self.dependencies.db_version(table_name)
-            .ok_or_else(|| anyhow!("Table version not found in dependencies for table {}.", table_name))?;
-
-        schema.definition_by_name_and_version(table_name, version)
-            .cloned()
-            .ok_or_else(|| anyhow!("No definition found for table {}.", table_name))
-    }
-
     /// Returns the tables with the provided name from the game files and the parent packs.
     pub fn dependency_tables(&self, table_name: &str) -> Result<Vec<RFile>> {
         Ok(self.dependencies.db_data(table_name, true, true)?.into_iter().cloned().collect())
+    }
+
+    /// Returns the tables of the game files, and the custom tables of the schema, with their version.
+    pub fn dependency_table_versions(&self) -> DependencyTables {
+        let names = self.dependency_table_names().into_iter().chain(self.custom_table_names().unwrap_or_default());
+        let tables = names.filter_map(|name| self.dependency_table_version(&name).ok().map(|version| (name, version))).collect();
+        DependencyTables { tables }
+    }
+
+    /// Returns every decoded table of a type in the game files and the parent packs.
+    pub fn dependency_table_data(&self, table_name: &str) -> Result<DependencyTableData> {
+        let tables = self.dependency_tables(table_name)?.iter()
+            .filter_map(|file| match file.decoded() {
+                Ok(RFileDecoded::DB(table)) => Some(table.clone()),
+                _ => None,
+            })
+            .collect();
+
+        Ok(DependencyTableData { tables })
     }
 }
 

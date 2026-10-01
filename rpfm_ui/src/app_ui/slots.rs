@@ -49,6 +49,7 @@ use std::sync::atomic::Ordering;
 use std::time::Instant;
 
 use rpfm_ipc::api::schema::{ImportPatches, UpdateSchemaFromAssemblyKit};
+use rpfm_ipc::api::session::{GenerateDependenciesCache, GetDependenciesInfo, GetSessionStatus};
 use rpfm_ipc::api::tools::InitMyMod;
 use rpfm_ipc::settings_keys::*;
 use rpfm_ipc::helpers::{ContainerInfo, DataSource};
@@ -63,7 +64,7 @@ use rpfm_ui_common::utils::{create_grid_layout, ref_from_atomic};
 
 use crate::app_ui::{AppUI, Pane};
 use crate::CENTRAL_COMMAND;
-use crate::communications::{RECONNECT_COMPLETE, THREADS_COMMUNICATION_ERROR, Command, Response, send_ipc_command, send_ipc_command_result, send_ipc_command_result_async, send_ipc_command_async, call_api_async, run_job};
+use crate::communications::{RECONNECT_COMPLETE, THREADS_COMMUNICATION_ERROR, Command, Response, send_ipc_command, send_ipc_command_result, send_ipc_command_result_async, call_api_async, run_job};
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::DISCORD_URL;
@@ -522,7 +523,7 @@ impl AppUISlots {
             dependencies_ui => move || {
                 rpfm_telemetry::track_action("Open PackFile Menu");
 
-                let generated = send_ipc_command(Command::IsThereADependencyDatabase(false), response_extractor!(Response::Bool));
+                let generated = is_dependency_database_loaded(false);
                 app_ui.packfile_load_all_ca_packfiles().set_enabled(!generated);
 
                 AppUI::build_pack_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui, &dependencies_ui);
@@ -778,7 +779,7 @@ impl AppUISlots {
 
                                 // Now sync the UI state from the new session.
                                 // Get the game selected from the backend and update the UI checkbox.
-                                let game_key = send_ipc_command_async(Command::GetGameSelected, response_extractor!(Response::String));
+                                let game_key = call_api_async(&GetSessionStatus {}).map(|status| status.game).unwrap_or_default();
                                 info!("New session game selected: {}", game_key);
 
                                 // Update the game selection checkbox (without triggering the slot).
@@ -1231,11 +1232,8 @@ impl AppUISlots {
                     wait_dialog.set_option_2a(q_message_box::Option::DontUseNativeDialog, true);
                     wait_dialog.show();
 
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::GenerateDependenciesCache);
-                    let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-
-                    match response {
-                        Response::DependenciesInfo(response) => {
+                    match run_job(&GenerateDependenciesCache::default()).and_then(|_| call_api_async(&GetDependenciesInfo {})) {
+                        Ok(response) => {
                             let mut parent_build_data = BuildData::new();
                             parent_build_data.data = Some((ContainerInfo::default(), response.parent_packed_files().to_vec()));
 
@@ -1252,11 +1250,10 @@ impl AppUISlots {
                             wait_dialog.done(1);
                             show_dialog(&app_ui.main_window, tr("generate_dependency_cache_success"), true)
                         },
-                        Response::Error(error) => {
+                        Err(error) => {
                             wait_dialog.done(1);
                             show_dialog(&app_ui.main_window, error, false);
                         },
-                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
                     }
 
                     app_ui.toggle_main_window(true);

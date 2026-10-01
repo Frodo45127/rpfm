@@ -80,6 +80,7 @@ use std::rc::Rc;
 
 use rpfm_extensions::dependencies::{KEY_DELETES_TABLE_NAME, TableReferences};
 
+use rpfm_ipc::api::files::{FileSource, ListFiles};
 use rpfm_ipc::api::references::{FindDefinition, FindLoc, GetLocSource, RowLocation};
 use rpfm_ipc::api::schema::{PatchColumn, RemovePatches};
 use rpfm_ipc::api::tables::{AddKeyDeletes, RenameKey};
@@ -1536,8 +1537,17 @@ impl TableView {
             return;
         }
 
-        let paths = match send_ipc_command_result(Command::GetTablesByTableName(pack_key, KEY_DELETES_TABLE_NAME.to_owned()), response_extractor!(Response::VecString)) {
-            Ok(paths) => paths,
+        let request = ListFiles {
+            source: FileSource::Pack(pack_key),
+            prefix: format!("db/{KEY_DELETES_TABLE_NAME}/"),
+            recursive: true,
+            file_types: Some(vec![FileType::DB]),
+            offset: 0,
+            limit: Some(usize::MAX),
+        };
+
+        let paths = match call_api(&request) {
+            Ok(list) => list.files.into_iter().map(|file| file.path).collect::<Vec<_>>(),
             Err(_) => return,
         };
         view.context_menu_add_to_twad_key_deletes_m.clear();

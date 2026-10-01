@@ -55,7 +55,7 @@ use rpfm_lib::files::{ContainerPath, db::DB, loc::Loc, RFile, RFileDecoded, tabl
 use rpfm_lib::schema::{Definition, FieldType};
 
 use crate::app_ui::AppUI;
-use crate::communications::{Command, Response, send_ipc_command, send_ipc_command_result};
+use crate::communications::{Command, Response, send_ipc_command_result};
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::*;
@@ -63,7 +63,7 @@ use crate::GAME_SELECTED;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::settings_ui::backend::is_schema_loaded;
+use crate::settings_ui::backend::{definition_by_table_name_and_version, dependency_table_version, is_dependency_database_loaded, is_schema_loaded};
 use crate::utils::*;
 use crate::UI_STATE;
 use crate::views::table::utils::clean_column_names;
@@ -187,7 +187,7 @@ impl Tool {
             return Err(ToolsError::SchemaNotFound.into());
         }
 
-        let it_is = send_ipc_command(Command::IsThereADependencyDatabase(true), response_extractor!(Response::Bool));
+        let it_is = is_dependency_database_loaded(true);
         if !it_is { return Err(ToolsError::DependenciesCacheNotGeneratedorOutOfDate.into()); }
 
         // Load the UI Template. All templates must be simple widgets.
@@ -1201,6 +1201,6 @@ impl Tool {
 
     /// This function returns the last compatible definition for the provided table.
     pub fn get_table_definition(table_name: &str) -> Result<Definition> {
-        send_ipc_command_result(Command::GetTableDefinitionFromDependencyPackFile(table_name.to_owned()), response_extractor!(Response::Definition))
+        definition_by_table_name_and_version(table_name, dependency_table_version(table_name)?)
     }
 }

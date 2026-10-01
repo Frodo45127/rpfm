@@ -29,7 +29,7 @@ use rpfm_ipc::api::schema::{
 };
 use rpfm_ipc::api::github::{GetGitHubAccount, GitHubAccount, PollGitHubSignIn, SignOutOfGitHub, StartGitHubSignIn};
 use rpfm_ipc::api::translations::{GenerateVanillaTexts, GetPackTranslation, ListTranslations, SubmitTranslation, TranslationSubmission, VanillaTextsAvailable};
-use rpfm_ipc::api::session::{GenerateDependenciesCache, GetSessionStatus, RebuildDependencies, SetGame};
+use rpfm_ipc::api::session::{GenerateDependenciesCache, GetDependenciesInfo, GetDependencyTableData, GetSessionStatus, ListDependencyTables, RebuildDependencies, SetGame};
 use rpfm_ipc::api::references::{FindDefinition, FindLoc, FindUsages, GetLocSource, GetReferenceValues, GetTableReferenceData, LocSourceLookup};
 use rpfm_ipc::api::tables::{AddKeyDeletes, EditTable, ExportTsv, GetColumnValues, GetTableDefinition, GetTableInfo, GetTableRows, ImportTsv, MergeTables, RenameKey, UpgradeTable};
 use rpfm_ipc::api::updates::{ApplyUpdate, CheckUpdate};
@@ -96,6 +96,9 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
             state.rebuild_dependencies(request.only_parent_packs, settings)?;
             Ok(state.session_status())
         }),
+        ListDependencyTables::METHOD => call(params, |_: ListDependencyTables| Ok(state.dependency_table_versions())),
+        GetDependenciesInfo::METHOD => call(params, |_: GetDependenciesInfo| Ok(state.dependencies_info())),
+        GetDependencyTableData::METHOD => call(params, |request: GetDependencyTableData| state.dependency_table_data(&request.table_name)),
 
         GetPackInfo::METHOD => call(params, |request: GetPackInfo| state.pack_details(&request.pack)),
         NewPack::METHOD => call(params, |_: NewPack| {

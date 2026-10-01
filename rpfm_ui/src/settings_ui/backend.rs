@@ -24,7 +24,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use rpfm_extensions::optimizer::OptimizerOptions;
 
 use rpfm_ipc::api::schema::{DeleteDefinition, GetRawDefinitions, GetReferencingColumns, GetTablePatches};
-use rpfm_ipc::api::session::GetSessionStatus;
+use rpfm_ipc::api::session::{GetSessionStatus, ListDependencyTables};
 use rpfm_ipc::settings::{self as settings_store, Settings};
 use rpfm_ipc::settings_keys::*;
 
@@ -210,6 +210,17 @@ pub fn optimizer_options() -> OptimizerOptions {
 /// If a schema is loaded for the selected game.
 pub fn is_schema_loaded() -> bool {
     call_api(&GetSessionStatus {}).is_ok_and(|status| status.schema_loaded)
+}
+
+/// If the dependencies of the selected game are loaded, optionally requiring the Assembly Kit tables too.
+pub fn is_dependency_database_loaded(include_asskit: bool) -> bool {
+    call_api(&GetSessionStatus {}).is_ok_and(|status| status.dependencies.vanilla_loaded && (!include_asskit || status.dependencies.assembly_kit_loaded))
+}
+
+/// Version new tables of a type should use: the one in the game files, or the newest one for startpos and twad tables.
+pub fn dependency_table_version(table_name: &str) -> Result<i32> {
+    call_api(&ListDependencyTables {})?.tables.get(table_name).copied()
+        .ok_or_else(|| anyhow!("Table {table_name} not found in the game files, or the dependencies are not loaded."))
 }
 
 /// All the definitions of a table. Empty if the table is not in the schema.

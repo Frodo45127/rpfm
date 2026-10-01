@@ -207,30 +207,11 @@ pub enum Command {
     /// Response: [`Response::VecRFileInfo`].
     GetPackedFilesInfo(String, Vec<String>),
 
-    /// Change the `Game Selected`]. Contains the game key and whether to rebuild dependencies.
-    ///
-    /// Response:
-    /// - [`Response::CompressionFormatDependenciesInfo`] on success.
-    /// - [`Response::Error`] if game not supported.
-    SetGameSelected(String, bool),
-
-    /// Get the currently selected game key.
-    ///
-    /// Response: [`Response::String`].
-    GetGameSelected,
-
     /// Change the `Type` of a specific open Pack.
     /// First field is the pack key, second is the new type.
     ///
     /// Response: [`Response::Success`].
     SetPackFileType(String, PFHFileType),
-
-    /// Generate the dependencies cache for the selected game.
-    ///
-    /// Response:
-    /// - [`Response::DependenciesInfo`] on success.
-    /// - [`Response::Error`] on failure.
-    GenerateDependenciesCache,
 
     /// Change the `Index Includes Timestamp` flag in a specific open Pack.
     /// First field is the pack key, second is the flag value.
@@ -276,12 +257,6 @@ pub enum Command {
     //-----------------------------------------------------------------------//
     // Update Commands
     //-----------------------------------------------------------------------//
-
-    /// Check if there is a Dependency Database loaded in memory.
-    /// Pass true to ensure dependencies were built with the AssKit.
-    ///
-    /// Response: [`Response::Bool`].
-    IsThereADependencyDatabase(bool),
 
     //-----------------------------------------------------------------------//
     // PackedFile Operations
@@ -445,49 +420,6 @@ pub enum Command {
     // Dependency Commands
     //-----------------------------------------------------------------------//
 
-    /// Get the table names of all DB files in dependency PackFiles.
-    ///
-    /// Response: [`Response::VecString`].
-    GetTableListFromDependencyPackFile,
-
-    /// Get custom table names (start_pos_, twad_ prefixes) from the schema.
-    ///
-    /// Response:
-    /// - [`Response::VecString`] on success.
-    /// - [`Response::Error`] if no schema.
-    GetCustomTableList,
-
-    /// Get local art set IDs from campaign_character_arts_tables in a specific pack.
-    /// The field is the pack key.
-    ///
-    /// Response: [`Response::HashSetString`].
-    LocalArtSetIds(String),
-
-    /// Get art set IDs from dependencies' campaign_character_arts_tables.
-    ///
-    /// Response: [`Response::HashSetString`].
-    DependenciesArtSetIds,
-
-    /// Get the distinct values of a column of a DB table, from the open packs, their parent packs and vanilla.
-    /// First field is the table name (like `factions_tables`), second is the column name.
-    ///
-    /// Response: [`Response::HashSetString`].
-    DependenciesColumnValues(String, String),
-
-    /// Get the version of a table from the dependency database.
-    ///
-    /// Response:
-    /// - [`Response::I32`] on success.
-    /// - [`Response::Error`] if not found or dependencies not loaded.
-    GetTableVersionFromDependencyPackFile(String),
-
-    /// Get the definition of a table from the dependency database.
-    ///
-    /// Response:
-    /// - [`Response::Definition`] on success.
-    /// - [`Response::Error`] if not found.
-    GetTableDefinitionFromDependencyPackFile(String),
-
     //-----------------------------------------------------------------------//
     // Search Commands
     //-----------------------------------------------------------------------//
@@ -614,14 +546,6 @@ pub enum Command {
     //-----------------------------------------------------------------------//
     // Dependencies Commands
     //-----------------------------------------------------------------------//
-
-    /// Rebuild the dependencies.
-    /// Pass true to rebuild all dependencies, false for mod-specific only.
-    ///
-    /// Response:
-    /// - [`Response::DependenciesInfo`] on success.
-    /// - [`Response::Error`] if no schema.
-    RebuildDependencies(bool),
 
     //-----------------------------------------------------------------------//
     // Cascade Edition Commands
@@ -750,19 +674,6 @@ pub enum Command {
     // Table Commands
     //-----------------------------------------------------------------------//
 
-    /// Get tables from dependencies by table name.
-    ///
-    /// Response:
-    /// - [`Response::VecRFile`] on success.
-    /// - [`Response::Error`] on failure.
-    GetTablesFromDependencies(String),
-
-    /// Get table paths by table name from a specific PackFile.
-    /// First field is the pack key, second is the table name.
-    ///
-    /// Response: [`Response::VecString`].
-    GetTablesByTableName(String, String),
-
     //-----------------------------------------------------------------------//
     // 3D Export Commands
     //-----------------------------------------------------------------------//
@@ -819,19 +730,14 @@ pub enum Response {
     AudioRFileInfo(Audio, RFileInfo),
     Bool(bool),
     CompressionFormat(CompressionFormat),
-    CompressionFormatDependenciesInfo(CompressionFormat, Option<DependenciesInfo>),
     ContainerInfo(ContainerInfo),
     ContainerInfoVecRFileInfo((ContainerInfo, Vec<RFileInfo>)),
     StringContainerInfo(String, ContainerInfo),
     DBRFileInfo(DB, RFileInfo),
-    Definition(Definition),
-    DependenciesInfo(DependenciesInfo),
     ESFRFileInfo(ESF, RFileInfo),
     GroupFormationsRFileInfo(GroupFormations, RFileInfo),
     HashMapDataSourceHashMapStringRFile(HashMap<DataSource, HashMap<String, RFile>>),
     HashMapDataSourceHashSetContainerPath(HashMap<DataSource, HashSet<ContainerPath>>),
-    HashSetString(HashSet<String>),
-    I32(i32),
     ImageRFileInfo(Image, RFileInfo),
     LocRFileInfo(Loc, RFileInfo),
     MatchedCombatRFileInfo(MatchedCombat, RFileInfo),
@@ -857,7 +763,6 @@ pub enum Response {
     VecContainerPathBTreeMapStringVecContainerPath(Vec<ContainerPath>, BTreeMap<String, Vec<ContainerPath>>),
     VecContainerPathVecString(Vec<ContainerPath>, Vec<String>),
     VecField(Vec<Field>),
-    VecRFile(Vec<RFile>),
     VecRFileInfo(Vec<RFileInfo>),
     VecString(Vec<String>),
     VecStringTuples(Vec<(String, String)>),

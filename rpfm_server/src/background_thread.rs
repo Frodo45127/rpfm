@@ -232,35 +232,12 @@ async fn dispatch(state: &mut SessionState, command: Command, sender: &Unbounded
 
         // Tables.
         Command::ImportTSV(pack_key, internal_path, external_path) => reply(sender, state.import_tsv(&pack_key, &internal_path, &external_path), Response::RFileDecoded),
-        Command::GetTablesByTableName(pack_key, table_name) => reply(sender, state.table_paths_by_name(&pack_key, &table_name), Response::VecString),
-        Command::LocalArtSetIds(_pack_key) => send(sender, Response::HashSetString(state.column_values("campaign_character_arts_tables", "art_set_id", true, false))),
-        Command::DependenciesArtSetIds => send(sender, Response::HashSetString(state.column_values("campaign_character_arts_tables", "art_set_id", false, true))),
-        Command::DependenciesColumnValues(table_name, column_name) => send(sender, Response::HashSetString(state.column_values(&table_name, &column_name, true, true))),
-        Command::GetTableListFromDependencyPackFile => send(sender, Response::VecString(state.dependency_table_names())),
-        Command::GetTableVersionFromDependencyPackFile(table_name) => reply(sender, state.dependency_table_version(&table_name), Response::I32),
-        Command::GetTableDefinitionFromDependencyPackFile(table_name) => reply(sender, state.dependency_table_definition(&table_name), Response::Definition),
-        Command::GetTablesFromDependencies(table_name) => reply(sender, state.dependency_tables(&table_name), Response::VecRFile),
 
         // Search.
 
         // Game and dependencies.
-        Command::GetGameSelected => send(sender, Response::String(state.game().key().to_owned())),
-        Command::SetGameSelected(game_key, rebuild_dependencies) => {
-            let result = state.set_game_selected(&game_key, rebuild_dependencies, &settings, disable_uuid_regeneration);
-            let dependencies_rebuilt = matches!(result, Ok((_, Some(_))));
-            reply(sender, result, |(format, info)| Response::CompressionFormatDependenciesInfo(format, info));
-
-            // Decode the dependencies tables after answering, so the UI can do its own thing meanwhile.
-            if dependencies_rebuilt {
-                state.decode_dependency_tables();
-            }
-        }
-        Command::GenerateDependenciesCache => reply(sender, state.generate_dependencies_cache(&settings, settings.bool(IGNORE_GAME_FILES_IN_AK)), Response::DependenciesInfo),
-        Command::RebuildDependencies(only_parent_packs) => reply(sender, state.rebuild_dependencies(only_parent_packs, &settings), Response::DependenciesInfo),
-        Command::IsThereADependencyDatabase(include_asskit) => send(sender, Response::Bool(state.is_dependency_database_loaded(include_asskit))),
 
         // Schema.
-        Command::GetCustomTableList => reply(sender, state.custom_table_names(), Response::VecString),
         Command::FieldsProcessed(definition) => send(sender, Response::VecField(definition.fields_processed())),
 
         // Diagnostics and Lua.

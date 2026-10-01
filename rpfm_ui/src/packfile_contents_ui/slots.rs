@@ -58,7 +58,7 @@ use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::SpecialView;
 use crate::references_ui::ReferencesUI;
-use crate::settings_ui::backend::{is_schema_loaded, settings_bool, settings_path_buf};
+use crate::settings_ui::backend::{is_dependency_database_loaded, is_schema_loaded, settings_bool, settings_path_buf};
 use crate::GAME_SELECTED;
 use crate::UI_STATE;
 use crate::ui_state::OperationalMode;
@@ -656,7 +656,7 @@ impl PackFileContentsSlots {
                 pack_file_contents_ui.context_menu_add_from_pack.set_enabled(pack_file_contents_ui.context_menu_copy_to_pack.menu_action().is_enabled());
 
                 // Ask the other thread if there is a Dependency Database and a Schema loaded.
-                let is_there_a_dependency_database = send_ipc_command(Command::IsThereADependencyDatabase(false), response_extractor!(Response::Bool));
+                let is_there_a_dependency_database = is_dependency_database_loaded(false);
 
                 // If there is no dependency_database or schema for our GameSelected, ALWAYS disable creating new DB Tables and exporting them.
                 if !is_there_a_dependency_database || !is_schema_loaded() {

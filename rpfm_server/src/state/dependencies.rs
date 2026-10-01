@@ -158,12 +158,8 @@ impl SessionState {
             .map_err(|_| anyhow!("Schema updated, but dependencies cache rebuilding failed. You may need to regenerate it."))
     }
 
-    /// Returns if the vanilla data of the dependencies is loaded.
-    ///
-    /// # Arguments
-    ///
-    /// * `include_asskit` - If the Assembly Kit data must be loaded too.
-    pub fn is_dependency_database_loaded(&self, include_asskit: bool) -> bool {
-        self.dependencies.is_vanilla_data_loaded(include_asskit)
+    /// Returns the files of the dependencies of the selected game.
+    pub fn dependencies_info(&self) -> DependenciesInfo {
+        DependenciesInfo::new(&self.dependencies, self.game.vanilla_db_table_name_logic())
     }
 }

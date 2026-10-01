@@ -61,6 +61,8 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 
+use rpfm_ipc::api::tables::GetColumnValues;
+
 use rpfm_lib::files::{FileType, RFileDecoded};
 use rpfm_lib::files::group_formations::*;
 use rpfm_lib::files::group_formations::layout::LayoutParams;
@@ -1455,8 +1457,17 @@ fn flag_label(name: &str) -> String {
 
 /// Returns the sorted values of a DB table column, from the game and the open packs.
 fn dependencies_column_values(table_name: &str, column_name: &str) -> Vec<String> {
-    let values = send_ipc_command_async(Command::DependenciesColumnValues(table_name.to_owned(), column_name.to_owned()), response_extractor!(Response::HashSetString));
-    values.into_iter().collect::<BTreeSet<_>>().into_iter().collect()
+    let request = GetColumnValues {
+        table_name: table_name.to_owned(),
+        column: column_name.to_owned(),
+        include_packs: true,
+        include_dependencies: true,
+        prefix: String::new(),
+        offset: 0,
+        limit: Some(usize::MAX),
+    };
+
+    call_api_async(&request).map(|values| values.values).unwrap_or_default()
 }
 
 /// Returns the sorted entity classes of the game, plus the ones used in the file and the generic one.

@@ -13,6 +13,11 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use std::collections::BTreeMap;
+
+use rpfm_lib::files::db::DB;
+
+use crate::helpers::DependenciesInfo;
 use crate::settings::Settings;
 
 use super::{default_true, Done, Request};
@@ -122,4 +127,55 @@ impl Request for RebuildDependencies {
     const METHOD: &'static str = "dependencies.rebuild";
     type Response = SessionStatus;
     const IS_JOB: bool = true;
+}
+
+/// `dependencies.tables`: returns the tables of the game files, and the startpos, twad and CEO tables of the schema, with their version.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ListDependencyTables {}
+
+/// Tables new files of the selected game can be created for.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct DependencyTables {
+
+    /// Version of each table, by table name. Empty if the dependencies are not loaded.
+    pub tables: BTreeMap<String, i32>,
+}
+
+impl Request for ListDependencyTables {
+    const METHOD: &'static str = "dependencies.tables";
+    type Response = DependencyTables;
+}
+
+/// `dependencies.info`: returns the files of the dependencies of the selected game.
+///
+/// Meant for clients showing the dependencies as a tree. Others should use `files.list`.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GetDependenciesInfo {}
+
+impl Request for GetDependenciesInfo {
+    const METHOD: &'static str = "dependencies.info";
+    type Response = DependenciesInfo;
+}
+
+/// `dependencies.table_data`: returns every decoded table of a type in the game files and the parent packs.
+///
+/// Meant for clients comparing whole tables. Others should use `table.rows`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GetDependencyTableData {
+
+    /// Name of the table, like `units_tables`.
+    pub table_name: String,
+}
+
+/// Decoded tables of the dependencies.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct DependencyTableData {
+
+    /// The tables.
+    pub tables: Vec<DB>,
+}
+
+impl Request for GetDependencyTableData {
+    const METHOD: &'static str = "dependencies.table_data";
+    type Response = DependencyTableData;
 }
