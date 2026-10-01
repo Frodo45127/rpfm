@@ -28,11 +28,15 @@ use qt_core::QString;
 use qt_core::QSignalBlocker;
 use qt_core::{SlotOfBool, SlotOfInt, SlotNoArgs, SlotOfQItemSelectionQItemSelection, SlotOfQModelIndex, SlotOfQString};
 
+use anyhow::anyhow;
+
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{Arc, atomic::Ordering, RwLock};
 
+use rpfm_ipc::api::files::FileRef;
 use rpfm_ipc::api::references::FindUsages;
+use rpfm_ipc::api::tables::ExportTsv;
 use rpfm_ipc::helpers::DataSource;
 
 use rpfm_lib::files::{ContainerPath, RFileDecoded};
@@ -655,8 +659,14 @@ impl TableViewSlots {
                             }
                         }
 
-                        let pack_key = view.pack_key.read().unwrap().clone();
-                        if let Err(error) = send_ipc_command_result_async(Command::ExportTSV(pack_key, packed_file_path.read().unwrap().to_string(), path, view.get_data_source()), response_extractor!()) {
+                        let result = view.get_data_source().file_source(&view.pack_key.read().unwrap())
+                            .ok_or_else(|| anyhow!("External files can't be exported to TSV."))
+                            .and_then(|source| {
+                                let file = FileRef { source, path: packed_file_path.read().unwrap().to_string() };
+                                call_api_async(&ExportTsv { file, destination: path, keys_first: None })
+                            });
+
+                        if let Err(error) = result {
                             show_dialog(&view.table_view, error, false);
                         }
                     }

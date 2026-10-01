@@ -424,6 +424,10 @@ pub struct RenameKey {
 
     /// New value.
     pub new_value: String,
+
+    /// Version of the table's definition. Defaults to the version in the game files, or the newest one.
+    #[serde(default)]
+    pub version: Option<i32>,
 }
 
 /// Files edited by an operation.

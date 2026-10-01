@@ -70,7 +70,7 @@ use getset::Getters;
 use itertools::Itertools;
 use serde_derive::{Deserialize, Serialize};
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fs::{DirBuilder, File};
 use std::io::{BufReader, Read, BufWriter, Write};
 use std::{fmt, fmt::Debug};
@@ -82,6 +82,7 @@ use rpfm_extensions::dependencies::{KEY_DELETES_TABLE_NAME, TableReferences};
 
 use rpfm_ipc::api::references::{FindDefinition, FindLoc, GetLocSource, RowLocation};
 use rpfm_ipc::api::schema::{PatchColumn, RemovePatches};
+use rpfm_ipc::api::tables::{AddKeyDeletes, RenameKey};
 use rpfm_ipc::helpers::DataSource;
 use rpfm_ipc::settings_keys::*;
 
@@ -1609,9 +1610,9 @@ impl TableView {
         table.generate_twad_key_deletes_keys(&mut keys);
 
         let pack_key = self.pack_key.read().unwrap().clone();
-        let path = send_ipc_command_result(Command::AddKeysToKeyDeletes(pack_key.clone(), file_name.to_string(), table_name, keys), response_extractor!(Response::OptionContainerPath))?;
-        if let Some(path) = path {
-            let edited_paths = [path];
+        let request = AddKeyDeletes { pack: pack_key.clone(), file_name: file_name.to_string(), table_name, keys: keys.into_iter().collect() };
+        let edited_paths = file_paths(call_api(&request)?.edited);
+        if !edited_paths.is_empty() {
 
             // If it worked, get the list of edited PackedFiles and update the TreeView to reflect the change.
             pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Modify(edited_paths.to_vec()), DataSource::PackFile, &pack_key);
@@ -3425,14 +3426,28 @@ impl TableView {
             let _ = AppUI::back_to_back_end_all(app_ui, pack_file_contents_ui);
 
             // Then ask the backend to do the heavy work.
-            let definition = self.table_definition().clone();
-            let fields_processed = definition.fields_processed();
-            let changes = editions.iter().map(|(value_before, value_after, _, column)|
-                (fields_processed[*column as usize].clone(), value_before.to_string(), value_after.to_string()))
-                .collect::<Vec<_>>();
-
+            let version = *self.table_definition().version();
             let pack_key = self.pack_key.read().unwrap().clone();
-            let (edited_paths, packed_files_info) = send_ipc_command(Command::CascadeEdition(pack_key.clone(), table_name, definition, changes), response_extractor!(Response::VecContainerPathVecRFileInfo, v1, v2));
+            let mut edited = BTreeSet::new();
+            for (value_before, value_after, _, column) in &editions {
+                let request = RenameKey {
+                    pack: pack_key.clone(),
+                    table_name: table_name.clone(),
+                    column: fields_processed[*column as usize].name().to_owned(),
+                    old_value: value_before.to_owned(),
+                    new_value: value_after.to_owned(),
+                    version: Some(version),
+                };
+
+                match call_api(&request) {
+                    Ok(files) => edited.extend(files.edited),
+                    Err(error) => show_dialog(&self.table_view, error, false),
+                }
+            }
+
+            let edited = edited.into_iter().collect::<Vec<_>>();
+            let packed_files_info = send_ipc_command(Command::GetPackedFilesInfo(pack_key.clone(), edited.clone()), response_extractor!(Response::VecRFileInfo));
+            let edited_paths = file_paths(edited);
 
             // If it worked, get the list of edited PackedFiles and update the TreeView to reflect the change.
             pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Modify(edited_paths.to_vec()), DataSource::PackFile, &pack_key);

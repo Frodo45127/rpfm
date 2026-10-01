@@ -57,7 +57,6 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Debug;
 use std::path::PathBuf;
 
-use rpfm_extensions::merge::{MergeConflict, MergeOptions};
 
 use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::files::{
@@ -489,27 +488,6 @@ pub enum Command {
     /// - [`Response::Error`] if not found.
     GetTableDefinitionFromDependencyPackFile(String),
 
-    /// Merge multiple compatible tables into one in a specific pack.
-    /// First field is the pack key, then paths to merge, merged file path, delete source flag, merge options.
-    ///
-    /// If [`MergeOptions::delta_merge`] is set and merging by key leaves unresolved conflicts, nothing is
-    /// written and the conflicts are returned instead; call this again with the same arguments plus
-    /// [`MergeOptions::resolutions`] filled in to finish the merge.
-    ///
-    /// Response:
-    /// - [`Response::String`] (merged path) on success.
-    /// - [`Response::MergeConflicts`] if delta merging left unresolved conflicts.
-    /// - [`Response::Error`] on failure.
-    MergeFiles(String, Vec<ContainerPath>, String, bool, MergeOptions),
-
-    /// Update a table to a newer version in a specific pack.
-    /// First field is the pack key, second is the container path.
-    ///
-    /// Response:
-    /// - [`Response::I32I32VecStringVecString`] (old_version, new_version, deleted_fields, added_fields) on success.
-    /// - [`Response::Error`] on failure.
-    UpdateTable(String, ContainerPath),
-
     //-----------------------------------------------------------------------//
     // Search Commands
     //-----------------------------------------------------------------------//
@@ -549,14 +527,6 @@ pub enum Command {
     //-----------------------------------------------------------------------//
     // TSV Commands
     //-----------------------------------------------------------------------//
-
-    /// Export a table as TSV from a specific pack.
-    /// First field is the pack key, then internal path, destination path, data source.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    ExportTSV(String, String, PathBuf, DataSource),
 
     /// Import a TSV as a table into a specific pack.
     /// First field is the pack key, then internal path, source TSV path.
@@ -656,12 +626,6 @@ pub enum Command {
     //-----------------------------------------------------------------------//
     // Cascade Edition Commands
     //-----------------------------------------------------------------------//
-
-    /// Trigger a cascade edition on all referenced data in a specific pack.
-    /// First field is the pack key, then table name, definition, list of (field, old_value, new_value).
-    ///
-    /// Response: [`Response::VecContainerPathVecRFileInfo`].
-    CascadeEdition(String, String, Definition, Vec<(Field, String, String)>),
 
     //-----------------------------------------------------------------------//
     // Navigation Commands
@@ -799,12 +763,6 @@ pub enum Command {
     /// Response: [`Response::VecString`].
     GetTablesByTableName(String, String),
 
-    /// Add keys to the key_deletes table in a specific pack.
-    /// First field is the pack key, then table file name, key table name, keys to add.
-    ///
-    /// Response: [`Response::OptionContainerPath`].
-    AddKeysToKeyDeletes(String, String, String, HashSet<String>),
-
     //-----------------------------------------------------------------------//
     // 3D Export Commands
     //-----------------------------------------------------------------------//
@@ -874,13 +832,10 @@ pub enum Response {
     HashMapDataSourceHashSetContainerPath(HashMap<DataSource, HashSet<ContainerPath>>),
     HashSetString(HashSet<String>),
     I32(i32),
-    I32I32VecStringVecString(i32, i32, Vec<String>, Vec<String>),
     ImageRFileInfo(Image, RFileInfo),
     LocRFileInfo(Loc, RFileInfo),
     MatchedCombatRFileInfo(MatchedCombat, RFileInfo),
-    MergeConflicts(Vec<MergeConflict>),
     OperationalMode(OperationalMode),
-    OptionContainerPath(Option<ContainerPath>),
     OptionRFileInfo(Option<RFileInfo>),
     PackSettings(PackSettings),
     PathBuf(PathBuf),
@@ -900,7 +855,6 @@ pub enum Response {
     VecContainerPathOptionString(Vec<ContainerPath>, Option<String>),
     VecContainerPathVecContainerPath(Vec<ContainerPath>, Vec<ContainerPath>),
     VecContainerPathBTreeMapStringVecContainerPath(Vec<ContainerPath>, BTreeMap<String, Vec<ContainerPath>>),
-    VecContainerPathVecRFileInfo(Vec<ContainerPath>, Vec<RFileInfo>),
     VecContainerPathVecString(Vec<ContainerPath>, Vec<String>),
     VecField(Vec<Field>),
     VecRFile(Vec<RFile>),

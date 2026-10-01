@@ -33,8 +33,8 @@ use std::fs::{copy, remove_dir_all, remove_file, DirBuilder};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use rpfm_extensions::merge::MergeOptions;
 
+use rpfm_ipc::api::tables::{MergeTables, TableUpgraded, TablesMerged, UpgradeTable};
 use rpfm_ipc::api::tools::{GenerateMissingLocs, LiveExport, MapTile, PackMap, PatchSiegeAi};
 use rpfm_ipc::helpers::DataSource;
 use rpfm_ipc::settings_keys::*;
@@ -1738,16 +1738,21 @@ impl PackFileContentsSlots {
                     let selected_paths_cont = selected_paths.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<_>>();
                     let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
 
-                    let mut options = MergeOptions::default();
-                    options.set_delta_merge(delta_merge);
+                    let mut request = MergeTables {
+                        pack: pack_key.clone(),
+                        paths: selected_paths.to_vec(),
+                        merged_path: path_to_add.clone(),
+                        delete_sources: delete_source_files,
+                        delta: delta_merge,
+                        resolutions: vec![],
+                    };
 
                     // Delta merge may need a few round trips: the backend reports any conflicts it can't
                     // resolve on its own, we ask the user to pick a value for each, then retry with those
                     // resolutions filled in.
                     loop {
-                        let command = Command::MergeFiles(pack_key.clone(), selected_paths_cont.to_vec(), path_to_add.clone(), delete_source_files, options.clone());
-                        match send_ipc_command(command, |response| response) {
-                            Response::String(path_to_add) => {
+                        match call_api(&request) {
+                            Ok(TablesMerged { merged: Some(path_to_add), .. }) => {
 
                                 // If we want to delete the sources, do it now. Oh, and close them manually first, or the autocleanup will try to save them and fail miserably.
                                 if delete_source_files {
@@ -1762,17 +1767,15 @@ impl PackFileContentsSlots {
                                 break;
                             }
 
-                            Response::MergeConflicts(conflicts) => match AppUI::merge_conflicts_dialog(&app_ui, &conflicts) {
-                                Some(resolutions) => { options.set_resolutions(resolutions); },
+                            Ok(TablesMerged { merged: None, conflicts }) => match AppUI::merge_conflicts_dialog(&app_ui, &conflicts) {
+                                Some(resolutions) => request.resolutions = resolutions,
                                 None => break,
                             },
 
-                            Response::Error(error) => {
+                            Err(error) => {
                                 show_dialog(app_ui.main_window(), error, false);
                                 break;
                             }
-
-                            _ => break,
                         }
                     }
                 }
@@ -1806,8 +1809,8 @@ impl PackFileContentsSlots {
                     }
 
                     let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    match send_ipc_command_result(Command::UpdateTable(pack_key.clone(), item_type.clone()), response_extractor!(Response::I32I32VecStringVecString, old_version, new_version, fields_deleted, fields_added)) {
-                        Ok((old_version, new_version, fields_deleted, fields_added)) => {
+                    match call_api(&UpgradeTable { pack: pack_key.clone(), path: path.to_owned() }) {
+                        Ok(TableUpgraded { old_version, new_version, deleted_columns: fields_deleted, added_columns: fields_added }) => {
                             let mut message = tre("update_table_success", &[&old_version.to_string(), &new_version.to_string()]);
                             if !fields_deleted.is_empty() {
                                 message.push_str(&tre("update_table_success_files_deleted", &[&fields_deleted.iter().map(|x| format!("<li>{x}</li>")).join("")]));

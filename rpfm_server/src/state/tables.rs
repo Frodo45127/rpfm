@@ -659,7 +659,11 @@ impl SessionState {
     ///
     /// Fails if the table has no definition, or no column with the provided name.
     pub fn rename_key(&mut self, request: &RenameKey) -> Result<FilesEdited> {
-        let version = self.table_definition(&GetTableDefinition { table_name: request.table_name.clone(), version: None })?.version;
+        let version = match request.version {
+            Some(version) => version,
+            None => self.table_definition(&GetTableDefinition { table_name: request.table_name.clone(), version: None })?.version,
+        };
+
         let definition = loaded_schema(&self.schema)?.definition_by_name_and_version(&request.table_name, version)
             .ok_or_else(|| ApiError::DefinitionNotFound(request.table_name.clone()))?
             .clone();

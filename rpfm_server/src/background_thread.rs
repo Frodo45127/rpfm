@@ -43,7 +43,7 @@ use crate::comms::CentralCommand;
 use crate::api;
 use crate::session::{Session, SessionMessage};
 use rpfm_ipc::settings::*;
-use crate::state::{DecodedFile, ExtractOptions, MergeOutcome, SaveOptions, SessionState, plugin_scripts};
+use crate::state::{DecodedFile, ExtractOptions, SaveOptions, SessionState, plugin_scripts};
 
 /// Extracts the variant name (e.g. `"NewPack"`) from a [`Command`] for telemetry.
 ///
@@ -231,16 +231,8 @@ async fn dispatch(state: &mut SessionState, command: Command, sender: &Unbounded
         Command::ImportDependenciesToOpenPackFile(pack_key, paths_by_source) => reply(sender, state.import_dependencies(&pack_key, &paths_by_source), |(added, not_added)| Response::VecContainerPathVecString(added, not_added)),
 
         // Tables.
-        Command::MergeFiles(pack_key, paths, merged_path, delete_source_files, options) => reply(sender, state.merge_files(&pack_key, &paths, &merged_path, delete_source_files, &options), |outcome| match outcome {
-            MergeOutcome::Merged(path) => Response::String(path),
-            MergeOutcome::Conflicts(conflicts) => Response::MergeConflicts(conflicts),
-        }),
-        Command::UpdateTable(pack_key, path) => reply(sender, state.update_table(&pack_key, &path), |(old_version, new_version, deleted, added)| Response::I32I32VecStringVecString(old_version, new_version, deleted, added)),
-        Command::ExportTSV(pack_key, internal_path, external_path, data_source) => reply(sender, state.export_tsv(&pack_key, &internal_path, &external_path, data_source, extract_options.tsv_keys_first), done),
         Command::ImportTSV(pack_key, internal_path, external_path) => reply(sender, state.import_tsv(&pack_key, &internal_path, &external_path), Response::RFileDecoded),
-        Command::CascadeEdition(pack_key, table_name, definition, changes) => reply(sender, state.cascade_edition(&pack_key, &table_name, &definition, &changes), |(paths, info)| Response::VecContainerPathVecRFileInfo(paths, info)),
         Command::GetTablesByTableName(pack_key, table_name) => reply(sender, state.table_paths_by_name(&pack_key, &table_name), Response::VecString),
-        Command::AddKeysToKeyDeletes(pack_key, table_file_name, key_table_name, keys) => reply(sender, state.add_keys_to_key_deletes(&pack_key, &table_file_name, &key_table_name, &keys), Response::OptionContainerPath),
         Command::LocalArtSetIds(_pack_key) => send(sender, Response::HashSetString(state.column_values("campaign_character_arts_tables", "art_set_id", true, false))),
         Command::DependenciesArtSetIds => send(sender, Response::HashSetString(state.column_values("campaign_character_arts_tables", "art_set_id", false, true))),
         Command::DependenciesColumnValues(table_name, column_name) => send(sender, Response::HashSetString(state.column_values(&table_name, &column_name, true, true))),
