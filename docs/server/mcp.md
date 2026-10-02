@@ -1,6 +1,6 @@
 # MCP Interface
 
-In addition to the [WebSocket protocol](./overview.md), the RPFM Server exposes a **Model Context Protocol (MCP)** interface at `/mcp`. This allows AI assistants (such as Claude, Cursor, or any MCP-compatible client) to interact with RPFM programmatically using the standard [MCP specification](https://modelcontextprotocol.io/).
+In addition to the [WebSocket protocol](./ws-protocol.md), the RPFM Server exposes a **Model Context Protocol (MCP)** interface at `/mcp`. This allows AI assistants (such as Claude, Cursor, or any MCP-compatible client) to interact with RPFM using the standard [MCP specification](https://modelcontextprotocol.io/).
 
 ## Transport
 
@@ -10,21 +10,22 @@ The MCP endpoint uses **Streamable HTTP** transport:
 POST http://127.0.0.1:45127/mcp
 ```
 
-Each MCP connection gets its own RPFM session, just like WebSocket connections.
-MCP sessions are reaped by the server after 5 minutes of command inactivity,
-because the MCP transport gives no reliable disconnect signal.
+Each MCP connection gets its own RPFM session, separate from the WebSocket ones. MCP sessions are reaped by the server after 5 minutes of inactivity, because the MCP transport gives no reliable disconnect signal.
+
+MCP sessions start with the settings in RPFM's `settings.json`, and can't change them.
 
 ## How It Differs from WebSocket
 
-| Aspect            | WebSocket (`/ws`)                             | MCP (`/mcp`)                                      |
-|-------------------|-----------------------------------------------|---------------------------------------------------|
-| Protocol          | Custom JSON messages with `id`/`data` envelope | Standard MCP (JSON-RPC 2.0)                       |
-| Transport         | WebSocket                                      | Streamable HTTP                                   |
-| Interaction model | Send `Command`, receive `Response`             | Call named **tools**, receive JSON results         |
-| Session control   | Manual via `?session_id=` and `ClientDisconnecting` | Reaped by the server after 5 minutes of command inactivity |
-| Intended clients  | Custom scripts, GUIs                           | AI assistants and MCP-compatible tools             |
+| Aspect            | WebSocket (`/ws`)                                | MCP (`/mcp`)                                        |
+|-------------------|--------------------------------------------------|-----------------------------------------------------|
+| Protocol          | JSON-RPC 2.0                                     | MCP (JSON-RPC 2.0)                                  |
+| Transport         | WebSocket                                        | Streamable HTTP                                     |
+| Interaction model | Call [methods](./methods.md)                     | Call named **tools**                                |
+| Slow operations   | Return a job ID, followed by `job.updated` notifications | Wait up to 45 seconds for the job, then return its state |
+| Session control   | `?session_id=` and `session.disconnect`          | Reaped after 5 minutes of inactivity                |
+| Intended clients  | Custom scripts, GUIs                             | AI assistants and MCP-compatible tools              |
 
-Both interfaces expose the same underlying functionality — every MCP tool maps to an internal `Command` and returns its `Response` serialized as JSON.
+Every tool calls one method, with the same params and result, so the [Methods](./methods.md) reference also documents the tools. The tools only cover what's useful to an assistant: methods made for the UI, like the ones returning whole decoded files, have no tool.
 
 ## Connecting
 
@@ -42,300 +43,240 @@ Add the server to your `claude_desktop_config.json`:
 }
 ```
 
+### Claude Code
+
+```bash
+claude mcp add --transport http rpfm http://127.0.0.1:45127/mcp
+```
+
 ### Other MCP Clients
 
 Any MCP client that supports Streamable HTTP transport can connect. Point it to `http://127.0.0.1:45127/mcp`.
 
-## Tool Reference
+## Results and Errors
 
-The MCP interface exposes **155 tools** organized by category. Each tool accepts typed JSON arguments and returns the server's `Response` serialized as JSON text.
+Tools return their result as **structured content**, and their params and results are described by JSON schemas in `tools/list`.
 
-### Generic
+A tool that fails returns a **tool error** instead of ending the MCP session. Its content has the same `code`, `message` and `data.kind` as a [WebSocket error](./ws-protocol.md#errors), like `pack_not_found` or `schema_not_loaded`.
 
-| Tool | Description | Arguments |
-|------|-------------|-----------|
-| `call_command` | Call any IPC command directly (for commands not yet wrapped as named tools) | `command`: JSON string of the Command enum |
+### Jobs
 
-### Pack Lifecycle
+Slow tools (`set_game`, `generate_dependencies_cache`, `rebuild_dependencies`, `run_diagnostics`, `run_search`, `update_schemas`, `update_schema_from_assembly_kit`, `optimize_pack`, `run_lua_tests`) run as [jobs](./ws-protocol.md#jobs). They wait up to 45 seconds and return the state of their job:
 
-| Tool | Description | Key Arguments |
-|------|-------------|---------------|
-| `new_pack` | Create a new empty PackFile | *(none)* |
-| `open_packfiles` | Open one or more PackFiles | `paths`: file paths |
-| `save_packfile` | Save a pack | `pack_key` |
-| `close_pack` | Close a pack without saving | `pack_key` |
-| `close_all_packs` | Close every open pack without saving | *(none)* |
-| `save_pack_as` | Save a pack to a new path | `pack_key`, `path` |
-| `clean_and_save_pack_as` | Save a clean copy (use if normal save fails) | `pack_key`, `path` |
-| `trigger_backup_autosave` | Trigger a backup autosave | `pack_key` |
-| `load_all_ca_pack_files` | Open all vanilla CA PackFiles for the selected game | *(none)* |
-| `list_open_packs` | List all open packs with their keys and metadata | *(none)* |
+- If it finished, the state includes the `result` of the tool.
+- If it failed, the tool returns a tool error with the state.
+- If it's still running, call `wait_for_job` with its `job` ID, as many times as needed.
 
-### Pack Metadata
+Other tools called meanwhile wait for the job to end before running.
 
-| Tool | Description | Key Arguments |
-|------|-------------|---------------|
-| `set_pack_file_type` | Set the pack type (PFHFileType as JSON) | `pack_key`, `pack_file_type` |
-| `change_compression_format` | Change compression format | `pack_key`, `format` |
-| `change_index_includes_timestamp` | Toggle timestamp in pack index | `pack_key`, `value` |
-| `change_index_is_encrypted` | Toggle encryption of the pack index (PFH4+) | `pack_key`, `value` |
-| `change_data_is_encrypted` | Toggle encryption of the pack file data (PFH4+) | `pack_key`, `value` |
-| `get_pack_file_path` | Get the file path of a pack | `pack_key` |
-| `get_pack_file_name` | Get the file name of a pack | `pack_key` |
-| `get_pack_settings` | Get pack settings | `pack_key` |
-| `set_pack_settings` | Set pack settings (PackSettings as JSON) | `pack_key`, `settings` |
-| `get_dependency_pack_files_list` | Get dependency pack list | `pack_key` |
-| `set_dependency_pack_files_list` | Set dependency pack list | `pack_key`, `list` |
+## Resources
 
-### File Operations
+The server also exposes reference data as MCP resources, readable without tool calls:
 
-| Tool | Description | Key Arguments |
-|------|-------------|---------------|
-| `decode_packed_file` | Decode a file from a pack | `pack_key`, `path`, `source` |
-| `new_packed_file` | Create a new file inside a pack | `pack_key`, `path`, `new_file` |
-| `add_packed_files` | Add files from disk to a pack | `pack_key`, `source_paths`, `destination_paths` |
-| `add_packed_files_from_pack_file` | Add files from another PackFile | `pack_key`, `source_pack_path`, `container_paths` |
-| `add_packed_files_from_pack_file_to_animpack` | Add files to an AnimPack | `pack_key`, `animpack_path`, `container_paths` |
-| `add_packed_files_from_animpack` | Add files from an AnimPack | `pack_key`, `source`, `animpack_path`, `container_paths` |
-| `delete_packed_files` | Delete files from a pack | `pack_key`, `paths` |
-| `copy_packed_files` | Copy paths into the internal clipboard | `paths_by_pack` |
-| `cut_packed_files` | Cut paths into the internal clipboard (removed from source on paste) | `paths_by_pack` |
-| `paste_packed_files` | Paste from the internal clipboard into a pack folder | `pack_key`, `destination_path` |
-| `duplicate_packed_files` | Duplicate files in-place within the same pack (numeric suffix added) | `pack_key`, `paths` |
-| `delete_from_animpack` | Delete files from an AnimPack | `pack_key`, `animpack_path`, `container_paths` |
-| `extract_packed_files` | Extract files to disk | `pack_key`, `source_paths`, `destination_path`, `export_as_tsv` |
-| `rename_packed_files` | Rename files in a pack | `pack_key`, `renames` |
-| `save_packed_file_from_view` | Save an edited decoded file back | `pack_key`, `path`, `data` |
-| `save_packed_file_from_external_view` | Save a file from an external program | `pack_key`, `internal_path`, `external_path` |
-| `save_packed_files_to_pack_file_and_clean` | Save files and optionally optimize | `pack_key`, `files`, `optimize` |
-| `get_packed_file_raw_data` | Get raw binary data of a file | `pack_key`, `value` |
-| `open_packed_file_in_external_program` | Open a file in an external program | `pack_key`, `source`, `container_path` |
-| `open_containing_folder` | Open the pack's folder in file manager | `pack_key` |
-| `clean_cache` | Clean the decode cache | `pack_key`, `paths` |
-| `folder_exists` | Check if a folder exists in a pack | `pack_key`, `value` |
-| `packed_file_exists` | Check if a file exists in a pack | `pack_key`, `value` |
-| `get_packed_files_info` | Get info of one or more files | `pack_key`, `values` |
-| `get_rfile_info` | Get info of a single file | `pack_key`, `value` |
-
-### Game Selection
-
-| Tool | Description | Key Arguments |
-|------|-------------|---------------|
-| `get_game_selected` | Get the currently selected game | *(none)* |
-| `set_game_selected` | Set the current game | `game_name`, `rebuild_dependencies` |
-
-### Dependencies
-
-| Tool | Description | Key Arguments |
-|------|-------------|---------------|
-| `generate_dependencies_cache` | Generate the dependencies cache | *(none)* |
-| `rebuild_dependencies` | Rebuild dependencies | `value` (true = full) |
-| `is_there_a_dependency_database` | Check if a dependency database is loaded | `value` |
-| `get_table_list_from_dependency_pack_file` | Get table names from dependency packs | *(none)* |
-| `get_custom_table_list` | Get custom table names from schema | *(none)* |
-| `get_table_version_from_dependency_pack_file` | Get table version from dependencies | `value` |
-| `get_table_definition_from_dependency_pack_file` | Get table definition from dependencies | `value` |
-| `get_tables_from_dependencies` | Get table data by name | `value` |
-| `import_dependencies_to_open_pack_file` | Import files from dependencies | `pack_key`, `paths` |
-| `get_rfiles_from_all_sources` | Get files from all sources | `paths`, `lowercase` |
-| `get_packed_files_names_starting_with_path_from_all_sources` | Get file names under a path | `path` |
-| `local_art_set_ids` | Get local art set IDs | `pack_key` |
-| `dependencies_art_set_ids` | Get art set IDs from dependencies | *(none)* |
-| `dependencies_column_values` | Get the distinct values of a DB table column from the open packs, parents and vanilla | `table_name`, `column_name` |
-
-### Search
-
-| Tool | Description | Key Arguments |
-|------|-------------|---------------|
-| `global_search` | Run a global search | `pack_key`, `search` |
-| `global_search_replace_matches` | Replace specific matches | `pack_key`, `search`, `matches` |
-| `global_search_replace_all` | Replace all matches | `pack_key`, `search` |
-| `search_references` | Find all references to a value | `pack_key`, `reference_map`, `value` |
-| `get_reference_data_from_definition` | Get reference data for columns | `pack_key`, `table_name`, `definition`, `force` |
-| `go_to_definition` | Go to a reference's definition | `pack_key`, `table_name`, `column_name`, `values` |
-| `go_to_loc` | Go to a loc key's location | `pack_key`, `value` |
-| `get_source_data_from_loc_key` | Get source data of a loc key | `pack_key`, `value` |
-
-### Schema
-
-| Tool | Description | Key Arguments |
-|------|-------------|---------------|
-| `save_schema` | Save a schema to disk | `schema` |
-| `update_current_schema_from_asskit` | Update schema from Assembly Kit | *(none)* |
-| `update_schemas` | Update schemas from remote repository | *(none)* |
-| `is_schema_loaded` | Check if a schema is loaded | *(none)* |
-| `get_schema` | Get the current schema | *(none)* |
-| `definitions_by_table_name` | Get definitions for a table | `value` |
-| `definition_by_table_name_and_version` | Get a definition by name and version | `name`, `version` |
-| `delete_definition` | Delete a definition | `name`, `version` |
-| `referencing_columns_for_definition` | Get columns referencing a table | `table_name`, `definition` |
-| `fields_processed` | Get processed fields from a definition | `definition` |
-| `save_local_schema_patch` | Save local schema patches | `patches` |
-| `remove_local_schema_patches_for_table` | Remove patches for a table | `value` |
-| `remove_local_schema_patches_for_table_and_field` | Remove patches for a field | `key`, `value` |
-| `import_schema_patch` | Import a schema patch | `patches` |
-
-> **Raw vs. processed fields:** `definitions_by_table_name`, `definition_by_table_name_and_version`, and `get_table_definition_from_dependency_pack_file` all return a `Definition` whose `fields` list is the **raw on-disk layout** — e.g. a colour column is split into three separate `_r`/`_g`/`_b` fields there. Table row data (whether built by hand for saving, or returned by `get_tables_from_dependencies`) is shaped according to the **processed** field list instead, where such groups are merged/expanded. Always call `fields_processed` on a `Definition` before using its field count or order to build, validate, or line up row data — using the raw `fields` list will produce rows of the wrong length/types and saving will fail with `TableRowWrongFieldCount`.
-
-### Table Operations
-
-| Tool | Description | Key Arguments |
-|------|-------------|---------------|
-| `merge_files` | Merge compatible tables into one | `pack_key`, `paths`, `merged_path`, `delete_source` |
-| `update_table` | Update a table to a newer version | `pack_key`, `value` |
-| `cascade_edition` | Cascade edit across referenced data | `pack_key`, `table_name`, `definition`, `changes` |
-| `get_tables_by_table_name` | Get table paths by name | `pack_key`, `value` |
-| `add_keys_to_key_deletes` | Add keys to key_deletes table | `pack_key`, `table_file_name`, `key_table_name`, `keys` |
-| `export_tsv` | Export a table to TSV | `pack_key`, `tsv_path`, `table_path` |
-| `import_tsv` | Import a TSV file to a table | `pack_key`, `tsv_path`, `table_path` |
-
-### Diagnostics
-
-| Tool | Description | Key Arguments |
-|------|-------------|---------------|
-| `diagnostics_check` | Run a full diagnostics check | `ignored`, `check_ak_only_refs` |
-| `diagnostics_update` | Update diagnostics for changed files | `diagnostics`, `paths`, `check_ak_only_refs` |
-| `lua_run_tests` | Run Lua tests against the open packs' scripts, with the game's script libraries | `test_source`, `campaign` |
-| `add_line_to_pack_ignored_diagnostics` | Add to ignored diagnostics | `pack_key`, `value` |
-| `get_missing_definitions` | Export missing table definitions | `pack_key` |
-
-### Notes
-
-| Tool | Description | Key Arguments |
-|------|-------------|---------------|
-| `notes_for_path` | Get notes under a path | `pack_key`, `value` |
-| `add_note` | Add a note | `pack_key`, `note` |
-| `delete_note` | Delete a note | `pack_key`, `path`, `id` |
-
-### Optimization
-
-| Tool | Description | Key Arguments |
-|------|-------------|---------------|
-| `optimize_pack_file` | Optimize a pack | `pack_key`, `options` |
-| `get_optimizer_options` | Get default optimizer options | *(none)* |
-
-### Updates
-
-| Tool | Description |
-|------|-------------|
-| `check_updates` | Check for RPFM updates |
-| `check_schema_updates` | Check for schema updates |
-| `check_lua_autogen_updates` | Check for Lua autogen updates |
-| `check_empire_and_napoleon_ak_updates` | Check for Empire/Napoleon AK updates |
-| `check_translations_updates` | Check for translation updates |
-| `update_lua_autogen` | Update Lua autogen |
-| `update_main_program` | Update the program |
-| `update_empire_and_napoleon_ak` | Update Empire/Napoleon AK files |
-| `update_translations` | Update translations |
-
-### Settings
-
-| Tool | Description | Key Arguments |
-|------|-------------|---------------|
-| `settings_get_bool` | Get a boolean setting | `value` (key) |
-| `settings_get_i32` | Get an i32 setting | `value` (key) |
-| `settings_get_f32` | Get an f32 setting | `value` (key) |
-| `settings_get_string` | Get a string setting | `value` (key) |
-| `settings_get_path_buf` | Get a PathBuf setting | `value` (key) |
-| `settings_get_vec_string` | Get a Vec\<String\> setting | `value` (key) |
-| `settings_get_vec_raw` | Get a raw bytes setting | `value` (key) |
-| `settings_get_all` | Get all settings at once | *(none)* |
-| `settings_set_bool` | Set a boolean setting | `key`, `value` |
-| `settings_set_i32` | Set an i32 setting | `key`, `value` |
-| `settings_set_f32` | Set an f32 setting | `key`, `value` |
-| `settings_set_string` | Set a string setting | `key`, `value` |
-| `settings_set_path_buf` | Set a PathBuf setting | `key`, `value` |
-| `settings_set_vec_string` | Set a Vec\<String\> setting | `key`, `value` |
-| `settings_set_vec_raw` | Set a raw bytes setting | `key`, `value` |
-| `backup_settings` | Backup settings to memory | *(none)* |
-| `clear_settings` | Clear all settings | *(none)* |
-| `restore_backup_settings` | Restore settings from backup | *(none)* |
-
-### Path Queries
-
-| Tool | Description |
-|------|-------------|
-| `config_path` | Get the config path |
-| `assembly_kit_path` | Get the Assembly Kit path |
-| `backup_autosave_path` | Get the backup autosave path |
-| `old_ak_data_path` | Get the old AK data path |
-| `schemas_path` | Get the schemas path |
-| `table_profiles_path` | Get the table profiles path |
-| `translations_local_path` | Get the translations local path |
-| `dependencies_cache_path` | Get the dependencies cache path |
-| `settings_clear_path` | Clear a config path |
-
-### Specialized
-
-| Tool | Description | Key Arguments |
-|------|-------------|---------------|
-| `open_pack_info` | Get pack info and file list | `pack_key` |
-| `initialize_my_mod_folder` | Initialize a MyMod folder | `name`, `game`, `sublime`, `vscode`, `gitignore` |
-| `live_export` | Live export a pack for testing | `pack_key` |
-| `patch_siege_ai` | Patch SiegeAI for Warhammer maps | `pack_key` |
-| `pack_map` | Pack map tiles | `pack_key`, `tile_maps`, `tiles` |
-| `generate_missing_loc_data` | Generate missing loc entries | `pack_key` |
-| `get_pack_translation` | Get translation data | `pack_key`, `src_lang`, `language` |
-| `generate_vanilla_translation_source` | Extract the vanilla texts of a source language from the game's locale packs | `src_lang` |
-| `build_starpos_get_campaign_ids` | Get campaign IDs for starpos | `pack_key` |
-| `build_starpos_check_victory_conditions` | Check victory conditions file | `pack_key` |
-| `build_starpos` | Build starpos (pre-processing) | `pack_key`, `campaign_id`, `process_hlp_spd` |
-| `build_starpos_post` | Build starpos (post-processing) | `pack_key`, `campaign_id`, `process_hlp_spd` |
-| `build_starpos_cleanup` | Clean up starpos temp files | `pack_key`, `campaign_id`, `process_hlp_spd` |
-| `update_anim_ids` | Update animation IDs | `pack_key`, `starting_id`, `offset` |
-| `get_anim_paths_by_skeleton_name` | Get anim paths by skeleton | `value` |
-| `export_rigid_to_gltf` | Export RigidModel to glTF | `rigid_model`, `output_path` |
-| `set_video_format` | Change video format | `pack_key`, `path`, `format` |
-
-## Response Format
-
-All MCP tool responses are JSON-serialized versions of the server's internal `Response` enum. The same [serialization convention](./overview.md#serialization-convention) applies — refer to the [Responses](./ws-responses.md) page for the full list of response types and their payloads.
+| URI | Content |
+|-----|---------|
+| `rpfm://games` | Keys of the supported games. |
+| `rpfm://enums/PFHFileType` | Valid pack types. |
+| `rpfm://enums/CompressionFormat` | Valid compression formats. |
+| `rpfm://enums/SupportedFormats` | Valid video formats. |
+| `rpfm://reference/initialization` | How to set up a session. |
+| `rpfm://reference/path_conventions` | Common file paths inside packs. |
 
 ## Typical Workflow
 
-A typical MCP session follows this pattern:
+1. **Set the game**: `set_game` with the game key. This loads the schema and the dependencies.
+2. **Open a pack**: `open_pack` with the path of the pack, or `new_pack`. Both return the pack's `key`.
+3. **Browse files**: `list_files` with the pack as source.
+4. **Read data**: `table_info` and `table_rows` for DB and Loc tables, `read_file` for anything else.
+5. **Modify data**: `edit_table` for tables, `write_file` for anything else.
+6. **Save**: `save_pack`.
 
-1. **Set the game**: `set_game_selected` with the game key and `rebuild_dependencies: true`
-2. **Open a pack**: `open_packfiles` with the file path(s)
-3. **Browse files**: `open_pack_info` to get the pack's file tree
-4. **Read data**: `decode_packed_file` to decode individual files
-5. **Modify data**: `save_packed_file_from_view` to save edited data back
-6. **Save**: `save_packfile` to write changes to disk
+### Example: Editing a DB Table
 
-### Example: Reading a DB Table
-
-Call `set_game_selected`:
+Call `set_game`:
 ```json
-{ "game_name": "warhammer_3", "rebuild_dependencies": true }
+{ "game": "warhammer_3" }
 ```
 
-Call `open_packfiles`:
+Call `open_pack`:
 ```json
 { "paths": ["/path/to/my_mod.pack"] }
 ```
 
-The response contains the `pack_key` — use it in subsequent calls:
+The result contains the pack's `key`, used by the next calls as `pack`. `session_status` lists the keys of all open packs.
 
-Call `decode_packed_file`:
-```json
-{ "pack_key": "the_pack_key", "path": "db/units_tables/data", "source": "PackFile" }
-```
-
-The response will be a `DBRFileInfo` containing the decoded table data and file metadata.
-
-### Common `pack_key` Pattern
-
-Most tools require a `pack_key` argument to identify which open pack to operate on. After opening a pack with `open_packfiles`, the response includes the key. You can also call `list_open_packs` at any time to see all open packs and their keys.
-
-### JSON String Arguments
-
-Some tools accept complex types (like `ContainerPath`, `Definition`, `GlobalSearch`) as JSON strings. These must be passed as a **serialized JSON string** in the argument field — not as a nested object. For example:
-
+Call `table_rows`, to get the rows of a unit:
 ```json
 {
-  "pack_key": "my_pack",
-  "paths": "[{\"File\": \"db/units_tables/data\"}]"
+  "file": { "source": { "pack": "my_mod.pack" }, "path": "db/land_units_tables/my_mod" },
+  "columns": ["key", "num_men"],
+  "filters": [{ "column": "key", "op": "equals", "value": "my_unit" }]
 }
 ```
 
-Refer to the [Shared Types](./ws-shared-types.md) page for the structure of these types.
+Each returned row has the `index` of the row in the table. Call `edit_table` to change it:
+```json
+{
+  "file": { "source": { "pack": "my_mod.pack" }, "path": "db/land_units_tables/my_mod" },
+  "edits": [{ "op": "update", "index": 4, "values": { "num_men": 120 } }]
+}
+```
+
+Call `save_pack`:
+```json
+{ "pack": "my_mod.pack" }
+```
+
+To change a vanilla table, copy it into your pack first with `copy_files`, from the `"game_files"` source.
+
+## Tool Reference
+
+The MCP interface exposes **88 tools**. The descriptions below are the first sentence of each tool's description; `tools/list` has the full descriptions and the JSON schemas of their params.
+
+### Session and jobs
+
+| Tool | Method | Description |
+|------|--------|-------------|
+| `session_status` | `session.status` | Get the state of the session: the selected game, if its schema and dependencies (vanilla files, Assembly Kit tables, parent packs) are loaded, and the open packs with their keys. |
+| `set_game` | `session.set_game` | Select the game to work with, like `warhammer_3`, loading its schema and, by default, its dependencies (vanilla files, Assembly Kit tables, parent packs). |
+| `job_status` | `job.status` | Get the state of a job: queued, running (with its current step), finished (with its result), failed (with its error) or cancelled. |
+| `wait_for_job` | `job.wait` | Wait for a job to end, up to `timeout_secs` (60 by default), and return its state. |
+| `cancel_job` | `job.cancel` | Cancel a job that hasn't started yet. |
+
+### Packs
+
+| Tool | Method | Description |
+|------|--------|-------------|
+| `pack_info` | `pack.info` | Get the details of an open pack: type, format version, compression, encryption flags, the packs it depends on, and its MyMod mode. |
+| `pack_settings` | `pack.settings` | Get the settings of an open pack, like its diagnostics ignore rules (`diagnostics_files_to_ignore`), files to ignore when importing, or if it has autosaves disabled. |
+| `update_pack_settings` | `pack.update_settings` | Change settings of an open pack. |
+| `new_pack` | `pack.new` | Create a new empty pack. |
+| `open_pack` | `pack.open` | Open one or more packs from disk, merged into a single one. |
+| `open_vanilla_packs` | `pack.open_vanilla` | Open all the vanilla packs of the selected game, merged into a single one, to browse them like any open pack. |
+| `close_pack` | `pack.close` | Close an open pack. |
+| `close_all_packs` | `pack.close_all` | Close all open packs. |
+| `save_pack` | `pack.save` | Save an open pack to disk, to its current path or to a new `path`. |
+| `update_pack` | `pack.update` | Change properties of an open pack: type, compression, encryption and timestamp flags, the packs it depends on, and its MyMod mode. |
+
+### Files
+
+| Tool | Method | Description |
+|------|--------|-------------|
+| `list_files` | `files.list` | List the files of an open pack, the game files, the parent packs, or the Assembly Kit tables, sorted by path. |
+| `read_file` | `file.read` | Read a file of an open pack, the game files or the parent packs: as `text` for scripts, XML, JSON and other text files; as `decoded` JSON for structured formats (portrait settings, unit variants, models, etc.); or as `raw` base64 bytes, best for images and other binary files. |
+| `write_file` | `file.write` | Replace the contents of a file of an open pack: `text` for text files, `decoded` JSON in the format `read_file` returns, or `raw` base64 bytes (which also creates the file if it doesn't exist). |
+| `list_animpack` | `animpack.list` | List the files inside an AnimPack of an open pack, the game files or the parent packs. |
+| `add_to_animpack` | `animpack.add` | Copy files of an open pack into an AnimPack of an open pack. |
+| `extract_from_animpack` | `animpack.extract` | Copy files of an AnimPack of any source into an open pack. |
+| `delete_from_animpack` | `animpack.delete` | Delete files from an AnimPack of an open pack. |
+| `create_file` | `files.create` | Create a new empty file in an open pack: a DB table (with the version of the game files by default), a Loc table, a text file or an AnimPack. |
+| `add_files_from_disk` | `files.add_from_disk` | Add files and folders from disk to an open pack, under a folder of the pack. |
+| `copy_files` | `files.copy` | Copy files and folders from an open pack, the game files, the parent packs or the Assembly Kit tables into an open pack, keeping their paths. |
+| `delete_files` | `files.delete` | Delete files and folders from an open pack. |
+| `rename_files` | `files.rename` | Rename or move files and folders of an open pack. |
+| `duplicate_files` | `files.duplicate` | Copy files of an open pack in the same pack, adding a number to their names. |
+| `extract_files` | `files.extract` | Extract files and folders of an open pack, the game files or the parent packs to a folder on disk, optionally with tables as TSV. |
+
+### Tables
+
+| Tool | Method | Description |
+|------|--------|-------------|
+| `table_info` | `table.info` | Get the columns (name, type, key, referenced table and column, default value, description) and the row count of a DB or Loc table, from any source. |
+| `table_rows` | `table.rows` | Read rows of a DB or Loc table, from any source, as plain values (booleans, numbers and strings). |
+| `column_values` | `table.column_values` | Get the distinct values of a column of a table, like all the faction keys of `factions_tables`, from the open packs and the dependencies, sorted. |
+| `merge_tables` | `table.merge` | Merge tables of the same type of an open pack into a new one. |
+| `upgrade_table` | `table.upgrade` | Update a table of an open pack to the version it has in the game files, after a game update. |
+| `rename_key` | `table.rename_key` | Change a key value of a table in every table of an open pack: the key itself, the columns referencing it, and the loc keys generated from it. |
+| `add_key_deletes` | `table.add_key_deletes` | Add keys to a key deletes table (`db/twad_key_deletes_tables/<file_name>`) of an open pack, to delete those keys of a table in the game. |
+| `export_tsv` | `table.export_tsv` | Write a table of an open pack, the game files or the parent packs to a TSV file, to edit it in a spreadsheet. |
+| `import_tsv` | `table.import_tsv` | Replace a table of an open pack with the contents of a TSV file, keeping its GUID. |
+| `edit_table` | `table.edit` | Edit rows of a DB or Loc table in an open pack: insert, update and delete rows by index, with values given by column name (see `table_info` for the columns). |
+
+### Schema
+
+| Tool | Method | Description |
+|------|--------|-------------|
+| `table_definition` | `schema.definition` | Get the columns of a table as defined in the schema, without needing a file of it. |
+| `schema_tables` | `schema.tables` | List the tables of the selected game's schema whose name starts with a prefix, with the versions it has definitions for, newest first. |
+| `patch_column` | `schema.patch_column` | Change how the schema describes a column with a local patch: description, if it's a key, default value, referenced table and column (`is_reference` as `table;column`), if it holds file paths, if it can't be empty, or if it's unused. |
+| `remove_patches` | `schema.remove_patches` | Remove the local schema patches of a table, or of one of its columns. |
+| `update_schemas` | `schema.update` | Download the latest schemas, reload the selected game's one, and rebuild the dependencies. |
+| `update_schema_from_assembly_kit` | `schema.update_from_assembly_kit` | Update the selected game's schema with the table definitions of its Assembly Kit, and save it. |
+| `raw_definitions` | `schema.raw_definitions` | Get the definitions of a table as the schema stores them, to edit them with `set_definition`. |
+| `set_definition` | `schema.set_definition` | Add a definition to the selected game's schema, or replace the one with its version, then save and reload the schema. |
+| `delete_definition` | `schema.delete_definition` | Remove a definition from the selected game's schema, then save and reload the schema. |
+| `referencing_columns` | `schema.referencing_columns` | Get the columns of other tables referencing each column of a table, according to the schema. |
+| `table_patches` | `schema.patches` | Get the patches applied to the columns of a table definition: the local ones made with `patch_column`, and the ones included in the schema. |
+| `missing_definitions` | `schema.missing_definitions` | List the tables of an open pack with rows the schema can't decode, which need a new definition. |
+| `import_patches` | `schema.import_patches` | Add patches to the selected game's schema itself, and save it. |
+
+### Dependencies
+
+| Tool | Method | Description |
+|------|--------|-------------|
+| `generate_dependencies_cache` | `dependencies.generate_cache` | Generate the dependencies cache of the selected game from its files and Assembly Kit, and load it. |
+| `rebuild_dependencies` | `dependencies.rebuild` | Reload the dependencies of the selected game, like after changing the packs the open packs depend on. |
+| `dependency_tables` | `dependencies.tables` | List the tables of the selected game's files, and the startpos and twad tables of its schema, with the version new tables of each type should use. |
+
+### References
+
+| Tool | Method | Description |
+|------|--------|-------------|
+| `find_definition` | `references.definition` | Find the row where a value of a referenced table is defined, like the row of `factions_tables` with a faction key. |
+| `find_usages` | `references.usages` | Find the rows of other tables referencing a value of a table, like everything using a faction key. |
+| `find_loc` | `references.loc` | Find the row of a Loc file with a key. |
+| `loc_source` | `references.loc_source` | Get the table, localised column and key values a loc key belongs to, like `factions`, `screen_name` and `["wh_main_emp_empire"]` for `factions_screen_name_wh_main_emp_empire`. |
+| `reference_values` | `references.values` | Get the values a reference column of a table can have, with their display text (like the name of each referenced row), from the open packs and the dependencies. |
+
+### Diagnostics and search
+
+| Tool | Method | Description |
+|------|--------|-------------|
+| `run_diagnostics` | `diagnostics.run` | Check the open packs for problems (invalid references, duplicated keys, outdated tables, script errors, etc.), and return a summary by level and type. |
+| `list_diagnostics` | `diagnostics.list` | List results of the last `run_diagnostics`, filtered by level, report type, pack and path prefix, in pages (100 by default; the total of matching results is always returned). |
+| `ignore_diagnostics` | `diagnostics.ignore` | Make the next diagnostics checks of a pack skip results of files under a path, optionally only for some columns and report types. |
+| `run_search` | `search.run` | Search text (or a regex) in open packs, the game files, the parent packs, the Assembly Kit tables, or the schema's column names, and return a summary of the matches by file type. |
+| `list_search_matches` | `search.matches` | List matches of the last `run_search`, filtered by file type and path prefix, in pages (100 by default; the total of matching matches is always returned). |
+| `replace_search_matches` | `search.replace` | Replace matches of the last `run_search` by ID, or all of them, with a text. |
+| `run_lua_tests` | `lua.run_tests` | Run Lua tests against the scripts of all open packs, outside of the game. |
+
+### Notes
+
+| Tool | Method | Description |
+|------|--------|-------------|
+| `list_notes` | `notes.list` | Get the notes (comments) attached to a file or folder of an open pack, or all of them. |
+| `add_note` | `notes.add` | Attach a note (comment, with an optional link) to a file or folder of an open pack, or replace one by passing its `id`. |
+| `delete_note` | `notes.delete` | Delete a note of an open pack. |
+
+### Translations
+
+| Tool | Method | Description |
+|------|--------|-------------|
+| `list_translations` | `translations.list` | Get the translation of the texts of an open pack to a language, reusing vanilla and previous translations. |
+| `generate_vanilla_texts` | `translations.generate_vanilla` | Generate the vanilla texts of a language from the game's locale packs, so translations to and from it can reuse them. |
+
+### Tools
+
+| Tool | Method | Description |
+|------|--------|-------------|
+| `optimizer_options` | `tools.optimizer_options` | Get the optimizer options as the server's settings have them, by name. |
+| `patch_siege_ai` | `tools.patch_siege_ai` | Patch the siege maps of an open pack so the AI can use them. |
+| `pack_map` | `tools.pack_map` | Add the tiles and tile maps of a map exported by Terry to an open pack. |
+| `generate_missing_locs` | `tools.generate_missing_locs` | Add empty loc entries for the localised columns of the tables of the open packs that don't have them yet. |
+| `update_anim_ids` | `tools.update_anim_ids` | Offset the animation ids of an open pack from a starting id, like after a game update moves them. |
+| `anims_by_skeleton` | `tools.anims_by_skeleton` | Get the paths of the animations using a skeleton, in the open packs and the dependencies. |
+| `export_gltf` | `tools.export_gltf` | Export a RigidModel of any source to a glTF file, with its textures. |
+| `set_video_format` | `tools.set_video_format` | Change the format of a ca_vp8 video of an open pack: `CaVp8` or `Ivf`. |
+| `live_export` | `tools.live_export` | Export the scripts and UI files of an open pack to the game's data folder, to test them without saving the pack. |
+| `init_mymod` | `tools.init_mymod` | Create the folder of a new MyMod in the MyMods folder of the settings, with optional editor configs for Lua scripting and a git repository. |
+| `startpos_campaigns` | `startpos.campaigns` | Get the campaigns a startpos can be built for, and the one the pack's last startpos was built for. |
+| `start_startpos` | `startpos.start` | Start building a startpos for a campaign with the tables of an open pack: prepares the Assembly Kit and launches the game. |
+| `finish_startpos` | `startpos.finish` | Finish building a startpos after the game was closed: imports it into the pack, or cancels the build with `cancel: true`. |
+| `optimize_pack` | `tools.optimize` | Remove data of an open pack that's identical to vanilla or unneeded (duplicated rows, unchanged rows and files, empty tables, etc.). |
+
+### Updates
+
+| Tool | Method | Description |
+|------|--------|-------------|
+| `check_update` | `updates.check` | Check if there is an update of RPFM (`program`), the `schemas`, the Lua type definitions (`lua_autogen`), the Empire and Napoleon Assembly Kit data (`old_assembly_kit`), or the community `translations`. |
+| `apply_update` | `updates.apply` | Download the update of the Lua type definitions (`lua_autogen`), the Empire and Napoleon Assembly Kit data (`old_assembly_kit`), the community `translations`, or RPFM itself (`program`, which replaces its files and needs a restart: only do it if the user asks). |

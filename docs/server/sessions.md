@@ -1,26 +1,28 @@
 # Sessions & connection lifecycle
 
-Each WebSocket and each MCP connection lives inside a **session**. A session owns a dedicated background thread that processes commands serially against its in-memory state (open Packs, dependency cache, settings cache).
+Each WebSocket and each MCP connection lives inside a **session**. A session owns a dedicated background thread that runs its requests serially against its in-memory state (open Packs, dependency cache, settings).
 
 Sessions are isolated: open packs in one session aren't visible in another. This is what makes "many UI clients (or MCP clients) talking to one server" safe.
 
 ## Lifecycle
 
-1. **Connect.** A client opens `/ws` (or connects to `/mcp`) without a session ID. The server allocates a new `SessionId`, spins up a background thread, and immediately sends an unsolicited `SessionConnected` response so the client can stash the ID for later reconnection.
+1. **Connect.** A client opens `/ws` (or connects to `/mcp`) without a session ID. The server allocates a new `SessionId`, spins up a background thread, and immediately sends a `session.connected` notification so the client can stash the ID for later reconnection.
 
    ```json
-   { "id": 0, "data": { "SessionConnected": 12345 } }
+   { "jsonrpc": "2.0", "method": "session.connected", "params": { "session_id": 12345 } }
    ```
 
-2. **Reconnect.** A client opens `/ws?session_id=12345`. If the session still exists and isn't shutting down, the new socket adopts it with all in-memory state preserved (open Packs, loaded dependencies, settings cache).
+2. **Reconnect.** A client opens `/ws?session_id=12345`. If the session still exists and isn't shutting down, the new socket adopts it with all in-memory state preserved (open Packs, loaded dependencies, settings).
 
-3. **Disconnect.** When the WebSocket drops without a `Command::ClientDisconnecting`, the session enters a **5-minute** grace period (`DEFAULT_SESSION_TIMEOUT_SECS = 300`). Reconnecting cancels the timeout; otherwise the session and its background thread are torn down.
+3. **Disconnect.** When the WebSocket drops without a `session.disconnect` request, the session enters a **5-minute** grace period (`DEFAULT_SESSION_TIMEOUT_SECS = 300`). Reconnecting cancels the timeout; otherwise the session and its background thread are torn down.
 
-4. **Graceful disconnect.** Send `ClientDisconnecting` before closing your socket and the session is removed immediately, telemetry is flushed, and the background thread exits.
+4. **Graceful disconnect.** Call `session.disconnect` before closing your socket and the session is removed immediately, telemetry is flushed, and the background thread exits.
 
    ```json
-   { "id": 99, "data": "ClientDisconnecting" }
+   { "jsonrpc": "2.0", "id": 99, "method": "session.disconnect" }
    ```
+
+   MCP sessions have no disconnect signal the server can rely on, so they're removed after 5 minutes without requests instead.
 
 5. **Empty manager → process exit.** When the last session goes away the `rpfm_server` process exits, so no orphaned server lingers in the background.
 
@@ -34,8 +36,8 @@ let sessionId: number | null = null;
 
 ws.onmessage = (e) => {
   const msg = JSON.parse(e.data);
-  if (typeof msg.data === "object" && "SessionConnected" in msg.data) {
-    sessionId = msg.data.SessionConnected;
+  if (msg.method === "session.connected") {
+    sessionId = msg.params.session_id;
     console.log("session", sessionId);
   }
 };
@@ -48,7 +50,7 @@ using var ws = new ClientWebSocket();
 await ws.ConnectAsync(new Uri("ws://127.0.0.1:45127/ws"), CancellationToken.None);
 
 int? sessionId = null;
-// ... receive the SessionConnected message and store sessionId ...
+// ... receive the session.connected notification and store sessionId ...
 
 // Later, reconnect:
 using var ws2 = new ClientWebSocket();
@@ -104,5 +106,7 @@ Each session has its own:
 - Open Packs (with their full in-memory contents and metadata).
 - Dependency cache view (game files, parent files, AK files).
 - Active game selection.
+- Settings: sessions start with the ones in RPFM's `settings.json`, and clients can replace them with `session.configure`.
+- Jobs and their results.
 
-When you call something like `Command::SetGameSelected`, you're changing it for *your* session, not globally.
+When you call something like `session.set_game`, you're changing it for *your* session, not globally.

@@ -63,9 +63,7 @@
 - [Overview](./server/overview.md)
 - [Sessions & connection lifecycle](./server/sessions.md)
 - [WebSocket protocol](./server/ws-protocol.md)
-    - [Shared types](./server/ws-shared-types.md)
-    - [Commands](./server/ws-commands.md)
-    - [Responses](./server/ws-responses.md)
+    - [Methods](./server/methods.md)
 - [MCP interface](./server/mcp.md)
 - [Client example](./server/client-example.md)
 

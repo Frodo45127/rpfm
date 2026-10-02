@@ -40,7 +40,7 @@ use rpfm_telemetry::{track_action, record_action, flush};
 track_action("Open PackFile");
 
 // Count only, for callers that already log the action elsewhere.
-record_action("OpenPackFiles");
+record_action("pack.open");
 
 // On graceful shutdown, flush the aggregated counts to Sentry.
 // The label lets UI and server events be told apart.

@@ -1,139 +1,146 @@
 # WebSocket protocol
 
-This page covers the protocol layer: how messages are framed, serialized and correlated. The full vocabulary lives in [Shared types](./ws-shared-types.md), [Commands](./ws-commands.md) and [Responses](./ws-responses.md).
+The `/ws` endpoint speaks [JSON-RPC 2.0][jsonrpc]: every WebSocket text frame is one JSON-RPC request from the client, or one response or notification from the server. The methods themselves are listed in [Methods](./methods.md).
+
+[jsonrpc]: https://www.jsonrpc.org/specification
 
 ## Connecting
 
-The server listens on `ws://127.0.0.1:45127/ws` by default. Append `?session_id=<id>` to reconnect to an existing session — see [Sessions](./sessions.md).
+Open a WebSocket to `ws://127.0.0.1:45127/ws`. To reattach to an existing session, pass its ID: `ws://127.0.0.1:45127/ws?session_id=12345` (see [Sessions](./sessions.md)).
 
-<!-- langtabs-start -->
-```typescript
-const ws = new WebSocket("ws://127.0.0.1:45127/ws");
-```
-```csharp
-using var ws = new ClientWebSocket();
-await ws.ConnectAsync(new Uri("ws://127.0.0.1:45127/ws"), CancellationToken.None);
-```
-<!-- langtabs-end -->
-
-Immediately after the handshake the server pushes an unsolicited `SessionConnected` message with the session ID:
+Right after connecting, the server sends a `session.connected` notification with the ID of your session:
 
 ```json
-{ "id": 0, "data": { "SessionConnected": 42 } }
+{ "jsonrpc": "2.0", "method": "session.connected", "params": { "session_id": 12345 } }
 ```
 
-## Message envelope
+Store it if you want to reconnect to the same session later.
 
-Every message — both directions — is wrapped in a `Message` envelope:
+## Requests and responses
+
+A request names a method and passes its params as an object:
 
 ```json
-{
-  "id": <number>,
-  "data": <Command or Response>
-}
+{ "jsonrpc": "2.0", "id": 7, "method": "table.rows", "params": { "file": { "source": { "pack": "my_mod.pack" }, "path": "db/units_tables/my_units" }, "limit": 2 } }
 ```
 
-| Field  | Type             | Description |
-|--------|------------------|-------------|
-| `id`   | number           | Unique request ID. The server echoes it in the response. Use `0` only for unsolicited server-initiated messages. |
-| `data` | object or string | The command or response payload. |
+The response carries the same `id`, and either a `result` or an `error`:
 
-### Request-response correlation
+```json
+{ "jsonrpc": "2.0", "id": 7, "result": { "columns": ["key", "..."], "rows": [ ... ], "total": 51 } }
+```
 
-The `id` lets multiple requests be in flight simultaneously. Match each response back to its originating request by `id`. A typical client maintains a `Map<id, { resolve, reject }>` of pending requests and resolves them as responses arrive.
+Use a different `id` for each request: responses arrive in the order requests finish, not the order they were sent. Requests of the same session still **run** in the order they arrived, one at a time, so a `pack.save` sent before a `pack.close` always saves the pack before closing it.
 
-## Serialization conventions
+Methods without params can omit `params`.
 
-All messages are JSON. The Rust enums backing `Command` and `Response` are serialized by [serde](https://serde.rs/) with these rules:
+## Errors
 
-| Rust variant shape   | JSON serialization                | Example                                     |
-|----------------------|------------------------------------|---------------------------------------------|
-| Unit variant         | `"VariantName"`                    | `"NewPack"`                                 |
-| Newtype variant      | `{ "VariantName": value }`         | `{ "ClosePack": "my_mod.pack" }`            |
-| Tuple variant        | `{ "VariantName": [v1, v2, …] }`   | `{ "SavePackAs": ["key", "/path/to/file"] }`|
+Failed requests get an `error` with a code, a message, and a `data` object with the kind of error, so clients can match on it without parsing the message:
 
-Struct variants use `{ "VariantName": { field: value, … } }`.
+```json
+{ "jsonrpc": "2.0", "id": 8, "error": { "code": -32001, "message": "Pack not found: nope.pack", "data": { "kind": "pack_not_found", "details": "nope.pack" } } }
+```
 
-This means the JSON shape closely mirrors how a Rust client would write the same request — handy when reading the [Commands](./ws-commands.md) reference.
+| Code     | `kind`                    | Meaning                                                            |
+|----------|---------------------------|--------------------------------------------------------------------|
+| `-32001` | `pack_not_found`          | No open pack has that key.                                         |
+| `-32002` | `file_not_found`          | The file doesn't exist in its source.                              |
+| `-32003` | `not_a_table`             | The file isn't a DB or Loc table.                                  |
+| `-32004` | `schema_not_loaded`       | The selected game has no schema loaded.                            |
+| `-32005` | `dependencies_not_loaded` | The dependencies of the selected game aren't loaded.               |
+| `-32006` | `definition_not_found`    | The schema has no definition for the table.                        |
+| `-32007` | `read_only`               | The source can't be edited, like the game files.                   |
+| `-32008` | `job_not_found`           | No job has that ID.                                                |
+| `-32009` | `diagnostics_not_run`     | `diagnostics.list` or `diagnostics.report` before any check.      |
+| `-32010` | `search_not_run`          | `search.matches`, `search.replace` or `search.report` before any search. |
+| `-32011` | `not_found`               | Something the request names doesn't exist.                         |
+| `-32601` | `method_not_found`        | Unknown method.                                                    |
+| `-32602` | `invalid_params`          | The params don't match the method, or a value is invalid.          |
+| `-32603` | `internal`                | Anything else.                                                     |
+
+## Jobs
+
+Methods that can take a long time (selecting a game, generating the dependencies cache, diagnostics, search, schema updates, the optimizer, Lua tests) run as **jobs**. They answer right away with the ID of their job:
+
+```json
+{ "jsonrpc": "2.0", "id": 9, "result": { "job": 3 } }
+```
+
+The job then runs in order with the other requests of the session, and every change of its state is sent as a `job.updated` notification:
+
+```json
+{ "jsonrpc": "2.0", "method": "job.updated", "params": { "job": 3, "method": "session.set_game", "state": "running", "stage": "Loading the schema and the dependencies" } }
+{ "jsonrpc": "2.0", "method": "job.updated", "params": { "job": 3, "method": "session.set_game", "state": "finished", "result": { ... } } }
+```
+
+A job is `queued`, `running` (with an optional `stage`), `finished` (with the `result` of its method), `failed` (with its `error`) or `cancelled`. Instead of following the notifications, you can also call `job.wait`, which answers when the job ends or after a timeout, or `job.status`. Queued jobs can be cancelled with `job.cancel`; running ones can't.
+
+## Conventions
+
+- **Pack keys.** Open packs are identified by the `key` that `pack.open`, `pack.new` and `session.status` return.
+- **Sources.** Files are found in a `source`: `{ "pack": "<key>" }` for an open pack, or `"game_files"`, `"parent_files"` or `"assembly_kit"` for the dependencies. A file is a `{ "source": ..., "path": ... }` pair.
+- **Paths.** Paths inside packs use `/`. Where a method takes files or folders, a path is a file if one exists with that path, and a folder otherwise.
+- **Pagination.** Lists take an `offset` and an optional `limit`, and include the `total` amount of items, so you never get more than you asked for.
+- **Settings.** Sessions start with the settings in RPFM's `settings.json`. Clients with their own settings, like the UI, send them with `session.configure`.
 
 ## A complete round-trip
 
 <!-- langtabs-start -->
 ```typescript
 const ws = new WebSocket("ws://127.0.0.1:45127/ws");
-
 let nextId = 1;
-const pending = new Map<number, (resp: any) => void>();
+const pending = new Map<number, (message: any) => void>();
 
-function send(command: object | string): Promise<any> {
+function call(method: string, params?: object): Promise<any> {
   const id = nextId++;
-  return new Promise((resolve) => {
-    pending.set(id, resolve);
-    ws.send(JSON.stringify({ id, data: command }));
-  });
+  ws.send(JSON.stringify({ jsonrpc: "2.0", id, method, params }));
+  return new Promise((resolve, reject) => pending.set(id, (message) => message.error ? reject(message.error) : resolve(message.result)));
 }
 
-ws.onmessage = (e) => {
-  const msg = JSON.parse(e.data);
-  const cb = pending.get(msg.id);
-  if (cb) {
-    pending.delete(msg.id);
-    cb(msg.data);
+ws.onmessage = (event) => {
+  const message = JSON.parse(event.data);
+  if ("id" in message) {
+    pending.get(message.id)?.(message);
+    pending.delete(message.id);
+  } else if (message.method === "session.connected") {
+    console.log("session", message.params.session_id);
   }
 };
 
 ws.onopen = async () => {
-  const resp = await send({ OpenPackFiles: ["/path/to/my_mod.pack"] });
-  console.log("opened:", resp);
+  const pack = await call("pack.open", { paths: ["/path/to/my_mod.pack"] });
+  const files = await call("files.list", { source: { pack: pack.key }, prefix: "db/", limit: 20 });
+  console.log(files.total, files.files);
 };
 ```
 ```csharp
-using System.Net.WebSockets;
-using System.Text;
-using System.Text.Json;
-
 using var ws = new ClientWebSocket();
 await ws.ConnectAsync(new Uri("ws://127.0.0.1:45127/ws"), CancellationToken.None);
 
-int nextId = 1;
+var request = JsonSerializer.Serialize(new {
+    jsonrpc = "2.0",
+    id = 1,
+    method = "pack.open",
+    @params = new { paths = new[] { "/path/to/my_mod.pack" } },
+});
 
-async Task SendAsync(object command)
-{
-    var id = nextId++;
-    var msg = JsonSerializer.Serialize(new { id, data = command });
-    await ws.SendAsync(
-        Encoding.UTF8.GetBytes(msg),
-        WebSocketMessageType.Text, true, CancellationToken.None);
-}
+await ws.SendAsync(Encoding.UTF8.GetBytes(request), WebSocketMessageType.Text, true, CancellationToken.None);
 
-await SendAsync(new { OpenPackFiles = new[] { "/path/to/my_mod.pack" } });
+// Read messages until the one with "id": 1 arrives. The first one is the session.connected notification.
 ```
 <!-- langtabs-end -->
 
-For a fuller, production-shaped client see [Client example](./client-example.md).
-
-## Errors
-
-Errors come back as the `Error(String)` response variant:
-
-```json
-{ "id": 7, "data": { "Error": "Failed to open pack: …" } }
-```
-
-Treat any `Error` response as a rejection of the originating request. The error message is suitable to surface to a developer; for end-user UIs you'll typically want to wrap it with friendlier copy.
-
 ## Disconnecting cleanly
 
-Send `ClientDisconnecting` before closing the socket so the server tears the session down immediately instead of waiting for the 5-minute timeout:
+Call `session.disconnect` before closing the socket. The server removes your session right away instead of keeping it for 5 minutes, and exits if it was the last one:
 
 ```json
-{ "id": 99, "data": "ClientDisconnecting" }
+{ "jsonrpc": "2.0", "id": 99, "method": "session.disconnect" }
 ```
-
-After sending, you can close the WebSocket. The server doesn't reply.
 
 ## What's next
 
-- [Shared types](./ws-shared-types.md) — every payload type referenced in `Command` / `Response`.
-- [Commands](./ws-commands.md) — every variant the client can send.
-- [Responses](./ws-responses.md) — every variant the server can send back.
+- [Methods](./methods.md) — every method, with its request and response types.
+- [Sessions](./sessions.md) — reconnection and session lifetime.
+- [Client example](./client-example.md) — a complete client with typed helpers.

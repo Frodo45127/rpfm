@@ -1,54 +1,122 @@
 # Client Example
 
-This page provides a complete client implementation example in TypeScript. The same patterns apply to any language with WebSocket and JSON support.
+This page provides a complete client implementation example. The same patterns apply to any language with WebSocket and JSON support. See the [WebSocket protocol](./ws-protocol.md) for the message format, and [Methods](./methods.md) for the params and results of each method.
 
-## TypeScript Client
+## The Client
 
-The following class wraps the WebSocket connection and provides typed convenience methods for common operations.
+The client below wraps the WebSocket connection, matches responses to their requests by `id`, waits for jobs, and provides typed methods for common operations.
 
-### Connection and Session Handling
+### Connection and Requests
 
 <!-- langtabs-start -->
 ```typescript
+interface RpcError {
+  code: number;
+  message: string;
+  data?: { kind: string; details?: string };
+}
+
+type JobStatus =
+  { job: number; method: string } & (
+    | { state: "queued" }
+    | { state: "running"; stage?: string }
+    | { state: "finished"; result: any }
+    | { state: "failed"; error: RpcError }
+    | { state: "cancelled" }
+  );
+
+class RpfmError extends Error {
+  constructor(public error: RpcError) {
+    super(error.message);
+  }
+
+  get kind(): string | undefined {
+    return this.error.data?.kind;
+  }
+}
+
 class RpfmClient {
   private ws: WebSocket;
   private nextId = 1;
-  private pending = new Map<number, {
-    resolve: (resp: any) => void;
-    reject: (err: Error) => void;
-  }>();
+  private pending = new Map<number, { resolve: (result: any) => void; reject: (error: Error) => void }>();
   public sessionId: number | null = null;
 
-  constructor(url = "ws://127.0.0.1:45127/ws") {
-    this.ws = new WebSocket(url);
-    this.ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data);
+  /** Called with every `job.updated` notification, to show progress. */
+  public onJobUpdated: (status: JobStatus) => void = () => {};
 
-      // Handle SessionConnected (unsolicited, id=0)
-      if (typeof msg.data === "object" && "SessionConnected" in msg.data) {
-        this.sessionId = msg.data.SessionConnected;
-        console.log(`Connected to session ${this.sessionId}`);
-        return;
+  private constructor(ws: WebSocket) {
+    this.ws = ws;
+    this.ws.onmessage = (event) => this.handleMessage(JSON.parse(event.data));
+    this.ws.onclose = () => {
+      for (const { reject } of this.pending.values()) {
+        reject(new Error("Connection closed"));
       }
-
-      const handler = this.pending.get(msg.id);
-      if (handler) {
-        this.pending.delete(msg.id);
-        if (typeof msg.data === "object" && "Error" in msg.data) {
-          handler.reject(new Error(msg.data.Error));
-        } else {
-          handler.resolve(msg.data);
-        }
-      }
+      this.pending.clear();
     };
   }
 
-  send(command: object | string): Promise<any> {
+  /** Connects to the server, optionally reattaching to an existing session. */
+  static connect(url = "ws://127.0.0.1:45127/ws", sessionId?: number): Promise<RpfmClient> {
+    const fullUrl = sessionId !== undefined ? `${url}?session_id=${sessionId}` : url;
+    const client = new RpfmClient(new WebSocket(fullUrl));
+
+    // The connection is ready once the server tells us our session ID.
     return new Promise((resolve, reject) => {
-      const id = this.nextId++;
-      this.pending.set(id, { resolve, reject });
-      this.ws.send(JSON.stringify({ id, data: command }));
+      client.ws.addEventListener("message", function onConnected(event) {
+        const message = JSON.parse(event.data);
+        if (message.method === "session.connected") {
+          client.ws.removeEventListener("message", onConnected);
+          resolve(client);
+        }
+      });
+      client.ws.addEventListener("error", () => reject(new Error("Connection failed")));
     });
+  }
+
+  private handleMessage(message: any) {
+    if ("id" in message) {
+      const pending = this.pending.get(message.id);
+      this.pending.delete(message.id);
+      if (message.error) {
+        pending?.reject(new RpfmError(message.error));
+      } else {
+        pending?.resolve(message.result);
+      }
+    } else if (message.method === "session.connected") {
+      this.sessionId = message.params.session_id;
+    } else if (message.method === "job.updated") {
+      this.onJobUpdated(message.params);
+    }
+  }
+
+  /** Calls a method and returns its result. Fails with an `RpfmError` if the method fails. */
+  call<T = any>(method: string, params?: object): Promise<T> {
+    const id = this.nextId++;
+    return new Promise((resolve, reject) => {
+      this.pending.set(id, { resolve, reject });
+      this.ws.send(JSON.stringify({ jsonrpc: "2.0", id, method, params }));
+    });
+  }
+
+  /** Calls a method that runs as a job, and returns its result once the job ends. */
+  async runJob<T = any>(method: string, params?: object): Promise<T> {
+    const { job } = await this.call<{ job: number }>(method, params);
+    while (true) {
+      const status = await this.call<JobStatus>("job.wait", { job, timeout_secs: 60 });
+      switch (status.state) {
+        case "finished": return status.result;
+        case "failed": throw new RpfmError(status.error);
+        case "cancelled": throw new Error(`Job ${job} was cancelled`);
+        case "queued":
+        case "running": break;
+      }
+    }
+  }
+
+  /** Ends the session and closes the connection. */
+  async disconnect(): Promise<void> {
+    await this.call("session.disconnect");
+    this.ws.close();
   }
 ```
 ```csharp
@@ -56,270 +124,236 @@ using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
-public class RpfmClient : IDisposable
+public class RpfmException : Exception
+{
+    public int Code { get; }
+    public string? Kind { get; }
+
+    public RpfmException(JsonNode error) : base(error["message"]?.GetValue<string>())
+    {
+        Code = error["code"]!.GetValue<int>();
+        Kind = error["data"]?["kind"]?.GetValue<string>();
+    }
+}
+
+public class RpfmClient : IAsyncDisposable
 {
     private readonly ClientWebSocket _ws = new();
-    private int _nextId = 1;
-    private readonly ConcurrentDictionary<int, TaskCompletionSource<JsonElement>> _pending = new();
-    public int? SessionId { get; private set; }
+    private readonly ConcurrentDictionary<long, TaskCompletionSource<JsonNode?>> _pending = new();
+    private readonly TaskCompletionSource _connected = new();
+    private long _nextId = 1;
 
-    public async Task ConnectAsync(string url = "ws://127.0.0.1:45127/ws")
+    public long? SessionId { get; private set; }
+
+    /// Called with every `job.updated` notification, to show progress.
+    public event Action<JsonNode>? JobUpdated;
+
+    /// Connects to the server, optionally reattaching to an existing session.
+    public static async Task<RpfmClient> ConnectAsync(string url = "ws://127.0.0.1:45127/ws", long? sessionId = null)
     {
-        await _ws.ConnectAsync(new Uri(url), CancellationToken.None);
-        _ = Task.Run(ReceiveLoop);
+        var client = new RpfmClient();
+        var fullUrl = sessionId is null ? url : $"{url}?session_id={sessionId}";
+        await client._ws.ConnectAsync(new Uri(fullUrl), CancellationToken.None);
+        _ = client.ReceiveLoopAsync();
+
+        // The connection is ready once the server tells us our session ID.
+        await client._connected.Task;
+        return client;
     }
 
-    private async Task ReceiveLoop()
+    private async Task ReceiveLoopAsync()
     {
-        var buffer = new byte[65536];
+        var buffer = new byte[64 * 1024];
+        var message = new MemoryStream();
         while (_ws.State == WebSocketState.Open)
         {
             var result = await _ws.ReceiveAsync(buffer, CancellationToken.None);
-            var json = Encoding.UTF8.GetString(buffer, 0, result.Count);
-            var msg = JsonDocument.Parse(json).RootElement;
+            if (result.MessageType == WebSocketMessageType.Close) break;
 
-            var data = msg.GetProperty("data");
+            message.Write(buffer, 0, result.Count);
+            if (!result.EndOfMessage) continue;
 
-            // Handle SessionConnected (unsolicited, id=0)
-            if (data.ValueKind == JsonValueKind.Object
-                && data.TryGetProperty("SessionConnected", out var sid))
+            HandleMessage(JsonNode.Parse(message.ToArray())!);
+            message.SetLength(0);
+        }
+
+        foreach (var pending in _pending.Values)
+            pending.TrySetException(new Exception("Connection closed"));
+    }
+
+    private void HandleMessage(JsonNode message)
+    {
+        if (message["id"] is JsonNode id)
+        {
+            if (!_pending.TryRemove(id.GetValue<long>(), out var pending)) return;
+            if (message["error"] is JsonNode error)
+                pending.SetException(new RpfmException(error));
+            else
+                pending.SetResult(message["result"]);
+        }
+        else if (message["method"]?.GetValue<string>() == "session.connected")
+        {
+            SessionId = message["params"]!["session_id"]!.GetValue<long>();
+            _connected.TrySetResult();
+        }
+        else if (message["method"]?.GetValue<string>() == "job.updated")
+        {
+            JobUpdated?.Invoke(message["params"]!);
+        }
+    }
+
+    /// Calls a method and returns its result. Throws an `RpfmException` if the method fails.
+    public async Task<JsonNode?> CallAsync(string method, object? @params = null)
+    {
+        var id = Interlocked.Increment(ref _nextId);
+        var pending = new TaskCompletionSource<JsonNode?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _pending[id] = pending;
+
+        var request = JsonSerializer.SerializeToUtf8Bytes(new { jsonrpc = "2.0", id, method, @params });
+        await _ws.SendAsync(request, WebSocketMessageType.Text, true, CancellationToken.None);
+        return await pending.Task;
+    }
+
+    /// Calls a method that runs as a job, and returns its result once the job ends.
+    public async Task<JsonNode?> RunJobAsync(string method, object? @params = null)
+    {
+        var job = (await CallAsync(method, @params))!["job"]!.GetValue<long>();
+        while (true)
+        {
+            var status = (await CallAsync("job.wait", new { job, timeout_secs = 60 }))!;
+            switch (status["state"]!.GetValue<string>())
             {
-                SessionId = sid.GetInt32();
-                Console.WriteLine($"Connected to session {SessionId}");
-                continue;
-            }
-
-            var id = msg.GetProperty("id").GetInt32();
-            if (_pending.TryRemove(id, out var tcs))
-            {
-                if (data.ValueKind == JsonValueKind.Object
-                    && data.TryGetProperty("Error", out var err))
-                {
-                    tcs.SetException(new Exception(err.GetString()));
-                }
-                else
-                {
-                    tcs.SetResult(data);
-                }
+                case "finished": return status["result"];
+                case "failed": throw new RpfmException(status["error"]!);
+                case "cancelled": throw new Exception($"Job {job} was cancelled");
             }
         }
     }
 
-    public async Task<JsonElement> SendAsync(object command)
+    /// Ends the session and closes the connection.
+    public async ValueTask DisposeAsync()
     {
-        var id = Interlocked.Increment(ref _nextId);
-        var tcs = new TaskCompletionSource<JsonElement>();
-        _pending[id] = tcs;
-
-        var msg = JsonSerializer.Serialize(new { id, data = command });
-        var bytes = Encoding.UTF8.GetBytes(msg);
-        await _ws.SendAsync(bytes, WebSocketMessageType.Text, true, CancellationToken.None);
-
-        return await tcs.Task;
+        await CallAsync("session.disconnect");
+        await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, null, CancellationToken.None);
     }
 ```
 <!-- langtabs-end -->
 
-Key points:
-- Each request gets a unique `id` for correlation
-- The `SessionConnected` message arrives immediately on connection with `id: 0`
-- Error responses are automatically converted to rejected promises
-- Multiple requests can be in flight simultaneously
+### Typed Methods
 
-### Typed Convenience Methods
+Wrapping the methods you use gives you typed params and results. A few common ones:
 
 <!-- langtabs-start -->
 ```typescript
-  // --- Pack management ---
-
-  async openPack(paths: string[]): Promise<[string, any]> {
-    const resp = await this.send({ OpenPackFiles: paths });
-    return resp.StringContainerInfo;
+  setGame(game: string): Promise<SessionStatus> {
+    return this.runJob("session.set_game", { game });
   }
 
-  async listOpenPacks(): Promise<[string, any][]> {
-    const resp = await this.send("ListOpenPacks");
-    return resp.VecStringContainerInfo;
+  openPack(paths: string[]): Promise<PackSummary> {
+    return this.call("pack.open", { paths });
   }
 
-  async closePack(packKey: string): Promise<void> {
-    await this.send({ ClosePack: packKey });
+  listFiles(pack: string, prefix = "", limit?: number): Promise<FileList> {
+    return this.call("files.list", { source: { pack }, prefix, limit });
   }
 
-  async closeAllPacks(): Promise<void> {
-    await this.send("CloseAllPacks");
+  tableInfo(file: FileRef): Promise<TableInfo> {
+    return this.call("table.info", { file });
   }
 
-  async savePack(packKey: string): Promise<any> {
-    const resp = await this.send({ SavePack: packKey });
-    return resp.ContainerInfo;
+  tableRows(file: FileRef, options: { columns?: string[]; filters?: RowFilter[]; offset?: number; limit?: number } = {}): Promise<TableRows> {
+    return this.call("table.rows", { file, ...options });
   }
 
-  async savePackAs(packKey: string, path: string): Promise<any> {
-    const resp = await this.send({ SavePackAs: [packKey, path] });
-    return resp.ContainerInfo;
+  editTable(file: FileRef, edits: RowEdit[]): Promise<{ row_count: number }> {
+    return this.call("table.edit", { file, edits });
   }
 
-  // --- File operations ---
-
-  async getTreeView(packKey: string): Promise<[any, any[]]> {
-    const resp = await this.send({ GetPackFileDataForTreeView: packKey });
-    return resp.ContainerInfoVecRFileInfo;
+  readText(file: FileRef): Promise<string> {
+    return this.call("file.read", { file, format: "text" }).then((file) => file.contents.text);
   }
 
-  async decodeFile(packKey: string, path: string, source = "PackFile"): Promise<any> {
-    return this.send({ DecodePackedFile: [packKey, path, source] });
+  writeText(pack: string, path: string, text: string): Promise<void> {
+    return this.call("file.write", { pack, path, contents: { kind: "text", text } });
   }
 
-  async deleteFiles(packKey: string, paths: any[]): Promise<any[]> {
-    const resp = await this.send({ DeletePackedFiles: [packKey, paths] });
-    return resp.VecContainerPath;
-  }
-
-  async extractFiles(
-    packKey: string,
-    paths: Record<string, any[]>,
-    destPath: string,
-    asTsv = false,
-  ): Promise<[string, string[]]> {
-    const resp = await this.send({
-      ExtractPackedFiles: [packKey, paths, destPath, asTsv]
-    });
-    return resp.StringVecPathBuf;
-  }
-
-  // --- Game selection ---
-
-  async setGame(gameKey: string, rebuildDeps: boolean): Promise<void> {
-    await this.send({ SetGameSelected: [gameKey, rebuildDeps] });
-  }
-
-  // --- Settings ---
-
-  async getSetting(key: string): Promise<string> {
-    const resp = await this.send({ SettingsGetString: key });
-    return resp.String;
-  }
-
-  async getAllSettings(): Promise<{
-    bools: Record<string, boolean>;
-    ints: Record<string, number>;
-    floats: Record<string, number>;
-    strings: Record<string, string>;
-  }> {
-    const resp = await this.send("SettingsGetAll");
-    const [bools, ints, floats, strings] = resp.SettingsAll;
-    return { bools, ints, floats, strings };
-  }
-
-  // --- Lifecycle ---
-
-  async disconnect(): Promise<void> {
-    await this.send("ClientDisconnecting");
-    this.ws.close();
+  savePack(pack: string, path?: string): Promise<PackSummary> {
+    return this.call("pack.save", { pack, path });
   }
 }
+
+type FileSource = { pack: string } | "game_files" | "parent_files" | "assembly_kit";
+
+interface FileRef {
+  source: FileSource;
+  path: string;
+}
+
+interface PackSummary {
+  key: string;
+  name: string;
+  path: string;
+  pack_type: string;
+  file_count: number;
+}
+
+interface SessionStatus {
+  game: string;
+  schema_loaded: boolean;
+  packs: PackSummary[];
+}
+
+interface FileList {
+  files: { path: string; file_type: string }[];
+  folders: string[];
+  total: number;
+}
+
+interface TableInfo {
+  table_name: string;
+  version: number;
+  columns: { name: string }[];
+  row_count: number;
+}
+
+interface RowFilter {
+  column: string;
+  op: "equals" | "not_equals" | "contains";
+  value: string;
+  ignore_case?: boolean;
+}
+
+interface TableRows {
+  columns: string[];
+  rows: { index: number; values: (boolean | number | string)[] }[];
+  total: number;
+}
+
+type RowEdit =
+  | { op: "insert"; index?: number; values?: Record<string, boolean | number | string> }
+  | { op: "update"; index: number; values: Record<string, boolean | number | string> }
+  | { op: "delete"; indexes: number[] };
 ```
 ```csharp
-    // --- Pack management ---
+    public async Task<string> OpenPackAsync(string path) =>
+        (await CallAsync("pack.open", new { paths = new[] { path } }))!["key"]!.GetValue<string>();
 
-    public async Task<JsonElement> OpenPackAsync(string[] paths)
-    {
-        var resp = await SendAsync(new { OpenPackFiles = paths });
-        return resp.GetProperty("StringContainerInfo");
-    }
+    public Task<JsonNode?> SetGameAsync(string game) =>
+        RunJobAsync("session.set_game", new { game });
 
-    public async Task<JsonElement> ListOpenPacksAsync()
-    {
-        var resp = await SendAsync("ListOpenPacks");
-        return resp.GetProperty("VecStringContainerInfo");
-    }
+    public Task<JsonNode?> TableRowsAsync(object file, object[]? filters = null, int? limit = null) =>
+        CallAsync("table.rows", new { file, filters = filters ?? [], limit });
 
-    public async Task ClosePackAsync(string packKey)
-    {
-        await SendAsync(new { ClosePack = packKey });
-    }
+    public Task<JsonNode?> EditTableAsync(object file, params object[] edits) =>
+        CallAsync("table.edit", new { file, edits });
 
-    public async Task CloseAllPacksAsync()
-    {
-        await SendAsync("CloseAllPacks");
-    }
+    public Task<JsonNode?> SavePackAsync(string pack) =>
+        CallAsync("pack.save", new { pack });
 
-    public async Task<JsonElement> SavePackAsync(string packKey)
-    {
-        var resp = await SendAsync(new { SavePack = packKey });
-        return resp.GetProperty("ContainerInfo");
-    }
-
-    public async Task<JsonElement> SavePackAsAsync(string packKey, string path)
-    {
-        var resp = await SendAsync(new { SavePackAs = new[] { packKey, path } });
-        return resp.GetProperty("ContainerInfo");
-    }
-
-    // --- File operations ---
-
-    public async Task<JsonElement> GetTreeViewAsync(string packKey)
-    {
-        var resp = await SendAsync(new { GetPackFileDataForTreeView = packKey });
-        return resp.GetProperty("ContainerInfoVecRFileInfo");
-    }
-
-    public async Task<JsonElement> DecodeFileAsync(
-        string packKey, string path, string source = "PackFile")
-    {
-        return await SendAsync(new { DecodePackedFile = new[] { packKey, path, source } });
-    }
-
-    public async Task<JsonElement> DeleteFilesAsync(string packKey, object[] paths)
-    {
-        var resp = await SendAsync(new { DeletePackedFiles = new object[] { packKey, paths } });
-        return resp.GetProperty("VecContainerPath");
-    }
-
-    public async Task<JsonElement> ExtractFilesAsync(
-        string packKey,
-        Dictionary<string, object[]> paths,
-        string destPath,
-        bool asTsv = false)
-    {
-        var resp = await SendAsync(
-            new { ExtractPackedFiles = new object[] { packKey, paths, destPath, asTsv } });
-        return resp.GetProperty("StringVecPathBuf");
-    }
-
-    // --- Game selection ---
-
-    public async Task SetGameAsync(string gameKey, bool rebuildDeps)
-    {
-        await SendAsync(new { SetGameSelected = new object[] { gameKey, rebuildDeps } });
-    }
-
-    // --- Settings ---
-
-    public async Task<string> GetSettingAsync(string key)
-    {
-        var resp = await SendAsync(new { SettingsGetString = key });
-        return resp.GetProperty("String").GetString()!;
-    }
-
-    public async Task<JsonElement> GetAllSettingsAsync()
-    {
-        var resp = await SendAsync("SettingsGetAll");
-        return resp.GetProperty("SettingsAll");
-    }
-
-    // --- Lifecycle ---
-
-    public async Task DisconnectAsync()
-    {
-        await SendAsync("ClientDisconnecting");
-        await _ws.CloseAsync(
-            WebSocketCloseStatus.NormalClosure, "done", CancellationToken.None);
-    }
-
-    public void Dispose() => _ws.Dispose();
+    public static object PackFile(string pack, string path) =>
+        new { source = new { pack }, path };
 }
 ```
 <!-- langtabs-end -->
@@ -328,102 +362,70 @@ Key points:
 
 <!-- langtabs-start -->
 ```typescript
-async function main() {
-  const client = new RpfmClient();
-
-  // Wait for connection
-  await new Promise<void>((resolve) => {
-    client["ws"].onopen = () => resolve();
-  });
-  console.log(`Session ID: ${client.sessionId}`);
-
-  // Select a game
-  await client.setGame("warhammer_3", true);
-
-  // Open a pack file
-  const [packKey, containerInfo] = await client.openPack([
-    "/home/user/mods/my_mod.pack"
-  ]);
-  console.log(`Opened pack: ${containerInfo.file_name} (key: ${packKey})`);
-
-  // Get the file tree
-  const [info, files] = await client.getTreeView(packKey);
-  console.log(`Pack contains ${files.length} files`);
-
-  // Decode a DB table
-  const decoded = await client.decodeFile(
-    packKey,
-    "db/units_tables/data",
-    "PackFile"
-  );
-  if ("DBRFileInfo" in decoded) {
-    const [db, fileInfo] = decoded.DBRFileInfo;
-    console.log(`Table: ${db.table.table_name}, rows: ${db.table.table_data.length}`);
+const client = await RpfmClient.connect();
+client.onJobUpdated = (status) => {
+  if (status.state === "running" && status.stage) {
+    console.log(`${status.method}: ${status.stage}`);
   }
+};
 
-  // Extract files to disk
-  const [extractPath, extractedFiles] = await client.extractFiles(
-    packKey,
-    { PackFile: [{ File: "db/units_tables/data" }] },
-    "/tmp/extracted"
-  );
-  console.log(`Extracted ${extractedFiles.length} files to ${extractPath}`);
+await client.setGame("warhammer_3");
+const pack = await client.openPack(["/path/to/my_mod.pack"]);
 
-  // Save and disconnect
-  await client.savePack(packKey);
-  await client.disconnect();
+const tables = await client.listFiles(pack.key, "db/");
+console.log(`${tables.total} tables`, tables.files.map((file) => file.path));
+
+// Double the men of a unit.
+const units: FileRef = { source: { pack: pack.key }, path: "db/land_units_tables/my_mod" };
+const page = await client.tableRows(units, {
+  columns: ["key", "num_men"],
+  filters: [{ column: "key", op: "equals", value: "my_unit" }],
+});
+
+for (const row of page.rows) {
+  const numMen = row.values[1] as number;
+  await client.editTable(units, [{ op: "update", index: row.index, values: { num_men: numMen * 2 } }]);
 }
 
-main().catch(console.error);
+try {
+  await client.tableRows({ source: { pack: pack.key }, path: "db/missing_tables/data" });
+} catch (error) {
+  if (error instanceof RpfmError && error.kind === "file_not_found") {
+    console.log("No such table");
+  }
+}
+
+await client.savePack(pack.key);
+await client.disconnect();
 ```
 ```csharp
-using var client = new RpfmClient();
-await client.ConnectAsync();
+await using var client = await RpfmClient.ConnectAsync();
+client.JobUpdated += status => Console.WriteLine($"{status["method"]}: {status["state"]}");
 
-// Wait briefly for SessionConnected
-await Task.Delay(500);
-Console.WriteLine($"Session ID: {client.SessionId}");
+await client.SetGameAsync("warhammer_3");
+var packKey = await client.OpenPackAsync("/path/to/my_mod.pack");
 
-// Select a game
-await client.SetGameAsync("warhammer_3", true);
+// Double the men of a unit.
+var units = RpfmClient.PackFile(packKey, "db/land_units_tables/my_mod");
+var page = await client.TableRowsAsync(units, [new { column = "key", op = "equals", value = "my_unit" }]);
 
-// Open a pack file
-var packResult = await client.OpenPackAsync(new[] { "/home/user/mods/my_mod.pack" });
-var packKey = packResult[0].GetString()!;
-var containerInfo = packResult[1];
-Console.WriteLine($"Opened pack: {containerInfo.GetProperty("file_name")} (key: {packKey})");
-
-// Get the file tree
-var treeView = await client.GetTreeViewAsync(packKey);
-var files = treeView[1];
-Console.WriteLine($"Pack contains {files.GetArrayLength()} files");
-
-// Decode a DB table
-var decoded = await client.DecodeFileAsync(packKey, "db/units_tables/data", "PackFile");
-if (decoded.TryGetProperty("DBRFileInfo", out var dbResult))
+foreach (var row in page!["rows"]!.AsArray())
 {
-    var db = dbResult[0];
-    var table = db.GetProperty("table");
-    Console.WriteLine(
-        $"Table: {table.GetProperty("table_name")}, " +
-        $"rows: {table.GetProperty("table_data").GetArrayLength()}");
+    var columns = page["columns"]!.AsArray().Select(column => column!.GetValue<string>()).ToList();
+    var numMen = row!["values"]![columns.IndexOf("num_men")]!.GetValue<int>();
+    await client.EditTableAsync(units, new { op = "update", index = row["index"]!.GetValue<int>(), values = new { num_men = numMen * 2 } });
 }
 
-// Extract files to disk
-var extractResult = await client.ExtractFilesAsync(
-    packKey,
-    new Dictionary<string, object[]>
-    {
-        ["PackFile"] = new object[] { new { File = "db/units_tables/data" } }
-    },
-    "/tmp/extracted");
-var extractPath = extractResult[0].GetString();
-var extractedFiles = extractResult[1];
-Console.WriteLine($"Extracted {extractedFiles.GetArrayLength()} files to {extractPath}");
+try
+{
+    await client.TableRowsAsync(RpfmClient.PackFile(packKey, "db/missing_tables/data"));
+}
+catch (RpfmException error) when (error.Kind == "file_not_found")
+{
+    Console.WriteLine("No such table");
+}
 
-// Save and disconnect
 await client.SavePackAsync(packKey);
-await client.DisconnectAsync();
 ```
 <!-- langtabs-end -->
 
@@ -431,13 +433,11 @@ await client.DisconnectAsync();
 
 The protocol is language-agnostic. To implement a client in another language:
 
-1. **Connect** to `ws://127.0.0.1:45127/ws` using any WebSocket library
-2. **Send** JSON messages in the format `{ "id": <number>, "data": <command> }`
-3. **Receive** JSON messages and match responses by `id`
-4. **Handle** the `SessionConnected` message (id=0) on connect
-5. **Send** `ClientDisconnecting` before closing the connection
+1. **Connect** to `ws://127.0.0.1:45127/ws` using any WebSocket library, and wait for the `session.connected` notification.
+2. **Send** JSON-RPC requests: `{ "jsonrpc": "2.0", "id": <number>, "method": "<method>", "params": { ... } }`.
+3. **Receive** messages: the ones with an `id` are responses, matched to their request by it; the ones with a `method` are notifications.
+4. **Handle errors** by their `data.kind`, not their message.
+5. **Wait for jobs**: methods running as jobs return `{ "job": <id> }`. Call `job.wait` until the job's `state` is `finished`, `failed` or `cancelled`, or follow its `job.updated` notifications.
+6. **Call** `session.disconnect` before closing the connection.
 
-The JSON serialization follows Rust's serde conventions:
-- Unit variants: `"VariantName"`
-- Newtype variants: `{ "VariantName": value }`
-- Tuple variants: `{ "VariantName": [v1, v2, ...] }`
+The Rust types of every method, in the `rpfm_ipc::api` module, are the reference for the JSON of params and results. Their docs are in `cargo doc -p rpfm_ipc --open`.
