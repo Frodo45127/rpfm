@@ -21,7 +21,7 @@
 //! ## Lifecycle
 //!
 //! 1. **Create.** A new session gets a unique [`SessionId`] from the manager
-//!    plus a fresh background thread spawned on the `tokio` runtime.
+//!    plus a fresh background thread of its own.
 //! 2. **Connect / disconnect.** Clients increment [`Session::connect`] on
 //!    attach and [`Session::disconnect`] on detach. The connection count is
 //!    what the timeout logic watches.
@@ -45,18 +45,19 @@
 //! connected; instead, the periodic cleanup task reaps them once no command
 //! has been sent through them for [`DEFAULT_SESSION_TIMEOUT_SECS`].
 
-use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{error::SendError, unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::time::{Duration, Instant};
 
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex, RwLock, atomic::{AtomicBool, AtomicU32, Ordering}};
+use std::collections::{BTreeSet, HashMap};
+use std::sync::{Arc, Mutex, RwLock, atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering}};
 
 use rpfm_ipc::api::{ApiError, Done, Request, RpcOutcome, RpcRequest, RpcResponse};
+use rpfm_ipc::api::diagnostics::RunDiagnostics;
 use rpfm_ipc::api::jobs::JobStarted;
 use rpfm_ipc::api::session::Configure;
 use rpfm_ipc::helpers::SessionInfo;
 use rpfm_ipc::settings::Settings;
-use rpfm_telemetry::info;
+use rpfm_telemetry::{error, info};
 
 use crate::api;
 use crate::background_thread;
@@ -156,6 +157,23 @@ pub struct Session {
 
     /// Settings the session runs with. Behind an `Arc` so requests can hold them without copying.
     settings: RwLock<Arc<Settings>>,
+
+    /// Amount of requests sent to the background thread that it hasn't started yet.
+    queued: AtomicUsize,
+
+    /// The last diagnostics check requested, so a new one can replace it.
+    diagnostics_check: Mutex<Option<DiagnosticsCheck>>,
+}
+
+/// A diagnostics check requested to a session.
+#[derive(Debug)]
+struct DiagnosticsCheck {
+
+    /// ID of the job of the check.
+    job: u64,
+
+    /// Paths the check checks. If empty, it checks everything.
+    paths: Vec<String>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -181,15 +199,21 @@ impl Session {
             pack_names: RwLock::new(Vec::new()),
             jobs: Arc::new(JobRegistry::default()),
             settings: RwLock::new(Arc::new(Settings::init(false))),
+            queued: AtomicUsize::new(0),
+            diagnostics_check: Mutex::new(None),
         });
 
-        // Spawn a dedicated background thread for this session.
+        // Requests do heavy blocking work, so they run on their own thread instead of stalling a worker of the async runtime.
         let session_clone = session.clone();
-        tokio::spawn(async move {
+        let spawned = std::thread::Builder::new().name(format!("session-{id}")).spawn(move || {
             info!("Session {} background thread starting...", id);
-            background_thread::background_loop(receiver, session_clone).await;
+            background_thread::background_loop(receiver, session_clone);
             info!("Session {} background thread terminated.", id);
         });
+
+        if let Err(error) = spawned {
+            error!("Session {}: failed to start its background thread: {}", id, error);
+        }
 
         session
     }
@@ -322,7 +346,13 @@ impl Session {
         if api::is_job_method(&request.method) {
             let job = self.jobs.create(&request.method);
             let id = request.id;
-            if let Err(error) = self.sender.send(SessionMessage::Job(job, request)) {
+            let request = if request.method == RunDiagnostics::METHOD {
+                self.replace_diagnostics_check(job, request)
+            } else {
+                request
+            };
+
+            if let Err(error) = self.enqueue(SessionMessage::Job(job, request)) {
                 let message = format!("{SESSION_SENDER_ERROR}: {error}");
                 info!("{message}");
                 self.jobs.finish(job, RpcOutcome::Error(ApiError::Internal(message).into()));
@@ -333,7 +363,7 @@ impl Session {
             return receiver_back;
         }
 
-        if let Err(error) = self.sender.send(SessionMessage::Api(request, sender_back)) {
+        if let Err(error) = self.enqueue(SessionMessage::Api(request, sender_back)) {
             let message = format!("{SESSION_SENDER_ERROR}: {error}");
             info!("{message}");
             if let SessionMessage::Api(request, sender_back) = error.0 {
@@ -341,6 +371,78 @@ impl Session {
             }
         }
         receiver_back
+    }
+
+    /// Sends a request to the background thread, counting it as queued until the thread starts it.
+    fn enqueue(&self, message: SessionMessage) -> Result<(), SendError<SessionMessage>> {
+        self.queued.fetch_add(1, Ordering::SeqCst);
+        self.sender.send(message).inspect_err(|_| { self.queued.fetch_sub(1, Ordering::SeqCst); })
+    }
+
+    /// Marks a request sent to the background thread as started.
+    pub fn dequeued(&self) {
+        self.queued.fetch_sub(1, Ordering::SeqCst);
+    }
+
+    /// Returns if there are requests waiting for the background thread.
+    pub fn has_queued_requests(&self) -> bool {
+        self.queued.load(Ordering::SeqCst) > 0
+    }
+
+    /// Makes a new diagnostics check replace the last one, if it hasn't ended yet.
+    ///
+    /// The new check also checks the paths the replaced one would have checked. A queued replaced check is
+    /// cancelled, and a running one is cancelled once it stops for the new one (see [`Self::requeue_diagnostics_check`]).
+    ///
+    /// # Arguments
+    ///
+    /// * `job` - Job of the new check.
+    /// * `request` - Request of the new check.
+    ///
+    /// # Returns
+    ///
+    /// The request of the new check, with the paths of the replaced one added.
+    fn replace_diagnostics_check(&self, job: u64, mut request: RpcRequest) -> RpcRequest {
+        let Ok(mut params) = api::parse_params::<RunDiagnostics>(request.params.clone()) else {
+            return request;
+        };
+
+        let mut last_check = self.diagnostics_check.lock().unwrap();
+        let pending = last_check.take().filter(|check| self.jobs.status(check.job).is_some_and(|status| !status.state.has_ended()));
+        if let Some(pending) = pending {
+
+            // No paths means everything, so a full check covers any other.
+            params.paths = if pending.paths.is_empty() || params.paths.is_empty() {
+                vec![]
+            } else {
+                pending.paths.into_iter().chain(params.paths).collect::<BTreeSet<_>>().into_iter().collect()
+            };
+
+            let _ = self.jobs.cancel(pending.job);
+            if let Ok(params) = serde_json::to_value(&params) {
+                request.params = params;
+            }
+        }
+
+        *last_check = Some(DiagnosticsCheck { job, paths: params.paths });
+        request
+    }
+
+    /// Queues again a diagnostics check that stopped to let other requests run, or cancels it if a newer one replaced it.
+    ///
+    /// # Arguments
+    ///
+    /// * `job` - Job of the check.
+    /// * `request` - Request of the check.
+    pub fn requeue_diagnostics_check(&self, job: u64, request: RpcRequest) {
+        let last_check = self.diagnostics_check.lock().unwrap();
+        if last_check.as_ref().is_some_and(|check| check.job == job) && self.jobs.requeue(job) {
+            if self.enqueue(SessionMessage::Job(job, request)).is_err() {
+                self.jobs.finish_cancelled(job);
+            }
+        } else {
+            self.jobs.finish_cancelled(job);
+        }
     }
 }
 
@@ -586,6 +688,7 @@ impl SessionManager {
 #[cfg(test)]
 mod tests {
     use rpfm_ipc::api::JSONRPC_VERSION;
+    use rpfm_ipc::api::jobs::JobState;
     use rpfm_ipc::settings_keys::MYMOD_BASE_PATH;
 
     use super::*;
@@ -615,5 +718,76 @@ mod tests {
 
         assert!(matches!(response.outcome, RpcOutcome::Error(_)));
         assert_eq!(session.settings(), before);
+    }
+
+    /// Builds the request of a diagnostics check of some paths.
+    fn diagnostics_request(paths: &[&str]) -> RpcRequest {
+        let paths = paths.iter().map(|path| path.to_string()).collect();
+        RpcRequest::new(1, &RunDiagnostics { paths, ignored_types: vec![], check_assembly_kit_only_references: false }).unwrap()
+    }
+
+    /// Returns the paths of the request of a diagnostics check.
+    fn diagnostics_paths(request: RpcRequest) -> Vec<String> {
+        api::parse_params::<RunDiagnostics>(request.params).unwrap().paths
+    }
+
+    #[tokio::test]
+    async fn a_new_diagnostics_check_replaces_the_queued_one() {
+        let session = Session::new(1, true);
+        let first = session.jobs.create(RunDiagnostics::METHOD);
+        session.replace_diagnostics_check(first, diagnostics_request(&["db/a"]));
+
+        let second = session.jobs.create(RunDiagnostics::METHOD);
+        let request = session.replace_diagnostics_check(second, diagnostics_request(&["db/b", "db/a"]));
+
+        assert_eq!(diagnostics_paths(request), vec!["db/a", "db/b"]);
+        assert_eq!(session.jobs.status(first).unwrap().state, JobState::Cancelled);
+        assert_eq!(session.jobs.status(second).unwrap().state, JobState::Queued);
+    }
+
+    #[tokio::test]
+    async fn a_full_diagnostics_check_covers_the_partial_ones() {
+        let session = Session::new(1, true);
+        let first = session.jobs.create(RunDiagnostics::METHOD);
+        session.replace_diagnostics_check(first, diagnostics_request(&[]));
+
+        let second = session.jobs.create(RunDiagnostics::METHOD);
+        let request = session.replace_diagnostics_check(second, diagnostics_request(&["db/b"]));
+
+        assert!(diagnostics_paths(request).is_empty());
+    }
+
+    #[tokio::test]
+    async fn ended_diagnostics_checks_are_not_replaced() {
+        let session = Session::new(1, true);
+        let first = session.jobs.create(RunDiagnostics::METHOD);
+        session.replace_diagnostics_check(first, diagnostics_request(&["db/a"]));
+        session.jobs.finish(first, RpcOutcome::Result(serde_json::Value::Null));
+
+        let second = session.jobs.create(RunDiagnostics::METHOD);
+        let request = session.replace_diagnostics_check(second, diagnostics_request(&["db/b"]));
+
+        assert_eq!(diagnostics_paths(request), vec!["db/b"]);
+    }
+
+    #[tokio::test]
+    async fn stopped_diagnostics_checks_run_again_unless_replaced() {
+        let session = Session::new(1, true);
+
+        // A replaced check that stops while running is cancelled.
+        let replaced = session.jobs.create(RunDiagnostics::METHOD);
+        session.replace_diagnostics_check(replaced, diagnostics_request(&[]));
+        assert!(session.jobs.start(replaced));
+        let newer = session.jobs.create(RunDiagnostics::METHOD);
+        session.replace_diagnostics_check(newer, diagnostics_request(&[]));
+        session.requeue_diagnostics_check(replaced, diagnostics_request(&[]));
+        assert_eq!(session.jobs.status(replaced).unwrap().state, JobState::Cancelled);
+
+        // The last check that stops goes back to the queue, and the background thread runs it to the end.
+        assert!(session.jobs.start(newer));
+        session.requeue_diagnostics_check(newer, diagnostics_request(&[]));
+        let status = session.jobs.wait(newer, Duration::from_secs(10)).await.unwrap();
+        assert!(matches!(status.state, JobState::Finished { .. }), "{status:?}");
+        assert!(!session.has_queued_requests());
     }
 }

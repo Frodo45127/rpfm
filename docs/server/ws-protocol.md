@@ -74,7 +74,9 @@ The job then runs in order with the other requests of the session, and every cha
 { "jsonrpc": "2.0", "method": "job.updated", "params": { "job": 3, "method": "session.set_game", "state": "finished", "result": { ... } } }
 ```
 
-A job is `queued`, `running` (with an optional `stage`), `finished` (with the `result` of its method), `failed` (with its `error`) or `cancelled`. Instead of following the notifications, you can also call `job.wait`, which answers when the job ends or after a timeout, or `job.status`. Queued jobs can be cancelled with `job.cancel`; running ones can't.
+A job is `queued`, `running` (with an optional `stage`, and an optional `progress` from 0 to 100), `finished` (with the `result` of its method), `failed` (with its `error`) or `cancelled`. Instead of following the notifications, you can also call `job.wait`, which answers when the job ends or after a timeout, or `job.status`. Queued jobs can be cancelled with `job.cancel`; running ones can't.
+
+Diagnostics checks (`diagnostics.run`) don't make other requests wait: a running check stops when another request arrives, and goes back to the queue behind it. A new check replaces the previous one if it hasn't ended, which ends `cancelled`, and also checks what the replaced one would have checked. Follow the job of the last check you started to get its results.
 
 ## Conventions
 

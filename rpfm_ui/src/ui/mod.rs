@@ -299,7 +299,7 @@ impl UI {
                     }
 
                     if settings_bool(DIAGNOSTICS_TRIGGER_ON_OPEN) {
-                        DiagnosticsUI::check(app_ui, diagnostics_ui);
+                        DiagnosticsUI::check(diagnostics_ui);
                     }
                 }
             }

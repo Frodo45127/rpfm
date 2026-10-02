@@ -26,8 +26,8 @@ use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
-use rpfm_ipc::api::{ApiError, Request, RpcNotification, RpcOutcome, RpcRequest, RpcResponse};
-use rpfm_ipc::api::jobs::{JobStarted, JobState, WaitForJob};
+use rpfm_ipc::api::{ApiError, JOB_UPDATED_NOTIFICATION, Request, RpcNotification, RpcOutcome, RpcRequest, RpcResponse};
+use rpfm_ipc::api::jobs::{JobStarted, JobState, JobStatus, WaitForJob};
 use rpfm_ipc::api::files::{CopyFiles, FileData, FileRef, FileSource, GetFilesFromAllSources, GetFilesInfo, ListFiles, ReadFile, ReadFormat, WriteFile};
 use rpfm_ipc::api::packs::{GetPackInfo, PackDetails, PackSummary, SavePack};
 use rpfm_ipc::helpers::{ContainerInfo, DataSource, RFileInfo};
@@ -53,6 +53,9 @@ pub static CURRENT_SESSION_ID: std::sync::LazyLock<Arc<RwLock<Option<u64>>>> = s
 /// Global variable to hold the session ID to reconnect to. When set, the WebSocket loop will
 /// disconnect and reconnect to the specified session.
 pub static RECONNECT_SESSION_ID: std::sync::LazyLock<Arc<RwLock<Option<u64>>>> = std::sync::LazyLock::new(|| Arc::new(RwLock::new(None)));
+
+/// Last state the server notified of each job that hasn't ended yet, by job ID.
+static JOB_STATES: std::sync::LazyLock<RwLock<HashMap<u64, JobState>>> = std::sync::LazyLock::new(|| RwLock::new(HashMap::new()));
 
 /// Global flag to signal the WebSocket loop that a reconnection is requested.
 pub static RECONNECT_REQUESTED: AtomicBool = AtomicBool::new(false);
@@ -174,6 +177,26 @@ pub fn call_api<R: Request>(request: &R) -> Result<R::Response> {
 pub fn call_api_async<R: Request>(request: &R) -> Result<R::Response> {
     debug_assert!(!R::IS_JOB, "{} runs as a job. Use run_job instead.", R::METHOD);
     api_result(call_api_async_raw(request)?)
+}
+
+/// Returns the last state the server notified of a job, or `None` if it ended or there were no notifications for it yet.
+pub fn job_state(job: u64) -> Option<JobState> {
+    JOB_STATES.read().unwrap().get(&job).cloned()
+}
+
+/// Keeps the state of a job from a notification, forgetting the jobs that ended.
+fn store_job_state(status: JobStatus) {
+    let mut states = JOB_STATES.write().unwrap();
+    if status.state.has_ended() {
+        states.remove(&status.job);
+    } else {
+        states.insert(status.job, status.state);
+    }
+}
+
+/// Sends a request of the server's API without waiting for its response, which arrives through the returned receiver.
+pub fn send_api<R: Request>(request: &R) -> Receiver<RpcResponse> {
+    CENTRAL_COMMAND.read().unwrap().call(request)
 }
 
 /// Runs a method of the server's API that runs as a job, and waits for it to end while keeping the UI alive.
@@ -428,7 +451,13 @@ pub async fn websocket_loop(mut receiver: UnboundedReceiver<(RpcRequest, Sender<
                                     }
 
                                     else if let Ok(notification) = serde_json::from_str::<RpcNotification>(&text) {
-                                        if notification.method == SESSION_CONNECTED_NOTIFICATION {
+                                        if notification.method == JOB_UPDATED_NOTIFICATION {
+                                            if let Ok(status) = serde_json::from_value::<JobStatus>(notification.params) {
+                                                store_job_state(status);
+                                            }
+                                        }
+
+                                        else if notification.method == SESSION_CONNECTED_NOTIFICATION {
                                             if let Ok(connected) = serde_json::from_value::<SessionConnected>(notification.params) {
                                                 info!("Connected to session ID: {}", connected.session_id);
                                                 *CURRENT_SESSION_ID.write().unwrap() = Some(connected.session_id);

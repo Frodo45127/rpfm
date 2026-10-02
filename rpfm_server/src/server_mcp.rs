@@ -179,7 +179,8 @@ format used by all modern Total War titles.
   folder otherwise.
 - **Jobs**: slow tools (`set_game`, `generate_dependencies_cache`, `run_diagnostics`, `run_search`, `optimize_pack`...) run as jobs. \
   They wait up to 45 seconds and return the job's state, with its result if it finished. If it's still \
-  running, call `wait_for_job` with its ID. Other tools called meanwhile wait for the job to end.
+  running, call `wait_for_job` with its ID. Other tools called meanwhile wait for the job to end, except during \
+  `run_diagnostics`, which stops for them and starts again after them.
 - **Sources**: where a file is — `{\"pack\": <pack key>}` (an open pack), `\"game_files\"` (vanilla game data), \
   `\"parent_files\"` (packs the open packs depend on), or `\"assembly_kit\"` (Assembly Kit tables). A file is \
   referenced as `{\"source\": <source>, \"path\": <path>}`.

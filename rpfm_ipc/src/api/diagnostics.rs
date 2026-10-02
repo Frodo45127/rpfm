@@ -26,6 +26,9 @@ use super::{Done, Request};
 pub const DEFAULT_DIAGNOSTICS_LIMIT: usize = 100;
 
 /// `diagnostics.run`: checks the open packs for problems, keeping the results for [`ListDiagnostics`]. Runs as a job.
+///
+/// A running check stops when other requests arrive, and is queued again behind them. A new check replaces the
+/// one that hasn't ended yet, which ends cancelled, and also checks the paths the replaced one would have checked.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct RunDiagnostics {
 

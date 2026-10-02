@@ -61,6 +61,10 @@ pub enum JobState {
         /// Step the job is on, if it reports them.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         stage: Option<String>,
+
+        /// How far along the job is, from 0 to 100, if it reports it.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        progress: Option<u8>,
     },
 
     /// Finished, with the response of its method.

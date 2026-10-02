@@ -18,6 +18,7 @@ use qt_widgets::QDockWidget;
 use qt_widgets::q_header_view::ResizeMode;
 use qt_widgets::QLabel;
 use qt_widgets::QMenu;
+use qt_widgets::QProgressBar;
 use qt_widgets::QScrollArea;
 use qt_widgets::QTableView;
 use qt_widgets::QToolButton;
@@ -42,20 +43,25 @@ use qt_core::QVariant;
 use qt_core::QPtr;
 use qt_core::QObject;
 use qt_core::QSignalBlocker;
+use qt_core::QTimer;
 
 use cpp_core::CppBox;
 use cpp_core::Ptr;
 
 use anyhow::Result;
+use crossbeam::channel::{Receiver, TryRecvError};
 use getset::Getters;
 use rayon::prelude::*;
 
+use std::cell::RefCell;
 use std::path::Path;
 use std::rc::Rc;
 
 use rpfm_extensions::diagnostics::{*, anim_fragment_battle::*, config::*, dependency::*, group_formations::*, pack::*, portrait_settings::*, table::*, text::*};
 
+use rpfm_ipc::api::{ApiError, RpcResponse};
 use rpfm_ipc::api::diagnostics::{GetDiagnosticsReport, RunDiagnostics};
+use rpfm_ipc::api::jobs::{JobStarted, JobState, JobStatus, WaitForJob};
 use rpfm_ipc::helpers::DataSource;
 use rpfm_ipc::settings_keys::*;
 
@@ -64,7 +70,7 @@ use rpfm_lib::files::{ContainerPath, portrait_settings::Variant};
 use rpfm_ui_common::utils::{atomic_from_cpp_box, find_widget, load_template, ref_from_atomic};
 
 use crate::app_ui::AppUI;
-use crate::communications::{call_api_async, run_job};
+use crate::communications::{api_result, job_state, send_api};
 use crate::dependencies_ui::DependenciesUI;
 use crate::ffi::{add_text_diagnostic_safe, clear_text_diagnostics_safe, new_tableview_filter_safe, scroll_to_pos_and_select_safe, trigger_tableview_filter_safe};
 use crate::global_search_ui::GlobalSearchUI;
@@ -82,6 +88,9 @@ pub mod slots;
 
 const VIEW_DEBUG: &str = "rpfm_ui/ui_templates/diagnostics_dock_widget.ui";
 const VIEW_RELEASE: &str = "ui/diagnostics_dock_widget.ui";
+
+/// How often the progress of a running check is looked up, in milliseconds.
+const CHECK_POLL_INTERVAL_MS: i32 = 50;
 
 //-------------------------------------------------------------------------------//
 //                                  Macros
@@ -200,6 +209,29 @@ pub struct DiagnosticsUI {
     checkbox_file_itm: QBox<QCheckBox>,
     checkbox_file_overwrite: QBox<QCheckBox>,
     checkbox_file_duplicated: QBox<QCheckBox>,
+
+    /// Timer looking up the progress of the running check, while there is one.
+    check_timer: QBox<QTimer>,
+
+    /// Progress of the running check, shown in the status bar while there is one.
+    check_progress_bar: QBox<QProgressBar>,
+
+    /// The running check, if any.
+    #[getset(skip)]
+    pending_check: RefCell<Option<PendingCheck>>,
+}
+
+/// Step a check started by the UI is on, with the receiver of the response it waits for.
+enum PendingCheck {
+
+    /// Waiting for the server to start the job of the check.
+    Starting(Receiver<RpcResponse>),
+
+    /// Waiting for the job of the check to end.
+    Running(u64, Receiver<RpcResponse>),
+
+    /// Waiting for the results of the check.
+    Loading(Receiver<RpcResponse>),
 }
 
 //-------------------------------------------------------------------------------//
@@ -431,6 +463,16 @@ impl DiagnosticsUI {
         checkbox_datacored_portrait_settings.set_checked(false);
         checkbox_datacored_portrait_settings.set_visible(false);
 
+        let check_timer = QTimer::new_1a(&diagnostics_dock_widget);
+        check_timer.set_interval(CHECK_POLL_INTERVAL_MS);
+
+        let check_progress_bar = QProgressBar::new_0a();
+        check_progress_bar.set_range(0, 100);
+        check_progress_bar.set_format(&qtr("diagnostics_check_progress"));
+        check_progress_bar.set_maximum_width(250);
+        check_progress_bar.hide();
+        app_ui.main_window().status_bar().add_permanent_widget_1a(&check_progress_bar);
+
         let diagnostics_ui = Self {
 
             //-------------------------------------------------------------------------------//
@@ -521,6 +563,9 @@ impl DiagnosticsUI {
             checkbox_file_itm,
             checkbox_file_overwrite,
             checkbox_file_duplicated,
+            check_timer,
+            check_progress_bar,
+            pending_check: RefCell::new(None),
         };
 
         diagnostics_ui.load_disabled_diagnostics();
@@ -528,7 +573,7 @@ impl DiagnosticsUI {
     }
 
     /// This function takes care of checking the entire PackFile for errors.
-    pub unsafe fn check(app_ui: &Rc<AppUI>, diagnostics_ui: &Rc<Self>) {
+    pub unsafe fn check(diagnostics_ui: &Rc<Self>) {
 
         // Only check if we actually have the diagnostics open.
         if !diagnostics_ui.diagnostics_dock_widget.is_visible() {
@@ -536,11 +581,11 @@ impl DiagnosticsUI {
         }
 
         rpfm_telemetry::track_action("Diagnostics Check");
-        Self::run_check(app_ui, diagnostics_ui, vec![]);
+        Self::run_check(diagnostics_ui, vec![]);
     }
 
     /// This function takes care of updating the results of a diagnostics check for the provided paths.
-    pub unsafe fn check_on_path(app_ui: &Rc<AppUI>, diagnostics_ui: &Rc<Self>, paths: Vec<ContainerPath>) {
+    pub unsafe fn check_on_path(diagnostics_ui: &Rc<Self>, paths: Vec<ContainerPath>) {
 
         // Only check if we actually have the diagnostics open.
         if !diagnostics_ui.diagnostics_dock_widget.is_visible() {
@@ -548,30 +593,117 @@ impl DiagnosticsUI {
         }
 
         rpfm_telemetry::track_action("Diagnostics Check Update");
-        Self::run_check(app_ui, diagnostics_ui, paths.iter().map(|path| path.path_raw().to_owned()).collect());
+        Self::run_check(diagnostics_ui, paths.iter().map(|path| path.path_raw().to_owned()).collect());
     }
 
-    /// Checks the open packs for problems, and shows the results.
+    /// Starts checking the open packs for problems in the background. The results are shown when the check ends.
+    ///
+    /// A check started while another one runs replaces it, and the server checks what both would have checked.
     ///
     /// # Arguments
     ///
     /// * `paths` - Paths to check again, keeping the results of the last check for the rest. If empty, everything is checked.
-    unsafe fn run_check(app_ui: &Rc<AppUI>, diagnostics_ui: &Rc<Self>, paths: Vec<String>) {
+    unsafe fn run_check(diagnostics_ui: &Rc<Self>, paths: Vec<String>) {
         let request = RunDiagnostics {
             paths,
             ignored_types: diagnostics_ui.diagnostics_ignored(),
             check_assembly_kit_only_references: diagnostics_ui.diagnostics_button_check_ak_only_refs().is_checked(),
         };
 
-        let diagnostics = match run_job(&request).and_then(|_| call_api_async(&GetDiagnosticsReport {})) {
-            Ok(diagnostics) => diagnostics,
-            Err(error) => return show_dialog(&diagnostics_ui.diagnostics_dock_widget, error, false),
+        *diagnostics_ui.pending_check.borrow_mut() = Some(PendingCheck::Starting(send_api(&request)));
+        diagnostics_ui.check_timer.start_0a();
+        Self::update_check_progress(diagnostics_ui);
+    }
+
+    /// Moves the running check to its next step if the response it waits for arrived, showing its results when it ends.
+    ///
+    /// Called by the check timer, so it never waits for the server.
+    pub unsafe fn poll_check(app_ui: &Rc<AppUI>, diagnostics_ui: &Rc<Self>) {
+        let Some(pending) = diagnostics_ui.pending_check.borrow_mut().take() else {
+            diagnostics_ui.check_timer.stop();
+            return;
         };
 
+        let receiver = match pending {
+            PendingCheck::Starting(ref receiver) | PendingCheck::Running(_, ref receiver) | PendingCheck::Loading(ref receiver) => receiver,
+        };
+
+        let next = match receiver.try_recv() {
+            Err(TryRecvError::Empty) => Some(pending),
+            Err(TryRecvError::Disconnected) => None,
+            Ok(response) => match Self::next_check_step(app_ui, diagnostics_ui, pending, response) {
+                Ok(next) => next,
+                Err(error) => {
+                    show_dialog(&diagnostics_ui.diagnostics_dock_widget, error, false);
+                    None
+                }
+            },
+        };
+
+        // Showing results or errors runs the event loop, so a newer check may have started meanwhile.
+        let mut pending_check = diagnostics_ui.pending_check.borrow_mut();
+        if pending_check.is_none() {
+            *pending_check = next;
+        }
+
+        if pending_check.is_none() {
+            diagnostics_ui.check_timer.stop();
+        }
+
+        drop(pending_check);
+        Self::update_check_progress(diagnostics_ui);
+    }
+
+    /// Shows the progress of the running check in the status bar, or hides it if there is none.
+    unsafe fn update_check_progress(diagnostics_ui: &Rc<Self>) {
+        let progress = match *diagnostics_ui.pending_check.borrow() {
+            None => return diagnostics_ui.check_progress_bar.hide(),
+            Some(PendingCheck::Starting(_)) => 0,
+            Some(PendingCheck::Running(job, _)) => match job_state(job) {
+                Some(JobState::Running { progress: Some(progress), .. }) => i32::from(progress),
+                _ => 0,
+            },
+            Some(PendingCheck::Loading(_)) => 100,
+        };
+
+        diagnostics_ui.check_progress_bar.set_value(progress);
+        diagnostics_ui.check_progress_bar.show();
+    }
+
+    /// Handles the response a check waited for.
+    ///
+    /// # Returns
+    ///
+    /// The next step of the check, or `None` if it ended.
+    unsafe fn next_check_step(app_ui: &Rc<AppUI>, diagnostics_ui: &Rc<Self>, pending: PendingCheck, response: RpcResponse) -> Result<Option<PendingCheck>> {
+        let wait_for_job = |job| PendingCheck::Running(job, send_api(&WaitForJob { job, timeout_secs: None }));
+        match pending {
+            PendingCheck::Starting(_) => {
+                let JobStarted { job } = api_result(response)?;
+                Ok(Some(wait_for_job(job)))
+            }
+            PendingCheck::Running(job, _) => match api_result::<JobStatus>(response)?.state {
+                JobState::Finished { .. } => Ok(Some(PendingCheck::Loading(send_api(&GetDiagnosticsReport {})))),
+                JobState::Failed { error } => Err(ApiError::from(error).into()),
+                JobState::Queued | JobState::Running { .. } => Ok(Some(wait_for_job(job))),
+
+                // Only a newer check cancels it, and that one shows its results.
+                JobState::Cancelled => Ok(None),
+            },
+            PendingCheck::Loading(_) => {
+                let diagnostics: Diagnostics = api_result(response)?;
+                Self::show_results(app_ui, diagnostics_ui, &diagnostics);
+                Ok(None)
+            }
+        }
+    }
+
+    /// Shows the results of a check.
+    unsafe fn show_results(app_ui: &Rc<AppUI>, diagnostics_ui: &Rc<Self>, diagnostics: &Diagnostics) {
         Self::load_diagnostics_to_ui(app_ui, diagnostics_ui, diagnostics.results());
         Self::filter(app_ui, diagnostics_ui);
         Self::update_level_counts(diagnostics_ui, diagnostics.results());
-        UI_STATE.set_diagnostics(&diagnostics);
+        UI_STATE.set_diagnostics(diagnostics);
     }
 
     /// This function takes care of loading the results of a diagnostic check into the table.

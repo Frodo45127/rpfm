@@ -67,7 +67,7 @@ Slow tools (`set_game`, `generate_dependencies_cache`, `rebuild_dependencies`, `
 - If it failed, the tool returns a tool error with the state.
 - If it's still running, call `wait_for_job` with its `job` ID, as many times as needed.
 
-Other tools called meanwhile wait for the job to end before running.
+Other tools called meanwhile wait for the job to end before running, except during `run_diagnostics`: a running check stops for them, and starts again after them.
 
 ## Resources
 

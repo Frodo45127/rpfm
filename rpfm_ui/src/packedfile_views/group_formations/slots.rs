@@ -126,7 +126,7 @@ impl GroupFormationsSlots {
                 }
 
                 if settings_bool(DIAGNOSTICS_TRIGGER_ON_TABLE_EDIT) {
-                    DiagnosticsUI::check_on_path(&app_ui, &diagnostics_ui, vec![ContainerPath::File(path)]);
+                    DiagnosticsUI::check_on_path(&diagnostics_ui, vec![ContainerPath::File(path)]);
                 }
             }
         ));

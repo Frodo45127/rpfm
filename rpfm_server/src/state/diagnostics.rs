@@ -52,19 +52,23 @@ impl SessionState {
     /// * `paths_to_check` - Paths to recheck, keeping the previous results for the rest. If empty, everything is checked.
     /// * `check_ak_only_refs` - If references to tables only in the Assembly Kit are checked.
     /// * `settings` - Settings, to find the game's install folder and Assembly Kit.
+    /// * `on_progress` - Called with the steps done and their total as the check advances. If it returns `false`, the check stops early.
     ///
     /// # Returns
     ///
-    /// The updated diagnostics.
-    pub fn check_diagnostics(&mut self, mut diagnostics: Diagnostics, paths_to_check: &[ContainerPath], check_ak_only_refs: bool, settings: &Settings) -> Diagnostics {
+    /// The updated diagnostics, or `None` if the check was stopped.
+    pub fn check_diagnostics(&mut self, mut diagnostics: Diagnostics, paths_to_check: &[ContainerPath], check_ak_only_refs: bool, settings: &Settings, on_progress: &(dyn Fn(usize, usize) -> bool + Sync)) -> Option<Diagnostics> {
         if let Some(ref schema) = self.schema {
             let game_path = settings.path_buf(self.game.key());
             let lua_api = cached_lua_api(&mut self.lua_api_cache, &self.game, settings, &self.dependencies);
-            diagnostics.check(&mut self.packs, &mut self.dependencies, schema, &self.game, &game_path, paths_to_check, check_ak_only_refs, lua_api);
+            if !diagnostics.check(&mut self.packs, &mut self.dependencies, schema, &self.game, &game_path, paths_to_check, check_ak_only_refs, lua_api, on_progress) {
+                info!("Checking diagnostics: stopped.");
+                return None;
+            }
         }
 
         info!("Checking diagnostics: done.");
-        diagnostics
+        Some(diagnostics)
     }
 
     /// Checks the open packs for problems, keeping the results for [`Self::list_diagnostics`].
@@ -73,11 +77,12 @@ impl SessionState {
     ///
     /// * `request` - What to check.
     /// * `settings` - Settings, to find the game's install folder and Assembly Kit.
+    /// * `on_progress` - Called with the steps done and their total as the check advances. If it returns `false`, the check stops early.
     ///
     /// # Returns
     ///
-    /// A summary of the results.
-    pub fn run_diagnostics(&mut self, request: &RunDiagnostics, settings: &Settings) -> DiagnosticsSummary {
+    /// A summary of the results, or `None` if the check was stopped, keeping the results of the last check.
+    pub fn run_diagnostics(&mut self, request: &RunDiagnostics, settings: &Settings, on_progress: &(dyn Fn(usize, usize) -> bool + Sync)) -> Option<DiagnosticsSummary> {
         let paths = request.paths.iter()
             .map(|path| if self.packs.values().any(|pack| pack.has_file(path)) {
                 ContainerPath::File(path.to_owned())
@@ -86,18 +91,19 @@ impl SessionState {
             })
             .collect::<Vec<_>>();
 
-        let mut diagnostics = match self.diagnostics.take() {
-            Some(previous) if !paths.is_empty() => previous.diagnostics,
+        // Partial checks work on a copy of the last results, so a stopped check leaves them untouched.
+        let mut diagnostics = match self.diagnostics {
+            Some(ref previous) if !paths.is_empty() => previous.diagnostics.clone(),
             _ => Diagnostics::default(),
         };
 
         diagnostics.diagnostics_ignored_mut().clone_from(&request.ignored_types);
-        let diagnostics = self.check_diagnostics(diagnostics, &paths, request.check_assembly_kit_only_references, settings);
+        let diagnostics = self.check_diagnostics(diagnostics, &paths, request.check_assembly_kit_only_references, settings, on_progress)?;
         let results = flatten_diagnostics(&diagnostics);
         let summary = summarize(&results);
 
         self.diagnostics = Some(DiagnosticsResults { diagnostics, results });
-        summary
+        Some(summary)
     }
 
     /// Returns a page of the results of the last diagnostics check matching the request.

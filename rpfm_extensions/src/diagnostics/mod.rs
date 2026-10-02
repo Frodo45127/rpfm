@@ -89,6 +89,7 @@
 //!     &[],  // Check all paths
 //!     false, // Don't check AK-only references
 //!     None,  // No Lua API, so Lua scripts only get their syntax checked
+//!     &|_, _| true, // Ignore the progress, and never stop early
 //! );
 //!
 //! for result in diagnostics.results() {
@@ -105,6 +106,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::cmp::Ordering;
 use std::{fmt, fmt::Display};
 use std::path::Path;
+use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 
 use rpfm_lib::error::Result;
 use rpfm_lib::files::{ContainerPath, Container, DecodeableExtraData, FileType, pack::{DiagnosticIgnoreEntry, Pack}, RFile, RFileDecoded};
@@ -301,8 +303,15 @@ impl DiagnosticType {
 impl Diagnostics {
 
     /// This function performs a search over the parts of the provided Packs, storing his results.
+    ///
+    /// `on_progress` is called with the steps done and their total as the check advances. If it returns `false`,
+    /// the check stops early, leaving the results incomplete.
+    ///
+    /// # Returns
+    ///
+    /// `false` if the check was stopped before finishing.
     #[allow(clippy::too_many_arguments)]
-    pub fn check(&mut self, packs: &mut BTreeMap<String, Pack>, dependencies: &mut Dependencies, schema: &Schema, game_info: &GameInfo, game_path: &Path, paths_to_check: &[ContainerPath], check_ak_only_refs: bool, lua_api: Option<&LuaApi>) {
+    pub fn check(&mut self, packs: &mut BTreeMap<String, Pack>, dependencies: &mut Dependencies, schema: &Schema, game_info: &GameInfo, game_path: &Path, paths_to_check: &[ContainerPath], check_ak_only_refs: bool, lua_api: Option<&LuaApi>, on_progress: &(dyn Fn(usize, usize) -> bool + Sync)) -> bool {
 
         // Clear the diagnostics first if we're doing a full check, or only the config ones and the ones for the path to update if we're doing a partial check.
         if paths_to_check.is_empty() {
@@ -336,7 +345,7 @@ impl Diagnostics {
             // If we have one of the blocking diagnostics, report it and return.
             self.results.push(diagnostics);
             if is_diagnostic_blocking {
-                return;
+                return true;
             }
         }
 
@@ -366,6 +375,11 @@ impl Diagnostics {
                     .par_iter_mut()
                     .for_each(|file| { let _ = file.decode(&extra_data, true, false); });
             }
+        }
+
+        // The total isn't known yet, so this only asks if the check should go on.
+        if !on_progress(0, 1) {
+            return false;
         }
 
         // Logic here: we want to process the tables on batches containing all the tables of the same type, so we can check duplicates in different tables.
@@ -435,6 +449,11 @@ impl Diagnostics {
             }
         }
 
+        // Progress steps: decoding the files, generating the references, each checked file, and the global checks.
+        let files_to_check = files_split.values().map(Vec::len).sum::<usize>();
+        let total_steps = files_to_check + 3;
+        let files_checked = AtomicUsize::new(0);
+
         // Getting this here speeds up a lot path-checking later.
         let mut local_file_path_list = HashMap::new();
         for pack in packs.values() {
@@ -497,8 +516,16 @@ impl Diagnostics {
             LuaDefinitions::default()
         };
 
+        if !on_progress(2, total_steps) {
+            return false;
+        }
+
         // Process the files in batches.
         self.results.append(&mut files_split.par_iter().filter_map(|(_, files)| {
+            if !on_progress(2 + files_checked.load(AtomicOrdering::Relaxed), total_steps) {
+                return None;
+            }
+
             let mut diagnostics = Vec::with_capacity(files.len());
 
             // Ignore empty groups, which should never happen, but just in case.
@@ -559,8 +586,13 @@ impl Diagnostics {
                 }
             }
 
+            files_checked.fetch_add(files.len(), AtomicOrdering::Relaxed);
             Some(diagnostics)
         }).flatten().collect());
+
+        if !on_progress(2 + files_checked.load(AtomicOrdering::Relaxed), total_steps) {
+            return false;
+        }
 
         // These two are global, so do not execute on file-specific runs.
         if paths_to_check.is_empty() {
@@ -579,6 +611,8 @@ impl Diagnostics {
                 Ordering::Equal
             }
         });
+
+        true
     }
 
     /// Function to know if an specific field/diagnostic must be ignored.

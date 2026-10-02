@@ -77,6 +77,7 @@ pub struct DiagnosticsUISlots {
     show_hide_extra_filters: QBox<SlotOfBool>,
     toggle_filters: QBox<SlotOfBool>,
     toggle_filters_all: QBox<SlotOfBool>,
+    poll_check: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -104,7 +105,7 @@ impl DiagnosticsUISlots {
                 rpfm_telemetry::track_action("Check PackFile (Diags)");
 
                 let _ = AppUI::back_to_back_end_all(&app_ui, &pack_file_contents_ui);
-                DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+                DiagnosticsUI::check(&diagnostics_ui);
             }
         ));
 
@@ -116,7 +117,7 @@ impl DiagnosticsUISlots {
 
                 let _ = AppUI::back_to_back_end_all(&app_ui, &pack_file_contents_ui);
                 let path_types = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).map(|x| ContainerPath::File(x.path_copy())).collect::<Vec<ContainerPath>>();
-                DiagnosticsUI::check_on_path(&app_ui, &diagnostics_ui, path_types);
+                DiagnosticsUI::check_on_path(&diagnostics_ui, path_types);
             }
         ));
 
@@ -335,6 +336,13 @@ impl DiagnosticsUISlots {
             }
         ));
 
+        let poll_check = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+            app_ui,
+            diagnostics_ui => move || {
+                DiagnosticsUI::poll_check(&app_ui, &diagnostics_ui);
+            }
+        ));
+
         // And here... we return all the slots.
         Self {
             diagnostics_check_packfile,
@@ -354,6 +362,7 @@ impl DiagnosticsUISlots {
             show_hide_extra_filters,
             toggle_filters,
             toggle_filters_all,
+            poll_check,
         }
     }
 }

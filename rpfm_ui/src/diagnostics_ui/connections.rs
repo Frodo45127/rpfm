@@ -33,6 +33,8 @@ pub unsafe fn set_connections(ui: &DiagnosticsUI, slots: &DiagnosticsUISlots) {
 
     ui.diagnostics_button_show_more_filters.toggled().connect(slots.show_hide_extra_filters());
 
+    ui.check_timer.timeout().connect(slots.poll_check());
+
     ui.diagnostics_table_view.custom_context_menu_requested().connect(slots.contextual_menu());
     ui.diagnostics_table_view.selection_model().selection_changed().connect(slots.contextual_menu_enabler());
     ui.diagnostics_table_view_context_menu.about_to_show().connect(slots.contextual_menu_enabler());

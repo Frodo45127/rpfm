@@ -14,6 +14,8 @@
 
 use serde_json::{Map, Value};
 
+use std::cell::Cell;
+
 use rpfm_ipc::api::{ApiError, Done, Request, RpcRequest, RpcResponse};
 use rpfm_ipc::api::diagnostics::{GetDiagnosticsReport, IgnoreDiagnostics, ListDiagnostics, RunDiagnostics};
 use rpfm_ipc::api::files::{
@@ -61,6 +63,44 @@ const JOB_METHODS: [&str; 9] = [
     UpdateSchemaFromAssemblyKit::METHOD,
 ];
 
+/// Link between a running request and the job it runs in.
+pub struct JobContext<'a> {
+
+    /// Called by long operations with the step they're on.
+    report_stage: &'a dyn Fn(&str),
+
+    /// Called by long operations with the steps they did and their total. Returns `false` if they should stop
+    /// to let the requests queued behind them run.
+    report_progress: &'a (dyn Fn(usize, usize) -> bool + Sync),
+
+    /// If the request stopped because `report_progress` told it to, so it has to run again later.
+    yielded: Cell<bool>,
+}
+
+impl<'a> JobContext<'a> {
+
+    /// Builds the context of a request.
+    ///
+    /// # Arguments
+    ///
+    /// * `report_stage` - Called by long operations with the step they're on.
+    /// * `report_progress` - Called by long operations with the steps they did and their total. Returns `false`
+    ///   if they should stop to let the requests queued behind them run.
+    pub fn new(report_stage: &'a dyn Fn(&str), report_progress: &'a (dyn Fn(usize, usize) -> bool + Sync)) -> Self {
+        Self { report_stage, report_progress, yielded: Cell::new(false) }
+    }
+
+    /// Reports the step a long operation is on.
+    fn report_stage(&self, stage: &str) {
+        (self.report_stage)(stage);
+    }
+
+    /// Returns if the request stopped early to let the requests queued behind it run.
+    pub fn yielded(&self) -> bool {
+        self.yielded.get()
+    }
+}
+
 /// Runs a request on the session's state.
 ///
 /// # Arguments
@@ -68,33 +108,33 @@ const JOB_METHODS: [&str; 9] = [
 /// * `state` - State of the session.
 /// * `request` - The request to run.
 /// * `settings` - Settings, for the options the request doesn't set.
-/// * `report_stage` - Called by long operations with the step they're on.
+/// * `context` - The job the request runs in.
 ///
 /// # Returns
 ///
 /// The response to the request.
-pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settings, report_stage: &dyn Fn(&str)) -> RpcResponse {
+pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settings, context: &JobContext) -> RpcResponse {
     let params = request.params;
     let result = match request.method.as_str() {
         GetSessionStatus::METHOD => call(params, |_: GetSessionStatus| Ok(state.session_status())),
         SetGame::METHOD => call(params, |request: SetGame| {
-            report_stage("Loading the schema and the dependencies");
+            context.report_stage("Loading the schema and the dependencies");
             let (_, dependencies_info) = state.set_game_selected(&request.game, request.rebuild_dependencies, settings, settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES))?;
             if dependencies_info.is_some() {
-                report_stage("Decoding the tables of the dependencies");
+                context.report_stage("Decoding the tables of the dependencies");
                 state.decode_dependency_tables();
             }
 
             Ok(state.session_status())
         }),
         GenerateDependenciesCache::METHOD => call(params, |request: GenerateDependenciesCache| {
-            report_stage("Generating the dependencies cache");
+            context.report_stage("Generating the dependencies cache");
             let ignore_game_files = request.ignore_game_files_in_assembly_kit.unwrap_or_else(|| settings.bool(IGNORE_GAME_FILES_IN_AK));
             state.generate_dependencies_cache(settings, ignore_game_files)?;
             Ok(state.session_status())
         }),
         RebuildDependencies::METHOD => call(params, |request: RebuildDependencies| {
-            report_stage("Rebuilding the dependencies");
+            context.report_stage("Rebuilding the dependencies");
             state.rebuild_dependencies(request.only_parent_packs, settings)?;
             Ok(state.session_status())
         }),
@@ -200,18 +240,18 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         PatchColumn::METHOD => call(params, |request: PatchColumn| state.patch_column(&request, settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES)).map(|_| Done {})),
         RemovePatches::METHOD => call(params, |request: RemovePatches| state.remove_patches(&request, settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES)).map(|_| Done {})),
         UpdateSchemas::METHOD => call(params, |_: UpdateSchemas| {
-            report_stage("Downloading the schemas");
+            context.report_stage("Downloading the schemas");
             git_update_repo(schemas_path, SCHEMA_REPO, SCHEMA_BRANCH, SCHEMA_REMOTE)?;
 
-            report_stage("Reloading the schema");
+            context.report_stage("Reloading the schema");
             state.reload_schema(settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES));
 
-            report_stage("Rebuilding the dependencies");
+            context.report_stage("Rebuilding the dependencies");
             state.rebuild_dependencies_after_schema_update(settings)?;
             Ok(state.session_status())
         }),
         UpdateSchemaFromAssemblyKit::METHOD => call(params, |request: UpdateSchemaFromAssemblyKit| {
-            report_stage("Updating the schema from the Assembly Kit");
+            context.report_stage("Updating the schema from the Assembly Kit");
             let ignore_game_files = request.ignore_game_files.unwrap_or_else(|| settings.bool(IGNORE_GAME_FILES_IN_AK));
             state.update_schema_from_asskit(settings, ignore_game_files, settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES))?;
             Ok(state.session_status())
@@ -224,15 +264,17 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         GetLocSource::METHOD => call(params, |request: GetLocSource| Ok(LocSourceLookup { source: state.loc_source(&request.key) })),
 
         RunDiagnostics::METHOD => call(params, |request: RunDiagnostics| {
-            report_stage("Checking the open packs");
-            Ok(state.run_diagnostics(&request, settings))
+            context.report_stage("Checking the open packs");
+            let summary = state.run_diagnostics(&request, settings, context.report_progress);
+            context.yielded.set(summary.is_none());
+            summary.ok_or_else(|| anyhow::anyhow!("The check stopped to let other requests run."))
         }),
         ListDiagnostics::METHOD => call(params, |request: ListDiagnostics| state.list_diagnostics(&request)),
         IgnoreDiagnostics::METHOD => call(params, |request: IgnoreDiagnostics| state.ignore_diagnostics(&request)),
         GetDiagnosticsReport::METHOD => call(params, |_: GetDiagnosticsReport| state.diagnostics_report()),
 
         RunSearch::METHOD => call(params, |request: RunSearch| {
-            report_stage("Searching");
+            context.report_stage("Searching");
             state.run_search(&request)
         }),
         ListSearchMatches::METHOD => call(params, |request: ListSearchMatches| state.list_search_matches(&request)),
@@ -240,7 +282,7 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         GetSearchReport::METHOD => call(params, |_: GetSearchReport| state.search_report()),
         GetOptimizerOptions::METHOD => call(params, |_: GetOptimizerOptions| Ok(OptimizerOptionValues { options: optimizer_option_values(&settings.optimizer_options()) })),
         OptimizePack::METHOD => call(params, |request: OptimizePack| {
-            report_stage("Optimizing the pack");
+            context.report_stage("Optimizing the pack");
             let options = optimizer_options_with(&settings.optimizer_options(), &request.options)?;
             state.optimize_pack_files(&request.pack, &options)
         }),
@@ -264,7 +306,7 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         }),
         InitMyMod::METHOD => call(params, |request: InitMyMod| state.init_mymod(&settings.path_buf(MYMOD_BASE_PATH), &request)),
         RunLuaTests::METHOD => call(params, |request: RunLuaTests| {
-            report_stage("Running the tests");
+            context.report_stage("Running the tests");
             let report = state.lua_run_tests(&request.source, request.campaign, settings)?;
             Ok(LuaTestResults { report: serde_json::to_value(report)? })
         }),

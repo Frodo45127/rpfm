@@ -77,12 +77,36 @@ impl JobRegistry {
     ///
     /// `false` if the job was cancelled or is unknown, so it must not run.
     pub fn start(&self, job: u64) -> bool {
-        self.transition(job, |state| matches!(state, JobState::Queued).then_some(JobState::Running { stage: None })).is_some()
+        self.transition(job, |state| matches!(state, JobState::Queued).then_some(JobState::Running { stage: None, progress: None })).is_some()
     }
 
     /// Sets the step a running job is on.
     pub fn set_stage(&self, job: u64, stage: &str) {
-        self.transition(job, |state| matches!(state, JobState::Running { .. }).then(|| JobState::Running { stage: Some(stage.to_owned()) }));
+        self.transition(job, |state| matches!(state, JobState::Running { .. }).then(|| JobState::Running { stage: Some(stage.to_owned()), progress: None }));
+    }
+
+    /// Sets how far along a running job is, from 0 to 100.
+    ///
+    /// Only increases are kept, as parallel steps of a job may report their progress out of order.
+    pub fn set_progress(&self, job: u64, progress: u8) {
+        self.transition(job, |state| match state {
+            JobState::Running { stage, progress: current } if current.is_none_or(|current| current < progress) => Some(JobState::Running { stage: stage.clone(), progress: Some(progress) }),
+            _ => None,
+        });
+    }
+
+    /// Moves a running job back to the queue.
+    ///
+    /// # Returns
+    ///
+    /// `false` if the job isn't running.
+    pub fn requeue(&self, job: u64) -> bool {
+        self.transition(job, |state| matches!(state, JobState::Running { .. }).then_some(JobState::Queued)).is_some()
+    }
+
+    /// Ends a job as cancelled, even if it already started.
+    pub fn finish_cancelled(&self, job: u64) {
+        self.transition(job, |state| (!state.has_ended()).then_some(JobState::Cancelled));
     }
 
     /// Ends a job with the outcome of its method.
@@ -238,7 +262,15 @@ mod tests {
 
         assert!(registry.start(job));
         registry.set_stage(job, "Loading");
-        assert_eq!(registry.status(job).unwrap().state, JobState::Running { stage: Some("Loading".to_owned()) });
+        assert_eq!(registry.status(job).unwrap().state, JobState::Running { stage: Some("Loading".to_owned()), progress: None });
+
+        let mut updates = registry.subscribe();
+        registry.set_progress(job, 40);
+        registry.set_progress(job, 40);
+        registry.set_progress(job, 30);
+        assert_eq!(registry.status(job).unwrap().state, JobState::Running { stage: Some("Loading".to_owned()), progress: Some(40) });
+        assert!(updates.try_recv().is_ok());
+        assert!(updates.try_recv().is_err(), "unchanged or lower progress must not be notified");
 
         registry.finish(job, RpcOutcome::Result(json!({"ok": true})));
         assert_eq!(registry.status(job).unwrap().state, JobState::Finished { result: json!({"ok": true}) });
@@ -255,6 +287,21 @@ mod tests {
         assert!(!registry.start(queued), "cancelled jobs must not start");
         assert!(matches!(registry.cancel(running), Err(ApiError::InvalidParams(_))));
         assert_eq!(registry.cancel(999), Err(ApiError::JobNotFound(999)));
+    }
+
+    #[test]
+    fn running_jobs_can_be_requeued_or_cancelled() {
+        let registry = JobRegistry::default();
+        let job = registry.create("diagnostics.run");
+        assert!(!registry.requeue(job), "queued jobs can't be requeued");
+
+        assert!(registry.start(job));
+        assert!(registry.requeue(job));
+        assert_eq!(registry.status(job).unwrap().state, JobState::Queued);
+
+        assert!(registry.start(job));
+        registry.finish_cancelled(job);
+        assert_eq!(registry.status(job).unwrap().state, JobState::Cancelled);
     }
 
     #[test]
