@@ -23,19 +23,17 @@ use tokio_tungstenite::{connect_async_with_config, tungstenite::protocol::{Messa
 
 use std::collections::{BTreeSet, HashMap};
 use std::path::PathBuf;
-use std::fmt::Debug;
 use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
-pub use rpfm_ipc::messages::{Command, Response, Message as IpcMessage};
-use rpfm_ipc::api::{ApiError, Request, RpcOutcome, RpcRequest, RpcResponse};
+use rpfm_ipc::api::{ApiError, Request, RpcNotification, RpcOutcome, RpcRequest, RpcResponse};
 use rpfm_ipc::api::jobs::{JobStarted, JobState, WaitForJob};
-use rpfm_ipc::api::files::{CopyFiles, FileData, FileRef, FileSource, GetFilesInfo, ListFiles, ReadFile, ReadFormat, WriteFile};
+use rpfm_ipc::api::files::{CopyFiles, FileData, FileRef, FileSource, GetFilesFromAllSources, GetFilesInfo, ListFiles, ReadFile, ReadFormat, WriteFile};
 use rpfm_ipc::api::packs::{GetPackInfo, PackDetails, PackSummary, SavePack};
-use rpfm_ipc::helpers::{ContainerInfo, RFileInfo};
+use rpfm_ipc::helpers::{ContainerInfo, DataSource, RFileInfo};
 
-use rpfm_lib::files::{ContainerPath, RFileDecoded};
-use rpfm_ipc::api::session::{Configure, Disconnect, GetSessionStatus};
+use rpfm_lib::files::{ContainerPath, RFile, RFileDecoded};
+use rpfm_ipc::api::session::{Configure, Disconnect, GetSessionStatus, SESSION_CONNECTED_NOTIFICATION, SessionConnected};
 use rpfm_ipc::messages::OperationalMode;
 
 use rpfm_telemetry::*;
@@ -73,22 +71,10 @@ pub const THREADS_SENDER_ERROR: &str = "Error in thread communication system. Se
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
-/// This struct contains the senders and receivers necessary to communicate both, backend and frontend threads.
-///
-/// You can use them by using the send/recv functions implemented for it.
-pub struct CentralCommand<T: Send + Sync + Debug> {
-    sender: UnboundedSender<Outgoing<T>>,
+/// Sends the requests of the UI to the WebSocket loop, which forwards them to the server.
+pub struct CentralCommand {
+    sender: UnboundedSender<(RpcRequest, Sender<RpcResponse>)>,
     try_lock: AtomicBool,
-}
-
-/// A message for the server, with where to send its response.
-pub enum Outgoing<T> {
-
-    /// A command of the legacy protocol.
-    Legacy(Box<IpcMessage<Command>>, Sender<T>),
-
-    /// A request of the version 2 API.
-    Api(RpcRequest, Sender<RpcResponse>),
 }
 
 //-------------------------------------------------------------------------------//
@@ -96,7 +82,7 @@ pub enum Outgoing<T> {
 //-------------------------------------------------------------------------------//
 
 /// Default implementation of `CentralCommand`.
-impl<T: Send + Sync + Debug> Default for CentralCommand<T> {
+impl Default for CentralCommand {
     fn default() -> Self {
         let (sender, _) = unbounded_channel();
         let try_lock = AtomicBool::new(false);
@@ -107,12 +93,12 @@ impl<T: Send + Sync + Debug> Default for CentralCommand<T> {
     }
 }
 
-impl<T: Send + Sync + Debug> CentralCommand<T> {
+impl CentralCommand {
 
-    /// This function initializes a new central command, and returns the sender to send messages to it.
+    /// This function initializes a new central command, and returns the receiver for the WebSocket loop.
     ///
     /// Use it to replace the default one on runtime.
-    pub fn init() -> (Self, UnboundedReceiver<Outgoing<T>>) {
+    pub fn init() -> (Self, UnboundedReceiver<(RpcRequest, Sender<RpcResponse>)>) {
         let (sender, receiver) = unbounded_channel();
         let try_lock = AtomicBool::new(false);
         (Self {
@@ -120,33 +106,15 @@ impl<T: Send + Sync + Debug> CentralCommand<T> {
             try_lock,
         }, receiver)
     }
-}
 
-/// Implementation of `CentralCommand`.
-impl<T: Send + Sync + Debug + for<'a> serde::Deserialize<'a>> CentralCommand<T> {
-
-    /// This function serves as a generic way for commands to be sent to the backend.
-    ///
-    /// It returns the receiver which will receive the answers for the command, if any.
-    pub fn send(&self, data: Command) -> Receiver<T> {
-        let (sender_back, receiver_back) = unbounded();
-        let id = MESSAGE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
-        let message = IpcMessage { id, data };
-        if self.sender.send(Outgoing::Legacy(Box::new(message), sender_back)).is_err() {
-            panic!("{THREADS_SENDER_ERROR}");
-        }
-
-        receiver_back
-    }
-
-    /// This function sends a request of the version 2 API to the backend.
+    /// This function sends a request of the server's API.
     ///
     /// It returns the receiver which will receive the response.
     pub fn call<R: Request>(&self, request: &R) -> Receiver<RpcResponse> {
         let (sender_back, receiver_back) = unbounded();
         let id = MESSAGE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         match RpcRequest::new(id, request) {
-            Ok(request) => if self.sender.send(Outgoing::Api(request, sender_back)).is_err() {
+            Ok(request) => if self.sender.send((request, sender_back)).is_err() {
                 panic!("{THREADS_SENDER_ERROR}");
             },
             Err(error) => {
@@ -157,59 +125,15 @@ impl<T: Send + Sync + Debug + for<'a> serde::Deserialize<'a>> CentralCommand<T> 
         receiver_back
     }
 
-    /// This functions serves to receive messages from a generated channel.
+    /// Waits for a response while keeping the UI responsive. Use it for heavy tasks.
     ///
-    /// This function does only try once, and it locks the thread. Panics if the response fails.
-    pub fn recv(receiver: &Receiver<T>) -> T {
-        let response = receiver.recv();
-        match response {
-            Ok(data) => data,
-            Err(_) => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}")
-        }
-    }
-
-    /// This functions serves to receive messages from a generated channel.
-    ///
-    /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
+    /// Returns `None` if the WebSocket loop dropped the request, like when the connection is lost.
     ///
     /// NOTE: Beware of other events triggering when this keeps the UI enabled. It can lead to crashes.
-    pub fn recv_try(&self, receiver: &Receiver<T>) -> T {
+    pub fn recv_try(&self, receiver: &Receiver<RpcResponse>) -> Option<RpcResponse> {
         let event_loop = unsafe { QEventLoop::new_0a() };
 
         // Lock this function after the first execution, until it gets freed again.
-        if !self.try_lock.load(Ordering::SeqCst) {
-            self.try_lock.store(true, Ordering::SeqCst);
-
-            loop {
-
-                // Check the response and, in case of error, try again. If the error is "Disconnected", CTD.
-                let response = receiver.try_recv();
-                match response {
-                    Ok(data) => {
-                        self.try_lock.store(false, Ordering::SeqCst);
-                        return data
-                    },
-                    Err(error) => if error.is_disconnected() {
-                        panic!("{THREADS_COMMUNICATION_ERROR}{response:?}")
-                    }
-                }
-                unsafe { event_loop.process_events(); }
-            }
-        }
-
-        // If we're locked due to another execution, use recv instead.
-        else {
-            info!("Race condition avoided? Two items calling recv_try on the same execution crashes.");
-            Self::recv(receiver)
-        }
-    }
-
-    /// Non-panicking variant of [`Self::recv_try`]. Returns `None` if the sender is
-    /// already disconnected — used by call sites where a lost backend should fail
-    /// gracefully (e.g. the updater) instead of crashing the whole UI.
-    pub fn recv_try_checked<U: Debug>(&self, receiver: &Receiver<U>) -> Option<U> {
-        let event_loop = unsafe { QEventLoop::new_0a() };
-
         if !self.try_lock.load(Ordering::SeqCst) {
             self.try_lock.store(true, Ordering::SeqCst);
 
@@ -228,62 +152,12 @@ impl<T: Send + Sync + Debug + for<'a> serde::Deserialize<'a>> CentralCommand<T> 
             }
         }
 
+        // If we're locked due to another execution, just wait.
         else {
             info!("Race condition avoided? Two items calling recv_try on the same execution crashes.");
             receiver.recv().ok()
         }
     }
-}
-
-/// Function to send a command to the backend and receive a result. Use it for commands that can fail.
-pub fn send_ipc_command_result<T, F>(command: Command, extractor: F) -> Result<T>
-where
-    F: FnOnce(Response) -> T,
-{
-    let receiver = CENTRAL_COMMAND.read().unwrap().send(command);
-    match CentralCommand::recv(&receiver) {
-        Response::Error(error) => Err(anyhow!(error)),
-        response => Ok(extractor(response)),
-    }
-}
-
-/// Function to send a command to the backend and receive a result. Use it for commands that can fail.
-///
-/// This version of the function is for calls that must keep the ui alive.
-#[allow(dead_code)]
-pub fn send_ipc_command_result_async<T, F>(command: Command, extractor: F) -> Result<T>
-where
-    F: FnOnce(Response) -> T,
-{
-    let receiver = CENTRAL_COMMAND.read().unwrap().send(command);
-    match CENTRAL_COMMAND.read().unwrap().recv_try_checked(&receiver) {
-        Some(Response::Error(error)) => Err(anyhow!(error)),
-        Some(response) => Ok(extractor(response)),
-        None => Err(anyhow!("{THREADS_COMMUNICATION_ERROR}Disconnected")),
-    }
-}
-
-/// Function to send a command to the backend. Use it for commands that can't fail.
-pub fn send_ipc_command<T, F>(command: Command, extractor: F) -> T
-where
-    F: FnOnce(Response) -> T,
-{
-    let receiver = CENTRAL_COMMAND.read().unwrap().send(command);
-    let response = CentralCommand::recv(&receiver);
-    extractor(response)
-}
-
-/// Function to send a command to the backend. Use it for commands that can't fail.
-///
-/// This version of the function is for calls that must keep the ui alive.
-#[allow(dead_code)]
-pub fn send_ipc_command_async<T, F>(command: Command, extractor: F) -> T
-where
-    F: FnOnce(Response) -> T,
-{
-    let receiver = CENTRAL_COMMAND.read().unwrap().send(command);
-    let response = CENTRAL_COMMAND.read().unwrap().recv_try(&receiver);
-    extractor(response)
 }
 
 /// Calls a method of the server's API, and waits for its response.
@@ -320,7 +194,7 @@ pub fn run_job<R: Request>(request: &R) -> Result<R::Response> {
 /// Sends a request of the server's API, and waits for its response while keeping the UI alive.
 fn call_api_async_raw<R: Request>(request: &R) -> Result<RpcResponse> {
     let receiver = CENTRAL_COMMAND.read().unwrap().call(request);
-    CENTRAL_COMMAND.read().unwrap().recv_try_checked(&receiver).ok_or_else(|| anyhow!("{THREADS_COMMUNICATION_ERROR}Disconnected"))
+    CENTRAL_COMMAND.read().unwrap().recv_try(&receiver).ok_or_else(|| anyhow!("{THREADS_COMMUNICATION_ERROR}Disconnected"))
 }
 
 /// Turns the response of a request into its result. Errors are [`ApiError`]s, so callers can downcast them.
@@ -419,6 +293,16 @@ pub fn copy_files(from: FileSource, paths: &[ContainerPath], to_pack: &str) -> R
     Ok(file_paths(call_api(&request)?.added))
 }
 
+/// Returns the files and folders found in the open packs, the parent packs and the game files, by source and path.
+///
+/// # Arguments
+///
+/// * `paths` - Paths of the files and folders.
+/// * `lowercase_paths` - If the returned paths are lowercased.
+pub fn files_from_all_sources(paths: Vec<ContainerPath>, lowercase_paths: bool) -> HashMap<DataSource, HashMap<String, RFile>> {
+    call_api(&GetFilesFromAllSources { paths, lowercase_paths }).map(|files| files.files).unwrap_or_default()
+}
+
 /// Returns the packs open in the session.
 pub fn open_packs() -> Vec<PackSummary> {
     call_api(&GetSessionStatus {}).map(|status| status.packs).unwrap_or_default()
@@ -462,12 +346,11 @@ pub fn wait_for_reconnect(timeout_ms: u64) -> bool {
 }
 
 /// This function is the one that actually handles the WebSocket communication with the server.
-pub async fn websocket_loop(mut receiver: UnboundedReceiver<Outgoing<Response>>) {
+pub async fn websocket_loop(mut receiver: UnboundedReceiver<(RpcRequest, Sender<RpcResponse>)>) {
     let base_url = "ws://localhost:45127/ws";
     let mut current_session_id: Option<u64> = None;
 
-    let mut response_channels = HashMap::new();
-    let mut api_channels: HashMap<u64, Sender<RpcResponse>> = HashMap::new();
+    let mut response_channels: HashMap<u64, Sender<RpcResponse>> = HashMap::new();
 
     loop {
         // Exit cleanly once the UI has requested disconnection — the server tears the
@@ -483,7 +366,6 @@ pub async fn websocket_loop(mut receiver: UnboundedReceiver<Outgoing<Response>>)
             info!("Reconnection requested to session: {:?}", current_session_id);
             // Clear any pending response channels from the old connection.
             response_channels.clear();
-            api_channels.clear();
         }
 
         // Build the URL with optional session ID parameter.
@@ -516,23 +398,15 @@ pub async fn websocket_loop(mut receiver: UnboundedReceiver<Outgoing<Response>>)
                             }
                         }
 
-                        // New command from the UI. The server must have the current settings before running it.
-                        Some(outgoing) = receiver.recv() => {
+                        // New request from the UI. The server must have the current settings before running it.
+                        Some((request, sender)) = receiver.recv() => {
                             if !send_changed_settings(&mut ws_stream).await {
                                 error!("Failed to send the settings over WebSocket.");
                                 break;
                             }
 
-                            let json = match outgoing {
-                                Outgoing::Legacy(message, sender) => {
-                                    response_channels.insert(message.id, sender);
-                                    serde_json::to_string(&message).unwrap()
-                                }
-                                Outgoing::Api(request, sender) => {
-                                    api_channels.insert(request.id, sender);
-                                    serde_json::to_string(&request).unwrap()
-                                }
-                            };
+                            response_channels.insert(request.id, sender);
+                            let json = serde_json::to_string(&request).unwrap();
                             if ws_stream.send(WsMessage::Text(json.into())).await.is_err() {
                                 error!("Failed to send message over WebSocket.");
                                 break;
@@ -544,24 +418,20 @@ pub async fn websocket_loop(mut receiver: UnboundedReceiver<Outgoing<Response>>)
                             match msg {
                                 Ok(WsMessage::Text(text)) => {
 
-                                    // Version 2 messages. Notifications have no ID, so they don't parse as responses.
-                                    if text.contains("\"jsonrpc\"") {
-                                        if let Ok(response) = serde_json::from_str::<RpcResponse>(&text) {
-                                            if let Some(sender) = api_channels.remove(&response.id) {
-                                                let _ = sender.send(response);
-                                            } else if let RpcOutcome::Error(error) = response.outcome {
-                                                error!("The server rejected a request [ID {}]: {}", response.id, error.message);
-                                            }
+                                    // Responses have an ID, notifications don't.
+                                    if let Ok(response) = serde_json::from_str::<RpcResponse>(&text) {
+                                        if let Some(sender) = response_channels.remove(&response.id) {
+                                            let _ = sender.send(response);
+                                        } else if let RpcOutcome::Error(error) = response.outcome {
+                                            error!("The server rejected a request [ID {}]: {}", response.id, error.message);
                                         }
-                                        continue;
                                     }
 
-                                    match serde_json::from_str::<IpcMessage<Response>>(&text) {
-                                        Ok(msg) => {
-                                            // Handle SessionConnected message specially to update current session ID.
-                                            if let Response::SessionConnected(session_id) = &msg.data {
-                                                info!("Connected to session ID: {}", session_id);
-                                                *CURRENT_SESSION_ID.write().unwrap() = Some(*session_id);
+                                    else if let Ok(notification) = serde_json::from_str::<RpcNotification>(&text) {
+                                        if notification.method == SESSION_CONNECTED_NOTIFICATION {
+                                            if let Ok(connected) = serde_json::from_value::<SessionConnected>(notification.params) {
+                                                info!("Connected to session ID: {}", connected.session_id);
+                                                *CURRENT_SESSION_ID.write().unwrap() = Some(connected.session_id);
 
                                                 // A new or adopted session doesn't have our settings yet.
                                                 mark_settings_changed();
@@ -569,16 +439,8 @@ pub async fn websocket_loop(mut receiver: UnboundedReceiver<Outgoing<Response>>)
                                                     error!("Failed to send the settings over WebSocket.");
                                                     break;
                                                 }
-                                                continue;
-                                            }
-
-                                            if let Some(sender) = response_channels.remove(&msg.id) {
-                                                let _ = sender.send(msg.data);
-                                            } else {
-                                                error!("Received response [ID {}] but no channel was waiting for it.", msg.id);
                                             }
                                         }
-                                        Err(error) => error!("Failed to deserialize response: {}", error),
                                     }
                                 }
                                 Ok(WsMessage::Close(_)) => {

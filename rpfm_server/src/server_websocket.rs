@@ -41,7 +41,7 @@ use tokio::sync::{broadcast, mpsc};
 use std::sync::Arc;
 
 use rpfm_ipc::api::{ApiError, Done, JOB_UPDATED_NOTIFICATION, JSONRPC_VERSION, Request, RpcNotification, RpcRequest, RpcResponse};
-use rpfm_ipc::api::session::Disconnect;
+use rpfm_ipc::api::session::{Disconnect, SESSION_CONNECTED_NOTIFICATION, SessionConnected};
 use rpfm_ipc::messages::{Command, Message as IpcMessage, Response};
 use rpfm_telemetry::{info, warn};
 
@@ -111,12 +111,10 @@ async fn handle_socket(socket: WebSocket, session_manager: Arc<SessionManager>, 
     let (tx, mut rx) = mpsc::unbounded_channel::<Outgoing>();
 
     // Send the session ID to the client immediately after connection.
-    let session_connected_msg = IpcMessage {
-        id: 0, // Special ID for connection message
-        data: Response::SessionConnected(session_id),
-    };
-    if let Ok(json) = serde_json::to_string(&session_connected_msg) {
-        let _ = sink.send(Message::Text(json.into())).await;
+    if let Ok(params) = serde_json::to_value(SessionConnected { session_id }) {
+        if let Ok(json) = serde_json::to_string(&RpcNotification::new(SESSION_CONNECTED_NOTIFICATION, params)) {
+            let _ = sink.send(Message::Text(json.into())).await;
+        }
     }
 
     // Task to send responses back to the client.

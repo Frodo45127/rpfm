@@ -30,6 +30,7 @@ use rpfm_ipc::api::files::{
     FilesPasted, PasteFiles, ViewData,
 };
 use rpfm_ipc::api::tables::GetTableDefinition;
+use rpfm_ipc::api::tools::FilesChanged;
 use rpfm_ipc::helpers::{DataSource, NewFile, RFileInfo};
 
 use rpfm_lib::files::{
@@ -633,19 +634,15 @@ impl SessionState {
     ///
     /// # Errors
     ///
-    /// Fails if the file is not from a pack, or if it can't be extracted.
-    pub fn open_in_external_program(&mut self, pack_key: &str, data_source: DataSource, path: &ContainerPath, options: ExtractOptions) -> Result<PathBuf> {
-        if data_source != DataSource::PackFile {
-            return Err(anyhow!("Opening dependencies files in external programs is not yet supported."));
-        }
-
+    /// Fails if the pack isn't open, or if the file can't be extracted.
+    pub fn open_in_external_program(&mut self, pack_key: &str, path: &str, options: ExtractOptions) -> Result<PathBuf> {
         let pack = pack_mut(&mut self.packs, pack_key)?;
         let folder = temp_dir().join(format!("rpfm_{}", pack.disk_file_name()));
         let extra_data = encode_extra_data(&self.game, pack.compression_format(), options.disable_uuid_regeneration);
 
-        let extracted_paths = pack.extract(path.clone(), &folder, true, &self.schema, false, options.tsv_keys_first, &extra_data)?;
+        let extracted_paths = pack.extract(ContainerPath::File(path.to_owned()), &folder, true, &self.schema, false, options.tsv_keys_first, &extra_data)?;
         let extracted_path = extracted_paths.first()
-            .ok_or_else(|| anyhow!("Nothing was extracted from {}.", path.path_raw()))?;
+            .ok_or_else(|| anyhow!("Nothing was extracted from {path}."))?;
 
         let _ = open::that(extracted_path);
         Ok(extracted_path.to_owned())
@@ -683,7 +680,7 @@ impl SessionState {
     /// # Returns
     ///
     /// The paths added, and the paths deleted by the optimizer.
-    pub fn save_files_and_optimize(&mut self, pack_key: &str, files: Vec<RFile>, optimizer_options: Option<OptimizerOptions>) -> Result<(Vec<ContainerPath>, Vec<ContainerPath>)> {
+    pub fn save_files_and_optimize(&mut self, pack_key: &str, files: Vec<RFile>, optimizer_options: Option<OptimizerOptions>) -> Result<FilesChanged> {
         let pack = pack_mut(&mut self.packs, pack_key)?;
         let schema = loaded_schema(&self.schema)?;
 
@@ -691,13 +688,14 @@ impl SessionState {
         added_paths.sort();
         added_paths.dedup();
 
+        let mut added = raw_paths(&added_paths);
         let Some(options) = optimizer_options else {
-            return Ok((added_paths, vec![]));
+            return Ok(FilesChanged { added, deleted: vec![] });
         };
 
         let (paths_to_delete, paths_to_add) = pack.optimize(None, &mut self.dependencies, schema, &self.game, &options)?;
-        added_paths.extend(paths_to_add.into_iter().map(ContainerPath::File));
-        Ok((added_paths, paths_to_delete.into_iter().map(ContainerPath::File).collect()))
+        added.extend(paths_to_add);
+        Ok(FilesChanged { added, deleted: paths_to_delete.into_iter().collect() })
     }
 
     /// Changes the format of a ca_vp8 video of a pack.

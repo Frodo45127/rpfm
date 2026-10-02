@@ -17,7 +17,8 @@ use serde_json::{Map, Value};
 use rpfm_ipc::api::{ApiError, Done, Request, RpcRequest, RpcResponse};
 use rpfm_ipc::api::diagnostics::{GetDiagnosticsReport, IgnoreDiagnostics, ListDiagnostics, RunDiagnostics};
 use rpfm_ipc::api::files::{
-    AddFilesFromDisk, AddToAnimPack, CopyFiles, CreateFile, DeleteFiles, DeleteFromAnimPack, DuplicateFiles, ExtractFiles, ExtractFromAnimPack, GetFilesInfo, GetViewData, PasteFiles, ListAnimPack,
+    AddFilesFromDisk, AddToAnimPack, CopyFiles, CreateFile, DeleteFiles, DeleteFromAnimPack, DuplicateFiles, ExtractFiles, ExtractFromAnimPack, ExternalFile, FilesFromAllSources, GetFilesFromAllSources, GetFilesInfo, GetViewData, OpenInExternalProgram, PasteFiles,
+    SaveExternalFile, SaveFiles, ListAnimPack,
     ListFiles, ReadFile, RenameFiles, WriteFile,
 };
 use rpfm_ipc::api::search::{GetSearchReport, ListSearchMatches, ReplaceSearchMatches, RunSearch};
@@ -157,6 +158,17 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         DeleteFiles::METHOD => call(params, |request: DeleteFiles| state.delete_paths(&request)),
         RenameFiles::METHOD => call(params, |request: RenameFiles| state.rename_paths(&request)),
         DuplicateFiles::METHOD => call(params, |request: DuplicateFiles| state.duplicate_paths(&request)),
+        GetFilesFromAllSources::METHOD => call(params, |request: GetFilesFromAllSources| Ok(FilesFromAllSources { files: state.files_from_all_sources(&request.paths, request.lowercase_paths) })),
+        SaveFiles::METHOD => call(params, |request: SaveFiles| state.save_files_and_optimize(&request.pack, request.files, request.optimize.then(|| settings.optimizer_options()))),
+        OpenInExternalProgram::METHOD => call(params, |request: OpenInExternalProgram| {
+            let options = ExtractOptions {
+                disable_uuid_regeneration: settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES),
+                tsv_keys_first: settings.bool(TABLES_USE_OLD_COLUMN_ORDER_FOR_TSV),
+            };
+
+            Ok(ExternalFile { path: state.open_in_external_program(&request.pack, &request.path, options)? })
+        }),
+        SaveExternalFile::METHOD => call(params, |request: SaveExternalFile| state.save_file_from_external(&request.pack, &request.path, &request.external_path).map(|_| Done {})),
         PasteFiles::METHOD => call(params, |request: PasteFiles| state.paste_files(&request)),
         GetFilesInfo::METHOD => call(params, |request: GetFilesInfo| state.files_info(&request)),
         GetViewData::METHOD => call(params, |request: GetViewData| state.view_data(&request.file, settings.bool(ENABLE_ESF_EDITOR))),

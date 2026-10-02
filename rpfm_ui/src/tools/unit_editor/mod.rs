@@ -56,7 +56,7 @@ use rpfm_telemetry::info;
 
 use rpfm_ui_common::utils::*;
 
-use crate::communications::{Command, Response, send_ipc_command};
+use crate::communications::files_from_all_sources;
 use crate::tools::unit_editor::variant_unit_editor::SubToolVariantUnitEditor;
 use crate::views::table::utils::{clean_column_names, get_reference_data};
 
@@ -457,7 +457,7 @@ impl ToolUnitEditor {
     unsafe fn load_data(&self) -> Result<()> {
 
         // Note: this data is HashMap<DataSource, HashMap<Path, RFile>>.
-        let mut data = send_ipc_command(Command::GetRFilesFromAllSources(self.tool.used_paths.to_vec(), false), response_extractor!(Response::HashMapDataSourceHashMapStringRFile));
+        let mut data = files_from_all_sources(self.tool.used_paths.to_vec(), false);
 
         let mut processed_data = HashMap::new();
 
@@ -622,7 +622,7 @@ impl ToolUnitEditor {
                 }
             }
 
-            let images_data = send_ipc_command(Command::GetRFilesFromAllSources(icon_paths.to_vec(), false), response_extractor!(Response::HashMapDataSourceHashMapStringRFile));
+            let images_data = files_from_all_sources(icon_paths.to_vec(), false);
 
             let mut images_files = icon_paths.iter().filter_map(|path_type| {
                 if let ContainerPath::File(path) = path_type {

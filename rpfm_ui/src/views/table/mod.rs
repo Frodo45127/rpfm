@@ -3943,7 +3943,7 @@ impl TableView {
                 if !paths.is_empty() {
 
                     // Ask the backend to know what paths we have as files.
-                    let mut files = send_ipc_command(Command::GetRFilesFromAllSources(paths.clone(), true), response_extractor!(Response::HashMapDataSourceHashMapStringRFile));
+                    let mut files = files_from_all_sources(paths.clone(), true);
                     let mut file = None;
 
                     // Set the current file as non-preview, so it doesn't close when opening the source one.

@@ -23,6 +23,17 @@ use crate::settings::Settings;
 use super::{default_true, Done, Request};
 use super::packs::PackSummary;
 
+/// Method of the notification sent to WebSocket clients right after they connect. Its params are a [`SessionConnected`].
+pub const SESSION_CONNECTED_NOTIFICATION: &str = "session.connected";
+
+/// The session a WebSocket client is connected to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SessionConnected {
+
+    /// ID of the session.
+    pub session_id: u64,
+}
+
 /// `session.status`: returns the selected game, what's loaded for it, and the open packs.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct GetSessionStatus {}

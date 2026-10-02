@@ -53,17 +53,12 @@
 
 use serde::{Serialize, Deserialize};
 
-use std::collections::HashMap;
 use std::fmt::Debug;
-use std::path::PathBuf;
 
 
-use rpfm_lib::files::{
-    ContainerPath, RFile,
-};
+use rpfm_lib::files::ContainerPath;
 use rpfm_lib::schema::{Definition, Field};
 
-use crate::helpers::*;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -135,12 +130,6 @@ pub enum Command {
     // Search Commands
     //-----------------------------------------------------------------------//
 
-    /// Get PackedFiles from all known sources (PackFile, GameFiles, ParentFiles).
-    /// Requires: paths to get, whether to lowercase paths.
-    ///
-    /// Response: [`Response::HashMapDataSourceHashMapStringRFile`].
-    GetRFilesFromAllSources(Vec<ContainerPath>, bool),
-
     //-----------------------------------------------------------------------//
     // Video Commands
     //-----------------------------------------------------------------------//
@@ -162,22 +151,6 @@ pub enum Command {
     //-----------------------------------------------------------------------//
     // External Program Commands
     //-----------------------------------------------------------------------//
-
-    /// Open a PackedFile in an external program.
-    /// First field is the pack key, then data source and container path.
-    ///
-    /// Response:
-    /// - [`Response::PathBuf`] (extracted path) on success.
-    /// - [`Response::Error`] on failure.
-    OpenPackedFileInExternalProgram(String, DataSource, ContainerPath),
-
-    /// Save a PackedFile from an external program to a specific pack.
-    /// First field is the pack key, then internal path, external file path.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    SavePackedFileFromExternalView(String, String, PathBuf),
 
     //-----------------------------------------------------------------------//
     // Program Update Commands
@@ -206,14 +179,6 @@ pub enum Command {
     //-----------------------------------------------------------------------//
     // Navigation Commands
     //-----------------------------------------------------------------------//
-
-    /// Save PackedFiles to a specific PackFile and optionally optimize.
-    /// First field is the pack key, then files to save, whether to optimize.
-    ///
-    /// Response:
-    /// - [`Response::VecContainerPathVecContainerPath`] (added paths, deleted paths) on success.
-    /// - [`Response::Error`] on failure.
-    SavePackedFilesToPackFileAndClean(String, Vec<RFile>, bool),
 
     //-----------------------------------------------------------------------//
     // Notes Commands
@@ -303,8 +268,5 @@ pub enum Response {
     /// Contains the session ID that the client is connected to.
     SessionConnected(u64),
 
-    HashMapDataSourceHashMapStringRFile(HashMap<DataSource, HashMap<String, RFile>>),
-    PathBuf(PathBuf),
-    VecContainerPathVecContainerPath(Vec<ContainerPath>, Vec<ContainerPath>),
     VecField(Vec<Field>),
 }

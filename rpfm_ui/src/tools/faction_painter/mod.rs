@@ -47,7 +47,7 @@ use std::collections::HashMap;
 use rpfm_lib::files::{ContainerPath, db::DB, RFileDecoded, table::DecodedData};
 use rpfm_lib::games::supported_games::*;
 
-use crate::communications::{Command, Response, send_ipc_command};
+use crate::communications::files_from_all_sources;
 
 use self::slots::ToolFactionPainterSlots;
 use super::*;
@@ -258,7 +258,7 @@ impl ToolFactionPainter {
     unsafe fn load_data(&self) -> Result<()> {
 
         // Note: this data is HashMap<DataSource, HashMap<Path, RFile>>.
-        let mut data = send_ipc_command(Command::GetRFilesFromAllSources(self.tool.used_paths.to_vec(), false), response_extractor!(Response::HashMapDataSourceHashMapStringRFile));
+        let mut data = files_from_all_sources(self.tool.used_paths.to_vec(), false);
 
         let mut processed_data = HashMap::new();
 
@@ -280,7 +280,7 @@ impl ToolFactionPainter {
             .filter_map(|x| if !x.is_empty() { Some(ContainerPath::File(x.to_owned())) } else { None })
             .collect::<Vec<ContainerPath>>();
 
-        let images_data = send_ipc_command(Command::GetRFilesFromAllSources(paths_to_use, false), response_extractor!(Response::HashMapDataSourceHashMapStringRFile));
+        let images_data = files_from_all_sources(paths_to_use, false);
 
         // Map the paths to be a single string, lowercase. That should speed-up things.
         let mut images_data: HashMap<DataSource, HashMap<String, RFile>> = images_data.iter().map(|(x, y)| (*x, y.par_iter().map(|(path, z)| (path.to_lowercase(), z.clone())).collect())).collect();

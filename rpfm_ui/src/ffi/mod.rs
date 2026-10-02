@@ -65,7 +65,7 @@ use rpfm_ipc::settings_keys::*;
 #[cfg(feature = "support_model_renderer")] use rpfm_telemetry::{error, info};
 
 #[cfg(feature = "support_model_renderer")] use crate::CENTRAL_COMMAND;
-#[cfg(feature = "support_model_renderer")] use crate::communications::call_api;
+#[cfg(feature = "support_model_renderer")] use crate::communications::{call_api, files_from_all_sources};
 use crate::communications::request_disconnect;
 #[cfg(feature = "support_model_renderer")] use crate::communications::{Command, THREADS_COMMUNICATION_ERROR};
 #[cfg(feature = "support_model_renderer")] use crate::GAME_SELECTED;
@@ -824,45 +824,39 @@ pub extern fn assets_request_callback(missing_files: *mut QListOfQString, out: *
 
         info!("Paths requested by model renderer: {:#?}", &paths.iter().map(|x| format!(" - {}", x.path_raw())).collect::<Vec<_>>());
 
-        let receiver = CENTRAL_COMMAND.read().unwrap().send_background(Command::GetRFilesFromAllSources(paths.clone(), true));
-        let response = CentralCommand::recv(&receiver);
-        match response {
-            Response::HashMapDataSourceHashMapStringRFile(mut files) => {
-                let mut files_merge = HashMap::new();
-                if let Some(files) = files.remove(&DataSource::GameFiles) {
-                    files_merge.extend(files);
-                }
+        let mut files = files_from_all_sources(paths.clone(), true);
+        let mut files_merge = HashMap::new();
+        if let Some(files) = files.remove(&DataSource::GameFiles) {
+            files_merge.extend(files);
+        }
 
-                if let Some(files) = files.remove(&DataSource::ParentFiles) {
-                    files_merge.extend(files);
-                }
+        if let Some(files) = files.remove(&DataSource::ParentFiles) {
+            files_merge.extend(files);
+        }
 
-                if let Some(files) = files.remove(&DataSource::PackFile) {
-                    files_merge.extend(files);
-                }
+        if let Some(files) = files.remove(&DataSource::PackFile) {
+            files_merge.extend(files);
+        }
 
-                // Files have to go in the same order they came.
-                // Missing or empty files just have to have an empty byte array.
-                for path in &paths {
-                    match files_merge.get_mut(&path.path_raw().to_lowercase()) {
-                        Some(file) => {
-                            match file.load() {
-                                Ok(_) => match file.cached() {
-                                    Ok(data) => {
-                                        let data = QByteArray::from_slice(data);
-                                        out.append_q_byte_array(&data);
-                                    }
-                                    Err(_) => out.append_q_byte_array(&QByteArray::new()),
-                                }
-                                Err(_) => out.append_q_byte_array(&QByteArray::new()),
+        // Files have to go in the same order they came.
+        // Missing or empty files just have to have an empty byte array.
+        for path in &paths {
+            match files_merge.get_mut(&path.path_raw().to_lowercase()) {
+                Some(file) => {
+                    match file.load() {
+                        Ok(_) => match file.cached() {
+                            Ok(data) => {
+                                let data = QByteArray::from_slice(data);
+                                out.append_q_byte_array(&data);
                             }
+                            Err(_) => out.append_q_byte_array(&QByteArray::new()),
                         }
-                        None => out.append_q_byte_array(&QByteArray::new()),
+                        Err(_) => out.append_q_byte_array(&QByteArray::new()),
                     }
                 }
-            },
-            _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
-        };
+                None => out.append_q_byte_array(&QByteArray::new()),
+            }
+        }
     }
 }
 

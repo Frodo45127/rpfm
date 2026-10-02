@@ -62,30 +62,10 @@ use rpfm_ui_common::ORG_DOMAIN;
 use rpfm_ui_common::ORG_NAME;
 use rpfm_ui_common::utils::*;
 
-use crate::communications::{CentralCommand, Response, websocket_loop};
+use crate::communications::{CentralCommand, websocket_loop};
 use crate::settings_ui::backend::{init_settings, settings_string};
 use crate::ui::*;
 use crate::ui_state::UIState;
-
-//-------------------------------------------------------------------------------//
-//                                  Macros
-//-------------------------------------------------------------------------------//
-
-/// This macro is used to create the extractor argument for the `send_ipc_command_result` and `send_ipc_command` functions.
-macro_rules! response_extractor {
-    () => {
-        |response| if !matches!(response, crate::communications::Response::Success) { panic!("{} {response:?}", crate::communications::THREADS_COMMUNICATION_ERROR) }
-    };
-    ($variant:path) => {
-        |response| if let $variant(value) = response { value } else { panic!("{} {response:?}", crate::communications::THREADS_COMMUNICATION_ERROR) }
-    };
-    ($variant:path, $v1:ident, $v2:ident) => {
-        |response| if let $variant($v1, $v2) = response { ($v1, $v2) } else { panic!("{} {response:?}", crate::communications::THREADS_COMMUNICATION_ERROR) }
-    };
-    ($variant:path, $v1:ident, $v2:ident, $v3:ident, $v4:ident) => {
-        |response| if let $variant($v1, $v2, $v3, $v4) = response { ($v1, $v2, $v3, $v4) } else { panic!("{} {response:?}", crate::communications::THREADS_COMMUNICATION_ERROR) }
-    };
-}
 
 mod app_ui;
 mod command_palette_ui;
@@ -132,7 +112,7 @@ static GAME_SELECTED_ICONS: LazyLock<GameSelectedIcons> = LazyLock::new(|| unsaf
 
 
 /// Global variable to hold the sender/receivers used to comunicate between threads.
-static CENTRAL_COMMAND: LazyLock<Arc<RwLock<CentralCommand<Response>>>> = LazyLock::new(|| Arc::new(RwLock::new(CentralCommand::default())));
+static CENTRAL_COMMAND: LazyLock<Arc<RwLock<CentralCommand>>> = LazyLock::new(|| Arc::new(RwLock::new(CentralCommand::default())));
 
 /// Global variable to hold certain info about the current state of the UI.
 static UI_STATE: LazyLock<UIState> = LazyLock::new(UIState::default);

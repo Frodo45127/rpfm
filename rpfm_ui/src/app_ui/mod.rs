@@ -81,7 +81,7 @@ use std::time::Instant;
 
 use rpfm_extensions::merge::{MergeConflict, MergeResolution};
 
-use rpfm_ipc::api::files::{CreateFile, FileRef, FileSource, GetViewData, NewFileKind, ViewData};
+use rpfm_ipc::api::files::{CreateFile, FileRef, FileSource, GetViewData, NewFileKind, OpenInExternalProgram, ViewData};
 use rpfm_ipc::api::packs::{ClosePack, CloseAllPacks, GetPackSettings, NewPack, OpenPack, UpdatePack};
 use rpfm_ipc::api::schema::GetMissingDefinitions;
 use rpfm_ipc::api::session::{GetDependenciesInfo, ListDependencyTables, RebuildDependencies, SetGame};
@@ -102,7 +102,7 @@ use rpfm_ui_common::FULL_DATE_FORMAT;
 use rpfm_ui_common::icons::IconType;
 
 use crate::CENTRAL_COMMAND;
-use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR, call_api, call_api_async, run_job, pack_details, pack_operational_mode, open_packs, save_pack, api_result, file_exists, folder_exists};
+use crate::communications::{THREADS_COMMUNICATION_ERROR, call_api, call_api_async, run_job, pack_details, pack_operational_mode, open_packs, save_pack, api_result, file_exists, folder_exists};
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::*;
@@ -2711,15 +2711,12 @@ impl AppUI {
                     let icon_type = IconType::File(path.to_owned());
                     let icon = TREEVIEW_ICONS.icon(icon_type);
 
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::OpenPackedFileInExternalProgram(pack_key, DataSource::PackFile, ContainerPath::File(path.to_owned())));
-                    let path = Rc::new(RefCell::new(path.to_owned()));
-
-                    let response = CentralCommand::recv(&receiver);
-                    let external_path = match response {
-                        Response::PathBuf(external_path) => external_path,
-                        Response::Error(error) => return show_dialog(&app_ui.main_window, error, false),
-                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                    let external_path = match call_api(&OpenInExternalProgram { pack: pack_key, path: path.to_owned() }) {
+                        Ok(external) => external.path,
+                        Err(error) => return show_dialog(&app_ui.main_window, error, false),
                     };
+
+                    let path = Rc::new(RefCell::new(path.to_owned()));
 
                     PackedFileExternalView::new_view(&path, app_ui, &mut tab, pack_file_contents_ui, &external_path);
 

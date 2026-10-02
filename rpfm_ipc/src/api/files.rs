@@ -15,12 +15,14 @@ use serde::{Deserialize, Serialize};
 
 use serde_json::Value;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 
-use rpfm_lib::files::{FileType, RFileDecoded, text::{Text, TextFormat}};
+use rpfm_lib::files::{ContainerPath, FileType, RFile, RFileDecoded, text::{Text, TextFormat}};
 
-use crate::helpers::{RFileInfo, VideoInfo};
+use crate::helpers::{DataSource, RFileInfo, VideoInfo};
+
+use super::tools::FilesChanged;
 
 use super::{default_true, Done, Request};
 
@@ -642,4 +644,96 @@ pub struct FilesPasted {
 impl Request for PasteFiles {
     const METHOD: &'static str = "files.paste";
     type Response = FilesPasted;
+}
+
+/// `files.from_all_sources`: returns files and folders found in the open packs, the parent packs and the game files.
+///
+/// Meant for clients editing files of several sources at once, like the UI's tools. Others should use `file.read`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GetFilesFromAllSources {
+
+    /// Paths of the files and folders.
+    pub paths: Vec<ContainerPath>,
+
+    /// If the paths of the returned files are lowercased.
+    #[serde(default)]
+    pub lowercase_paths: bool,
+}
+
+/// Files of every source.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct FilesFromAllSources {
+
+    /// The files found, by path, for each source.
+    pub files: HashMap<DataSource, HashMap<String, RFile>>,
+}
+
+impl Request for GetFilesFromAllSources {
+    const METHOD: &'static str = "files.from_all_sources";
+    type Response = FilesFromAllSources;
+}
+
+/// `files.save_files`: adds files to an open pack, replacing the ones with the same path, optionally optimizing the pack after it.
+///
+/// Meant for clients editing files outside of the server, like the UI's tools. Others should use `file.write`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaveFiles {
+
+    /// Key of the pack.
+    pub pack: String,
+
+    /// The files, named with their path in the pack.
+    pub files: Vec<RFile>,
+
+    /// If the pack is optimized with the optimizer options of the settings after adding the files.
+    #[serde(default)]
+    pub optimize: bool,
+}
+
+impl Request for SaveFiles {
+    const METHOD: &'static str = "files.save_files";
+    type Response = FilesChanged;
+}
+
+/// `file.open_external`: extracts a file of an open pack to a temporary folder, and opens it in the system's default program for its type.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OpenInExternalProgram {
+
+    /// Key of the pack.
+    pub pack: String,
+
+    /// Path of the file.
+    pub path: String,
+}
+
+/// A file extracted to edit it in an external program.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ExternalFile {
+
+    /// Path of the extracted file on disk.
+    pub path: PathBuf,
+}
+
+impl Request for OpenInExternalProgram {
+    const METHOD: &'static str = "file.open_external";
+    type Response = ExternalFile;
+}
+
+/// `file.save_external`: replaces a file of an open pack with the file on disk an external program edited.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SaveExternalFile {
+
+    /// Key of the pack.
+    pub pack: String,
+
+    /// Path of the file in the pack.
+    pub path: String,
+
+    /// Path of the edited file on disk.
+    pub external_path: PathBuf,
+}
+
+impl Request for SaveExternalFile {
+    const METHOD: &'static str = "file.save_external";
+    type Response = Done;
 }

@@ -49,13 +49,14 @@ use std::rc::Rc;
 
 use rpfm_extensions::dependencies::TableReferences;
 
+use rpfm_ipc::api::files::SaveFiles;
 use rpfm_ipc::helpers::DataSource;
 
 use rpfm_lib::files::{ContainerPath, db::DB, loc::Loc, RFile, RFileDecoded, table::{DecodedData, Table}};
 use rpfm_lib::schema::{Definition, FieldType};
 
 use crate::app_ui::AppUI;
-use crate::communications::{Command, Response, send_ipc_command_result};
+use crate::communications::call_api;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::*;
@@ -250,7 +251,8 @@ impl Tool {
         // If either the PackFile exists, or it didn't but now it does, then me need to check, file by file, to see if we can merge
         // the data edited by the tool into the current files, or we have to insert the files as new.
         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-        let (paths_to_add, paths_to_delete) = send_ipc_command_result(Command::SavePackedFilesToPackFileAndClean(pack_key.clone(), packed_files.to_vec(), self.optimize), response_extractor!(Response::VecContainerPathVecContainerPath, v1, v2))?;
+        let changed = call_api(&SaveFiles { pack: pack_key.clone(), files: packed_files.to_vec(), optimize: self.optimize })?;
+        let (paths_to_add, paths_to_delete) = (file_paths(changed.added), file_paths(changed.deleted));
 
         // Update the TreeView.
         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(paths_to_add.to_vec()), DataSource::PackFile, &pack_key);

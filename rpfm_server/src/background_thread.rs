@@ -41,7 +41,7 @@ use crate::comms::CentralCommand;
 use crate::api;
 use crate::session::{Session, SessionMessage};
 use rpfm_ipc::settings::*;
-use crate::state::{ExtractOptions, SessionState};
+use crate::state::SessionState;
 
 /// Extracts the variant name (e.g. `"NewPack"`) from a [`Command`] for telemetry.
 ///
@@ -126,10 +126,6 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<SessionMessage>, se
 /// Runs a command on the session's state, and sends its response back.
 async fn dispatch(state: &mut SessionState, command: Command, sender: &UnboundedSender<Response>, settings: Arc<Settings>) {
     let disable_uuid_regeneration = settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES);
-    let extract_options = ExtractOptions {
-        disable_uuid_regeneration,
-        tsv_keys_first: settings.bool(TABLES_USE_OLD_COLUMN_ORDER_FOR_TSV),
-    };
 
     match command {
 
@@ -144,14 +140,7 @@ async fn dispatch(state: &mut SessionState, command: Command, sender: &Unbounded
         // Cleaning is the last resort when saving fails, so it doesn't check the pack's type.
 
         // Files.
-        Command::OpenPackedFileInExternalProgram(pack_key, data_source, path) => reply(sender, state.open_in_external_program(&pack_key, data_source, &path, extract_options), Response::PathBuf),
-        Command::SavePackedFileFromExternalView(pack_key, path, external_path) => reply(sender, state.save_file_from_external(&pack_key, &path, &external_path), done),
         Command::CleanCache(pack_key, paths) => reply(sender, state.clean_cache(&pack_key, &paths, disable_uuid_regeneration), done),
-        Command::SavePackedFilesToPackFileAndClean(pack_key, files, optimize) => {
-            let result = state.save_files_and_optimize(&pack_key, files, optimize.then(|| settings.optimizer_options()));
-            reply(sender, result, |(added, deleted)| Response::VecContainerPathVecContainerPath(added, deleted));
-        }
-        Command::GetRFilesFromAllSources(paths, lowercase_paths) => send(sender, Response::HashMapDataSourceHashMapStringRFile(state.files_from_all_sources(&paths, lowercase_paths))),
 
         // Tables.
 

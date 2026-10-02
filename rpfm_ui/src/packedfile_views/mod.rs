@@ -25,7 +25,7 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 
-use rpfm_ipc::api::files::{FileRef, GetViewData, ViewData};
+use rpfm_ipc::api::files::{FileRef, GetViewData, SaveExternalFile, ViewData};
 use rpfm_ipc::api::packs::{PackDependency, PackSettingsValues, UpdatePack, UpdatePackSettings};
 use rpfm_ipc::api::tools::SetVideoFormat;
 use rpfm_ipc::helpers::DataSource;
@@ -36,7 +36,7 @@ use rpfm_lib::files::{atlas::Atlas, ContainerPath, db::DB, loc::Loc, FileType, R
 use rpfm_ui_common::utils::create_grid_layout;
 
 use crate::app_ui::AppUI;
-use crate::communications::{Command, call_api, send_ipc_command_result_async, save_decoded_file};
+use crate::communications::{call_api, save_decoded_file, call_api_async};
 use crate::ffi::get_text_safe;
 use crate::pack_tree::*;
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -483,7 +483,7 @@ impl FileView {
                         Ok(())
                     },
                     ViewType::External(view) => {
-                        if let Err(error) = send_ipc_command_result_async(Command::SavePackedFileFromExternalView(self.pack_key_copy(), self.path_copy(), view.get_external_path()), response_extractor!()) {
+                        if let Err(error) = call_api_async(&SaveExternalFile { pack: self.pack_key_copy(), path: self.path_copy(), external_path: view.get_external_path() }) {
                             show_dialog(pack_file_contents_ui.packfile_contents_tree_view(), error, false);
                         }
 

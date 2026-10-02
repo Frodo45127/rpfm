@@ -818,7 +818,7 @@ impl PortraitSettingsView {
 
         // Do not bother doing this if we have no paths.
         if search {
-            let mut files = send_ipc_command_async(Command::GetRFilesFromAllSources(paths, false), response_extractor!(Response::HashMapDataSourceHashMapStringRFile));
+            let mut files = files_from_all_sources(paths, false);
             let diffuse_loaded = Self::load_variant_image_to_label(diffuse, &self.diffuse_label, &mut files);
             let mask_1_loaded = Self::load_variant_image_to_label(mask_1, &self.mask_1_label, &mut files);
             let mask_2_loaded = Self::load_variant_image_to_label(mask_2, &self.mask_2_label, &mut files);

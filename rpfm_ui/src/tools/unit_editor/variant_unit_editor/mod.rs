@@ -44,7 +44,7 @@ use std::collections::HashMap;
 
 use rpfm_lib::files::{ContainerPath, FileType};
 
-use crate::communications::{Command, Response, send_ipc_command, file_paths_in_all_sources};
+use crate::communications::{file_paths_in_all_sources, files_from_all_sources};
 use crate::views::table::utils::get_reference_data;
 use self::slots::SubToolVariantUnitEditorSlots;
 use super::*;
@@ -524,7 +524,7 @@ impl SubToolVariantUnitEditor {
                 ContainerPath::File(icon_path_tga_lowres.to_owned()),
             ];
 
-            let images_data = send_ipc_command(Command::GetRFilesFromAllSources(icon_paths, false), response_extractor!(Response::HashMapDataSourceHashMapStringRFile));
+            let images_data = files_from_all_sources(icon_paths, false);
             let image_file = if let Some(image_file) = Tool::get_most_relevant_file(&images_data, &icon_path_png_lowres) {
                 Some(image_file)
             } else { Tool::get_most_relevant_file(&images_data, &icon_path_tga_lowres) };
@@ -573,7 +573,7 @@ impl SubToolVariantUnitEditor {
                 ContainerPath::File(variant_path.to_owned()),
             ];
 
-            let variant_data = send_ipc_command(Command::GetRFilesFromAllSources(variant_paths, false), response_extractor!(Response::HashMapDataSourceHashMapStringRFile));
+            let variant_data = files_from_all_sources(variant_paths, false);
             let file = Tool::get_most_relevant_file(&variant_data, &variant_path);
 
             if let Some(mut file) = file {

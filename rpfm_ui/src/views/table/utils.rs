@@ -58,6 +58,7 @@ use rpfm_lib::schema::{Definition, DefinitionPatch, Field, FieldType};
 
 use rpfm_ui_common::utils::{atomic_from_ptr, create_grid_layout, ptr_from_atomic, ref_from_atomic};
 
+use crate::communications::{files_from_all_sources};
 use crate::QVARIANT_TRUE;
 use crate::QVARIANT_FALSE;
 use crate::settings_ui::backend::{schemas_path, settings_bool};
@@ -1392,7 +1393,7 @@ pub unsafe fn request_backend_files(data: &[Vec<DecodedData>], column: usize, fi
         ).collect::<Vec<_>>();
 
     if !paths.is_empty() {
-        let mut files = send_ipc_command(Command::GetRFilesFromAllSources(paths, true), response_extractor!(Response::HashMapDataSourceHashMapStringRFile));
+        let mut files = files_from_all_sources(paths, true);
         let mut files_merge = HashMap::new();
         if let Some(files) = files.remove(&DataSource::GameFiles) {
             files_merge.extend(files);

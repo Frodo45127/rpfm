@@ -74,7 +74,7 @@ use rpfm_ipc::settings_keys::*;
 use rpfm_lib::files::{Container, ContainerPath, FileType, pack::Pack, RFileDecoded, table::DecodedData};
 use rpfm_lib::games::{*, supported_games::*};
 
-use crate::communications::{Command, Response, call_api, call_api_async, send_ipc_command};
+use crate::communications::{call_api, call_api_async, files_from_all_sources};
 use crate::references_ui::ReferencesUI;
 use crate::settings_ui::backend::{settings_bool, settings_path_buf, settings_set_bool, settings_set_string, settings_string};
 use crate::views::table::{FilterChipState, TableType, TableView, utils::get_table_from_view};
@@ -473,7 +473,7 @@ impl ToolTranslator {
 
         // Get the list of colours supported by the game. They're in the ui_colours table in the modern games.
         let mut colors = HashMap::new();
-        let mut files = send_ipc_command(Command::GetRFilesFromAllSources(vec![ContainerPath::Folder("db/ui_colours_tables".to_owned())], false), response_extractor!(Response::HashMapDataSourceHashMapStringRFile));
+        let mut files = files_from_all_sources(vec![ContainerPath::Folder("db/ui_colours_tables".to_owned())], false);
         {
             let mut files_merge = HashMap::new();
             if let Some(files) = files.remove(&DataSource::GameFiles) {
@@ -503,7 +503,7 @@ impl ToolTranslator {
 
         // Get the list of tagged images from the dbs.
         let mut tagged_images = HashMap::new();
-        let mut files = send_ipc_command(Command::GetRFilesFromAllSources(vec![ContainerPath::Folder("db/ui_tagged_images_tables".to_owned())], false), response_extractor!(Response::HashMapDataSourceHashMapStringRFile));
+        let mut files = files_from_all_sources(vec![ContainerPath::Folder("db/ui_tagged_images_tables".to_owned())], false);
         {
             let mut files_merge = HashMap::new();
             if let Some(files) = files.remove(&DataSource::GameFiles) {
@@ -1889,7 +1889,7 @@ impl ToolTranslator {
             // Get the list of tagged images from the dbs.
             let image_data = STANDARD.encode({
                 let mut d = vec![];
-                let mut files = send_ipc_command(Command::GetRFilesFromAllSources(vec![ContainerPath::File(path.to_owned())], false), response_extractor!(Response::HashMapDataSourceHashMapStringRFile));
+                let mut files = files_from_all_sources(vec![ContainerPath::File(path.to_owned())], false);
                 {
                     let mut files_merge = HashMap::new();
                     if let Some(files) = files.remove(&DataSource::GameFiles) {
