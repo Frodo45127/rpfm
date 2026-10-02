@@ -25,7 +25,7 @@ use rpfm_ipc::api::files::{FilesInfo, GetFilesInfo};
 use rpfm_ipc::api::packs::{PackDependency, PackDetails, PackSettingsValues, PackSummary, UpdatePack, UpdatePackSettings};
 use rpfm_ipc::api::schema::MissingDefinitions;
 use rpfm_ipc::helpers::ContainerInfo;
-use rpfm_ipc::messages::OperationalMode;
+use rpfm_ipc::api::packs::OperationalMode;
 
 use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::files::{Container, DecodeableExtraData, db::DB, FileType, pack::{Pack, PackSettings, PFHFlags}};

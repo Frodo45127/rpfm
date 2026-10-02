@@ -55,7 +55,6 @@ use rpfm_ipc::api::{ApiError, Done, Request, RpcOutcome, RpcRequest, RpcResponse
 use rpfm_ipc::api::jobs::JobStarted;
 use rpfm_ipc::api::session::Configure;
 use rpfm_ipc::helpers::SessionInfo;
-use rpfm_ipc::messages::{Command, Response};
 use rpfm_ipc::settings::Settings;
 use rpfm_telemetry::info;
 
@@ -81,14 +80,14 @@ pub type SessionId = u64;
 #[derive(Debug)]
 pub enum SessionMessage {
 
-    /// A command of the legacy protocol.
-    Command(Box<Command>, UnboundedSender<Response>),
-
-    /// A request of the version 2 API.
+    /// A request.
     Api(RpcRequest, UnboundedSender<RpcResponse>),
 
-    /// A request of the version 2 API that runs as a job, with the ID of its job.
+    /// A request that runs as a job, with the ID of its job.
     Job(u64, RpcRequest),
+
+    /// Stops the background thread.
+    Exit,
 }
 
 /// Manages all active sessions.
@@ -136,7 +135,7 @@ pub struct Session {
 
     /// Instant of the last command sent to this session's background thread.
     ///
-    /// Only updated by [`Session::send`], so it reflects actual work, not
+    /// Only updated by [`Session::call`], so it reflects actual work, not
     /// transport-level pings.
     last_activity: Mutex<Instant>,
 
@@ -254,7 +253,7 @@ impl Session {
         names.retain(|n| n != name);
     }
 
-    /// Shutdown this session by sending an Exit command.
+    /// Shutdown this session by stopping its background thread.
     pub fn shutdown(&self) {
         info!("Session {} shutting down...", self.id);
 
@@ -263,25 +262,8 @@ impl Session {
             return;
         }
 
-        // Send exit command - ignore errors if channel is already closed.
-        let (sender_back, _) = unbounded_channel();
-        let _ = self.sender.send(SessionMessage::Command(Box::new(Command::Exit), sender_back));
-    }
-
-    /// Send a command to this session's background thread.
-    ///
-    /// Returns a receiver to get the response.
-    pub fn send(&self, command: Command) -> UnboundedReceiver<Response> {
-        self.touch();
-        let (sender_back, receiver_back) = unbounded_channel();
-        if let Err(error) = self.sender.send(SessionMessage::Command(Box::new(command), sender_back)) {
-            let message = format!("{SESSION_SENDER_ERROR}: {error}");
-            info!("{message}");
-            if let SessionMessage::Command(_, sender_back) = error.0 {
-                let _ = sender_back.send(Response::Error(message));
-            }
-        }
-        receiver_back
+        // Ignore errors, as the channel may be already closed.
+        let _ = self.sender.send(SessionMessage::Exit);
     }
 
     /// Returns the jobs of this session.
@@ -305,7 +287,7 @@ impl Session {
         RpcResponse::new(request.id, result)
     }
 
-    /// Send a request of the version 2 API to this session's background thread.
+    /// Send a request to this session's background thread.
     ///
     /// Configuration and job control requests are answered without waiting for the background thread,
     /// and jobs are answered right away with their ID, before they run.
@@ -598,19 +580,6 @@ impl SessionManager {
                 manager.cleanup_expired_sessions();
             }
         });
-    }
-}
-
-/// Helper function to receive a response from a session.
-///
-/// This is async and will wait for the response.
-pub async fn recv_response(receiver: &mut UnboundedReceiver<Response>) -> Response {
-    match receiver.recv().await {
-        Some(response) => response,
-        None => {
-            info!("Session response channel closed unexpectedly.");
-            Response::Error("Session response channel closed unexpectedly".to_owned())
-        },
     }
 }
 

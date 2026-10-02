@@ -8,7 +8,7 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! Version 2 of the server API: typed methods over JSON-RPC 2.0.
+//! The server API: typed methods over JSON-RPC 2.0.
 //!
 //! Each method is a request struct implementing [`Request`], which ties it to its method name
 //! and its response type. Clients send it as an [`RpcRequest`] and get back an [`RpcResponse`]
@@ -18,15 +18,16 @@
 //!
 //! - [`session`]: state of the session (selected game, schema, dependencies, open packs).
 //! - [`packs`]: details of the open packs.
-//! - [`files`]: listing the files of a pack or of the dependencies.
+//! - [`files`]: the files of the open packs and the dependencies: listing, reading, writing and moving them.
 //! - [`tables`]: reading DB and Loc tables, and their definitions.
 //! - [`diagnostics`]: checking the open packs for problems.
 //! - [`references`]: following references between tables and Loc files.
 //! - [`search`]: searching and replacing text.
 //! - [`schema`]: tables, local patches and updates of the schema.
 //! - [`notes`]: notes attached to the files of the open packs.
-//! - [`tools`]: the optimizer, map packing, startpos building, animations, glTF export, MyMods and Lua tests.
+//! - [`tools`]: the optimizer, map packing, startpos and CEO building, animations, glTF export, MyMods, plugin scripts and Lua.
 //! - [`translations`]: translations of the texts of the open packs.
+//! - [`github`]: signing in to GitHub, to submit translations.
 //! - [`updates`]: checking for and downloading updates.
 //! - [`jobs`]: following and cancelling methods that run as jobs.
 //!

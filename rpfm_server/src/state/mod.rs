@@ -12,10 +12,8 @@
 //!
 //! [`SessionState`] owns everything a session works with: the open packs, the selected game,
 //! its schema and its dependencies. The operations live in the submodules, split by domain,
-//! and return plain results instead of protocol messages, so any protocol can call them.
-//!
-//! The legacy [`Command`](rpfm_ipc::messages::Command) protocol is translated into these
-//! operations in [`crate::background_thread`].
+//! and return plain results instead of protocol messages. [`crate::api`] translates the
+//! requests of the API into these operations.
 
 use anyhow::Result;
 use rayon::prelude::*;
@@ -31,7 +29,7 @@ use rpfm_extensions::search::GlobalSearch;
 use rpfm_ipc::api::ApiError;
 use rpfm_ipc::api::packs::PackSummary;
 use rpfm_ipc::api::session::{DependenciesStatus, SessionStatus};
-use rpfm_ipc::messages::OperationalMode;
+use rpfm_ipc::api::packs::OperationalMode;
 use rpfm_ipc::settings_keys::ASSEMBLY_KIT_SUFFIX;
 
 use rpfm_lib::compression::CompressionFormat;

@@ -11,22 +11,19 @@
 //! WebSocket upgrade handler and message multiplexer for the `/ws` endpoint.
 //!
 //! On upgrade, the handler either reuses an existing [`Session`] (when the
-//! client supplies `?session_id=N`) or creates a new one. From then on the
-//! socket carries a stream of JSON-encoded [`IpcMessage<Command>`] frames
-//! from the client and [`IpcMessage<Response>`] frames back. Each command
-//! is dispatched into the session's dedicated background thread, whose
-//! responses are forwarded back over the same socket with the originating
-//! request `id` preserved so the client can correlate them.
+//! client supplies `?session_id=N`) or creates a new one, and greets the client
+//! with a `session.connected` notification. From then on the socket carries
+//! JSON-RPC 2.0 requests from the client, and their responses and the job
+//! notifications back. Each request is queued into the session's background
+//! thread in the order it arrived, and its response is sent back with the
+//! request's `id` so the client can correlate them.
 //!
-//! Graceful disconnect (`Command::ClientDisconnecting`) tears the session
-//! down immediately and flushes telemetry. Hard disconnects (socket close
-//! without that command) leave the session in a 5-minute grace period so
-//! the client can reconnect with the same `session_id` and pick up where it
-//! left off.
+//! Graceful disconnect (`session.disconnect`) tears the session down
+//! immediately and flushes telemetry. Hard disconnects (socket close without
+//! that request) leave the session in a 5-minute grace period so the client
+//! can reconnect with the same `session_id` and pick up where it left off.
 //!
 //! [`Session`]: crate::session::Session
-//! [`IpcMessage<Command>`]: rpfm_ipc::messages::Message
-//! [`IpcMessage<Response>`]: rpfm_ipc::messages::Message
 
 use axum::{
     extract::ws::{Message, WebSocket, WebSocketUpgrade},
@@ -42,10 +39,9 @@ use std::sync::Arc;
 
 use rpfm_ipc::api::{ApiError, Done, JOB_UPDATED_NOTIFICATION, JSONRPC_VERSION, Request, RpcNotification, RpcRequest, RpcResponse};
 use rpfm_ipc::api::session::{Disconnect, SESSION_CONNECTED_NOTIFICATION, SessionConnected};
-use rpfm_ipc::messages::{Command, Message as IpcMessage, Response};
 use rpfm_telemetry::{info, warn};
 
-use crate::session::{DEFAULT_SESSION_TIMEOUT_SECS, Session, SessionId, SessionManager, recv_response};
+use crate::session::{DEFAULT_SESSION_TIMEOUT_SECS, Session, SessionId, SessionManager};
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -63,13 +59,10 @@ pub struct WsQueryParams {
 /// A message for the client.
 enum Outgoing {
 
-    /// A response or notification of the legacy protocol.
-    Legacy(Box<IpcMessage<Response>>),
+    /// A response to a request.
+    Response(RpcResponse),
 
-    /// A response of the version 2 API.
-    Api(RpcResponse),
-
-    /// A notification of the version 2 API.
+    /// A notification.
     Notification(RpcNotification),
 }
 
@@ -120,43 +113,17 @@ async fn handle_socket(socket: WebSocket, session_manager: Arc<SessionManager>, 
     // Task to send responses back to the client.
     let sender_task = tokio::spawn(async move {
         while let Some(outgoing) = rx.recv().await {
-            let response_msg = match outgoing {
-                Outgoing::Legacy(response_msg) => *response_msg,
-                Outgoing::Api(response) => {
-                    let json = serde_json::to_string(&response)
-                        .unwrap_or_else(|error| serde_json::to_string(&RpcResponse::new(response.id, Err(ApiError::Internal(format!("Serialization error: {error}"))))).unwrap_or_default());
-
-                    if sink.send(Message::Text(json.into())).await.is_err() {
-                        break;
-                    }
-                    continue;
-                }
-                Outgoing::Notification(notification) => {
-                    if let Ok(json) = serde_json::to_string(&notification) {
-                        if sink.send(Message::Text(json.into())).await.is_err() {
-                            break;
-                        }
-                    }
-                    continue;
-                }
+            let json = match outgoing {
+                Outgoing::Response(response) => serde_json::to_string(&response)
+                    .unwrap_or_else(|error| serde_json::to_string(&RpcResponse::new(response.id, Err(ApiError::Internal(format!("Serialization error: {error}"))))).unwrap_or_default()),
+                Outgoing::Notification(notification) => match serde_json::to_string(&notification) {
+                    Ok(json) => json,
+                    Err(_) => continue,
+                },
             };
 
-            match serde_json::to_string(&response_msg) {
-                Ok(json) => {
-                    if sink.send(Message::Text(json.into())).await.is_err() {
-                        break;
-                    }
-                }
-                Err(error) => {
-                    let error_msg = IpcMessage {
-                        id: response_msg.id,
-                        data: Response::Error(format!("Serialization error: {}", error)),
-                    };
-
-                    if let Ok(json) = serde_json::to_string(&error_msg) {
-                        let _ = sink.send(Message::Text(json.into())).await;
-                    }
-                }
+            if sink.send(Message::Text(json.into())).await.is_err() {
+                break;
             }
         }
     });
@@ -183,77 +150,36 @@ async fn handle_socket(socket: WebSocket, session_manager: Arc<SessionManager>, 
     // Track whether the client requested a graceful disconnect.
     let mut graceful_disconnect = false;
 
-    // Loop to receive commands from the client.
+    // Loop to receive requests from the client.
     while let Some(msg) = receiver.next().await {
         if let Ok(msg) = msg {
             match msg {
                 Message::Text(t) => {
 
-                    // Messages with a "jsonrpc" key are version 2 requests. Inside JSON strings its quotes
-                    // would be escaped, so only a key can match this.
-                    if t.contains("\"jsonrpc\"") {
-                        if let Ok(request) = serde_json::from_str::<RpcRequest>(&t) {
-
-                            // Disconnecting needs the session manager, so it's answered here, before cleaning up.
-                            if request.method == Disconnect::METHOD {
-                                let done = serde_json::to_value(Done {}).map_err(|error| ApiError::Internal(error.to_string()));
-                                let _ = tx.send(Outgoing::Api(RpcResponse::new(request.id, done)));
-                                graceful_disconnect = true;
-                                break;
-                            }
-
-                            handle_api_request(request, &session, &tx);
-                            continue;
-                        }
-                    }
-
-                    // Try to parse the message to check for ClientDisconnecting.
-                    match serde_json::from_str::<IpcMessage<Command>>(&t) {
-                        Ok(msg) => {
-                            info!("Session {}: Received command [ID {}]: {:?}", session.id(), msg.id, msg.data);
-
-                            // Handle ClientDisconnecting specially - it needs access to session_manager.
-                            if matches!(msg.data, Command::ClientDisconnecting) {
-                                // Send success response before cleanup.
-                                let response_msg = IpcMessage {
-                                    id: msg.id,
-                                    data: Response::Success,
-                                };
-                                let _ = tx.send(Outgoing::Legacy(Box::new(response_msg)));
-                                graceful_disconnect = true;
-                                break;
-                            }
-
-                            // Enqueue the command before spawning, so commands run in the order they arrived.
-                            let mut receiver = session.send(msg.data);
-                            let tx = tx.clone();
-                            tokio::spawn(async move {
-                                let response = recv_response(&mut receiver).await;
-                                let response_msg = IpcMessage {
-                                    id: msg.id,
-                                    data: response,
-                                };
-                                let _ = tx.send(Outgoing::Legacy(Box::new(response_msg)));
-                            });
-                        }
+                    let request = match serde_json::from_str::<RpcRequest>(&t) {
+                        Ok(request) => request,
                         Err(error) => {
                             warn!("Session {}: Deserialization error: {}", session.id(), error);
 
-                            // Try to extract the message ID from the malformed message so we can
-                            // send an error response back to the client.
-                            if let Some(id) = serde_json::from_str::<serde_json::Value>(&t)
-                                .ok()
-                                .and_then(|v| v.get("id")?.as_u64()) {
-                                let error_msg = IpcMessage {
-                                    id,
-                                    data: Response::Error(format!("Server failed to deserialize command: {}", error)),
-                                };
-                                let _ = tx.send(Outgoing::Legacy(Box::new(error_msg)));
-                            }
+                            // Answer with the ID of the malformed request, if it can be found.
+                            let id = serde_json::from_str::<serde_json::Value>(&t).ok()
+                                .and_then(|value| value.get("id")?.as_u64())
+                                .unwrap_or_default();
 
-                            // TODO: Handle the error case when the message ID cannot be extracted.
+                            let _ = tx.send(Outgoing::Response(RpcResponse::invalid_request(id, format!("Invalid request: {error}"))));
+                            continue;
                         }
+                    };
+
+                    // Disconnecting needs the session manager, so it's answered here, before cleaning up.
+                    if request.method == Disconnect::METHOD {
+                        let done = serde_json::to_value(Done {}).map_err(|error| ApiError::Internal(error.to_string()));
+                        let _ = tx.send(Outgoing::Response(RpcResponse::new(request.id, done)));
+                        graceful_disconnect = true;
+                        break;
                     }
+
+                    handle_api_request(request, &session, &tx);
                 }
                 Message::Close(_) => {
                     info!("Session {}: Client disconnected", session_id);
@@ -290,11 +216,11 @@ async fn handle_socket(socket: WebSocket, session_manager: Arc<SessionManager>, 
     }
 }
 
-/// Sends a version 2 API request to the session's background thread, and its response to the client when it's done.
+/// Sends a request to the session's background thread, and its response to the client when it's done.
 fn handle_api_request(request: RpcRequest, session: &Arc<Session>, tx: &mpsc::UnboundedSender<Outgoing>) {
     let id = request.id;
     if request.jsonrpc != JSONRPC_VERSION {
-        let _ = tx.send(Outgoing::Api(RpcResponse::invalid_request(id, format!("Unsupported JSON-RPC version: {}", request.jsonrpc))));
+        let _ = tx.send(Outgoing::Response(RpcResponse::invalid_request(id, format!("Unsupported JSON-RPC version: {}", request.jsonrpc))));
         return;
     }
 
@@ -305,6 +231,6 @@ fn handle_api_request(request: RpcRequest, session: &Arc<Session>, tx: &mpsc::Un
         let response = receiver.recv().await
             .unwrap_or_else(|| RpcResponse::new(id, Err(ApiError::Internal("Session response channel closed unexpectedly".to_owned()))));
 
-        let _ = tx.send(Outgoing::Api(response));
+        let _ = tx.send(Outgoing::Response(response));
     });
 }

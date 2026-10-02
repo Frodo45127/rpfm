@@ -34,7 +34,7 @@ use rpfm_ipc::helpers::{ContainerInfo, DataSource, RFileInfo};
 
 use rpfm_lib::files::{ContainerPath, RFile, RFileDecoded};
 use rpfm_ipc::api::session::{Configure, Disconnect, GetSessionStatus, SESSION_CONNECTED_NOTIFICATION, SessionConnected};
-use rpfm_ipc::messages::OperationalMode;
+use rpfm_ipc::api::packs::OperationalMode;
 
 use rpfm_telemetry::*;
 

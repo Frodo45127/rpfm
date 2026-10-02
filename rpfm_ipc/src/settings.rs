@@ -147,7 +147,7 @@ impl Settings {
     ///
     /// If `as_new` is `true` the on-disk file is ignored and a fully default
     /// settings struct is returned (still applying the per-key defaults).
-    /// Otherwise the settings are loaded with [`Self::load_or_recover`].
+    /// Otherwise the settings are loaded from the settings file, recovering it from its backup if it's broken.
     pub fn init(as_new: bool) -> Self {
         let mut settings = if !as_new {
             match config_path() {
@@ -656,7 +656,7 @@ pub fn config_path() -> Result<PathBuf> {
 
 /// This function returns the user-configured custom config folder, or `None` if RPFM uses the default one.
 ///
-/// The custom path is read from the [`CONFIG_REDIRECT_FILE_NAME`] file inside the default config path.
+/// The custom path is read from the `config_folder.txt` file inside the default config path.
 pub fn custom_config_path() -> Result<Option<PathBuf>> {
     let redirect_file = default_config_path()?.join(CONFIG_REDIRECT_FILE_NAME);
     if !redirect_file.is_file() {

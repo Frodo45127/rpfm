@@ -10,23 +10,19 @@
 
 //! [Model Context Protocol][mcp] server exposed at the `/mcp` endpoint.
 //!
-//! Wraps every [`Command`] the [`crate::background_thread`] dispatcher
-//! understands as an MCP **tool**, plus a handful of MCP **resources**
-//! (game lists, enum dumps, examples, reference docs) and **prompts** for
-//! common workflows ("open and inspect a pack", "edit a DB table",
-//! "manage dependencies", …). Each MCP client gets its own dedicated
+//! Exposes the methods of the server's API as MCP **tools**, plus a handful
+//! of MCP **resources** (game lists, enum dumps, reference docs) and
+//! **prompts** for common workflows ("open and inspect a pack", "edit a DB
+//! table", "manage dependencies", …). Each MCP client gets its own dedicated
 //! [`Session`] and [`McpServer`] — same isolation guarantees as the
 //! WebSocket clients.
 //!
-//! Each tool call:
+//! Each tool call sends its method's request through the session, like a
+//! WebSocket client would, and returns the response as structured content,
+//! or as a tool error if it failed. Methods that run as jobs are waited for
+//! a while, and return the state of their job.
 //!
-//! 1. Translates its `*Args` payload into a [`Command`] and ships it
-//!    through the session's
-//!    [`background_loop`](crate::background_thread::background_loop) via
-//!    the `send_and_respond!` helper.
-//! 2. Wraps the resulting [`Response`] back into a [`CallToolResult`].
-//!
-//! The `*Args` structs are the canonical schema for every tool. Their
+//! The request structs of the methods are the schema of every tool. Their
 //! `JsonSchema` derive is what `rmcp` ships to clients to advertise tool
 //! arguments, so docstrings on individual fields show up directly in MCP
 //! tool listings.
@@ -46,12 +42,9 @@ use rmcp::model::{
 };
 use rmcp::service::RequestContext;
 use rmcp::{prompt, prompt_handler, prompt_router, tool, tool_handler, tool_router, RoleServer};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 
 use std::sync::Arc;
 use std::time::Duration;
-use std::path::PathBuf;
 
 
 use rpfm_ipc::api::{ApiError, Done, Request, RpcError, RpcOutcome, RpcRequest, RpcResponse};
@@ -82,42 +75,13 @@ use rpfm_ipc::api::tables::{
     AddKeyDeletes, ColumnValues, EditTable, ExportTsv, FilesEdited, GetColumnValues, GetTableDefinition, GetTableInfo, GetTableRows, ImportTsv, MergeTables,
     RenameKey, TableDefinition, TableEdited, TableInfo, TableRows, TablesMerged, TableUpgraded, UpgradeTable,
 };
-use rpfm_ipc::messages::{Command, Response};
 use rpfm_telemetry::sentry;
 
-use crate::session::{Session, recv_response};
+use crate::session::Session;
 
 //-------------------------------------------------------------------------------//
-//                              Helper macro
+//                              Helpers
 //-------------------------------------------------------------------------------//
-
-/// Helper to send a command and return the JSON response.
-///
-/// Each tool call starts an independent Sentry transaction following the MCP tracing spec,
-/// so it gets reported regardless of the long-lived rmcp service span.
-macro_rules! send_and_respond {
-    ($self:expr, $tool_name:expr, $cmd:expr) => {{
-        let tx = start_tool_transaction($tool_name);
-        let mut receiver = $self.session.send($cmd);
-        let response = recv_response(&mut receiver).await;
-
-        tx.finish();
-
-        let is_error = matches!(&response, Response::Error(_));
-
-        let json = serde_json::to_string(&response).map_err(|e| McpError {
-            code: ErrorCode::INTERNAL_ERROR,
-            message: format!("Failed to serialize response: {e}").into(),
-            data: None,
-        })?;
-
-        if is_error {
-            Ok(CallToolResult::error(vec![ContentBlock::text(json)]))
-        } else {
-            Ok(CallToolResult::success(vec![ContentBlock::text(json)]))
-        }
-    }};
-}
 
 /// How long tools that run as jobs wait for them before returning their state.
 ///
@@ -157,20 +121,6 @@ fn resource(uri: &str, name: &str, description: &str, mime_type: &str) -> Resour
         .with_mime_type(mime_type)
 }
 
-/// Parse a JSON string into the expected type, returning a tool-level error on failure.
-///
-/// This is a macro (not a function) so that `return Ok(...)` exits the calling tool method,
-/// keeping invalid-JSON errors as tool results instead of protocol-level `McpError`s that
-/// would tear down the MCP session.
-macro_rules! parse_json {
-    ($input:expr) => {
-        match serde_json::from_str($input) {
-            Ok(v) => v,
-            Err(e) => return Ok(CallToolResult::error(vec![ContentBlock::text(format!("Invalid JSON parameter: {e}"))])),
-        }
-    };
-}
-
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
@@ -193,105 +143,6 @@ pub struct McpServer {
     /// The router auto-generated from `#[prompt_router]` annotations.
     prompt_router: PromptRouter<Self>,
 }
-
-// -- Generic / Existing Args --
-
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-#[schemars(description = "Call any IPC command directly.")]
-pub struct CallCommandArgs {
-    /// The JSON representation of the Command enum.
-    pub command: String,
-}
-
-
-
-
-// -- Pack Lifecycle Args --
-
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct PathArg {
-    /// The file path.
-    pub path: PathBuf,
-}
-
-
-// -- Pack Key Args (multi-pack support) --
-
-
-
-// -- Pack Metadata Args --
-
-
-// -- File Operations Args --
-
-
-
-
-
-
-
-
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct StringArg {
-    /// A string value.
-    pub value: String,
-}
-
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct StringsArg {
-    /// A list of string values.
-    pub values: Vec<String>,
-}
-
-// -- Dependency Args --
-
-// -- Search Args --
-
-
-
-
-
-
-// -- Schema Args --
-
-
-#[derive(Debug, Deserialize, JsonSchema, Serialize)]
-pub struct StringI32Args {
-    /// A string value (e.g., table name).
-    pub name: String,
-    /// An integer value (e.g., version).
-    pub version: i32,
-}
-
-
-
-// -- Table Ops Args --
-
-
-
-
-// -- Diagnostics Args --
-
-
-
-
-// -- Notes Args --
-
-
-
-// -- Optimization Args --
-
-
-// -- Specialized Args --
-
-
-
-
-
-
-
-
-
 
 //-------------------------------------------------------------------------------//
 //                             Implementations
@@ -623,7 +474,7 @@ Maps:
 
 impl McpServer {
 
-    /// Runs a request of the version 2 API on the session.
+    /// Runs a request of the API on the session.
     ///
     /// # Returns
     ///
@@ -1560,76 +1411,6 @@ Runs as a job: waits up to 45 seconds and returns its state, with the report as 
             prompt_router: McpServer::prompt_router(),
         }
     }
-
-    //-----------------------------------------------------------------------//
-    // Existing tools
-    //-----------------------------------------------------------------------//
-
-    #[tool(name = "call_command", description = "Call any IPC command directly. Use this for commands not yet wrapped as named tools.")]
-    pub async fn call_command(&self, params: Parameters<CallCommandArgs>) -> Result<CallToolResult, McpError> {
-        let command: Command = parse_json!(&params.0.command);
-        send_and_respond!(self, "call_command", command)
-    }
-
-    //-----------------------------------------------------------------------//
-    // Pack Lifecycle
-    //-----------------------------------------------------------------------//
-
-    //-----------------------------------------------------------------------//
-    // Pack Metadata
-    //-----------------------------------------------------------------------//
-
-    //-----------------------------------------------------------------------//
-    // File Operations
-    //-----------------------------------------------------------------------//
-
-    //-----------------------------------------------------------------------//
-    // Game Selection
-    //-----------------------------------------------------------------------//
-
-    //-----------------------------------------------------------------------//
-    // Dependencies
-    //-----------------------------------------------------------------------//
-
-    //-----------------------------------------------------------------------//
-    // Search
-    //-----------------------------------------------------------------------//
-
-    //-----------------------------------------------------------------------//
-    // Schema
-    //-----------------------------------------------------------------------//
-
-    //-----------------------------------------------------------------------//
-    // Table Operations
-    //-----------------------------------------------------------------------//
-
-    //-----------------------------------------------------------------------//
-    // Diagnostics
-    //-----------------------------------------------------------------------//
-
-    //-----------------------------------------------------------------------//
-    // Notes
-    //-----------------------------------------------------------------------//
-
-    //-----------------------------------------------------------------------//
-    // Optimization
-    //-----------------------------------------------------------------------//
-
-    //-----------------------------------------------------------------------//
-    // Updates
-    //-----------------------------------------------------------------------//
-
-    //-----------------------------------------------------------------------//
-    // Specialized
-    //-----------------------------------------------------------------------//
-
-    //-----------------------------------------------------------------------//
-    // Multi-Pack Management
-    //-----------------------------------------------------------------------//
-
-    //-----------------------------------------------------------------------//
-    // Additional tools
-    //-----------------------------------------------------------------------//
 
 }
 

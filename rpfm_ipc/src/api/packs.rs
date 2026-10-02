@@ -20,9 +20,19 @@ use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::files::pack::PackSettings;
 use rpfm_lib::games::{pfh_file_type::PFHFileType, pfh_version::PFHVersion};
 
-use crate::messages::OperationalMode;
-
 use super::{Done, Request};
+
+/// Mode of an open pack: normal, or MyMod, which links it to a game folder and mod name for importing and exporting.
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum OperationalMode {
+
+    /// MyMod mode. Contains the game folder name (e.g. "warhammer_2") and the MyMod pack name.
+    MyMod(String, String),
+
+    /// Normal mode, with no MyMod association.
+    #[default]
+    Normal,
+}
 
 /// Short description of an open pack.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]

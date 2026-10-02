@@ -344,7 +344,7 @@ impl SessionState {
     /// * `file` - The file.
     /// * `enable_esf_editor` - If ESF files are decoded.
     pub fn view_data(&mut self, file: &FileRef, enable_esf_editor: bool) -> Result<ViewData> {
-        let (pack_key, data_source) = legacy_source(&file.source);
+        let (pack_key, data_source) = pack_key_and_data_source(&file.source);
         let pack_key = pack_key.to_owned();
         let (decoded, info) = match self.decode_file(&pack_key, &file.path, data_source, enable_esf_editor)? {
             DecodedFile::Decoded(decoded, info) => (decoded, info),
@@ -654,18 +654,6 @@ impl SessionState {
             .ok_or_else(|| anyhow!("File not found"))?;
 
         file.encode_from_external_data(&self.schema, external_path)?;
-        Ok(())
-    }
-
-    /// Encodes files of a pack back to binary, dropping their decoded data.
-    pub fn clean_cache(&mut self, pack_key: &str, paths: &[ContainerPath], disable_uuid_regeneration: bool) -> Result<()> {
-        let pack = pack_mut(&mut self.packs, pack_key)?;
-        let extra_data = encode_extra_data(&self.game, pack.compression_format(), disable_uuid_regeneration);
-
-        for file in pack.files_by_paths_mut(paths, false) {
-            let _ = file.encode(&extra_data, true, true, false);
-        }
-
         Ok(())
     }
 
@@ -1055,7 +1043,7 @@ impl SessionState {
             return Ok(FileContents { file_type, contents: FileData::Raw { base64: STANDARD.encode(bytes) } });
         }
 
-        let (pack_key, data_source) = legacy_source(&request.file.source);
+        let (pack_key, data_source) = pack_key_and_data_source(&request.file.source);
         let pack_key = pack_key.to_owned();
         let (decoded, file_type) = match self.decode_file(&pack_key, &request.file.path, data_source, enable_esf_editor)? {
             DecodedFile::Decoded(decoded, info) => (*decoded, *info.file_type()),
@@ -1120,7 +1108,7 @@ impl SessionState {
 
     /// Returns the files inside an AnimPack of any source, sorted by path.
     pub fn list_animpack(&mut self, file: &FileRef) -> Result<FileList> {
-        let (pack_key, data_source) = legacy_source(&file.source);
+        let (pack_key, data_source) = pack_key_and_data_source(&file.source);
         let pack_key = pack_key.to_owned();
         let files = match self.decode_file(&pack_key, &file.path, data_source, false)? {
             DecodedFile::Decoded(decoded, _) => match *decoded {
@@ -1149,7 +1137,7 @@ impl SessionState {
     /// Copies files of an AnimPack of any source into an open pack.
     pub fn extract_from_animpack(&mut self, request: &ExtractFromAnimPack) -> Result<FilesAdded> {
         let paths = self.animpack_container_paths(&request.file, &request.paths)?;
-        let (pack_key, data_source) = legacy_source(&request.file.source);
+        let (pack_key, data_source) = pack_key_and_data_source(&request.file.source);
         let pack_key = pack_key.to_owned();
         let added = self.add_files_from_animpack(&pack_key, &request.to_pack, data_source, &request.file.path, &paths)?;
         Ok(FilesAdded { added: raw_paths(&added), ..FilesAdded::default() })
@@ -1225,8 +1213,8 @@ fn split_found(paths: &[String], resolve: impl Fn(&str) -> ContainerPath, exists
     (found, not_found)
 }
 
-/// Returns the key of the pack of a file source (empty for other sources), and its legacy data source.
-pub(super) fn legacy_source(source: &FileSource) -> (&str, DataSource) {
+/// Returns the key of the pack of a file source (empty for other sources), and its data source.
+pub(super) fn pack_key_and_data_source(source: &FileSource) -> (&str, DataSource) {
     let pack_key = match source {
         FileSource::Pack(pack_key) => pack_key.as_str(),
         _ => "",

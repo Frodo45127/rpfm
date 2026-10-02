@@ -10,56 +10,29 @@
 
 //! # RPFM IPC - Inter-Process Communication Protocol
 //!
-//! This crate defines the IPC protocol used for communication between the RPFM frontend
-//! and the backend server (`rpfm_server`). It provides type-safe message definitions that ensure
-//! consistent communication between the two processes.
+//! This crate defines the protocol used between RPFM's clients (the UI, MCP clients and scripts) and the backend
+//! server (`rpfm_server`), and the settings both sides share.
 //!
 //! ## Protocol Overview
 //!
-//! The communication follows a request-response pattern over WebSocket connections:
+//! Clients call typed methods of the server over JSON-RPC 2.0, sent as WebSocket text frames:
 //!
-//! 1. The frontend creates a [`messages::Message<Command>`] with a unique ID
-//! 2. The message is serialized to JSON and sent over WebSocket to the server
-//! 3. The server processes the command and sends back a [`messages::Message<Response>`]
-//! 4. The frontend matches the response ID to the original request
+//! 1. The client sends an [`api::RpcRequest`] with a unique ID, a method name like `table.rows`, and its params.
+//! 2. The server answers with an [`api::RpcResponse`] with the same ID, holding the result or an [`api::ApiError`].
+//! 3. Long methods run as jobs: they answer right away with a job ID, and report their progress and result in
+//!    `job.updated` notifications.
 //!
-//! This ID correlation mechanism enables asynchronous, non-blocking communication where multiple
-//! requests can be in flight simultaneously.
+//! Each method is a struct implementing [`api::Request`], which ties it to its name and response type.
 //!
 //! ## Modules
 //!
-//! - [`messages`]: Core protocol definitions including [`messages::Command`], [`messages::Response`],
-//!   and the [`messages::Message`] wrapper.
-//! - [`api`]: Version 2 of the protocol: typed methods over JSON-RPC 2.0, meant to replace
-//!   [`messages`].
-//! - [`helpers`]: Data structures for marshalling complex data between UI and server, including
-//!   [`helpers::ContainerInfo`], [`helpers::RFileInfo`], and [`helpers::DataSource`].
-//!
-//! ## Usage
-//!
-//! This crate is not intended for standalone use. It serves as a shared dependency between
-//! `rpfm_server` and `rpfm_ui`, providing the common language they need to communicate.
-//!
-//! ### Example Message Flow
-//!
-//! ```ignore
-//! // Frontend creates a command
-//! let command = Message {
-//!     id: 1,
-//!     data: Command::OpenPackFiles(vec![PathBuf::from("/path/to/pack.pack")]),
-//! };
-//!
-//! // Serialize and send over WebSocket...
-//!
-//! // Server responds with matching ID
-//! let response = Message {
-//!     id: 1,  // Same ID as the request
-//!     data: Response::ContainerInfo(container_info),
-//! };
-//! ```
+//! - [`api`]: The methods, grouped by domain, and the JSON-RPC envelope.
+//! - [`helpers`]: Data structures shared by several methods, like [`helpers::ContainerInfo`], [`helpers::RFileInfo`]
+//!   and [`helpers::DataSource`].
+//! - [`settings`]: The settings store and the config folder helpers.
+//! - [`settings_keys`]: The keys of the settings.
 
 pub mod api;
 pub mod helpers;
-pub mod messages;
 pub mod settings;
 pub mod settings_keys;

@@ -43,7 +43,7 @@ use rpfm_ipc::api::translations::{DEFAULT_TRANSLATIONS_LIMIT, ListTranslations, 
 use rpfm_ipc::api::tools::{optimizer_option_values, CeoEntryData, FilePaths, FilesChanged, InitMyMod, MyModCreated, PluginScriptRun, RunPluginScript, SiegeAiPatched, StartStartpos, StartposCampaigns};
 
 use super::{DecodedFile, ExtractOptions, SessionState, encode_extra_data, loaded_schema, pack, pack_mut};
-use super::files::{container_path, legacy_source, raw_paths};
+use super::files::{container_path, pack_key_and_data_source, raw_paths};
 
 /// Filename prefix for community-maintained vanilla loc fix TSVs in the
 /// [Total War Translation Hub][tlh] repo (e.g. `vanilla_fixes_es.tsv`).
@@ -477,7 +477,7 @@ impl SessionState {
     ///
     /// Fails if the file is not a RigidModel, or if it can't be exported.
     pub fn export_gltf(&mut self, file: &FileRef, destination: &Path) -> Result<()> {
-        let (pack_key, data_source) = legacy_source(&file.source);
+        let (pack_key, data_source) = pack_key_and_data_source(&file.source);
         let pack_key = pack_key.to_owned();
         match self.decode_file(&pack_key, &file.path, data_source, false)? {
             DecodedFile::Decoded(decoded, _) => match *decoded {

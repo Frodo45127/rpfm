@@ -23,7 +23,7 @@ use std::rc::Rc;
 use rpfm_extensions::diagnostics::Diagnostics;
 use rpfm_extensions::search::GlobalSearch;
 
-pub use rpfm_ipc::messages::OperationalMode;
+pub use rpfm_ipc::api::packs::OperationalMode;
 
 use crate::app_ui::AppUI;
 use crate::packedfile_views::FileView;

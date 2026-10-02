@@ -8,7 +8,7 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! Dispatcher of the version 2 API, translating [`RpcRequest`]s into [`SessionState`] operations.
+//! Dispatcher of the API, translating [`RpcRequest`]s into [`SessionState`] operations.
 //!
 //! See [`rpfm_ipc::api`] for the methods and their types.
 
