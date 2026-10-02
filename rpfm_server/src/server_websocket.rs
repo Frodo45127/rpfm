@@ -64,6 +64,9 @@ enum Outgoing {
 
     /// A notification.
     Notification(RpcNotification),
+
+    /// Closes the connection, once the messages queued before it are sent.
+    Close,
 }
 
 //-------------------------------------------------------------------------------//
@@ -120,6 +123,10 @@ async fn handle_socket(socket: WebSocket, session_manager: Arc<SessionManager>, 
                     Ok(json) => json,
                     Err(_) => continue,
                 },
+                Outgoing::Close => {
+                    let _ = sink.close().await;
+                    break;
+                }
             };
 
             if sink.send(Message::Text(json.into())).await.is_err() {
@@ -175,6 +182,7 @@ async fn handle_socket(socket: WebSocket, session_manager: Arc<SessionManager>, 
                     if request.method == Disconnect::METHOD {
                         let done = serde_json::to_value(Done {}).map_err(|error| ApiError::Internal(error.to_string()));
                         let _ = tx.send(Outgoing::Response(RpcResponse::new(request.id, done)));
+                        let _ = tx.send(Outgoing::Close);
                         graceful_disconnect = true;
                         break;
                     }
@@ -193,8 +201,14 @@ async fn handle_socket(socket: WebSocket, session_manager: Arc<SessionManager>, 
         }
     }
 
-    sender_task.abort();
     jobs_forward_task.abort();
+
+    // On a graceful disconnect, the sender ends after sending the disconnect's response.
+    if graceful_disconnect {
+        let _ = sender_task.await;
+    } else {
+        sender_task.abort();
+    }
 
     // Client requested graceful disconnect - remove session immediately.
     if graceful_disconnect {
