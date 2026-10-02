@@ -41,6 +41,7 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::rc::Rc;
 
+use rpfm_ipc::api::files::{CopyFiles, ExtractFiles};
 use rpfm_ipc::helpers::DataSource;
 
 use rpfm_lib::files::ContainerPath;
@@ -48,7 +49,7 @@ use rpfm_lib::files::ContainerPath;
 use rpfm_ui_common::utils::{find_widget, load_template};
 
 use crate::app_ui::AppUI;
-use crate::communications::{Command, Response, send_ipc_command_result, send_ipc_command_result_async};
+use crate::communications::{call_api, call_api_async};
 use crate::ffi::*;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
@@ -222,7 +223,16 @@ impl DependenciesUI {
         app_ui.toggle_main_window(false);
 
         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-        match send_ipc_command_result(Command::ImportDependenciesToOpenPackFile(pack_key.clone(), paths_by_source), response_extractor!(Response::VecContainerPathVecString, v1, v2)) {
+        let imported = paths_by_source.into_iter().try_fold((vec![], vec![]), |(mut added, mut not_added), (data_source, paths)| {
+            let from = data_source.file_source(&pack_key).ok_or_else(|| anyhow!("External files can't be imported."))?;
+            let request = CopyFiles { from, paths: paths.iter().map(|path| path.path_raw().to_owned()).collect(), to_pack: pack_key.clone() };
+            let result = call_api(&request)?;
+            added.extend(file_paths(result.added));
+            not_added.extend(result.not_added);
+            Ok::<_, anyhow::Error>((added, not_added))
+        });
+
+        match imported {
             Ok((paths, not_added_paths)) => {
                 if !paths.is_empty() {
                     pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(paths.to_vec()), DataSource::PackFile, &pack_key);
@@ -280,10 +290,21 @@ impl DependenciesUI {
             PathBuf::from(extraction_path.to_std_string())
         } else { return };
 
-        let pack_key = String::new();
         app_ui.toggle_main_window(false);
-        match send_ipc_command_result_async(Command::ExtractPackedFiles(pack_key, paths_by_source, extraction_path, true), response_extractor!(Response::StringVecPathBuf, v1, v2)) {
-            Ok((result, _)) => show_message_info(app_ui.message_widget(), result),
+        let result = paths_by_source.into_iter().try_for_each(|(data_source, paths)| {
+            let request = ExtractFiles {
+                source: data_source.file_source("").ok_or_else(|| anyhow!("External files can't be extracted."))?,
+                paths: paths.iter().map(|path| path.path_raw().to_owned()).collect(),
+                destination: extraction_path.clone(),
+                as_tsv: true,
+                tsv_keys_first: None,
+            };
+
+            call_api_async(&request).map(|_| ())
+        });
+
+        match result {
+            Ok(()) => show_message_info(app_ui.message_widget(), tr("files_extracted_success")),
             Err(error) => show_dialog(app_ui.main_window(), error, false),
         }
         app_ui.toggle_main_window(true);

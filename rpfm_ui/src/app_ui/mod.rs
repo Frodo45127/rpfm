@@ -81,7 +81,7 @@ use std::time::Instant;
 
 use rpfm_extensions::merge::{MergeConflict, MergeResolution};
 
-use rpfm_ipc::api::files::{FileRef, FileSource, GetViewData, ViewData};
+use rpfm_ipc::api::files::{CreateFile, FileRef, FileSource, GetViewData, NewFileKind, ViewData};
 use rpfm_ipc::api::packs::{ClosePack, CloseAllPacks, GetPackSettings, NewPack, OpenPack, UpdatePack};
 use rpfm_ipc::api::schema::GetMissingDefinitions;
 use rpfm_ipc::api::session::{GetDependenciesInfo, ListDependencyTables, RebuildDependencies, SetGame};
@@ -102,7 +102,7 @@ use rpfm_ui_common::FULL_DATE_FORMAT;
 use rpfm_ui_common::icons::IconType;
 
 use crate::CENTRAL_COMMAND;
-use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR, call_api, call_api_async, run_job, send_ipc_command_result, pack_details, pack_operational_mode, open_packs, save_pack, api_result, file_exists, folder_exists};
+use crate::communications::{CentralCommand, Command, Response, THREADS_COMMUNICATION_ERROR, call_api, call_api_async, run_job, pack_details, pack_operational_mode, open_packs, save_pack, api_result, file_exists, folder_exists};
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::*;
@@ -2954,7 +2954,7 @@ impl AppUI {
                     }
 
                     // Get the response, just in case it failed.
-                    match send_ipc_command_result(Command::NewPackedFile(pack_key.clone(), full_path.to_owned(), new_file), response_extractor!()) {
+                    match call_api(&CreateFile { pack: pack_key.clone(), path: full_path.to_owned(), kind: NewFileKind::from(new_file) }) {
                         Ok(_) => {
                             pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(vec![ContainerPath::File(full_path); 1]), DataSource::PackFile, &pack_key);
                             UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
@@ -3056,7 +3056,7 @@ impl AppUI {
                 if exists { return show_dialog(&app_ui.main_window, "The provided file/s already exists in the current path.", false)}
 
                 // Create the PackFile.
-                match send_ipc_command_result(Command::NewPackedFile(pack_key.clone(), new_path.to_owned(), new_packed_file), response_extractor!()) {
+                match call_api(&CreateFile { pack: pack_key.clone(), path: new_path.to_owned(), kind: NewFileKind::from(new_packed_file) }) {
                     Ok(_) => {
                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(vec![ContainerPath::File(new_path); 1]), DataSource::PackFile, &pack_key);
                         UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);

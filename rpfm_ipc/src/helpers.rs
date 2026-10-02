@@ -61,7 +61,7 @@ use std::fmt::{self, Display};
 
 use rpfm_extensions::dependencies::Dependencies;
 
-use crate::api::files::FileSource;
+use crate::api::files::{EntryCopy, FileSource, NewFileKind};
 use crate::api::packs::PackDetails;
 
 use rpfm_lib::compression::CompressionFormat;
@@ -460,6 +460,24 @@ impl DataSource {
             Self::ParentFiles => Some(FileSource::ParentFiles),
             Self::AssKitFiles => Some(FileSource::AssemblyKit),
             Self::ExternalFile => None,
+        }
+    }
+}
+
+/// Kind of file of a new file. The name of the file is part of its path, so it's dropped.
+impl From<NewFile> for NewFileKind {
+    fn from(new_file: NewFile) -> Self {
+        match new_file {
+            NewFile::AnimPack(_) => Self::AnimPack,
+            NewFile::DB(_, table_name, version) => Self::Db { table_name, version: Some(version) },
+            NewFile::Loc(_) => Self::Loc,
+            NewFile::PortraitSettings(_, version, entries) => Self::PortraitSettings {
+                version,
+                copy_entries: entries.into_iter().map(|(from, to)| EntryCopy { from, to }).collect(),
+            },
+            NewFile::Text(_, format) => Self::Text { format: Some(format) },
+            NewFile::VMD(_) => Self::Vmd,
+            NewFile::WSModel(_) => Self::WsModel,
         }
     }
 }

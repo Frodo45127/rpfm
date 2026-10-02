@@ -18,6 +18,9 @@ use qt_core::{SlotOfBool, SlotOfQString, SlotNoArgs, SlotOfQModelIndex};
 use std::rc::Rc;
 use std::sync::Arc;
 
+use anyhow::anyhow;
+
+use rpfm_ipc::api::files::{AddToAnimPack, DeleteFromAnimPack, ExtractFromAnimPack, FileRef};
 use rpfm_ipc::settings_keys::*;
 use rpfm_lib::files::ContainerPath;
 use rpfm_ui_common::clone;
@@ -98,7 +101,14 @@ impl PackedFileAnimPackViewSlots {
                     let source_index = view.pack_tree_model_filter.map_to_source(index);
                     let source_pack_key = view.pack_tree_view.get_pack_key_from_index(source_index).unwrap_or_default();
                     let anim_pack_key = view.pack_key.read().unwrap().to_owned();
-                    match send_ipc_command_result(Command::AddPackedFilesFromPackFileToAnimpack(source_pack_key.clone(), anim_pack_key.clone(), view.path().read().unwrap().to_owned(), item_types), response_extractor!(Response::VecContainerPath)) {
+                    let request = AddToAnimPack {
+                        pack: anim_pack_key.clone(),
+                        animpack: view.path().read().unwrap().to_owned(),
+                        from_pack: source_pack_key.clone(),
+                        paths: item_types.iter().map(|path| path.path_raw().to_owned()).collect(),
+                    };
+
+                    match call_api(&request).map(|added| file_paths(added.added)) {
                         Ok(paths_ok) => {
 
                             // Add to the AnimPack tree using the source key, so the new items keep the
@@ -143,7 +153,19 @@ impl PackedFileAnimPackViewSlots {
                     app_ui.toggle_main_window(false);
                     let dest_pack_key = view.pack_tree_view.pack_key_from_selection_or_first().unwrap_or_default();
                     let anim_pack_key = view.pack_key.read().unwrap().to_owned();
-                    match send_ipc_command_result(Command::AddPackedFilesFromAnimpack(anim_pack_key, dest_pack_key.clone(), *view.data_source.read().unwrap(), view.path().read().unwrap().to_owned(), item_types), response_extractor!(Response::VecContainerPath)) {
+                    let result = view.data_source.read().unwrap().file_source(&anim_pack_key)
+                        .ok_or_else(|| anyhow!("External AnimPacks can't be read."))
+                        .and_then(|source| {
+                            let request = ExtractFromAnimPack {
+                                file: FileRef { source, path: view.path().read().unwrap().to_owned() },
+                                paths: item_types.iter().map(|path| path.path_raw().to_owned()).collect(),
+                                to_pack: dest_pack_key.clone(),
+                            };
+
+                            call_api(&request).map(|added| file_paths(added.added))
+                        });
+
+                    match result {
                         Ok(paths_ok) => {
 
                             // Update the destination Pack's TreeView with the new files.
@@ -188,8 +210,14 @@ impl PackedFileAnimPackViewSlots {
                     // The files live inside this AnimPack, so the operation targets the Pack that owns
                     // it, regardless of what is selected in the left panel or the dock.
                     let pack_key = view.pack_key.read().unwrap().to_owned();
-                    match send_ipc_command_result(Command::DeleteFromAnimpack(pack_key.clone(), view.path().read().unwrap().to_owned(), item_types.clone()), response_extractor!()) {
-                        Ok(()) => {
+                    let request = DeleteFromAnimPack {
+                        pack: pack_key.clone(),
+                        animpack: view.path().read().unwrap().to_owned(),
+                        paths: item_types.iter().map(|path| path.path_raw().to_owned()).collect(),
+                    };
+
+                    match call_api(&request) {
+                        Ok(_) => {
 
                             // If it works, remove them from the view.
                             view.anim_pack_tree_view.update_treeview(true, TreeViewOperation::Delete(item_types, settings_bool(DELETE_EMPTY_FOLDERS_ON_DELETE)), DataSource::PackFile, &pack_key);

@@ -24,12 +24,12 @@ use std::rc::Rc;
 
 use rpfm_lib::files::ContainerPath;
 
+use rpfm_ipc::api::files::FileSource;
 use rpfm_ipc::helpers::DataSource;
 
 use rpfm_ui_common::clone;
 
 use crate::app_ui::AppUI;
-use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
@@ -82,10 +82,9 @@ impl PackFileExtraViewSlots {
                     // Ask the Background Thread to move the files, and send him the path.
                     app_ui.toggle_main_window(false);
                     let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    let receiver = CENTRAL_COMMAND.read().unwrap().send(Command::AddPackedFilesFromPackFile(pack_key.clone(), pack_file_view.pack_file_path.read().unwrap().to_string_lossy().to_string(), item_types));
-                    let response = CentralCommand::recv(&receiver);
-                    match response {
-                        Response::VecContainerPath(paths_ok) => {
+                    let source = FileSource::Pack(pack_file_view.pack_file_path.read().unwrap().to_string_lossy().to_string());
+                    match copy_files(source, &item_types, &pack_key) {
+                        Ok(paths_ok) => {
 
                             // If any of the PackedFiles was already open (and we overwrote them) remove his view.
                             for path in &paths_ok {
@@ -104,8 +103,7 @@ impl PackFileExtraViewSlots {
                             pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_ok.to_vec()), DataSource::PackFile, &pack_key);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                         },
-                        Response::Error(error) => show_dialog(app_ui.main_window(), error, false),
-                        _ => panic!("{THREADS_COMMUNICATION_ERROR}{response:?}"),
+                        Err(error) => show_dialog(app_ui.main_window(), error, false),
                     }
 
                     // Re-enable the Main Window and trigger a re-filtering of the open Pack TreeView.

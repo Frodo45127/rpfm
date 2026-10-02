@@ -144,31 +144,6 @@ async fn dispatch(state: &mut SessionState, command: Command, sender: &Unbounded
         // Cleaning is the last resort when saving fails, so it doesn't check the pack's type.
 
         // Files.
-        Command::NewPackedFile(pack_key, path, new_file) => reply(sender, state.new_file(&pack_key, &path, new_file), done),
-        Command::AddPackedFiles(pack_key, source_paths, destination_paths, paths_to_ignore) => {
-            let result = state.add_files_from_disk(&pack_key, &source_paths, &destination_paths, &paths_to_ignore, settings.bool(INCLUDE_BASE_FOLDER_ON_ADD_FROM_FOLDER));
-            reply(sender, result, |(added_paths, error)| Response::VecContainerPathOptionString(added_paths, error));
-        }
-        Command::AddPackedFilesFromPackFile(target_key, source_key, paths) => reply(sender, state.add_files_from_pack(&target_key, &source_key, &paths), Response::VecContainerPath),
-        Command::AddPackedFilesFromPackFileToAnimpack(source_key, anim_pack_key, anim_pack_path, paths) => reply(sender, state.add_files_to_animpack(&source_key, &anim_pack_key, &anim_pack_path, &paths), Response::VecContainerPath),
-        Command::AddPackedFilesFromAnimpack(anim_pack_key, dest_key, data_source, anim_pack_path, paths) => reply(sender, state.add_files_from_animpack(&anim_pack_key, &dest_key, data_source, &anim_pack_path, &paths), Response::VecContainerPath),
-        Command::DeleteFromAnimpack(pack_key, anim_pack_path, paths) => reply(sender, state.delete_from_animpack(&pack_key, &anim_pack_path, &paths), done),
-        Command::DeletePackedFiles(pack_key, paths) => reply(sender, state.delete_files(&pack_key, &paths), Response::VecContainerPath),
-        Command::CopyPackedFiles(paths_by_pack) => {
-            state.copy_files(&paths_by_pack, false);
-            success(sender);
-        }
-        Command::CutPackedFiles(paths_by_pack) => {
-            state.copy_files(&paths_by_pack, true);
-            success(sender);
-        }
-        Command::PastePackedFiles(target_key, destination_path) => reply(sender, state.paste_files(&target_key, &destination_path), |(added, deleted)| Response::VecContainerPathBTreeMapStringVecContainerPath(added, deleted)),
-        Command::DuplicatePackedFiles(pack_key, paths) => reply(sender, state.duplicate_files(&pack_key, &paths), Response::VecContainerPath),
-        Command::ExtractPackedFiles(pack_key, paths_by_source, destination, as_tsv) => {
-            let result = state.extract_files(&pack_key, &paths_by_source, &destination, as_tsv, extract_options);
-            reply(sender, result, |paths| Response::StringVecPathBuf("files_extracted_success".to_owned(), paths));
-        }
-        Command::RenamePackedFiles(pack_key, renames) => reply(sender, state.rename_files(&pack_key, &renames), Response::VecContainerPathContainerPath),
         Command::OpenPackedFileInExternalProgram(pack_key, data_source, path) => reply(sender, state.open_in_external_program(&pack_key, data_source, &path, extract_options), Response::PathBuf),
         Command::SavePackedFileFromExternalView(pack_key, path, external_path) => reply(sender, state.save_file_from_external(&pack_key, &path, &external_path), done),
         Command::CleanCache(pack_key, paths) => reply(sender, state.clean_cache(&pack_key, &paths, disable_uuid_regeneration), done),
@@ -177,7 +152,6 @@ async fn dispatch(state: &mut SessionState, command: Command, sender: &Unbounded
             reply(sender, result, |(added, deleted)| Response::VecContainerPathVecContainerPath(added, deleted));
         }
         Command::GetRFilesFromAllSources(paths, lowercase_paths) => send(sender, Response::HashMapDataSourceHashMapStringRFile(state.files_from_all_sources(&paths, lowercase_paths))),
-        Command::ImportDependenciesToOpenPackFile(pack_key, paths_by_source) => reply(sender, state.import_dependencies(&pack_key, &paths_by_source), |(added, not_added)| Response::VecContainerPathVecString(added, not_added)),
 
         // Tables.
 

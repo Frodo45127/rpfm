@@ -30,17 +30,18 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 pub use rpfm_ipc::messages::{Command, Response, Message as IpcMessage};
 use rpfm_ipc::api::{ApiError, Request, RpcOutcome, RpcRequest, RpcResponse};
 use rpfm_ipc::api::jobs::{JobStarted, JobState, WaitForJob};
-use rpfm_ipc::api::files::{FileData, FileRef, FileSource, GetFilesInfo, ListFiles, ReadFile, ReadFormat, WriteFile};
+use rpfm_ipc::api::files::{CopyFiles, FileData, FileRef, FileSource, GetFilesInfo, ListFiles, ReadFile, ReadFormat, WriteFile};
 use rpfm_ipc::api::packs::{GetPackInfo, PackDetails, PackSummary, SavePack};
 use rpfm_ipc::helpers::{ContainerInfo, RFileInfo};
 
-use rpfm_lib::files::RFileDecoded;
+use rpfm_lib::files::{ContainerPath, RFileDecoded};
 use rpfm_ipc::api::session::{Configure, Disconnect, GetSessionStatus};
 use rpfm_ipc::messages::OperationalMode;
 
 use rpfm_telemetry::*;
 
 use crate::CENTRAL_COMMAND;
+use crate::utils::file_paths;
 use crate::settings_ui::backend::{mark_settings_changed, take_changed_settings};
 
 pub mod server;
@@ -406,6 +407,16 @@ pub fn file_paths_in_all_sources(folder: &str) -> Vec<String> {
     });
 
     paths.map(|file| file.path).collect::<BTreeSet<_>>().into_iter().collect()
+}
+
+/// Copies files and folders from any source into an open pack, keeping their paths.
+///
+/// # Returns
+///
+/// The paths of the files added to the pack.
+pub fn copy_files(from: FileSource, paths: &[ContainerPath], to_pack: &str) -> Result<Vec<ContainerPath>> {
+    let request = CopyFiles { from, paths: paths.iter().map(|path| path.path_raw().to_owned()).collect(), to_pack: to_pack.to_owned() };
+    Ok(file_paths(call_api(&request)?.added))
 }
 
 /// Returns the packs open in the session.

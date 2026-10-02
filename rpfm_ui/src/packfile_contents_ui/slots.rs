@@ -29,12 +29,14 @@ use qt_core::{SlotNoArgs, SlotOfBool, SlotOfQModelIndexInt, SlotOfQString};
 use anyhow::{anyhow, Result};
 use itertools::Itertools;
 
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::fs::{copy, remove_dir_all, remove_file, DirBuilder};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use std::sync::{LazyLock, RwLock};
 
 
+use rpfm_ipc::api::files::{DeleteFiles, DuplicateFiles, FileRename, FileSource, PasteFiles, RenameFiles};
 use rpfm_ipc::api::packs::{ClosePack, PackDetails, UpdatePack};
 use rpfm_ipc::api::tables::{MergeTables, TableUpgraded, TablesMerged, UpgradeTable};
 use rpfm_ipc::api::tools::{GenerateMissingLocs, ListPluginScripts, LiveExport, MapTile, PackMap, PatchSiegeAi};
@@ -52,7 +54,7 @@ use rpfm_ui_common::clone;
 use crate::app_ui::AppUI;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
-use crate::communications::{Command, Response, call_api, call_api_async, send_ipc_command, send_ipc_command_result, pack_details, pack_operational_mode, open_packs, save_pack, folder_exists};
+use crate::communications::{call_api, call_api_async, pack_details, pack_operational_mode, open_packs, save_pack, folder_exists, copy_files};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::lua_tests_ui;
 use crate::pack_tree::{PackTree, TreeViewOperation};
@@ -65,6 +67,9 @@ use crate::UI_STATE;
 use crate::ui_state::OperationalMode;
 use crate::pack_tree::{BuildData, new_pack_file_tooltip};
 use crate::utils::{check_regex, file_paths, log_to_status_bar, qtr, show_dialog, show_message_info, tr, tre};
+
+/// Files copied or cut from the pack tree, waiting to be pasted.
+static CLIPBOARD: LazyLock<RwLock<Clipboard>> = LazyLock::new(|| RwLock::new(Clipboard::default()));
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -230,7 +235,7 @@ impl PackFileContentsSlots {
 
                 // Send the renaming data to the Background Thread, wait for a response.
                 let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                match send_ipc_command_result(Command::RenamePackedFiles(pack_key.clone(), renaming_data_background.to_vec()), response_extractor!(Response::VecContainerPathContainerPath)) {
+                match rename_files(&pack_key, &renaming_data_background) {
                     Ok(renamed_items) => {
                         let mut path_changes = vec![];
 
@@ -1109,7 +1114,7 @@ impl PackFileContentsSlots {
                 }
 
                 app_ui.toggle_main_window(false);
-                match send_ipc_command_result(Command::AddPackedFilesFromPackFile(target_key.clone(), source_key, selected_items), response_extractor!(Response::VecContainerPath)) {
+                match copy_files(FileSource::Pack(source_key), &selected_items, &target_key) {
                     Ok(paths_ok) => {
 
                         // If any of the files were already open in the target pack, reload their views.
@@ -1203,7 +1208,11 @@ impl PackFileContentsSlots {
                     let mut selected_items = <QPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
 
                     let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    let items = send_ipc_command(Command::DeletePackedFiles(pack_key.clone(), selected_items.clone()), response_extractor!(Response::VecContainerPath));
+                    let request = DeleteFiles { pack: pack_key.clone(), paths: selected_items.iter().map(|path| path.path_raw().to_owned()).collect() };
+                    let items = match call_api(&request) {
+                        Ok(deleted) => file_paths(deleted.deleted),
+                        Err(error) => return show_dialog(app_ui.main_window(), error, false),
+                    };
 
                     selected_items.extend_from_slice(&items);
                     let items = ContainerPath::dedup(&selected_items);
@@ -1297,7 +1306,7 @@ impl PackFileContentsSlots {
 
                             // Send the renaming data to the Background Thread, wait for a response.
                             let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                            match send_ipc_command_result(Command::RenamePackedFiles(pack_key.clone(), renaming_data_background.to_vec()), response_extractor!(Response::VecContainerPathContainerPath)) {
+                            match rename_files(&pack_key, &renaming_data_background) {
                                 Ok(renamed_items) => {
                                     let mut path_changes = vec![];
 
@@ -1379,10 +1388,8 @@ impl PackFileContentsSlots {
                     return;
                 }
 
-                match send_ipc_command_result(Command::CopyPackedFiles(paths_by_pack), response_extractor!()) {
-                    Ok(()) => log_to_status_bar(&tr("copy_success")),
-                    Err(error) => show_dialog(app_ui.main_window(), error, false),
-                }
+                *CLIPBOARD.write().unwrap() = Clipboard::new(paths_by_pack, false);
+                log_to_status_bar(&tr("copy_success"));
             }
         ));
 
@@ -1397,10 +1404,8 @@ impl PackFileContentsSlots {
                     return;
                 }
 
-                match send_ipc_command_result(Command::CutPackedFiles(paths_by_pack), response_extractor!()) {
-                    Ok(()) => log_to_status_bar(&tr("cut_success")),
-                    Err(error) => show_dialog(app_ui.main_window(), error, false),
-                }
+                *CLIPBOARD.write().unwrap() = Clipboard::new(paths_by_pack, true);
+                log_to_status_bar(&tr("cut_success"));
             }
         ));
 
@@ -1428,8 +1433,21 @@ impl PackFileContentsSlots {
                 };
 
                 let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                match send_ipc_command_result(Command::PastePackedFiles(pack_key.clone(), destination_path), response_extractor!(Response::VecContainerPathBTreeMapStringVecContainerPath, added_paths, deleted_by_pack)) {
-                    Ok((added_paths, deleted_by_pack)) => {
+                let request = {
+                    let clipboard = CLIPBOARD.read().unwrap();
+                    PasteFiles { sources: clipboard.sources.clone(), cut: clipboard.cut, to_pack: pack_key.clone(), destination: destination_path }
+                };
+
+                match call_api(&request) {
+                    Ok(pasted) => {
+
+                        // Cut files can only be pasted once.
+                        if request.cut {
+                            *CLIPBOARD.write().unwrap() = Clipboard::default();
+                        }
+
+                        let added_paths = file_paths(pasted.added);
+                        let deleted_by_pack = pasted.deleted.into_iter().map(|(pack_key, paths)| (pack_key, file_paths(paths))).collect::<BTreeMap<_, _>>();
                         if !added_paths.is_empty() {
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(added_paths.to_vec()), DataSource::PackFile, &pack_key);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
@@ -1489,7 +1507,8 @@ impl PackFileContentsSlots {
                 }
 
                 let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                match send_ipc_command_result(Command::DuplicatePackedFiles(pack_key.clone(), file_items), response_extractor!(Response::VecContainerPath)) {
+                let request = DuplicateFiles { pack: pack_key.clone(), paths: file_items.iter().map(|path| path.path_raw().to_owned()).collect() };
+                match call_api(&request).map(|added| file_paths(added.added)) {
                     Ok(added_paths) => {
                         if !added_paths.is_empty() {
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(added_paths.to_vec()), DataSource::PackFile, &pack_key);
@@ -2523,4 +2542,38 @@ fn open_containing_folder(pack_key: &str) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Files copied or cut from the pack tree.
+#[derive(Debug, Default)]
+struct Clipboard {
+
+    /// Paths of the files and folders, by key of their pack.
+    sources: BTreeMap<String, Vec<String>>,
+
+    /// If the files are removed from their packs when pasted.
+    cut: bool,
+}
+
+impl Clipboard {
+
+    /// Creates a clipboard with the selected paths of each pack.
+    fn new(paths_by_pack: BTreeMap<String, Vec<ContainerPath>>, cut: bool) -> Self {
+        let sources = paths_by_pack.into_iter()
+            .map(|(pack_key, paths)| (pack_key, paths.iter().map(|path| path.path_raw().to_owned()).collect()))
+            .collect();
+
+        Self { sources, cut }
+    }
+}
+
+/// Renames files and folders of an open pack.
+///
+/// # Returns
+///
+/// The old and new path of each renamed file.
+fn rename_files(pack_key: &str, renames: &[(ContainerPath, ContainerPath)]) -> Result<Vec<(ContainerPath, ContainerPath)>> {
+    let renames = renames.iter().map(|(from, to)| FileRename { from: from.path_raw().to_owned(), to: to.path_raw().to_owned() }).collect();
+    let renamed = call_api(&RenameFiles { pack: pack_key.to_owned(), renames })?.renamed;
+    Ok(renamed.into_iter().map(|rename| (ContainerPath::File(rename.from), ContainerPath::File(rename.to))).collect())
 }

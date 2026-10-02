@@ -27,7 +27,7 @@ use rpfm_ipc::api::files::{
     AddToAnimPack, DeleteFromAnimPack, ExtractFromAnimPack, FileContents, FileData, FileRef, ReadFile, ReadFormat, WriteFile,
     AddFilesFromDisk, ASSEMBLY_KIT_TABLE_FILE_NAME, CopyFiles, CreateFile, DEFAULT_FILES_LIMIT, DeleteFiles, DuplicateFiles, ExtractFiles,
     FileEntry, FileList, FileRename, FileSource, FilesAdded, FilesDeleted, FilesExtracted, FilesRenamed, ListFiles, NewFileKind, RenameFiles,
-    ViewData,
+    FilesPasted, PasteFiles, ViewData,
 };
 use rpfm_ipc::api::tables::GetTableDefinition;
 use rpfm_ipc::helpers::{DataSource, NewFile, RFileInfo};
@@ -41,7 +41,7 @@ use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::games::{GameInfo, VanillaDBTableNameLogic};
 use rpfm_lib::schema::Schema;
 
-use super::{Clipboard, ClipboardEntry, ExtractOptions, SessionState, decode_tables, encode_extra_data, loaded_schema, pack, pack_mut};
+use super::{ExtractOptions, PasteEntry, SessionState, decode_tables, encode_extra_data, loaded_schema, pack, pack_mut};
 
 /// File types the server never tries to decode.
 const UNDECODEABLE_FILE_TYPES: [FileType; 9] = [
@@ -450,41 +450,31 @@ impl SessionState {
         Ok(paths.iter().flat_map(|path| pack.remove(path)).collect())
     }
 
-    /// Puts files of the open packs in the clipboard, replacing its previous contents.
-    ///
-    /// # Arguments
-    ///
-    /// * `paths_by_pack` - Paths of the files and folders to put in the clipboard, by pack key.
-    /// * `cut` - If the files are removed from their packs when pasted.
-    pub fn copy_files(&mut self, paths_by_pack: &PathsByPack, cut: bool) {
-        let entries = paths_by_pack.iter()
-            .filter_map(|(pack_key, paths)| self.packs.get(pack_key).map(|pack| clipboard_entries_from_paths(pack, paths, pack_key)))
-            .flatten()
-            .collect();
-
-        self.clipboard = Clipboard { entries, is_cut: cut };
-    }
-
-    /// Pastes the files in the clipboard into a pack. Cut files are removed from their packs, and the clipboard emptied.
-    ///
-    /// # Arguments
-    ///
-    /// * `target_key` - Key of the pack to paste the files into.
-    /// * `destination_path` - Folder to paste the files into. Empty for the root of the pack.
+    /// Copies or moves files and folders of open packs into a folder of an open pack. Cut files are removed from
+    /// their packs before pasting, so they can be pasted where they were.
     ///
     /// # Returns
     ///
     /// The paths added to the target pack, and the paths removed from each source pack if the files were cut.
-    pub fn paste_files(&mut self, target_key: &str, destination_path: &str) -> Result<(Vec<ContainerPath>, PathsByPack)> {
-        if self.clipboard.entries.is_empty() {
-            return Err(anyhow!("Clipboard is empty."));
+    pub fn paste_files(&mut self, request: &PasteFiles) -> Result<FilesPasted> {
+        let target_key = &request.to_pack;
+        pack(&self.packs, target_key)?;
+
+        let mut entries = vec![];
+        for (pack_key, paths) in &request.sources {
+            let source_pack = pack(&self.packs, pack_key)?;
+            let paths = paths.iter().map(|path| container_path(|path| source_pack.has_file(path), path)).collect::<Vec<_>>();
+            entries.extend(paste_entries_from_paths(source_pack, &paths, pack_key));
         }
 
-        pack(&self.packs, target_key).map_err(|_| anyhow!("Target pack not found: {}", target_key))?;
+        if entries.is_empty() {
+            return Err(ApiError::InvalidParams("There are no files to paste.".to_owned()).into());
+        }
 
         // Clone the files first, so we don't hold borrows of their packs while mutating them.
-        let mut files_to_insert = Vec::with_capacity(self.clipboard.entries.len());
-        for entry in &self.clipboard.entries {
+        let destination_path = request.destination.trim_end_matches('/');
+        let mut files_to_insert = Vec::with_capacity(entries.len());
+        for entry in &entries {
             let Some(source_pack) = self.packs.get(&entry.source_pack_key) else { continue };
             let Some(file) = source_pack.files_by_paths(&[ContainerPath::File(entry.file_path.clone())], false).first().copied() else { continue };
 
@@ -500,30 +490,28 @@ impl SessionState {
             let new_path = if destination_path.is_empty() {
                 relative_path.to_string()
             } else {
-                format!("{}/{}", destination_path.trim_end_matches('/'), relative_path)
+                format!("{destination_path}/{relative_path}")
             };
 
             new_file.set_path_in_container_raw(&new_path);
             files_to_insert.push(new_file);
         }
 
-        let mut cut_deleted_by_pack = PathsByPack::new();
-        if self.clipboard.is_cut {
-            for entry in &self.clipboard.entries {
+        let mut deleted: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        if request.cut {
+            for entry in &entries {
                 if let Some(source_pack) = self.packs.get_mut(&entry.source_pack_key) {
                     let removed = source_pack.remove(&ContainerPath::File(entry.file_path.clone()));
-                    cut_deleted_by_pack.entry(entry.source_pack_key.clone()).or_default().extend(removed);
+                    deleted.entry(entry.source_pack_key.clone()).or_default().extend(raw_paths(&removed));
                 }
             }
-
-            self.clipboard = Clipboard::default();
         }
 
         let target_pack = pack_mut(&mut self.packs, target_key)?;
         let added_paths = insert_files(target_pack, files_to_insert);
         decode_tables(&mut target_pack.files_by_paths_mut(&added_paths, false), &self.schema);
 
-        Ok((added_paths, cut_deleted_by_pack))
+        Ok(FilesPasted { added: raw_paths(&added_paths), deleted })
     }
 
     /// Duplicates files in the same pack, adding a numeric suffix to their names.
@@ -911,14 +899,31 @@ impl SessionState {
     /// * `request` - What to add, and where.
     /// * `include_base_folder` - If added folders keep their own name in the pack.
     pub fn add_disk_files(&mut self, request: &AddFilesFromDisk, include_base_folder: bool) -> Result<FilesAdded> {
-        let destination = request.destination.trim_end_matches('/');
-        let destination_paths = request.paths.iter()
-            .map(|path| match path.file_name().filter(|_| path.is_file()) {
-                Some(name) if destination.is_empty() => ContainerPath::File(name.to_string_lossy().to_string()),
-                Some(name) => ContainerPath::File(format!("{destination}/{}", name.to_string_lossy())),
-                None => ContainerPath::Folder(destination.to_owned()),
-            })
-            .collect::<Vec<_>>();
+        let destination_paths = match request.destinations {
+            Some(ref destinations) => {
+                if destinations.len() != request.paths.len() {
+                    return Err(ApiError::InvalidParams("There must be one destination per path.".to_owned()).into());
+                }
+
+                request.paths.iter().zip(destinations)
+                    .map(|(path, destination)| if path.is_file() {
+                        ContainerPath::File(destination.to_owned())
+                    } else {
+                        ContainerPath::Folder(destination.trim_end_matches('/').to_owned())
+                    })
+                    .collect::<Vec<_>>()
+            }
+            None => {
+                let destination = request.destination.trim_end_matches('/');
+                request.paths.iter()
+                    .map(|path| match path.file_name().filter(|_| path.is_file()) {
+                        Some(name) if destination.is_empty() => ContainerPath::File(name.to_string_lossy().to_string()),
+                        Some(name) => ContainerPath::File(format!("{destination}/{}", name.to_string_lossy())),
+                        None => ContainerPath::Folder(destination.to_owned()),
+                    })
+                    .collect::<Vec<_>>()
+            }
+        };
 
         let ignore = if request.ignore.is_empty() { None } else { Some(request.ignore.clone()) };
         let (added, error) = self.add_files_from_disk(&request.pack, &request.paths, &destination_paths, &ignore, include_base_folder)?;
@@ -1301,11 +1306,11 @@ fn duplicate_path(pack: &Pack, path: &str) -> String {
         .expect("an unbounded range always finds a free name")
 }
 
-/// Expands the selected paths of a pack into clipboard entries, one per file.
+/// Expands the selected paths of a pack into entries to paste, one per file.
 ///
 /// - For a selected file `a/b/c`, the base path is `a/b` (parent folder), so pasting gives just `c`.
 /// - For a selected folder `a/b`, the base path is `a` (parent of folder), so pasting preserves `b/...`.
-fn clipboard_entries_from_paths(pack: &Pack, paths: &[ContainerPath], pack_key: &str) -> Vec<ClipboardEntry> {
+fn paste_entries_from_paths(pack: &Pack, paths: &[ContainerPath], pack_key: &str) -> Vec<PasteEntry> {
     paths.iter()
         .flat_map(|path| {
             let base_path = path.path_raw().rfind('/')
@@ -1314,7 +1319,7 @@ fn clipboard_entries_from_paths(pack: &Pack, paths: &[ContainerPath], pack_key: 
 
             pack.files_by_paths(from_ref(path), false)
                 .into_iter()
-                .map(move |file| ClipboardEntry {
+                .map(move |file| PasteEntry {
                     file_path: file.path_in_container_raw().to_string(),
                     base_path: base_path.clone(),
                     source_pack_key: pack_key.to_string(),

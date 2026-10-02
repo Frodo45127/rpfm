@@ -87,8 +87,6 @@ pub struct SessionState {
     /// Operational mode (Normal or MyMod) of each open pack, keyed by the same pack key as `packs`.
     pack_modes: BTreeMap<String, OperationalMode>,
 
-    /// Internal clipboard for copy/cut/paste operations.
-    clipboard: Clipboard,
 
     /// Vanilla and parent files of the selected game.
     dependencies: Dependencies,
@@ -131,16 +129,9 @@ pub struct SaveOptions {
     pub clean: bool,
 }
 
-/// Files copied or cut, waiting to be pasted.
-#[derive(Debug, Default)]
-struct Clipboard {
-    entries: Vec<ClipboardEntry>,
-    is_cut: bool,
-}
-
-/// A file in the clipboard. Only its path is stored: the file itself is cloned from its pack when pasting.
+/// A file to paste. Only its path is stored: the file itself is cloned from its pack when pasting.
 #[derive(Debug)]
-struct ClipboardEntry {
+struct PasteEntry {
 
     /// Path of the file in its pack.
     file_path: String,
@@ -180,7 +171,6 @@ impl SessionState {
             first_game_change_done: false,
             packs: BTreeMap::new(),
             pack_modes: BTreeMap::new(),
-            clipboard: Clipboard::default(),
             dependencies: Dependencies::default(),
             search: None,
             pending_startpos: None,

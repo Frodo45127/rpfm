@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 
 use serde_json::Value;
 
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use rpfm_lib::files::{FileType, RFileDecoded, text::{Text, TextFormat}};
@@ -207,6 +208,11 @@ pub struct AddFilesFromDisk {
     /// Folder of the pack to add them to. Empty for the root of the pack.
     #[serde(default)]
     pub destination: String,
+
+    /// Path in the pack of each entry of `paths`, in the same order, instead of putting them all in `destination`.
+    /// For files, it's their new path. For folders, it's the folder their contents go to.
+    #[serde(default)]
+    pub destinations: Option<Vec<String>>,
 
     /// If added folders keep their own name in the pack, instead of adding only their contents. Defaults to the server's setting.
     #[serde(default)]
@@ -600,4 +606,40 @@ pub struct FilesInfo {
 impl Request for GetFilesInfo {
     const METHOD: &'static str = "files.info";
     type Response = FilesInfo;
+}
+
+/// `files.paste`: copies or moves files and folders of open packs into a folder of an open pack.
+///
+/// Each selected file or folder is pasted with its own name under the destination folder, not with its full path.
+/// Meant for clients with a clipboard. Others should use `files.copy` and `files.rename`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PasteFiles {
+
+    /// Paths of the files and folders to paste, by key of their pack.
+    pub sources: BTreeMap<String, Vec<String>>,
+
+    /// If the files are removed from their packs, instead of copied.
+    pub cut: bool,
+
+    /// Key of the pack to paste them into.
+    pub to_pack: String,
+
+    /// Folder of the pack to paste them into. Empty for the root of the pack.
+    pub destination: String,
+}
+
+/// Result of pasting files.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FilesPasted {
+
+    /// Paths of the files added to the target pack.
+    pub added: Vec<String>,
+
+    /// Paths of the files removed from each source pack, by pack key, if they were cut.
+    pub deleted: BTreeMap<String, Vec<String>>,
+}
+
+impl Request for PasteFiles {
+    const METHOD: &'static str = "files.paste";
+    type Response = FilesPasted;
 }

@@ -48,6 +48,7 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::rc::Rc;
 
+use rpfm_ipc::api::files::{AddFilesFromDisk, ExtractFiles, FileSource, FilesAdded};
 use rpfm_ipc::api::tools::{PluginScriptRun, RunPluginScript};
 use rpfm_ipc::settings_keys::*;
 use rpfm_ipc::helpers::DataSource;
@@ -57,13 +58,13 @@ use rpfm_lib::files::{ContainerPath, pack::RESERVED_NAME_NOTES};
 use rpfm_ui_common::utils::{find_widget, load_template};
 
 use crate::app_ui::AppUI;
-use crate::communications::{Command, Response, call_api_async, send_ipc_command_result, send_ipc_command_result_async, pack_operational_mode};
+use crate::communications::{call_api_async, pack_operational_mode, call_api};
 use crate::ffi::*;
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::settings_ui::backend::{settings_bool, settings_path_buf, settings_set_bool};
 use crate::ui_state::OperationalMode;
 use crate::UI_STATE;
-use crate::utils::{add_action_to_menu, file_paths, qtr, show_dialog, show_message_info};
+use crate::utils::{add_action_to_menu, file_paths, qtr, show_dialog, show_message_info, tr};
 
 pub mod connections;
 pub mod slots;
@@ -546,8 +547,18 @@ impl PackFileContentsUI {
             Some(key) => key.to_owned(),
             None => pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default(),
         };
-        match send_ipc_command_result(Command::AddPackedFiles(pack_key.clone(), paths.to_vec(), paths_in_container.to_vec(), paths_to_ignore), response_extractor!(Response::VecContainerPathOptionString, paths, error)) {
-            Ok((paths, error)) => {
+        let request = AddFilesFromDisk {
+            pack: pack_key.clone(),
+            paths: paths.to_vec(),
+            destination: String::new(),
+            destinations: Some(paths_in_container.iter().map(|path| path.path_raw().to_owned()).collect()),
+            include_base_folder: None,
+            ignore: paths_to_ignore.unwrap_or_default(),
+        };
+
+        match call_api(&request) {
+            Ok(FilesAdded { added, error, .. }) => {
+                let paths = file_paths(added);
                 if !paths.is_empty() {
                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()), DataSource::PackFile, &pack_key);
 
@@ -749,11 +760,17 @@ impl PackFileContentsUI {
         }
 
         else {
-            let mut paths_by_source = BTreeMap::new();
-            paths_by_source.insert(DataSource::PackFile, items_to_extract);
+            let request = ExtractFiles {
+                source: FileSource::Pack(selected_pack_key),
+                paths: items_to_extract.iter().map(|path| path.path_raw().to_owned()).collect(),
+                destination: extraction_path,
+                as_tsv: extract_tables_as_tsv,
+                tsv_keys_first: None,
+            };
+
             app_ui.toggle_main_window(false);
-            match send_ipc_command_result_async(Command::ExtractPackedFiles(selected_pack_key, paths_by_source, extraction_path, extract_tables_as_tsv), response_extractor!(Response::StringVecPathBuf, result, _paths)) {
-                Ok((result, _)) => show_message_info(app_ui.message_widget(), result),
+            match call_api_async(&request) {
+                Ok(_) => show_message_info(app_ui.message_widget(), tr("files_extracted_success")),
                 Err(error) => show_dialog(app_ui.main_window(), error, false),
             }
             app_ui.toggle_main_window(true);

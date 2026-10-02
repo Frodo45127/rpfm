@@ -17,7 +17,7 @@ use serde_json::{Map, Value};
 use rpfm_ipc::api::{ApiError, Done, Request, RpcRequest, RpcResponse};
 use rpfm_ipc::api::diagnostics::{GetDiagnosticsReport, IgnoreDiagnostics, ListDiagnostics, RunDiagnostics};
 use rpfm_ipc::api::files::{
-    AddFilesFromDisk, AddToAnimPack, CopyFiles, CreateFile, DeleteFiles, DeleteFromAnimPack, DuplicateFiles, ExtractFiles, ExtractFromAnimPack, GetFilesInfo, GetViewData, ListAnimPack,
+    AddFilesFromDisk, AddToAnimPack, CopyFiles, CreateFile, DeleteFiles, DeleteFromAnimPack, DuplicateFiles, ExtractFiles, ExtractFromAnimPack, GetFilesInfo, GetViewData, PasteFiles, ListAnimPack,
     ListFiles, ReadFile, RenameFiles, WriteFile,
 };
 use rpfm_ipc::api::search::{GetSearchReport, ListSearchMatches, ReplaceSearchMatches, RunSearch};
@@ -157,6 +157,7 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         DeleteFiles::METHOD => call(params, |request: DeleteFiles| state.delete_paths(&request)),
         RenameFiles::METHOD => call(params, |request: RenameFiles| state.rename_paths(&request)),
         DuplicateFiles::METHOD => call(params, |request: DuplicateFiles| state.duplicate_paths(&request)),
+        PasteFiles::METHOD => call(params, |request: PasteFiles| state.paste_files(&request)),
         GetFilesInfo::METHOD => call(params, |request: GetFilesInfo| state.files_info(&request)),
         GetViewData::METHOD => call(params, |request: GetViewData| state.view_data(&request.file, settings.bool(ENABLE_ESF_EDITOR))),
         ExtractFiles::METHOD => call(params, |request: ExtractFiles| {

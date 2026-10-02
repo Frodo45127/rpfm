@@ -53,7 +53,7 @@
 
 use serde::{Serialize, Deserialize};
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::path::PathBuf;
 
@@ -126,113 +126,6 @@ pub enum Command {
     //-----------------------------------------------------------------------//
     // PackedFile Operations
     //-----------------------------------------------------------------------//
-
-    /// Create a new `PackedFile` inside a specific open Pack.
-    /// First field is the pack key, then path and NewFile info.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    NewPackedFile(String, String, NewFile),
-
-    /// Add one or more Files to a specific open Pack.
-    /// First field is the pack key, then source filesystem paths, destination container paths, optional paths to ignore.
-    ///
-    /// Response:
-    /// - [`Response::VecContainerPathOptionString`] (added paths, optional error message).
-    AddPackedFiles(String, Vec<PathBuf>, Vec<ContainerPath>, Option<Vec<PathBuf>>),
-
-    /// Add PackedFiles from one open pack into another.
-    /// First field is the target pack key, second is the source pack key, third is the paths to copy.
-    ///
-    /// Response:
-    /// - [`Response::VecContainerPath`] on success.
-    /// - [`Response::Error`] if source pack not found.
-    AddPackedFilesFromPackFile(String, String, Vec<ContainerPath>),
-
-    /// Add PackedFiles from a specific pack to an AnimPack, which may live in a different pack.
-    /// Fields are the source pack key, the pack key that owns the AnimPack, the animpack path,
-    /// and the container paths to copy.
-    ///
-    /// Response:
-    /// - [`Response::VecContainerPath`] on success.
-    /// - [`Response::Error`] on failure.
-    AddPackedFilesFromPackFileToAnimpack(String, String, String, Vec<ContainerPath>),
-
-    /// Add PackedFiles from an AnimPack to a specific pack, which may differ from the AnimPack's own.
-    /// Fields are the pack key that owns the AnimPack (only used when the data source is a PackFile),
-    /// the destination pack key, the data source, the animpack path, and the container paths.
-    ///
-    /// Response:
-    /// - [`Response::VecContainerPath`] on success.
-    /// - [`Response::Error`] on failure.
-    AddPackedFilesFromAnimpack(String, String, DataSource, String, Vec<ContainerPath>),
-
-    /// Delete PackedFiles from an AnimPack in a specific pack.
-    /// First field is the pack key, then animpack path and container paths.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    DeleteFromAnimpack(String, String, Vec<ContainerPath>),
-
-    /// Delete one or more PackedFiles from a specific pack.
-    /// First field is the pack key, second is the paths to delete.
-    ///
-    /// Response:
-    /// - [`Response::VecContainerPath`] (deleted paths).
-    DeletePackedFiles(String, Vec<ContainerPath>),
-
-    /// Copy one or more PackedFiles to the internal clipboard.
-    /// The field is a map of pack key to the paths to copy from that pack.
-    /// This stores path references in a server-side clipboard for later pasting.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    CopyPackedFiles(BTreeMap<String, Vec<ContainerPath>>),
-
-    /// Cut one or more PackedFiles to the internal clipboard.
-    /// Same as copy, but the files will be removed from the source pack on paste.
-    /// The field is a map of pack key to the paths to cut from that pack.
-    ///
-    /// Response:
-    /// - [`Response::Success`] on success.
-    /// - [`Response::Error`] on failure.
-    CutPackedFiles(BTreeMap<String, Vec<ContainerPath>>),
-
-    /// Paste PackedFiles from the internal clipboard into a pack.
-    /// First field is the target pack key, second is the destination folder path.
-    ///
-    /// Response:
-    /// - [`Response::VecContainerPathVecContainerPathString`] (added paths, cut-deleted paths, source pack key) on success.
-    /// - [`Response::Error`] on failure.
-    PastePackedFiles(String, String),
-
-    /// Duplicate one or more PackedFiles in-place within the same pack.
-    /// First field is the pack key, second is the paths to duplicate.
-    /// Files are cloned with a numeric suffix added to avoid name collisions.
-    ///
-    /// Response:
-    /// - [`Response::VecContainerPath`] (new duplicated paths) on success.
-    /// - [`Response::Error`] on failure.
-    DuplicatePackedFiles(String, Vec<ContainerPath>),
-
-    /// Extract one or more PackedFiles from a pack.
-    /// First field is the pack key, then paths by data source, extraction path, whether to export tables as TSV.
-    ///
-    /// Response:
-    /// - [`Response::StringVecPathBuf`] on success.
-    /// - [`Response::Error`] on failure.
-    ExtractPackedFiles(String, BTreeMap<DataSource, Vec<ContainerPath>>, PathBuf, bool),
-
-    /// Rename one or more PackedFiles in a specific pack.
-    /// First field is the pack key, second is a Vec with original and new ContainerPaths.
-    ///
-    /// Response:
-    /// - [`Response::VecContainerPathContainerPath`] on success.
-    /// - [`Response::Error`] on failure.
-    RenamePackedFiles(String, Vec<(ContainerPath, ContainerPath)>),
 
     //-----------------------------------------------------------------------//
     // Dependency Commands
@@ -313,14 +206,6 @@ pub enum Command {
     //-----------------------------------------------------------------------//
     // Navigation Commands
     //-----------------------------------------------------------------------//
-
-    /// Import files from dependencies into a specific open PackFile.
-    /// First field is the pack key, second is the paths by data source.
-    ///
-    /// Response:
-    /// - [`Response::VecContainerPathVecString`] (added paths, failed paths).
-    /// - [`Response::Error`] on failure.
-    ImportDependenciesToOpenPackFile(String, BTreeMap<DataSource, Vec<ContainerPath>>),
 
     /// Save PackedFiles to a specific PackFile and optionally optimize.
     /// First field is the pack key, then files to save, whether to optimize.
@@ -420,12 +305,6 @@ pub enum Response {
 
     HashMapDataSourceHashMapStringRFile(HashMap<DataSource, HashMap<String, RFile>>),
     PathBuf(PathBuf),
-    StringVecPathBuf(String, Vec<PathBuf>),
-    VecContainerPath(Vec<ContainerPath>),
-    VecContainerPathContainerPath(Vec<(ContainerPath, ContainerPath)>),
-    VecContainerPathOptionString(Vec<ContainerPath>, Option<String>),
     VecContainerPathVecContainerPath(Vec<ContainerPath>, Vec<ContainerPath>),
-    VecContainerPathBTreeMapStringVecContainerPath(Vec<ContainerPath>, BTreeMap<String, Vec<ContainerPath>>),
-    VecContainerPathVecString(Vec<ContainerPath>, Vec<String>),
     VecField(Vec<Field>),
 }
