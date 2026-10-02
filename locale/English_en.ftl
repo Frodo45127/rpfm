@@ -2020,7 +2020,8 @@ optimizer_instructions_label = <h3>Are you sure you want to optimize this PackFi
             <ul>
                 <li><b>Remove files which are direct copies without changes from parent/vanilla files.</li>
                 <li><b>Remove duplicated files</b> whose path only differs in casing, when their contents are identical.</li>
-                <li><b>Compress the Pack</b> using the most modern format the game supports, so the next save writes a compressed Pack.li>
+                <li><b>Compress the Pack</b> using the most modern format the game supports, so the next save writes a compressed Pack.</li>
+                <li><b>Encrypt the Pack</b>, enabling both index and data encryption, so the next save writes an encrypted Pack. Only available in games whose Packs support encryption.</li>
             </ul>
             <li><b>DB/Loc Files:</b></li>
             <ul>
