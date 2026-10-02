@@ -159,7 +159,7 @@ pub trait PackTree {
     unsafe fn get_pack_key_from_index(&self, index: CppBox<QModelIndex>) -> Option<String>;
 
     /// Returns the pack key of the currently selected item in this `TreeView`, falling back to the first
-    /// editable pack root in the underlying source model if nothing is selected. Use this on any tree
+    /// editable or MyMod pack root in the underlying source model if nothing is selected. Use this on any tree
     /// view bound to the global PackFile contents model (the dock tree, the AnimPack view's left panel,
     /// etc.) to resolve a per-tree pack key without leaking the dock's selection into other views.
     unsafe fn pack_key_from_selection_or_first(&self) -> Option<String>;
@@ -790,7 +790,8 @@ impl PackTree for QPtr<QTreeView> {
         let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
         for row in 0..model.row_count_0a() {
             let item = model.item_1a(row);
-            if item.data_1a(ROOT_NODE_TYPE).to_int_0a() == ROOT_NODE_TYPE_EDITABLE_PACKFILE {
+            let root_type = item.data_1a(ROOT_NODE_TYPE).to_int_0a();
+            if root_type == ROOT_NODE_TYPE_EDITABLE_PACKFILE || root_type == ROOT_NODE_TYPE_MYMOD_PACKFILE {
                 let variant = item.data_1a(ITEM_PACK_KEY);
                 if variant.is_valid() && !variant.is_null() {
                     let key = variant.to_string().to_std_string();

@@ -2239,7 +2239,9 @@ pub async fn background_loop(mut receiver: UnboundedReceiver<(UnboundedSender<Re
                             let new_name = format!("{date}.pack");
                             let new_path = folder.join(new_name);
                             let extra_data = Some(EncodeableExtraData::new_from_game_info_and_settings(game, pack.compression_format(), settings.bool("disable_uuid_regeneration_on_db_tables")));
-                            let _ = pack.clone().save(Some(&new_path), game, &extra_data);
+                            if let Err(error) = pack.clone().save(Some(&new_path), game, &extra_data) {
+                                error!("Failed to autosave the pack {}: {}", pack_key, error);
+                            }
 
                             // If we have more than the limit, delete the older one.
                             if let Ok(files) = files_in_folder_from_newest_to_oldest(&folder) {
