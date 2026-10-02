@@ -1232,7 +1232,7 @@ tools_unit_battle_visibility = Battle Visibility
 tools_unit_multiplayer = Multiplayer
 tools_unit_extra_data = Extra Data
 copy_unit = Copy Unit
-generate_dependencies_cache_in_progress_message = Generating Dependencies Cache... this may take a while.
+generate_dependencies_cache_in_progress_message = Generating dependencies cache. This can take a while, please wait.
 copy_unit_instructions = <p>Write the new unit's key in the input field, and hit accept. Also, note:</p>
     <ul>
         <li>Existing unit keys are not valid.</li>

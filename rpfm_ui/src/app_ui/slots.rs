@@ -17,6 +17,7 @@ use qt_widgets::QDialog;
 use qt_widgets::{QFileDialog, q_file_dialog::FileMode};
 use qt_widgets::QGridLayout;
 use qt_widgets::{QMessageBox, q_message_box};
+use qt_widgets::QProgressDialog;
 use qt_widgets::QPushButton;
 use qt_widgets::QTextEdit;
 use qt_widgets::SlotOfQPoint;
@@ -40,6 +41,7 @@ use qt_core::QString;
 use qt_core::QUrl;
 use qt_core::QVariant;
 use qt_core::WidgetAttribute;
+use qt_core::WindowModality;
 
 use std::collections::BTreeMap;
 use std::panic::{AssertUnwindSafe, catch_unwind};
@@ -1202,21 +1204,11 @@ impl AppUISlots {
                         show_dialog(&app_ui.main_window, tr("generate_dependencies_cache_warn"), false);
                     }
 
-                    // If there is no problem, ere we go.
-                    app_ui.toggle_main_window(false);
-
-                    let wait_dialog = QMessageBox::from_icon2_q_string(
-                        q_message_box::Icon::Information,
-                        &qtr("rpfm_title"),
-                        &qtr("generate_dependencies_cache_in_progress_message")
-                    );
-
-                    wait_dialog.set_modal(true);
-                    wait_dialog.set_standard_buttons(q_message_box::StandardButton::NoButton.into());
-                    wait_dialog.set_parent(&app_ui.main_window);
-
-                    // Without this, platforms with native dialog integration (e.g. KDE) add their own default button, ignoring the empty StandardButtons above.
-                    wait_dialog.set_option_2a(q_message_box::Option::DontUseNativeDialog, true);
+                    // A range of 0 to 0 shows a busy bar, as the server doesn't report how far along it is. A null cancel text hides the cancel button.
+                    let wait_dialog = QProgressDialog::new_5a(&qtr("generate_dependencies_cache_in_progress_message"), &QString::new(), 0, 0, &app_ui.main_window);
+                    wait_dialog.set_window_title(&qtr("rpfm_title"));
+                    wait_dialog.set_window_modality(WindowModality::WindowModal);
+                    wait_dialog.set_minimum_duration(0);
                     wait_dialog.show();
 
                     match run_job(&GenerateDependenciesCache::default()).and_then(|_| call_api_async(&GetDependenciesInfo {})) {
@@ -1234,16 +1226,14 @@ impl AppUISlots {
                             dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Build(game_build_data), DataSource::GameFiles, "");
                             dependencies_ui.dependencies_tree_view().update_treeview(true, TreeViewOperation::Build(asskit_build_data), DataSource::AssKitFiles, "");
 
-                            wait_dialog.done(1);
+                            wait_dialog.close();
                             show_dialog(&app_ui.main_window, tr("generate_dependency_cache_success"), true)
                         },
                         Err(error) => {
-                            wait_dialog.done(1);
+                            wait_dialog.close();
                             show_dialog(&app_ui.main_window, error, false);
                         },
                     }
-
-                    app_ui.toggle_main_window(true);
                 }
             }
         ));
@@ -1930,7 +1920,7 @@ impl AppUISlots {
                     }
 
                     if request.trigger_diagnostics && settings_bool(DIAGNOSTICS_TRIGGER_ON_OPEN) {
-                        DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+                        DiagnosticsUI::check(&diagnostics_ui);
                     }
                 }
 
