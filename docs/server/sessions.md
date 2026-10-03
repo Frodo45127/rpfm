@@ -26,7 +26,7 @@ Sessions are isolated: open packs in one session aren't visible in another. This
 
 ## The MCP session
 
-MCP clients have no disconnect signal the server can rely on, and newer MCP versions have no sessions at all, so all MCP clients share one session. It's created by the first tool call, and removed after 5 minutes without tool calls. The next tool call creates a new one.
+MCP clients have no disconnect signal the server can rely on, and newer MCP versions have no sessions at all, so all MCP clients share one session. It's created by the first tool call, and removed after 5 minutes without tool calls, unless it has open packs or unfinished jobs. The next tool call creates a new one.
 
 ## Reconnection example
 

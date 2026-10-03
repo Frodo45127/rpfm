@@ -172,6 +172,9 @@ format used by all modern Total War titles.
 
 - **PackFile**: An archive containing game data files (DB tables, localisation, textures, models, etc.). \
   Mods are distributed as PackFiles.
+- **Session**: all MCP clients share one session. It's kept while it has open packs or unfinished jobs; \
+  after 5 minutes without tool calls and with nothing open, it's reset. If a tool fails because the schema \
+  or the dependencies aren't loaded after a pause, call `set_game` again.
 - **pack_key**: When you open one or more PackFiles, each gets a unique key string. Use `session_status` \
   to discover available keys. Tools working on a pack take its key as `pack`.
 - **Reading data**: `list_files`, `table_info`, `table_rows` and `table_definition` return small, \

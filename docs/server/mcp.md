@@ -10,7 +10,7 @@ The MCP endpoint uses **Streamable HTTP** transport:
 POST http://127.0.0.1:45127/mcp
 ```
 
-All MCP clients share one RPFM session, separate from the WebSocket ones, whatever MCP version they use: two MCP clients see the same selected game and open packs. The server removes it after 5 minutes without tool calls, and the next tool call starts a new one, with nothing loaded.
+All MCP clients share one RPFM session, separate from the WebSocket ones, whatever MCP version they use: two MCP clients see the same selected game and open packs. The session is kept as long as it has open packs or unfinished jobs. Otherwise, the server removes it after 5 minutes without tool calls, and the next tool call starts a new one, with nothing loaded.
 
 The MCP session starts with the settings in RPFM's `settings.json`, and can't change them.
 
@@ -22,7 +22,7 @@ The MCP session starts with the settings in RPFM's `settings.json`, and can't ch
 | Transport         | WebSocket                                        | Streamable HTTP                                     |
 | Interaction model | Call [methods](./methods.md)                     | Call named **tools**                                |
 | Slow operations   | Return a job ID, followed by `job.updated` notifications | Wait up to 45 seconds for the job, then return its state |
-| Session control   | `?session_id=` and `session.disconnect`          | One shared session, removed after 5 minutes of inactivity |
+| Session control   | `?session_id=` and `session.disconnect`          | One shared session, removed after 5 minutes of inactivity if it has no open packs or unfinished jobs |
 | Intended clients  | Custom scripts, GUIs                             | AI assistants and MCP-compatible tools              |
 
 Every tool calls one method, with the same params and result, so the [Methods](./methods.md) reference also documents the tools. The tools only cover what's useful to an assistant: methods made for the UI, like the ones returning whole decoded files, have no tool.

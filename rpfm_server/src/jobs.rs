@@ -60,6 +60,11 @@ impl Default for JobRegistry {
 
 impl JobRegistry {
 
+    /// Returns if any job is queued or running.
+    pub fn has_unfinished_jobs(&self) -> bool {
+        self.jobs.lock().unwrap().values().any(|status| !status.state.has_ended())
+    }
+
     /// Registers a new queued job.
     ///
     /// # Returns

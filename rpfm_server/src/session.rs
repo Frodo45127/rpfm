@@ -43,7 +43,8 @@
 //! and the older ones have no disconnect signal the server can rely on. The
 //! MCP session is never counted as connected; instead, the periodic cleanup
 //! task removes it once no request has been sent through it for
-//! [`DEFAULT_SESSION_TIMEOUT_SECS`]. The next MCP request creates a new one.
+//! [`DEFAULT_SESSION_TIMEOUT_SECS`], as long as it has no open packs and no
+//! unfinished jobs. The next MCP request creates a new one.
 
 use tokio::sync::mpsc::{error::SendError, unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::time::{Duration, Instant};
@@ -461,7 +462,8 @@ impl SessionManager {
     /// Returns the session shared by all MCP clients, creating it if there is none.
     ///
     /// It's never counted as connected. Instead, [`SessionManager::cleanup_expired_sessions`] removes it
-    /// once no request has been sent through it for [`DEFAULT_SESSION_TIMEOUT_SECS`].
+    /// once no request has been sent through it for [`DEFAULT_SESSION_TIMEOUT_SECS`], if it has no open
+    /// packs and no unfinished jobs.
     pub fn mcp_session(&self) -> Arc<Session> {
         let mut sessions = self.sessions.lock().unwrap();
         let existing = sessions.values()
@@ -604,8 +606,12 @@ impl SessionManager {
             for (id, managed) in sessions.iter() {
                 if managed.session.is_mcp() {
 
-                    // MCP clients have no disconnect signal, so their session is removed by inactivity.
-                    if now.duration_since(managed.session.last_activity()) >= self.timeout {
+                    // MCP clients have no disconnect signal, so their session is removed by inactivity,
+                    // unless removing it would lose work.
+                    if now.duration_since(managed.session.last_activity()) >= self.timeout
+                        && managed.session.pack_names().is_empty()
+                        && !managed.session.jobs().has_unfinished_jobs()
+                    {
                         to_remove.push(*id);
                     }
                 } else if let Some(disconnected_at) = managed.disconnected_at {
@@ -820,5 +826,31 @@ mod tests {
 
         assert!(first.is_shutdown_requested());
         assert_ne!(first.id(), second.id());
+    }
+
+    #[tokio::test]
+    async fn the_mcp_session_is_kept_while_it_has_open_packs() {
+        let manager = manager_without_timeout();
+        let session = manager.mcp_session();
+        session.add_pack_name("my_mod.pack");
+
+        manager.cleanup_expired_sessions();
+
+        assert!(!session.is_shutdown_requested());
+        assert_eq!(manager.mcp_session().id(), session.id());
+    }
+
+    #[tokio::test]
+    async fn the_mcp_session_is_kept_while_it_has_unfinished_jobs() {
+        let manager = manager_without_timeout();
+        let session = manager.mcp_session();
+        let job = session.jobs().create(RunDiagnostics::METHOD);
+
+        manager.cleanup_expired_sessions();
+        assert!(!session.is_shutdown_requested());
+
+        session.jobs().finish_cancelled(job);
+        manager.cleanup_expired_sessions();
+        assert!(session.is_shutdown_requested());
     }
 }
