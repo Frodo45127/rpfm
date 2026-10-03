@@ -481,7 +481,7 @@ pub struct ExportTsv {
 
     /// If the TSV uses the old column order, with keys first. Defaults to the server's setting.
     #[serde(default)]
-    pub keys_first: Option<bool>,
+    pub tsv_keys_first: Option<bool>,
 }
 
 /// `table.import_tsv`: replaces a table of an open pack with the contents of a TSV file, keeping its GUID.

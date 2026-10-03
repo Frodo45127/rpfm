@@ -667,7 +667,7 @@ impl TableViewSlots {
                             .ok_or_else(|| anyhow!("External files can't be exported to TSV."))
                             .and_then(|source| {
                                 let file = FileRef { source, path: packed_file_path.read().unwrap().to_string() };
-                                call_api_async(&ExportTsv { file, destination: path, keys_first: None })
+                                call_api_async(&ExportTsv { file, destination: path, tsv_keys_first: None })
                             });
 
                         if let Err(error) = result {

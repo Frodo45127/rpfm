@@ -231,7 +231,7 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         RenameKey::METHOD => call(params, |request: RenameKey| state.rename_key(&request)),
         AddKeyDeletes::METHOD => call(params, |request: AddKeyDeletes| state.add_key_deletes(&request)),
         ExportTsv::METHOD => call(params, |request: ExportTsv| {
-            let keys_first = request.keys_first.unwrap_or_else(|| settings.bool(TABLES_USE_OLD_COLUMN_ORDER_FOR_TSV));
+            let keys_first = request.tsv_keys_first.unwrap_or_else(|| settings.bool(TABLES_USE_OLD_COLUMN_ORDER_FOR_TSV));
             state.export_table_tsv(&request, keys_first).map(|_| Done {})
         }),
         ImportTsv::METHOD => call(params, |request: ImportTsv| state.import_table_tsv(&request)),
