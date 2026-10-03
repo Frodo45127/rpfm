@@ -350,7 +350,13 @@ impl Dependencies {
     ///
     /// If a file path is passed, the dependencies cache at that path will be used, replacing the currently loaded dependencies cache.
     /// If a schema is not passed, no tables/locs will be pre-decoded. Make sure to decode them later with [Dependencies::decode_tables].
+    ///
+    /// # Errors
+    ///
+    /// If the cache is missing, unreadable or outdated, the loose and parent files are still loaded,
+    /// and [RLibError::DependenciesCacheNotGeneratedorOutOfDate] is returned afterwards.
     pub fn rebuild(&mut self, schema: &Option<Schema>, parent_pack_names: &[String], file_path: Option<&Path>, game_info: &GameInfo, game_path: &Path, secondary_path: &Path) -> Result<()> {
+        let mut cache_loaded = true;
 
         // If we only want to reload the parent mods, not the full dependencies, we can skip this section.
         if let Some(file_path) = file_path {
@@ -359,9 +365,9 @@ impl Dependencies {
             *self = Self::default();
 
             // Try to load the binary file and check if it's even valid.
-            let stored_data = Self::load(file_path, schema)?;
-            if !stored_data.needs_updating(game_info, game_path)? {
-                *self = stored_data;
+            match Self::load(file_path, schema) {
+                Ok(stored_data) if !stored_data.needs_updating(game_info, game_path)? => *self = stored_data,
+                _ => cache_loaded = false,
             }
         }
 
@@ -387,7 +393,11 @@ impl Dependencies {
                 .collect::<Vec<(_,_)>>()
             ).collect::<HashMap<_,_>>();
 
-        Ok(())
+        if cache_loaded {
+            Ok(())
+        } else {
+            Err(RLibError::DependenciesCacheNotGeneratedorOutOfDate)
+        }
     }
 
     /// This function generates the dependencies cache for the game provided and returns it.
