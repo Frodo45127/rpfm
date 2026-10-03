@@ -255,8 +255,8 @@ Wrapping the methods you use gives you typed params and results. A few common on
     return this.call("pack.open", { paths });
   }
 
-  listFiles(pack: string, prefix = "", limit?: number): Promise<FileList> {
-    return this.call("files.list", { source: { pack }, prefix, limit });
+  listFiles(pack: string, pathPrefix = "", limit?: number): Promise<FileList> {
+    return this.call("files.list", { source: { pack }, path_prefix: pathPrefix, limit });
   }
 
   tableInfo(file: FileRef): Promise<TableInfo> {

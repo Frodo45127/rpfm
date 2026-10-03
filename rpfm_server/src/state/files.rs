@@ -152,7 +152,7 @@ impl SessionState {
 
     /// Returns a page of the files of a source matching the request, sorted by path.
     pub fn list_files(&self, request: &ListFiles) -> Result<FileList> {
-        let keep = |path: &str, file_type: FileType| path.starts_with(&request.prefix) &&
+        let keep = |path: &str, file_type: FileType| path.starts_with(&request.path_prefix) &&
             request.file_types.as_ref().is_none_or(|file_types| file_types.contains(&file_type));
         let entry = |file: &RFile| FileEntry { path: file.path_in_container_raw().to_owned(), file_type: file.file_type() };
 
@@ -179,7 +179,7 @@ impl SessionState {
         // In non-recursive listings, files in subfolders are replaced by their subfolder.
         let mut folders = BTreeSet::new();
         if !request.recursive {
-            let base = if request.prefix.is_empty() || request.prefix.ends_with('/') { request.prefix.clone() } else { format!("{}/", request.prefix) };
+            let base = if request.path_prefix.is_empty() || request.path_prefix.ends_with('/') { request.path_prefix.clone() } else { format!("{}/", request.path_prefix) };
             files.retain(|file| match file.path.strip_prefix(&base).and_then(|relative| relative.split_once('/')) {
                 Some((folder, _)) => {
                     folders.insert(format!("{base}{folder}"));

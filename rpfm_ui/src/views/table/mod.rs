@@ -1539,7 +1539,7 @@ impl TableView {
 
         let request = ListFiles {
             source: FileSource::Pack(pack_key),
-            prefix: format!("db/{KEY_DELETES_TABLE_NAME}/"),
+            path_prefix: format!("db/{KEY_DELETES_TABLE_NAME}/"),
             recursive: true,
             file_types: Some(vec![FileType::DB]),
             offset: 0,

@@ -1448,7 +1448,7 @@ Follow these steps in order:
    Remember the returned `key`; the other tools take it as the pack key.
 
 3. **List pack contents** – Call `list_files` with `source: {\"pack\": <pack key>}`. For big packs,
-   browse folder by folder with `recursive: false` and a `prefix`, or filter by `file_types`.
+   browse folder by folder with `recursive: false` and a `path_prefix`, or filter by `file_types`.
    Present the files to the user in a readable format.
 
 4. **Read tables** – For DB and Loc tables, call `table_info` to see their columns and row count,
@@ -1477,7 +1477,7 @@ Workflow:
 
 1. **Set the game** – `set_game` with the game key.
 2. **Open the pack** – `open_pack` → note the pack `key`.
-3. **Find the table** – `list_files` with `source: {\"pack\": <pack key>}`, `prefix: \"db/\"` and
+3. **Find the table** – `list_files` with `source: {\"pack\": <pack key>}`, `path_prefix: \"db/\"` and
    `file_types: [\"DB\"]`. To edit a vanilla table, copy it into the pack first:
    `copy_files` with `source: \"game_files\"`, its path, and the pack key as `pack`.
 4. **Inspect it** – `table_info` with `file: {\"source\": {\"pack\": <pack key>}, \"path\": <DB path>}`
@@ -1583,7 +1583,7 @@ Workflow:
    `generate_dependencies_cache` first.
 
 3. **Browse vanilla files** – `list_files` with `source: \"game_files\"` (or `\"parent_files\"`,
-   `\"assembly_kit\"`). Use `prefix: \"db/\"` and `file_types: [\"DB\"]` to list the vanilla tables.
+   `\"assembly_kit\"`). Use `path_prefix: \"db/\"` and `file_types: [\"DB\"]` to list the vanilla tables.
 
 4. **Read vanilla data** – `table_rows` with `file: {\"source\": \"game_files\", \"path\": <path>}`,
    filtering and picking columns to get only the rows you need.

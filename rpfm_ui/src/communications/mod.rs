@@ -283,7 +283,7 @@ pub fn file_exists(pack_key: &str, path: &str) -> bool {
 pub fn folder_exists(pack_key: &str, path: &str) -> bool {
     let request = ListFiles {
         source: FileSource::Pack(pack_key.to_owned()),
-        prefix: format!("{}/", path.trim_end_matches('/')),
+        path_prefix: format!("{}/", path.trim_end_matches('/')),
         recursive: true,
         file_types: None,
         offset: 0,
@@ -299,7 +299,7 @@ pub fn file_paths_in_all_sources(folder: &str) -> Vec<String> {
         .chain(open_packs().into_iter().map(|pack| FileSource::Pack(pack.key)));
 
     let paths = sources.flat_map(|source| {
-        let request = ListFiles { source, prefix: format!("{}/", folder.trim_end_matches('/')), recursive: true, file_types: None, offset: 0, limit: Some(usize::MAX) };
+        let request = ListFiles { source, path_prefix: format!("{}/", folder.trim_end_matches('/')), recursive: true, file_types: None, offset: 0, limit: Some(usize::MAX) };
         call_api(&request).map(|list| list.files).unwrap_or_default()
     });
 

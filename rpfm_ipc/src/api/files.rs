@@ -72,7 +72,7 @@ pub struct ListFiles {
 
     /// Only files whose path starts with this are listed.
     #[serde(default)]
-    pub prefix: String,
+    pub path_prefix: String,
 
     /// If files in subfolders are listed. If `false`, the subfolders are listed instead.
     #[serde(default = "default_true")]

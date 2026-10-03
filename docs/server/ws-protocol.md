@@ -112,7 +112,7 @@ ws.onmessage = (event) => {
 
 ws.onopen = async () => {
   const pack = await call("pack.open", { paths: ["/path/to/my_mod.pack"] });
-  const files = await call("files.list", { source: { pack: pack.key }, prefix: "db/", limit: 20 });
+  const files = await call("files.list", { source: { pack: pack.key }, path_prefix: "db/", limit: 20 });
   console.log(files.total, files.files);
 };
 ```
