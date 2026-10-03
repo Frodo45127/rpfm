@@ -307,7 +307,7 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         InitMyMod::METHOD => call(params, |request: InitMyMod| state.init_mymod(&settings.path_buf(MYMOD_BASE_PATH), &request)),
         RunLuaTests::METHOD => call(params, |request: RunLuaTests| {
             context.report_stage("Running the tests");
-            let report = state.lua_run_tests(&request.source, request.campaign, settings)?;
+            let report = state.lua_run_tests(&request.code, request.campaign, settings)?;
             Ok(LuaTestResults { report: serde_json::to_value(report)? })
         }),
         GetStartposCampaigns::METHOD => call(params, |request: GetStartposCampaigns| state.startpos_campaigns(&request.pack)),

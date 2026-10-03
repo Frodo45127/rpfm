@@ -132,7 +132,7 @@ fn run_test_file(pack_key: &str, path: &str) -> Result<LuaTestReport> {
         _ => return Err(anyhow!("The file {path} is not a text file.")),
     };
 
-    let results = run_job(&RunLuaTests { source, campaign: None })?;
+    let results = run_job(&RunLuaTests { code: source, campaign: None })?;
     serde_json::from_value(results.report).map_err(From::from)
 }
 

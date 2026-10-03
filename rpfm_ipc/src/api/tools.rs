@@ -220,7 +220,7 @@ pub struct MyModCreated {
 pub struct RunLuaTests {
 
     /// Code of the Lua test file.
-    pub source: String,
+    pub code: String,
 
     /// Campaign whose vanilla scripts to load, like `main_warhammer`. If not set, only the script libraries and the mods are loaded.
     #[serde(default)]
