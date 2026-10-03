@@ -38,10 +38,10 @@ pub enum OperationalMode {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct PackSummary {
 
-    /// Key identifying the pack in every method that works on it.
+    /// Key identifying the pack in every method that works on it, like `pack_1`. It never changes while the pack is open.
     pub key: String,
 
-    /// File name of the pack.
+    /// File name of the pack, like `my_mod.pack`.
     pub name: String,
 
     /// Path of the pack on disk, if it's saved there.
@@ -130,7 +130,7 @@ pub struct NewPack {}
 #[serde(deny_unknown_fields)]
 pub struct OpenPack {
 
-    /// Paths of the packs on disk. The first one gives the pack its key.
+    /// Paths of the packs on disk. If there are more than one, the merged pack has no path, and is named after the first one.
     pub paths: Vec<PathBuf>,
 
     /// If file data is read from disk only when needed. Defaults to the server's setting.

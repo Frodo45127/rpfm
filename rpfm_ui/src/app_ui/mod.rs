@@ -3919,13 +3919,8 @@ impl AppUI {
                 if show_pack_prefix && file_view.data_source() == DataSource::PackFile {
                     let pack_key = file_view.pack_key_copy();
                     if !pack_key.is_empty() {
-                        // Prefer the pack's live display name; fall back to the key's file name.
-                        let pack_name = pack_name_by_key.get(&pack_key).cloned().unwrap_or_else(||
-                            std::path::Path::new(&pack_key)
-                                .file_name()
-                                .map(|n| n.to_string_lossy().to_string())
-                                .unwrap_or_else(|| pack_key.clone())
-                        );
+                        // Prefer the pack's live display name; fall back to its key.
+                        let pack_name = pack_name_by_key.get(&pack_key).cloned().unwrap_or(pack_key);
                         name.push_str(&pack_name);
                         name.push_str(": ");
                     }

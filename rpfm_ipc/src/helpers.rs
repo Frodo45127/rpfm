@@ -300,11 +300,9 @@ impl From<&PackDetails> for ContainerInfo {
         bitmask.set(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS, details.index_includes_timestamp);
         bitmask.set(PFHFlags::HAS_EXTENDED_HEADER, details.extended_header);
 
-        // Packs never saved have no name, like in the conversion from packs.
-        let file_name = if details.summary.name.is_empty() { "new_file.pack" } else { &details.summary.name };
-
+        // Packs not saved on disk have no path.
         Self {
-            file_name: file_name.to_owned(),
+            file_name: details.summary.name.clone(),
             file_path: details.summary.path.clone().unwrap_or_default(),
             pfh_version: details.version,
             pfh_file_type: details.summary.pack_type,

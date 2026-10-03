@@ -43,8 +43,8 @@ const DEFAULT_PACK_STEM: &str = "new_pack";
 /// Extension appended to [`DEFAULT_PACK_STEM`] when materialising a new Pack's filename.
 const DEFAULT_PACK_EXT: &str = ".pack";
 
-/// Key of the pack with all the CA packs of the selected game merged.
-const CA_PACKS_KEY: &str = "CA PackFiles";
+/// Name of the pack with all the CA packs of the selected game merged.
+const CA_PACKS_NAME: &str = "CA PackFiles";
 
 impl SessionState {
 
@@ -59,22 +59,21 @@ impl SessionState {
     /// The key of the new pack.
     pub fn new_pack(&mut self, settings: &Settings) -> String {
         let pack_version = self.game.pfh_version_by_file_type(PFHFileType::Mod);
-        let key = derive_new_pack_name(&self.packs);
-        let mut pack = Pack::new_with_name_and_version(&key, pack_version);
+        let name = derive_new_pack_name(&self.packs);
+        let mut pack = Pack::new_with_name_and_version(&name, pack_version);
 
         if let Some(version_number) = self.game.game_version_number(&settings.path_buf(self.game.key())) {
             pack.set_game_version(version_number);
         }
 
-        self.insert_pack(key.clone(), pack);
-        key
+        self.insert_pack(pack)
     }
 
     /// Opens one or more packs, merged into a single one.
     ///
     /// # Arguments
     ///
-    /// * `paths` - Paths of the packs to open. The first one gives the merged pack its key.
+    /// * `paths` - Paths of the packs to open. If there are more than one, the merged pack has no path, and is named after the first one.
     /// * `lazy_loading` - If file data should be read from disk only when needed.
     ///
     /// # Returns
@@ -85,26 +84,23 @@ impl SessionState {
     ///
     /// Fails if the first pack is already open, or if any of them can't be read.
     pub fn open_packs(&mut self, paths: &[PathBuf], lazy_loading: bool) -> Result<(String, ContainerInfo)> {
-        let key = match paths.first() {
-            Some(first_path) => first_path.to_string_lossy().to_string(),
-            None => format!("{}{}", DEFAULT_PACK_STEM, DEFAULT_PACK_EXT),
-        };
-
-        let already_open = paths.first().is_some_and(|first_path| {
+        if let Some(path) = paths.first().filter(|first_path| {
             let normalized = first_path.to_string_lossy().replace('\\', "/");
             self.packs.values().any(|pack| pack.disk_file_path() == normalized.as_str())
-        });
-
-        if already_open {
-            return Err(anyhow!("Pack '{}' is already open. Close it first if you want to reopen it.", key));
+        }) {
+            return Err(anyhow!("Pack '{}' is already open. Close it first if you want to reopen it.", path.display()));
         }
 
         let mut pack = Pack::read_and_merge(paths, &self.game, lazy_loading, false, false)?;
         decode_tables(&mut pack.files_by_type_mut(&[FileType::DB, FileType::Loc]), &self.schema);
 
-        let key = unique_pack_key(&key, &self.packs);
+        if paths.len() > 1 {
+            let name = paths[0].file_name().map(|name| name.to_string_lossy().to_string()).unwrap_or_default();
+            pack.set_disk_file_path(name);
+        }
+
         let info = ContainerInfo::from(&pack);
-        self.insert_pack(key.clone(), pack);
+        let key = self.insert_pack(pack);
         Ok((key, info))
     }
 
@@ -122,16 +118,16 @@ impl SessionState {
     ///
     /// Fails if they're already open, or if they can't be read.
     pub fn open_ca_packs(&mut self, settings: &Settings) -> Result<(String, ContainerInfo)> {
-        let key = CA_PACKS_KEY.to_owned();
-        if self.packs.contains_key(&key) {
-            return Err(anyhow!("Pack '{}' is already open. Close it first if you want to reopen it.", key));
+        if self.packs.values().any(|pack| pack.disk_file_path() == CA_PACKS_NAME) {
+            return Err(anyhow!("Pack '{}' is already open. Close it first if you want to reopen it.", CA_PACKS_NAME));
         }
 
         let mut pack = Pack::read_and_merge_ca_packs(&self.game, &settings.path_buf(self.game.key()))?;
         decode_tables(&mut pack.files_by_type_mut(&[FileType::DB, FileType::Loc]), &self.schema);
+        pack.set_disk_file_path(CA_PACKS_NAME.to_owned());
 
         let info = ContainerInfo::from(&pack);
-        self.insert_pack(key.clone(), pack);
+        let key = self.insert_pack(pack);
         Ok((key, info))
     }
 
@@ -139,14 +135,14 @@ impl SessionState {
     pub fn close_pack(&mut self, pack_key: &str) -> Result<()> {
         self.packs.remove(pack_key).ok_or_else(|| ApiError::PackNotFound(pack_key.to_owned()))?;
         self.pack_modes.remove(pack_key);
-        self.session.remove_pack_name(pack_key);
+        self.session.remove_pack(pack_key);
         Ok(())
     }
 
     /// Closes all open packs without saving them.
     pub fn close_all_packs(&mut self) {
         for pack_key in self.packs.keys() {
-            self.session.remove_pack_name(pack_key);
+            self.session.remove_pack(pack_key);
         }
 
         self.packs.clear();
@@ -198,6 +194,7 @@ impl SessionState {
         let extra_data = encode_extra_data(&self.game, pack.compression_format(), options.disable_uuid_regeneration);
         pack.save(path, &self.game, &extra_data)
             .map_err(|error| anyhow!("Error while trying to save the currently open PackFile: {}", error))?;
+        self.session.set_pack_name(pack_key, &pack.disk_file_name());
 
         Ok(ContainerInfo::from(&*pack))
     }
@@ -482,10 +479,18 @@ impl SessionState {
     }
 
     /// Adds a pack to the open ones, in normal mode.
-    fn insert_pack(&mut self, key: String, pack: Pack) {
-        self.session.add_pack_name(&key);
+    ///
+    /// # Returns
+    ///
+    /// The key of the pack.
+    fn insert_pack(&mut self, pack: Pack) -> String {
+        let key = format!("pack_{}", self.next_pack_number);
+        self.next_pack_number += 1;
+
+        self.session.set_pack_name(&key, &pack.disk_file_name());
         self.pack_modes.insert(key.clone(), OperationalMode::Normal);
-        self.packs.insert(key, pack);
+        self.packs.insert(key.clone(), pack);
+        key
     }
 }
 
@@ -499,36 +504,39 @@ fn note_entry(note: &Note) -> NoteEntry {
     }
 }
 
-/// Derives a unique pack name for new (unsaved) packs, like "new_pack.pack", "new_pack_2.pack", etc.
-fn derive_new_pack_name(existing_keys: &BTreeMap<String, Pack>) -> String {
+/// Derives a pack name for new (unsaved) packs no open pack has, like "new_pack.pack", "new_pack_2.pack", etc.
+fn derive_new_pack_name(packs: &BTreeMap<String, Pack>) -> String {
+    let taken = |name: &str| packs.values().any(|pack| pack.disk_file_name() == name);
     let base = format!("{}{}", DEFAULT_PACK_STEM, DEFAULT_PACK_EXT);
-    if !existing_keys.contains_key(&base) {
+    if !taken(&base) {
         return base;
     }
 
     (2..).map(|suffix| format!("{}_{}{}", DEFAULT_PACK_STEM, suffix, DEFAULT_PACK_EXT))
-        .find(|candidate| !existing_keys.contains_key(candidate))
+        .find(|candidate| !taken(candidate))
         .expect("an unbounded range always finds a free name")
 }
 
-/// Generates a pack key that doesn't conflict with any open pack, adding a " (2)"-like suffix if needed.
-fn unique_pack_key(key: &str, packs: &BTreeMap<String, Pack>) -> String {
-    if !packs.contains_key(key) {
-        return key.to_string();
+//-------------------------------------------------------------------------------//
+//                                   Tests
+//-------------------------------------------------------------------------------//
+
+#[cfg(test)]
+mod tests {
+    use crate::session::Session;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn pack_keys_are_never_reused() {
+        let mut state = SessionState::new(Session::new(1, true));
+        let settings = Settings::default();
+
+        let first = state.new_pack(&settings);
+        state.close_pack(&first).unwrap();
+        let second = state.new_pack(&settings);
+
+        assert_eq!(first, "pack_1");
+        assert_eq!(second, "pack_2");
     }
-
-    let path = Path::new(key);
-    let parent = path.parent().map(|parent| parent.to_path_buf()).unwrap_or_default();
-    let stem = path.file_stem().map(|stem| stem.to_string_lossy().to_string()).unwrap_or_else(|| key.to_string());
-    let ext = path.extension().map(|ext| ext.to_string_lossy().to_string());
-
-    (2..).map(|suffix| {
-            let candidate_name = match &ext {
-                Some(ext) => format!("{stem} ({suffix}).{ext}"),
-                None => format!("{stem} ({suffix})"),
-            };
-            parent.join(candidate_name).to_string_lossy().to_string()
-        })
-        .find(|candidate| !packs.contains_key(candidate))
-        .expect("an unbounded range always finds a free key")
 }

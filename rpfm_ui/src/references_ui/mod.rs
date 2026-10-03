@@ -40,6 +40,7 @@ use cpp_core::Ptr;
 use anyhow::Result;
 use getset::Getters;
 
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use rpfm_ipc::api::files::FileSource;
@@ -50,6 +51,7 @@ use rpfm_ipc::settings_keys::*;
 use rpfm_ui_common::utils::*;
 
 use crate::app_ui::AppUI;
+use crate::communications::open_packs;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::new_tableview_filter_safe;
@@ -137,6 +139,7 @@ impl ReferencesUI {
         self.references_table_model.clear();
 
         if !references.is_empty() {
+            let pack_names = open_packs().into_iter().map(|pack| (pack.key, pack.name)).collect::<HashMap<_, _>>();
             let blocker = QSignalBlocker::from_q_object(&self.references_table_model);
             for (index, usage) in references.iter().enumerate() {
                 let data_source = DataSource::from(&usage.location.source);
@@ -167,7 +170,7 @@ impl ReferencesUI {
                 column_number_item.set_data_1a(&QVariant::from_int(usage.location.column_index as i32));
                 row_number_item.set_data_2a(&QVariant::from_int(usage.location.row_index as i32), 2);
                 row_number_item.set_data_1a(&QVariant::from_int(usage.location.row_index as i32));
-                pack_key_item.set_text(&QString::from_std_str(pack_key));
+                pack_key_item.set_text(&QString::from_std_str(pack_names.get(pack_key).map_or(pack_key, String::as_str)));
 
                 data_source_item.set_editable(false);
                 path_item.set_editable(false);

@@ -50,7 +50,7 @@
 use tokio::sync::mpsc::{error::SendError, unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::time::{Duration, Instant};
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::{Arc, Mutex, RwLock, atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering}};
 
 use rpfm_ipc::api::{ApiError, Done, Request, RpcOutcome, RpcRequest, RpcResponse};
@@ -149,8 +149,8 @@ pub struct Session {
     /// Whether this session has been marked for shutdown.
     shutdown_requested: AtomicBool,
 
-    /// Names of the pack files currently open in this session.
-    pack_names: RwLock<Vec<String>>,
+    /// Names of the packs currently open in this session, by pack key.
+    pack_names: RwLock<BTreeMap<String, String>>,
 
     /// Jobs of this session.
     jobs: Arc<JobRegistry>,
@@ -196,7 +196,7 @@ impl Session {
             sender,
             connection_count: AtomicU32::new(0),
             shutdown_requested: AtomicBool::new(false),
-            pack_names: RwLock::new(Vec::new()),
+            pack_names: RwLock::new(BTreeMap::new()),
             jobs: Arc::new(JobRegistry::default()),
             settings: RwLock::new(Arc::new(Settings::init(false))),
             queued: AtomicUsize::new(0),
@@ -258,23 +258,19 @@ impl Session {
         self.shutdown_requested.load(Ordering::SeqCst)
     }
 
-    /// Get the pack names for this session.
+    /// Get the names of the packs open in this session.
     pub fn pack_names(&self) -> Vec<String> {
-        self.pack_names.read().unwrap().clone()
+        self.pack_names.read().unwrap().values().cloned().collect()
     }
 
-    /// Add a pack name to this session.
-    pub fn add_pack_name(&self, name: &str) {
-        let mut names = self.pack_names.write().unwrap();
-        if !names.contains(&name.to_string()) {
-            names.push(name.to_string());
-        }
+    /// Set the name of an open pack of this session, adding it if it's not there yet.
+    pub fn set_pack_name(&self, pack_key: &str, name: &str) {
+        self.pack_names.write().unwrap().insert(pack_key.to_owned(), name.to_owned());
     }
 
-    /// Remove a pack name from this session.
-    pub fn remove_pack_name(&self, name: &str) {
-        let mut names = self.pack_names.write().unwrap();
-        names.retain(|n| n != name);
+    /// Remove a pack from the open ones of this session.
+    pub fn remove_pack(&self, pack_key: &str) {
+        self.pack_names.write().unwrap().remove(pack_key);
     }
 
     /// Shutdown this session by stopping its background thread.
@@ -813,7 +809,7 @@ mod tests {
     async fn the_mcp_session_is_kept_while_it_has_open_packs() {
         let manager = manager_without_timeout();
         let session = manager.mcp_session();
-        session.add_pack_name("my_mod.pack");
+        session.set_pack_name("pack_1", "my_mod.pack");
 
         manager.cleanup_expired_sessions();
 

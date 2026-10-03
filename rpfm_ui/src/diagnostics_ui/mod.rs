@@ -54,7 +54,7 @@ use getset::Getters;
 use rayon::prelude::*;
 
 use std::cell::RefCell;
-use std::path::Path;
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use rpfm_extensions::diagnostics::{*, anim_fragment_battle::*, config::*, dependency::*, group_formations::*, pack::*, portrait_settings::*, table::*, text::*};
@@ -62,6 +62,7 @@ use rpfm_extensions::diagnostics::{*, anim_fragment_battle::*, config::*, depend
 use rpfm_ipc::api::{ApiError, RpcResponse};
 use rpfm_ipc::api::diagnostics::{GetDiagnosticsReport, RunDiagnostics};
 use rpfm_ipc::api::jobs::{JobStarted, JobState, JobStatus, WaitForJob};
+use rpfm_ipc::api::packs::PackSummary;
 use rpfm_ipc::helpers::DataSource;
 use rpfm_ipc::settings_keys::*;
 
@@ -70,7 +71,7 @@ use rpfm_lib::files::{ContainerPath, portrait_settings::Variant};
 use rpfm_ui_common::utils::{atomic_from_cpp_box, find_widget, load_template, ref_from_atomic};
 
 use crate::app_ui::AppUI;
-use crate::communications::{api_result, job_state, send_api};
+use crate::communications::{api_result, job_state, open_packs, send_api};
 use crate::dependencies_ui::DependenciesUI;
 use crate::ffi::{add_text_diagnostic_safe, clear_text_diagnostics_safe, new_tableview_filter_safe, scroll_to_pos_and_select_safe, trigger_tableview_filter_safe};
 use crate::global_search_ui::GlobalSearchUI;
@@ -712,6 +713,9 @@ impl DiagnosticsUI {
         // First, clean the current diagnostics.
         Self::clean_diagnostics_from_views(app_ui);
 
+        // The results name their packs by key, so get the names to show once.
+        let packs = open_packs().into_iter().map(|pack| (pack.key.clone(), pack)).collect::<HashMap<_, _>>();
+
         // Build the table columns without data in them, because otherwise it becomes very slow.
         diagnostics_ui.diagnostics_table_model.clear();
         diagnostics_ui.diagnostics_table_model.set_column_count(8);
@@ -781,7 +785,7 @@ impl DiagnosticsUI {
                                 level.set_text(result_type);
                                 diag_type.set_text(&QString::from_std_str(diagnostic_type.to_string()));
                                 data_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result).unwrap())), 2);
-                                Self::set_pack_item(&pack, diagnostic_type.pack());
+                                Self::set_pack_item(&pack, diagnostic_type.pack(), &packs);
                                 path.set_text(&QString::from_std_str(diagnostic.path()));
                                 message.set_text(&QString::from_std_str(result.message()));
                                 report_type.set_text(&QString::from_std_str(result.report_type().to_string()));
@@ -830,7 +834,7 @@ impl DiagnosticsUI {
                                 level.set_text(result_type);
                                 diag_type.set_text(&QString::from_std_str(diagnostic_type.to_string()));
                                 data_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected()).unwrap())), 2);
-                                Self::set_pack_item(&pack, diagnostic_type.pack());
+                                Self::set_pack_item(&pack, diagnostic_type.pack(), &packs);
                                 path.set_text(&QString::from_std_str(diagnostic.path()));
                                 message.set_text(&QString::from_std_str(result.message()));
                                 report_type.set_text(&QString::from_std_str(result.report_type().to_string()));
@@ -881,7 +885,7 @@ impl DiagnosticsUI {
                                     path.set_text(&QString::from_std_str(file_path));
                                 }
                                 diag_type.set_text(&QString::from_std_str(diagnostic_type.to_string()));
-                                Self::set_pack_item(&pack, diagnostic_type.pack());
+                                Self::set_pack_item(&pack, diagnostic_type.pack(), &packs);
                                 message.set_text(&QString::from_std_str(result.message()));
                                 report_type.set_text(&QString::from_std_str(result.report_type().to_string()));
 
@@ -950,7 +954,7 @@ impl DiagnosticsUI {
                                 };
 
                                 data_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(data_affected_string)), 2);
-                                Self::set_pack_item(&pack, diagnostic_type.pack());
+                                Self::set_pack_item(&pack, diagnostic_type.pack(), &packs);
                                 path.set_text(&QString::from_std_str(diagnostic.path()));
                                 message.set_text(&QString::from_std_str(result.message()));
                                 report_type.set_text(&QString::from_std_str(result.report_type().to_string()));
@@ -1002,7 +1006,7 @@ impl DiagnosticsUI {
                                 // Formation index and block id, used to select the block when opening the diagnostic.
                                 let block_id = result.report_type().block_id().map(|block_id| block_id.to_string()).unwrap_or_default();
                                 data_affected.set_text(&QString::from_std_str(format!("{}|{}", result.formation_index(), block_id)));
-                                Self::set_pack_item(&pack, diagnostic_type.pack());
+                                Self::set_pack_item(&pack, diagnostic_type.pack(), &packs);
                                 path.set_text(&QString::from_std_str(diagnostic.path()));
                                 message.set_text(&QString::from_std_str(result.message()));
                                 report_type.set_text(&QString::from_std_str(result.report_type().to_string()));
@@ -1055,7 +1059,7 @@ impl DiagnosticsUI {
                                 let data_affected_string = format!("{},{},{},{}", start.0, start.1, end.0, end.1);
 
                                 data_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(data_affected_string)), 2);
-                                Self::set_pack_item(&pack, diagnostic_type.pack());
+                                Self::set_pack_item(&pack, diagnostic_type.pack(), &packs);
                                 path.set_text(&QString::from_std_str(diagnostic.path()));
                                 message.set_text(&QString::from_std_str(result.message()));
                                 report_type.set_text(&QString::from_std_str(result.report_type().to_string()));
@@ -1104,7 +1108,7 @@ impl DiagnosticsUI {
                                 level.set_text(result_type);
                                 diag_type.set_text(&QString::from_std_str(diagnostic_type.to_string()));
                                 data_affected.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(serde_json::to_string(&result.cells_affected()).unwrap())), 2);
-                                Self::set_pack_item(&pack, diagnostic_type.pack());
+                                Self::set_pack_item(&pack, diagnostic_type.pack(), &packs);
                                 path.set_text(&QString::from_std_str(diagnostic.path()));
                                 message.set_text(&QString::from_std_str(result.message()));
                                 report_type.set_text(&QString::from_std_str(result.report_type().to_string()));
@@ -2324,15 +2328,15 @@ impl DiagnosticsUI {
         item
     }
 
-    /// Populates a pack-column item: shows only the file name, stashes the full
-    /// pack key in `ITEM_PACK_KEY` (used by the navigation slot), and exposes the
-    /// full key as a tooltip so users can still see which path the row came from.
-    unsafe fn set_pack_item(item: &QStandardItem, pack_key: &str) {
-        let display = Path::new(pack_key).file_name()
-            .map(|f| f.to_string_lossy().into_owned())
-            .unwrap_or_else(|| pack_key.to_owned());
-        item.set_text(&QString::from_std_str(&display));
+    /// Populates a pack-column item: shows the pack's name, stashes its key in
+    /// `ITEM_PACK_KEY` (used by the navigation slot), and exposes its path as a
+    /// tooltip so users can still see which file the row came from.
+    unsafe fn set_pack_item(item: &QStandardItem, pack_key: &str, packs: &HashMap<String, PackSummary>) {
+        let pack = packs.get(pack_key);
+        let name = pack.map_or(pack_key, |pack| pack.name.as_str());
+        let tooltip = pack.and_then(|pack| pack.path.as_deref()).unwrap_or(name);
+        item.set_text(&QString::from_std_str(name));
         item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(pack_key)), ITEM_PACK_KEY);
-        item.set_tool_tip(&QString::from_std_str(pack_key));
+        item.set_tool_tip(&QString::from_std_str(tooltip));
     }
 }
