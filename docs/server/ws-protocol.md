@@ -80,9 +80,10 @@ Diagnostics checks (`diagnostics.run`) don't make other requests wait: a running
 
 ## Conventions
 
-- **Pack keys.** Open packs are identified by the `key` that `pack.open`, `pack.new` and `session.status` return.
+- **Pack keys.** Open packs are identified by the `key` that `pack.open`, `pack.new` and `session.status` return. A method's `pack` param is always the open pack it works on or changes.
 - **Sources.** Files are found in a `source`: `{ "pack": "<key>" }` for an open pack, or `"game_files"`, `"parent_files"` or `"assembly_kit"` for the dependencies. A file is a `{ "source": ..., "path": ... }` pair.
-- **Paths.** Paths inside packs use `/`. Where a method takes files or folders, a path is a file if one exists with that path, and a folder otherwise.
+- **Reading and writing.** Methods reading files take a `source` or a `file`, so they can read from anywhere. Methods changing files take a `pack` and a `path`, as only the files of open packs can change.
+- **Paths.** Paths inside packs use `/`. Where a method takes files or folders, a path is a file if one exists with that path, and a folder otherwise. Filters by path are called `path_prefix`. Paths on disk have names saying what they are, like `destination` or `tsv_path`.
 - **Pagination.** Lists take an `offset` and an optional `limit`, and include the `total` amount of items, so you never get more than you asked for.
 - **Settings.** Sessions start with the settings in RPFM's `settings.json`. Clients with their own settings, like the UI, send them with `session.configure`.
 
