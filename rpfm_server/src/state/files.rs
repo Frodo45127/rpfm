@@ -77,6 +77,9 @@ pub enum DecodedFile {
     External,
 }
 
+/// Maximum amount of files of a folder listed in the error of reading it as a file.
+const FOLDER_FILES_IN_ERRORS: usize = 10;
+
 impl SessionState {
 
     /// Creates a new file in a pack.
@@ -1023,6 +1026,8 @@ impl SessionState {
     ///
     /// Fails if the file doesn't exist, or can't be returned in the requested format.
     pub fn read_file(&mut self, request: &ReadFile, enable_esf_editor: bool, disable_uuid_regeneration: bool) -> Result<FileContents> {
+        self.check_file_exists(&request.file)?;
+
         if request.format == ReadFormat::Raw {
             let compression_format = match request.file.source {
                 FileSource::Pack(ref pack_key) => pack(&self.packs, pack_key)?.compression_format(),
@@ -1157,6 +1162,44 @@ impl SessionState {
     }
 
     /// Resolves paths of an open pack into file or folder paths, depending on if there's a file at each one.
+    /// Checks that a file exists in its source.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the pack of the file isn't open, or if the file doesn't exist. If its path is a folder of the source,
+    /// the error says so, with the files in it.
+    pub(super) fn check_file_exists(&self, file: &FileRef) -> Result<()> {
+        let exists = match file.source {
+            FileSource::Pack(ref pack_key) => pack(&self.packs, pack_key)?.files().contains_key(&file.path),
+            FileSource::GameFiles => self.dependencies.file(&file.path, true, false, false).is_ok(),
+            FileSource::ParentFiles => self.dependencies.file(&file.path, false, true, false).is_ok(),
+            FileSource::AssemblyKit => file.path.split('/').nth(1)
+                .is_some_and(|table_name| file.path == format!("db/{table_name}/{ASSEMBLY_KIT_TABLE_FILE_NAME}") && self.dependencies.asskit_only_db_tables().contains_key(table_name)),
+        };
+
+        if exists {
+            return Ok(());
+        }
+
+        let folder = ListFiles {
+            source: file.source.clone(),
+            path_prefix: format!("{}/", file.path.trim_end_matches('/')),
+            recursive: true,
+            file_types: None,
+            offset: 0,
+            limit: Some(FOLDER_FILES_IN_ERRORS),
+        };
+
+        match self.list_files(&folder) {
+            Ok(list) if list.total > 0 => {
+                let paths = list.files.iter().map(|entry| entry.path.as_str()).collect::<Vec<_>>().join(", ");
+                let more = if list.total > list.files.len() { format!(", and {} more", list.total - list.files.len()) } else { String::new() };
+                Err(ApiError::InvalidParams(format!("{} is a folder, not a file. Its files are: {paths}{more}.", file.path)).into())
+            }
+            _ => Err(ApiError::FileNotFound(file.path.clone()).into()),
+        }
+    }
+
     pub(super) fn pack_container_paths(&self, pack_key: &str, paths: &[String]) -> Result<Vec<ContainerPath>> {
         let pack = pack(&self.packs, pack_key)?;
         Ok(paths.iter().map(|path| container_path(|path| pack.has_file(path), path)).collect())

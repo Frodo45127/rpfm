@@ -823,6 +823,8 @@ impl SessionState {
 
     /// Returns a DB or Loc table from any source, decoding it first if needed.
     fn table(&mut self, file: &FileRef) -> Result<&TableInMemory> {
+        self.check_file_exists(file)?;
+
         if file.source == FileSource::AssemblyKit {
             let not_found = || ApiError::FileNotFound(file.path.clone());
             let table_name = file.path.split('/').nth(1).ok_or_else(not_found)?;
