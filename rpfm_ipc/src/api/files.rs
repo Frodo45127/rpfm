@@ -495,7 +495,7 @@ pub struct AddToAnimPack {
     pub animpack: String,
 
     /// Key of the pack to copy the files from.
-    pub from_pack: String,
+    pub source_pack: String,
 
     /// Paths of the files and folders to copy.
     pub paths: Vec<String>,
@@ -513,7 +513,7 @@ pub struct ExtractFromAnimPack {
     pub paths: Vec<String>,
 
     /// Key of the pack to copy them to.
-    pub to_pack: String,
+    pub pack: String,
 }
 
 /// `animpack.delete`: deletes files from an AnimPack of an open pack.

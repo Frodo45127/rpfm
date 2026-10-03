@@ -1129,8 +1129,8 @@ impl SessionState {
 
     /// Copies files of an open pack into an AnimPack of an open pack.
     pub fn add_to_animpack(&mut self, request: &AddToAnimPack) -> Result<FilesAdded> {
-        let paths = self.pack_container_paths(&request.from_pack, &request.paths)?;
-        let added = self.add_files_to_animpack(&request.from_pack, &request.pack, &request.animpack, &paths)?;
+        let paths = self.pack_container_paths(&request.source_pack, &request.paths)?;
+        let added = self.add_files_to_animpack(&request.source_pack, &request.pack, &request.animpack, &paths)?;
         Ok(FilesAdded { added: raw_paths(&added), ..FilesAdded::default() })
     }
 
@@ -1139,7 +1139,7 @@ impl SessionState {
         let paths = self.animpack_container_paths(&request.file, &request.paths)?;
         let (pack_key, data_source) = pack_key_and_data_source(&request.file.source);
         let pack_key = pack_key.to_owned();
-        let added = self.add_files_from_animpack(&pack_key, &request.to_pack, data_source, &request.file.path, &paths)?;
+        let added = self.add_files_from_animpack(&pack_key, &request.pack, data_source, &request.file.path, &paths)?;
         Ok(FilesAdded { added: raw_paths(&added), ..FilesAdded::default() })
     }
 

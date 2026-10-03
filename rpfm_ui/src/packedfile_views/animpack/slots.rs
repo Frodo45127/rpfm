@@ -104,7 +104,7 @@ impl PackedFileAnimPackViewSlots {
                     let request = AddToAnimPack {
                         pack: anim_pack_key.clone(),
                         animpack: view.path().read().unwrap().to_owned(),
-                        from_pack: source_pack_key.clone(),
+                        source_pack: source_pack_key.clone(),
                         paths: item_types.iter().map(|path| path.path_raw().to_owned()).collect(),
                     };
 
@@ -159,7 +159,7 @@ impl PackedFileAnimPackViewSlots {
                             let request = ExtractFromAnimPack {
                                 file: FileRef { source, path: view.path().read().unwrap().to_owned() },
                                 paths: item_types.iter().map(|path| path.path_raw().to_owned()).collect(),
-                                to_pack: dest_pack_key.clone(),
+                                pack: dest_pack_key.clone(),
                             };
 
                             call_api(&request).map(|added| file_paths(added.added))
