@@ -1484,7 +1484,7 @@ Workflow:
    returns its columns (name, type, key, referenced table) and row count.
 5. **Read the rows you need** – `table_rows` with `columns` and `filters`, to find the index of each
    row to change.
-6. **Edit** – `edit_table` with a list of edits:
+6. **Edit** – `edit_table` with the pack key, the path of the table, and a list of edits:
    - `{\"op\": \"update\", \"index\": 3, \"values\": {\"column\": value}}`
    - `{\"op\": \"insert\", \"values\": {\"key\": \"my_key\", ...}}` (missing columns get their default)
    - `{\"op\": \"delete\", \"indexes\": [5, 7]}`
@@ -1860,7 +1860,7 @@ Loc files contain key-value pairs for in-game text. Each entry has:
 1. **Create a new loc file**:
    Call `create_file` with path `\"text/db/my_mod.loc\"` and `kind: {\"type\": \"loc\"}`.
 
-2. **Add entries**: `edit_table` with inserts like
+2. **Add entries**: `edit_table` with the pack key, the path of the loc file, and inserts like
    `{\"op\": \"insert\", \"values\": {\"key\": \"key_string\", \"text\": \"Displayed text in game\"}}`.
 
 3. **Save the pack**: `save_pack`.

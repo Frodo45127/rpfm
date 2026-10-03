@@ -234,8 +234,11 @@ impl Request for GetTableDefinition {
 #[serde(deny_unknown_fields)]
 pub struct EditTable {
 
-    /// The table. Its source must be an open pack.
-    pub file: FileRef,
+    /// Key of the pack.
+    pub pack: String,
+
+    /// Path of the table in the pack.
+    pub path: String,
 
     /// Edits to apply.
     pub edits: Vec<RowEdit>,

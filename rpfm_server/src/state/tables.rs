@@ -613,14 +613,11 @@ impl SessionState {
     ///
     /// # Errors
     ///
-    /// Fails if the table is not in an open pack, or if an edit names a column the table doesn't have,
+    /// Fails if the pack doesn't have the table, or if an edit names a column the table doesn't have,
     /// a row that doesn't exist, or a value that doesn't fit its column.
     pub fn edit_table(&mut self, request: &EditTable) -> Result<TableEdited> {
-        if !matches!(request.file.source, FileSource::Pack(_)) {
-            return Err(ApiError::ReadOnly(request.file.path.clone()).into());
-        }
-
-        let row_count = match self.decoded_table_file(&request.file)?.decoded_mut()? {
+        let file = FileRef { source: FileSource::Pack(request.pack.clone()), path: request.path.clone() };
+        let row_count = match self.decoded_table_file(&file)?.decoded_mut()? {
             RFileDecoded::DB(table) => {
                 let edits = prepare_row_edits(&request.edits, &table.definition().fields_processed(), table.new_row(), table.data().len())?;
                 apply_row_edits(table.data_mut(), edits)
@@ -629,7 +626,7 @@ impl SessionState {
                 let edits = prepare_row_edits(&request.edits, &table.definition().fields_processed(), table.new_row(), table.data().len())?;
                 apply_row_edits(table.data_mut(), edits)
             }
-            _ => return Err(ApiError::NotATable(request.file.path.clone()).into()),
+            _ => return Err(ApiError::NotATable(request.path.clone()).into()),
         };
 
         Ok(TableEdited { row_count })

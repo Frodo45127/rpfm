@@ -117,7 +117,8 @@ Call `table_rows`, to get the rows of a unit:
 Each returned row has the `index` of the row in the table. Call `edit_table` to change it:
 ```json
 {
-  "file": { "source": { "pack": "/path/to/my_mod.pack" }, "path": "db/land_units_tables/my_mod" },
+  "pack": "/path/to/my_mod.pack",
+  "path": "db/land_units_tables/my_mod",
   "edits": [{ "op": "update", "index": 4, "values": { "num_men": 120 } }]
 }
 ```

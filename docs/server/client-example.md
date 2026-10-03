@@ -267,8 +267,8 @@ Wrapping the methods you use gives you typed params and results. A few common on
     return this.call("table.rows", { file, ...options });
   }
 
-  editTable(file: FileRef, edits: RowEdit[]): Promise<{ row_count: number }> {
-    return this.call("table.edit", { file, edits });
+  editTable(pack: string, path: string, edits: RowEdit[]): Promise<{ row_count: number }> {
+    return this.call("table.edit", { pack, path, edits });
   }
 
   readText(file: FileRef): Promise<string> {
@@ -346,8 +346,8 @@ type RowEdit =
     public Task<JsonNode?> TableRowsAsync(object file, object[]? filters = null, int? limit = null) =>
         CallAsync("table.rows", new { file, filters = filters ?? [], limit });
 
-    public Task<JsonNode?> EditTableAsync(object file, params object[] edits) =>
-        CallAsync("table.edit", new { file, edits });
+    public Task<JsonNode?> EditTableAsync(string pack, string path, params object[] edits) =>
+        CallAsync("table.edit", new { pack, path, edits });
 
     public Task<JsonNode?> SavePackAsync(string pack) =>
         CallAsync("pack.save", new { pack });
@@ -384,7 +384,7 @@ const page = await client.tableRows(units, {
 
 for (const row of page.rows) {
   const numMen = row.values[1] as number;
-  await client.editTable(units, [{ op: "update", index: row.index, values: { num_men: numMen * 2 } }]);
+  await client.editTable(pack.key, units.path, [{ op: "update", index: row.index, values: { num_men: numMen * 2 } }]);
 }
 
 try {
@@ -413,7 +413,7 @@ foreach (var row in page!["rows"]!.AsArray())
 {
     var columns = page["columns"]!.AsArray().Select(column => column!.GetValue<string>()).ToList();
     var numMen = row!["values"]![columns.IndexOf("num_men")]!.GetValue<int>();
-    await client.EditTableAsync(units, new { op = "update", index = row["index"]!.GetValue<int>(), values = new { num_men = numMen * 2 } });
+    await client.EditTableAsync(packKey, "db/land_units_tables/my_mod", new { op = "update", index = row["index"]!.GetValue<int>(), values = new { num_men = numMen * 2 } });
 }
 
 try
