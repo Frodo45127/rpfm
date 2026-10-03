@@ -45,7 +45,7 @@ pub struct RowLocation {
 
 /// `references.definition`: finds the row where a value of a referenced table is defined.
 ///
-/// Searches the open packs (starting with `pack`), then the parent packs, the game files and the Assembly Kit tables.
+/// Searches the open packs, then the parent packs, the game files and the Assembly Kit tables, and returns the first row found.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct FindDefinition {
@@ -59,7 +59,7 @@ pub struct FindDefinition {
     /// Value to find.
     pub value: String,
 
-    /// Key of the pack to search first.
+    /// If set, only this open pack is searched, instead of all of them and the dependencies.
     #[serde(default)]
     pub pack: Option<String>,
 }
@@ -122,7 +122,7 @@ pub struct Usage {
 
 /// `references.loc`: finds the row of a Loc file with a key.
 ///
-/// Searches the open packs (starting with `pack`), then the parent packs and the game files.
+/// Searches the open packs, then the parent packs and the game files, and returns the first row found.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct FindLoc {
@@ -130,7 +130,7 @@ pub struct FindLoc {
     /// Key to find, like `factions_screen_name_wh_main_emp_empire`.
     pub key: String,
 
-    /// Key of the pack to search first.
+    /// If set, only this open pack is searched, instead of all of them and the dependencies.
     #[serde(default)]
     pub pack: Option<String>,
 }

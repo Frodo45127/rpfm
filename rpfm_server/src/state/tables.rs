@@ -33,7 +33,7 @@ use rpfm_ipc::api::tables::{AddKeyDeletes, ExportTsv, FilesEdited, ImportTsv, Me
 use rpfm_ipc::api::tables::{ColumnInfo, ColumnValues, DEFAULT_VALUES_LIMIT, GetColumnValues, GetTableDefinition, ColumnReference, DEFAULT_ROWS_LIMIT, EditTable, FilterOp, GetTableRows, RowEdit, RowFilter, TableEdited, TableInfo, TableRow, TableRows};
 use rpfm_ipc::helpers::{DataSource, RFileInfo};
 
-use rpfm_lib::files::{Container, ContainerPath, db::DB, DecodeableExtraData, FileType, RFile, RFileDecoded, table::{DecodedData, local::TableInMemory, Table}};
+use rpfm_lib::files::{Container, ContainerPath, db::DB, DecodeableExtraData, FileType, pack::Pack, RFile, RFileDecoded, table::{DecodedData, local::TableInMemory, Table}};
 use rpfm_lib::schema::{Definition, DefinitionPatch, Field, FieldType};
 use rpfm_lib::utils::current_time;
 
@@ -268,11 +268,11 @@ impl SessionState {
 
     /// Finds the first row with a value in a column of a table.
     ///
-    /// Searches the open packs (starting with `pack_key`), then the parent packs, the game files and the Assembly Kit tables.
+    /// Searches the open packs, then the parent packs, the game files and the Assembly Kit tables.
     ///
     /// # Arguments
     ///
-    /// * `pack_key` - Key of the pack to search first, if any.
+    /// * `pack_key` - If set, only this open pack is searched.
     /// * `table_name` - Name of the table, like `factions_tables`.
     /// * `column` - Name of the column. If it's localised, the first key column is searched instead.
     /// * `value` - Value to search.
@@ -286,30 +286,26 @@ impl SessionState {
         }
 
         let table_folders = ContainerPath::db_table_folders(table_name);
-
-        // Search first in the pack that sent the request (if still open), then in the rest of the open packs.
-        let first = pack_key.and_then(|pack_key| self.packs.get_key_value(pack_key));
-        let packs_to_search = first.into_iter()
-            .chain(self.packs.iter().filter(|(key, _)| Some(key.as_str()) != pack_key));
-
-        for (key, pack) in packs_to_search {
-            if let Some(location) = find_in_db_files(&pack.files_by_paths(&table_folders, true), column, value, &FileSource::Pack(key.clone())) {
+        for (key, pack) in self.packs_to_search(pack_key)? {
+            if let Some(location) = find_in_db_files(&pack.files_by_paths(&table_folders, true), column, value, &FileSource::Pack(key.to_owned())) {
                 return Ok(location);
             }
         }
 
-        for (source, include_vanilla, include_parent) in [(FileSource::ParentFiles, false, true), (FileSource::GameFiles, true, false)] {
-            if let Ok(files) = self.dependencies.db_data(table_name, include_vanilla, include_parent) {
-                if let Some(location) = find_in_db_files(&files, column, value, &source) {
-                    return Ok(location);
+        if pack_key.is_none() {
+            for (source, include_vanilla, include_parent) in [(FileSource::ParentFiles, false, true), (FileSource::GameFiles, true, false)] {
+                if let Ok(files) = self.dependencies.db_data(table_name, include_vanilla, include_parent) {
+                    if let Some(location) = find_in_db_files(&files, column, value, &source) {
+                        return Ok(location);
+                    }
                 }
             }
-        }
 
-        if let Some(table) = self.dependencies.asskit_only_db_tables().get(table_name) {
-            if let Some((column_index, row_index)) = find_in_db(table, column, value) {
-                let path = format!("db/{table_name}/{ASSEMBLY_KIT_TABLE_FILE_NAME}");
-                return Ok(RowLocation { source: FileSource::AssemblyKit, path, column_index, row_index });
+            if let Some(table) = self.dependencies.asskit_only_db_tables().get(table_name) {
+                if let Some((column_index, row_index)) = find_in_db(table, column, value) {
+                    let path = format!("db/{table_name}/{ASSEMBLY_KIT_TABLE_FILE_NAME}");
+                    return Ok(RowLocation { source: FileSource::AssemblyKit, path, column_index, row_index });
+                }
             }
         }
 
@@ -318,31 +314,47 @@ impl SessionState {
 
     /// Finds the first row of a Loc file with a key.
     ///
-    /// Searches the open packs (starting with `pack_key`), then the parent packs and then the game files.
+    /// Searches the open packs, then the parent packs and then the game files.
+    ///
+    /// # Arguments
+    ///
+    /// * `pack_key` - If set, only this open pack is searched.
+    /// * `loc_key` - Key to search.
     ///
     /// # Returns
     ///
     /// Where the row is.
     pub fn find_loc(&self, pack_key: Option<&str>, loc_key: &str) -> Result<RowLocation> {
-        let first = pack_key.and_then(|pack_key| self.packs.get_key_value(pack_key));
-        let packs_to_search = first.into_iter()
-            .chain(self.packs.iter().filter(|(key, _)| Some(key.as_str()) != pack_key));
-
-        for (key, pack) in packs_to_search {
-            if let Some(location) = find_in_loc_files(&pack.files_by_type(&[FileType::Loc]), loc_key, &FileSource::Pack(key.clone())) {
+        for (key, pack) in self.packs_to_search(pack_key)? {
+            if let Some(location) = find_in_loc_files(&pack.files_by_type(&[FileType::Loc]), loc_key, &FileSource::Pack(key.to_owned())) {
                 return Ok(location);
             }
         }
 
-        for (source, include_vanilla, include_parent) in [(FileSource::ParentFiles, false, true), (FileSource::GameFiles, true, false)] {
-            if let Ok(files) = self.dependencies.loc_data(include_vanilla, include_parent) {
-                if let Some(location) = find_in_loc_files(&files, loc_key, &source) {
-                    return Ok(location);
+        if pack_key.is_none() {
+            for (source, include_vanilla, include_parent) in [(FileSource::ParentFiles, false, true), (FileSource::GameFiles, true, false)] {
+                if let Ok(files) = self.dependencies.loc_data(include_vanilla, include_parent) {
+                    if let Some(location) = find_in_loc_files(&files, loc_key, &source) {
+                        return Ok(location);
+                    }
                 }
             }
         }
 
         Err(ApiError::NotFound(format!("The loc key {loc_key}")).into())
+    }
+
+    /// Returns the open packs a lookup searches, with their keys: only the provided one if set, or all of them.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the provided pack is not open.
+    // The keys come either from `pack_key` or from the open packs, so both share the lifetime of the result.
+    fn packs_to_search<'a>(&'a self, pack_key: Option<&'a str>) -> Result<Vec<(&'a str, &'a Pack)>> {
+        Ok(match pack_key {
+            Some(pack_key) => vec![(pack_key, pack(&self.packs, pack_key)?)],
+            None => self.packs.iter().map(|(key, pack)| (key.as_str(), pack)).collect(),
+        })
     }
 
     /// Finds every row referencing a value, in the open packs, the parent packs and the game files.
@@ -358,10 +370,7 @@ impl SessionState {
     /// The rows referencing the value.
     pub fn search_references(&self, pack_key: Option<&str>, reference_map: &HashMap<String, Vec<String>>, value: &str) -> Result<Vec<Usage>> {
         let paths = reference_map.keys().flat_map(|table_name| ContainerPath::db_table_folders(table_name)).collect::<Vec<ContainerPath>>();
-        let packs = match pack_key {
-            Some(pack_key) => vec![(pack_key, pack(&self.packs, pack_key)?)],
-            None => self.packs.iter().map(|(key, pack)| (key.as_str(), pack)).collect(),
-        };
+        let packs = self.packs_to_search(pack_key)?;
 
         let mut references = vec![];
         for (key, pack) in packs {

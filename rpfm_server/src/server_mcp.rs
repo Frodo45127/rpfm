@@ -726,7 +726,7 @@ impl McpServer {
 
     #[tool(
         name = "find_definition",
-        description = "Find the row where a value of a referenced table is defined, like the row of `factions_tables` with a faction key. Searches the open packs (starting with `pack`), the parent packs, the game files and the Assembly Kit tables.",
+        description = "Find the row where a value of a referenced table is defined, like the row of `factions_tables` with a faction key. Searches the open packs, the parent packs, the game files and the Assembly Kit tables, or only `pack` if set, and returns the first row found.",
         annotations(read_only_hint = true),
         output_schema = schema_for_output::<RowLocation>(),
     )]
@@ -746,7 +746,7 @@ impl McpServer {
 
     #[tool(
         name = "find_loc",
-        description = "Find the row of a Loc file with a key. Searches the open packs (starting with `pack`), the parent packs and the game files.",
+        description = "Find the row of a Loc file with a key. Searches the open packs, the parent packs and the game files, or only `pack` if set, and returns the first row found.",
         annotations(read_only_hint = true),
         output_schema = schema_for_output::<RowLocation>(),
     )]

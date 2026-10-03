@@ -3821,12 +3821,16 @@ impl TableView {
                     }
                 });
 
-                // Then ask the backend to do the heavy work.
-                let request = ref_data.first().cloned()
+                // Then ask the backend to do the heavy work, looking in this view's pack before looking everywhere.
+                let pack_key = self.pack_key.read().unwrap().clone();
+                let found = ref_data.first().cloned()
                     .ok_or_else(|| anyhow!("No value to search for."))
-                    .map(|value| FindDefinition { table_name: ref_table, column: ref_column, value, pack: Some(self.pack_key.read().unwrap().clone()) });
+                    .and_then(|value| {
+                        let request = FindDefinition { table_name: ref_table, column: ref_column, value, pack: Some(pack_key) };
+                        call_api_async(&request).or_else(|_| call_api_async(&FindDefinition { pack: None, ..request }))
+                    });
 
-                match request.and_then(|request| call_api_async(&request)).map(row_location) {
+                match found.map(row_location) {
 
                     // We receive a path/column/row, so we know what to open/select.
                     Ok((data_source, path, column, row)) => {
@@ -4067,7 +4071,10 @@ impl TableView {
                 let loc_key = format!("{table_name}_{loc_column_name}_{key}");
 
                 // Then ask the backend to do the heavy work.
-                match call_api_async(&FindLoc { key: loc_key, pack: Some(self.pack_key.read().unwrap().clone()) }).map(row_location) {
+                // Look in this view's pack before looking everywhere.
+                let request = FindLoc { key: loc_key, pack: Some(self.pack_key.read().unwrap().clone()) };
+                let found = call_api_async(&request).or_else(|_| call_api_async(&FindLoc { pack: None, ..request }));
+                match found.map(row_location) {
 
                     // We receive a path/column/row, so we know what to open/select.
                     Ok((data_source, path, column, row)) => {
