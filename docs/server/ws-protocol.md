@@ -21,7 +21,7 @@ Store it if you want to reconnect to the same session later.
 A request names a method and passes its params as an object:
 
 ```json
-{ "jsonrpc": "2.0", "id": 7, "method": "table.rows", "params": { "file": { "source": { "pack": "my_mod.pack" }, "path": "db/units_tables/my_units" }, "limit": 2 } }
+{ "jsonrpc": "2.0", "id": 7, "method": "table.rows", "params": { "file": { "source": { "pack": "/path/to/my_mod.pack" }, "path": "db/units_tables/my_units" }, "limit": 2 } }
 ```
 
 The response carries the same `id`, and either a `result` or an `error`:

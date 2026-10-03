@@ -103,12 +103,12 @@ Call `open_pack`:
 { "paths": ["/path/to/my_mod.pack"] }
 ```
 
-The result contains the pack's `key`, used by the next calls as `pack`. `session_status` lists the keys of all open packs.
+The result contains the pack's `key`, used by the next calls as `pack`. For packs opened from disk, the key is the path of the pack, like `/path/to/my_mod.pack`. For packs made with `new_pack`, it's the name it returns, and it doesn't change when the pack is saved under another name. `session_status` lists the keys of all open packs.
 
 Call `table_rows`, to get the rows of a unit:
 ```json
 {
-  "file": { "source": { "pack": "my_mod.pack" }, "path": "db/land_units_tables/my_mod" },
+  "file": { "source": { "pack": "/path/to/my_mod.pack" }, "path": "db/land_units_tables/my_mod" },
   "columns": ["key", "num_men"],
   "filters": [{ "column": "key", "op": "equals", "value": "my_unit" }]
 }
@@ -117,14 +117,14 @@ Call `table_rows`, to get the rows of a unit:
 Each returned row has the `index` of the row in the table. Call `edit_table` to change it:
 ```json
 {
-  "file": { "source": { "pack": "my_mod.pack" }, "path": "db/land_units_tables/my_mod" },
+  "file": { "source": { "pack": "/path/to/my_mod.pack" }, "path": "db/land_units_tables/my_mod" },
   "edits": [{ "op": "update", "index": 4, "values": { "num_men": 120 } }]
 }
 ```
 
 Call `save_pack`:
 ```json
-{ "pack": "my_mod.pack" }
+{ "pack": "/path/to/my_mod.pack" }
 ```
 
 To change a vanilla table, copy it into your pack first with `copy_files`, from the `"game_files"` source.
