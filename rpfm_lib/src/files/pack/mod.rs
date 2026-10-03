@@ -932,8 +932,9 @@ impl Pack {
         };
 
         // Encode to a temp pack instead of overwriting the existing one. This should help avoid
-        // corrupting the existing pack if encoding fails.
+        // corrupting the existing pack if encoding fails. Symlinks are resolved so they're not replaced.
         let target = PathBuf::from(&self.disk_file_path);
+        let target = target.canonicalize().unwrap_or(target);
         let parent = match target.parent() {
             Some(parent) if !parent.as_os_str().is_empty() => parent.to_path_buf(),
             _ => PathBuf::from("."),

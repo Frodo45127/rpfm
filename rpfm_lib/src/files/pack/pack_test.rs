@@ -393,6 +393,24 @@ fn test_save_gives_new_packs_the_permissions_of_new_files() {
     assert_eq!(path.metadata().unwrap().permissions().mode(), expected_mode);
 }
 
+#[cfg(unix)]
+#[test]
+fn test_save_writes_through_symlinks() {
+    use std::os::unix::fs::symlink;
+
+    let games = SupportedGames::default();
+    let game = games.game(KEY_WARHAMMER_2).unwrap();
+    let folder = tempfile::tempdir().unwrap();
+    let real_path = folder.path().join("real.pack");
+    let link_path = folder.path().join("link.pack");
+    File::create(&real_path).unwrap();
+    symlink(&real_path, &link_path).unwrap();
+
+    loaded_test_pack().save(Some(&link_path), game, &None).unwrap();
+
+    assert!(link_path.symlink_metadata().unwrap().file_type().is_symlink());
+    assert!(real_path.metadata().unwrap().len() > 0);
+}
 
 
 #[test]
