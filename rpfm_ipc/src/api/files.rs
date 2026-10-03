@@ -213,12 +213,12 @@ pub struct AddFilesFromDisk {
 
     /// Folder of the pack to add them to. Empty for the root of the pack.
     #[serde(default)]
-    pub destination: String,
+    pub folder: String,
 
-    /// Path in the pack of each entry of `paths`, in the same order, instead of putting them all in `destination`.
+    /// Path in the pack of each entry of `paths`, in the same order, instead of putting them all in `folder`.
     /// For files, it's their new path. For folders, it's the folder their contents go to.
     #[serde(default)]
-    pub destinations: Option<Vec<String>>,
+    pub pack_paths: Option<Vec<String>>,
 
     /// If added folders keep their own name in the pack, instead of adding only their contents. Defaults to the server's setting.
     #[serde(default)]

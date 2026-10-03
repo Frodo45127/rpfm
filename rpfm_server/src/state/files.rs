@@ -885,7 +885,7 @@ impl SessionState {
     /// * `request` - What to add, and where.
     /// * `include_base_folder` - If added folders keep their own name in the pack.
     pub fn add_disk_files(&mut self, request: &AddFilesFromDisk, include_base_folder: bool) -> Result<FilesAdded> {
-        let destination_paths = match request.destinations {
+        let destination_paths = match request.pack_paths {
             Some(ref destinations) => {
                 if destinations.len() != request.paths.len() {
                     return Err(ApiError::InvalidParams("There must be one destination per path.".to_owned()).into());
@@ -900,7 +900,7 @@ impl SessionState {
                     .collect::<Vec<_>>()
             }
             None => {
-                let destination = request.destination.trim_end_matches('/');
+                let destination = request.folder.trim_end_matches('/');
                 request.paths.iter()
                     .map(|path| match path.file_name().filter(|_| path.is_file()) {
                         Some(name) if destination.is_empty() => ContainerPath::File(name.to_string_lossy().to_string()),

@@ -550,8 +550,8 @@ impl PackFileContentsUI {
         let request = AddFilesFromDisk {
             pack: pack_key.clone(),
             paths: paths.to_vec(),
-            destination: String::new(),
-            destinations: Some(paths_in_container.iter().map(|path| path.path_raw().to_owned()).collect()),
+            folder: String::new(),
+            pack_paths: Some(paths_in_container.iter().map(|path| path.path_raw().to_owned()).collect()),
             include_base_folder: None,
             ignore: paths_to_ignore.unwrap_or_default(),
         };
