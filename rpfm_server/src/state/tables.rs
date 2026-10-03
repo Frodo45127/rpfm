@@ -903,7 +903,26 @@ fn json_to_decoded(field_type: &FieldType, value: &Value) -> Result<DecodedData>
         Value::Null | Value::Array(_) | Value::Object(_) => return Err(anyhow!("expected a boolean, number or string, found {value}.")),
     };
 
-    Ok(DecodedData::new_from_type_and_string(field_type, &text)?)
+    DecodedData::new_from_type_and_string(field_type, &text)
+        .map_err(|_| anyhow!("expected {}, found {value}.", expected_value(field_type)))
+}
+
+/// Returns how the values a column of the provided type accepts are described in errors.
+fn expected_value(field_type: &FieldType) -> &'static str {
+    match field_type {
+        FieldType::Boolean => "a boolean",
+        FieldType::F32 | FieldType::F64 => "a number",
+        FieldType::I16 | FieldType::OptionalI16 => "a 16-bit integer",
+        FieldType::I32 | FieldType::OptionalI32 => "a 32-bit integer",
+        FieldType::I64 | FieldType::OptionalI64 => "a 64-bit integer",
+        FieldType::ColourRGB => "a hexadecimal colour, like FF0000",
+        FieldType::StringU8 |
+        FieldType::StringU16 |
+        FieldType::OptionalStringU8 |
+        FieldType::OptionalStringU16 |
+        FieldType::SequenceU16(_) |
+        FieldType::SequenceU32(_) => "a string",
+    }
 }
 
 /// Returns the columns of a definition as rows see them, with the patches applied.
@@ -1142,8 +1161,14 @@ mod tests {
         assert_eq!(json_to_decoded(&FieldType::I32, &json!("42")).unwrap(), DecodedData::I32(42));
         assert_eq!(json_to_decoded(&FieldType::F32, &json!(3)).unwrap(), DecodedData::F32(3.0));
         assert_eq!(json_to_decoded(&FieldType::StringU8, &json!("text")).unwrap(), DecodedData::StringU8("text".to_owned()));
-        assert!(json_to_decoded(&FieldType::I32, &json!(4.5)).is_err());
         assert!(json_to_decoded(&FieldType::StringU8, &json!(["a"])).is_err());
+    }
+
+    #[test]
+    fn invalid_values_report_the_type_the_column_expects() {
+        let error = json_to_decoded(&FieldType::I32, &json!(4.5)).unwrap_err();
+
+        assert_eq!(error.to_string(), "expected a 32-bit integer, found 4.5.");
     }
 
     #[test]
