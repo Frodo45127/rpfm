@@ -89,6 +89,9 @@ pub struct SessionState {
     /// Vanilla and parent files of the selected game.
     dependencies: Dependencies,
 
+    /// Why the dependencies couldn't be fully loaded the last time they were, if they couldn't.
+    dependencies_error: Option<String>,
+
     /// The last search, with its matches, if any.
     search: Option<GlobalSearch>,
 
@@ -170,6 +173,7 @@ impl SessionState {
             packs: BTreeMap::new(),
             pack_modes: BTreeMap::new(),
             dependencies: Dependencies::default(),
+            dependencies_error: None,
             search: None,
             pending_startpos: None,
             diagnostics: None,
@@ -191,6 +195,7 @@ impl SessionState {
                 vanilla_loaded: self.dependencies.is_vanilla_data_loaded(false),
                 assembly_kit_loaded: !self.dependencies.asskit_only_db_tables().is_empty(),
                 parent_files: self.dependencies.parent_files().len(),
+                error: self.dependencies_error.clone(),
             },
             packs: self.packs.iter().map(|(key, pack)| pack_summary(key, pack)).collect(),
         }

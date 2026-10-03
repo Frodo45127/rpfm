@@ -191,6 +191,8 @@ format used by all modern Total War titles.
    schema and the vanilla data.
 2. **Open a pack** — Call `open_pack` with filesystem path(s), or `new_pack`. Note the returned pack key.
 3. **Verify schema** — Call `session_status`; if `schema_loaded` is false, call `update_schemas` first.
+4. **Verify dependencies** — If `dependencies.vanilla_loaded` is false, `dependencies.error` says why. \
+   Call `generate_dependencies_cache` if the cache is missing or outdated.
 
 ## Supported Games
 
@@ -343,7 +345,8 @@ Step 3: Open a PackFile
 
 Step 4: Verify dependencies (optional but recommended)
     Call: session_status()
-    If dependencies.vanilla_loaded is false, call generate_dependencies_cache() to build the dependency database.
+    If dependencies.vanilla_loaded is false, dependencies.error says why. If the cache is missing or outdated,
+    call generate_dependencies_cache() to build the dependency database.
 
 After initialization, use session_status() to see all open pack keys at any time.
 ".to_string(),

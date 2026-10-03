@@ -67,6 +67,10 @@ pub struct DependenciesStatus {
 
     /// Amount of files loaded from the parent packs of the open packs.
     pub parent_files: usize,
+
+    /// Why the dependencies couldn't be fully loaded, like a missing or outdated dependencies cache, if they couldn't.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
 }
 
 impl Request for GetSessionStatus {

@@ -10,6 +10,8 @@
 
 //! Game selection and dependencies operations.
 
+use std::path::Path;
+
 use anyhow::{anyhow, Result};
 
 use rpfm_extensions::dependencies::Dependencies;
@@ -62,7 +64,9 @@ impl SessionState {
         let dependencies_info = if rebuild_dependencies {
             let cache_path = dependencies_cache_path()?.join(self.game.dependencies_cache_file_name());
             let cache_path = if game_changed { Some(&*cache_path) } else { None };
-            let _ = self.dependencies.rebuild(&None, &parent_pack_names(&self.packs), cache_path, &self.game, &settings.path_buf(self.game.key()), &settings.path_buf(SECONDARY_PATH));
+
+            // Failed loads keep what could be loaded, and their error is reported by the session status.
+            let _ = self.load_dependencies(cache_path, false, settings);
 
             Some(DependenciesInfo::new(&self.dependencies, self.game.vanilla_db_table_name_logic()))
         } else {
@@ -119,7 +123,7 @@ impl SessionState {
         let cache_path = dependencies_cache_path()?.join(self.game.dependencies_cache_file_name());
         cache.save(&cache_path)?;
 
-        let _ = self.dependencies.rebuild(&self.schema, &parent_pack_names(&self.packs), Some(&cache_path), &self.game, &game_path, &settings.path_buf(SECONDARY_PATH));
+        let _ = self.load_dependencies(Some(&cache_path), true, settings);
         Ok(DependenciesInfo::new(&self.dependencies, self.game.vanilla_db_table_name_logic()))
     }
 
@@ -138,7 +142,7 @@ impl SessionState {
 
         let cache_path = dependencies_cache_path()?.join(self.game.dependencies_cache_file_name());
         let cache_path = if only_parent_packs { None } else { Some(&*cache_path) };
-        let _ = self.dependencies.rebuild(&self.schema, &parent_pack_names(&self.packs), cache_path, &self.game, &settings.path_buf(self.game.key()), &settings.path_buf(SECONDARY_PATH));
+        let _ = self.load_dependencies(cache_path, true, settings);
 
         Ok(DependenciesInfo::new(&self.dependencies, self.game.vanilla_db_table_name_logic()))
     }
@@ -154,8 +158,35 @@ impl SessionState {
         }
 
         let cache_path = dependencies_cache_path()?.join(self.game.dependencies_cache_file_name());
-        self.dependencies.rebuild(&self.schema, &parent_pack_names(&self.packs), Some(&cache_path), &self.game, &settings.path_buf(self.game.key()), &settings.path_buf(SECONDARY_PATH))
+        self.load_dependencies(Some(&cache_path), true, settings)
             .map_err(|_| anyhow!("Schema updated, but dependencies cache rebuilding failed. You may need to regenerate it."))
+    }
+
+    /// Rebuilds the dependencies of the selected game, keeping the error for the session status if it fails.
+    ///
+    /// # Arguments
+    ///
+    /// * `cache_path` - Path of the dependencies cache to load, or `None` to only reload the loose and parent files.
+    /// * `decode_tables` - If the tables are decoded with the loaded schema.
+    /// * `settings` - Settings, to find the game's install folder.
+    ///
+    /// # Errors
+    ///
+    /// If any part of the dependencies couldn't be loaded. The parts that could are kept loaded.
+    fn load_dependencies(&mut self, cache_path: Option<&Path>, decode_tables: bool, settings: &Settings) -> Result<()> {
+        let game_path = settings.path_buf(self.game.key());
+        let schema = if decode_tables { &self.schema } else { &None };
+        let result = self.dependencies.rebuild(schema, &parent_pack_names(&self.packs), cache_path, &self.game, &game_path, &settings.path_buf(SECONDARY_PATH));
+
+        // Reloading without the cache doesn't fix a previous cache error, so only a full reload clears it.
+        match &result {
+            Err(_) if !game_path.is_dir() => self.dependencies_error = Some("The install folder of the game is not configured, or doesn't exist.".to_owned()),
+            Err(error) => self.dependencies_error = Some(error.to_string()),
+            Ok(()) if cache_path.is_some() => self.dependencies_error = None,
+            Ok(()) => {},
+        }
+
+        result.map_err(From::from)
     }
 
     /// Returns the files of the dependencies of the selected game.
