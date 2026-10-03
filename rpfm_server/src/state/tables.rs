@@ -428,7 +428,16 @@ impl SessionState {
     }
 
     /// Returns a page of the distinct values of a column of a table, sorted.
-    pub fn column_values_page(&self, request: &GetColumnValues) -> ColumnValues {
+    ///
+    /// # Errors
+    ///
+    /// Fails if the schema has no definition of the table, or if the table has no column with the provided name.
+    pub fn column_values_page(&self, request: &GetColumnValues) -> Result<ColumnValues> {
+        let definition = self.table_definition(&GetTableDefinition { table_name: request.table_name.clone(), version: None })?;
+        if !definition.columns.iter().any(|column| column.name == request.column) {
+            return Err(ApiError::InvalidParams(format!("The table has no column named {}.", request.column)).into());
+        }
+
         let mut values = self.column_values(&request.table_name, &request.column, request.include_packs, request.include_dependencies)
             .into_iter()
             .filter(|value| value.starts_with(&request.prefix))
@@ -441,7 +450,7 @@ impl SessionState {
             .take(request.limit.unwrap_or(DEFAULT_VALUES_LIMIT))
             .collect();
 
-        ColumnValues { values, total }
+        Ok(ColumnValues { values, total })
     }
 
     /// Returns a page of the values a reference column of a table can have, with their display text.

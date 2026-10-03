@@ -225,7 +225,7 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         GetTableRows::METHOD => call(params, |request: GetTableRows| state.table_rows(&request)),
         EditTable::METHOD => call(params, |request: EditTable| state.edit_table(&request)),
         GetTableDefinition::METHOD => call(params, |request: GetTableDefinition| state.table_definition(&request)),
-        GetColumnValues::METHOD => call(params, |request: GetColumnValues| Ok(state.column_values_page(&request))),
+        GetColumnValues::METHOD => call(params, |request: GetColumnValues| state.column_values_page(&request)),
         MergeTables::METHOD => call(params, |request: MergeTables| state.merge_tables(&request)),
         UpgradeTable::METHOD => call(params, |request: UpgradeTable| state.upgrade_table(&request)),
         RenameKey::METHOD => call(params, |request: RenameKey| state.rename_key(&request)),
