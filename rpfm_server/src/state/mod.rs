@@ -19,7 +19,7 @@ use anyhow::Result;
 use rayon::prelude::*;
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use rpfm_extensions::dependencies::Dependencies;
@@ -207,7 +207,7 @@ fn pack_summary(key: &str, pack: &Pack) -> PackSummary {
     PackSummary {
         key: key.to_owned(),
         name: pack.disk_file_name(),
-        path: pack.disk_file_path().to_owned(),
+        path: Some(pack.disk_file_path().to_owned()).filter(|path| Path::new(path).is_absolute()),
         pack_type: pack.pfh_file_type(),
         file_count: pack.files().len(),
     }

@@ -1960,7 +1960,7 @@ impl PackFileContentsSlots {
                     Some(key) => key,
                     None => return show_dialog(app_ui.main_window(), "No pack is open.", false),
                 };
-                let pack_path = match pack_details(&pack_key).map(|details| PathBuf::from(details.summary.path)) {
+                let pack_path = match pack_details(&pack_key).map(|details| details.summary.path.map(PathBuf::from).unwrap_or_default()) {
                     Ok(path) => path,
                     Err(error) => return show_dialog(app_ui.main_window(), error, false),
                 };
@@ -2017,7 +2017,7 @@ impl PackFileContentsSlots {
                     Some(key) => key,
                     None => return show_dialog(app_ui.main_window(), "No pack is open.", false),
                 };
-                let pack_path = match pack_details(&pack_key).map(|details| PathBuf::from(details.summary.path)) {
+                let pack_path = match pack_details(&pack_key).map(|details| details.summary.path.map(PathBuf::from).unwrap_or_default()) {
                     Ok(path) => path,
                     Err(error) => return show_dialog(app_ui.main_window(), error, false),
                 };
@@ -2528,7 +2528,7 @@ unsafe fn update_pack(app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileCon
 
 /// Opens the folder containing a pack in the system's file manager.
 fn open_containing_folder(pack_key: &str) -> Result<()> {
-    let path = pack_details(pack_key)?.summary.path;
+    let path = pack_details(pack_key)?.summary.path.unwrap_or_default();
 
     // Canonicalized Windows paths break opening them.
     let path = path.strip_prefix("//?/").or_else(|| path.strip_prefix("\\\\?\\")).unwrap_or(&path);

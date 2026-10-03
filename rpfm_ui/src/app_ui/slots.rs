@@ -45,7 +45,7 @@ use qt_core::WindowModality;
 
 use std::collections::BTreeMap;
 use std::panic::{AssertUnwindSafe, catch_unwind};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
 use std::time::Instant;
@@ -649,8 +649,8 @@ impl AppUISlots {
                     }
 
                     // A cancelled Save As dialog returns Ok, so confirm the pack actually exists on disk now.
-                    let saved = pack_details(&pack_key).map(|details| PathBuf::from(details.summary.path))
-                        .is_ok_and(|path| path.is_absolute() && path.is_file());
+                    let saved = pack_details(&pack_key)
+                        .is_ok_and(|details| details.summary.path.is_some_and(|path| Path::new(&path).is_file()));
                     all_saved &= saved;
                 }
 

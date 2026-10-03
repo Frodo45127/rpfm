@@ -1293,7 +1293,7 @@ impl AppUI {
         for path in pack_file_paths {
             let pack_key = path.to_string_lossy().to_string();
             let normalized = pack_key.replace('\\', "/");
-            if open_packs.iter().any(|pack| pack.path == normalized) {
+            if open_packs.iter().any(|pack| pack.path.as_deref() == Some(normalized.as_str())) {
                 return Err(anyhow!("Pack '{}' is already open. Close it first if you want to reopen it.", pack_key));
             }
         }
@@ -1482,16 +1482,15 @@ impl AppUI {
         // First, we need to save all open `PackedFiles` to the backend. If one fails, we want to know what one.
         AppUI::back_to_back_end_all(app_ui, pack_file_contents_ui)?;
 
-        let mut path = match pack_details(&pack_key).map(|details| PathBuf::from(details.summary.path)) {
-            Ok(path) => path,
+        let (path, name) = match pack_details(&pack_key).map(|details| (details.summary.path.map(PathBuf::from), details.summary.name)) {
+            Ok(path_and_name) => path_and_name,
             Err(error) => {
                 app_ui.toggle_main_window(true);
                 return Err(error);
             }
         };
 
-        // New packs only carry a bare file name, which would resolve against the process's CWD.
-        let exists_on_disk = path.is_absolute() && path.is_file();
+        let exists_on_disk = path.as_ref().is_some_and(|path| path.is_file());
         if !exists_on_disk || save_as {
 
             // Create the FileDialog to save the PackFile and configure it.
@@ -1502,12 +1501,11 @@ impl AppUI {
             file_dialog.set_accept_mode(qt_widgets::q_file_dialog::AcceptMode::AcceptSave);
             file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
             file_dialog.set_default_suffix(&QString::from_std_str("pack"));
-            file_dialog.select_file(&QString::from_std_str(path.file_name().unwrap_or_else(|| OsStr::new("mod.pack")).to_string_lossy()));
+            file_dialog.select_file(&QString::from_std_str(&name));
 
             // If we are saving an existing PackFile with another name, we start in his current path.
-            if exists_on_disk {
-                path.pop();
-                file_dialog.set_directory_q_string(&QString::from_std_str(path.to_string_lossy().as_ref()));
+            if let Some(folder) = path.as_ref().filter(|_| exists_on_disk).and_then(|path| path.parent()) {
+                file_dialog.set_directory_q_string(&QString::from_std_str(folder.to_string_lossy().as_ref()));
             }
 
             // In case we have a default path for the Game Selected and that path is valid,

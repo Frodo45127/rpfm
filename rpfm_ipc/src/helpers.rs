@@ -305,7 +305,7 @@ impl From<&PackDetails> for ContainerInfo {
 
         Self {
             file_name: file_name.to_owned(),
-            file_path: details.summary.path.clone(),
+            file_path: details.summary.path.clone().unwrap_or_default(),
             pfh_version: details.version,
             pfh_file_type: details.summary.pack_type,
             bitmask,

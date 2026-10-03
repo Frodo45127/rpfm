@@ -44,8 +44,8 @@ pub struct PackSummary {
     /// File name of the pack.
     pub name: String,
 
-    /// Path of the pack on disk. For packs never saved, only their name.
-    pub path: String,
+    /// Path of the pack on disk, if it's saved there.
+    pub path: Option<String>,
 
     /// Type of the pack: `Boot`, `Release`, `Patch`, `Mod` or `Movie`.
     #[schemars(with = "String")]
