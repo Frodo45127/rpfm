@@ -64,8 +64,8 @@ A tool that fails returns a **tool error** instead of ending the MCP session. It
 Slow tools (`set_game`, `generate_dependencies_cache`, `rebuild_dependencies`, `run_diagnostics`, `run_search`, `update_schemas`, `update_schema_from_assembly_kit`, `optimize_pack`, `run_lua_tests`) run as [jobs](./ws-protocol.md#jobs). They wait up to 45 seconds and return the state of their job:
 
 - If it finished, the state includes the `result` of the tool.
-- If it failed, the tool returns a tool error with the state.
-- If it's still running, call `wait_for_job` with its `job` ID, as many times as needed.
+- If it failed, the tool returns its error, like any other tool that fails.
+- If it's still running, call `wait_for_job` with its `job` ID, as many times as needed. It ends like the tool that started the job.
 
 Other tools called meanwhile wait for the job to end before running, except during `run_diagnostics`: a running check stops for them, and starts again after them.
 
@@ -141,7 +141,7 @@ The MCP interface exposes **88 tools**. The descriptions below are the first sen
 | `session_status` | `session.status` | Get the state of the session: the selected game, if its schema and dependencies (vanilla files, Assembly Kit tables, parent packs) are loaded, and the open packs with their keys. |
 | `set_game` | `session.set_game` | Select the game to work with, like `warhammer_3`, loading its schema and, by default, its dependencies (vanilla files, Assembly Kit tables, parent packs). |
 | `job_status` | `job.status` | Get the state of a job: queued, running (with its current step), finished (with its result), failed (with its error) or cancelled. |
-| `wait_for_job` | `job.wait` | Wait for a job to end, up to `timeout_secs` (60 by default), and return its state. |
+| `wait_for_job` | `job.wait` | Wait for a job to end, up to `timeout_secs` (60 by default), and return its state, or its error if it failed. |
 | `cancel_job` | `job.cancel` | Cancel a job that hasn't started yet. |
 
 ### Packs

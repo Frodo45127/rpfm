@@ -104,10 +104,13 @@ fn error_result(error: &RpcError) -> CallToolResult {
     CallToolResult::error(vec![ContentBlock::text(serde_json::to_string(error).unwrap_or_else(|_| error.message.clone()))])
 }
 
-/// Returns the state of a job as structured content, marked as a tool error if the job failed.
+/// Returns the state of a job as structured content, or its error as a tool error, like any other tool, if the job failed.
 fn job_status_result(status: &JobStatus) -> CallToolResult {
+    if let JobState::Failed { error } = &status.state {
+        return error_result(error);
+    }
+
     match serde_json::to_value(status) {
-        Ok(value) if matches!(status.state, JobState::Failed { .. }) => CallToolResult::structured_error(value),
         Ok(value) => CallToolResult::structured(value),
         Err(error) => error_result(&ApiError::Internal(error.to_string()).into()),
     }
@@ -509,6 +512,12 @@ impl McpServer {
                     Some(status) => job_status_result(&status),
                     None => error_result(&ApiError::JobNotFound(started.job).into()),
                 },
+                Err(error) => error_result(&ApiError::Internal(error.to_string()).into()),
+            },
+
+            // Waiting for a job ends it like the tool that started it, so a failed job is a tool error too.
+            RpcOutcome::Result(value) if R::METHOD == WaitForJob::METHOD => match serde_json::from_value::<JobStatus>(value) {
+                Ok(status) => job_status_result(&status),
                 Err(error) => error_result(&ApiError::Internal(error.to_string()).into()),
             },
             RpcOutcome::Result(value) => CallToolResult::structured(value),
@@ -1247,7 +1256,7 @@ Runs as a job: waits up to 45 seconds and returns its state, with the report as 
 
     #[tool(
         name = "wait_for_job",
-        description = "Wait for a job to end, up to `timeout_secs` (60 by default), and return its state.",
+        description = "Wait for a job to end, up to `timeout_secs` (60 by default), and return its state, or its error if it failed.",
         annotations(read_only_hint = true),
         output_schema = schema_for_output::<JobStatus>(),
     )]
