@@ -78,11 +78,11 @@ pub struct FindUsages {
     /// Value to find usages of.
     pub value: String,
 
-    /// If set, only this open pack is searched, instead of all of them.
     /// Version of the table's definition, to know which columns reference it. Defaults to the version in the game files, or the newest one.
     #[serde(default)]
     pub version: Option<i32>,
 
+    /// If set, only this open pack is searched, instead of all of them.
     #[serde(default)]
     pub pack: Option<String>,
 
