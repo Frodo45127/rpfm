@@ -54,7 +54,7 @@ You'll typically pick one of two integration paths:
 - **WebSocket** — for full programmatic access. You write client code that sends JSON-RPC requests and matches their responses by ID. See [WebSocket protocol](./ws-protocol.md).
 - **MCP** — for AI agents and other clients that already speak MCP. The server exposes most methods as tools, plus prompts and resources. See [MCP interface](./mcp.md).
 
-Under the hood both pathways use the same `Session` abstraction, but each connection gets its own isolated session with its own open Packs and dependency cache. WebSocket clients can reattach to an existing session by passing their previous `session_id` back on the handshake; MCP clients always start a fresh session per connection. Two clients running side by side don't share state — they share the server process.
+Under the hood both pathways use the same `Session` abstraction. Each WebSocket connection gets its own isolated session with its own open Packs and dependency cache, and can reattach to it by passing its previous `session_id` back on the handshake. All MCP clients share one session, separate from the WebSocket ones. A WebSocket client and an MCP client running side by side don't share state — they share the server process.
 
 ## Spawning the server
 

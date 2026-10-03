@@ -13,9 +13,8 @@
 //! Exposes the methods of the server's API as MCP **tools**, plus a handful
 //! of MCP **resources** (game lists, enum dumps, reference docs) and
 //! **prompts** for common workflows ("open and inspect a pack", "edit a DB
-//! table", "manage dependencies", …). Each MCP client gets its own dedicated
-//! [`Session`] and [`McpServer`] — same isolation guarantees as the
-//! WebSocket clients.
+//! table", "manage dependencies", …). All MCP clients share one [`Session`],
+//! separate from the ones of the WebSocket clients.
 //!
 //! Each tool call sends its method's request through the session, like a
 //! WebSocket client would, and returns the response as structured content,
@@ -77,7 +76,7 @@ use rpfm_ipc::api::tables::{
 };
 use rpfm_telemetry::sentry;
 
-use crate::session::Session;
+use crate::session::SessionManager;
 
 //-------------------------------------------------------------------------------//
 //                              Helpers
@@ -125,9 +124,9 @@ fn resource(uri: &str, name: &str, description: &str, mime_type: &str) -> Resour
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
-/// MCP server bound to a single [`Session`].
+/// MCP server running every tool call on the [`Session`] shared by all MCP clients.
 ///
-/// One instance is constructed per MCP client connection by the
+/// One instance is constructed per MCP connection or request by the
 /// `StreamableHttpService` factory wired in `main.rs`. The
 /// `tool_router` and `prompt_router` fields are built once at construction
 /// time from the `#[tool_router]` / `#[prompt_router]` attribute macros
@@ -136,8 +135,8 @@ fn resource(uri: &str, name: &str, description: &str, mime_type: &str) -> Resour
 /// Cheap to clone — only `Arc` and small router structs.
 #[derive(Clone)]
 pub struct McpServer {
-    /// The session this MCP client is bound to.
-    session: Arc<Session>,
+    /// The session manager, to get the session shared by all MCP clients on each call.
+    sessions: Arc<SessionManager>,
     /// The router auto-generated from `#[tool_router]` annotations.
     tool_router: ToolRouter<Self>,
     /// The router auto-generated from `#[prompt_router]` annotations.
@@ -496,13 +495,14 @@ impl McpServer {
             data: None,
         })?;
 
-        let response = self.session.call(rpc_request).recv().await
+        let session = self.sessions.mcp_session();
+        let response = session.call(rpc_request).recv().await
             .unwrap_or_else(|| RpcResponse::new(0, Err(ApiError::Internal("Session response channel closed unexpectedly".to_owned()))));
 
         // Jobs answer with their ID right away, so wait a bit for them and return their state.
         let result = match response.outcome {
             RpcOutcome::Result(value) if R::IS_JOB => match serde_json::from_value::<JobStarted>(value) {
-                Ok(started) => match self.session.jobs().wait(started.job, MCP_JOB_WAIT).await {
+                Ok(started) => match session.jobs().wait(started.job, MCP_JOB_WAIT).await {
                     Some(status) => job_status_result(&status),
                     None => error_result(&ApiError::JobNotFound(started.job).into()),
                 },
@@ -1412,9 +1412,9 @@ Runs as a job: waits up to 45 seconds and returns its state, with the report as 
         self.call_api("edit_table", params.0).await
     }
 
-    pub fn new(session: Arc<Session>) -> Self {
+    pub fn new(sessions: Arc<SessionManager>) -> Self {
         Self {
-            session,
+            sessions,
             tool_router: McpServer::tool_router(),
             prompt_router: McpServer::prompt_router(),
         }

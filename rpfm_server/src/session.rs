@@ -36,14 +36,14 @@
 //!    server process terminates, so no orphaned backend lingers in the
 //!    background.
 //!
-//! ## MCP sessions
+//! ## The MCP session
 //!
-//! MCP clients have no disconnect signal the server can rely on: the MCP
-//! transport keeps a session registered until the client sends an HTTP
-//! DELETE, which many clients never send. Sessions created for MCP clients
-//! ([`SessionManager::create_mcp_session`]) are therefore never counted as
-//! connected; instead, the periodic cleanup task reaps them once no command
-//! has been sent through them for [`DEFAULT_SESSION_TIMEOUT_SECS`].
+//! MCP clients share one session ([`SessionManager::mcp_session`]), whatever
+//! their protocol version: newer MCP versions have no sessions of their own,
+//! and the older ones have no disconnect signal the server can rely on. The
+//! MCP session is never counted as connected; instead, the periodic cleanup
+//! task removes it once no request has been sent through it for
+//! [`DEFAULT_SESSION_TIMEOUT_SECS`]. The next MCP request creates a new one.
 
 use tokio::sync::mpsc::{error::SendError, unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::time::{Duration, Instant};
@@ -126,12 +126,7 @@ pub struct Session {
     /// Unique identifier for this session.
     id: SessionId,
 
-    /// Whether this session was created for an MCP client.
-    ///
-    /// MCP sessions have no disconnect signal (the MCP transport keeps the
-    /// session registered until the client sends an HTTP DELETE, which many
-    /// clients never do), so they are reaped based on command inactivity
-    /// instead of connection count.
+    /// Whether this is the session of the MCP clients, removed by inactivity instead of by connection count.
     is_mcp: bool,
 
     /// Instant of the last command sent to this session's background thread.
@@ -184,7 +179,7 @@ impl Session {
 
     /// Create a new session with its own background thread.
     ///
-    /// `is_mcp` marks sessions created for MCP clients, which are reaped by
+    /// `is_mcp` marks the session of the MCP clients, which is removed by
     /// inactivity instead of by connection count (see [`Session::is_mcp`]).
     pub fn new(id: SessionId, is_mcp: bool) -> Arc<Self> {
         let (sender, receiver) = unbounded_channel();
@@ -223,7 +218,7 @@ impl Session {
         self.id
     }
 
-    /// Whether this session was created for an MCP client.
+    /// Whether this is the session of the MCP clients.
     pub fn is_mcp(&self) -> bool {
         self.is_mcp
     }
@@ -463,17 +458,26 @@ impl SessionManager {
         self.create_session_internal(false)
     }
 
-    /// Create a new session for an MCP client and return a reference to it.
+    /// Returns the session shared by all MCP clients, creating it if there is none.
     ///
-    /// MCP sessions are never counted as connected: the MCP transport keeps
-    /// them registered until the client sends an HTTP DELETE, which many
-    /// clients never send. Instead, they are reaped by [`SessionManager::cleanup_expired_sessions`]
-    /// once no command has been sent through them for [`DEFAULT_SESSION_TIMEOUT_SECS`].
-    pub fn create_mcp_session(&self) -> Arc<Session> {
-        self.create_session_internal(true)
+    /// It's never counted as connected. Instead, [`SessionManager::cleanup_expired_sessions`] removes it
+    /// once no request has been sent through it for [`DEFAULT_SESSION_TIMEOUT_SECS`].
+    pub fn mcp_session(&self) -> Arc<Session> {
+        let mut sessions = self.sessions.lock().unwrap();
+        let existing = sessions.values()
+            .find(|managed| managed.session.is_mcp() && !managed.session.is_shutdown_requested())
+            .map(|managed| managed.session.clone());
+
+        existing.unwrap_or_else(|| self.insert_session(&mut sessions, true))
     }
 
     fn create_session_internal(&self, is_mcp: bool) -> Arc<Session> {
+        let mut sessions = self.sessions.lock().unwrap();
+        self.insert_session(&mut sessions, is_mcp)
+    }
+
+    /// Creates a session and adds it to the provided sessions, which must be the locked [`SessionManager::sessions`].
+    fn insert_session(&self, sessions: &mut HashMap<SessionId, ManagedSession>, is_mcp: bool) -> Arc<Session> {
         let id = {
             let mut next_id = self.next_id.lock().unwrap();
             let id = *next_id;
@@ -483,13 +487,13 @@ impl SessionManager {
 
         let session = Session::new(id, is_mcp);
 
-        // MCP sessions start disconnected: their lifetime is governed by
-        // command inactivity, not by the connection count.
+        // The MCP session starts disconnected: its lifetime is governed by
+        // inactivity, not by the connection count.
         if !is_mcp {
             session.connect();
         }
 
-        self.sessions.lock().unwrap().insert(id, ManagedSession {
+        sessions.insert(id, ManagedSession {
             session: session.clone(),
             disconnected_at: None,
         });
@@ -600,8 +604,7 @@ impl SessionManager {
             for (id, managed) in sessions.iter() {
                 if managed.session.is_mcp() {
 
-                    // MCP sessions have no disconnect signal, so they are reaped
-                    // by command inactivity instead of by connection count.
+                    // MCP clients have no disconnect signal, so their session is removed by inactivity.
                     if now.duration_since(managed.session.last_activity()) >= self.timeout {
                         to_remove.push(*id);
                     }
@@ -789,5 +792,33 @@ mod tests {
         let status = session.jobs.wait(newer, Duration::from_secs(10)).await.unwrap();
         assert!(matches!(status.state, JobState::Finished { .. }), "{status:?}");
         assert!(!session.has_queued_requests());
+    }
+
+    /// Builds a manager whose sessions expire as soon as they're idle or disconnected.
+    fn manager_without_timeout() -> SessionManager {
+        SessionManager { timeout: Duration::ZERO, ..SessionManager::default() }
+    }
+
+    #[tokio::test]
+    async fn mcp_clients_share_one_session() {
+        let manager = SessionManager::default();
+
+        let first = manager.mcp_session();
+        let second = manager.mcp_session();
+
+        assert_eq!(first.id(), second.id());
+        assert_eq!(manager.session_count(), 1);
+    }
+
+    #[tokio::test]
+    async fn the_idle_mcp_session_is_removed_and_replaced() {
+        let manager = manager_without_timeout();
+        let first = manager.mcp_session();
+
+        manager.cleanup_expired_sessions();
+        let second = manager.mcp_session();
+
+        assert!(first.is_shutdown_requested());
+        assert_ne!(first.id(), second.id());
     }
 }

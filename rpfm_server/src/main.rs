@@ -175,13 +175,10 @@ async fn main() {
     let session_manager: Arc<SessionManager> = Arc::new(SessionManager::default());
     SessionManager::start_cleanup_task(session_manager.clone());
 
-    // Create an MCP service with its own session for MCP clients.
+    // Create the MCP service. All MCP clients share one session, got from the manager on each call.
     let sm = session_manager.clone();
     let http_service = StreamableHttpService::new(
-        move || {
-            let session = sm.create_mcp_session();
-            Ok(McpServer::new(session))
-        },
+        move || Ok(McpServer::new(sm.clone())),
         LocalSessionManager::default().into(),
         Default::default(),
     );

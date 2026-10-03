@@ -1,12 +1,12 @@
 # Sessions & connection lifecycle
 
-Each WebSocket and each MCP connection lives inside a **session**. A session owns a dedicated background thread that runs its requests serially against its in-memory state (open Packs, dependency cache, settings).
+Each WebSocket connection lives inside a **session**, and all MCP clients share one more. A session owns a dedicated background thread that runs its requests serially against its in-memory state (open Packs, dependency cache, settings).
 
-Sessions are isolated: open packs in one session aren't visible in another. This is what makes "many UI clients (or MCP clients) talking to one server" safe.
+Sessions are isolated: open packs in one session aren't visible in another. This is what makes "many UI clients talking to one server" safe.
 
 ## Lifecycle
 
-1. **Connect.** A client opens `/ws` (or connects to `/mcp`) without a session ID. The server allocates a new `SessionId`, spins up a background thread, and immediately sends a `session.connected` notification so the client can stash the ID for later reconnection.
+1. **Connect.** A client opens `/ws` without a session ID. The server allocates a new `SessionId`, spins up a background thread, and immediately sends a `session.connected` notification so the client can stash the ID for later reconnection.
 
    ```json
    { "jsonrpc": "2.0", "method": "session.connected", "params": { "session_id": 12345 } }
@@ -22,9 +22,11 @@ Sessions are isolated: open packs in one session aren't visible in another. This
    { "jsonrpc": "2.0", "id": 99, "method": "session.disconnect" }
    ```
 
-   MCP sessions have no disconnect signal the server can rely on, so they're removed after 5 minutes without requests instead.
-
 5. **Empty manager → process exit.** When the last session goes away the `rpfm_server` process exits, so no orphaned server lingers in the background.
+
+## The MCP session
+
+MCP clients have no disconnect signal the server can rely on, and newer MCP versions have no sessions at all, so all MCP clients share one session. It's created by the first tool call, and removed after 5 minutes without tool calls. The next tool call creates a new one.
 
 ## Reconnection example
 
