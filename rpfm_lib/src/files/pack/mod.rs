@@ -921,9 +921,10 @@ impl Pack {
     ///
     /// If a path is provided, the Pack will be saved to that path. Otherwise, it'll use whatever path it had set before.
     pub fn save(&mut self, path: Option<&Path>, game_info: &GameInfo, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
-        if let Some(path) = path {
-            self.disk_file_path = path.to_string_lossy().to_string();
-        }
+        let disk_file_path = match path {
+            Some(path) => path.to_string_lossy().to_string(),
+            None => self.disk_file_path.clone(),
+        };
 
         let extra_data = if extra_data.is_some() {
             extra_data.clone()
@@ -933,7 +934,7 @@ impl Pack {
 
         // Encode to a temp pack instead of overwriting the existing one. This should help avoid
         // corrupting the existing pack if encoding fails. Symlinks are resolved so they're not replaced.
-        let target = PathBuf::from(&self.disk_file_path);
+        let target = PathBuf::from(&disk_file_path);
         let target = target.canonicalize().unwrap_or(target);
         let parent = match target.parent() {
             Some(parent) if !parent.as_os_str().is_empty() => parent.to_path_buf(),
@@ -947,6 +948,7 @@ impl Pack {
             buffer.flush()?;
         }
         temp_file.persist(&target).map_err(|error| RLibError::from(error.error))?;
+        self.disk_file_path = disk_file_path;
 
         // Reload the files that were not decoded, so their offsets are updated to match the new pack.
         let mut reloaded = Self::read_and_merge(&[target], game_info, true, false, false)?;

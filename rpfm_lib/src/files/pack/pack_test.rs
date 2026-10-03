@@ -412,6 +412,19 @@ fn test_save_writes_through_symlinks() {
     assert!(real_path.metadata().unwrap().len() > 0);
 }
 
+#[test]
+fn test_failed_save_keeps_the_pack_path() {
+    let games = SupportedGames::default();
+    let game = games.game(KEY_WARHAMMER_2).unwrap();
+    let folder = tempfile::tempdir().unwrap();
+    let mut pack = loaded_test_pack();
+    let path_before = pack.disk_file_path().to_owned();
+
+    let result = pack.save(Some(&folder.path().join("missing_folder").join("new.pack")), game, &None);
+
+    assert!(result.is_err());
+    assert_eq!(pack.disk_file_path(), &path_before);
+}
 
 #[test]
 fn test_db_table_folders_matches_db_and_ceo_db() {
