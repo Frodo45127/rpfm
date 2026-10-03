@@ -224,8 +224,8 @@ impl DependenciesUI {
 
         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
         let imported = paths_by_source.into_iter().try_fold((vec![], vec![]), |(mut added, mut not_added), (data_source, paths)| {
-            let from = data_source.file_source(&pack_key).ok_or_else(|| anyhow!("External files can't be imported."))?;
-            let request = CopyFiles { from, paths: paths.iter().map(|path| path.path_raw().to_owned()).collect(), to_pack: pack_key.clone() };
+            let source = data_source.file_source(&pack_key).ok_or_else(|| anyhow!("External files can't be imported."))?;
+            let request = CopyFiles { source, paths: paths.iter().map(|path| path.path_raw().to_owned()).collect(), pack: pack_key.clone() };
             let result = call_api(&request)?;
             added.extend(file_paths(result.added));
             not_added.extend(result.not_added);

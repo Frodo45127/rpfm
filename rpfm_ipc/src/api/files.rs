@@ -235,13 +235,13 @@ pub struct AddFilesFromDisk {
 pub struct CopyFiles {
 
     /// Where to copy the files from.
-    pub from: FileSource,
+    pub source: FileSource,
 
     /// Paths of the files and folders to copy.
     pub paths: Vec<String>,
 
     /// Key of the pack to copy them to.
-    pub to_pack: String,
+    pub pack: String,
 }
 
 /// Files added to a pack.

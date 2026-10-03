@@ -311,8 +311,8 @@ pub fn file_paths_in_all_sources(folder: &str) -> Vec<String> {
 /// # Returns
 ///
 /// The paths of the files added to the pack.
-pub fn copy_files(from: FileSource, paths: &[ContainerPath], to_pack: &str) -> Result<Vec<ContainerPath>> {
-    let request = CopyFiles { from, paths: paths.iter().map(|path| path.path_raw().to_owned()).collect(), to_pack: to_pack.to_owned() };
+pub fn copy_files(source: FileSource, paths: &[ContainerPath], pack: &str) -> Result<Vec<ContainerPath>> {
+    let request = CopyFiles { source, paths: paths.iter().map(|path| path.path_raw().to_owned()).collect(), pack: pack.to_owned() };
     Ok(file_paths(call_api(&request)?.added))
 }
 

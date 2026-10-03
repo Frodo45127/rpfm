@@ -1479,7 +1479,7 @@ Workflow:
 2. **Open the pack** – `open_pack` → note the pack `key`.
 3. **Find the table** – `list_files` with `source: {\"pack\": <pack key>}`, `prefix: \"db/\"` and
    `file_types: [\"DB\"]`. To edit a vanilla table, copy it into the pack first:
-   `copy_files` with `from: \"game_files\"`, its path, and `to_pack`.
+   `copy_files` with `source: \"game_files\"`, its path, and the pack key as `pack`.
 4. **Inspect it** – `table_info` with `file: {\"source\": {\"pack\": <pack key>}, \"path\": <DB path>}`
    returns its columns (name, type, key, referenced table) and row count.
 5. **Read the rows you need** – `table_rows` with `columns` and `filters`, to find the index of each

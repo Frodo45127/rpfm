@@ -920,16 +920,16 @@ impl SessionState {
     ///
     /// Assembly Kit tables get the file name tables have in the game files.
     pub fn copy_files_to_pack(&mut self, request: &CopyFiles) -> Result<FilesAdded> {
-        match request.from {
+        match request.source {
             FileSource::Pack(ref source_key) => {
                 let source = pack(&self.packs, source_key)?;
                 let (paths, not_found) = split_found(&request.paths, |path| container_path(|path| source.has_file(path), path), |path| !source.files_by_path(path, false).is_empty());
 
-                let added = self.add_files_from_pack(&request.to_pack, source_key, &paths)?;
+                let added = self.add_files_from_pack(&request.pack, source_key, &paths)?;
                 Ok(FilesAdded { added: raw_paths(&added), not_added: not_found, error: None })
             }
             FileSource::GameFiles | FileSource::ParentFiles => {
-                let data_source = DataSource::from(&request.from);
+                let data_source = DataSource::from(&request.source);
                 let (include_vanilla, include_parent) = (data_source == DataSource::GameFiles, data_source == DataSource::ParentFiles);
                 let (paths, mut not_found) = split_found(
                     &request.paths,
@@ -937,7 +937,7 @@ impl SessionState {
                     |path| !self.dependencies.files_by_path(from_ref(path), include_vanilla, include_parent, false).is_empty(),
                 );
 
-                let (added, mut not_added) = self.import_dependencies(&request.to_pack, &BTreeMap::from([(data_source, paths)]))?;
+                let (added, mut not_added) = self.import_dependencies(&request.pack, &BTreeMap::from([(data_source, paths)]))?;
                 not_added.append(&mut not_found);
                 Ok(FilesAdded { added: raw_paths(&added), not_added, error: None })
             }
@@ -948,7 +948,7 @@ impl SessionState {
                     .map(|path| ContainerPath::Folder(path.strip_suffix(ASSEMBLY_KIT_TABLE_FILE_NAME).unwrap_or(path).trim_end_matches('/').to_owned()))
                     .collect();
 
-                let (added, not_added) = self.import_dependencies(&request.to_pack, &BTreeMap::from([(DataSource::AssKitFiles, paths)]))?;
+                let (added, not_added) = self.import_dependencies(&request.pack, &BTreeMap::from([(DataSource::AssKitFiles, paths)]))?;
                 Ok(FilesAdded { added: raw_paths(&added), not_added, error: None })
             }
         }
