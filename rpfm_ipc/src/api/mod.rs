@@ -185,7 +185,7 @@ pub enum ApiError {
     SchemaNotLoaded,
 
     /// The schema has no definition for this table.
-    #[error("No definition found for table {0}.")]
+    #[error("No definition found for table {0}.{hint}", hint = table_name_hint(.0))]
     DefinitionNotFound(String),
 
     /// The file can't be edited, because it's not in an open pack.
@@ -228,6 +228,15 @@ pub enum ApiError {
 //-------------------------------------------------------------------------------//
 //                             Implementations
 //-------------------------------------------------------------------------------//
+
+/// Returns a hint for the error of a table not found, if its name doesn't look like a table name.
+fn table_name_hint(table_name: &str) -> &'static str {
+    if table_name.ends_with("_tables") {
+        ""
+    } else {
+        " Table names end in `_tables`, like `units_tables`."
+    }
+}
 
 impl RpcRequest {
 
@@ -390,6 +399,12 @@ mod tests {
         let error = RpcError { code: -32603, message: "boom".to_owned(), data: None };
 
         assert_eq!(ApiError::from(error), ApiError::Internal("boom".to_owned()));
+    }
+
+    #[test]
+    fn missing_tables_without_the_suffix_get_a_hint() {
+        assert_eq!(ApiError::DefinitionNotFound("units_tables".to_owned()).to_string(), "No definition found for table units_tables.");
+        assert!(ApiError::DefinitionNotFound("units".to_owned()).to_string().ends_with("Table names end in `_tables`, like `units_tables`."));
     }
 
     #[test]
