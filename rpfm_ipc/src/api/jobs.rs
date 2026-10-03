@@ -87,6 +87,7 @@ pub enum JobState {
 
 /// `job.status`: returns the state of a job.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetJobStatus {
 
     /// ID of the job.
@@ -95,6 +96,7 @@ pub struct GetJobStatus {
 
 /// `job.wait`: waits for a job to end, and returns its state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct WaitForJob {
 
     /// ID of the job.
@@ -108,6 +110,7 @@ pub struct WaitForJob {
 
 /// `job.cancel`: cancels a job that hasn't started yet. Running jobs can't be cancelled.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct CancelJob {
 
     /// ID of the job.

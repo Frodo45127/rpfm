@@ -35,6 +35,7 @@ pub struct NoteEntry {
 
 /// `notes.list`: returns the notes of an open pack for a path.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ListNotes {
 
     /// Key of the pack.
@@ -56,6 +57,7 @@ pub struct NoteList {
 
 /// `notes.add`: attaches a note to a file or folder of an open pack.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct AddNote {
 
     /// Key of the pack.
@@ -79,6 +81,7 @@ pub struct AddNote {
 
 /// `notes.delete`: deletes a note of an open pack.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct DeleteNote {
 
     /// Key of the pack.

@@ -41,6 +41,7 @@ pub enum UpdateComponent {
 
 /// `updates.check`: checks if there is an update.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct CheckUpdate {
 
     /// What to check.
@@ -94,6 +95,7 @@ pub enum UpdateState {
 
 /// `updates.apply`: downloads an update. Schemas can't be updated with this, as they need reloading: use `schema.update`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ApplyUpdate {
 
     /// What to update.

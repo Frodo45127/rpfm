@@ -30,6 +30,7 @@ pub const DEFAULT_DIAGNOSTICS_LIMIT: usize = 100;
 /// A running check stops when other requests arrive, and is queued again behind them. A new check replaces the
 /// one that hasn't ended yet, which ends cancelled, and also checks the paths the replaced one would have checked.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct RunDiagnostics {
 
     /// If set, only files and folders of the open packs at these paths are checked again, keeping the
@@ -77,6 +78,7 @@ pub enum DiagnosticLevel {
 
 /// `diagnostics.list`: returns results of the last check, optionally filtered.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ListDiagnostics {
 
     /// If set, only results of these levels are returned.
@@ -149,6 +151,7 @@ pub struct DiagnosticResult {
 
 /// `diagnostics.ignore`: makes the next checks of a pack skip some results. Saved in the pack's settings.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct IgnoreDiagnostics {
 
     /// Key of the pack.
@@ -181,6 +184,7 @@ impl Request for ListDiagnostics {
 ///
 /// Meant for clients showing the results with all their details. Others should use `diagnostics.list`.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct GetDiagnosticsReport {}
 
 impl Request for GetDiagnosticsReport {

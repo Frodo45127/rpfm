@@ -70,6 +70,7 @@ pub struct ColumnReference {
 
 /// `table.info`: returns the definition and row count of a table.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetTableInfo {
 
     /// The table.
@@ -95,6 +96,7 @@ pub struct TableInfo {
 
 /// `table.rows`: returns rows of a table, optionally filtered and with only some columns.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetTableRows {
 
     /// The table.
@@ -119,6 +121,7 @@ pub struct GetTableRows {
 
 /// A condition on the value of a column, compared as text.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct RowFilter {
 
     /// Name of the column.
@@ -183,6 +186,7 @@ pub struct TableRow {
 
 /// `schema.definition`: returns the columns of a table as defined in the schema.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetTableDefinition {
 
     /// Name of the table, like `units_tables`.
@@ -227,6 +231,7 @@ impl Request for GetTableDefinition {
 ///
 /// Edits are applied in order, each one on the result of the previous ones. If any of them fails, none is applied.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct EditTable {
 
     /// The table. Its source must be an open pack.
@@ -240,7 +245,7 @@ pub struct EditTable {
 ///
 /// Values are given by column name, as booleans, numbers or strings, and converted to the type of their column.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
-#[serde(tag = "op", rename_all = "snake_case")]
+#[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 pub enum RowEdit {
 
     /// Adds a row. Columns not set get their default value.
@@ -291,6 +296,7 @@ pub const DEFAULT_VALUES_LIMIT: usize = 500;
 
 /// `table.column_values`: returns the distinct values of a column of a table, sorted.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetColumnValues {
 
     /// Name of the table, like `factions_tables`.
@@ -338,6 +344,7 @@ impl Request for GetColumnValues {
 
 /// `table.merge`: merges tables of the same type of an open pack into a new one.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct MergeTables {
 
     /// Key of the pack.
@@ -379,6 +386,7 @@ pub struct TablesMerged {
 
 /// `table.upgrade`: updates a table of an open pack to the version it has in the game files.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct UpgradeTable {
 
     /// Key of the pack.
@@ -408,6 +416,7 @@ pub struct TableUpgraded {
 /// `table.rename_key`: changes a value of a key column of a table in every table of an open pack,
 /// including the columns referencing it and the loc keys generated from it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct RenameKey {
 
     /// Key of the pack.
@@ -440,6 +449,7 @@ pub struct FilesEdited {
 
 /// `table.add_key_deletes`: adds rows to a key deletes table of an open pack, to delete keys of a table in the game.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct AddKeyDeletes {
 
     /// Key of the pack.
@@ -457,6 +467,7 @@ pub struct AddKeyDeletes {
 
 /// `table.export_tsv`: writes a table to a TSV file.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ExportTsv {
 
     /// The table. Assembly Kit tables can't be exported.
@@ -472,6 +483,7 @@ pub struct ExportTsv {
 
 /// `table.import_tsv`: replaces a table of an open pack with the contents of a TSV file, keeping its GUID.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ImportTsv {
 
     /// Key of the pack.

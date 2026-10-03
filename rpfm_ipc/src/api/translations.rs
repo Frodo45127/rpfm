@@ -24,6 +24,7 @@ pub const DEFAULT_TRANSLATIONS_LIMIT: usize = 200;
 ///
 /// Texts already translated in the vanilla game, or in previous translations of the pack, come translated.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ListTranslations {
 
     /// Key of the pack.
@@ -67,6 +68,7 @@ pub enum TranslationFilter {
 
 /// A page of the translation of a pack.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct Translations {
 
     /// The entries in the page, sorted by key.
@@ -78,6 +80,7 @@ pub struct Translations {
 
 /// The translation of a text.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct TranslationEntry {
 
     /// Loc key of the text.
@@ -102,6 +105,7 @@ pub struct TranslationEntry {
 /// `translations.generate_vanilla`: generates the vanilla texts of a language from the game's locale packs,
 /// so translations to and from it can reuse them.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GenerateVanillaTexts {
 
     /// Language of the texts to generate, like `EN`.
@@ -120,6 +124,7 @@ pub struct VanillaTextsAvailable {
 ///
 /// Meant for clients editing whole translations. Others should use `translations.list`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct GetPackTranslation {
 
     /// Key of the pack.
@@ -134,6 +139,7 @@ pub struct GetPackTranslation {
 
 /// `translations.submit`: submits the saved translation of a pack to the Translation Hub, opening or updating a pull request.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SubmitTranslation {
 
     /// Name of the pack the translation is for.

@@ -25,6 +25,7 @@ use super::tables::FilesEdited;
 
 /// `tools.optimizer_options`: returns the optimizer options, as the server's settings have them.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetOptimizerOptions {}
 
 /// Options of the optimizer, by name, like `table_remove_itm_entries` or `pack_remove_duplicated_files`.
@@ -37,6 +38,7 @@ pub struct OptimizerOptionValues {
 
 /// `tools.optimize`: removes data of an open pack that's identical to the vanilla one, or unneeded. Runs as a job.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct OptimizePack {
 
     /// Key of the pack.
@@ -61,6 +63,7 @@ pub struct FilesChanged {
 
 /// `tools.patch_siege_ai`: patches the siege maps of an open pack, so the AI can use them. Warhammer games only.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct PatchSiegeAi {
 
     /// Key of the pack.
@@ -80,6 +83,7 @@ pub struct SiegeAiPatched {
 
 /// `tools.pack_map`: adds the tiles and tile maps of a map exported by Terry to an open pack.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct PackMap {
 
     /// Key of the pack.
@@ -95,6 +99,7 @@ pub struct PackMap {
 
 /// A tile of a map.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct MapTile {
 
     /// Path on disk of the tile.
@@ -106,10 +111,12 @@ pub struct MapTile {
 
 /// `tools.generate_missing_locs`: adds empty loc entries for the localised columns of the tables of the open packs that have none.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GenerateMissingLocs {}
 
 /// `tools.update_anim_ids`: offsets the animation ids of an open pack, like after a game update moves them.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct UpdateAnimIds {
 
     /// Key of the pack.
@@ -124,6 +131,7 @@ pub struct UpdateAnimIds {
 
 /// `tools.anims_by_skeleton`: returns the paths of the animations using a skeleton, in the open packs and the dependencies.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct AnimsBySkeleton {
 
     /// Name of the skeleton.
@@ -140,6 +148,7 @@ pub struct FilePaths {
 
 /// `tools.export_gltf`: exports a RigidModel to a glTF file, with its textures.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ExportGltf {
 
     /// The RigidModel.
@@ -151,6 +160,7 @@ pub struct ExportGltf {
 
 /// `tools.set_video_format`: changes the format of a ca_vp8 video of an open pack.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct SetVideoFormat {
 
     /// Key of the pack.
@@ -165,6 +175,7 @@ pub struct SetVideoFormat {
 
 /// `tools.live_export`: exports the scripts and UI files of an open pack to the game's data folder, to test them without saving the pack.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct LiveExport {
 
     /// Key of the pack.
@@ -173,6 +184,7 @@ pub struct LiveExport {
 
 /// `tools.init_mymod`: creates the folder of a new MyMod, with editor configs for Lua scripting.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct InitMyMod {
 
     /// Folder name of the game of the MyMod, like `warhammer_3`.
@@ -204,6 +216,7 @@ pub struct MyModCreated {
 
 /// `lua.run_tests`: runs Lua tests against the scripts of the game and the open packs, outside of the game. Runs as a job.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct RunLuaTests {
 
     /// Code of the Lua test file.
@@ -224,6 +237,7 @@ pub struct LuaTestResults {
 
 /// `startpos.campaigns`: returns the campaigns a startpos can be built for.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetStartposCampaigns {
 
     /// Key of the pack with the startpos tables.
@@ -245,6 +259,7 @@ pub struct StartposCampaigns {
 ///
 /// When the game is closed, call [`FinishStartpos`] to import the startpos into the pack.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct StartStartpos {
 
     /// Key of the pack with the startpos tables.
@@ -260,6 +275,7 @@ pub struct StartStartpos {
 
 /// `startpos.finish`: imports the startpos built by the game into the pack, or cancels the build, and cleans up the build files.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct FinishStartpos {
 
     /// If the build is cancelled instead of imported.
@@ -354,6 +370,7 @@ impl Request for FinishStartpos {
 
 /// `tools.plugin_scripts`: returns the plugin scripts in the scripts folder of the config.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ListPluginScripts {}
 
 /// Plugin scripts available.
@@ -366,6 +383,7 @@ pub struct PluginScripts {
 
 /// `tools.run_plugin_script`: runs a plugin script over files of an open pack, reading back the files it changes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RunPluginScript {
 
     /// Key of the pack.
@@ -391,6 +409,7 @@ pub struct PluginScriptRun {
 
 /// `lua.hovers`: returns the docs of the game's Lua API for the symbols of a Lua script, to show on hover.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct GetLuaHovers {
 
     /// Source of the script.
@@ -427,6 +446,7 @@ pub struct LuaHover {
 
 /// `ceo.traits`: returns the trait CEOs of the Assembly Kit tables.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ListTraitCeos {}
 
 /// Trait CEOs of the Assembly Kit tables.
@@ -439,6 +459,7 @@ pub struct TraitCeos {
 
 /// `ceo.add_entries`: adds CEO entries (armour, career, traits and their locs) to an open pack.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct AddCeoEntries {
 
     /// Key of the pack.
@@ -450,6 +471,7 @@ pub struct AddCeoEntries {
 
 /// A CEO entry to add.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CeoEntryData {
 
     /// Name of the entry, used to build the keys of its rows.
@@ -473,6 +495,7 @@ pub struct CeoEntryData {
 
 /// `ceo.build`: builds `ceo_data.ccd` in the Assembly Kit from the CEO tables of an open pack, running BOB.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct BuildCeo {
 
     /// Key of the pack.
@@ -487,6 +510,7 @@ pub struct BuildCeo {
 
 /// `ceo.import`: imports the `ceo_data.ccd` built by `ceo.build` into an open pack.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ImportCeo {
 
     /// Key of the pack.

@@ -36,6 +36,7 @@ pub struct SessionConnected {
 
 /// `session.status`: returns the selected game, what's loaded for it, and the open packs.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetSessionStatus {}
 
 /// State of a session.
@@ -83,6 +84,7 @@ impl Request for GetSessionStatus {
 /// Sessions start with the settings in the settings file. Clients owning their own settings send them
 /// with this before anything else, and again whenever they change.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Configure {
 
     /// The settings.
@@ -97,6 +99,7 @@ impl Request for Configure {
 /// `session.disconnect`: tells the server the client is closing, so its WebSocket session is removed right away
 /// instead of waiting for the timeout. Only for WebSocket clients.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Disconnect {}
 
 impl Request for Disconnect {
@@ -106,6 +109,7 @@ impl Request for Disconnect {
 
 /// `session.set_game`: selects a game, loading its schema and, optionally, its dependencies. Runs as a job.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct SetGame {
 
     /// Key of the game, like `warhammer_3`.
@@ -119,6 +123,7 @@ pub struct SetGame {
 /// `dependencies.generate_cache`: generates the dependencies cache of the selected game from its files and
 /// Assembly Kit, and loads it. Runs as a job.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GenerateDependenciesCache {
 
     /// If tables in the game files are skipped when reading the Assembly Kit. Defaults to the server's setting.
@@ -129,6 +134,7 @@ pub struct GenerateDependenciesCache {
 /// `dependencies.rebuild`: reloads the dependencies of the selected game, like after changing the packs
 /// the open packs depend on. Runs as a job.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct RebuildDependencies {
 
     /// If only the parent packs are reloaded, instead of the whole dependencies.
@@ -156,6 +162,7 @@ impl Request for RebuildDependencies {
 
 /// `dependencies.tables`: returns the tables of the game files, and the startpos, twad and CEO tables of the schema, with their version.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ListDependencyTables {}
 
 /// Tables new files of the selected game can be created for.
@@ -175,6 +182,7 @@ impl Request for ListDependencyTables {
 ///
 /// Meant for clients showing the dependencies as a tree. Others should use `files.list`.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct GetDependenciesInfo {}
 
 impl Request for GetDependenciesInfo {
@@ -186,6 +194,7 @@ impl Request for GetDependenciesInfo {
 ///
 /// Meant for clients comparing whole tables. Others should use `table.rows`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct GetDependencyTableData {
 
     /// Name of the table, like `units_tables`.

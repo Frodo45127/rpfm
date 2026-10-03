@@ -53,6 +53,7 @@ pub enum FileSource {
 
 /// A file in one of the sources.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct FileRef {
 
     /// Where the file is.
@@ -64,6 +65,7 @@ pub struct FileRef {
 
 /// `files.list`: lists the files of a source, sorted by path.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ListFiles {
 
     /// Source to list.
@@ -124,6 +126,7 @@ impl Request for ListFiles {
 
 /// `files.create`: creates a new empty file in an open pack.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct CreateFile {
 
     /// Key of the pack.
@@ -138,7 +141,7 @@ pub struct CreateFile {
 
 /// Type of a new file.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
-#[serde(tag = "type", rename_all = "snake_case")]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum NewFileKind {
 
     /// An empty DB table.
@@ -188,6 +191,7 @@ pub enum NewFileKind {
 
 /// An entry copied from a vanilla file, with a new ID.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct EntryCopy {
 
     /// ID of the vanilla entry.
@@ -199,6 +203,7 @@ pub struct EntryCopy {
 
 /// `files.add_from_disk`: adds files and folders from disk to an open pack.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct AddFilesFromDisk {
 
     /// Key of the pack.
@@ -227,6 +232,7 @@ pub struct AddFilesFromDisk {
 
 /// `files.copy`: copies files and folders from any source into an open pack, keeping their paths.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct CopyFiles {
 
     /// Where to copy the files from.
@@ -257,6 +263,7 @@ pub struct FilesAdded {
 
 /// `files.delete`: deletes files and folders from an open pack.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct DeleteFiles {
 
     /// Key of the pack.
@@ -276,6 +283,7 @@ pub struct FilesDeleted {
 
 /// `files.rename`: renames or moves files and folders of an open pack.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct RenameFiles {
 
     /// Key of the pack.
@@ -287,6 +295,7 @@ pub struct RenameFiles {
 
 /// A rename of a file or folder.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct FileRename {
 
     /// Current path.
@@ -306,6 +315,7 @@ pub struct FilesRenamed {
 
 /// `files.duplicate`: copies files of an open pack in the same pack, adding a number to their names.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct DuplicateFiles {
 
     /// Key of the pack.
@@ -317,6 +327,7 @@ pub struct DuplicateFiles {
 
 /// `files.extract`: extracts files and folders of an open pack, the game files or the parent packs to disk.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ExtractFiles {
 
     /// Where the files are. The Assembly Kit tables can't be extracted.
@@ -382,6 +393,7 @@ impl Request for ExtractFiles {
 
 /// `file.read`: returns the contents of a file of any source.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ReadFile {
 
     /// The file.
@@ -411,7 +423,7 @@ pub enum ReadFormat {
 
 /// Contents of a file.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum FileData {
 
     /// The text of a text file.
@@ -450,6 +462,7 @@ pub struct FileContents {
 
 /// `file.write`: replaces the contents of a file of an open pack.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct WriteFile {
 
     /// Key of the pack.
@@ -464,6 +477,7 @@ pub struct WriteFile {
 
 /// `animpack.list`: lists the files inside an AnimPack of any source.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ListAnimPack {
 
     /// The AnimPack.
@@ -472,6 +486,7 @@ pub struct ListAnimPack {
 
 /// `animpack.add`: copies files of an open pack into an AnimPack of an open pack.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct AddToAnimPack {
 
     /// Key of the pack with the AnimPack.
@@ -489,6 +504,7 @@ pub struct AddToAnimPack {
 
 /// `animpack.extract`: copies files of an AnimPack of any source into an open pack.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ExtractFromAnimPack {
 
     /// The AnimPack.
@@ -503,6 +519,7 @@ pub struct ExtractFromAnimPack {
 
 /// `animpack.delete`: deletes files from an AnimPack of an open pack.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct DeleteFromAnimPack {
 
     /// Key of the pack with the AnimPack.
@@ -549,6 +566,7 @@ impl Request for DeleteFromAnimPack {
 ///
 /// Meant for clients with views for each type of file. Others should use `file.read`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct GetViewData {
 
     /// The file.
@@ -587,6 +605,7 @@ impl Request for GetViewData {
 ///
 /// Meant for clients showing the files of a pack as a tree. Others should use `files.list`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct GetFilesInfo {
 
     /// Key of the pack.
@@ -615,6 +634,7 @@ impl Request for GetFilesInfo {
 /// Each selected file or folder is pasted with its own name under the destination folder, not with its full path.
 /// Meant for clients with a clipboard. Others should use `files.copy` and `files.rename`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PasteFiles {
 
     /// Paths of the files and folders to paste, by key of their pack.
@@ -650,6 +670,7 @@ impl Request for PasteFiles {
 ///
 /// Meant for clients editing files of several sources at once, like the UI's tools. Others should use `file.read`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct GetFilesFromAllSources {
 
     /// Paths of the files and folders.
@@ -677,6 +698,7 @@ impl Request for GetFilesFromAllSources {
 ///
 /// Meant for clients editing files outside of the server, like the UI's tools. Others should use `file.write`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SaveFiles {
 
     /// Key of the pack.
@@ -697,6 +719,7 @@ impl Request for SaveFiles {
 
 /// `file.open_external`: extracts a file of an open pack to a temporary folder, and opens it in the system's default program for its type.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct OpenInExternalProgram {
 
     /// Key of the pack.
@@ -721,6 +744,7 @@ impl Request for OpenInExternalProgram {
 
 /// `file.save_external`: replaces a file of an open pack with the file on disk an external program edited.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SaveExternalFile {
 
     /// Key of the pack.

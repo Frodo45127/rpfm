@@ -38,6 +38,7 @@ pub const PATCH_KEYS: [(&str, &str); 10] = [
 
 /// `schema.tables`: lists the tables of the schema, with the versions it has definitions for.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ListSchemaTables {
 
     /// Only tables whose name starts with this are listed.
@@ -58,6 +59,7 @@ pub struct SchemaTables {
 /// Local patches are kept apart from the schema, so they survive schema updates. The schema is reloaded
 /// after saving the patch, so it applies right away.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct PatchColumn {
 
     /// Name of the table, like `units_tables`.
@@ -72,6 +74,7 @@ pub struct PatchColumn {
 
 /// `schema.remove_patches`: removes the local patches of a table, or of one of its columns, and reloads the schema.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct RemovePatches {
 
     /// Name of the table, like `units_tables`.
@@ -84,10 +87,12 @@ pub struct RemovePatches {
 
 /// `schema.update`: downloads the latest schemas, reloads the selected game's one, and rebuilds the dependencies. Runs as a job.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct UpdateSchemas {}
 
 /// `schema.update_from_assembly_kit`: updates the schema of the selected game with the tables of its Assembly Kit, and saves it. Runs as a job.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct UpdateSchemaFromAssemblyKit {
 
     /// If tables in the game files are skipped. Defaults to the server's setting.
@@ -127,6 +132,7 @@ impl Request for UpdateSchemaFromAssemblyKit {
 /// Their fields are the raw on-disk layout, which can differ from the columns rows have
 /// (see [`GetTableDefinition`](super::tables::GetTableDefinition) for those).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetRawDefinitions {
 
     /// Name of the table, like `units_tables`.
@@ -148,6 +154,7 @@ pub struct RawDefinitions {
 /// `schema.set_definition`: adds a definition to the schema of the selected game, or replaces the one with
 /// its version, then saves and reloads the schema.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct SetDefinition {
 
     /// Name of the table, like `units_tables`.
@@ -159,6 +166,7 @@ pub struct SetDefinition {
 
 /// `schema.delete_definition`: removes a definition from the schema of the selected game, then saves and reloads the schema.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct DeleteDefinition {
 
     /// Name of the table, like `units_tables`.
@@ -170,6 +178,7 @@ pub struct DeleteDefinition {
 
 /// `schema.referencing_columns`: returns the columns of other tables referencing each column of a table.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetReferencingColumns {
 
     /// Name of the table, like `factions_tables`.
@@ -182,6 +191,7 @@ pub struct GetReferencingColumns {
 
 /// `schema.patches`: returns the patches applied to the columns of a table.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetTablePatches {
 
     /// Name of the table, like `factions_tables`.
@@ -211,6 +221,7 @@ pub struct ReferencingColumns {
 ///
 /// Unlike [`PatchColumn`], these patches are part of the schema, so a schema update replaces them.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ImportPatches {
 
     /// Patches, by table name, column name and patch key. See [`PATCH_KEYS`] for the keys.
@@ -249,6 +260,7 @@ impl Request for ImportPatches {
 
 /// `schema.missing_definitions`: returns the tables of an open pack with rows that can't be decoded with the schema.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetMissingDefinitions {
 
     /// Key of the pack.

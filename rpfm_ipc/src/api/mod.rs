@@ -391,4 +391,30 @@ mod tests {
 
         assert_eq!(ApiError::from(error), ApiError::Internal("boom".to_owned()));
     }
+
+    #[test]
+    fn requests_reject_unknown_params() {
+        let error = serde_json::from_value::<tables::GetTableRows>(json!({
+            "file": { "source": "game_files", "path": "db/units_tables/data" },
+            "filter": [],
+        })).unwrap_err();
+
+        assert!(error.to_string().contains("unknown field `filter`"));
+    }
+
+    #[test]
+    fn nested_params_reject_unknown_fields() {
+        let error = serde_json::from_value::<files::FileRef>(json!({ "source": "game_files", "path": "a", "paht": "b" })).unwrap_err();
+
+        assert!(error.to_string().contains("unknown field `paht`"));
+    }
+
+    #[test]
+    fn tagged_params_reject_unknown_fields_but_accept_their_tag() {
+        let edit = serde_json::from_value::<tables::RowEdit>(json!({ "op": "delete", "indexes": [1] })).unwrap();
+        let error = serde_json::from_value::<tables::RowEdit>(json!({ "op": "delete", "indexes": [1], "index": 2 })).unwrap_err();
+
+        assert_eq!(edit, tables::RowEdit::Delete { indexes: vec![1] });
+        assert!(error.to_string().contains("unknown field `index`"));
+    }
 }

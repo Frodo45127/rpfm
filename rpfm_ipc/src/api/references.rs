@@ -47,6 +47,7 @@ pub struct RowLocation {
 ///
 /// Searches the open packs (starting with `pack`), then the parent packs, the game files and the Assembly Kit tables.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct FindDefinition {
 
     /// Referenced table, like `factions` or `factions_tables`.
@@ -67,6 +68,7 @@ pub struct FindDefinition {
 ///
 /// The referencing columns are taken from the schema. Searches the open packs, the parent packs and the game files.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct FindUsages {
 
     /// Table the value is from, like `factions_tables`.
@@ -122,6 +124,7 @@ pub struct Usage {
 ///
 /// Searches the open packs (starting with `pack`), then the parent packs and the game files.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct FindLoc {
 
     /// Key to find, like `factions_screen_name_wh_main_emp_empire`.
@@ -134,6 +137,7 @@ pub struct FindLoc {
 
 /// `references.loc_source`: returns the table, column and row a loc key belongs to.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetLocSource {
 
     /// The loc key, like `factions_screen_name_wh_main_emp_empire`.
@@ -186,6 +190,7 @@ impl Request for GetLocSource {
 ///
 /// The values come from the referenced column, in the open packs and the dependencies.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetReferenceValues {
 
     /// Name of the table with the reference column, like `units_tables`.
@@ -234,6 +239,7 @@ pub struct ReferenceValue {
 ///
 /// Meant for clients editing whole tables, to fill their dropdowns. Others should use `references.values`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct GetTableReferenceData {
 
     /// Name of the table, like `units_tables`.

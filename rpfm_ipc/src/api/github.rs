@@ -21,10 +21,12 @@ use super::{Done, Request};
 
 /// `github.sign_in_start`: starts a GitHub sign-in, returning the code the user has to enter on GitHub.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct StartGitHubSignIn {}
 
 /// `github.sign_in_poll`: checks if the user approved a sign-in. Once approved, the server keeps the sign-in.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PollGitHubSignIn {
 
     /// Device code of the sign-in, from `github.sign_in_start`.
@@ -53,6 +55,7 @@ pub enum GitHubSignInState {
 
 /// `github.account`: returns the GitHub account the user is signed in as.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct GetGitHubAccount {}
 
 /// GitHub account the user is signed in as.
@@ -65,6 +68,7 @@ pub struct GitHubAccount {
 
 /// `github.sign_out`: signs out of GitHub, deleting the stored sign-in.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SignOutOfGitHub {}
 
 impl Request for StartGitHubSignIn {

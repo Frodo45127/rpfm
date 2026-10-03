@@ -56,7 +56,7 @@ Failed requests get an `error` with a code, a message, and a `data` object with 
 | `-32010` | `search_not_run`          | `search.matches`, `search.replace` or `search.report` before any search. |
 | `-32011` | `not_found`               | Something the request names doesn't exist.                         |
 | `-32601` | `method_not_found`        | Unknown method.                                                    |
-| `-32602` | `invalid_params`          | The params don't match the method, or a value is invalid.          |
+| `-32602` | `invalid_params`          | The params don't match the method (including unknown params), or a value is invalid. |
 | `-32603` | `internal`                | Anything else.                                                     |
 
 ## Jobs

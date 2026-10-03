@@ -32,6 +32,7 @@ pub const DEFAULT_SEARCH_FILE_TYPES: [&str; 3] = ["db", "loc", "text"];
 
 /// `search.run`: searches text, keeping the matches for [`ListSearchMatches`]. Runs as a job.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct RunSearch {
 
     /// Text to search, or a regular expression if `use_regex` is set.
@@ -71,6 +72,7 @@ pub struct SearchSummary {
 
 /// `search.matches`: returns matches of the last search, optionally filtered.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ListSearchMatches {
 
     /// If set, only matches in these types of files are returned.
@@ -129,6 +131,7 @@ pub struct SearchMatch {
 /// Only matches in open packs can be replaced, and only in tables, text files, atlases, portrait
 /// settings, rigid models, unit variants and anim fragment battles.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ReplaceSearchMatches {
 
     /// Text to replace the matches with.
@@ -154,6 +157,7 @@ pub struct SearchReplaced {
 ///
 /// Meant for clients showing the matches with all their details. Others should use `search.matches`.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct GetSearchReport {}
 
 /// The last search with all its matches.

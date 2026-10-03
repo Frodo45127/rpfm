@@ -57,6 +57,7 @@ pub struct PackSummary {
 
 /// `pack.info`: returns the details of an open pack.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetPackInfo {
 
     /// Key of the pack.
@@ -104,6 +105,7 @@ pub struct PackDetails {
 
 /// A pack another pack depends on.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct PackDependency {
 
     /// If the dependency is loaded.
@@ -120,10 +122,12 @@ impl Request for GetPackInfo {
 
 /// `pack.new`: creates a new empty pack. It has no path on disk until it's saved with a path.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct NewPack {}
 
 /// `pack.open`: opens one or more packs from disk, merged into a single one.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct OpenPack {
 
     /// Paths of the packs on disk. The first one gives the pack its key.
@@ -136,10 +140,12 @@ pub struct OpenPack {
 
 /// `pack.open_vanilla`: opens all the vanilla packs of the selected game, merged into a single one.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct OpenVanillaPacks {}
 
 /// `pack.close`: closes an open pack, discarding unsaved changes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ClosePack {
 
     /// Key of the pack.
@@ -148,10 +154,12 @@ pub struct ClosePack {
 
 /// `pack.close_all`: closes all open packs, discarding unsaved changes.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct CloseAllPacks {}
 
 /// `pack.save`: saves an open pack to disk.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct SavePack {
 
     /// Key of the pack.
@@ -176,6 +184,7 @@ pub struct SavePack {
 
 /// `pack.update`: changes properties of an open pack. Only the fields set are changed.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct UpdatePack {
 
     /// Key of the pack.
@@ -216,6 +225,7 @@ pub struct UpdatePack {
 /// `pack.backup`: saves a backup copy of an open pack in the autosave folder, removing the oldest copies over the
 /// limit in the settings. Vanilla packs and packs with autosaves disabled are skipped.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct BackupPack {
 
     /// Key of the pack.
@@ -264,6 +274,7 @@ impl Request for UpdatePack {
 
 /// `pack.settings`: returns the settings of an open pack.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetPackSettings {
 
     /// Key of the pack.
@@ -272,6 +283,7 @@ pub struct GetPackSettings {
 
 /// Settings of a pack, by type of value and key, like `diagnostics_files_to_ignore` or `disable_autosaves`.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct PackSettingsValues {
 
     /// Multi-line text settings.
@@ -293,6 +305,7 @@ pub struct PackSettingsValues {
 
 /// `pack.update_settings`: changes settings of an open pack. Only the keys set are changed.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct UpdatePackSettings {
 
     /// Key of the pack.
