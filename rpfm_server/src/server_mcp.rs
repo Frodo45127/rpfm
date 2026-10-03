@@ -1545,7 +1545,7 @@ Workflow:
 1. **Open the pack** and **set the game** (see `open_and_inspect_pack` prompt).
 
 2. **Run a search** – Call `run_search` with the `pattern`, the `sources` to search
-   (e.g. `[{\"pack\": <pack key>}]`), and optionally `file_types` (DB, Loc and text by default),
+   (e.g. `[{\"pack\": <pack key>}]`), and optionally `file_types` (`DB`, `Loc` and `Text` by default),
    `case_sensitive` and `use_regex`. It returns how many matches there are per file type.
 
 3. **Review matches** – `list_search_matches`, filtered by `file_types` or `path_prefix` if there
@@ -1874,7 +1874,7 @@ loc entries for DB fields that reference loc keys but don't have entries yet.
 
 - Use `find_loc` with a loc key to find the loc file with it.
 - Use `loc_source` to find the table row a loc key belongs to.
-- Use `run_search` with `file_types: [\"loc\"]` to search across all loc files.
+- Use `run_search` with `file_types: [\"Loc\"]` to search across all loc files.
 
 ## Tips
 - Loc keys follow naming conventions like `<table>_<loc_column_name>_<keys_concatenated>`.

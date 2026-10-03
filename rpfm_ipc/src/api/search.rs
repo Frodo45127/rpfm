@@ -19,7 +19,7 @@ use serde_json::Value;
 
 use std::collections::BTreeMap;
 
-use rpfm_extensions::search::GlobalSearch;
+use rpfm_extensions::search::{GlobalSearch, SearchOn};
 
 use super::Request;
 use super::files::FileSource;
@@ -28,7 +28,39 @@ use super::files::FileSource;
 pub const DEFAULT_MATCHES_LIMIT: usize = 100;
 
 /// File types searched by [`RunSearch`] when it doesn't set them.
-pub const DEFAULT_SEARCH_FILE_TYPES: [&str; 3] = ["db", "loc", "text"];
+pub const DEFAULT_SEARCH_FILE_TYPES: [&str; 3] = ["DB", "Loc", "Text"];
+
+/// Getter and setter of the flag of a type of file in a [`SearchOn`].
+type SearchFlag = (&'static str, fn(&SearchOn) -> &bool, fn(&mut SearchOn, bool) -> &mut SearchOn);
+
+/// Types of files a search can look into, by the name the API gives them, with their flags.
+///
+/// The names are the ones of their file type, like in `files.list`, plus `Schema` for the column names of the schema.
+const SEARCH_FLAGS: [SearchFlag; 23] = [
+    ("Anim", SearchOn::anim, SearchOn::set_anim),
+    ("AnimFragmentBattle", SearchOn::anim_fragment_battle, SearchOn::set_anim_fragment_battle),
+    ("AnimPack", SearchOn::anim_pack, SearchOn::set_anim_pack),
+    ("AnimsTable", SearchOn::anims_table, SearchOn::set_anims_table),
+    ("Atlas", SearchOn::atlas, SearchOn::set_atlas),
+    ("Audio", SearchOn::audio, SearchOn::set_audio),
+    ("BMD", SearchOn::bmd, SearchOn::set_bmd),
+    ("DB", SearchOn::db, SearchOn::set_db),
+    ("ESF", SearchOn::esf, SearchOn::set_esf),
+    ("GroupFormations", SearchOn::group_formations, SearchOn::set_group_formations),
+    ("Image", SearchOn::image, SearchOn::set_image),
+    ("Loc", SearchOn::loc, SearchOn::set_loc),
+    ("MatchedCombat", SearchOn::matched_combat, SearchOn::set_matched_combat),
+    ("Pack", SearchOn::pack, SearchOn::set_pack),
+    ("PortraitSettings", SearchOn::portrait_settings, SearchOn::set_portrait_settings),
+    ("RigidModel", SearchOn::rigid_model, SearchOn::set_rigid_model),
+    ("Schema", SearchOn::schema, SearchOn::set_schema),
+    ("SoundBank", SearchOn::sound_bank, SearchOn::set_sound_bank),
+    ("Text", SearchOn::text, SearchOn::set_text),
+    ("UIC", SearchOn::uic, SearchOn::set_uic),
+    ("UnitVariant", SearchOn::unit_variant, SearchOn::set_unit_variant),
+    ("Unknown", SearchOn::unknown, SearchOn::set_unknown),
+    ("Video", SearchOn::video, SearchOn::set_video),
+];
 
 /// `search.run`: searches text, keeping the matches for `search.matches`. Runs as a job.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -49,9 +81,9 @@ pub struct RunSearch {
     /// Where to search: open packs, the game files, the parent packs, or the Assembly Kit tables.
     pub sources: Vec<FileSource>,
 
-    /// Types of files to search: `db`, `loc`, `text`, `schema` (table column names), `atlas`,
-    /// `portrait_settings`, `rigid_model`, `unit_variant`, `anim_fragment_battle`, or binary types like
-    /// `image`, `audio` or `unknown`. Defaults to `db`, `loc` and `text`.
+    /// Types of files to search, named like in `files.list`: `DB`, `Loc`, `Text`, `Atlas`, `PortraitSettings`,
+    /// `RigidModel`, `UnitVariant`, `AnimFragmentBattle`, binary types like `Image`, `Audio` or `Unknown`,
+    /// or `Schema` for the column names of the schema. Defaults to `DB`, `Loc` and `Text`.
     #[serde(default)]
     pub file_types: Option<Vec<String>>,
 }
@@ -117,7 +149,7 @@ pub struct SearchMatch {
     /// Path of the file with the match. Empty for matches in the schema.
     pub path: String,
 
-    /// Type of the file with the match, like `db` or `text`.
+    /// Type of the file with the match, like `DB` or `Text`.
     pub file_type: String,
 
     /// Where the match is in its file, and its text. The fields depend on the type of the file:
@@ -191,4 +223,64 @@ impl Request for ListSearchMatches {
 impl Request for ReplaceSearchMatches {
     const METHOD: &'static str = "search.replace";
     type Response = SearchReplaced;
+}
+
+//-------------------------------------------------------------------------------//
+//                                 Functions
+//-------------------------------------------------------------------------------//
+
+/// Returns the names of the types of files a search can look into.
+pub fn search_file_types() -> impl Iterator<Item = &'static str> {
+    SEARCH_FLAGS.iter().map(|(name, _, _)| *name)
+}
+
+/// Returns what a search looks into, from the names of the types of files.
+///
+/// # Errors
+///
+/// If any name isn't a type of file a search can look into, with the valid ones.
+pub fn search_on_from_file_types<S: AsRef<str>>(file_types: &[S]) -> Result<SearchOn, String> {
+    let mut search_on = SearchOn::default();
+    for file_type in file_types {
+        let file_type = file_type.as_ref();
+        let (_, _, set) = SEARCH_FLAGS.iter()
+            .find(|(name, _, _)| *name == file_type)
+            .ok_or_else(|| format!("Unknown file type to search: {file_type}. Valid ones: {}.", search_file_types().collect::<Vec<_>>().join(", ")))?;
+
+        set(&mut search_on, true);
+    }
+
+    Ok(search_on)
+}
+
+/// Returns the names of the types of files a search looks into.
+pub fn file_types_from_search_on(search_on: &SearchOn) -> Vec<String> {
+    SEARCH_FLAGS.iter()
+        .filter(|(_, get, _)| *get(search_on))
+        .map(|(name, _, _)| (*name).to_owned())
+        .collect()
+}
+
+//-------------------------------------------------------------------------------//
+//                                   Tests
+//-------------------------------------------------------------------------------//
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn search_file_types_round_trip_through_search_on() {
+        let search_on = search_on_from_file_types(&["DB", "Schema"]).unwrap();
+
+        assert!(*search_on.db() && *search_on.schema() && !*search_on.loc());
+        assert_eq!(file_types_from_search_on(&search_on), vec!["DB", "Schema"]);
+    }
+
+    #[test]
+    fn unknown_search_file_types_are_rejected() {
+        let error = search_on_from_file_types(&["db"]).unwrap_err();
+
+        assert!(error.starts_with("Unknown file type to search: db."));
+    }
 }

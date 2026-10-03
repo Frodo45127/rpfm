@@ -57,7 +57,7 @@ use rayon::prelude::*;
 use std::collections::BTreeSet;
 use std::rc::Rc;
 
-use rpfm_extensions::search::{GlobalSearch, SearchOn,
+use rpfm_extensions::search::{GlobalSearch,
     anim_fragment_battle::AnimFragmentBattleMatches,
     atlas::AtlasMatches,
     portrait_settings::PortraitSettingsMatches,
@@ -71,7 +71,7 @@ use rpfm_extensions::search::{GlobalSearch, SearchOn,
 };
 
 use rpfm_ipc::api::files::FileSource;
-use rpfm_ipc::api::search::{GetSearchReport, ReplaceSearchMatches, RunSearch, SearchReport};
+use rpfm_ipc::api::search::{file_types_from_search_on, GetSearchReport, ReplaceSearchMatches, RunSearch, SearchReport};
 use rpfm_ipc::helpers::DataSource;
 use rpfm_ipc::settings_keys::*;
 
@@ -605,7 +605,7 @@ impl GlobalSearchUI {
             case_sensitive: *global_search.case_sensitive(),
             use_regex: *global_search.use_regex(),
             sources: global_search.sources().iter().map(file_source).collect(),
-            file_types: Some(file_types(global_search.search_on())),
+            file_types: Some(file_types_from_search_on(global_search.search_on())),
         };
 
         // Setup all the column's data while waiting for the results.
@@ -631,15 +631,15 @@ impl GlobalSearchUI {
             self.matches_tab_widget().set_current_index(1);
         }
 
-        self.load_anim_fragment_battle_matches_to_ui(global_search.matches().anim_fragment_battle(), FileType::AnimFragmentBattle, first_ids("anim_fragment_battle"));
-        self.load_atlas_matches_to_ui(global_search.matches().atlas(), FileType::Atlas, first_ids("atlas"));
-        self.load_portrait_settings_matches_to_ui(global_search.matches().portrait_settings(), FileType::PortraitSettings, first_ids("portrait_settings"));
-        self.load_rigid_model_matches_to_ui(global_search.matches().rigid_model(), FileType::RigidModel, first_ids("rigid_model"));
-        self.load_table_matches_to_ui(global_search.matches().db(), FileType::DB, first_ids("db"));
-        self.load_table_matches_to_ui(global_search.matches().loc(), FileType::Loc, first_ids("loc"));
-        self.load_text_matches_to_ui(global_search.matches().text(), FileType::Text, first_ids("text"));
-        self.load_unit_variant_matches_to_ui(global_search.matches().unit_variant(), FileType::UnitVariant, first_ids("unit_variant"));
-        self.load_unknown_matches_to_ui(global_search.matches().unknown(), FileType::Unknown, first_ids("unknown"));
+        self.load_anim_fragment_battle_matches_to_ui(global_search.matches().anim_fragment_battle(), FileType::AnimFragmentBattle, first_ids("AnimFragmentBattle"));
+        self.load_atlas_matches_to_ui(global_search.matches().atlas(), FileType::Atlas, first_ids("Atlas"));
+        self.load_portrait_settings_matches_to_ui(global_search.matches().portrait_settings(), FileType::PortraitSettings, first_ids("PortraitSettings"));
+        self.load_rigid_model_matches_to_ui(global_search.matches().rigid_model(), FileType::RigidModel, first_ids("RigidModel"));
+        self.load_table_matches_to_ui(global_search.matches().db(), FileType::DB, first_ids("DB"));
+        self.load_table_matches_to_ui(global_search.matches().loc(), FileType::Loc, first_ids("Loc"));
+        self.load_text_matches_to_ui(global_search.matches().text(), FileType::Text, first_ids("Text"));
+        self.load_unit_variant_matches_to_ui(global_search.matches().unit_variant(), FileType::UnitVariant, first_ids("UnitVariant"));
+        self.load_unknown_matches_to_ui(global_search.matches().unknown(), FileType::Unknown, first_ids("Unknown"));
         self.load_schema_matches_to_ui(global_search.matches().schema());
 
         // Render the file results as a grouped flat list: expand every file so its matches
@@ -2424,14 +2424,6 @@ fn file_source(source: &SearchSource) -> FileSource {
         SearchSource::ParentFiles => FileSource::ParentFiles,
         SearchSource::GameFiles => FileSource::GameFiles,
         SearchSource::AssKitFiles => FileSource::AssemblyKit,
-    }
-}
-
-/// Returns the types of files to search, as the server names them: the names of the enabled flags.
-fn file_types(search_on: &SearchOn) -> Vec<String> {
-    match serde_json::to_value(search_on) {
-        Ok(serde_json::Value::Object(flags)) => flags.into_iter().filter(|(_, enabled)| enabled.as_bool() == Some(true)).map(|(file_type, _)| file_type).collect(),
-        _ => vec![],
     }
 }
 

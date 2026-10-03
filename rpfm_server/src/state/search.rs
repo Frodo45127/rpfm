@@ -16,7 +16,7 @@ use serde_json::{Map, Value};
 
 use std::collections::{BTreeMap, HashSet};
 
-use rpfm_extensions::search::{GlobalSearch, Matches, MatchHolder, SearchOn, SearchSource};
+use rpfm_extensions::search::{GlobalSearch, Matches, MatchHolder, SearchSource};
 use rpfm_extensions::search::anim_fragment_battle::AnimFragmentBattleMatches;
 use rpfm_extensions::search::atlas::AtlasMatches;
 use rpfm_extensions::search::portrait_settings::PortraitSettingsMatches;
@@ -30,7 +30,7 @@ use rpfm_extensions::search::unknown::UnknownMatches;
 use rpfm_ipc::api::ApiError;
 use rpfm_ipc::api::files::FileSource;
 use rpfm_ipc::api::search::{
-    DEFAULT_MATCHES_LIMIT, DEFAULT_SEARCH_FILE_TYPES, ListSearchMatches, ReplaceSearchMatches, RunSearch, SearchMatch, SearchMatchList,
+    DEFAULT_MATCHES_LIMIT, DEFAULT_SEARCH_FILE_TYPES, search_on_from_file_types, ListSearchMatches, ReplaceSearchMatches, RunSearch, SearchMatch, SearchMatchList,
     SearchReplaced, SearchReport, SearchSummary,
 };
 use rpfm_ipc::helpers::RFileInfo;
@@ -186,7 +186,7 @@ impl SessionState {
             Some(ref file_types) => file_types.iter().map(String::as_str).collect::<Vec<_>>(),
             None => DEFAULT_SEARCH_FILE_TYPES.to_vec(),
         };
-        search.set_search_on(search_on(&file_types)?);
+        search.set_search_on(search_on_from_file_types(&file_types).map_err(ApiError::InvalidParams)?);
 
         let schema = loaded_schema(&self.schema)?;
         search.search(&self.game, schema, &mut self.packs, &mut self.dependencies, &[]);
@@ -300,29 +300,29 @@ fn files_by_type(matches: &Matches) -> BTreeMap<&'static str, Vec<&dyn FileMatch
     }
 
     BTreeMap::from([
-        ("anim", as_dyn(matches.anim())),
-        ("anim_fragment_battle", as_dyn(matches.anim_fragment_battle())),
-        ("anim_pack", as_dyn(matches.anim_pack())),
-        ("anims_table", as_dyn(matches.anims_table())),
-        ("atlas", as_dyn(matches.atlas())),
-        ("audio", as_dyn(matches.audio())),
-        ("bmd", as_dyn(matches.bmd())),
-        ("db", as_dyn(matches.db())),
-        ("esf", as_dyn(matches.esf())),
-        ("group_formations", as_dyn(matches.group_formations())),
-        ("image", as_dyn(matches.image())),
-        ("loc", as_dyn(matches.loc())),
-        ("matched_combat", as_dyn(matches.matched_combat())),
-        ("pack", as_dyn(matches.pack())),
-        ("portrait_settings", as_dyn(matches.portrait_settings())),
-        ("rigid_model", as_dyn(matches.rigid_model())),
-        ("schema", vec![matches.schema() as &dyn FileMatches]),
-        ("sound_bank", as_dyn(matches.sound_bank())),
-        ("text", as_dyn(matches.text())),
-        ("uic", as_dyn(matches.uic())),
-        ("unit_variant", as_dyn(matches.unit_variant())),
-        ("unknown", as_dyn(matches.unknown())),
-        ("video", as_dyn(matches.video())),
+        ("Anim", as_dyn(matches.anim())),
+        ("AnimFragmentBattle", as_dyn(matches.anim_fragment_battle())),
+        ("AnimPack", as_dyn(matches.anim_pack())),
+        ("AnimsTable", as_dyn(matches.anims_table())),
+        ("Atlas", as_dyn(matches.atlas())),
+        ("Audio", as_dyn(matches.audio())),
+        ("BMD", as_dyn(matches.bmd())),
+        ("DB", as_dyn(matches.db())),
+        ("ESF", as_dyn(matches.esf())),
+        ("GroupFormations", as_dyn(matches.group_formations())),
+        ("Image", as_dyn(matches.image())),
+        ("Loc", as_dyn(matches.loc())),
+        ("MatchedCombat", as_dyn(matches.matched_combat())),
+        ("Pack", as_dyn(matches.pack())),
+        ("PortraitSettings", as_dyn(matches.portrait_settings())),
+        ("RigidModel", as_dyn(matches.rigid_model())),
+        ("Schema", vec![matches.schema() as &dyn FileMatches]),
+        ("SoundBank", as_dyn(matches.sound_bank())),
+        ("Text", as_dyn(matches.text())),
+        ("UIC", as_dyn(matches.uic())),
+        ("UnitVariant", as_dyn(matches.unit_variant())),
+        ("Unknown", as_dyn(matches.unknown())),
+        ("Video", as_dyn(matches.video())),
     ])
 }
 
@@ -367,14 +367,14 @@ fn selected_match_holders(matches: &Matches, ids: &[usize]) -> Result<Vec<MatchH
     }
 
     let mut holders = vec![];
-    holders.extend(selected_files(matches.anim_fragment_battle(), "anim_fragment_battle", &selected).map(MatchHolder::AnimFragmentBattle));
-    holders.extend(selected_files(matches.atlas(), "atlas", &selected).map(MatchHolder::Atlas));
-    holders.extend(selected_files(matches.db(), "db", &selected).map(MatchHolder::Db));
-    holders.extend(selected_files(matches.loc(), "loc", &selected).map(MatchHolder::Loc));
-    holders.extend(selected_files(matches.portrait_settings(), "portrait_settings", &selected).map(MatchHolder::PortraitSettings));
-    holders.extend(selected_files(matches.rigid_model(), "rigid_model", &selected).map(MatchHolder::RigidModel));
-    holders.extend(selected_files(matches.text(), "text", &selected).map(MatchHolder::Text));
-    holders.extend(selected_files(matches.unit_variant(), "unit_variant", &selected).map(MatchHolder::UnitVariant));
+    holders.extend(selected_files(matches.anim_fragment_battle(), "AnimFragmentBattle", &selected).map(MatchHolder::AnimFragmentBattle));
+    holders.extend(selected_files(matches.atlas(), "Atlas", &selected).map(MatchHolder::Atlas));
+    holders.extend(selected_files(matches.db(), "DB", &selected).map(MatchHolder::Db));
+    holders.extend(selected_files(matches.loc(), "Loc", &selected).map(MatchHolder::Loc));
+    holders.extend(selected_files(matches.portrait_settings(), "PortraitSettings", &selected).map(MatchHolder::PortraitSettings));
+    holders.extend(selected_files(matches.rigid_model(), "RigidModel", &selected).map(MatchHolder::RigidModel));
+    holders.extend(selected_files(matches.text(), "Text", &selected).map(MatchHolder::Text));
+    holders.extend(selected_files(matches.unit_variant(), "UnitVariant", &selected).map(MatchHolder::UnitVariant));
     Ok(holders)
 }
 
@@ -405,28 +405,6 @@ fn summarize(matches: &Matches) -> SearchSummary {
     }
 
     summary
-}
-
-/// Returns what a search looks into, from the names of the types of files.
-///
-/// # Errors
-///
-/// Fails if any name isn't a type of file the search knows.
-fn search_on(file_types: &[&str]) -> Result<SearchOn, ApiError> {
-
-    // The flags are set by name through serde, as the search has a field per type of file.
-    let Ok(Value::Object(mut flags)) = serde_json::to_value(SearchOn::default()) else {
-        return Err(ApiError::Internal("The search options are not an object.".to_owned()));
-    };
-
-    for file_type in file_types {
-        match flags.get_mut(*file_type) {
-            Some(flag) => *flag = Value::Bool(true),
-            None => return Err(ApiError::InvalidParams(format!("Unknown file type to search: {file_type}. Valid ones: {}.", flags.keys().cloned().collect::<Vec<_>>().join(", ")))),
-        }
-    }
-
-    serde_json::from_value(Value::Object(flags)).map_err(|error| ApiError::Internal(error.to_string()))
 }
 
 /// Returns the search source of a file source.
@@ -469,6 +447,8 @@ fn to_value(value: &impl Serialize) -> Value {
 
 #[cfg(test)]
 mod tests {
+    use rpfm_ipc::api::search::search_file_types;
+
     use super::*;
 
     #[test]
@@ -493,25 +473,24 @@ mod tests {
     fn first_ids_number_matches_like_match_refs() {
         let (db, text) = ([FakeMatches(2), FakeMatches(0), FakeMatches(3)], [FakeMatches(1)]);
         let files: BTreeMap<&'static str, Vec<&dyn FileMatches>> = BTreeMap::from([
-            ("db", db.iter().map(|file| file as &dyn FileMatches).collect()),
-            ("text", text.iter().map(|file| file as &dyn FileMatches).collect()),
+            ("DB", db.iter().map(|file| file as &dyn FileMatches).collect()),
+            ("Text", text.iter().map(|file| file as &dyn FileMatches).collect()),
         ]);
 
         let first_ids = first_ids(&files);
 
-        assert_eq!(first_ids["db"], vec![0, 2, 2]);
-        assert_eq!(first_ids["text"], vec![5]);
+        assert_eq!(first_ids["DB"], vec![0, 2, 2]);
+        assert_eq!(first_ids["Text"], vec![5]);
         for (id, match_ref) in match_refs(&files).iter().enumerate() {
             assert_eq!(first_ids[match_ref.file_type][match_ref.file_index] + match_ref.match_index, id);
         }
     }
 
     #[test]
-    fn search_on_sets_only_the_named_types() {
-        let flags = search_on(&["db", "text"]).unwrap();
-        assert!(*flags.db() && *flags.text());
-        assert!(!*flags.loc() && !*flags.schema());
+    fn every_search_file_type_has_matches_to_list() {
+        let matches = Matches::default();
+        let files = files_by_type(&matches);
 
-        assert!(matches!(search_on(&["nope"]), Err(ApiError::InvalidParams(_))));
+        assert_eq!(files.keys().copied().collect::<Vec<_>>(), search_file_types().collect::<Vec<_>>());
     }
 }
