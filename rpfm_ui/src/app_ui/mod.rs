@@ -4499,7 +4499,7 @@ impl AppUI {
             let starting_id = starting_id_spinbox.value();
             let offset = offset_spinbox.value();
             let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-            let paths = file_paths(call_api_async(&UpdateAnimIds { pack: pack_key.clone(), starting_id, offset })?.edited);
+            let paths = file_paths(call_api_async(&UpdateAnimIds { pack: pack_key.clone(), starting_id, id_offset: offset })?.edited);
             if !paths.is_empty() {
                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Modify(paths.clone()), DataSource::PackFile, &pack_key);
                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths), DataSource::PackFile, &pack_key);

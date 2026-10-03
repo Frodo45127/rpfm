@@ -292,7 +292,7 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
             state.pack_map_files(&request.pack, request.tile_maps, tiles, settings.optimizer_options())
         }),
         GenerateMissingLocs::METHOD => call(params, |_: GenerateMissingLocs| state.generate_missing_locs()),
-        UpdateAnimIds::METHOD => call(params, |request: UpdateAnimIds| state.update_anim_id_files(&request.pack, request.starting_id, request.offset)),
+        UpdateAnimIds::METHOD => call(params, |request: UpdateAnimIds| state.update_anim_id_files(&request.pack, request.starting_id, request.id_offset)),
         AnimsBySkeleton::METHOD => call(params, |request: AnimsBySkeleton| Ok(state.anims_by_skeleton(&request.skeleton))),
         ExportGltf::METHOD => call(params, |request: ExportGltf| state.export_gltf(&request.file, &request.destination).map(|_| Done {})),
         SetVideoFormat::METHOD => call(params, |request: SetVideoFormat| {

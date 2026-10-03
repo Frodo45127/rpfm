@@ -126,7 +126,7 @@ pub struct UpdateAnimIds {
     pub starting_id: i32,
 
     /// Amount to add to each id.
-    pub offset: i32,
+    pub id_offset: i32,
 }
 
 /// `tools.anims_by_skeleton`: returns the paths of the animations using a skeleton, in the open packs and the dependencies.
