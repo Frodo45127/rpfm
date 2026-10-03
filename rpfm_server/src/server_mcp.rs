@@ -31,9 +31,9 @@
 //! [`CallToolResult`]: rmcp::model::CallToolResult
 
 use rmcp::ErrorData as McpError;
-use rmcp::handler::server::{common::schema_for_output, router::prompt::PromptRouter, tool::ToolRouter, wrapper::Parameters};
+use rmcp::handler::server::{common::schema_for_output, router::prompt::PromptRouter, tool::{ToolCallContext, ToolRouter}, wrapper::Parameters};
 use rmcp::model::{
-    CallToolResult, CompletionInfo, CompleteRequestParams, CompleteResult,
+    CallToolRequestParams, CallToolResponse, CallToolResult, CompletionInfo, CompleteRequestParams, CompleteResult,
     ContentBlock, ErrorCode, Implementation, ListResourcesResult, ListResourceTemplatesResult,
     PaginatedRequestParams, PromptMessage,
     ReadResourceRequestParams, ReadResourceResult, ReadResourceResponse,
@@ -104,6 +104,9 @@ fn error_result(error: &RpcError) -> CallToolResult {
     CallToolResult::error(vec![ContentBlock::text(serde_json::to_string(error).unwrap_or_else(|_| error.message.clone()))])
 }
 
+/// Start of the text of the tool errors rmcp returns for params it can't parse.
+const PARAMS_ERROR_PREFIX: &str = "failed to deserialize parameters: ";
+
 /// Returns the state of a job as structured content, or its error as a tool error, like any other tool, if the job failed.
 fn job_status_result(status: &JobStatus) -> CallToolResult {
     if let JobState::Failed { error } = &status.state {
@@ -153,6 +156,25 @@ pub struct McpServer {
 #[tool_handler(router = self.tool_router)]
 #[prompt_handler(router = self.prompt_router)]
 impl rmcp::ServerHandler for McpServer {
+
+    /// Calls a tool, reporting params rmcp can't parse like the API's own invalid params, instead of as plain text.
+    async fn call_tool(&self, request: CallToolRequestParams, context: RequestContext<RoleServer>) -> Result<CallToolResponse, McpError> {
+        let response = self.tool_router.call(ToolCallContext::new(self, request, context)).await?;
+        let CallToolResponse::Complete(result) = response else {
+            return Ok(response);
+        };
+
+        let invalid_params = result.content.first()
+            .and_then(|content| content.as_text())
+            .and_then(|content| content.text.strip_prefix(PARAMS_ERROR_PREFIX))
+            .filter(|_| result.is_error == Some(true));
+
+        Ok(match invalid_params {
+            Some(details) => error_result(&ApiError::InvalidParams(details.to_owned()).into()).into(),
+            None => result.into(),
+        })
+    }
+
     fn get_info(&self) -> ServerInfo {
         let capabilities = ServerCapabilities::builder()
             .enable_tools()
