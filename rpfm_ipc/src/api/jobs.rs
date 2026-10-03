@@ -103,7 +103,7 @@ pub struct WaitForJob {
     pub job: u64,
 
     /// Maximum amount of seconds to wait. If the job hasn't ended by then, its current state is returned.
-    /// Defaults to [`DEFAULT_WAIT_SECS`].
+    /// Defaults to 60.
     #[serde(default)]
     pub timeout_secs: Option<u64>,
 }

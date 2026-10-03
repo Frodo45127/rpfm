@@ -46,8 +46,7 @@ pub enum FileSource {
     /// The files of the parent packs of the open packs.
     ParentFiles,
 
-    /// The tables of the selected game's Assembly Kit. Their paths are `db/<table_name>/ak_data`,
-    /// see [`ASSEMBLY_KIT_TABLE_FILE_NAME`].
+    /// The tables of the selected game's Assembly Kit. Their paths are `db/<table_name>/ak_data`.
     AssemblyKit,
 }
 
@@ -88,7 +87,7 @@ pub struct ListFiles {
     #[serde(default)]
     pub offset: usize,
 
-    /// Maximum amount of files to return. Defaults to [`DEFAULT_FILES_LIMIT`].
+    /// Maximum amount of files to return. Defaults to 500.
     #[serde(default)]
     pub limit: Option<usize>,
 }

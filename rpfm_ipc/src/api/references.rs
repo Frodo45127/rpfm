@@ -92,7 +92,7 @@ pub struct FindUsages {
     #[serde(default)]
     pub offset: usize,
 
-    /// Maximum amount of usages to return. Defaults to [`DEFAULT_USAGES_LIMIT`].
+    /// Maximum amount of usages to return. Defaults to 200.
     #[serde(default)]
     pub limit: Option<usize>,
 }
@@ -207,7 +207,7 @@ pub struct GetReferenceValues {
     #[serde(default)]
     pub offset: usize,
 
-    /// Maximum amount of values to return. Defaults to [`DEFAULT_REFERENCE_VALUES_LIMIT`].
+    /// Maximum amount of values to return. Defaults to 500.
     #[serde(default)]
     pub limit: Option<usize>,
 }

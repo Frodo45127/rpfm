@@ -45,7 +45,7 @@ pub struct ListTranslations {
     #[serde(default)]
     pub offset: usize,
 
-    /// Maximum amount of entries to return. Defaults to [`DEFAULT_TRANSLATIONS_LIMIT`].
+    /// Maximum amount of entries to return. Defaults to 200.
     #[serde(default)]
     pub limit: Option<usize>,
 }

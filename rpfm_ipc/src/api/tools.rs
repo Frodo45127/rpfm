@@ -45,7 +45,7 @@ pub struct OptimizePack {
     pub pack: String,
 
     /// Optimizations to enable or disable, by name. The rest keep the server's settings.
-    /// See [`GetOptimizerOptions`] for the names.
+    /// See `tools.optimizer_options` for the names.
     #[serde(default)]
     pub options: BTreeMap<String, bool>,
 }
@@ -257,7 +257,7 @@ pub struct StartposCampaigns {
 
 /// `startpos.start`: prepares the Assembly Kit to build a startpos with the tables of an open pack, and launches the game to build it.
 ///
-/// When the game is closed, call [`FinishStartpos`] to import the startpos into the pack.
+/// When the game is closed, call `startpos.finish` to import the startpos into the pack.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct StartStartpos {

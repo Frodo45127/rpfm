@@ -30,7 +30,7 @@ pub const DEFAULT_MATCHES_LIMIT: usize = 100;
 /// File types searched by [`RunSearch`] when it doesn't set them.
 pub const DEFAULT_SEARCH_FILE_TYPES: [&str; 3] = ["db", "loc", "text"];
 
-/// `search.run`: searches text, keeping the matches for [`ListSearchMatches`]. Runs as a job.
+/// `search.run`: searches text, keeping the matches for `search.matches`. Runs as a job.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RunSearch {
@@ -87,7 +87,7 @@ pub struct ListSearchMatches {
     #[serde(default)]
     pub offset: usize,
 
-    /// Maximum amount of matches to return. Defaults to [`DEFAULT_MATCHES_LIMIT`].
+    /// Maximum amount of matches to return. Defaults to 100.
     #[serde(default)]
     pub limit: Option<usize>,
 }

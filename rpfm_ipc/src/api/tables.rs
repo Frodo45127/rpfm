@@ -114,7 +114,7 @@ pub struct GetTableRows {
     #[serde(default)]
     pub offset: usize,
 
-    /// Maximum amount of rows to return. Defaults to [`DEFAULT_ROWS_LIMIT`].
+    /// Maximum amount of rows to return. Defaults to 100.
     #[serde(default)]
     pub limit: Option<usize>,
 }
@@ -138,7 +138,7 @@ pub struct RowFilter {
     pub ignore_case: bool,
 }
 
-/// Comparison of a [`RowFilter`].
+/// Comparison of a row filter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum FilterOp {
@@ -321,7 +321,7 @@ pub struct GetColumnValues {
     #[serde(default)]
     pub offset: usize,
 
-    /// Maximum amount of values to return. Defaults to [`DEFAULT_VALUES_LIMIT`].
+    /// Maximum amount of values to return. Defaults to 500.
     #[serde(default)]
     pub limit: Option<usize>,
 }

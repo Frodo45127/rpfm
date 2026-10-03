@@ -25,7 +25,7 @@ use super::{Done, Request};
 /// Default amount of results returned by [`ListDiagnostics`].
 pub const DEFAULT_DIAGNOSTICS_LIMIT: usize = 100;
 
-/// `diagnostics.run`: checks the open packs for problems, keeping the results for [`ListDiagnostics`]. Runs as a job.
+/// `diagnostics.run`: checks the open packs for problems, keeping the results for `diagnostics.list`. Runs as a job.
 ///
 /// A running check stops when other requests arrive, and is queued again behind them. A new check replaces the
 /// one that hasn't ended yet, which ends cancelled, and also checks the paths the replaced one would have checked.
@@ -101,7 +101,7 @@ pub struct ListDiagnostics {
     #[serde(default)]
     pub offset: usize,
 
-    /// Maximum amount of results to return. Defaults to [`DEFAULT_DIAGNOSTICS_LIMIT`].
+    /// Maximum amount of results to return. Defaults to 100.
     #[serde(default)]
     pub limit: Option<usize>,
 }

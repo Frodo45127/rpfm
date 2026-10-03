@@ -68,7 +68,7 @@ pub struct PatchColumn {
     /// Name of the column.
     pub column: String,
 
-    /// Values to set, by patch key. See [`PATCH_KEYS`] for the valid keys.
+    /// Values to set, by patch key. The keys are `description`, `is_key`, `default_value`, `is_filename`, `filename_relative_path`, `is_reference`, `lookup`, `lookup_hardcoded`, `not_empty` and `unused`.
     pub patch: BTreeMap<String, String>,
 }
 
@@ -130,7 +130,7 @@ impl Request for UpdateSchemaFromAssemblyKit {
 /// `schema.raw_definitions`: returns definitions of a table as the schema stores them, to edit them.
 ///
 /// Their fields are the raw on-disk layout, which can differ from the columns rows have
-/// (see [`GetTableDefinition`](super::tables::GetTableDefinition) for those).
+/// (see `schema.definition` for those).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GetRawDefinitions {
@@ -219,12 +219,12 @@ pub struct ReferencingColumns {
 
 /// `schema.import_patches`: adds patches to the schema of the selected game itself, and saves it.
 ///
-/// Unlike [`PatchColumn`], these patches are part of the schema, so a schema update replaces them.
+/// Unlike the ones of `schema.patch_column`, these patches are part of the schema, so a schema update replaces them.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ImportPatches {
 
-    /// Patches, by table name, column name and patch key. See [`PATCH_KEYS`] for the keys.
+    /// Patches, by table name, column name and patch key. The keys are `description`, `is_key`, `default_value`, `is_filename`, `filename_relative_path`, `is_reference`, `lookup`, `lookup_hardcoded`, `not_empty` and `unused`.
     pub patches: BTreeMap<String, BTreeMap<String, BTreeMap<String, String>>>,
 }
 
