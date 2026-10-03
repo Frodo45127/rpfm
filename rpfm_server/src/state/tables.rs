@@ -386,6 +386,10 @@ impl SessionState {
             }
         }
 
+        if pack_key.is_some() {
+            return Ok(references);
+        }
+
         for (source, include_vanilla, include_parent) in [(FileSource::ParentFiles, false, true), (FileSource::GameFiles, true, false)] {
             for (table_name, columns) in reference_map {
                 if let Ok(tables) = self.dependencies.db_data(table_name, include_vanilla, include_parent) {

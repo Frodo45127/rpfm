@@ -752,7 +752,7 @@ impl TableViewSlots {
                                     column: field.name().to_owned(),
                                     value: index.data_0a().to_string().to_std_string(),
                                     version: Some(*view.table_definition.read().unwrap().version()),
-                                    pack: Some(view.pack_key.read().unwrap().clone()),
+                                    pack: None,
                                     offset: 0,
                                     limit: Some(usize::MAX),
                                 };

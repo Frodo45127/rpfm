@@ -97,7 +97,7 @@ pub struct FindUsages {
     #[serde(default)]
     pub version: Option<i32>,
 
-    /// If set, only this open pack is searched, instead of all of them.
+    /// If set, only this open pack is searched, instead of all of them and the dependencies.
     #[serde(default)]
     pub pack: Option<String>,
 
