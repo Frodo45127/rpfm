@@ -171,6 +171,8 @@ Per `CONTRIBUTING.md`: **explain what your code does** and **no black magic code
 ## Version Control
 
 - **MUST** write clear, descriptive commit messages. Match the concise, imperative style of recent commits (`git log` for examples).
+- **MUST** keep each commit to one logical change: one fix, one feature, one rename. Never bundle several fixes or features into one commit, even if they were made together; split them into separate commits.
+- **MUST** keep commit messages short: a one-line subject saying what changed, plus, only if needed, a body of a few lines or a short bullet list. No long prose paragraphs. If the message needs a paragraph per change, the commit has too many changes.
 - **NEVER** commit commented-out code; delete it.
 - **NEVER** commit debug `println!` / `eprintln!` / `dbg!` statements.
 - **NEVER** commit credentials or sensitive data.
