@@ -244,6 +244,18 @@ pub struct EditTable {
     pub edits: Vec<RowEdit>,
 }
 
+/// A row of a table, in any source.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RowRef {
+
+    /// The table.
+    pub file: FileRef,
+
+    /// Index of the row in the table.
+    pub index: usize,
+}
+
 /// An edit of the rows of a table.
 ///
 /// Values are given by column name, as booleans, numbers or strings, and converted to the type of their column.
@@ -251,14 +263,18 @@ pub struct EditTable {
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 pub enum RowEdit {
 
-    /// Adds a row. Columns not set get their default value.
+    /// Adds a row. Columns not set get the value of the copied row, or their default value.
     Insert {
 
         /// Position of the new row. If not set, it's added at the end.
         #[serde(default)]
         index: Option<usize>,
 
-        /// Values of the new row, by column name.
+        /// Row to copy, from any table with columns of the same names, like the vanilla one. Columns it doesn't have get their default value.
+        #[serde(default)]
+        copy_from: Option<RowRef>,
+
+        /// Values of the new row, by column name. They replace the ones of the copied row.
         #[serde(default)]
         values: BTreeMap<String, Value>,
     },

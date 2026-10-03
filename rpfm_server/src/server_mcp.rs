@@ -1438,7 +1438,7 @@ Runs as a job: waits up to 45 seconds and returns its state, with the report as 
 
     #[tool(
         name = "edit_table",
-        description = "Edit rows of a DB or Loc table in an open pack: insert, update and delete rows by index, with values given by column name (see `table_info` for the columns). Edits apply in order, each on the result of the previous ones; if any fails, none is applied. To edit a vanilla table, copy it into your pack first with `copy_files`.",
+        description = "Edit rows of a DB or Loc table in an open pack: insert, update and delete rows by index, with values given by column name (see `table_info` for the columns). Inserts can copy a row of any table with `copy_from`, like a vanilla one, changing only the values they set. Edits apply in order, each on the result of the previous ones; if any fails, none is applied. To edit a vanilla table, copy it into your pack first with `copy_files`.",
         annotations(read_only_hint = false, destructive_hint = true),
         output_schema = schema_for_output::<TableEdited>(),
     )]
@@ -1518,12 +1518,16 @@ Workflow:
 6. **Edit** – `edit_table` with the pack key, the path of the table, and a list of edits:
    - `{\"op\": \"update\", \"index\": 3, \"values\": {\"column\": value}}`
    - `{\"op\": \"insert\", \"values\": {\"key\": \"my_key\", ...}}` (missing columns get their default)
+   - `{\"op\": \"insert\", \"copy_from\": {\"file\": {\"source\": \"game_files\", \"path\": <DB path>}, \"index\": 12}, \"values\": {\"key\": \"my_key\"}}`
+     (a copy of another row, with the values it sets changed)
    - `{\"op\": \"delete\", \"indexes\": [5, 7]}`
    Edits apply in order, each on the result of the previous ones, and if any fails, none is applied.
 7. **Save the pack** – `save_pack` (with a `path` to save it somewhere else).
 
 Tips:
 - Use `reference_values` to discover valid values for referenced columns, with their names.
+- To make a new entry based on a vanilla one, like a unit, copy its row with `copy_from`, and copy the rows
+  referencing it too: `find_usages` lists them, so each can be copied with the new key as its only change.
 - Mods usually only keep the rows they change: `optimize_pack` removes rows identical to vanilla.
 - After saving, you can run `run_diagnostics` to validate the pack.
 ",

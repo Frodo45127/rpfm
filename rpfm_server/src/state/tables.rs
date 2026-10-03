@@ -629,19 +629,61 @@ impl SessionState {
     /// a row that doesn't exist, or a value that doesn't fit its column.
     pub fn edit_table(&mut self, request: &EditTable) -> Result<TableEdited> {
         let file = FileRef { source: FileSource::Pack(request.pack.clone()), path: request.path.clone() };
+        let fields = self.table(&file)?.definition().fields_processed();
+        let copied = self.copied_row_values(&request.edits, &fields)?;
+
         let row_count = match self.decoded_table_file(&file)?.decoded_mut()? {
             RFileDecoded::DB(table) => {
-                let edits = prepare_row_edits(&request.edits, &table.definition().fields_processed(), table.new_row(), table.data().len())?;
+                let edits = prepare_row_edits(&request.edits, &fields, table.new_row(), table.data().len(), &copied)?;
                 apply_row_edits(table.data_mut(), edits)
             }
             RFileDecoded::Loc(table) => {
-                let edits = prepare_row_edits(&request.edits, &table.definition().fields_processed(), table.new_row(), table.data().len())?;
+                let edits = prepare_row_edits(&request.edits, &fields, table.new_row(), table.data().len(), &copied)?;
                 apply_row_edits(table.data_mut(), edits)
             }
             _ => return Err(ApiError::NotATable(request.path.clone()).into()),
         };
 
         Ok(TableEdited { row_count })
+    }
+
+    /// Returns the values of the rows the inserts of some edits copy, by edit index, in the columns of the edited table with the same names.
+    ///
+    /// # Arguments
+    ///
+    /// * `edits` - The edits, some of which may copy rows.
+    /// * `fields` - Columns of the edited table, as rows see them.
+    ///
+    /// # Errors
+    ///
+    /// Fails if a copied row doesn't exist, or if one of its values can't be converted to the type of its column in the edited table.
+    fn copied_row_values(&mut self, edits: &[RowEdit], fields: &[Field]) -> Result<BTreeMap<usize, Vec<(usize, DecodedData)>>> {
+        let mut copied = BTreeMap::new();
+        for (edit_index, edit) in edits.iter().enumerate() {
+            let RowEdit::Insert { copy_from: Some(row_ref), .. } = edit else {
+                continue;
+            };
+
+            let invalid = |message: String| ApiError::InvalidParams(format!("Edit {edit_index}: {message}"));
+            let table = self.table(&row_ref.file)?;
+            let source_fields = table.definition().fields_processed();
+            let data = table.data();
+            let row = data.get(row_ref.index)
+                .ok_or_else(|| invalid(format!("row {} of {} doesn't exist.", row_ref.index, row_ref.file.path)))?;
+
+            let values = fields.iter().enumerate()
+                .filter_map(|(column_index, field)| {
+                    let source_index = source_fields.iter().position(|source_field| source_field.name() == field.name())?;
+                    Some(copied_value(field.field_type(), &row[source_index])
+                        .map(|value| (column_index, value))
+                        .map_err(|_| invalid(format!("the value of the column {} can't be copied, as its type is different.", field.name()))))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
+            copied.insert(edit_index, values);
+        }
+
+        Ok(copied)
     }
 
     /// Merges tables of the same type of a pack into a new one.
@@ -811,21 +853,23 @@ impl PreparedFilter {
 /// * `fields` - Columns of the table, as rows see them.
 /// * `new_row` - A row with the default value of each column.
 /// * `row_count` - Amount of rows of the table before the edits.
-fn prepare_row_edits(edits: &[RowEdit], fields: &[Field], new_row: Vec<DecodedData>, mut row_count: usize) -> Result<Vec<PreparedEdit>, ApiError> {
+/// * `copied` - Values of the rows the inserts copy, by edit index and column index.
+fn prepare_row_edits(edits: &[RowEdit], fields: &[Field], new_row: Vec<DecodedData>, mut row_count: usize, copied: &BTreeMap<usize, Vec<(usize, DecodedData)>>) -> Result<Vec<PreparedEdit>, ApiError> {
     let mut prepared = Vec::with_capacity(edits.len());
     for (edit_index, edit) in edits.iter().enumerate() {
         let invalid = |message: String| ApiError::InvalidParams(format!("Edit {edit_index}: {message}"));
         let missing_row = |index: usize, row_count: usize| invalid(format!("row {index} doesn't exist, the table has {row_count} rows at this point."));
 
         match edit {
-            RowEdit::Insert { index, values } => {
+            RowEdit::Insert { index, values, .. } => {
                 let index = index.unwrap_or(row_count);
                 if index > row_count {
                     return Err(missing_row(index, row_count));
                 }
 
                 let mut row = new_row.clone();
-                for (column_index, value) in row_values(fields, values).map_err(invalid)? {
+                let copied_values = copied.get(&edit_index).into_iter().flatten().cloned();
+                for (column_index, value) in copied_values.chain(row_values(fields, values).map_err(invalid)?) {
                     row[column_index] = value;
                 }
 
@@ -900,6 +944,15 @@ fn row_values(fields: &[Field], values: &BTreeMap<String, Value>) -> Result<Vec<
             Ok((column_index, value))
         })
         .collect()
+}
+
+/// Returns a copy of a table value for a column of the provided type, converting it if it's of another type.
+fn copied_value(field_type: &FieldType, value: &DecodedData) -> Result<DecodedData> {
+    if value.is_field_type_correct(field_type) {
+        Ok(value.clone())
+    } else {
+        Ok(DecodedData::new_from_type_and_string(field_type, &value.data_to_string())?)
+    }
 }
 
 /// Converts a JSON value to a table value of the provided type.
@@ -1125,7 +1178,7 @@ mod tests {
     }
 
     fn edit(rows: &mut Vec<Vec<DecodedData>>, edits: &[RowEdit]) -> Result<usize, ApiError> {
-        let prepared = prepare_row_edits(edits, &fields(), row("", 0.0), rows.len())?;
+        let prepared = prepare_row_edits(edits, &fields(), row("", 0.0), rows.len(), &BTreeMap::new())?;
         Ok(apply_row_edits(rows, prepared))
     }
 
@@ -1133,14 +1186,33 @@ mod tests {
     fn edits_apply_in_order() {
         let mut rows = vec![row("a", 1.0), row("b", 2.0), row("c", 3.0)];
         let edits = vec![
-            RowEdit::Insert { index: Some(0), values: values(&[("key", json!("new")), ("value", json!(0.5))]) },
+            RowEdit::Insert { index: Some(0), copy_from: None, values: values(&[("key", json!("new")), ("value", json!(0.5))]) },
             RowEdit::Update { index: 2, values: values(&[("value", json!("2.5"))]) },
             RowEdit::Delete { indexes: vec![3, 1, 3] },
-            RowEdit::Insert { index: None, values: values(&[("key", json!("last"))]) },
+            RowEdit::Insert { index: None, copy_from: None, values: values(&[("key", json!("last"))]) },
         ];
 
         assert_eq!(edit(&mut rows, &edits), Ok(3));
         assert_eq!(rows, vec![row("new", 0.5), row("b", 2.5), row("last", 0.0)]);
+    }
+
+    #[test]
+    fn inserts_take_the_copied_values_replaced_by_their_own() {
+        let mut rows = vec![row("a", 1.0)];
+        let edits = vec![RowEdit::Insert { index: None, copy_from: None, values: values(&[("key", json!("copy"))]) }];
+        let copied = BTreeMap::from([(0, vec![(0, DecodedData::StringU8("original".to_owned())), (1, DecodedData::F32(7.0))])]);
+
+        let prepared = prepare_row_edits(&edits, &fields(), row("", 0.0), rows.len(), &copied).unwrap();
+        apply_row_edits(&mut rows, prepared);
+
+        assert_eq!(rows, vec![row("a", 1.0), row("copy", 7.0)]);
+    }
+
+    #[test]
+    fn copied_values_are_converted_to_the_column_type() {
+        assert_eq!(copied_value(&FieldType::I32, &DecodedData::I32(5)).unwrap(), DecodedData::I32(5));
+        assert_eq!(copied_value(&FieldType::I64, &DecodedData::I32(5)).unwrap(), DecodedData::I64(5));
+        assert!(copied_value(&FieldType::I32, &DecodedData::StringU8("five".to_owned())).is_err());
     }
 
     #[test]
@@ -1150,7 +1222,7 @@ mod tests {
         let failing = [
             vec![RowEdit::Update { index: 0, values: values(&[("value", json!(9.0))]) }, RowEdit::Update { index: 2, values: values(&[("value", json!(1.0))]) }],
             vec![RowEdit::Delete { indexes: vec![0] }, RowEdit::Update { index: 1, values: values(&[("value", json!(1.0))]) }],
-            vec![RowEdit::Insert { index: Some(3), values: BTreeMap::new() }],
+            vec![RowEdit::Insert { index: Some(3), copy_from: None, values: BTreeMap::new() }],
             vec![RowEdit::Update { index: 0, values: values(&[("nope", json!(1))]) }],
             vec![RowEdit::Update { index: 0, values: values(&[("value", json!("not a number"))]) }],
             vec![RowEdit::Update { index: 0, values: values(&[("value", json!(null))]) }],
