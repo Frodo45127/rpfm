@@ -1298,12 +1298,12 @@ Runs as a job: waits up to 45 seconds and returns its state, with the report as 
 
     #[tool(
         name = "new_pack",
-        description = "Create a new empty pack. It has no path on disk until you save it with `save_pack` and a `path`.",
+        description = "Create a new empty pack, optionally with a file name like `my_mod.pack`. It has no path on disk until you save it with `save_pack` and a `path`.",
         annotations(read_only_hint = false, destructive_hint = false),
         output_schema = schema_for_output::<PackSummary>(),
     )]
-    pub async fn new_pack(&self) -> Result<CallToolResult, McpError> {
-        self.call_api("new_pack", NewPack {}).await
+    pub async fn new_pack(&self, params: Parameters<NewPack>) -> Result<CallToolResult, McpError> {
+        self.call_api("new_pack", params.0).await
     }
 
     #[tool(

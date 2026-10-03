@@ -147,8 +147,8 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
             let disable_uuid_regeneration = settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES);
             state.backup_autosave(&request.pack, settings, disable_uuid_regeneration, settings.i32(AUTOSAVE_AMOUNT) as usize).map(|_| Done {})
         }),
-        NewPack::METHOD => call(params, |_: NewPack| {
-            let key = state.new_pack(settings);
+        NewPack::METHOD => call(params, |request: NewPack| {
+            let key = state.new_pack(request.name.as_deref(), settings)?;
             state.pack_summary(&key)
         }),
         OpenPack::METHOD => call(params, |request: OpenPack| {

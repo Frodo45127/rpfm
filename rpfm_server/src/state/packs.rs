@@ -52,21 +52,33 @@ impl SessionState {
     ///
     /// # Arguments
     ///
+    /// * `name` - File name of the pack. If `None`, a free `new_pack.pack`-like name is used.
     /// * `settings` - Settings, to find the game's install folder.
     ///
     /// # Returns
     ///
     /// The key of the new pack.
-    pub fn new_pack(&mut self, settings: &Settings) -> String {
+    ///
+    /// # Errors
+    ///
+    /// Fails if the name is not a file name ending in `.pack`.
+    pub fn new_pack(&mut self, name: Option<&str>, settings: &Settings) -> Result<String> {
+        let name = match name {
+            Some(name) if !name.ends_with(DEFAULT_PACK_EXT) || name.contains(['/', '\\']) => {
+                return Err(ApiError::InvalidParams(format!("The name of the pack must be a file name ending in {DEFAULT_PACK_EXT}: {name}")).into());
+            }
+            Some(name) => name.to_owned(),
+            None => derive_new_pack_name(&self.packs),
+        };
+
         let pack_version = self.game.pfh_version_by_file_type(PFHFileType::Mod);
-        let name = derive_new_pack_name(&self.packs);
         let mut pack = Pack::new_with_name_and_version(&name, pack_version);
 
         if let Some(version_number) = self.game.game_version_number(&settings.path_buf(self.game.key())) {
             pack.set_game_version(version_number);
         }
 
-        self.insert_pack(pack)
+        Ok(self.insert_pack(pack))
     }
 
     /// Opens one or more packs, merged into a single one.
@@ -532,11 +544,35 @@ mod tests {
         let mut state = SessionState::new(Session::new(1, true));
         let settings = Settings::default();
 
-        let first = state.new_pack(&settings);
+        let first = state.new_pack(None, &settings).unwrap();
         state.close_pack(&first).unwrap();
-        let second = state.new_pack(&settings);
+        let second = state.new_pack(None, &settings).unwrap();
 
         assert_eq!(first, "pack_1");
         assert_eq!(second, "pack_2");
+    }
+
+    #[tokio::test]
+    async fn new_packs_get_free_names_and_no_path() {
+        let mut state = SessionState::new(Session::new(1, true));
+        let settings = Settings::default();
+
+        let named = state.new_pack(Some("my_mod.pack"), &settings).unwrap();
+        let first = state.new_pack(None, &settings).unwrap();
+        let second = state.new_pack(None, &settings).unwrap();
+
+        assert_eq!(state.pack_summary(&named).unwrap().name, "my_mod.pack");
+        assert_eq!(state.pack_summary(&first).unwrap().name, "new_pack.pack");
+        assert_eq!(state.pack_summary(&second).unwrap().name, "new_pack_2.pack");
+        assert_eq!(state.pack_summary(&second).unwrap().path, None);
+    }
+
+    #[tokio::test]
+    async fn new_pack_names_must_be_pack_file_names() {
+        let mut state = SessionState::new(Session::new(1, true));
+        let settings = Settings::default();
+
+        assert!(state.new_pack(Some("my_mod"), &settings).is_err());
+        assert!(state.new_pack(Some("folder/my_mod.pack"), &settings).is_err());
     }
 }

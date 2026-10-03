@@ -123,7 +123,12 @@ impl Request for GetPackInfo {
 /// `pack.new`: creates a new empty pack. It has no path on disk until it's saved with a path.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct NewPack {}
+pub struct NewPack {
+
+    /// File name of the pack, like `my_mod.pack`. Defaults to `new_pack.pack`, numbered if there's already an open pack with that name.
+    #[serde(default)]
+    pub name: Option<String>,
+}
 
 /// `pack.open`: opens one or more packs from disk, merged into a single one.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]

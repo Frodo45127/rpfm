@@ -4171,7 +4171,7 @@ impl AppUI {
     ) {
 
         // Tell the Background Thread to create a new PackFile and get the pack key.
-        let pack_key = match call_api_async(&NewPack {}) {
+        let pack_key = match call_api_async(&NewPack { name: None }) {
             Ok(pack) => pack.key,
             Err(error) => return show_dialog(&app_ui.main_window, error, false),
         };

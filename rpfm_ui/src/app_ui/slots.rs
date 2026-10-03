@@ -999,7 +999,8 @@ impl AppUISlots {
                                     }
 
                                     // Create the pack, setting what to ignore when importing, and save it in the MyMod folder.
-                                    let created = call_api_async(&NewPack {}).and_then(|pack| {
+                                    let name = mymod_pack_path.file_name().map(|name| name.to_string_lossy().to_string());
+                                    let created = call_api_async(&NewPack { name }).and_then(|pack| {
                                         let mut settings = PackSettingsValues::default();
                                         settings.text.insert("import_files_to_ignore".to_owned(), paths_ignore_on_import);
                                         call_api(&UpdatePackSettings { pack: pack.key.clone(), settings })?;
