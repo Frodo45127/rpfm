@@ -165,7 +165,7 @@ pub struct SavePack {
     /// Key of the pack.
     pub pack: String,
 
-    /// Path to save the pack to. If not set, the pack is saved to its current path.
+    /// Absolute path to save the pack to, creating its missing folders. If not set, the pack is saved to its current path.
     #[serde(default)]
     pub path: Option<PathBuf>,
 

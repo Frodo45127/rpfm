@@ -158,7 +158,7 @@ impl SessionState {
     /// # Arguments
     ///
     /// * `pack_key` - Key of the pack to save.
-    /// * `path` - Path to save the pack to. If `None`, the pack is saved to its current path.
+    /// * `path` - Absolute path to save the pack to, creating its missing folders. If `None`, the pack is saved to its current path.
     /// * `options` - How to save the pack.
     ///
     /// # Returns
@@ -167,7 +167,7 @@ impl SessionState {
     ///
     /// # Errors
     ///
-    /// Fails if the pack is of a CA type and editing them is not allowed, if it has no path on disk yet, or if saving fails.
+    /// Fails if the pack is of a CA type and editing them is not allowed, if it has no path on disk yet, if the new path is not absolute, or if saving fails.
     pub fn save_pack(&mut self, pack_key: &str, path: Option<&Path>, options: SaveOptions) -> Result<ContainerInfo> {
         let pack = pack_mut(&mut self.packs, pack_key)?;
 
@@ -179,6 +179,16 @@ impl SessionState {
         // New packs only have a bare name, which would silently save to the server's path.
         if path.is_none() && !Path::new(pack.disk_file_path()).is_absolute() {
             return Err(anyhow!("Pack '{}' has never been saved to disk. Use Save As to choose where to save it.", pack_key));
+        }
+
+        if let Some(path) = path {
+            if !path.is_absolute() {
+                return Err(ApiError::InvalidParams(format!("The path to save the pack to must be absolute: {}", path.display())).into());
+            }
+
+            if let Some(parent) = path.parent() {
+                DirBuilder::new().recursive(true).create(parent)?;
+            }
         }
 
         if options.clean {
