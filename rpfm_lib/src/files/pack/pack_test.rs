@@ -350,6 +350,51 @@ fn test_save_repoints_lazy_files() {
     let _ = remove_file(path_2);
 }
 
+/// Opens the PFH5 test Pack with all its files loaded, so it can be saved anywhere.
+fn loaded_test_pack() -> Pack {
+    let games = SupportedGames::default();
+    let game = games.game(KEY_WARHAMMER_2).unwrap();
+    Pack::read_and_merge(&[PathBuf::from("../test_files/PFH5_test.pack")], game, false, false, false).unwrap()
+}
+
+#[cfg(unix)]
+#[test]
+fn test_save_keeps_permissions_of_the_existing_pack() {
+    use std::fs::{set_permissions, Permissions};
+    use std::os::unix::fs::PermissionsExt;
+
+    let games = SupportedGames::default();
+    let game = games.game(KEY_WARHAMMER_2).unwrap();
+    let folder = tempfile::tempdir().unwrap();
+    let path = folder.path().join("existing.pack");
+    File::create(&path).unwrap();
+    set_permissions(&path, Permissions::from_mode(0o640)).unwrap();
+
+    loaded_test_pack().save(Some(&path), game, &None).unwrap();
+
+    assert_eq!(path.metadata().unwrap().permissions().mode() & 0o777, 0o640);
+}
+
+#[cfg(unix)]
+#[test]
+fn test_save_gives_new_packs_the_permissions_of_new_files() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let games = SupportedGames::default();
+    let game = games.game(KEY_WARHAMMER_2).unwrap();
+    let folder = tempfile::tempdir().unwrap();
+    let reference_path = folder.path().join("reference");
+    File::create(&reference_path).unwrap();
+    let path = folder.path().join("new.pack");
+
+    loaded_test_pack().save(Some(&path), game, &None).unwrap();
+
+    let expected_mode = reference_path.metadata().unwrap().permissions().mode();
+    assert_eq!(path.metadata().unwrap().permissions().mode(), expected_mode);
+}
+
+
+
 #[test]
 fn test_db_table_folders_matches_db_and_ceo_db() {
     let mut pack = Pack::default();

@@ -63,12 +63,18 @@ use serde_derive::{Serialize, Deserialize};
 use serde_json::{from_slice, to_string_pretty};
 use itertools::Itertools;
 use tempfile::NamedTempFile;
+#[cfg(unix)]
+use tempfile::Builder;
 
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs::File;
+#[cfg(unix)]
+use std::fs::Permissions;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::{BufReader, BufWriter, Cursor, SeekFrom, Write};
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
@@ -933,7 +939,7 @@ impl Pack {
             _ => PathBuf::from("."),
         };
 
-        let mut temp_file = NamedTempFile::new_in(&parent)?;
+        let mut temp_file = Self::save_temp_file(&parent, &target)?;
         {
             let mut buffer = BufWriter::new(&mut temp_file);
             self.encode(&mut buffer, &extra_data)?;
@@ -955,6 +961,32 @@ impl Pack {
         }
 
         Ok(())
+    }
+
+    /// Creates the temp file a Pack is encoded to before it replaces the Pack at `target`.
+    ///
+    /// The temp file gets the permissions of `target`, or the ones of a normal new file if `target` doesn't exist.
+    ///
+    /// # Arguments
+    ///
+    /// * `parent` - Folder to create the temp file in. Must be in the same filesystem as `target`.
+    /// * `target` - Path the Pack will be saved to.
+    ///
+    /// # Errors
+    ///
+    /// If the temp file cannot be created, or its permissions cannot be set.
+    fn save_temp_file(parent: &Path, target: &Path) -> Result<NamedTempFile> {
+        // Temp files are owner-only by default. 0o666 is what new files normally get before the umask is applied.
+        #[cfg(unix)]
+        let temp_file = Builder::new().permissions(Permissions::from_mode(0o666)).tempfile_in(parent)?;
+        #[cfg(not(unix))]
+        let temp_file = NamedTempFile::new_in(parent)?;
+
+        if let Ok(metadata) = target.metadata() {
+            temp_file.as_file().set_permissions(metadata.permissions())?;
+        }
+
+        Ok(temp_file)
     }
 
     //-----------------------------------------------------------------------//
