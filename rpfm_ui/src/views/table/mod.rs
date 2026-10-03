@@ -3795,7 +3795,7 @@ impl TableView {
                     let index = self.table_filter.map_to_source(self.table_view.selection_model().selection().indexes().at(0));
                     if let Some(field) = self.table_definition().fields_processed().get(index.column() as usize) {
                         if let Some((ref_table, ref_column)) = field.is_reference(Some(self.table_definition().patches())) {
-                            Some((ref_table.to_owned(), ref_column.to_owned(), vec![index.data_0a().to_string().to_std_string()]))
+                            Some((format!("{ref_table}_tables"), ref_column.to_owned(), vec![index.data_0a().to_string().to_std_string()]))
                         } else { None }
                     } else { None }
                 }
@@ -3806,7 +3806,7 @@ impl TableView {
                     let key = self.table_model.index_2a(index_row, 0).data_0a().to_string().to_std_string();
                     call_api_async(&GetLocSource { key }).ok()
                         .and_then(|lookup| lookup.source)
-                        .map(|source| (source.table, source.column, source.key_values))
+                        .map(|source| (source.table_name, source.column, source.key_values))
                 }
                 _ => None,
             };
@@ -3814,7 +3814,7 @@ impl TableView {
             if let Some((ref_table, ref_column, ref_data)) = ref_info {
 
                 // Save the tables that may be the source before searching, to ensure their data is updated.
-                let ref_path = format!("db/{ref_table}");
+                let ref_path = format!("db/{ref_table}/");
                 UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).for_each(|file_view| {
                     if file_view.path_copy().starts_with(&ref_path) {
                         let _ = file_view.save(app_ui, pack_file_contents_ui);
@@ -3824,7 +3824,7 @@ impl TableView {
                 // Then ask the backend to do the heavy work.
                 let request = ref_data.first().cloned()
                     .ok_or_else(|| anyhow!("No value to search for."))
-                    .map(|value| FindDefinition { table: ref_table, column: ref_column, value, pack: Some(self.pack_key.read().unwrap().clone()) });
+                    .map(|value| FindDefinition { table_name: ref_table, column: ref_column, value, pack: Some(self.pack_key.read().unwrap().clone()) });
 
                 match request.and_then(|request| call_api_async(&request)).map(row_location) {
 

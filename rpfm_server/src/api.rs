@@ -257,7 +257,7 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
             Ok(state.session_status())
         }),
 
-        FindDefinition::METHOD => call(params, |request: FindDefinition| state.find_definition(request.pack.as_deref(), &request.table, &request.column, &request.value)),
+        FindDefinition::METHOD => call(params, |request: FindDefinition| state.find_definition(request.pack.as_deref(), &request.table_name, &request.column, &request.value)),
         FindUsages::METHOD => call(params, |request: FindUsages| state.find_usages(&request)),
         GetTableReferenceData::METHOD => call(params, |request: GetTableReferenceData| state.table_reference_data(&request)),
         FindLoc::METHOD => call(params, |request: FindLoc| state.find_loc(request.pack.as_deref(), &request.key)),

@@ -226,7 +226,7 @@ The MCP interface exposes **88 tools**. The descriptions below are the first sen
 | `find_definition` | `references.definition` | Find the row where a value of a referenced table is defined, like the row of `factions_tables` with a faction key. |
 | `find_usages` | `references.usages` | Find the rows of other tables referencing a value of a table, like everything using a faction key. |
 | `find_loc` | `references.loc` | Find the row of a Loc file with a key. |
-| `loc_source` | `references.loc_source` | Get the table, localised column and key values a loc key belongs to, like `factions`, `screen_name` and `["wh_main_emp_empire"]` for `factions_screen_name_wh_main_emp_empire`. |
+| `loc_source` | `references.loc_source` | Get the table, localised column and key values a loc key belongs to, like `factions_tables`, `screen_name` and `["wh_main_emp_empire"]` for `factions_screen_name_wh_main_emp_empire`. |
 | `reference_values` | `references.values` | Get the values a reference column of a table can have, with their display text (like the name of each referenced row), from the open packs and the dependencies. |
 
 ### Diagnostics and search

@@ -756,7 +756,7 @@ impl McpServer {
 
     #[tool(
         name = "loc_source",
-        description = "Get the table, localised column and key values a loc key belongs to, like `factions`, `screen_name` and `[\"wh_main_emp_empire\"]` for `factions_screen_name_wh_main_emp_empire`. `source` is null if it can't be found.",
+        description = "Get the table, localised column and key values a loc key belongs to, like `factions_tables`, `screen_name` and `[\"wh_main_emp_empire\"]` for `factions_screen_name_wh_main_emp_empire`. `source` is null if it can't be found.",
         annotations(read_only_hint = true),
         output_schema = schema_for_output::<LocSourceLookup>(),
     )]

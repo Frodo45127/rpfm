@@ -61,8 +61,8 @@ pub struct ColumnInfo {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct ColumnReference {
 
-    /// Name of the table, without the `_tables` suffix.
-    pub table: String,
+    /// Name of the table, like `factions_tables`.
+    pub table_name: String,
 
     /// Name of the column.
     pub column: String,

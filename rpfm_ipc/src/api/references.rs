@@ -50,8 +50,8 @@ pub struct RowLocation {
 #[serde(deny_unknown_fields)]
 pub struct FindDefinition {
 
-    /// Referenced table, like `factions` or `factions_tables`.
-    pub table: String,
+    /// Referenced table, like `factions_tables`.
+    pub table_name: String,
 
     /// Referenced column. If it's a localised column, the table's key is searched instead.
     pub column: String,
@@ -156,8 +156,8 @@ pub struct LocSourceLookup {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct LocSource {
 
-    /// Name of the table, without the `_tables` suffix.
-    pub table: String,
+    /// Name of the table, like `factions_tables`.
+    pub table_name: String,
 
     /// Name of the localised column.
     pub column: String,

@@ -273,16 +273,19 @@ impl SessionState {
     /// # Arguments
     ///
     /// * `pack_key` - Key of the pack to search first, if any.
-    /// * `table` - Name of the table, with or without the `_tables` suffix.
+    /// * `table_name` - Name of the table, like `factions_tables`.
     /// * `column` - Name of the column. If it's localised, the first key column is searched instead.
     /// * `value` - Value to search.
     ///
     /// # Returns
     ///
     /// Where the row is.
-    pub fn find_definition(&self, pack_key: Option<&str>, table: &str, column: &str, value: &str) -> Result<RowLocation> {
-        let table_name = format!("{}_tables", table.strip_suffix("_tables").unwrap_or(table));
-        let table_folders = ContainerPath::db_table_folders(&table_name);
+    pub fn find_definition(&self, pack_key: Option<&str>, table_name: &str, column: &str, value: &str) -> Result<RowLocation> {
+        if loaded_schema(&self.schema)?.definitions_by_table_name(table_name).is_none_or(|definitions| definitions.is_empty()) {
+            return Err(ApiError::DefinitionNotFound(table_name.to_owned()).into());
+        }
+
+        let table_folders = ContainerPath::db_table_folders(table_name);
 
         // Search first in the pack that sent the request (if still open), then in the rest of the open packs.
         let first = pack_key.and_then(|pack_key| self.packs.get_key_value(pack_key));
@@ -296,14 +299,14 @@ impl SessionState {
         }
 
         for (source, include_vanilla, include_parent) in [(FileSource::ParentFiles, false, true), (FileSource::GameFiles, true, false)] {
-            if let Ok(files) = self.dependencies.db_data(&table_name, include_vanilla, include_parent) {
+            if let Ok(files) = self.dependencies.db_data(table_name, include_vanilla, include_parent) {
                 if let Some(location) = find_in_db_files(&files, column, value, &source) {
                     return Ok(location);
                 }
             }
         }
 
-        if let Some(table) = self.dependencies.asskit_only_db_tables().get(&table_name) {
+        if let Some(table) = self.dependencies.asskit_only_db_tables().get(table_name) {
             if let Some((column_index, row_index)) = find_in_db(table, column, value) {
                 let path = format!("db/{table_name}/{ASSEMBLY_KIT_TABLE_FILE_NAME}");
                 return Ok(RowLocation { source: FileSource::AssemblyKit, path, column_index, row_index });
@@ -488,7 +491,7 @@ impl SessionState {
 
     /// Returns the table, column and key values a loc key was generated from, if it can be found in the dependencies.
     pub fn loc_source(&self, loc_key: &str) -> Option<LocSource> {
-        self.loc_key_source(loc_key).map(|(table, column, key_values)| LocSource { table, column, key_values })
+        self.loc_key_source(loc_key).map(|(table, column, key_values)| LocSource { table_name: format!("{table}_tables"), column, key_values })
     }
 
     /// Returns the names of the tables in the game files.
@@ -929,7 +932,7 @@ pub(super) fn columns_info(definition: &Definition, patches: &DefinitionPatch) -
             name: field.name().to_owned(),
             field_type: field.field_type().clone(),
             is_key: field.is_key(Some(patches)),
-            reference: field.is_reference(Some(patches)).map(|(table, column)| ColumnReference { table, column }),
+            reference: field.is_reference(Some(patches)).map(|(table, column)| ColumnReference { table_name: format!("{table}_tables"), column }),
             default_value: field.default_value(Some(patches)),
             description: field.description(Some(patches)),
         })
