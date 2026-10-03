@@ -470,7 +470,11 @@ impl SessionManager {
             .find(|managed| managed.session.is_mcp() && !managed.session.is_shutdown_requested())
             .map(|managed| managed.session.clone());
 
-        existing.unwrap_or_else(|| self.insert_session(&mut sessions, true))
+        let session = existing.unwrap_or_else(|| self.insert_session(&mut sessions, true));
+
+        // Getting it counts as activity, so it isn't removed before the request that got it is sent.
+        session.touch();
+        session
     }
 
     fn create_session_internal(&self, is_mcp: bool) -> Arc<Session> {
@@ -599,34 +603,29 @@ impl SessionManager {
     /// This should be called periodically or after timeout events.
     pub fn cleanup_expired_sessions(&self) {
         let now = Instant::now();
-        let mut to_remove = Vec::new();
 
-        {
-            let sessions = self.sessions.lock().unwrap();
-            for (id, managed) in sessions.iter() {
-                if managed.session.is_mcp() {
+        // Checked and removed under the same lock, so no client can get a session while it's being removed.
+        let mut sessions = self.sessions.lock().unwrap();
+        sessions.retain(|id, managed| {
+            let expired = if managed.session.is_mcp() {
 
-                    // MCP clients have no disconnect signal, so their session is removed by inactivity,
-                    // unless removing it would lose work.
-                    if now.duration_since(managed.session.last_activity()) >= self.timeout
-                        && managed.session.pack_names().is_empty()
-                        && !managed.session.jobs().has_unfinished_jobs()
-                    {
-                        to_remove.push(*id);
-                    }
-                } else if let Some(disconnected_at) = managed.disconnected_at {
-                    if now.duration_since(disconnected_at) >= self.timeout
-                        && managed.session.connection_count() == 0
-                    {
-                        to_remove.push(*id);
-                    }
-                }
+                // MCP clients have no disconnect signal, so their session is removed by inactivity,
+                // unless removing it would lose work.
+                now.duration_since(managed.session.last_activity()) >= self.timeout
+                    && managed.session.pack_names().is_empty()
+                    && !managed.session.jobs().has_unfinished_jobs()
+            } else {
+                managed.disconnected_at.is_some_and(|disconnected_at| now.duration_since(disconnected_at) >= self.timeout)
+                    && managed.session.connection_count() == 0
+            };
+
+            if expired {
+                info!("Removing session {}", id);
+                managed.session.shutdown();
             }
-        }
 
-        for id in to_remove {
-            self.remove_session(id);
-        }
+            !expired
+        });
     }
 
     /// Remove a session immediately.
