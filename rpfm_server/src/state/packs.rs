@@ -94,10 +94,10 @@ impl SessionState {
     ///
     /// # Errors
     ///
-    /// Fails if the first pack is already open, or if any of them can't be read.
+    /// Fails if any of the packs is already open, or if any of them can't be read.
     pub fn open_packs(&mut self, paths: &[PathBuf], lazy_loading: bool) -> Result<(String, ContainerInfo)> {
-        if let Some(path) = paths.first().filter(|first_path| {
-            let normalized = first_path.to_string_lossy().replace('\\', "/");
+        if let Some(path) = paths.iter().find(|path| {
+            let normalized = path.to_string_lossy().replace('\\', "/");
             self.packs.values().any(|pack| pack.disk_file_path() == normalized.as_str())
         }) {
             return Err(anyhow!("Pack '{}' is already open. Close it first if you want to reopen it.", path.display()));
