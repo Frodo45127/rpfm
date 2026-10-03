@@ -64,7 +64,7 @@ Under the hood both pathways use the same `Session` abstraction. Each WebSocket 
 ./rpfm_server
 ```
 
-The server logs to stderr and stays in the foreground until every session is gone.
+The server logs to stderr and stays in the foreground until its last WebSocket session is gone, with no other session left. A server only used by MCP clients keeps running until stopped.
 
 ## Where to next
 

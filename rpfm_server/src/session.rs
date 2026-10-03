@@ -32,9 +32,10 @@
 //!    enters a [`DEFAULT_SESSION_TIMEOUT_SECS`]-long grace period. Reconnects
 //!    cancel the timeout; otherwise the cleanup task removes the session and
 //!    its background thread exits.
-//! 5. **Empty manager → process exit.** When the last session is removed the
-//!    server process terminates, so no orphaned backend lingers in the
-//!    background.
+//! 5. **Empty manager → process exit.** When a WebSocket session is removed
+//!    and no other session is left, the server process terminates, so no
+//!    orphaned backend lingers in the background. Removing the MCP session
+//!    never stops the process.
 //!
 //! ## The MCP session
 //!
@@ -70,6 +71,9 @@ pub const SESSION_SENDER_ERROR: &str = "Error in session communication system. S
 
 /// Default session timeout in seconds (5 minutes).
 pub const DEFAULT_SESSION_TIMEOUT_SECS: u64 = 300;
+
+/// How often expired sessions are looked for.
+const CLEANUP_INTERVAL: Duration = Duration::from_secs(10);
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -543,66 +547,29 @@ impl SessionManager {
     /// Mark a session as disconnected by a client.
     ///
     /// If no more clients are connected, starts the timeout countdown.
-    /// The session will be removed after the timeout unless a client reconnects.
-    pub fn client_disconnected(manager: Arc<Self>, id: SessionId) {
-        let should_schedule_cleanup = {
-            let mut sessions = manager.sessions.lock().unwrap();
-            if let Some(managed) = sessions.get_mut(&id) {
-                managed.session.disconnect();
+    /// [`SessionManager::cleanup_expired_sessions`] removes the session after the timeout unless a client reconnects.
+    pub fn client_disconnected(&self, id: SessionId) {
+        let mut sessions = self.sessions.lock().unwrap();
+        if let Some(managed) = sessions.get_mut(&id) {
+            managed.session.disconnect();
 
-                if managed.session.connection_count() == 0 {
-                    managed.disconnected_at = Some(Instant::now());
-                    info!("Session {} has no active connections, will timeout in {:?}", id, manager.timeout);
-                    true
-                } else {
-                    false
-                }
-            } else {
-                false
+            if managed.session.connection_count() == 0 {
+                managed.disconnected_at = Some(Instant::now());
+                info!("Session {} has no active connections, will timeout in {:?}", id, self.timeout);
             }
-        };
-
-        if should_schedule_cleanup {
-            Self::schedule_cleanup(manager.clone(), id);
         }
-    }
-
-    /// Schedule a cleanup check for a session after the timeout period.
-    fn schedule_cleanup(manager: Arc<Self>, id: SessionId) {
-        let timeout = manager.timeout;
-        let manager = manager.clone();
-
-        tokio::spawn(async move {
-            tokio::time::sleep(timeout).await;
-
-            // A client may have reconnected during the grace period. Only
-            // remove the session if it is still disconnected, otherwise the
-            // scheduled task would tear down a live session.
-            let still_disconnected = {
-                let sessions = manager.sessions.lock().unwrap();
-                sessions.get(&id).is_some_and(|managed| managed.session.connection_count() == 0)
-            };
-
-            if still_disconnected {
-                info!("Session {} timeout check triggered, removing session", id);
-                manager.remove_session(id);
-
-                // Check if this was the last session and shutdown the server if so.
-                if manager.session_count() == 0 {
-                    info!("No more active sessions, shutting down server...");
-                    std::process::exit(0);
-                }
-            } else {
-                info!("Session {} reconnected before timeout check, skipping cleanup", id);
-            }
-        });
     }
 
     /// Perform cleanup of expired sessions.
     ///
-    /// This should be called periodically or after timeout events.
-    pub fn cleanup_expired_sessions(&self) {
+    /// This should be called periodically.
+    ///
+    /// # Returns
+    ///
+    /// If a WebSocket session was removed.
+    pub fn cleanup_expired_sessions(&self) -> bool {
         let now = Instant::now();
+        let mut websocket_session_removed = false;
 
         // Checked and removed under the same lock, so no client can get a session while it's being removed.
         let mut sessions = self.sessions.lock().unwrap();
@@ -622,10 +589,25 @@ impl SessionManager {
             if expired {
                 info!("Removing session {}", id);
                 managed.session.shutdown();
+                websocket_session_removed |= !managed.session.is_mcp();
             }
 
             !expired
         });
+
+        websocket_session_removed
+    }
+
+    /// Stops the server process if there are no sessions left.
+    ///
+    /// Called after a WebSocket session is removed. Removing the MCP session never stops the process,
+    /// so a server only used by MCP clients keeps running.
+    pub fn exit_if_no_sessions(&self) {
+        if self.session_count() == 0 {
+            info!("No more active sessions, shutting down server...");
+            rpfm_telemetry::flush("Server Action Telemetry");
+            std::process::exit(0);
+        }
     }
 
     /// Remove a session immediately.
@@ -680,14 +662,14 @@ impl SessionManager {
         }).collect()
     }
 
-    /// Start a background task that periodically cleans up expired sessions.
+    /// Start a background task that periodically cleans up expired sessions, and stops the server when none are left.
     pub fn start_cleanup_task(manager: Arc<Self>) {
-        let cleanup_interval = manager.timeout / 2; // Check twice per timeout period.
-
         tokio::spawn(async move {
             loop {
-                tokio::time::sleep(cleanup_interval).await;
-                manager.cleanup_expired_sessions();
+                tokio::time::sleep(CLEANUP_INTERVAL).await;
+                if manager.cleanup_expired_sessions() {
+                    manager.exit_if_no_sessions();
+                }
             }
         });
     }
@@ -851,5 +833,30 @@ mod tests {
         session.jobs().finish_cancelled(job);
         manager.cleanup_expired_sessions();
         assert!(session.is_shutdown_requested());
+    }
+
+    #[tokio::test]
+    async fn disconnected_websocket_sessions_expire_unless_reconnected() {
+        let manager = manager_without_timeout();
+        let kept = manager.create_session();
+        let dropped = manager.create_session();
+        manager.client_disconnected(kept.id());
+        manager.client_disconnected(dropped.id());
+        manager.get_or_create_session(Some(kept.id()));
+
+        let websocket_session_removed = manager.cleanup_expired_sessions();
+
+        assert!(websocket_session_removed);
+        assert!(!kept.is_shutdown_requested());
+        assert!(dropped.is_shutdown_requested());
+    }
+
+    #[tokio::test]
+    async fn removing_the_mcp_session_is_not_reported_as_a_websocket_removal() {
+        let manager = manager_without_timeout();
+        manager.mcp_session();
+
+        assert!(!manager.cleanup_expired_sessions());
+        assert_eq!(manager.session_count(), 0);
     }
 }

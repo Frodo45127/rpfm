@@ -22,11 +22,11 @@ Sessions are isolated: open packs in one session aren't visible in another. This
    { "jsonrpc": "2.0", "id": 99, "method": "session.disconnect" }
    ```
 
-5. **Empty manager → process exit.** When the last session goes away the `rpfm_server` process exits, so no orphaned server lingers in the background.
+5. **Empty manager → process exit.** When the last WebSocket session goes away and no other session is left, the `rpfm_server` process exits, so no orphaned server lingers in the background.
 
 ## The MCP session
 
-MCP clients have no disconnect signal the server can rely on, and newer MCP versions have no sessions at all, so all MCP clients share one session. It's created by the first tool call, and removed after 5 minutes without tool calls, unless it has open packs or unfinished jobs. The next tool call creates a new one.
+MCP clients have no disconnect signal the server can rely on, and newer MCP versions have no sessions at all, so all MCP clients share one session. It's created by the first tool call, and removed after 5 minutes without tool calls, unless it has open packs or unfinished jobs. The next tool call creates a new one. Removing it never stops the server, so a server started by hand for MCP clients keeps running.
 
 ## Reconnection example
 

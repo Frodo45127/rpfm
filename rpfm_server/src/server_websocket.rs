@@ -214,18 +214,12 @@ async fn handle_socket(socket: WebSocket, session_manager: Arc<SessionManager>, 
     if graceful_disconnect {
         info!("Session {}: Client requested graceful disconnect, removing session immediately", session_id);
         session_manager.remove_session(session_id);
-
-        // Check if this was the last session and shutdown the server if so.
-        if session_manager.session_count() == 0 {
-            info!("No more active sessions, shutting down server...");
-            rpfm_telemetry::flush("Server Action Telemetry");
-            std::process::exit(0);
-        }
+        session_manager.exit_if_no_sessions();
     }
 
     // Unexpected disconnect - mark session for timeout cleanup.
     else {
-        SessionManager::client_disconnected(session_manager.clone(),session_id);
+        session_manager.client_disconnected(session_id);
         info!("Session {} client disconnected, session will timeout in {} minutes if not reconnected", session_id, DEFAULT_SESSION_TIMEOUT_SECS / 60);
     }
 }
