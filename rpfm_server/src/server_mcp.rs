@@ -35,7 +35,7 @@ use rmcp::ErrorData as McpError;
 use rmcp::handler::server::{common::schema_for_output, router::prompt::PromptRouter, tool::ToolRouter, wrapper::Parameters};
 use rmcp::model::{
     CallToolResult, CompletionInfo, CompleteRequestParams, CompleteResult,
-    ContentBlock, ErrorCode, ListResourcesResult, ListResourceTemplatesResult,
+    ContentBlock, ErrorCode, Implementation, ListResourcesResult, ListResourceTemplatesResult,
     PaginatedRequestParams, PromptMessage,
     ReadResourceRequestParams, ReadResourceResult, ReadResourceResponse,
     Resource, ResourceContents, Role, ServerCapabilities, ServerInfo,
@@ -160,7 +160,11 @@ impl rmcp::ServerHandler for McpServer {
             .build();
 
         // `ServerInfo` is `#[non_exhaustive]` in rmcp, so it must be built through its constructor instead of a struct literal.
-        ServerInfo::new(capabilities).with_instructions("\
+        let server_info = Implementation::new(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
+            .with_title("Rusted PackFile Manager")
+            .with_website_url("https://github.com/Frodo45127/rpfm");
+
+        ServerInfo::new(capabilities).with_server_info(server_info).with_instructions("\
 This is the MCP server for RPFM (Rusted PackFile Manager), a tool for modding Total War games by \
 Creative Assembly. It lets you read, edit, create, and manage PackFiles (.pack) — the archive \
 format used by all modern Total War titles.
