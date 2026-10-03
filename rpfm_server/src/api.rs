@@ -33,7 +33,7 @@ use rpfm_ipc::api::schema::{
 use rpfm_ipc::api::github::{GetGitHubAccount, GitHubAccount, PollGitHubSignIn, SignOutOfGitHub, StartGitHubSignIn};
 use rpfm_ipc::api::translations::{GenerateVanillaTexts, GetPackTranslation, ListTranslations, SubmitTranslation, TranslationSubmission, VanillaTextsAvailable};
 use rpfm_ipc::api::session::{GenerateDependenciesCache, GetDependenciesInfo, GetDependencyTableData, GetSessionStatus, ListDependencyTables, RebuildDependencies, SetGame};
-use rpfm_ipc::api::references::{FindDefinition, FindLoc, FindUsages, GetLocSource, GetReferenceValues, GetTableReferenceData, LocSourceLookup};
+use rpfm_ipc::api::references::{FindDefinition, FindLoc, FindUsages, GetLocSource, GetReferenceValues, GetRowLocs, GetTableReferenceData, LocSourceLookup};
 use rpfm_ipc::api::tables::{AddKeyDeletes, EditTable, ExportTsv, GetColumnValues, GetTableDefinition, GetTableInfo, GetTableRows, ImportTsv, MergeTables, RenameKey, UpgradeTable};
 use rpfm_ipc::api::updates::{ApplyUpdate, CheckUpdate};
 use rpfm_ipc::api::tools::{
@@ -262,6 +262,7 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         GetTableReferenceData::METHOD => call(params, |request: GetTableReferenceData| state.table_reference_data(&request)),
         FindLoc::METHOD => call(params, |request: FindLoc| state.find_loc(request.pack.as_deref(), &request.key)),
         GetLocSource::METHOD => call(params, |request: GetLocSource| Ok(LocSourceLookup { source: state.loc_source(&request.key) })),
+        GetRowLocs::METHOD => call(params, |request: GetRowLocs| state.row_locs(&request.row)),
 
         RunDiagnostics::METHOD => call(params, |request: RunDiagnostics| {
             context.report_stage("Checking the open packs");

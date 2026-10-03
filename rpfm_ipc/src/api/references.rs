@@ -20,6 +20,7 @@ use rpfm_extensions::dependencies::TableReferences;
 
 use super::Request;
 use super::files::FileSource;
+use super::tables::RowRef;
 
 /// Default amount of values returned by [`GetReferenceValues`].
 pub const DEFAULT_REFERENCE_VALUES_LIMIT: usize = 500;
@@ -160,6 +161,37 @@ pub struct GetLocSource {
     pub key: String,
 }
 
+/// `references.row_locs`: returns the loc entries of a row of a DB table: the loc key of each of its localised columns, with its text.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GetRowLocs {
+
+    /// The row.
+    pub row: RowRef,
+}
+
+/// The loc entries of a row.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct RowLocs {
+
+    /// The loc entry of each localised column of the row.
+    pub locs: Vec<RowLoc>,
+}
+
+/// The loc entry of a localised column of a row.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct RowLoc {
+
+    /// Name of the localised column, like `onscreen_name`.
+    pub column: String,
+
+    /// Loc key of the column, like `land_units_onscreen_name_my_unit`.
+    pub key: String,
+
+    /// Text of the loc key, from the open packs or the dependencies, or null if there is none.
+    pub text: Option<String>,
+}
+
 /// Result of looking for the source of a loc key.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct LocSourceLookup {
@@ -200,6 +232,11 @@ impl Request for FindLoc {
 impl Request for GetLocSource {
     const METHOD: &'static str = "references.loc_source";
     type Response = LocSourceLookup;
+}
+
+impl Request for GetRowLocs {
+    const METHOD: &'static str = "references.row_locs";
+    type Response = RowLocs;
 }
 
 /// `references.values`: returns the values a reference column of a table can have, with their display text.

@@ -28,9 +28,9 @@ use rpfm_extensions::merge::{db_baseline, delta_merge_db, delta_merge_loc, loc_b
 use rpfm_ipc::api::ApiError;
 use rpfm_ipc::api::files::{ASSEMBLY_KIT_TABLE_FILE_NAME, FileRef, FileSource};
 use rpfm_ipc::api::session::{DependencyTableData, DependencyTables};
-use rpfm_ipc::api::references::{DEFAULT_REFERENCE_VALUES_LIMIT, DEFAULT_USAGES_LIMIT, FindUsages, FoundRow, GetReferenceValues, GetTableReferenceData, TableReferenceData, LocSource, ReferenceValue, ReferenceValues, RowLocation, Usage, Usages};
+use rpfm_ipc::api::references::{DEFAULT_REFERENCE_VALUES_LIMIT, DEFAULT_USAGES_LIMIT, FindUsages, FoundRow, GetReferenceValues, RowLoc, RowLocs, GetTableReferenceData, TableReferenceData, LocSource, ReferenceValue, ReferenceValues, RowLocation, Usage, Usages};
 use rpfm_ipc::api::tables::{AddKeyDeletes, ExportTsv, FilesEdited, ImportTsv, MergeTables, RenameKey, TableUpgraded, TablesMerged, UpgradeTable};
-use rpfm_ipc::api::tables::{ColumnInfo, ColumnValues, DEFAULT_VALUES_LIMIT, GetColumnValues, GetTableDefinition, ColumnReference, DEFAULT_ROWS_LIMIT, EditTable, FilterOp, GetTableRows, RowEdit, RowFilter, TableEdited, TableInfo, TableRow, TableRows};
+use rpfm_ipc::api::tables::{ColumnInfo, ColumnValues, DEFAULT_VALUES_LIMIT, GetColumnValues, GetTableDefinition, ColumnReference, DEFAULT_ROWS_LIMIT, EditTable, FilterOp, GetTableRows, RowEdit, RowFilter, RowRef, TableEdited, TableInfo, TableRow, TableRows};
 use rpfm_ipc::helpers::{DataSource, RFileInfo};
 
 use rpfm_lib::files::{Container, ContainerPath, db::DB, DecodeableExtraData, FileType, pack::Pack, RFile, RFileDecoded, table::{DecodedData, local::TableInMemory, Table}};
@@ -343,6 +343,48 @@ impl SessionState {
         }
 
         Err(ApiError::NotFound(format!("The loc key {loc_key}")).into())
+    }
+
+    /// Returns the loc entries of a row of a DB table: the loc key of each localised column, with its text if it has one.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the file is not a DB table, if the row doesn't exist, or if the schema doesn't say which columns make the loc keys of the table.
+    pub fn row_locs(&mut self, row_ref: &RowRef) -> Result<RowLocs> {
+        let table_name = row_ref.file.path.strip_prefix("db/")
+            .and_then(|path| path.split('/').next())
+            .ok_or_else(|| ApiError::NotATable(row_ref.file.path.clone()))?
+            .to_owned();
+
+        let table = self.table(&row_ref.file)?;
+        let definition = table.definition();
+        let data = table.data();
+        let row = data.get(row_ref.index)
+            .ok_or_else(|| ApiError::InvalidParams(format!("Row {} of {} doesn't exist.", row_ref.index, row_ref.file.path)))?;
+
+        if definition.localised_fields().is_empty() {
+            return Ok(RowLocs::default());
+        }
+
+        if definition.localised_key_order().is_empty() {
+            return Err(ApiError::InvalidParams(format!("The schema doesn't say which columns make the loc keys of {table_name}.")).into());
+        }
+
+        let key = definition.localised_key_order().iter().map(|index| row[*index as usize].data_to_string()).collect::<String>();
+        let table_name = table_name.strip_suffix("_tables").unwrap_or(&table_name);
+        let keys = definition.localised_fields().iter()
+            .map(|field| (field.name().to_owned(), format!("{table_name}_{}_{key}", field.name())))
+            .collect::<Vec<_>>();
+
+        let locs = keys.into_iter()
+            .map(|(column, key)| {
+                let text = self.find_loc(None, &key).ok()
+                    .and_then(|found| found.values.get("text").and_then(Value::as_str).map(str::to_owned));
+                RowLoc { column, key, text }
+            })
+            .collect();
+
+        Ok(RowLocs { locs })
     }
 
     /// Returns the open packs a lookup searches, with their keys: only the provided one if set, or all of them.

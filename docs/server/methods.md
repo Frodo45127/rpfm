@@ -101,6 +101,7 @@ Methods meant for clients with their own views of the files, like the UI, return
 | `references.usages` | `FindUsages` | `Usages` | Finds the rows of other tables referencing a value of a table. |
 | `references.loc` | `FindLoc` | `RowLocation` | Finds the row of a Loc file with a key. |
 | `references.loc_source` | `GetLocSource` | `LocSourceLookup` | Returns the table, column and row a loc key belongs to. |
+| `references.row_locs` | `GetRowLocs` | `RowLocs` | Returns the loc entries of a row of a DB table: the loc key of each localised column, with its text. |
 | `references.table_data` | `GetTableReferenceData` | `TableReferenceData` | Returns the values each column of a table can reference, with their lookups. |
 | `references.values` | `GetReferenceValues` | `ReferenceValues` | Returns the values a reference column of a table can have, with their display text. |
 

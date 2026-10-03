@@ -49,7 +49,7 @@ use std::time::Duration;
 use rpfm_ipc::api::{ApiError, Done, Request, RpcError, RpcOutcome, RpcRequest, RpcResponse};
 use rpfm_ipc::api::diagnostics::{DiagnosticList, IgnoreDiagnostics, ListDiagnostics, RunDiagnostics};
 use rpfm_ipc::api::search::{ListSearchMatches, ReplaceSearchMatches, RunSearch, SearchMatchList, SearchReplaced};
-use rpfm_ipc::api::references::{FindDefinition, FindLoc, FindUsages, GetLocSource, GetReferenceValues, LocSourceLookup, ReferenceValues, RowLocation, Usages};
+use rpfm_ipc::api::references::{FindDefinition, FindLoc, FindUsages, GetLocSource, GetReferenceValues, GetRowLocs, LocSourceLookup, ReferenceValues, RowLocation, RowLocs, Usages};
 use rpfm_ipc::api::notes::{AddNote, DeleteNote, ListNotes, NoteEntry, NoteList};
 use rpfm_ipc::api::schema::{
     DeleteDefinition, GetRawDefinitions, GetMissingDefinitions, GetReferencingColumns, GetTablePatches, ImportPatches, ListSchemaTables, PatchColumn, RawDefinitions, ReferencingColumns, MissingDefinitions, RemovePatches, TablePatches,
@@ -762,6 +762,16 @@ impl McpServer {
     )]
     pub async fn loc_source(&self, params: Parameters<GetLocSource>) -> Result<CallToolResult, McpError> {
         self.call_api("loc_source", params.0).await
+    }
+
+    #[tool(
+        name = "row_locs",
+        description = "Get the loc entries of a row of a DB table, from any source: the loc key of each of its localised columns, like `land_units_onscreen_name_my_unit` for `onscreen_name`, with its text, or null if no Loc file has it. Use it to know which loc keys a new row needs.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<RowLocs>(),
+    )]
+    pub async fn row_locs(&self, params: Parameters<GetRowLocs>) -> Result<CallToolResult, McpError> {
+        self.call_api("row_locs", params.0).await
     }
 
     #[tool(
