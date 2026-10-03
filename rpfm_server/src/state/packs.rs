@@ -326,10 +326,10 @@ impl SessionState {
     /// All the settings of the pack after the change.
     pub fn update_pack_settings(&mut self, request: &UpdatePackSettings) -> Result<PackSettingsValues> {
         let settings = pack_mut(&mut self.packs, &request.pack)?.settings_mut();
-        settings.settings_text_mut().extend(request.values.text.clone());
-        settings.settings_string_mut().extend(request.values.string.clone());
-        settings.settings_bool_mut().extend(request.values.bool.clone());
-        settings.settings_number_mut().extend(request.values.number.clone());
+        settings.settings_text_mut().extend(request.settings.text.clone());
+        settings.settings_string_mut().extend(request.settings.string.clone());
+        settings.settings_bool_mut().extend(request.settings.bool.clone());
+        settings.settings_number_mut().extend(request.settings.number.clone());
         self.pack_settings_values(&request.pack)
     }
 

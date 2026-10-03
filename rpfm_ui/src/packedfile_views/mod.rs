@@ -406,7 +406,7 @@ impl FileView {
                             View::MatchedCombatDebug(_) => return Ok(()),
                             View::PackFile(_) => return Ok(()),
                             View::PackSettings(view) => {
-                                call_api(&UpdatePackSettings { pack: self.pack_key_copy(), values: PackSettingsValues::from(&view.save_view()) })?;
+                                call_api(&UpdatePackSettings { pack: self.pack_key_copy(), settings: PackSettingsValues::from(&view.save_view()) })?;
                                 return Ok(())
                             },
 

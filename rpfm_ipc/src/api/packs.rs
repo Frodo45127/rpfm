@@ -298,9 +298,8 @@ pub struct UpdatePackSettings {
     /// Key of the pack.
     pub pack: String,
 
-    /// Settings to set.
-    #[serde(flatten)]
-    pub values: PackSettingsValues,
+    /// Settings to set, in the format `pack.settings` returns them.
+    pub settings: PackSettingsValues,
 }
 
 impl From<&PackSettings> for PackSettingsValues {
