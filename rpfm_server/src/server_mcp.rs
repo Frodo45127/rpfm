@@ -726,7 +726,7 @@ impl McpServer {
 
     #[tool(
         name = "find_definition",
-        description = "Find the row where a value of a referenced table is defined, like the row of `factions_tables` with a faction key. Searches the open packs, the parent packs, the game files and the Assembly Kit tables, or only `pack` if set, and returns the first row found.",
+        description = "Find the row where a value of a referenced table is defined, like the row of `factions_tables` with a faction key. Searches the open packs, the parent packs, the game files and the Assembly Kit tables, or only `pack` if set, and returns the first row found, with its values.",
         annotations(read_only_hint = true),
         output_schema = schema_for_output::<RowLocation>(),
     )]
@@ -736,7 +736,7 @@ impl McpServer {
 
     #[tool(
         name = "find_usages",
-        description = "Find the rows of other tables referencing a value of a table, like everything using a faction key. The referencing columns are taken from the schema. Searches the open packs (or only `pack`), the parent packs and the game files, in pages (200 by default; the total is always returned).",
+        description = "Find the rows of other tables referencing a value of a table, like everything using a faction key. The referencing columns are taken from the schema. Searches the open packs (or only `pack`), the parent packs and the game files, and returns each row with its values, in pages (200 by default; the total is always returned). To copy the rows for a new value, insert copies of them with `edit_table` and `copy_from`.",
         annotations(read_only_hint = true),
         output_schema = schema_for_output::<Usages>(),
     )]
@@ -746,7 +746,7 @@ impl McpServer {
 
     #[tool(
         name = "find_loc",
-        description = "Find the row of a Loc file with a key. Searches the open packs, the parent packs and the game files, or only `pack` if set, and returns the first row found.",
+        description = "Find the row of a Loc file with a key. Searches the open packs, the parent packs and the game files, or only `pack` if set, and returns the first row found, with its values.",
         annotations(read_only_hint = true),
         output_schema = schema_for_output::<RowLocation>(),
     )]

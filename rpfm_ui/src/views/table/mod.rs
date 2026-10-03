@@ -3830,7 +3830,7 @@ impl TableView {
                         call_api_async(&request).or_else(|_| call_api_async(&FindDefinition { pack: None, ..request }))
                     });
 
-                match found.map(row_location) {
+                match found.map(|found| row_location(found.location)) {
 
                     // We receive a path/column/row, so we know what to open/select.
                     Ok((data_source, path, column, row)) => {
@@ -4074,7 +4074,7 @@ impl TableView {
                 // Look in this view's pack before looking everywhere.
                 let request = FindLoc { key: loc_key, pack: Some(self.pack_key.read().unwrap().clone()) };
                 let found = call_api_async(&request).or_else(|_| call_api_async(&FindLoc { pack: None, ..request }));
-                match found.map(row_location) {
+                match found.map(|found| row_location(found.location)) {
 
                     // We receive a path/column/row, so we know what to open/select.
                     Ok((data_source, path, column, row)) => {

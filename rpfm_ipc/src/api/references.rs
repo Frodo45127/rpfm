@@ -12,8 +12,9 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use rpfm_extensions::dependencies::TableReferences;
 
@@ -41,6 +42,18 @@ pub struct RowLocation {
 
     /// Index of the row.
     pub row_index: usize,
+}
+
+/// A row found by a lookup: where it is, and its values.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct FoundRow {
+
+    /// Where the row is.
+    #[serde(flatten)]
+    pub location: RowLocation,
+
+    /// Values of the row, by column name.
+    pub values: BTreeMap<String, Value>,
 }
 
 /// `references.definition`: finds the row where a value of a referenced table is defined.
@@ -98,7 +111,7 @@ pub struct FindUsages {
 }
 
 /// A page of the usages of a value.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Usages {
 
     /// The usages in the page.
@@ -109,7 +122,7 @@ pub struct Usages {
 }
 
 /// A row referencing a value.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Usage {
 
     /// Where the row is.
@@ -118,6 +131,9 @@ pub struct Usage {
 
     /// Name of the column referencing the value.
     pub column: String,
+
+    /// Values of the row, by column name.
+    pub values: BTreeMap<String, Value>,
 }
 
 /// `references.loc`: finds the row of a Loc file with a key.
@@ -168,7 +184,7 @@ pub struct LocSource {
 
 impl Request for FindDefinition {
     const METHOD: &'static str = "references.definition";
-    type Response = RowLocation;
+    type Response = FoundRow;
 }
 
 impl Request for FindUsages {
@@ -178,7 +194,7 @@ impl Request for FindUsages {
 
 impl Request for FindLoc {
     const METHOD: &'static str = "references.loc";
-    type Response = RowLocation;
+    type Response = FoundRow;
 }
 
 impl Request for GetLocSource {

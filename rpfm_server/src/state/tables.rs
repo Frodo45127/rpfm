@@ -28,7 +28,7 @@ use rpfm_extensions::merge::{db_baseline, delta_merge_db, delta_merge_loc, loc_b
 use rpfm_ipc::api::ApiError;
 use rpfm_ipc::api::files::{ASSEMBLY_KIT_TABLE_FILE_NAME, FileRef, FileSource};
 use rpfm_ipc::api::session::{DependencyTableData, DependencyTables};
-use rpfm_ipc::api::references::{DEFAULT_REFERENCE_VALUES_LIMIT, DEFAULT_USAGES_LIMIT, FindUsages, GetReferenceValues, GetTableReferenceData, TableReferenceData, LocSource, ReferenceValue, ReferenceValues, RowLocation, Usage, Usages};
+use rpfm_ipc::api::references::{DEFAULT_REFERENCE_VALUES_LIMIT, DEFAULT_USAGES_LIMIT, FindUsages, FoundRow, GetReferenceValues, GetTableReferenceData, TableReferenceData, LocSource, ReferenceValue, ReferenceValues, RowLocation, Usage, Usages};
 use rpfm_ipc::api::tables::{AddKeyDeletes, ExportTsv, FilesEdited, ImportTsv, MergeTables, RenameKey, TableUpgraded, TablesMerged, UpgradeTable};
 use rpfm_ipc::api::tables::{ColumnInfo, ColumnValues, DEFAULT_VALUES_LIMIT, GetColumnValues, GetTableDefinition, ColumnReference, DEFAULT_ROWS_LIMIT, EditTable, FilterOp, GetTableRows, RowEdit, RowFilter, TableEdited, TableInfo, TableRow, TableRows};
 use rpfm_ipc::helpers::{DataSource, RFileInfo};
@@ -279,24 +279,24 @@ impl SessionState {
     ///
     /// # Returns
     ///
-    /// Where the row is.
-    pub fn find_definition(&self, pack_key: Option<&str>, table_name: &str, column: &str, value: &str) -> Result<RowLocation> {
+    /// Where the row is, and its values.
+    pub fn find_definition(&self, pack_key: Option<&str>, table_name: &str, column: &str, value: &str) -> Result<FoundRow> {
         if loaded_schema(&self.schema)?.definitions_by_table_name(table_name).is_none_or(|definitions| definitions.is_empty()) {
             return Err(ApiError::DefinitionNotFound(table_name.to_owned()).into());
         }
 
         let table_folders = ContainerPath::db_table_folders(table_name);
         for (key, pack) in self.packs_to_search(pack_key)? {
-            if let Some(location) = find_in_db_files(&pack.files_by_paths(&table_folders, true), column, value, &FileSource::Pack(key.to_owned())) {
-                return Ok(location);
+            if let Some(found) = find_in_db_files(&pack.files_by_paths(&table_folders, true), column, value, &FileSource::Pack(key.to_owned())) {
+                return Ok(found);
             }
         }
 
         if pack_key.is_none() {
             for (source, include_vanilla, include_parent) in [(FileSource::ParentFiles, false, true), (FileSource::GameFiles, true, false)] {
                 if let Ok(files) = self.dependencies.db_data(table_name, include_vanilla, include_parent) {
-                    if let Some(location) = find_in_db_files(&files, column, value, &source) {
-                        return Ok(location);
+                    if let Some(found) = find_in_db_files(&files, column, value, &source) {
+                        return Ok(found);
                     }
                 }
             }
@@ -304,7 +304,8 @@ impl SessionState {
             if let Some(table) = self.dependencies.asskit_only_db_tables().get(table_name) {
                 if let Some((column_index, row_index)) = find_in_db(table, column, value) {
                     let path = format!("db/{table_name}/{ASSEMBLY_KIT_TABLE_FILE_NAME}");
-                    return Ok(RowLocation { source: FileSource::AssemblyKit, path, column_index, row_index });
+                    let location = RowLocation { source: FileSource::AssemblyKit, path, column_index, row_index };
+                    return Ok(FoundRow { location, values: row_values_by_column(table.table(), row_index) });
                 }
             }
         }
@@ -323,19 +324,19 @@ impl SessionState {
     ///
     /// # Returns
     ///
-    /// Where the row is.
-    pub fn find_loc(&self, pack_key: Option<&str>, loc_key: &str) -> Result<RowLocation> {
+    /// Where the row is, and its values.
+    pub fn find_loc(&self, pack_key: Option<&str>, loc_key: &str) -> Result<FoundRow> {
         for (key, pack) in self.packs_to_search(pack_key)? {
-            if let Some(location) = find_in_loc_files(&pack.files_by_type(&[FileType::Loc]), loc_key, &FileSource::Pack(key.to_owned())) {
-                return Ok(location);
+            if let Some(found) = find_in_loc_files(&pack.files_by_type(&[FileType::Loc]), loc_key, &FileSource::Pack(key.to_owned())) {
+                return Ok(found);
             }
         }
 
         if pack_key.is_none() {
             for (source, include_vanilla, include_parent) in [(FileSource::ParentFiles, false, true), (FileSource::GameFiles, true, false)] {
                 if let Ok(files) = self.dependencies.loc_data(include_vanilla, include_parent) {
-                    if let Some(location) = find_in_loc_files(&files, loc_key, &source) {
-                        return Ok(location);
+                    if let Some(found) = find_in_loc_files(&files, loc_key, &source) {
+                        return Ok(found);
                     }
                 }
             }
@@ -1046,23 +1047,42 @@ fn find_in_db(table: &DB, column_name: &str, value: &str) -> Option<(usize, usiz
 }
 
 /// Finds the first row with a value in a column, among DB files.
-fn find_in_db_files(files: &[&RFile], column_name: &str, value: &str, source: &FileSource) -> Option<RowLocation> {
+fn find_in_db_files(files: &[&RFile], column_name: &str, value: &str, source: &FileSource) -> Option<FoundRow> {
     files.iter().find_map(|file| match file.decoded() {
         Ok(RFileDecoded::DB(table)) => find_in_db(table, column_name, value)
-            .map(|(column_index, row_index)| RowLocation { source: source.clone(), path: file.path_in_container_raw().to_owned(), column_index, row_index }),
+            .map(|(column_index, row_index)| FoundRow {
+                location: RowLocation { source: source.clone(), path: file.path_in_container_raw().to_owned(), column_index, row_index },
+                values: row_values_by_column(table.table(), row_index),
+            }),
         _ => None,
     })
 }
 
 /// Finds the first row with a key, among Loc files.
-fn find_in_loc_files(files: &[&RFile], loc_key: &str, source: &FileSource) -> Option<RowLocation> {
+fn find_in_loc_files(files: &[&RFile], loc_key: &str, source: &FileSource) -> Option<FoundRow> {
     files.iter().find_map(|file| match file.decoded() {
         Ok(RFileDecoded::Loc(table)) => {
             let (column_index, row_indexes) = table.table().rows_containing_data("key", loc_key)?;
-            row_indexes.first().map(|row_index| RowLocation { source: source.clone(), path: file.path_in_container_raw().to_owned(), column_index, row_index: *row_index })
+            row_indexes.first().map(|row_index| FoundRow {
+                location: RowLocation { source: source.clone(), path: file.path_in_container_raw().to_owned(), column_index, row_index: *row_index },
+                values: row_values_by_column(table.table(), *row_index),
+            })
         }
         _ => None,
     })
+}
+
+/// Returns the values of a row of a table, by column name.
+fn row_values_by_column(table: &TableInMemory, row_index: usize) -> BTreeMap<String, Value> {
+    let data = table.data();
+    let Some(row) = data.get(row_index) else {
+        return BTreeMap::new();
+    };
+
+    table.definition().fields_processed().iter()
+        .zip(row)
+        .map(|(field, value)| (field.name().to_owned(), decoded_to_json(value)))
+        .collect()
 }
 
 /// Returns every row of a DB file with a value in any of the provided columns.
@@ -1075,6 +1095,7 @@ fn references_in_file(file: &RFile, columns: &[String], value: &str, source: &Fi
             .map(|row_index| Usage {
                 location: RowLocation { source: source.clone(), path: file.path_in_container_raw().to_owned(), column_index, row_index },
                 column: column_name.to_owned(),
+                values: row_values_by_column(table.table(), row_index),
             })
             .collect::<Vec<_>>())
         .collect()
