@@ -69,6 +69,7 @@ Methods meant for clients with their own views of the files, like the UI, return
 | `schema.definition` | `GetTableDefinition` | `TableDefinition` | Returns the columns of a table as defined in the schema. |
 | `table.edit` | `EditTable` | `TableEdited` | Edits rows of a DB or Loc table in an open pack. |
 | `table.column_values` | `GetColumnValues` | `ColumnValues` | Returns the distinct values of a column of a table, sorted. |
+| `table.unused_numbers` | `GetUnusedNumbers` | `UnusedNumbers` | Returns numbers no row uses yet in an integer column of a table, for new rows needing unique ones, like ids. |
 | `table.merge` | `MergeTables` | `TablesMerged` | Merges tables of the same type of an open pack into a new one. |
 | `table.upgrade` | `UpgradeTable` | `TableUpgraded` | Updates a table of an open pack to the version it has in the game files. |
 | `table.rename_key` | `RenameKey` | `FilesEdited` | Changes a value of a key column of a table in every table of an open pack, including the columns referencing it and the loc keys generated from it. |

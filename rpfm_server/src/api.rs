@@ -34,7 +34,7 @@ use rpfm_ipc::api::github::{GetGitHubAccount, GitHubAccount, PollGitHubSignIn, S
 use rpfm_ipc::api::translations::{GenerateVanillaTexts, GetPackTranslation, ListTranslations, SubmitTranslation, TranslationSubmission, VanillaTextsAvailable};
 use rpfm_ipc::api::session::{GenerateDependenciesCache, GetDependenciesInfo, GetDependencyTableData, GetSessionStatus, ListDependencyTables, RebuildDependencies, SetGame};
 use rpfm_ipc::api::references::{FindDefinition, FindLoc, FindUsages, GetLocSource, GetReferenceValues, GetRowLocs, GetTableReferenceData, LocSourceLookup};
-use rpfm_ipc::api::tables::{AddKeyDeletes, EditTable, ExportTsv, GetColumnValues, GetTableDefinition, GetTableInfo, GetTableRows, ImportTsv, MergeTables, RenameKey, UpgradeTable};
+use rpfm_ipc::api::tables::{AddKeyDeletes, EditTable, ExportTsv, GetColumnValues, GetTableDefinition, GetTableInfo, GetTableRows, GetUnusedNumbers, ImportTsv, MergeTables, RenameKey, UpgradeTable};
 use rpfm_ipc::api::updates::{ApplyUpdate, CheckUpdate};
 use rpfm_ipc::api::tools::{
     AddCeoEntries, AnimsBySkeleton, BuildCeo, ExportGltf, FinishStartpos, GenerateMissingLocs, GetLuaHovers, GetOptimizerOptions, GetStartposCampaigns,
@@ -226,6 +226,7 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         EditTable::METHOD => call(params, |request: EditTable| state.edit_table(&request)),
         GetTableDefinition::METHOD => call(params, |request: GetTableDefinition| state.table_definition(&request)),
         GetColumnValues::METHOD => call(params, |request: GetColumnValues| state.column_values_page(&request)),
+        GetUnusedNumbers::METHOD => call(params, |request: GetUnusedNumbers| state.unused_numbers(&request)),
         MergeTables::METHOD => call(params, |request: MergeTables| state.merge_tables(&request)),
         UpgradeTable::METHOD => call(params, |request: UpgradeTable| state.upgrade_table(&request)),
         RenameKey::METHOD => call(params, |request: RenameKey| state.rename_key(&request)),

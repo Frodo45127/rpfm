@@ -30,7 +30,7 @@ use rpfm_ipc::api::files::{ASSEMBLY_KIT_TABLE_FILE_NAME, FileRef, FileSource};
 use rpfm_ipc::api::session::{DependencyTableData, DependencyTables};
 use rpfm_ipc::api::references::{DEFAULT_REFERENCE_VALUES_LIMIT, DEFAULT_USAGES_LIMIT, FindUsages, FoundRow, GetReferenceValues, RowLoc, RowLocs, GetTableReferenceData, TableReferenceData, LocSource, ReferenceValue, ReferenceValues, RowLocation, Usage, Usages};
 use rpfm_ipc::api::tables::{AddKeyDeletes, ExportTsv, FilesEdited, ImportTsv, MergeTables, RenameKey, TableUpgraded, TablesMerged, UpgradeTable};
-use rpfm_ipc::api::tables::{ColumnInfo, ColumnValues, DEFAULT_VALUES_LIMIT, GetColumnValues, GetTableDefinition, ColumnReference, DEFAULT_ROWS_LIMIT, EditTable, FilterOp, GetTableRows, RowEdit, RowFilter, RowRef, TableEdited, TableInfo, TableRow, TableRows};
+use rpfm_ipc::api::tables::{ColumnInfo, ColumnValues, DEFAULT_VALUES_LIMIT, GetColumnValues, GetUnusedNumbers, MAX_UNUSED_NUMBERS, UnusedNumbers, GetTableDefinition, ColumnReference, DEFAULT_ROWS_LIMIT, EditTable, FilterOp, GetTableRows, RowEdit, RowFilter, RowRef, TableEdited, TableInfo, TableRow, TableRows};
 use rpfm_ipc::helpers::{DataSource, RFileInfo};
 
 use rpfm_lib::files::{Container, ContainerPath, db::DB, DecodeableExtraData, FileType, pack::Pack, RFile, RFileDecoded, table::{DecodedData, local::TableInMemory, Table}};
@@ -510,6 +510,51 @@ impl SessionState {
             .collect();
 
         Ok(ColumnValues { values, total })
+    }
+
+    /// Returns numbers above the highest one used in an integer column of a table, in the open packs and the dependencies.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the schema has no definition of the table, if the table has no column with the provided name,
+    /// if the column isn't an integer one, or if its type has not enough numbers left.
+    pub fn unused_numbers(&self, request: &GetUnusedNumbers) -> Result<UnusedNumbers> {
+        if request.count > MAX_UNUSED_NUMBERS {
+            return Err(ApiError::InvalidParams(format!("Up to {MAX_UNUSED_NUMBERS} numbers can be requested at once.")).into());
+        }
+
+        let definition = self.table_definition(&GetTableDefinition { table_name: request.table_name.clone(), version: None })?;
+        let column = definition.columns.iter()
+            .find(|column| column.name == request.column)
+            .ok_or_else(|| ApiError::InvalidParams(format!("The table has no column named {}.", request.column)))?;
+
+        let highest_allowed = match column.field_type {
+            FieldType::I16 | FieldType::OptionalI16 => i64::from(i16::MAX),
+            FieldType::I32 | FieldType::OptionalI32 => i64::from(i32::MAX),
+            FieldType::I64 | FieldType::OptionalI64 => i64::MAX,
+            FieldType::Boolean |
+            FieldType::F32 |
+            FieldType::F64 |
+            FieldType::ColourRGB |
+            FieldType::StringU8 |
+            FieldType::StringU16 |
+            FieldType::OptionalStringU8 |
+            FieldType::OptionalStringU16 |
+            FieldType::SequenceU16(_) |
+            FieldType::SequenceU32(_) => return Err(ApiError::InvalidParams(format!("The column {} is not an integer column.", request.column)).into()),
+        };
+
+        let highest_used = self.column_values(&request.table_name, &request.column, true, true).iter()
+            .filter_map(|value| value.parse::<i64>().ok())
+            .max()
+            .unwrap_or(0);
+
+        let numbers = (1..=request.count as i64)
+            .map(|offset| highest_used.checked_add(offset).filter(|number| *number <= highest_allowed))
+            .collect::<Option<Vec<_>>>()
+            .ok_or_else(|| ApiError::InvalidParams(format!("The column {} has less than {} numbers left above {highest_used}.", request.column, request.count)))?;
+
+        Ok(UnusedNumbers { numbers })
     }
 
     /// Returns a page of the values a reference column of a table can have, with their display text.

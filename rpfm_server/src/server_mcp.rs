@@ -71,8 +71,8 @@ use rpfm_ipc::api::packs::{ClosePack, CloseAllPacks, GetPackInfo, GetPackSetting
 use rpfm_ipc::api::jobs::{CancelJob, GetJobStatus, JobStarted, JobState, JobStatus, WaitForJob};
 use rpfm_ipc::api::session::{DependencyTables, GenerateDependenciesCache, GetSessionStatus, ListDependencyTables, RebuildDependencies, SessionStatus, SetGame};
 use rpfm_ipc::api::tables::{
-    AddKeyDeletes, ColumnValues, EditTable, ExportTsv, FilesEdited, GetColumnValues, GetTableDefinition, GetTableInfo, GetTableRows, ImportTsv, MergeTables,
-    RenameKey, TableDefinition, TableEdited, TableInfo, TableRows, TablesMerged, TableUpgraded, UpgradeTable,
+    AddKeyDeletes, ColumnValues, EditTable, ExportTsv, FilesEdited, GetColumnValues, GetTableDefinition, GetTableInfo, GetTableRows, GetUnusedNumbers, ImportTsv, MergeTables,
+    RenameKey, TableDefinition, TableEdited, TableInfo, TableRows, TablesMerged, TableUpgraded, UnusedNumbers, UpgradeTable,
 };
 use rpfm_telemetry::sentry;
 
@@ -722,6 +722,16 @@ impl McpServer {
     )]
     pub async fn column_values(&self, params: Parameters<GetColumnValues>) -> Result<CallToolResult, McpError> {
         self.call_api("column_values", params.0).await
+    }
+
+    #[tool(
+        name = "unused_numbers",
+        description = "Get numbers no row uses yet in an integer column of a table, like `unique_index` of `main_units_tables`, for new rows that need unique ones. They're above the highest one used in the open packs and the dependencies.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<UnusedNumbers>(),
+    )]
+    pub async fn unused_numbers(&self, params: Parameters<GetUnusedNumbers>) -> Result<CallToolResult, McpError> {
+        self.call_api("unused_numbers", params.0).await
     }
 
     #[tool(

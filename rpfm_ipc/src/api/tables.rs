@@ -361,6 +361,43 @@ impl Request for GetColumnValues {
     type Response = ColumnValues;
 }
 
+/// Maximum amount of numbers [`GetUnusedNumbers`] can return.
+pub const MAX_UNUSED_NUMBERS: usize = 10_000;
+
+/// `table.unused_numbers`: returns numbers no row uses yet in an integer column of a table, for new rows needing unique ones, like ids.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GetUnusedNumbers {
+
+    /// Name of the table, like `main_units_tables`.
+    pub table_name: String,
+
+    /// Name of the integer column, like `unique_index`.
+    pub column: String,
+
+    /// Amount of numbers to return, up to 10000. Defaults to 1.
+    #[serde(default = "default_unused_numbers_count")]
+    pub count: usize,
+}
+
+/// Numbers no row uses yet in a column.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct UnusedNumbers {
+
+    /// The numbers, from lowest to highest, all above the highest one used in the open packs and the dependencies.
+    pub numbers: Vec<i64>,
+}
+
+impl Request for GetUnusedNumbers {
+    const METHOD: &'static str = "table.unused_numbers";
+    type Response = UnusedNumbers;
+}
+
+/// Default amount of numbers [`GetUnusedNumbers`] returns.
+fn default_unused_numbers_count() -> usize {
+    1
+}
+
 /// `table.merge`: merges tables of the same type of an open pack into a new one.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

@@ -132,7 +132,7 @@ To change a vanilla table, copy it into your pack first with `copy_files`, from 
 
 ## Tool Reference
 
-The MCP interface exposes **89 tools**. The descriptions below are the first sentence of each tool's description; `tools/list` has the full descriptions and the JSON schemas of their params.
+The MCP interface exposes **90 tools**. The descriptions below are the first sentence of each tool's description; `tools/list` has the full descriptions and the JSON schemas of their params.
 
 ### Session and jobs
 
@@ -185,6 +185,7 @@ The MCP interface exposes **89 tools**. The descriptions below are the first sen
 | `table_info` | `table.info` | Get the columns (name, type, key, referenced table and column, default value, description) and the row count of a DB or Loc table, from any source. |
 | `table_rows` | `table.rows` | Read rows of a DB or Loc table, from any source, as plain values (booleans, numbers and strings). |
 | `column_values` | `table.column_values` | Get the distinct values of a column of a table, like all the faction keys of `factions_tables`, from the open packs and the dependencies, sorted. |
+| `unused_numbers` | `table.unused_numbers` | Get numbers no row uses yet in an integer column of a table, like `unique_index` of `main_units_tables`, for new rows that need unique ones. |
 | `merge_tables` | `table.merge` | Merge tables of the same type of an open pack into a new one. |
 | `upgrade_table` | `table.upgrade` | Update a table of an open pack to the version it has in the game files, after a game update. |
 | `rename_key` | `table.rename_key` | Change a key value of a table in every table of an open pack: the key itself, the columns referencing it, and the loc keys generated from it. |
