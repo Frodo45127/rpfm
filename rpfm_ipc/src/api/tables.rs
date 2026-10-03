@@ -496,7 +496,7 @@ pub struct ImportTsv {
     pub path: String,
 
     /// Path of the TSV file to read.
-    pub source: PathBuf,
+    pub tsv_path: PathBuf,
 }
 
 impl Request for MergeTables {

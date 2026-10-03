@@ -711,7 +711,7 @@ impl SessionState {
 
     /// Replaces a table of a pack with the contents of a TSV file, keeping its GUID.
     pub fn import_table_tsv(&mut self, request: &ImportTsv) -> Result<TableEdited> {
-        let row_count = match self.import_tsv(&request.pack, &request.path, &request.source)? {
+        let row_count = match self.import_tsv(&request.pack, &request.path, &request.tsv_path)? {
             RFileDecoded::DB(table) => table.len(),
             RFileDecoded::Loc(table) => table.len(),
             _ => return Err(ApiError::NotATable(request.path.clone()).into()),

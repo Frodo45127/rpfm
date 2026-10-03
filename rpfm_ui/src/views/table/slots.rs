@@ -561,7 +561,7 @@ impl TableViewSlots {
 
                         let pack_key = view.pack_key.read().unwrap().clone();
                         let file_path = packed_file_path.read().unwrap().to_owned();
-                        let imported = call_api_async(&ImportTsv { pack: pack_key.clone(), path: file_path.clone(), source: path })
+                        let imported = call_api_async(&ImportTsv { pack: pack_key.clone(), path: file_path.clone(), tsv_path: path })
                             .and_then(|_| call_api_async(&GetViewData { file: FileRef { source: FileSource::Pack(pack_key), path: file_path } }));
 
                         match imported {
