@@ -32,17 +32,17 @@
 //! [`CallToolResult`]: rmcp::model::CallToolResult
 
 use rmcp::ErrorData as McpError;
-use rmcp::handler::server::{common::schema_for_output, router::prompt::PromptRouter, tool::{IntoCallToolResult, ToolCallContext, ToolRouter}, wrapper::Parameters};
+use rmcp::handler::server::{common::schema_for_output, prompt::PromptContext, router::prompt::PromptRouter, tool::{IntoCallToolResult, ToolCallContext, ToolRouter}, wrapper::Parameters};
 use rmcp::model::{
-    CallToolRequestParams, CallToolResponse, CallToolResult, CancelTaskParams, CompletionInfo, CompleteRequestParams, CompleteResult,
-    ContentBlock, CreateTaskResult, DetailedTask, ErrorCode, GetTaskParams, GetTaskResult, Implementation, JsonObject, ListResourcesResult, ListResourceTemplatesResult,
-    PaginatedRequestParams, PromptMessage,
+    CacheScope, CallToolRequestParams, CallToolResponse, CallToolResult, CancelTaskParams, CompletionInfo, CompleteRequestParams, CompleteResult,
+    ContentBlock, CreateTaskResult, DetailedTask, DiscoverResult, ErrorCode, GetPromptRequestParams, GetPromptResponse, GetTaskParams, GetTaskResult, Implementation,
+    JsonObject, ListPromptsResult, ListResourcesResult, ListResourceTemplatesResult, ListToolsResult, PaginatedRequestParams, PromptMessage,
     ReadResourceRequestParams, ReadResourceResult, ReadResourceResponse,
     Resource, ResourceContents, Role, ServerCapabilities, ServerInfo, Task, TaskPayload, TaskStatus,
 };
 use rmcp::service::RequestContext;
 use rmcp::task_manager::DEFAULT_POLL_INTERVAL_MS;
-use rmcp::{prompt, prompt_handler, prompt_router, tool, tool_handler, tool_router, RoleServer};
+use rmcp::{prompt, prompt_router, tool, tool_handler, tool_router, RoleServer};
 use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 
@@ -91,6 +91,11 @@ use crate::session::{Session, SessionId, SessionManager};
 ///
 /// Kept under the usual timeout of MCP clients. Jobs still running after it can be waited for with `wait_for_job`.
 const MCP_JOB_WAIT: Duration = Duration::from_secs(45);
+
+/// How long clients may cache the server's discovery info, its lists of tools, prompts and resources, and its resources.
+///
+/// They only change with the server's version.
+const MCP_CACHE_TTL_MS: u64 = 60 * 60 * 1000;
 
 /// Starts the Sentry transaction of a tool call, following the MCP tracing spec.
 fn start_tool_transaction(tool_name: &str) -> sentry::Transaction {
@@ -232,8 +237,19 @@ impl IntoCallToolResult for JobToolResponse {
 }
 
 #[tool_handler(router = self.tool_router)]
-#[prompt_handler(router = self.prompt_router)]
 impl rmcp::ServerHandler for McpServer {
+
+    async fn discover(&self, _context: RequestContext<RoleServer>) -> Result<DiscoverResult, McpError> {
+        Ok(DiscoverResult::from_server_info(self.supported_protocol_versions().into_owned(), self.get_info())
+            .with_ttl_ms(MCP_CACHE_TTL_MS)
+            .with_cache_scope(CacheScope::Public))
+    }
+
+    async fn list_tools(&self, _request: Option<PaginatedRequestParams>, _context: RequestContext<RoleServer>) -> Result<ListToolsResult, McpError> {
+        Ok(ListToolsResult::with_all_items(self.tool_router.list_all())
+            .with_ttl_ms(MCP_CACHE_TTL_MS)
+            .with_cache_scope(CacheScope::Public))
+    }
 
     /// Calls a tool, reporting params rmcp can't parse like the API's own invalid params, instead of as plain text.
     async fn call_tool(&self, request: CallToolRequestParams, context: RequestContext<RoleServer>) -> Result<CallToolResponse, McpError> {
@@ -357,6 +373,20 @@ in `data`, the `kind` of error (like `pack_not_found` or `schema_not_loaded`).
     }
 
     //-----------------------------------------------------------------------//
+    // Prompts
+    //-----------------------------------------------------------------------//
+
+    async fn get_prompt(&self, request: GetPromptRequestParams, context: RequestContext<RoleServer>) -> Result<GetPromptResponse, McpError> {
+        self.prompt_router.get_prompt(PromptContext::new(self, request.name, request.arguments, context)).await
+    }
+
+    async fn list_prompts(&self, _request: Option<PaginatedRequestParams>, _context: RequestContext<RoleServer>) -> Result<ListPromptsResult, McpError> {
+        Ok(ListPromptsResult::with_all_items(self.prompt_router.list_all())
+            .with_ttl_ms(MCP_CACHE_TTL_MS)
+            .with_cache_scope(CacheScope::Public))
+    }
+
+    //-----------------------------------------------------------------------//
     // Resources
     //-----------------------------------------------------------------------//
 
@@ -373,10 +403,9 @@ in `data`, the `kind` of error (like `pack_not_found` or `schema_not_loaded`).
             resource("rpfm://reference/initialization", "Initialization guide", "Step-by-step guide for initializing the RPFM MCP server session.", "text/plain"),
             resource("rpfm://reference/path_conventions", "Path conventions", "Common file path conventions inside Total War PackFiles.", "text/plain"),
         ];
-        Ok(ListResourcesResult {
-            resources,
-            ..Default::default()
-        })
+        Ok(ListResourcesResult::with_all_items(resources)
+            .with_ttl_ms(MCP_CACHE_TTL_MS)
+            .with_cache_scope(CacheScope::Public))
     }
 
     async fn list_resource_templates(
@@ -384,10 +413,9 @@ in `data`, the `kind` of error (like `pack_not_found` or `schema_not_loaded`).
         _request: Option<PaginatedRequestParams>,
         _context: RequestContext<RoleServer>,
     ) -> Result<ListResourceTemplatesResult, McpError> {
-        Ok(ListResourceTemplatesResult {
-            resource_templates: vec![],
-            ..Default::default()
-        })
+        Ok(ListResourceTemplatesResult::with_all_items(vec![])
+            .with_ttl_ms(MCP_CACHE_TTL_MS)
+            .with_cache_scope(CacheScope::Public))
     }
 
     async fn read_resource(
@@ -529,7 +557,10 @@ Maps:
             }
         };
 
-        Ok(ReadResourceResult::new(vec![ResourceContents::text(content, uri.clone())]).into())
+        Ok(ReadResourceResult::new(vec![ResourceContents::text(content, uri.clone())])
+            .with_ttl_ms(MCP_CACHE_TTL_MS)
+            .with_cache_scope(CacheScope::Public)
+            .into())
     }
 
     //-----------------------------------------------------------------------//
