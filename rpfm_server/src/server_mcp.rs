@@ -36,7 +36,7 @@ use rmcp::handler::server::{common::schema_for_output, prompt::PromptContext, ro
 use rmcp::model::{
     CacheScope, CallToolRequestParams, CallToolResponse, CallToolResult, CancelTaskParams, CompletionInfo, CompleteRequestParams, CompleteResult,
     ContentBlock, CreateTaskResult, DetailedTask, DiscoverResult, ErrorCode, GetPromptRequestParams, GetPromptResponse, GetTaskParams, GetTaskResult, Implementation,
-    JsonObject, ListPromptsResult, ListResourcesResult, ListResourceTemplatesResult, ListToolsResult, PaginatedRequestParams, PromptMessage,
+    JsonObject, ListPromptsResult, ListResourcesResult, ListResourceTemplatesResult, ListToolsResult, PaginatedRequestParams, ProgressNotificationParam, PromptMessage,
     ReadResourceRequestParams, ReadResourceResult, ReadResourceResponse,
     Resource, ResourceContents, Role, ServerCapabilities, ServerInfo, Task, TaskPayload, TaskStatus,
 };
@@ -44,6 +44,7 @@ use rmcp::service::RequestContext;
 use rmcp::task_manager::DEFAULT_POLL_INTERVAL_MS;
 use rmcp::{prompt, prompt_router, tool, tool_handler, tool_router, RoleServer};
 use time::OffsetDateTime;
+use tokio::sync::broadcast::error::RecvError;
 use time::format_description::well_known::Rfc3339;
 
 use std::sync::Arc;
@@ -80,7 +81,7 @@ use rpfm_ipc::api::tables::{
 };
 use rpfm_telemetry::sentry;
 
-use crate::jobs::JobRecord;
+use crate::jobs::{JobRecord, JobRegistry};
 use crate::session::{Session, SessionId, SessionManager};
 
 //-------------------------------------------------------------------------------//
@@ -143,6 +144,53 @@ fn job_status_result(status: &JobStatus) -> CallToolResult {
     match serde_json::to_value(status) {
         Ok(value) => CallToolResult::structured(value),
         Err(error) => error_result(&ApiError::Internal(error.to_string()).into()),
+    }
+}
+
+/// Waits for a job like [`JobRegistry::wait`], sending the client a progress notification on each change of the job, if it asked for them.
+///
+/// Progress must always increase, but jobs report it from 0 to 100 on each of their stages, so each new stage adds 100 to it.
+async fn wait_reporting_progress(jobs: &JobRegistry, job: u64, context: &RequestContext<RoleServer>) -> Option<JobStatus> {
+    let Some(progress_token) = context.meta.get_progress_token() else {
+        return jobs.wait(job, MCP_JOB_WAIT).await;
+    };
+
+    let mut updates = jobs.subscribe();
+    let wait = jobs.wait(job, MCP_JOB_WAIT);
+    tokio::pin!(wait);
+
+    let mut current_stage = None;
+    let mut stage_offset = 0.0;
+    let mut last_progress = None;
+    loop {
+        tokio::select! {
+            status = &mut wait => return status,
+            update = updates.recv() => match update {
+                Ok(JobStatus { job: updated_job, state: JobState::Running { stage, progress }, .. }) if updated_job == job => {
+                    if stage != current_stage {
+                        stage_offset += 100.0;
+                        current_stage = stage;
+                    }
+
+                    let progress = stage_offset + f64::from(progress.unwrap_or_default());
+                    if last_progress.is_some_and(|last_progress| progress <= last_progress) {
+                        continue;
+                    }
+
+                    last_progress = Some(progress);
+                    let notification = ProgressNotificationParam::new(progress_token.clone(), progress);
+                    let notification = match &current_stage {
+                        Some(stage) => notification.with_message(stage),
+                        None => notification,
+                    };
+
+                    // The client may be gone. The job continues anyway, so there's nothing to do about it.
+                    let _ = context.peer.notify_progress(notification).await;
+                },
+                Ok(_) | Err(RecvError::Lagged(_)) => {},
+                Err(RecvError::Closed) => return wait.await,
+            },
+        }
     }
 }
 
@@ -677,7 +725,7 @@ impl McpServer {
                     Some(record) => CallToolResponse::Task(CreateTaskResult::new(job_task(session.id(), &record).task)),
                     None => error_result(&ApiError::JobNotFound(started.job).into()).into(),
                 },
-                Ok(started) => match session.jobs().wait(started.job, MCP_JOB_WAIT).await {
+                Ok(started) => match wait_reporting_progress(session.jobs(), started.job, &context).await {
                     Some(status) => job_status_result(&status).into(),
                     None => error_result(&ApiError::JobNotFound(started.job).into()).into(),
                 },
