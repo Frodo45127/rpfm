@@ -21,7 +21,7 @@ Store it if you want to reconnect to the same session later.
 A request names a method and passes its params as an object:
 
 ```json
-{ "jsonrpc": "2.0", "id": 7, "method": "table.rows", "params": { "file": { "source": { "pack": "pack_1" }, "path": "db/units_tables/my_units" }, "limit": 2 } }
+{ "jsonrpc": "2.0", "id": 7, "method": "table.rows", "params": { "file": { "source": { "pack": "0b4c5a62-7d3e-4f1a-9c2b-8e6d5f4a3b21" }, "path": "db/units_tables/my_units" }, "limit": 2 } }
 ```
 
 The response carries the same `id`, and either a `result` or an `error`:
@@ -80,7 +80,7 @@ Diagnostics checks (`diagnostics.run`) don't make other requests wait: a running
 
 ## Conventions
 
-- **Pack keys.** Open packs are identified by the `key` that `pack.open`, `pack.new` and `session.status` return, like `pack_1`. Keys never change while a pack is open, even when it's saved under another name, and aren't reused. A pack's `name` is its file name, and its `path` is only set if it's saved on disk. A method's `pack` param is always the open pack it works on or changes. Where it's optional, like in lookups and lists, setting it limits the method to that pack.
+- **Pack keys.** Open packs are identified by the `key` that `pack.open`, `pack.new` and `session.status` return: a UUID, like `0b4c5a62-7d3e-4f1a-9c2b-8e6d5f4a3b21`. Keys never change while a pack is open, even when it's saved under another name, and aren't reused. A pack's `name` is its file name, and its `path` is only set if it's saved on disk. A method's `pack` param is always the open pack it works on or changes. Where it's optional, like in lookups and lists, setting it limits the method to that pack.
 - **Sources.** Files are found in a `source`: `{ "pack": "<key>" }` for an open pack, or `"game_files"`, `"parent_files"` or `"assembly_kit"` for the dependencies. A file is a `{ "source": ..., "path": ... }` pair.
 - **Reading and writing.** Methods reading files take a `source` or a `file`, so they can read from anywhere. Methods changing files take a `pack` and a `path`, as only the files of open packs can change.
 - **Paths.** Paths inside packs use `/`. Where a method takes files or folders, a path is a file if one exists with that path, and a folder otherwise. Filters by path are called `path_prefix`. Paths on disk have names saying what they are, like `destination` or `tsv_path`.

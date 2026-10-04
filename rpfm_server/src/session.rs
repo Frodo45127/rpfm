@@ -809,7 +809,7 @@ mod tests {
     async fn the_mcp_session_is_kept_while_it_has_open_packs() {
         let manager = manager_without_timeout();
         let session = manager.mcp_session();
-        session.set_pack_name("pack_1", "my_mod.pack");
+        session.set_pack_name("0b4c5a62-7d3e-4f1a-9c2b-8e6d5f4a3b21", "my_mod.pack");
 
         manager.cleanup_expired_sessions();
 

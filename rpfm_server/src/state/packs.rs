@@ -12,6 +12,7 @@
 
 use anyhow::{anyhow, Result};
 use rayon::prelude::*;
+use uuid::Uuid;
 
 use std::collections::BTreeMap;
 use std::fs::DirBuilder;
@@ -496,8 +497,7 @@ impl SessionState {
     ///
     /// The key of the pack.
     fn insert_pack(&mut self, pack: Pack) -> String {
-        let key = format!("pack_{}", self.next_pack_number);
-        self.next_pack_number += 1;
+        let key = Uuid::new_v4().to_string();
 
         self.session.set_pack_name(&key, &pack.disk_file_name());
         self.pack_modes.insert(key.clone(), OperationalMode::Normal);
@@ -540,7 +540,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn pack_keys_are_never_reused() {
+    async fn pack_keys_are_new_uuids() {
         let mut state = SessionState::new(Session::new(1, true));
         let settings = Settings::default();
 
@@ -548,8 +548,8 @@ mod tests {
         state.close_pack(&first).unwrap();
         let second = state.new_pack(None, &settings).unwrap();
 
-        assert_eq!(first, "pack_1");
-        assert_eq!(second, "pack_2");
+        assert!(Uuid::parse_str(&first).is_ok());
+        assert_ne!(first, second);
     }
 
     #[tokio::test]

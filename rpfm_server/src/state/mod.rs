@@ -84,8 +84,6 @@ pub struct SessionState {
     /// Each pack's `disk_file_path` is either its absolute path on disk, or only its file name if it's not saved there.
     packs: BTreeMap<String, Pack>,
 
-    /// Number used in the key of the next opened or created pack, so keys are never reused.
-    next_pack_number: u64,
 
     /// Operational mode (Normal or MyMod) of each open pack, keyed by the same pack key as `packs`.
     pack_modes: BTreeMap<String, OperationalMode>,
@@ -176,7 +174,6 @@ impl SessionState {
             schema: None,
             first_game_change_done: false,
             packs: BTreeMap::new(),
-            next_pack_number: 1,
             pack_modes: BTreeMap::new(),
             dependencies: Dependencies::default(),
             dependencies_error: None,

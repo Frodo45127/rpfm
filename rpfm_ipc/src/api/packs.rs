@@ -38,7 +38,7 @@ pub enum OperationalMode {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct PackSummary {
 
-    /// Key identifying the pack in every method that works on it, like `pack_1`. It never changes while the pack is open.
+    /// Key identifying the pack in every method that works on it: a UUID, like `0b4c5a62-7d3e-4f1a-9c2b-8e6d5f4a3b21`. It never changes while the pack is open.
     pub key: String,
 
     /// File name of the pack, like `my_mod.pack`.
