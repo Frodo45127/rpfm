@@ -22,6 +22,7 @@ use tokio::time::{timeout_at, Duration, Instant};
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::SystemTime;
 
 use rpfm_ipc::api::{ApiError, Done, Request, RpcOutcome, RpcRequest, RpcResponse};
 use rpfm_ipc::api::jobs::{CancelJob, DEFAULT_WAIT_SECS, GetJobStatus, JobState, JobStatus, WaitForJob};
@@ -42,10 +43,24 @@ pub struct JobRegistry {
     next_id: AtomicU64,
 
     /// State of each job, by ID.
-    jobs: Mutex<BTreeMap<u64, JobStatus>>,
+    jobs: Mutex<BTreeMap<u64, JobRecord>>,
 
     /// Channel every job change is sent to.
     updates: broadcast::Sender<JobStatus>,
+}
+
+/// State of a job, with when it was created and when it last changed.
+#[derive(Clone, Debug)]
+pub struct JobRecord {
+
+    /// State of the job.
+    pub status: JobStatus,
+
+    /// When the job was created.
+    pub created_at: SystemTime,
+
+    /// When the state of the job last changed.
+    pub updated_at: SystemTime,
 }
 
 impl Default for JobRegistry {
@@ -62,7 +77,7 @@ impl JobRegistry {
 
     /// Returns if any job is queued or running.
     pub fn has_unfinished_jobs(&self) -> bool {
-        self.jobs.lock().unwrap().values().any(|status| !status.state.has_ended())
+        self.jobs.lock().unwrap().values().any(|record| !record.status.state.has_ended())
     }
 
     /// Registers a new queued job.
@@ -140,6 +155,11 @@ impl JobRegistry {
 
     /// Returns the state of a job, or `None` if it's unknown.
     pub fn status(&self, job: u64) -> Option<JobStatus> {
+        self.record(job).map(|record| record.status)
+    }
+
+    /// Returns the state of a job with when it was created and last changed, or `None` if it's unknown.
+    pub fn record(&self, job: u64) -> Option<JobRecord> {
         self.jobs.lock().unwrap().get(&job).cloned()
     }
 
@@ -179,9 +199,10 @@ impl JobRegistry {
     fn transition(&self, job: u64, change: impl FnOnce(&JobState) -> Option<JobState>) -> Option<JobStatus> {
         let status = {
             let mut jobs = self.jobs.lock().unwrap();
-            let status = jobs.get_mut(&job)?;
-            status.state = change(&status.state)?;
-            status.clone()
+            let record = jobs.get_mut(&job)?;
+            record.status.state = change(&record.status.state)?;
+            record.updated_at = SystemTime::now();
+            record.status.clone()
         };
 
         self.notify(status.clone());
@@ -192,9 +213,10 @@ impl JobRegistry {
     fn set(&self, status: JobStatus) {
         {
             let mut jobs = self.jobs.lock().unwrap();
-            jobs.insert(status.job, status.clone());
+            let now = SystemTime::now();
+            jobs.insert(status.job, JobRecord { status: status.clone(), created_at: now, updated_at: now });
 
-            let ended = jobs.values().filter(|status| status.state.has_ended()).map(|status| status.job).collect::<Vec<_>>();
+            let ended = jobs.values().filter(|record| record.status.state.has_ended()).map(|record| record.status.job).collect::<Vec<_>>();
             for job in ended.iter().take(ended.len().saturating_sub(MAX_ENDED_JOBS)) {
                 jobs.remove(job);
             }

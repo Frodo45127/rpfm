@@ -54,6 +54,9 @@ serde_derive.workspace = true
 ron.workspace = true
 uuid.workspace = true
 
+# Timestamps of the MCP tasks.
+time.workspace = true
+
 # MCP support.
 rmcp.workspace = true
 schemars.workspace = true

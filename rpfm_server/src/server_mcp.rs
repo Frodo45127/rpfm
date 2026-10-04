@@ -18,8 +18,9 @@
 //!
 //! Each tool call sends its method's request through the session, like a
 //! WebSocket client would, and returns the response as structured content,
-//! or as a tool error if it failed. Methods that run as jobs are waited for
-//! a while, and return the state of their job.
+//! or as a tool error if it failed. Methods that run as jobs return an MCP
+//! task to clients supporting tasks. For other clients, they're waited for a
+//! while, and return the state of their job.
 //!
 //! The request structs of the methods are the schema of every tool. Their
 //! `JsonSchema` derive is what `rmcp` ships to clients to advertise tool
@@ -31,19 +32,22 @@
 //! [`CallToolResult`]: rmcp::model::CallToolResult
 
 use rmcp::ErrorData as McpError;
-use rmcp::handler::server::{common::schema_for_output, router::prompt::PromptRouter, tool::{ToolCallContext, ToolRouter}, wrapper::Parameters};
+use rmcp::handler::server::{common::schema_for_output, router::prompt::PromptRouter, tool::{IntoCallToolResult, ToolCallContext, ToolRouter}, wrapper::Parameters};
 use rmcp::model::{
-    CallToolRequestParams, CallToolResponse, CallToolResult, CompletionInfo, CompleteRequestParams, CompleteResult,
-    ContentBlock, ErrorCode, Implementation, ListResourcesResult, ListResourceTemplatesResult,
+    CallToolRequestParams, CallToolResponse, CallToolResult, CancelTaskParams, CompletionInfo, CompleteRequestParams, CompleteResult,
+    ContentBlock, CreateTaskResult, DetailedTask, ErrorCode, GetTaskParams, GetTaskResult, Implementation, JsonObject, ListResourcesResult, ListResourceTemplatesResult,
     PaginatedRequestParams, PromptMessage,
     ReadResourceRequestParams, ReadResourceResult, ReadResourceResponse,
-    Resource, ResourceContents, Role, ServerCapabilities, ServerInfo,
+    Resource, ResourceContents, Role, ServerCapabilities, ServerInfo, Task, TaskPayload, TaskStatus,
 };
 use rmcp::service::RequestContext;
+use rmcp::task_manager::DEFAULT_POLL_INTERVAL_MS;
 use rmcp::{prompt, prompt_handler, prompt_router, tool, tool_handler, tool_router, RoleServer};
+use time::OffsetDateTime;
+use time::format_description::well_known::Rfc3339;
 
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 
 use rpfm_ipc::api::{ApiError, Done, Request, RpcError, RpcOutcome, RpcRequest, RpcResponse};
@@ -76,7 +80,8 @@ use rpfm_ipc::api::tables::{
 };
 use rpfm_telemetry::sentry;
 
-use crate::session::SessionManager;
+use crate::jobs::JobRecord;
+use crate::session::{Session, SessionId, SessionManager};
 
 //-------------------------------------------------------------------------------//
 //                              Helpers
@@ -99,6 +104,23 @@ fn start_tool_transaction(tool_name: &str) -> sentry::Transaction {
     tx
 }
 
+/// Sends a request of the API to a session and waits for its outcome.
+///
+/// # Errors
+///
+/// Fails if the request can't be serialized.
+async fn send_request<R: Request>(session: &Session, request: &R) -> Result<RpcOutcome, McpError> {
+    let rpc_request = RpcRequest::new(0, request).map_err(|error| McpError {
+        code: ErrorCode::INTERNAL_ERROR,
+        message: format!("Failed to serialize request: {error}").into(),
+        data: None,
+    })?;
+
+    let response = session.call(rpc_request).recv().await
+        .unwrap_or_else(|| RpcResponse::new(0, Err(ApiError::Internal("Session response channel closed unexpectedly".to_owned()))));
+    Ok(response.outcome)
+}
+
 /// Returns an API error as a tool error.
 fn error_result(error: &RpcError) -> CallToolResult {
     CallToolResult::error(vec![ContentBlock::text(serde_json::to_string(error).unwrap_or_else(|_| error.message.clone()))])
@@ -116,6 +138,50 @@ fn job_status_result(status: &JobStatus) -> CallToolResult {
     match serde_json::to_value(status) {
         Ok(value) => CallToolResult::structured(value),
         Err(error) => error_result(&ApiError::Internal(error.to_string()).into()),
+    }
+}
+
+/// Returns the ID of the task of a job, unique across MCP sessions so a task of a removed session isn't mistaken for a job of the new one.
+fn task_id(session: SessionId, job: u64) -> String {
+    format!("{session}-{job}")
+}
+
+/// Returns the session and job of a task ID, or `None` if it's not one.
+fn parse_task_id(task_id: &str) -> Option<(SessionId, u64)> {
+    let (session, job) = task_id.split_once('-')?;
+    Some((session.parse().ok()?, job.parse().ok()?))
+}
+
+/// Returns the error of task IDs that aren't of a job of the MCP session.
+fn unknown_task(task_id: &str) -> McpError {
+    McpError::invalid_params(format!("Unknown task: {task_id}"), None)
+}
+
+/// Returns a time as an ISO 8601 timestamp, as tasks need.
+fn timestamp(time: SystemTime) -> String {
+    OffsetDateTime::from(time).format(&Rfc3339).unwrap_or_default()
+}
+
+/// Returns the task of a job of a session.
+///
+/// Ended jobs complete the task with the same result their tool returns when it waits for them, so failed jobs are tool errors.
+fn job_task(session: SessionId, record: &JobRecord) -> DetailedTask {
+    let task = Task::new(task_id(session, record.status.job), TaskStatus::Working, timestamp(record.created_at), timestamp(record.updated_at))
+        .with_poll_interval_ms(DEFAULT_POLL_INTERVAL_MS);
+
+    match &record.status.state {
+        JobState::Queued => DetailedTask::new(task.with_status_message("Queued"), TaskPayload::Working),
+        JobState::Running { stage: Some(stage), .. } => DetailedTask::new(task.with_status_message(stage), TaskPayload::Working),
+        JobState::Running { stage: None, .. } => DetailedTask::new(task, TaskPayload::Working),
+        JobState::Finished { .. } | JobState::Failed { .. } => {
+            let result = match serde_json::to_value(job_status_result(&record.status)) {
+                Ok(serde_json::Value::Object(result)) => result,
+                _ => JsonObject::new(),
+            };
+
+            DetailedTask::new(task, TaskPayload::Completed { result })
+        },
+        JobState::Cancelled => DetailedTask::new(task, TaskPayload::Cancelled),
     }
 }
 
@@ -149,9 +215,21 @@ pub struct McpServer {
     prompt_router: PromptRouter<Self>,
 }
 
+/// Response of the tools running as jobs: a task, or the state of the job.
+///
+/// rmcp can't turn a [`CallToolResponse`] into a tool response, and the orphan rule forbids implementing
+/// its trait for it here, so this wraps it.
+pub struct JobToolResponse(CallToolResponse);
+
 //-------------------------------------------------------------------------------//
 //                             Implementations
 //-------------------------------------------------------------------------------//
+
+impl IntoCallToolResult for JobToolResponse {
+    fn into_call_tool_result(self) -> Result<CallToolResponse, McpError> {
+        Ok(self.0)
+    }
+}
 
 #[tool_handler(router = self.tool_router)]
 #[prompt_handler(router = self.prompt_router)]
@@ -181,6 +259,7 @@ impl rmcp::ServerHandler for McpServer {
             .enable_prompts()
             .enable_resources()
             .enable_completions()
+            .enable_tasks()
             .build();
 
         // `ServerInfo` is `#[non_exhaustive]` in rmcp, so it must be built through its constructor instead of a struct literal.
@@ -210,7 +289,7 @@ format used by all modern Total War titles.
   folder otherwise.
 - **Jobs**: slow tools (`set_game`, `generate_dependencies_cache`, `run_diagnostics`, `run_search`, `optimize_pack`...) run as jobs. \
   They wait up to 45 seconds and return the job's state, with its result if it finished. If it's still \
-  running, call `wait_for_job` with its ID. Other tools called meanwhile wait for the job to end, except during \
+  running, call `wait_for_job` with its ID. Clients supporting MCP tasks get a task for them instead. Other tools called meanwhile wait for the job to end, except during \
   `run_diagnostics`, which stops for them and starts again after them.
 - **Sources**: where a file is — `{\"pack\": <pack key>}` (an open pack), `\"game_files\"` (vanilla game data), \
   `\"parent_files\"` (packs the open packs depend on), or `\"assembly_kit\"` (Assembly Kit tables). A file is \
@@ -256,6 +335,25 @@ and example JSON payloads without needing tool calls.
 Tools return structured results. On failure, they return a tool error with a `code`, a `message` and, \
 in `data`, the `kind` of error (like `pack_not_found` or `schema_not_loaded`).
 ")
+    }
+
+    //-----------------------------------------------------------------------//
+    // Tasks
+    //-----------------------------------------------------------------------//
+
+    async fn get_task(&self, request: GetTaskParams, _context: RequestContext<RoleServer>) -> Result<GetTaskResult, McpError> {
+        let (session, job) = self.task_job(&request.task_id)?;
+        let record = session.jobs().record(job).ok_or_else(|| unknown_task(&request.task_id))?;
+        Ok(GetTaskResult::new(job_task(session.id(), &record)))
+    }
+
+    /// Cancels the job of a task if it hasn't started. Running jobs finish anyway, which tasks allow.
+    async fn cancel_task(&self, request: CancelTaskParams, _context: RequestContext<RoleServer>) -> Result<(), McpError> {
+        let (session, job) = self.task_job(&request.task_id)?;
+        match session.jobs().cancel(job) {
+            Err(ApiError::JobNotFound(_)) => Err(unknown_task(&request.task_id)),
+            _ => Ok(()),
+        }
     }
 
     //-----------------------------------------------------------------------//
@@ -509,33 +607,15 @@ Maps:
 
 impl McpServer {
 
-    /// Runs a request of the API on the session.
+    /// Runs a request of the API on the session. Requests running as jobs go through [`McpServer::call_job`] instead.
     ///
     /// # Returns
     ///
     /// The response as structured content, or the error as a tool error, so a failed request doesn't end the MCP session.
     async fn call_api<R: Request>(&self, tool_name: &str, request: R) -> Result<CallToolResult, McpError> {
         let tx = start_tool_transaction(tool_name);
-
-        let rpc_request = RpcRequest::new(0, &request).map_err(|error| McpError {
-            code: ErrorCode::INTERNAL_ERROR,
-            message: format!("Failed to serialize request: {error}").into(),
-            data: None,
-        })?;
-
         let session = self.sessions.mcp_session();
-        let response = session.call(rpc_request).recv().await
-            .unwrap_or_else(|| RpcResponse::new(0, Err(ApiError::Internal("Session response channel closed unexpectedly".to_owned()))));
-
-        // Jobs answer with their ID right away, so wait a bit for them and return their state.
-        let result = match response.outcome {
-            RpcOutcome::Result(value) if R::IS_JOB => match serde_json::from_value::<JobStarted>(value) {
-                Ok(started) => match session.jobs().wait(started.job, MCP_JOB_WAIT).await {
-                    Some(status) => job_status_result(&status),
-                    None => error_result(&ApiError::JobNotFound(started.job).into()),
-                },
-                Err(error) => error_result(&ApiError::Internal(error.to_string()).into()),
-            },
+        let result = match send_request(&session, &request).await? {
 
             // Waiting for a job ends it like the tool that started it, so a failed job is a tool error too.
             RpcOutcome::Result(value) if R::METHOD == WaitForJob::METHOD => match serde_json::from_value::<JobStatus>(value) {
@@ -548,6 +628,48 @@ impl McpServer {
 
         tx.finish();
         Ok(result)
+    }
+
+    /// Runs a request of the API that runs as a job on the session.
+    ///
+    /// # Returns
+    ///
+    /// A task for the job if the client supports tasks. Otherwise, the state of the job after waiting for it a while,
+    /// or its error as a tool error if it failed.
+    async fn call_job<R: Request>(&self, tool_name: &str, request: R, context: RequestContext<RoleServer>) -> Result<JobToolResponse, McpError> {
+        let tx = start_tool_transaction(tool_name);
+        let session = self.sessions.mcp_session();
+        let supports_tasks = context.client_capabilities().is_some_and(|capabilities| capabilities.supports_tasks());
+        let response = match send_request(&session, &request).await? {
+            RpcOutcome::Result(value) => match serde_json::from_value::<JobStarted>(value) {
+                Ok(started) if supports_tasks => match session.jobs().record(started.job) {
+                    Some(record) => CallToolResponse::Task(CreateTaskResult::new(job_task(session.id(), &record).task)),
+                    None => error_result(&ApiError::JobNotFound(started.job).into()).into(),
+                },
+                Ok(started) => match session.jobs().wait(started.job, MCP_JOB_WAIT).await {
+                    Some(status) => job_status_result(&status).into(),
+                    None => error_result(&ApiError::JobNotFound(started.job).into()).into(),
+                },
+                Err(error) => error_result(&ApiError::Internal(error.to_string()).into()).into(),
+            },
+            RpcOutcome::Error(error) => error_result(&error).into(),
+        };
+
+        tx.finish();
+        Ok(JobToolResponse(response))
+    }
+
+    /// Returns the MCP session and the job of a task.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the task ID isn't of a job of the current MCP session.
+    fn task_job(&self, task_id: &str) -> Result<(Arc<Session>, u64), McpError> {
+        let session = self.sessions.mcp_session();
+        match parse_task_id(task_id) {
+            Some((session_id, job)) if session_id == session.id() => Ok((session, job)),
+            _ => Err(unknown_task(task_id)),
+        }
     }
 }
 
@@ -620,8 +742,8 @@ impl McpServer {
         annotations(read_only_hint = false, destructive_hint = false),
         output_schema = schema_for_output::<JobStatus>(),
     )]
-    pub async fn set_game(&self, params: Parameters<SetGame>) -> Result<CallToolResult, McpError> {
-        self.call_api("set_game", params.0).await
+    pub async fn set_game(&self, params: Parameters<SetGame>, context: RequestContext<RoleServer>) -> Result<JobToolResponse, McpError> {
+        self.call_job("set_game", params.0, context).await
     }
 
     #[tool(
@@ -630,8 +752,8 @@ impl McpServer {
         annotations(read_only_hint = false, destructive_hint = false),
         output_schema = schema_for_output::<JobStatus>(),
     )]
-    pub async fn generate_dependencies_cache(&self, params: Parameters<GenerateDependenciesCache>) -> Result<CallToolResult, McpError> {
-        self.call_api("generate_dependencies_cache", params.0).await
+    pub async fn generate_dependencies_cache(&self, params: Parameters<GenerateDependenciesCache>, context: RequestContext<RoleServer>) -> Result<JobToolResponse, McpError> {
+        self.call_job("generate_dependencies_cache", params.0, context).await
     }
 
     #[tool(
@@ -640,8 +762,8 @@ impl McpServer {
         annotations(read_only_hint = false, destructive_hint = false),
         output_schema = schema_for_output::<JobStatus>(),
     )]
-    pub async fn rebuild_dependencies(&self, params: Parameters<RebuildDependencies>) -> Result<CallToolResult, McpError> {
-        self.call_api("rebuild_dependencies", params.0).await
+    pub async fn rebuild_dependencies(&self, params: Parameters<RebuildDependencies>, context: RequestContext<RoleServer>) -> Result<JobToolResponse, McpError> {
+        self.call_job("rebuild_dependencies", params.0, context).await
     }
 
     #[tool(
@@ -660,8 +782,8 @@ impl McpServer {
         annotations(read_only_hint = true),
         output_schema = schema_for_output::<JobStatus>(),
     )]
-    pub async fn run_diagnostics_tool(&self, params: Parameters<RunDiagnostics>) -> Result<CallToolResult, McpError> {
-        self.call_api("run_diagnostics", params.0).await
+    pub async fn run_diagnostics_tool(&self, params: Parameters<RunDiagnostics>, context: RequestContext<RoleServer>) -> Result<JobToolResponse, McpError> {
+        self.call_job("run_diagnostics", params.0, context).await
     }
 
     #[tool(
@@ -690,8 +812,8 @@ impl McpServer {
         annotations(read_only_hint = true),
         output_schema = schema_for_output::<JobStatus>(),
     )]
-    pub async fn run_search(&self, params: Parameters<RunSearch>) -> Result<CallToolResult, McpError> {
-        self.call_api("run_search", params.0).await
+    pub async fn run_search(&self, params: Parameters<RunSearch>, context: RequestContext<RoleServer>) -> Result<JobToolResponse, McpError> {
+        self.call_job("run_search", params.0, context).await
     }
 
     #[tool(
@@ -870,8 +992,8 @@ impl McpServer {
         annotations(read_only_hint = false, destructive_hint = false),
         output_schema = schema_for_output::<JobStatus>(),
     )]
-    pub async fn update_schemas(&self, params: Parameters<UpdateSchemas>) -> Result<CallToolResult, McpError> {
-        self.call_api("update_schemas", params.0).await
+    pub async fn update_schemas(&self, params: Parameters<UpdateSchemas>, context: RequestContext<RoleServer>) -> Result<JobToolResponse, McpError> {
+        self.call_job("update_schemas", params.0, context).await
     }
 
     #[tool(
@@ -880,8 +1002,8 @@ impl McpServer {
         annotations(read_only_hint = false, destructive_hint = false),
         output_schema = schema_for_output::<JobStatus>(),
     )]
-    pub async fn update_schema_from_assembly_kit(&self, params: Parameters<UpdateSchemaFromAssemblyKit>) -> Result<CallToolResult, McpError> {
-        self.call_api("update_schema_from_assembly_kit", params.0).await
+    pub async fn update_schema_from_assembly_kit(&self, params: Parameters<UpdateSchemaFromAssemblyKit>, context: RequestContext<RoleServer>) -> Result<JobToolResponse, McpError> {
+        self.call_job("update_schema_from_assembly_kit", params.0, context).await
     }
 
     #[tool(
@@ -1080,8 +1202,8 @@ impl McpServer {
         annotations(read_only_hint = false, destructive_hint = true),
         output_schema = schema_for_output::<JobStatus>(),
     )]
-    pub async fn optimize_pack(&self, params: Parameters<OptimizePack>) -> Result<CallToolResult, McpError> {
-        self.call_api("optimize_pack", params.0).await
+    pub async fn optimize_pack(&self, params: Parameters<OptimizePack>, context: RequestContext<RoleServer>) -> Result<JobToolResponse, McpError> {
+        self.call_job("optimize_pack", params.0, context).await
     }
 
     #[tool(
@@ -1102,8 +1224,8 @@ Runs as a job: waits up to 45 seconds and returns its state, with the report as 
         annotations(read_only_hint = true),
         output_schema = schema_for_output::<JobStatus>(),
     )]
-    pub async fn run_lua_tests(&self, params: Parameters<RunLuaTests>) -> Result<CallToolResult, McpError> {
-        self.call_api("run_lua_tests", params.0).await
+    pub async fn run_lua_tests(&self, params: Parameters<RunLuaTests>, context: RequestContext<RoleServer>) -> Result<JobToolResponse, McpError> {
+        self.call_job("run_lua_tests", params.0, context).await
     }
 
     #[tool(
@@ -1937,5 +2059,64 @@ loc entries for DB fields that reference loc keys but don't have entries yet.
 - After adding translations, run `run_diagnostics` to verify all references.
 ",
         )]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use crate::jobs::JobRegistry;
+
+    use super::*;
+
+    #[test]
+    fn task_ids_round_trip_and_reject_other_ids() {
+        assert_eq!(parse_task_id(&task_id(3, 7)), Some((3, 7)));
+        assert_eq!(parse_task_id("7"), None);
+        assert_eq!(parse_task_id("a-7"), None);
+    }
+
+    #[test]
+    fn jobs_map_to_tasks() {
+        let registry = JobRegistry::default();
+        let job = registry.create("session.set_game");
+        let task = job_task(1, &registry.record(job).unwrap());
+        assert_eq!(task.task.task_id, "1-1");
+        assert_eq!(task.status(), TaskStatus::Working);
+        assert_eq!(task.task.status_message.as_deref(), Some("Queued"));
+
+        registry.start(job);
+        registry.set_stage(job, "Loading");
+        let task = job_task(1, &registry.record(job).unwrap());
+        assert_eq!(task.status(), TaskStatus::Working);
+        assert_eq!(task.task.status_message.as_deref(), Some("Loading"));
+
+        registry.finish(job, RpcOutcome::Result(json!({"ok": true})));
+        let task = job_task(1, &registry.record(job).unwrap());
+        let TaskPayload::Completed { result } = task.payload else { panic!("finished jobs must complete their task") };
+        assert_eq!(result["structuredContent"]["result"], json!({"ok": true}));
+        assert_ne!(result.get("isError"), Some(&json!(true)));
+    }
+
+    #[test]
+    fn failed_jobs_complete_their_task_with_a_tool_error() {
+        let registry = JobRegistry::default();
+        let job = registry.create("session.set_game");
+        registry.start(job);
+        registry.finish(job, RpcOutcome::Error(ApiError::Internal("boom".to_owned()).into()));
+
+        let task = job_task(1, &registry.record(job).unwrap());
+        let TaskPayload::Completed { result } = task.payload else { panic!("failed jobs must complete their task") };
+        assert_eq!(result["isError"], json!(true));
+    }
+
+    #[test]
+    fn cancelled_jobs_cancel_their_task() {
+        let registry = JobRegistry::default();
+        let job = registry.create("session.set_game");
+        registry.cancel(job).unwrap();
+
+        assert_eq!(job_task(1, &registry.record(job).unwrap()).status(), TaskStatus::Cancelled);
     }
 }
