@@ -461,7 +461,7 @@ impl SessionState {
     ///
     /// The paths added to the target pack, and the paths removed from each source pack if the files were cut.
     pub fn paste_files(&mut self, request: &PasteFiles) -> Result<FilesPasted> {
-        let target_key = &request.to_pack;
+        let target_key = &request.pack;
         pack(&self.packs, target_key)?;
 
         let mut entries = vec![];
@@ -476,7 +476,7 @@ impl SessionState {
         }
 
         // Clone the files first, so we don't hold borrows of their packs while mutating them.
-        let destination_path = request.destination.trim_end_matches('/');
+        let destination_path = request.folder.trim_end_matches('/');
         let mut files_to_insert = Vec::with_capacity(entries.len());
         for entry in &entries {
             let Some(source_pack) = self.packs.get(&entry.source_pack_key) else { continue };

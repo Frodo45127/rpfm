@@ -1435,7 +1435,7 @@ impl PackFileContentsSlots {
                 let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
                 let request = {
                     let clipboard = CLIPBOARD.read().unwrap();
-                    PasteFiles { sources: clipboard.sources.clone(), cut: clipboard.cut, to_pack: pack_key.clone(), destination: destination_path }
+                    PasteFiles { sources: clipboard.sources.clone(), cut: clipboard.cut, pack: pack_key.clone(), folder: destination_path }
                 };
 
                 match call_api(&request) {

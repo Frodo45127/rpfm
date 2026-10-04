@@ -643,10 +643,10 @@ pub struct PasteFiles {
     pub cut: bool,
 
     /// Key of the pack to paste them into.
-    pub to_pack: String,
+    pub pack: String,
 
     /// Folder of the pack to paste them into. Empty for the root of the pack.
-    pub destination: String,
+    pub folder: String,
 }
 
 /// Result of pasting files.
