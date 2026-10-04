@@ -23,7 +23,6 @@ Methods meant for clients with their own views of the files, like the UI, return
 | Method | Request | Response | Description |
 |--------|---------|----------|-------------|
 | `pack.info` | `GetPackInfo` | `PackDetails` | Returns the details of an open pack. |
-| `pack.backup` | `BackupPack` | `Done` | Saves a backup copy of an open pack in the autosave folder, removing the oldest copies over the limit in the settings. |
 | `pack.new` | `NewPack` | `PackSummary` | Creates a new empty pack. |
 | `pack.open` | `OpenPack` | `PackSummary` | Opens one or more packs from disk, merged into a single one. |
 | `pack.open_vanilla` | `OpenVanillaPacks` | `PackSummary` | Opens all the vanilla packs of the selected game, merged into a single one. |

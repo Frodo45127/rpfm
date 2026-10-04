@@ -672,7 +672,6 @@ settings_update_channel = 更新通道
 update_success_main_program = <h4>RPFM 更新成功！</h4> <p>要检查此更新中的更改，请点击此链接：<a href='file:///{"{"}{"}"}'>CHANGELOG.md</a>。如果您正在更新到测试版 (beta)，相关的更改在 "Unreleased (未发布)" 部分。</p> <p>请重启程序以应用更改。</p>
 
 settings_autosave_interval = 自动保存间隔（分钟）
-autosaving = 正在自动保存…
 autosaved = 已自动保存
 error_autosave_non_editable = 此 PackFile 无法自动保存。
 settings_ui_table_use_old_column_order_label = 使用旧的列顺序（键名排在前面）:

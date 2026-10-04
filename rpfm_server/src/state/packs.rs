@@ -30,11 +30,14 @@ use rpfm_ipc::api::packs::OperationalMode;
 
 use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::files::{Container, DecodeableExtraData, db::DB, FileType, pack::{Pack, PackSettings, PFHFlags}};
-use rpfm_lib::games::pfh_file_type::PFHFileType;
+use rpfm_lib::games::{GameInfo, pfh_file_type::PFHFileType};
 use rpfm_lib::notes::Note;
-use rpfm_lib::utils::files_in_folder_from_newest_to_oldest;
+use rpfm_lib::utils::{files_from_subdir, files_in_folder_from_newest_to_oldest};
 
 use rpfm_ipc::settings::{backup_autosave_path, Settings};
+use rpfm_ipc::settings_keys::{AUTOSAVE_AMOUNT, DISABLE_UUID_REGENERATION_ON_DB_TABLES};
+
+use rpfm_telemetry::warn;
 
 use super::{SaveOptions, SessionState, decode_tables, encode_extra_data, loaded_schema, pack, pack_mut, pack_summary};
 
@@ -43,6 +46,9 @@ const DEFAULT_PACK_STEM: &str = "new_pack";
 
 /// Extension appended to [`DEFAULT_PACK_STEM`] when materialising a new Pack's filename.
 const DEFAULT_PACK_EXT: &str = ".pack";
+
+/// Size of the autosave folder, in bytes, over which a warning is logged after each autosave (25 GB).
+const AUTOSAVE_FOLDER_SIZE_WARNING: u64 = 25 * 1024 * 1024 * 1024;
 
 /// Name of the pack with all the CA packs of the selected game merged.
 const CA_PACKS_NAME: &str = "CA PackFiles";
@@ -148,6 +154,7 @@ impl SessionState {
     pub fn close_pack(&mut self, pack_key: &str) -> Result<()> {
         self.packs.remove(pack_key).ok_or_else(|| ApiError::PackNotFound(pack_key.to_owned()))?;
         self.pack_modes.remove(pack_key);
+        self.changed_packs.remove(pack_key);
         self.session.remove_pack(pack_key);
         Ok(())
     }
@@ -160,6 +167,7 @@ impl SessionState {
 
         self.packs.clear();
         self.pack_modes.clear();
+        self.changed_packs.clear();
     }
 
     /// Saves a pack to disk.
@@ -208,6 +216,7 @@ impl SessionState {
         pack.save(path, &self.game, &extra_data)
             .map_err(|error| anyhow!("Error while trying to save the currently open PackFile: {}", error))?;
         self.session.set_pack_name(pack_key, &pack.disk_file_name());
+        self.changed_packs.remove(pack_key);
 
         Ok(ContainerInfo::from(&*pack))
     }
@@ -399,50 +408,73 @@ impl SessionState {
         Ok(())
     }
 
-    /// Saves a backup copy of a pack in the autosave folder, removing the oldest copies over the limit.
+    /// Marks packs as changed since their last autosave.
     ///
+    /// # Arguments
+    ///
+    /// * `pack_key` - Key of the changed pack, or `None` if any open pack may have changed.
+    pub fn mark_packs_changed(&mut self, pack_key: Option<&str>) {
+        match pack_key {
+            Some(pack_key) if self.packs.contains_key(pack_key) => { self.changed_packs.insert(pack_key.to_owned()); },
+            Some(_) => {},
+            None => self.changed_packs.extend(self.packs.keys().cloned()),
+        }
+    }
+
+    /// Saves a backup copy of each pack changed since its last autosave in the autosave folder, keeping the newest ones.
+    ///
+    /// The packs are copied here, but saved from another thread, so the session can keep running requests meanwhile.
     /// Vanilla packs, packs with autosaves disabled and packs that are neither mods nor movies are skipped.
     ///
     /// # Arguments
     ///
-    /// * `pack_key` - Key of the pack to back up.
-    /// * `settings` - Settings, to find the game's install folder.
-    /// * `disable_uuid_regeneration` - If tables keep their GUID when encoded.
-    /// * `autosave_amount` - Amount of backups to keep per pack.
-    pub fn backup_autosave(&self, pack_key: &str, settings: &Settings, disable_uuid_regeneration: bool, autosave_amount: usize) -> Result<()> {
-        let pack = pack(&self.packs, pack_key)?;
-        let folder = backup_autosave_path()?.join(pack.disk_file_name());
-        let _ = DirBuilder::new().recursive(true).create(&folder);
+    /// * `settings` - Settings, for the game's install folder, the amount of autosaves to keep, and how to encode tables.
+    pub fn autosave(&mut self, settings: &Settings) {
+        let Ok(autosave_path) = backup_autosave_path() else {
+            return;
+        };
 
-        let game_path = settings.path_buf(self.game.key());
-        let ca_paths = self.game.ca_packs_paths(&game_path)
+        let ca_paths = self.game.ca_packs_paths(&settings.path_buf(self.game.key()))
             .unwrap_or_default()
             .iter()
             .map(|path| path.to_string_lossy().replace('\\', "/"))
             .collect::<Vec<_>>();
 
-        let pack_disable_autosaves = pack.settings().setting_bool("disable_autosaves").unwrap_or(&true);
-        let pack_type = pack.pfh_file_type();
-        let pack_path = pack.disk_file_path().replace('\\', "/");
+        let packs = std::mem::take(&mut self.changed_packs).into_iter()
+            .filter_map(|pack_key| self.packs.get(&pack_key))
+            .filter(|pack| {
+                let pack_type = pack.pfh_file_type();
+                !pack.settings().setting_bool("disable_autosaves").unwrap_or(&true) &&
+                    (pack_type == PFHFileType::Mod || pack_type == PFHFileType::Movie) &&
+                    !ca_paths.contains(&pack.disk_file_path().replace('\\', "/"))
+            })
+            .cloned()
+            .collect::<Vec<_>>();
 
-        if folder.is_dir() &&
-            !pack_disable_autosaves &&
-            (pack_type == PFHFileType::Mod || pack_type == PFHFileType::Movie) &&
-            (ca_paths.is_empty() || !ca_paths.contains(&pack_path))
-        {
-            let date = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?.as_secs();
-            let new_path = folder.join(format!("{date}.pack"));
-            let extra_data = encode_extra_data(&self.game, pack.compression_format(), disable_uuid_regeneration);
-            let _ = pack.clone().save(Some(&new_path), &self.game, &extra_data);
-
-            if let Ok(files) = files_in_folder_from_newest_to_oldest(&folder) {
-                for file in files.iter().skip(autosave_amount) {
-                    let _ = std::fs::remove_file(file);
-                }
-            }
+        if packs.is_empty() {
+            return;
         }
 
-        Ok(())
+        let game = self.game.clone();
+        let disable_uuid_regeneration = settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES);
+        let autosave_amount = settings.i32(AUTOSAVE_AMOUNT).max(0) as usize;
+        std::thread::spawn(move || {
+            for mut pack in packs {
+                let folder = autosave_path.join(pack.disk_file_name());
+                if let Err(error) = save_autosave(&mut pack, &folder, &game, disable_uuid_regeneration, autosave_amount) {
+                    warn!("Failed to autosave the pack {}: {error}", pack.disk_file_name());
+                }
+            }
+
+            let size = files_from_subdir(&autosave_path, true).unwrap_or_default().iter()
+                .filter_map(|path| path.metadata().ok())
+                .map(|metadata| metadata.len())
+                .sum::<u64>();
+
+            if size > AUTOSAVE_FOLDER_SIZE_WARNING {
+                warn!("The autosave folder is using {} GB. Consider lowering the amount of autosaves to keep, or deleting the ones you don't need.", size / 1024 / 1024 / 1024);
+            }
+        });
     }
 
     /// Returns the tables of a pack with rows that can't be decoded with the schema, sorted by path.
@@ -516,6 +548,33 @@ fn note_entry(note: &Note) -> NoteEntry {
     }
 }
 
+/// Saves a pack as a new autosave in a folder, removing the oldest autosaves over the amount to keep.
+///
+/// # Arguments
+///
+/// * `pack` - Copy of the pack to save.
+/// * `folder` - Folder with the autosaves of the pack.
+/// * `game` - Game the pack is for.
+/// * `disable_uuid_regeneration` - If tables keep their GUID when encoded.
+/// * `autosave_amount` - Amount of autosaves to keep.
+///
+/// # Errors
+///
+/// If the folder can't be created, or the pack can't be saved.
+fn save_autosave(pack: &mut Pack, folder: &Path, game: &GameInfo, disable_uuid_regeneration: bool, autosave_amount: usize) -> Result<()> {
+    DirBuilder::new().recursive(true).create(folder)?;
+
+    let date = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?.as_secs();
+    let extra_data = encode_extra_data(game, pack.compression_format(), disable_uuid_regeneration);
+    pack.save(Some(&folder.join(format!("{date}.pack"))), game, &extra_data)?;
+
+    for file in files_in_folder_from_newest_to_oldest(folder)?.iter().skip(autosave_amount) {
+        let _ = std::fs::remove_file(file);
+    }
+
+    Ok(())
+}
+
 /// Derives a pack name for new (unsaved) packs no open pack has, like "new_pack.pack", "new_pack_2.pack", etc.
 fn derive_new_pack_name(packs: &BTreeMap<String, Pack>) -> String {
     let taken = |name: &str| packs.values().any(|pack| pack.disk_file_name() == name);
@@ -535,6 +594,8 @@ fn derive_new_pack_name(packs: &BTreeMap<String, Pack>) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+
     use crate::session::Session;
 
     use super::*;
@@ -574,5 +635,23 @@ mod tests {
 
         assert!(state.new_pack(Some("my_mod"), &settings).is_err());
         assert!(state.new_pack(Some("folder/my_mod.pack"), &settings).is_err());
+    }
+
+    #[tokio::test]
+    async fn changes_mark_their_pack_or_all_open_ones() {
+        let mut state = SessionState::new(Session::new(1, true));
+        let settings = Settings::default();
+        let first = state.new_pack(None, &settings).unwrap();
+        let second = state.new_pack(None, &settings).unwrap();
+
+        state.mark_packs_changed(Some(&first));
+        state.mark_packs_changed(Some("not_open"));
+        assert_eq!(state.changed_packs, BTreeSet::from([first.clone()]));
+
+        state.mark_packs_changed(None);
+        assert_eq!(state.changed_packs, BTreeSet::from([first.clone(), second.clone()]));
+
+        state.close_pack(&first).unwrap();
+        assert_eq!(state.changed_packs, BTreeSet::from([second]));
     }
 }

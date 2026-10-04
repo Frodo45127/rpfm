@@ -321,7 +321,6 @@ pub struct AppUI {
     //-------------------------------------------------------------------------------//
     // Extra stuff
     //-------------------------------------------------------------------------------//
-    timer_backup_autosave: QBox<QTimer>,
     timer_server_status: QBox<QTimer>,
 
     /// Connection check timer & company, for the initial connection to the server.
@@ -680,9 +679,6 @@ impl AppUI {
         //-------------------------------------------------------------------------------//
         // "Extra stuff" menu.
         //-------------------------------------------------------------------------------//
-        let timer_backup_autosave = QTimer::new_1a(&main_window);
-        timer_backup_autosave.set_single_shot(true);
-
         let timer_server_status = QTimer::new_1a(&main_window);
         timer_server_status.set_interval(5000);
         timer_server_status.start_0a();
@@ -843,7 +839,6 @@ impl AppUI {
             //-------------------------------------------------------------------------------//
             // "Extra stuff" menu.
             //-------------------------------------------------------------------------------//
-            timer_backup_autosave,
             timer_server_status,
             timer_connection_check,
             connection_deadline,
@@ -1311,12 +1306,6 @@ impl AppUI {
             if let Some(path_str) = pack_file_path.to_str() {
                 Self::add_path_to_recent_files(path_str);
             }
-        }
-
-        let timer = settings_i32(AUTOSAVE_INTERVAL);
-        if timer > 0 {
-            app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
-            app_ui.timer_backup_autosave.start_0a();
         }
 
         // Open the packs and update the tree view.
@@ -4175,13 +4164,6 @@ impl AppUI {
             Ok(pack) => pack.key,
             Err(error) => return show_dialog(&app_ui.main_window, error, false),
         };
-
-        // Reset the autosave timer.
-        let timer = settings_i32(AUTOSAVE_INTERVAL);
-        if timer > 0 {
-            app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
-            app_ui.timer_backup_autosave.start_0a();
-        }
 
         // Disable the main window, so the user can't interrupt the process or interfere with it.
         let window_was_disabled = app_ui.main_window.is_enabled();

@@ -51,7 +51,7 @@ use std::sync::atomic::Ordering;
 use std::time::Instant;
 
 use rpfm_ipc::api::schema::{ImportPatches, UpdateSchemaFromAssemblyKit};
-use rpfm_ipc::api::packs::{BackupPack, NewPack, OpenVanillaPacks, PackSettingsValues, PackSummary, UpdatePack, UpdatePackSettings};
+use rpfm_ipc::api::packs::{NewPack, OpenVanillaPacks, PackSettingsValues, PackSummary, UpdatePack, UpdatePackSettings};
 use rpfm_ipc::api::session::{GenerateDependenciesCache, GetDependenciesInfo, GetSessionStatus};
 use rpfm_ipc::api::tools::InitMyMod;
 use rpfm_ipc::settings_keys::*;
@@ -196,7 +196,6 @@ pub struct AppUISlots {
     //-----------------------------------------------//
     // `Generic` slots.
     //-----------------------------------------------//
-    pub pack_file_backup_autosave: QBox<SlotNoArgs>,
     pub server_status_update: QBox<SlotNoArgs>,
     pub connection_check: QBox<SlotNoArgs>,
 
@@ -681,13 +680,6 @@ impl AppUISlots {
             if AppUI::are_you_sure(&app_ui, false, false) {
                 rpfm_telemetry::track_action("Load all CA PackFiles");
 
-                // Reset the autosave timer.
-                let timer = settings_i32(AUTOSAVE_INTERVAL);
-                if timer > 0 {
-                    app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
-                    app_ui.timer_backup_autosave.start_0a();
-                }
-
                 // Tell the Background Thread to create a new PackFile with the data of one or more from the disk.
                 app_ui.toggle_main_window(false);
 
@@ -990,13 +982,6 @@ impl AppUISlots {
                                     // Destroy whatever it's in the file's views and clear the global search UI.
                                     let _ = AppUI::purge_them_all(&app_ui, &pack_file_contents_ui, false);
                                     GlobalSearchUI::clear(&global_search_ui);
-
-                                    // Reset the autosave timer.
-                                    let timer = settings_i32(AUTOSAVE_INTERVAL);
-                                    if timer > 0 {
-                                        app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
-                                        app_ui.timer_backup_autosave.start_0a();
-                                    }
 
                                     // Create the pack, setting what to ignore when importing, and save it in the MyMod folder.
                                     let name = mymod_pack_path.file_name().map(|name| name.to_string_lossy().to_string());
@@ -1544,46 +1529,6 @@ impl AppUISlots {
             dependencies_ui => move |index| { handle_tab_unpreview(&app_ui, &pack_file_contents_ui, &dependencies_ui, Pane::Secondary, index); }
         ));
 
-        // Autosave slot.
-        let pack_file_backup_autosave = SlotNoArgs::new(&app_ui.main_window, clone!(
-            app_ui,
-            pack_file_contents_ui => move || {
-                rpfm_telemetry::track_action("Autosave");
-
-                // Before autosaving, check the space used by autosaves and throw a warning if we pass 25GB
-                if let Ok(autosave_path) = backup_autosave_path() {
-                    if let Ok(folder_size) = fs_extra::dir::get_size(autosave_path) {
-                        if folder_size > 26843545600 && !settings_bool(AUTOSAVE_FOLDER_SIZE_WARNING_TRIGGERED) {
-                            let _ = settings_set_bool(AUTOSAVE_FOLDER_SIZE_WARNING_TRIGGERED, true);
-
-                            show_dialog(app_ui.main_window(), tr("autosave_folder_size_warning"), false);
-                        }
-
-                        // Make the warning available again once we get under 25GB.
-                        else if folder_size <= 26843545600 {
-                            let _ = settings_set_bool(AUTOSAVE_FOLDER_SIZE_WARNING_TRIGGERED, false);
-                        }
-                    }
-                }
-
-                // If the pack has been edited, autosave.
-                if UI_STATE.get_is_modified() {
-                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    if let Err(error) = call_api(&BackupPack { pack: pack_key }) {
-                        warn!("Failed to autosave the pack: {error}");
-                    }
-                    log_to_status_bar(&tr("autosaving"));
-                }
-
-                // Reset the timer.
-                let timer = settings_i32(AUTOSAVE_INTERVAL);
-                if timer > 0 {
-                    app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
-                    app_ui.timer_backup_autosave.start_0a();
-                }
-            }
-        ));
-
         // Server status update slot.
         let server_status_update = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui => move || {
@@ -2040,7 +1985,6 @@ impl AppUISlots {
             //-----------------------------------------------//
             // `Generic` slots.
             //-----------------------------------------------//
-            pack_file_backup_autosave,
             server_status_update,
             connection_check,
 

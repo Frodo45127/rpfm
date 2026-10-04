@@ -59,6 +59,7 @@ use rpfm_ipc::api::jobs::JobStarted;
 use rpfm_ipc::api::session::Configure;
 use rpfm_ipc::helpers::SessionInfo;
 use rpfm_ipc::settings::Settings;
+use rpfm_ipc::settings_keys::AUTOSAVE_INTERVAL;
 use rpfm_telemetry::{error, info};
 
 use crate::api;
@@ -91,6 +92,9 @@ pub enum SessionMessage {
 
     /// A request that runs as a job, with the ID of its job.
     Job(u64, RpcRequest),
+
+    /// Autosaves the packs changed since their last autosave.
+    Autosave,
 
     /// Stops the background thread.
     Exit,
@@ -215,7 +219,32 @@ impl Session {
             error!("Session {}: failed to start its background thread: {}", id, error);
         }
 
+        Self::start_autosave_timer(&session);
         session
+    }
+
+    /// Starts the timer asking the background thread to autosave the changed packs, every `autosave_interval` minutes of the settings.
+    ///
+    /// An interval of 0 disables autosaves. The timer stops when the session shuts down or is dropped.
+    fn start_autosave_timer(session: &Arc<Self>) {
+
+        // A weak reference, so the timer doesn't keep the session alive.
+        let session = Arc::downgrade(session);
+        tokio::spawn(async move {
+            while let Some(minutes) = session.upgrade().map(|session| session.settings().i32(AUTOSAVE_INTERVAL)) {
+
+                // With autosaves disabled, wait a minute and check again, in case the settings change.
+                tokio::time::sleep(Duration::from_secs(60 * minutes.max(1) as u64)).await;
+
+                let Some(alive_session) = session.upgrade().filter(|session| !session.is_shutdown_requested()) else {
+                    break;
+                };
+
+                if minutes > 0 {
+                    let _ = alive_session.enqueue(SessionMessage::Autosave);
+                }
+            }
+        });
     }
 
     /// Get the session ID.

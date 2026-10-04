@@ -74,6 +74,9 @@ use crate::UI_STATE;
 use crate::updater_ui::UpdaterUI;
 use crate::utils::*;
 
+/// Size of the autosave folder, in bytes, over which a warning is shown at startup (25 GB).
+const AUTOSAVE_FOLDER_SIZE_WARNING: u64 = 25 * 1024 * 1024 * 1024;
+
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
@@ -308,6 +311,8 @@ impl UI {
         // Check for updates in the background. The dialog only shows up if an update is found.
         UpdaterUI::new_with_precheck(app_ui);
 
+        warn_if_autosave_folder_is_too_big(app_ui);
+
         // Show the "only for the brave" alert for specially unstable builds.
         #[cfg(feature = "only_for_the_brave")] {
             let first_boot_setting = "firstBoot".to_owned() + VERSION;
@@ -379,5 +384,19 @@ impl GameSelectedIcons {
         app_ui.main_window().set_window_icon(ref_from_atomic(icon));
 
         app_ui.toggle_welcome_visibility();
+    }
+}
+
+/// Shows a warning if the autosave folder is over 25 GB, once until it gets under 25 GB and over it again.
+unsafe fn warn_if_autosave_folder_is_too_big(app_ui: &Rc<AppUI>) {
+    let Some(size) = backup_autosave_path().ok().and_then(|path| fs_extra::dir::get_size(path).ok()) else {
+        return;
+    };
+
+    if size > AUTOSAVE_FOLDER_SIZE_WARNING && !settings_bool(AUTOSAVE_FOLDER_SIZE_WARNING_TRIGGERED) {
+        let _ = settings_set_bool(AUTOSAVE_FOLDER_SIZE_WARNING_TRIGGERED, true);
+        show_dialog(app_ui.main_window(), tr("autosave_folder_size_warning"), false);
+    } else if size <= AUTOSAVE_FOLDER_SIZE_WARNING {
+        let _ = settings_set_bool(AUTOSAVE_FOLDER_SIZE_WARNING_TRIGGERED, false);
     }
 }

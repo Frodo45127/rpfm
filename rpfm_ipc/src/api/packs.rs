@@ -227,21 +227,6 @@ pub struct UpdatePack {
     pub operational_mode: Option<OperationalMode>,
 }
 
-/// `pack.backup`: saves a backup copy of an open pack in the autosave folder, removing the oldest copies over the
-/// limit in the settings. Vanilla packs and packs with autosaves disabled are skipped.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct BackupPack {
-
-    /// Key of the pack.
-    pub pack: String,
-}
-
-impl Request for BackupPack {
-    const METHOD: &'static str = "pack.backup";
-    type Response = Done;
-}
-
 impl Request for NewPack {
     const METHOD: &'static str = "pack.new";
     type Response = PackSummary;

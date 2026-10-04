@@ -25,7 +25,7 @@ use rpfm_ipc::api::files::{
 };
 use rpfm_ipc::api::search::{GetSearchReport, ListSearchMatches, ReplaceSearchMatches, RunSearch};
 use rpfm_ipc::api::notes::{AddNote, DeleteNote, ListNotes, NoteList};
-use rpfm_ipc::api::packs::{BackupPack, ClosePack, CloseAllPacks, GetPackInfo, GetPackSettings, NewPack, OpenPack, OpenVanillaPacks, SavePack, UpdatePack, UpdatePackSettings};
+use rpfm_ipc::api::packs::{ClosePack, CloseAllPacks, GetPackInfo, GetPackSettings, NewPack, OpenPack, OpenVanillaPacks, SavePack, UpdatePack, UpdatePackSettings};
 use rpfm_ipc::api::schema::{
     DeleteDefinition, GetMissingDefinitions, GetRawDefinitions, GetReferencingColumns, GetTablePatches, ImportPatches, ListSchemaTables, PatchColumn, RemovePatches, SetDefinition,
     UpdateSchemaFromAssemblyKit, UpdateSchemas,
@@ -41,7 +41,7 @@ use rpfm_ipc::api::tools::{
     ImportCeo, InitMyMod, ListPluginScripts, ListTraitCeos, LiveExport, LuaHover, LuaHovers, LuaTestResults, OptimizePack, OptimizerOptionValues, PackMap,
     optimizer_option_values, PatchSiegeAi, PluginScripts, RunLuaTests, RunPluginScript, SetVideoFormat, StartStartpos, TraitCeos, UpdateAnimIds,
 };
-use rpfm_ipc::settings_keys::{ALLOW_EDITING_OF_CA_PACKFILES, AUTOSAVE_AMOUNT, ENABLE_ESF_EDITOR, MYMOD_BASE_PATH, DISABLE_UUID_REGENERATION_ON_DB_TABLES, IGNORE_GAME_FILES_IN_AK, INCLUDE_BASE_FOLDER_ON_ADD_FROM_FOLDER, TABLES_USE_OLD_COLUMN_ORDER_FOR_TSV, USE_LAZY_LOADING};
+use rpfm_ipc::settings_keys::{ALLOW_EDITING_OF_CA_PACKFILES, ENABLE_ESF_EDITOR, MYMOD_BASE_PATH, DISABLE_UUID_REGENERATION_ON_DB_TABLES, IGNORE_GAME_FILES_IN_AK, INCLUDE_BASE_FOLDER_ON_ADD_FROM_FOLDER, TABLES_USE_OLD_COLUMN_ORDER_FOR_TSV, USE_LAZY_LOADING};
 
 use rpfm_lib::schema::{SCHEMA_BRANCH, SCHEMA_REMOTE, SCHEMA_REPO};
 
@@ -61,6 +61,46 @@ const JOB_METHODS: [&str; 9] = [
     RunSearch::METHOD,
     UpdateSchemas::METHOD,
     UpdateSchemaFromAssemblyKit::METHOD,
+];
+
+/// Methods that change the contents of packs, so they need autosaving. They change their `pack` param's pack, or any open pack if they have none.
+const PACK_CHANGING_METHODS: [&str; 36] = [
+    AddCeoEntries::METHOD,
+    AddFilesFromDisk::METHOD,
+    AddKeyDeletes::METHOD,
+    AddNote::METHOD,
+    AddToAnimPack::METHOD,
+    BuildCeo::METHOD,
+    CopyFiles::METHOD,
+    CreateFile::METHOD,
+    DeleteFiles::METHOD,
+    DeleteFromAnimPack::METHOD,
+    DeleteNote::METHOD,
+    DuplicateFiles::METHOD,
+    EditTable::METHOD,
+    ExtractFromAnimPack::METHOD,
+    FinishStartpos::METHOD,
+    GenerateMissingLocs::METHOD,
+    IgnoreDiagnostics::METHOD,
+    ImportCeo::METHOD,
+    ImportTsv::METHOD,
+    MergeTables::METHOD,
+    OptimizePack::METHOD,
+    PackMap::METHOD,
+    PasteFiles::METHOD,
+    PatchSiegeAi::METHOD,
+    RenameFiles::METHOD,
+    RenameKey::METHOD,
+    ReplaceSearchMatches::METHOD,
+    RunPluginScript::METHOD,
+    SaveExternalFile::METHOD,
+    SaveFiles::METHOD,
+    SetVideoFormat::METHOD,
+    UpdateAnimIds::METHOD,
+    UpdatePack::METHOD,
+    UpdatePackSettings::METHOD,
+    UpgradeTable::METHOD,
+    WriteFile::METHOD,
 ];
 
 /// Link between a running request and the job it runs in.
@@ -115,6 +155,7 @@ impl<'a> JobContext<'a> {
 /// The response to the request.
 pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settings, context: &JobContext) -> RpcResponse {
     let params = request.params;
+    let changed_pack = params.get("pack").and_then(Value::as_str).map(str::to_owned);
     let result = match request.method.as_str() {
         GetSessionStatus::METHOD => call(params, |_: GetSessionStatus| Ok(state.session_status())),
         SetGame::METHOD => call(params, |request: SetGame| {
@@ -143,10 +184,6 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         GetDependencyTableData::METHOD => call(params, |request: GetDependencyTableData| state.dependency_table_data(&request.table_name)),
 
         GetPackInfo::METHOD => call(params, |request: GetPackInfo| state.pack_details(&request.pack)),
-        BackupPack::METHOD => call(params, |request: BackupPack| {
-            let disable_uuid_regeneration = settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES);
-            state.backup_autosave(&request.pack, settings, disable_uuid_regeneration, settings.i32(AUTOSAVE_AMOUNT) as usize).map(|_| Done {})
-        }),
         NewPack::METHOD => call(params, |request: NewPack| {
             let key = state.new_pack(request.name.as_deref(), settings)?;
             state.pack_summary(&key)
@@ -358,6 +395,11 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
 
         method => Err(ApiError::MethodNotFound(method.to_owned())),
     };
+
+    // A method running as a job can stop before ending to let other requests run, and then it hasn't changed anything yet.
+    if result.is_ok() && !context.yielded() && PACK_CHANGING_METHODS.contains(&request.method.as_str()) {
+        state.mark_packs_changed(changed_pack.as_deref());
+    }
 
     RpcResponse::new(request.id, result)
 }

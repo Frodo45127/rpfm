@@ -1919,7 +1919,6 @@ update_success_main_program =
     </p>
 
 settings_autosave_interval = Интервал автосохранения (в мин.)
-autosaving = Автосохранение в процессе…
 autosaved = Автоматически сохранено
 error_autosave_non_editable =
     { -packfile.gender ->

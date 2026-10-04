@@ -746,7 +746,6 @@ settings_update_channel = Update Channel
 update_success_main_program = <h4>RPFM updated correctly!</h4> <p>To check what changed in this update, check this link: <a href='file:///{"{"}{"}"}'>CHANGELOG.md</a>. If you're updating to a beta, the relevant changes are on the "Unreleased" section.</p> <p>Please, restart the program for the changes to apply.</p>
 
 settings_autosave_interval = Autosave Interval (min 0)
-autosaving = Autosaving…
 autosaved = Autosaved
 error_autosave_non_editable = This PackFile cannot be autosaved.
 

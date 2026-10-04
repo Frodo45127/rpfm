@@ -77,6 +77,10 @@ pub fn background_loop(mut receiver: UnboundedReceiver<SessionMessage>, session:
                     jobs.finish(job, response.outcome);
                 }
             }
+            SessionMessage::Autosave => {
+                session.dequeued();
+                state.autosave(&session.settings());
+            }
             SessionMessage::Exit => break,
         }
     }

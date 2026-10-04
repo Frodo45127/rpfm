@@ -18,7 +18,7 @@
 use anyhow::Result;
 use rayon::prelude::*;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -94,6 +94,9 @@ pub struct SessionState {
 
     /// Why the dependencies couldn't be fully loaded the last time they were, if they couldn't.
     dependencies_error: Option<String>,
+
+    /// Keys of the packs changed since their last autosave.
+    changed_packs: BTreeSet<String>,
 
     /// The last search, with its matches, if any.
     search: Option<GlobalSearch>,
@@ -177,6 +180,7 @@ impl SessionState {
             pack_modes: BTreeMap::new(),
             dependencies: Dependencies::default(),
             dependencies_error: None,
+            changed_packs: BTreeSet::new(),
             search: None,
             pending_startpos: None,
             diagnostics: None,
