@@ -57,7 +57,7 @@
 #![windows_subsystem = "windows"]
 
 use axum::{extract::State, routing::get, Json, Router};
-use rmcp::transport::streamable_http_server::{session::local::LocalSessionManager, StreamableHttpService};
+use rmcp::transport::streamable_http_server::{session::local::LocalSessionManager, StreamableHttpServerConfig, StreamableHttpService};
 use tokio::net::TcpListener;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Layer};
 
@@ -180,7 +180,7 @@ async fn main() {
     let http_service = StreamableHttpService::new(
         move || Ok(McpServer::new(sm.clone())),
         LocalSessionManager::default().into(),
-        Default::default(),
+        StreamableHttpServerConfig::default().with_allowed_origins(allowed_origins()),
     );
 
     // Setup the endpoints for the server.
