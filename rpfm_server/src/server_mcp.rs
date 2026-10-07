@@ -300,8 +300,14 @@ impl rmcp::ServerHandler for McpServer {
     }
 
     /// Calls a tool, reporting params rmcp can't parse like the API's own invalid params, instead of as plain text.
+    ///
+    /// Stops waiting for the tool if the client cancels the call, as rmcp drops its response. The request keeps running on the session.
     async fn call_tool(&self, request: CallToolRequestParams, context: RequestContext<RoleServer>) -> Result<CallToolResponse, McpError> {
-        let response = self.tool_router.call(ToolCallContext::new(self, request, context)).await?;
+        let cancellation = context.ct.clone();
+        let response = tokio::select! {
+            response = self.tool_router.call(ToolCallContext::new(self, request, context)) => response?,
+            _ = cancellation.cancelled() => return Err(McpError::internal_error("The tool call was cancelled.", None)),
+        };
         let CallToolResponse::Complete(result) = response else {
             return Ok(response);
         };
