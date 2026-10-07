@@ -28,7 +28,8 @@
 use axum::{
     extract::ws::{Message, WebSocket, WebSocketUpgrade},
     extract::{Query, State},
-    response::IntoResponse
+    http::{header::ORIGIN, HeaderMap, StatusCode},
+    response::{IntoResponse, Response}
 };
 use futures::stream::StreamExt;
 use futures::sink::SinkExt;
@@ -41,6 +42,7 @@ use rpfm_ipc::api::{ApiError, Done, JOB_UPDATED_NOTIFICATION, JSONRPC_VERSION, R
 use rpfm_ipc::api::session::{Disconnect, SESSION_CONNECTED_NOTIFICATION, SessionConnected};
 use rpfm_telemetry::{info, warn};
 
+use crate::allowed_origins;
 use crate::session::{DEFAULT_SESSION_TIMEOUT_SECS, Session, SessionId, SessionManager};
 
 //-------------------------------------------------------------------------------//
@@ -77,14 +79,26 @@ enum Outgoing {
 ///
 /// Accepts an optional `session_id` query parameter to reconnect to an existing session.
 /// Example: `ws://localhost:45127/ws?session_id=123`
+///
+/// Rejects connections from browser pages of other origins: browsers don't apply CORS to WebSockets,
+/// so any page could otherwise drive the server.
 pub(crate) async fn ws_handler(
     State(session_manager): State<Arc<SessionManager>>,
     Query(params): Query<WsQueryParams>,
+    headers: HeaderMap,
     ws: WebSocketUpgrade,
-) -> impl IntoResponse {
+) -> Response {
+    if let Some(origin) = headers.get(ORIGIN) {
+        if !allowed_origins().iter().any(|allowed| origin.as_bytes() == allowed.as_bytes()) {
+            warn!("Rejected a WebSocket connection from the origin {:?}.", origin);
+            return StatusCode::FORBIDDEN.into_response();
+        }
+    }
+
     ws.max_message_size(usize::MAX)
         .max_frame_size(usize::MAX)
         .on_upgrade(move |socket| handle_socket(socket, session_manager, params.session_id))
+        .into_response()
 }
 
 /// Function to handle a WebSocket connection.

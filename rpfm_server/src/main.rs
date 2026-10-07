@@ -203,6 +203,15 @@ async fn main() {
     }
 }
 
+/// Returns the browser origins allowed to send requests to the server: only its own, as it serves no pages that call it.
+///
+/// Requests without an origin don't come from browsers, so they're always allowed.
+pub fn allowed_origins() -> Vec<String> {
+    ["localhost", "127.0.0.1", "[::1]"].iter()
+        .map(|host| format!("http://{host}:{DEFAULT_PORT}"))
+        .collect()
+}
+
 /// Applies the telemetry toggles and the anonymous telemetry ID of the provided settings to the whole process.
 pub fn apply_telemetry_settings(settings: &Settings) {
     rpfm_telemetry::set_usage_telemetry_enabled(settings.bool(ENABLE_USAGE_TELEMETRY));
