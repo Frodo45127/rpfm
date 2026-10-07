@@ -34,7 +34,7 @@
 use rmcp::ErrorData as McpError;
 use rmcp::handler::server::{common::schema_for_output, prompt::PromptContext, router::prompt::PromptRouter, tool::{IntoCallToolResult, ToolCallContext, ToolRouter}, wrapper::Parameters};
 use rmcp::model::{
-    CacheScope, CallToolRequestParams, CallToolResponse, CallToolResult, CancelTaskParams, CompletionInfo, CompleteRequestParams, CompleteResult,
+    CacheScope, CallToolRequestParams, CallToolResponse, CallToolResult, CancelTaskParams,
     ContentBlock, CreateTaskResult, DetailedTask, DiscoverResult, ErrorCode, GetPromptRequestParams, GetPromptResponse, GetTaskParams, GetTaskResult, Implementation,
     JsonObject, ListPromptsResult, ListResourcesResult, ListResourceTemplatesResult, ListToolsResult, PaginatedRequestParams, ProgressNotificationParam, PromptMessage,
     ReadResourceRequestParams, ReadResourceResult, ReadResourceResponse,
@@ -328,7 +328,6 @@ impl rmcp::ServerHandler for McpServer {
             .enable_tools()
             .enable_prompts()
             .enable_resources()
-            .enable_completions()
             .enable_tasks()
             .build();
 
@@ -615,77 +614,6 @@ Maps:
             .with_ttl_ms(MCP_CACHE_TTL_MS)
             .with_cache_scope(CacheScope::Public)
             .into())
-    }
-
-    //-----------------------------------------------------------------------//
-    // Completions
-    //-----------------------------------------------------------------------//
-
-    async fn complete(
-        &self,
-        request: CompleteRequestParams,
-        _context: RequestContext<RoleServer>,
-    ) -> Result<CompleteResult, McpError> {
-        let argument_name = &request.argument.name;
-        let partial = &request.argument.value;
-
-        let candidates: Vec<String> = match argument_name.as_str() {
-            "game_name" | "game_key" | "game" => {
-                let games = vec![
-                    "pharaoh_dynasties", "pharaoh", "warhammer_3", "troy",
-                    "three_kingdoms", "warhammer_2", "warhammer",
-                    "thrones_of_britannia", "attila", "rome_2", "shogun_2",
-                    "napoleon", "empire", "arena",
-                ];
-                games.into_iter()
-                    .filter(|g| g.starts_with(partial))
-                    .map(String::from)
-                    .collect()
-            },
-            "pack_file_type" => {
-                let types = vec!["\"Boot\"", "\"Release\"", "\"Patch\"", "\"Mod\"", "\"Movie\""];
-                types.into_iter()
-                    .filter(|t| t.starts_with(partial))
-                    .map(String::from)
-                    .collect()
-            },
-            "format" => {
-                // Could be CompressionFormat or SupportedFormats depending on tool
-                let formats = vec![
-                    "\"None\"", "\"Lzma1\"", "\"Lz4\"", "\"Zstd\"",
-                    "\"CaVp8\"", "\"Ivf\"",
-                ];
-                formats.into_iter()
-                    .filter(|f| f.starts_with(partial))
-                    .map(String::from)
-                    .collect()
-            },
-            "source" => {
-                let sources = vec![
-                    "\"PackFile\"", "\"GameFiles\"", "\"ParentFiles\"",
-                    "\"AssKitFiles\"", "\"ExternalFile\"",
-                ];
-                sources.into_iter()
-                    .filter(|s| s.starts_with(partial))
-                    .map(String::from)
-                    .collect()
-            },
-            _ => vec![],
-        };
-
-        let total = candidates.len() as u32;
-        let values: Vec<String> = candidates.into_iter().take(100).collect();
-        let has_more = total > 100;
-
-        Ok(CompleteResult::new(CompletionInfo::with_pagination(
-            values,
-            Some(total),
-            has_more,
-        ).map_err(|e| McpError {
-            code: ErrorCode::INTERNAL_ERROR,
-            message: format!("Failed to build completion info: {e}").into(),
-            data: None,
-        })?))
     }
 
 }
