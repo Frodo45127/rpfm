@@ -799,7 +799,6 @@ pub enum RLibError {
     BitcodeError(#[from] bitcode::Error),
 
     /// Wrapper for [`serde_xml_rs::Error`] errors.
-    #[cfg(feature = "integration_assembly_kit")]
     #[error(transparent)]
     XmlRsError(#[from] serde_xml_rs::Error),
 

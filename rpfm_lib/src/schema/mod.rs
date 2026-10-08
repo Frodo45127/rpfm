@@ -77,7 +77,7 @@
 //! The repository URL and branch are defined as constants in this module.
 
 use getset::*;
-use itertools::Itertools;
+#[cfg(feature = "integration_assembly_kit")] use itertools::Itertools;
 use rayon::prelude::*;
 use ron::de::{from_bytes, from_str};
 use ron::ser::{to_string_pretty, PrettyConfig};
@@ -148,6 +148,7 @@ pub const MERGE_COLOUR_POST: &str = "_hex";
 ///
 /// These fields are legacy fields from older Assembly Kit versions that are not
 /// actually used by the games and can be safely ignored during schema updates.
+#[cfg(feature = "integration_assembly_kit")]
 const IGNORABLE_FIELDS: [&str; 4] = ["s_ColLineage", "s_Generation", "s_GUID", "s_Lineage"];
 
 //---------------------------------------------------------------------------//

@@ -18,7 +18,7 @@ default = ["integration_assembly_kit"]
 support_error_bitcode = ["dep:bitcode"]
 enable_content_inspector = []
 
-integration_assembly_kit = ["dep:serde-xml-rs"]
+integration_assembly_kit = []
 integration_git = ["dep:git2"]
 integration_github = ["dep:reqwest"]
 integration_sqlite = ["dep:rusqlite", "dep:r2d2_sqlite", "dep:r2d2"]
@@ -37,7 +37,7 @@ directories.workspace = true
 serde.workspace = true
 serde_derive.workspace = true
 serde_json.workspace = true
-serde-xml-rs = { version = "^0.8", optional = true }
+serde-xml-rs = "^0.8"
 csv.workspace = true
 ron.workspace = true
 toml.workspace = true
