@@ -117,7 +117,10 @@ Per `CONTRIBUTING.md`: **explain what your code does** and **no black magic code
 
 - **MUST** write unit tests for new parsing/encoding logic in `rpfm_lib` and new algorithms in `rpfm_extensions`.
 - Use the built-in `#[test]` attribute and `cargo test`.
-- Place tests in `#[cfg(test)]` modules or the conventional `tests/` directory.
+- **MUST** put tests in their own files, never inline in files with normal code. This includes test-only helpers: move them to the test file, as a free function or an `impl` block.
+    - From a `mod.rs`, add `<module>_test.rs` next to it, declared with `#[cfg(test)] mod <module>_test;`.
+    - From any other file, like `foo.rs`, add `foo_test.rs` next to it, declared with `#[cfg(test)] #[path = "foo_test.rs"] mod foo_test;`, so it's still a child module able to test private items.
+    - Integration tests go in the crate's `tests/` directory.
 - Follow the Arrange-Act-Assert pattern.
 - Do not commit commented-out tests.
 - Note: CI builds and tests only the library crates plus `rpfm_server`. `rpfm_ui` is not built in CI (Qt6 is unavailable there), so UI changes must be verified locally.
