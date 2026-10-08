@@ -182,7 +182,7 @@ The MCP interface exposes **90 tools**. The descriptions below are the first sen
 
 | Tool | Method | Description |
 |------|--------|-------------|
-| `table_info` | `table.info` | Get the columns (name, type, key, referenced table and column, default value, description) and the row count of a DB or Loc table, from any source. |
+| `table_info` | `table.info` | Get the columns (name, type, key, referenced table without its `_tables` suffix and column, lookups, default value, file paths, description, if unused) and the row count of a DB or Loc table, from any source. |
 | `table_rows` | `table.rows` | Read rows of a DB or Loc table, from any source, as plain values (booleans, numbers and strings). |
 | `column_values` | `table.column_values` | Get the distinct values of a column of a table, like all the faction keys of `factions_tables`, from the open packs and the dependencies, sorted. |
 | `unused_numbers` | `table.unused_numbers` | Get numbers no row uses yet in an integer column of a table, like `unique_index` of `main_units_tables`, for new rows that need unique ones. |

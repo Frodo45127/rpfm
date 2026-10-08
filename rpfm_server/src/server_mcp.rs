@@ -721,7 +721,7 @@ impl McpServer {
 
     #[tool(
         name = "table_info",
-        description = "Get the columns (name, type, key, referenced table and column, default value, description) and the row count of a DB or Loc table, from any source. Columns are listed in the order row values are returned and written.",
+        description = "Get the columns (name, type, key, referenced table without its `_tables` suffix and column, lookups, default value, file paths, description, if unused) and the row count of a DB or Loc table, from any source. Columns are listed in the order row values are returned and written.",
         annotations(read_only_hint = true),
         output_schema = schema_for_output::<TableInfo>(),
     )]

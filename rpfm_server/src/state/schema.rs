@@ -27,7 +27,6 @@ use rpfm_lib::schema::{Definition, DefinitionPatch, Schema};
 use rpfm_ipc::settings::{schemas_path, table_patches_path, Settings};
 
 use super::{SessionState, load_schema, loaded_schema, loaded_schema_mut};
-use super::tables::columns_info;
 
 impl SessionState {
 
@@ -172,7 +171,7 @@ impl SessionState {
         Ok(TableDefinition {
             table_name: table_name.to_owned(),
             version: *definition.version(),
-            columns: columns_info(definition, definition.patches()),
+            columns: definition.fields_processed().to_vec(),
         })
     }
 

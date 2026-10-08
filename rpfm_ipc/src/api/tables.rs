@@ -22,51 +22,13 @@ use std::path::PathBuf;
 
 use rpfm_extensions::merge::{MergeConflict, MergeResolution};
 
-use rpfm_lib::schema::FieldType;
+use rpfm_lib::schema::Field;
 
 use super::{default_true, Done, Request};
 use super::files::FileRef;
 
 /// Default amount of rows returned by [`GetTableRows`].
 pub const DEFAULT_ROWS_LIMIT: usize = 100;
-
-/// A column of a table.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-pub struct ColumnInfo {
-
-    /// Name of the column.
-    pub name: String,
-
-    /// Type of the values of the column, like `StringU8`, `I32`, `F32` or `Boolean`.
-    #[schemars(with = "serde_json::Value")]
-    pub field_type: FieldType,
-
-    /// If the column is part of the key of the table.
-    pub is_key: bool,
-
-    /// Column of another table the values of this one must exist in, if any.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub reference: Option<ColumnReference>,
-
-    /// Value of the column in new rows, if it has one.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub default_value: Option<String>,
-
-    /// Description of the column, if it has one.
-    #[serde(default, skip_serializing_if = "String::is_empty")]
-    pub description: String,
-}
-
-/// A column of another table.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-pub struct ColumnReference {
-
-    /// Name of the table, like `factions_tables`.
-    pub table_name: String,
-
-    /// Name of the column.
-    pub column: String,
-}
 
 /// `table.info`: returns the definition and row count of a table.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -87,8 +49,9 @@ pub struct TableInfo {
     /// Version of the table's definition.
     pub version: i32,
 
-    /// Columns of the table, in the order row values are.
-    pub columns: Vec<ColumnInfo>,
+    /// Columns of the table, in the order row values are, with the schema patches applied.
+    #[schemars(with = "Vec<serde_json::Value>")]
+    pub columns: Vec<Field>,
 
     /// Amount of rows in the table.
     pub row_count: usize,
@@ -208,8 +171,9 @@ pub struct TableDefinition {
     /// Version of the definition.
     pub version: i32,
 
-    /// Columns of the table, in the order row values are.
-    pub columns: Vec<ColumnInfo>,
+    /// Columns of the table, in the order row values are, with the schema patches applied.
+    #[schemars(with = "Vec<serde_json::Value>")]
+    pub columns: Vec<Field>,
 }
 
 impl Request for GetTableInfo {

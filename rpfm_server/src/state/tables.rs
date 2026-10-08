@@ -30,11 +30,11 @@ use rpfm_ipc::api::files::{ASSEMBLY_KIT_TABLE_FILE_NAME, FileRef, FileSource};
 use rpfm_ipc::api::session::{DependencyTableData, DependencyTables};
 use rpfm_ipc::api::references::{DEFAULT_REFERENCE_VALUES_LIMIT, DEFAULT_USAGES_LIMIT, FindUsages, FoundRow, GetReferenceValues, RowLoc, RowLocs, GetTableReferenceData, TableReferenceData, LocSource, ReferenceValue, ReferenceValues, RowLocation, Usage, Usages};
 use rpfm_ipc::api::tables::{AddKeyDeletes, ExportTsv, FilesEdited, ImportTsv, MergeTables, RenameKey, TableUpgraded, TablesMerged, UpgradeTable};
-use rpfm_ipc::api::tables::{ColumnInfo, ColumnValues, DEFAULT_VALUES_LIMIT, GetColumnValues, GetUnusedNumbers, MAX_UNUSED_NUMBERS, UnusedNumbers, GetTableDefinition, ColumnReference, DEFAULT_ROWS_LIMIT, EditTable, FilterOp, GetTableRows, RowEdit, RowFilter, RowRef, TableEdited, TableInfo, TableRow, TableRows};
+use rpfm_ipc::api::tables::{ColumnValues, DEFAULT_VALUES_LIMIT, GetColumnValues, GetUnusedNumbers, MAX_UNUSED_NUMBERS, UnusedNumbers, GetTableDefinition, DEFAULT_ROWS_LIMIT, EditTable, FilterOp, GetTableRows, RowEdit, RowFilter, RowRef, TableEdited, TableInfo, TableRow, TableRows};
 use rpfm_ipc::helpers::{DataSource, RFileInfo};
 
 use rpfm_lib::files::{Container, ContainerPath, db::DB, DecodeableExtraData, FileType, pack::Pack, RFile, RFileDecoded, table::{DecodedData, local::TableInMemory, Table}};
-use rpfm_lib::schema::{Definition, DefinitionPatch, Field, FieldType};
+use rpfm_lib::schema::{Definition, Field, FieldType};
 use rpfm_lib::utils::current_time;
 
 use super::{SessionState, loaded_schema, pack, pack_mut};
@@ -658,7 +658,7 @@ impl SessionState {
         Ok(TableInfo {
             table_name: table.name().to_owned(),
             version: *table.definition().version(),
-            columns: columns_info(table.definition(), table.patches()),
+            columns: table.definition().fields_processed().to_vec(),
             row_count: table.len(),
         })
     }
@@ -1080,20 +1080,6 @@ fn expected_value(field_type: &FieldType) -> &'static str {
         FieldType::SequenceU16(_) |
         FieldType::SequenceU32(_) => "a string",
     }
-}
-
-/// Returns the columns of a definition as rows see them, with the patches applied.
-pub(super) fn columns_info(definition: &Definition, patches: &DefinitionPatch) -> Vec<ColumnInfo> {
-    definition.fields_processed().iter()
-        .map(|field| ColumnInfo {
-            name: field.name().to_owned(),
-            field_type: field.field_type().clone(),
-            is_key: field.is_key(Some(patches)),
-            reference: field.is_reference(Some(patches)).map(|(table, column)| ColumnReference { table_name: format!("{table}_tables"), column }),
-            default_value: field.default_value(Some(patches)),
-            description: field.description(Some(patches)),
-        })
-        .collect()
 }
 
 /// Returns a table value as JSON: booleans and numbers as themselves, everything else as text.
