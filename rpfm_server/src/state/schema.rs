@@ -309,8 +309,6 @@ impl SessionState {
     }
 
     /// Returns the patches of a definition of a table, or of the table if the definition doesn't exist.
-    ///
-    /// Definitions lose their patches when serialized, so clients need to request them separately.
     pub fn definition_patches(&self, table_name: &str, version: i32) -> Result<DefinitionPatch> {
         let schema = loaded_schema(&self.schema)?;
         Ok(match schema.definition_by_name_and_version(table_name, version) {

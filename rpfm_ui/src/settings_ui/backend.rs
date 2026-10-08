@@ -23,12 +23,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use rpfm_extensions::optimizer::OptimizerOptions;
 
-use rpfm_ipc::api::schema::{DeleteDefinition, GetRawDefinitions, GetReferencingColumns, GetTablePatches};
+use rpfm_ipc::api::schema::{DeleteDefinition, GetRawDefinitions, GetReferencingColumns};
 use rpfm_ipc::api::session::{GetSessionStatus, ListDependencyTables};
 use rpfm_ipc::settings::{self as settings_store, Settings};
 use rpfm_ipc::settings_keys::*;
 
-use rpfm_lib::schema::{Definition, DefinitionPatch};
+use rpfm_lib::schema::Definition;
 
 use rpfm_telemetry::warn;
 
@@ -246,12 +246,6 @@ pub fn referencing_columns_for_table(name: &str, definition: &Definition) -> Res
 pub fn definition_by_table_name_and_version(name: &str, version: i32) -> Result<Definition> {
     raw_definitions(name, Some(version))?.into_iter().next()
         .ok_or_else(|| anyhow!("No definition found for table '{name}' with version {version}."))
-}
-
-/// The patches of a definition of a table.
-pub fn definition_patches(name: &str, version: i32) -> Result<DefinitionPatch> {
-    let patches = call_api(&GetTablePatches { table_name: name.to_owned(), version })?.patches;
-    Ok(patches.into_iter().map(|(column, patch)| (column, patch.into_iter().collect())).collect())
 }
 
 /// Removes a definition of a table from the schema, and saves it.
