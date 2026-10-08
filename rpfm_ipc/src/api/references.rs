@@ -291,7 +291,7 @@ pub struct ReferenceValue {
 /// `references.table_data`: returns the values each column of a table can reference, with their lookups.
 ///
 /// Meant for clients editing whole tables, to fill their dropdowns. Others should use `references.values`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GetTableReferenceData {
 
@@ -307,10 +307,11 @@ pub struct GetTableReferenceData {
 }
 
 /// Values each column of a table can reference.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct TableReferenceData {
 
     /// Referenceable values, by column index.
+    #[schemars(with = "HashMap<i32, serde_json::Value>")]
     pub columns: HashMap<i32, TableReferences>,
 }
 

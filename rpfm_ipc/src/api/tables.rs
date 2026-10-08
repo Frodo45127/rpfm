@@ -30,6 +30,60 @@ use super::files::FileRef;
 /// Default amount of rows returned by [`GetTableRows`].
 pub const DEFAULT_ROWS_LIMIT: usize = 100;
 
+/// Description of [`Field`] for the JSON schemas of the API, as `rpfm_lib` has no schemas.
+///
+/// It's never built: it only describes how a [`Field`] is serialized, so it must match it.
+#[derive(JsonSchema)]
+#[schemars(rename = "Field", description = "A column of a table, as the schema describes it.")]
+#[allow(dead_code)]
+struct FieldSchema {
+
+    /// Name of the column.
+    name: String,
+
+    /// Type of the values of the column, like `StringU8`, `I32`, `F32`, `Boolean` or `ColourRGB`.
+    /// Sequences are an object with the definition of their rows, like `{ "SequenceU32": definition }`.
+    field_type: Value,
+
+    /// If the column is part of the key of the table.
+    is_key: bool,
+
+    /// Value of the column in new rows, if it has one.
+    default_value: Option<String>,
+
+    /// If the column holds paths of files.
+    is_filename: bool,
+
+    /// Folders the files of the column are in, separated by `;`. A `%` in them stands for the value of the column.
+    filename_relative_path: Option<String>,
+
+    /// Table and column the values of this column must exist in, like `["factions", "key"]`.
+    /// The table name has no `_tables` suffix.
+    is_reference: Option<(String, String)>,
+
+    /// Columns of the referenced table shown next to the values of this one, to identify them.
+    lookup: Option<Vec<String>>,
+
+    /// Description of the column. Empty if it has none.
+    description: String,
+
+    /// Position of the column in the Assembly Kit, or `-1` if unknown.
+    ca_order: i16,
+
+    /// If more than 1, the column is one of the boolean columns a bitwise column was split into,
+    /// named `<column>_1` to `<column>_<is_bitwise>`.
+    is_bitwise: i32,
+
+    /// Names of the values of a column converted from an integer one, by value.
+    enum_values: BTreeMap<i32, String>,
+
+    /// Group of the colour columns merged into this one, if it's a merged colour column.
+    is_part_of_colour: Option<u8>,
+
+    /// If the game doesn't use the column.
+    unused: bool,
+}
+
 /// `table.info`: returns the definition and row count of a table.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -50,7 +104,7 @@ pub struct TableInfo {
     pub version: i32,
 
     /// Columns of the table, in the order row values are, with the schema patches applied.
-    #[schemars(with = "Vec<serde_json::Value>")]
+    #[schemars(with = "Vec<FieldSchema>")]
     pub columns: Vec<Field>,
 
     /// Amount of rows in the table.
@@ -172,7 +226,7 @@ pub struct TableDefinition {
     pub version: i32,
 
     /// Columns of the table, in the order row values are, with the schema patches applied.
-    #[schemars(with = "Vec<serde_json::Value>")]
+    #[schemars(with = "Vec<FieldSchema>")]
     pub columns: Vec<Field>,
 }
 

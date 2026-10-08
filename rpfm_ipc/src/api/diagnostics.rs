@@ -183,7 +183,7 @@ impl Request for ListDiagnostics {
 /// `diagnostics.report`: returns the results of the last diagnostics check, as the check returns them.
 ///
 /// Meant for clients showing the results with all their details. Others should use `diagnostics.list`.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GetDiagnosticsReport {}
 

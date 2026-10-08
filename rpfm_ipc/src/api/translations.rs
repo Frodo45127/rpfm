@@ -123,7 +123,7 @@ pub struct VanillaTextsAvailable {
 /// `translations.pack`: returns the whole translation of an open pack to a language, as the translator works with it.
 ///
 /// Meant for clients editing whole translations. Others should use `translations.list`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GetPackTranslation {
 
@@ -138,7 +138,7 @@ pub struct GetPackTranslation {
 }
 
 /// `translations.submit`: submits the saved translation of a pack to the Translation Hub, opening or updating a pull request.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SubmitTranslation {
 
@@ -153,7 +153,7 @@ pub struct SubmitTranslation {
 }
 
 /// Result of submitting a translation.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum TranslationSubmission {
 

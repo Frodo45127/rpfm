@@ -369,12 +369,12 @@ impl Request for FinishStartpos {
 }
 
 /// `tools.plugin_scripts`: returns the plugin scripts in the scripts folder of the config.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ListPluginScripts {}
 
 /// Plugin scripts available.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct PluginScripts {
 
     /// Paths of the scripts.
@@ -382,7 +382,7 @@ pub struct PluginScripts {
 }
 
 /// `tools.run_plugin_script`: runs a plugin script over files of an open pack, reading back the files it changes.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RunPluginScript {
 
@@ -397,7 +397,7 @@ pub struct RunPluginScript {
 }
 
 /// Result of running a plugin script.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct PluginScriptRun {
 
     /// Paths of the files read back into the pack.
@@ -408,7 +408,7 @@ pub struct PluginScriptRun {
 }
 
 /// `lua.hovers`: returns the docs of the game's Lua API for the symbols of a Lua script, to show on hover.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GetLuaHovers {
 
@@ -417,7 +417,7 @@ pub struct GetLuaHovers {
 }
 
 /// Docs of the symbols of a Lua script. Empty if the game's Lua API is not available.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct LuaHovers {
 
     /// The hovers.
@@ -425,7 +425,7 @@ pub struct LuaHovers {
 }
 
 /// Docs of a symbol of a Lua script. Lines and columns are 0-based.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct LuaHover {
 
     /// Line where the symbol starts.
@@ -445,12 +445,12 @@ pub struct LuaHover {
 }
 
 /// `ceo.traits`: returns the trait CEOs of the Assembly Kit tables.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ListTraitCeos {}
 
 /// Trait CEOs of the Assembly Kit tables.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct TraitCeos {
 
     /// UUID and key of each trait CEO.
@@ -458,7 +458,7 @@ pub struct TraitCeos {
 }
 
 /// `ceo.add_entries`: adds CEO entries (armour, career, traits and their locs) to an open pack.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct AddCeoEntries {
 
@@ -470,7 +470,7 @@ pub struct AddCeoEntries {
 }
 
 /// A CEO entry to add.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CeoEntryData {
 
@@ -494,7 +494,7 @@ pub struct CeoEntryData {
 }
 
 /// `ceo.build`: builds `ceo_data.ccd` in the Assembly Kit from the CEO tables of an open pack, running BOB.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct BuildCeo {
 
@@ -509,7 +509,7 @@ pub struct BuildCeo {
 }
 
 /// `ceo.import`: imports the `ceo_data.ccd` built by `ceo.build` into an open pack.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ImportCeo {
 

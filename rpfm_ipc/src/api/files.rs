@@ -564,7 +564,7 @@ impl Request for DeleteFromAnimPack {
 /// `file.view_data`: returns a file decoded as a client opening it in a view needs it.
 ///
 /// Meant for clients with views for each type of file. Others should use `file.read`.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GetViewData {
 
@@ -576,20 +576,20 @@ pub struct GetViewData {
 //
 // The decoded file is not boxed so clients can match the type of file in the same pattern as the variant.
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub enum ViewData {
 
     /// The decoded file, and its info.
-    Decoded(RFileDecoded, RFileInfo),
+    Decoded(#[schemars(with = "serde_json::Value")] RFileDecoded, #[schemars(with = "serde_json::Value")] RFileInfo),
 
     /// The info of the files of an AnimPack, and of the AnimPack itself.
-    AnimPack(Vec<RFileInfo>, RFileInfo),
+    AnimPack(#[schemars(with = "serde_json::Value")] Vec<RFileInfo>, #[schemars(with = "serde_json::Value")] RFileInfo),
 
     /// The info of a video, without its frames, and of the file.
-    Video(VideoInfo, RFileInfo),
+    Video(#[schemars(with = "serde_json::Value")] VideoInfo, #[schemars(with = "serde_json::Value")] RFileInfo),
 
     /// The notes of a pack, as markdown.
-    Notes(Text),
+    Notes(#[schemars(with = "serde_json::Value")] Text),
 
     /// The file is of a type that is not decoded.
     Unsupported,
@@ -603,7 +603,7 @@ impl Request for GetViewData {
 /// `files.info`: returns the info of files of an open pack, like their original pack and last modification time.
 ///
 /// Meant for clients showing the files of a pack as a tree. Others should use `files.list`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GetFilesInfo {
 
@@ -616,10 +616,11 @@ pub struct GetFilesInfo {
 }
 
 /// Info of files of a pack.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct FilesInfo {
 
     /// The info of each file.
+    #[schemars(with = "Vec<serde_json::Value>")]
     pub files: Vec<RFileInfo>,
 }
 
@@ -632,7 +633,7 @@ impl Request for GetFilesInfo {
 ///
 /// Each selected file or folder is pasted with its own name under the destination folder, not with its full path.
 /// Meant for clients with a clipboard. Others should use `files.copy` and `files.rename`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PasteFiles {
 
@@ -650,7 +651,7 @@ pub struct PasteFiles {
 }
 
 /// Result of pasting files.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct FilesPasted {
 
     /// Paths of the files added to the target pack.
@@ -668,11 +669,12 @@ impl Request for PasteFiles {
 /// `files.from_all_sources`: returns files and folders found in the open packs, the parent packs and the game files.
 ///
 /// Meant for clients editing files of several sources at once, like the UI's tools. Others should use `file.read`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GetFilesFromAllSources {
 
     /// Paths of the files and folders.
+    #[schemars(with = "Vec<serde_json::Value>")]
     pub paths: Vec<ContainerPath>,
 
     /// If the paths of the returned files are lowercased.
@@ -681,10 +683,11 @@ pub struct GetFilesFromAllSources {
 }
 
 /// Files of every source.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct FilesFromAllSources {
 
     /// The files found, by path, for each source.
+    #[schemars(with = "serde_json::Value")]
     pub files: HashMap<DataSource, HashMap<String, RFile>>,
 }
 
@@ -696,7 +699,7 @@ impl Request for GetFilesFromAllSources {
 /// `files.save_files`: adds files to an open pack, replacing the ones with the same path, optionally optimizing the pack after it.
 ///
 /// Meant for clients editing files outside of the server, like the UI's tools. Others should use `file.write`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SaveFiles {
 
@@ -704,6 +707,7 @@ pub struct SaveFiles {
     pub pack: String,
 
     /// The files, named with their path in the pack.
+    #[schemars(with = "Vec<serde_json::Value>")]
     pub files: Vec<RFile>,
 
     /// If the pack is optimized with the optimizer options of the settings after adding the files.
@@ -717,7 +721,7 @@ impl Request for SaveFiles {
 }
 
 /// `file.open_external`: extracts a file of an open pack to a temporary folder, and opens it in the system's default program for its type.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct OpenInExternalProgram {
 
@@ -729,7 +733,7 @@ pub struct OpenInExternalProgram {
 }
 
 /// A file extracted to edit it in an external program.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct ExternalFile {
 
     /// Path of the extracted file on disk.
@@ -742,7 +746,7 @@ impl Request for OpenInExternalProgram {
 }
 
 /// `file.save_external`: replaces a file of an open pack with the file on disk an external program edited.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SaveExternalFile {
 

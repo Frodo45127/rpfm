@@ -188,15 +188,16 @@ pub struct SearchReplaced {
 /// `search.report`: returns the last search with all its matches, as the search returns them.
 ///
 /// Meant for clients showing the matches with all their details. Others should use `search.matches`.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GetSearchReport {}
 
 /// The last search with all its matches.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct SearchReport {
 
     /// The search, with its matches.
+    #[schemars(with = "serde_json::Value")]
     pub search: GlobalSearch,
 
     /// ID of the first match of each file, by type of file, in the order of the files in the search.

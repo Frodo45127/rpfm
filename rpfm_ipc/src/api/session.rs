@@ -27,7 +27,7 @@ use super::packs::PackSummary;
 pub const SESSION_CONNECTED_NOTIFICATION: &str = "session.connected";
 
 /// The session a WebSocket client is connected to.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct SessionConnected {
 
     /// ID of the session.
@@ -83,11 +83,12 @@ impl Request for GetSessionStatus {
 ///
 /// Sessions start with the settings in the settings file. Clients owning their own settings send them
 /// with this before anything else, and again whenever they change.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Configure {
 
     /// The settings.
+    #[schemars(with = "serde_json::Value")]
     pub settings: Settings,
 }
 
@@ -98,7 +99,7 @@ impl Request for Configure {
 
 /// `session.disconnect`: tells the server the client is closing, so its WebSocket session is removed right away
 /// instead of waiting for the timeout. Only for WebSocket clients.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Disconnect {}
 
@@ -181,7 +182,7 @@ impl Request for ListDependencyTables {
 /// `dependencies.info`: returns the files of the dependencies of the selected game.
 ///
 /// Meant for clients showing the dependencies as a tree. Others should use `files.list`.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GetDependenciesInfo {}
 
@@ -193,7 +194,7 @@ impl Request for GetDependenciesInfo {
 /// `dependencies.table_data`: returns every decoded table of a type in the game files and the parent packs.
 ///
 /// Meant for clients comparing whole tables. Others should use `table.rows`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GetDependencyTableData {
 
@@ -202,10 +203,11 @@ pub struct GetDependencyTableData {
 }
 
 /// Decoded tables of the dependencies.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct DependencyTableData {
 
     /// The tables.
+    #[schemars(with = "Vec<serde_json::Value>")]
     pub tables: Vec<DB>,
 }
 

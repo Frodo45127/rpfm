@@ -23,7 +23,7 @@ use rpfm_lib::games::{pfh_file_type::PFHFileType, pfh_version::PFHVersion};
 use super::{Done, Request};
 
 /// Mode of an open pack: normal, or MyMod, which links it to a game folder and mod name for importing and exporting.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub enum OperationalMode {
 
     /// MyMod mode. Contains the game folder name (e.g. "warhammer_2") and the MyMod pack name.
