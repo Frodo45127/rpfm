@@ -267,21 +267,5 @@ pub fn file_types_from_search_on(search_on: &SearchOn) -> Vec<String> {
 //-------------------------------------------------------------------------------//
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn search_file_types_round_trip_through_search_on() {
-        let search_on = search_on_from_file_types(&["DB", "Schema"]).unwrap();
-
-        assert!(*search_on.db() && *search_on.schema() && !*search_on.loc());
-        assert_eq!(file_types_from_search_on(&search_on), vec!["DB", "Schema"]);
-    }
-
-    #[test]
-    fn unknown_search_file_types_are_rejected() {
-        let error = search_on_from_file_types(&["db"]).unwrap_err();
-
-        assert!(error.starts_with("Unknown file type to search: db."));
-    }
-}
+#[path = "search_test.rs"]
+mod search_test;

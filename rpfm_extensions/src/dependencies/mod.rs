@@ -665,15 +665,6 @@ impl Dependencies {
         }).collect::<HashMap<_, _>>()
     }
 
-    /// This function creates dependencies holding the provided files as vanilla files, for tests.
-    #[cfg(test)]
-    pub(crate) fn new_with_vanilla_files(files: Vec<RFile>) -> Self {
-        Self {
-            vanilla_files: files.into_iter().map(|file| (file.path_in_container_raw().to_owned(), file)).collect(),
-            ..Default::default()
-        }
-    }
-
     /// This function tries to load dependencies from the path provided.
     pub fn load(file_path: &Path, schema: &Option<Schema>) -> Result<Self> {
 
@@ -3798,3 +3789,6 @@ impl Dependencies {
         }
     }
 }
+
+#[cfg(test)]
+mod dependencies_test;

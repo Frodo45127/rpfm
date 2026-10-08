@@ -716,22 +716,5 @@ fn write_lua_editor_configs(mymod_path: &Path, mod_name: &str, lua_autogen_folde
 //-------------------------------------------------------------------------------//
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn optimizer_options_change_only_the_named_ones() {
-        let base = OptimizerOptions::default();
-        let base_values = optimizer_option_values(&base);
-        assert!(base_values.contains_key("table_remove_itm_entries"));
-
-        let flipped = !base_values["table_remove_itm_entries"];
-        let changed = optimizer_options_with(&base, &BTreeMap::from([("table_remove_itm_entries".to_owned(), flipped)])).unwrap();
-        let changed_values = optimizer_option_values(&changed);
-
-        assert_eq!(changed_values["table_remove_itm_entries"], flipped);
-        assert!(changed_values.iter().filter(|(name, _)| *name != "table_remove_itm_entries").all(|(name, value)| base_values[name] == *value));
-
-        assert!(matches!(optimizer_options_with(&base, &BTreeMap::from([("nope".to_owned(), true)])), Err(ApiError::InvalidParams(_))));
-    }
-}
+#[path = "tools_test.rs"]
+mod tools_test;
