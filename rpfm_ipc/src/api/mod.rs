@@ -54,6 +54,9 @@ pub mod tools;
 pub mod translations;
 pub mod updates;
 
+#[cfg(test)]
+mod method_docs;
+
 /// Version string of the JSON-RPC protocol, sent in every message.
 pub const JSONRPC_VERSION: &str = "2.0";
 
