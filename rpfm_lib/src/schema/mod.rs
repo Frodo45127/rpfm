@@ -243,12 +243,20 @@ pub struct Schema {
 ///
 /// # Fields Processing
 ///
-/// The raw [`fields`] list may undergo processing when accessed via [`fields_processed()`]:
+/// The definition keeps a processed copy of the raw [`fields`] list, accessible via [`fields_processed()`]:
 /// - Bitwise fields are expanded into multiple boolean fields
 /// - Enum fields are converted to string fields
 /// - RGB colour triplets are merged into single ColourRGB fields
+/// - The definition's patches are applied to them
 ///
-/// Unless you have a specific reason to do so, it is recommended to use [`fields_processed()`] instead of [`fields`].
+/// The copy is rebuilt every time the fields or the patches change, which is why both can only be changed through
+/// their setters. Unless you have a specific reason to do so, it is recommended to use [`fields_processed()`] instead of [`fields`].
+///
+/// # Serialization
+///
+/// Definitions serialize everything, processed fields and patches included, so they can be sent to clients without
+/// a schema. Schema files only store the raw parts, through [`StoredDefinition`]. When deserializing, the processed
+/// fields are always rebuilt from the raw ones.
 ///
 /// # Localisation
 ///
@@ -261,12 +269,14 @@ pub struct Schema {
 /// [`localised_fields`]: Definition::localised_fields
 /// [`localised_key_order`]: Definition::localised_key_order
 #[derive(Clone, PartialEq, Eq, Debug, Default, Getters, MutGetters, Setters, Serialize, Deserialize)]
-#[getset(get = "pub", get_mut = "pub", set = "pub")]
+#[getset(get = "pub")]
+#[serde(from = "DefinitionData")]
 pub struct Definition {
 
     /// The version number of this table definition.
     ///
     /// See type-level documentation for version number meanings.
+    #[getset(get_mut = "pub", set = "pub")]
     version: i32,
 
     /// List of fields in the order they appear in the binary format.
@@ -281,20 +291,74 @@ pub struct Definition {
     ///
     /// These fields contain localisable text that gets separated from the main table data
     /// when exporting said table to binary format.
+    #[getset(get_mut = "pub", set = "pub")]
     localised_fields: Vec<Field>,
 
     /// Order of key fields when constructing localisation keys.
     ///
     /// This specifies the order in which key fields should be concatenated when
     /// creating LOC entry keys. Only applies to processed fields.
+    #[getset(get_mut = "pub", set = "pub")]
     localised_key_order: Vec<u32>,
 
     /// Runtime patches applied to this definition.
     ///
     /// These are loaded from the schema's patch set and applied when retrieving
-    /// the definition. Not serialized - they come from the schema's patches field.
-    #[serde(skip)]
-    patches: DefinitionPatch
+    /// the definition. Schema files don't store them here, but in the schema's patches field.
+    patches: DefinitionPatch,
+
+    /// The fields with processing and patches applied, in the order rows store their values.
+    ///
+    /// Rebuilt every time `fields` or `patches` change.
+    #[getset(skip)]
+    fields_processed: Vec<Field>,
+}
+
+/// Serialized form of a [`Definition`], used to rebuild its processed fields when deserializing it.
+#[derive(Deserialize)]
+struct DefinitionData {
+    version: i32,
+    fields: Vec<Field>,
+    localised_fields: Vec<Field>,
+    localised_key_order: Vec<u32>,
+
+    #[serde(default)]
+    patches: DefinitionPatch,
+
+    // Read but ignored, as it's rebuilt from the other fields. It still needs to be read
+    // so formats that read fields by position, like bitcode, don't misalign.
+    #[serde(default, rename = "fields_processed")]
+    _fields_processed: Vec<Field>,
+}
+
+/// View of a [`Definition`] with only what schema files store: no processed fields nor patches.
+///
+/// Get it with [`Definition::stored`].
+#[derive(Serialize)]
+pub struct StoredDefinition<'a> {
+    version: i32,
+    fields: Vec<StoredField<'a>>,
+    localised_fields: Vec<StoredField<'a>>,
+    localised_key_order: &'a [u32],
+}
+
+/// View of a [`Field`] with only what schema files store, used by [`StoredDefinition`].
+#[derive(Serialize)]
+struct StoredField<'a> {
+    name: &'a str,
+    #[serde(serialize_with = "serialize_stored_field_type")]
+    field_type: &'a FieldType,
+    is_key: bool,
+    default_value: &'a Option<String>,
+    is_filename: bool,
+    filename_relative_path: &'a Option<String>,
+    is_reference: &'a Option<(String, String)>,
+    lookup: &'a Option<Vec<String>>,
+    description: &'a str,
+    ca_order: i16,
+    is_bitwise: i32,
+    enum_values: &'a BTreeMap<i32, String>,
+    is_part_of_colour: Option<u8>,
 }
 
 /// Defines a single field within a table definition.
@@ -419,11 +483,11 @@ pub struct Field {
 
     /// Whether this field is unused by the game.
     ///
-    /// Not serialized - determined via patches at runtime.
+    /// Determined via patches at runtime, so schema files don't store it.
     /// Use [`unused()`] to get the patched value.
     ///
     /// [`unused()`]: Field::unused
-    #[serde(skip_serializing, skip_deserializing)]
+    #[serde(default)]
     pub unused: bool,
 }
 
@@ -950,13 +1014,19 @@ impl Schema {
 
             // Fix for empty dependencies, again.
             definitions.iter_mut().for_each(|definition| {
+                let mut references_fixed = false;
                 definition.fields.iter_mut().for_each(|field| {
                     if let Some((ref_table, ref_column)) = field.is_reference(None) {
                         if ref_table.trim().is_empty() || ref_column.trim().is_empty() {
                             field.is_reference = None;
+                            references_fixed = true;
                         }
                     }
                 });
+
+                if references_fixed {
+                    definition.update_fields_processed();
+                }
 
                 // Move any lookup_hardcoded and unused patches to schema patches, merging them with the ones from other versions.
                 let mut def_patches = definition.patches().clone();
@@ -1174,7 +1244,7 @@ impl Schema {
                 let ref_fields = ref_version.fields_processed();
                 let ref_patches = Some(ref_version.patches());
                 let ref_fields_localised = ref_version.localised_fields();
-                for ref_field in &ref_fields {
+                for ref_field in ref_fields {
                     if let Some((ref_ref_table, ref_ref_field)) = ref_field.is_reference(ref_patches) {
 
                         // As this applies to all versions of a table, skip repeated fields.
@@ -1182,7 +1252,7 @@ impl Schema {
                             columns.push(ref_field.name().to_owned());
 
                             // If we find a referencing column, get recursion working to check if there is any column referencing this one that needs to be edited.
-                            let (ref_of_ref, _) = self.tables_and_columns_referencing_our_own(ref_table_name, ref_field.name(), &ref_fields, ref_fields_localised);
+                            let (ref_of_ref, _) = self.tables_and_columns_referencing_our_own(ref_table_name, ref_field.name(), ref_fields, ref_fields_localised);
                             for refs in &ref_of_ref {
                                 match tables.get_mut(refs.0) {
                                     Some(columns) => for value in refs.1 {
@@ -1263,7 +1333,8 @@ impl Schema {
     /// Returns the RON-formatted string, or an error if serialization fails.
     pub fn export_definitions_to_str(definitions: &HashMap<String, Definition>) -> Result<String> {
         let config = PrettyConfig::default();
-        ron::ser::to_string_pretty(&definitions, config).map_err(From::from)
+        let stored = definitions.iter().map(|(table_name, definition)| (table_name, definition.stored())).collect::<HashMap<_, _>>();
+        ron::ser::to_string_pretty(&stored, config).map_err(From::from)
     }
 }
 
@@ -1287,6 +1358,7 @@ impl Definition {
             fields: vec![],
             localised_key_order: vec![],
             patches: schema_patches.cloned().unwrap_or_default(),
+            fields_processed: vec![],
         }
     }
 
@@ -1303,12 +1375,66 @@ impl Definition {
     ///
     /// Returns a new definition with the provided fields.
     pub fn new_with_fields(version: i32, fields: &[Field], loc_fields: &[Field], schema_patches: Option<&DefinitionPatch>) -> Definition {
-        Definition {
+        let mut definition = Definition {
             version,
             localised_fields: loc_fields.to_vec(),
             fields: fields.to_vec(),
             localised_key_order: vec![],
             patches: schema_patches.cloned().unwrap_or_default(),
+            fields_processed: vec![],
+        };
+
+        definition.update_fields_processed();
+        definition
+    }
+
+    /// Replaces the fields of the definition, rebuilding its processed fields.
+    ///
+    /// # Arguments
+    ///
+    /// * `fields` - The new raw field list
+    pub fn set_fields(&mut self, fields: Vec<Field>) {
+        self.fields = fields;
+        self.update_fields_processed();
+    }
+
+    /// Edits the fields of the definition in place, rebuilding its processed fields afterwards.
+    ///
+    /// # Arguments
+    ///
+    /// * `edit` - Closure receiving the raw field list to edit
+    pub fn edit_fields(&mut self, edit: impl FnOnce(&mut Vec<Field>)) {
+        edit(&mut self.fields);
+        self.update_fields_processed();
+    }
+
+    /// Replaces the patches of the definition, rebuilding its processed fields.
+    ///
+    /// # Arguments
+    ///
+    /// * `patches` - The new patches
+    pub fn set_patches(&mut self, patches: DefinitionPatch) {
+        self.patches = patches;
+        self.update_fields_processed();
+    }
+
+    /// Edits the patches of the definition in place, rebuilding its processed fields afterwards.
+    ///
+    /// # Arguments
+    ///
+    /// * `edit` - Closure receiving the patches to edit
+    pub fn edit_patches(&mut self, edit: impl FnOnce(&mut DefinitionPatch)) {
+        edit(&mut self.patches);
+        self.update_fields_processed();
+    }
+
+    /// Returns a view of the definition with only what schema files store, to serialize it.
+    pub fn stored(&self) -> StoredDefinition<'_> {
+        StoredDefinition {
+            version: self.version,
+            fields: self.fields.iter().map(Field::stored).collect(),
+            localised_fields: self.localised_fields.iter().map(Field::stored).collect(),
+            localised_key_order: &self.localised_key_order,
         }
     }
 
@@ -1334,18 +1460,24 @@ impl Definition {
 
     /// Returns the processed field list with transformations applied.
     ///
-    /// This function processes the raw field list and applies various transformations:
+    /// The raw field list goes through these transformations:
     /// - **Bitwise fields**: Expanded into multiple boolean fields (e.g., `flags` → `flags_1`, `flags_2`, etc.)
     /// - **Enum fields**: Converted to StringU8 fields
     /// - **Colour fields**: RGB triplets merged into single ColourRGB fields
     /// - **Numeric fields**: Converted to I32 fields (with patches)
+    /// - **Patches**: Applied to the resulting fields, by their processed name
     ///
     /// This is the field list that should be used for UI display and data editing.
     ///
     /// # Returns
     ///
     /// Returns the processed field list with all transformations applied.
-    pub fn fields_processed(&self) -> Vec<Field> {
+    pub fn fields_processed(&self) -> &[Field] {
+        &self.fields_processed
+    }
+
+    /// Rebuilds the processed fields from the raw fields and the patches.
+    fn update_fields_processed(&mut self) {
         let mut split_colour_fields: BTreeMap<u8, Field> = BTreeMap::new();
         let patches = Some(self.patches());
         let mut fields = self.fields().iter()
@@ -1454,7 +1586,20 @@ impl Definition {
 
         // Second pass to add the combined colour fields.
         fields.append(&mut split_colour_fields.values().cloned().collect::<Vec<Field>>());
-        fields
+
+        // Third pass to bake the patches into the fields, so they don't need the patches to be read.
+        for field in &mut fields {
+            field.is_key = field.is_key(patches);
+            field.default_value = field.default_value(patches);
+            field.is_filename = field.is_filename(patches);
+            field.filename_relative_path = field.filename_relative_path(patches).map(|paths| paths.join(";"));
+            field.is_reference = field.is_reference(patches);
+            field.lookup = field.lookup(patches);
+            field.description = field.description(patches);
+            field.unused = field.unused(patches);
+        }
+
+        self.fields_processed = fields;
     }
 
     /// Returns the original raw field corresponding to a processed field index.
@@ -1506,7 +1651,7 @@ impl Definition {
     /// Returns the sorted field list. Fields with `ca_order == -1` are left in their original order
     /// when sorting by CA order.
     pub fn fields_processed_sorted(&self, key_first: bool) -> Vec<Field> {
-        let mut fields = self.fields_processed();
+        let mut fields = self.fields_processed().to_vec();
         let patches = Some(self.patches());
         fields.sort_by(|a, b| {
             if key_first {
@@ -1799,6 +1944,8 @@ impl Definition {
                 }
             }
         }
+
+        self.update_fields_processed();
     }
 
     /// Populates the `localised_fields` list from Assembly Kit data.
@@ -2173,6 +2320,25 @@ impl Field {
         }
     }
 
+    /// Returns a view of the field with only what schema files store, to serialize it.
+    fn stored(&self) -> StoredField<'_> {
+        StoredField {
+            name: &self.name,
+            field_type: &self.field_type,
+            is_key: self.is_key,
+            default_value: &self.default_value,
+            is_filename: self.is_filename,
+            filename_relative_path: &self.filename_relative_path,
+            is_reference: &self.is_reference,
+            lookup: &self.lookup,
+            description: &self.description,
+            ca_order: self.ca_order,
+            is_bitwise: self.is_bitwise,
+            enum_values: &self.enum_values,
+            is_part_of_colour: self.is_part_of_colour,
+        }
+    }
+
     /// Generates a SQL column definition string for this field.
     ///
     /// This function creates the SQL column definition portion for use in a
@@ -2325,10 +2491,51 @@ impl From<&DecodedData> for FieldType {
     }
 }
 
-/// Special serializer function to sort the definitions HashMap before serializing.
+/// Builds a [`Definition`] from its deserialized data, rebuilding its processed fields.
+impl From<DefinitionData> for Definition {
+    fn from(data: DefinitionData) -> Self {
+        let mut definition = Definition {
+            version: data.version,
+            fields: data.fields,
+            localised_fields: data.localised_fields,
+            localised_key_order: data.localised_key_order,
+            patches: data.patches,
+            fields_processed: vec![],
+        };
+
+        definition.update_fields_processed();
+        definition
+    }
+}
+
+/// Special serializer function to sort the definitions HashMap before serializing, storing only their raw parts.
 fn ordered_map_definitions<S>(value: &HashMap<String, Vec<Definition>>, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer, {
-    let ordered: BTreeMap<_, _> = value.iter().collect();
+    let ordered: BTreeMap<_, Vec<_>> = value.iter().map(|(table_name, definitions)| (table_name, definitions.iter().map(Definition::stored).collect())).collect();
     ordered.serialize(serializer)
+}
+
+/// Special serializer function for [`StoredField`] types, so the definitions of sequences are also stored without their processed fields.
+///
+/// The variant indexes must match the order of [`FieldType`]'s variants.
+fn serialize_stored_field_type<S>(field_type: &&FieldType, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer, {
+    match field_type {
+        FieldType::SequenceU16(definition) => serializer.serialize_newtype_variant("FieldType", 14, "SequenceU16", &definition.stored()),
+        FieldType::SequenceU32(definition) => serializer.serialize_newtype_variant("FieldType", 15, "SequenceU32", &definition.stored()),
+        FieldType::Boolean |
+        FieldType::F32 |
+        FieldType::F64 |
+        FieldType::I16 |
+        FieldType::I32 |
+        FieldType::I64 |
+        FieldType::ColourRGB |
+        FieldType::StringU8 |
+        FieldType::StringU16 |
+        FieldType::OptionalI16 |
+        FieldType::OptionalI32 |
+        FieldType::OptionalI64 |
+        FieldType::OptionalStringU8 |
+        FieldType::OptionalStringU16 => field_type.serialize(serializer),
+    }
 }
 
 /// Special serializer function to sort the patches HashMap before serializing.
@@ -2359,5 +2566,97 @@ mod tests {
         assert_eq!(*one_column.version(), 1);
 
         assert!(schema.definition_by_name_and_fields("missing_tables", &["key"]).is_none());
+    }
+
+    /// Definition with a bitwise field, a colour triplet, a sequence and a patch on the key column.
+    fn processed_test_definition() -> Definition {
+        let sequence = Definition::new_with_fields(0, &[Field { name: "flags".to_owned(), field_type: FieldType::I32, is_bitwise: 2, ..Default::default() }], &[], None);
+        let fields = [
+            field("key"),
+            Field { name: "flags".to_owned(), field_type: FieldType::I32, is_bitwise: 2, ..Default::default() },
+            Field { name: "colour_r".to_owned(), field_type: FieldType::I32, is_part_of_colour: Some(1), ..Default::default() },
+            Field { name: "colour_g".to_owned(), field_type: FieldType::I32, is_part_of_colour: Some(1), ..Default::default() },
+            Field { name: "colour_b".to_owned(), field_type: FieldType::I32, is_part_of_colour: Some(1), ..Default::default() },
+            Field { name: "entries".to_owned(), field_type: FieldType::SequenceU16(Box::new(sequence)), ..Default::default() },
+        ];
+
+        let patches = HashMap::from([("key".to_owned(), HashMap::from([
+            ("is_key".to_owned(), "false".to_owned()),
+            ("description".to_owned(), "Patched description".to_owned()),
+            ("unused".to_owned(), "true".to_owned()),
+        ]))]);
+
+        Definition::new_with_fields(3, &fields, &[], Some(&patches))
+    }
+
+    #[test]
+    fn test_fields_processed_are_built_with_patches_applied() {
+        let definition = processed_test_definition();
+
+        let names = definition.fields_processed().iter().map(|field| field.name()).collect::<Vec<_>>();
+        assert_eq!(names, ["key", "flags_1", "flags_2", "entries", "colour_hex"]);
+
+        let key = &definition.fields_processed()[0];
+        assert!(!key.is_key(None));
+        assert!(key.unused(None));
+        assert_eq!(key.description(None), "Patched description");
+
+        // The raw fields keep their unpatched values.
+        assert!(definition.fields()[0].is_key(None));
+    }
+
+    #[test]
+    fn test_fields_processed_are_rebuilt_on_changes() {
+        let mut definition = processed_test_definition();
+
+        definition.set_patches(DefinitionPatch::new());
+        assert!(definition.fields_processed()[0].is_key(None));
+
+        definition.edit_fields(|fields| fields.push(field("extra")));
+        assert_eq!(definition.fields_processed().last().map(|field| field.name()), Some("colour_hex"));
+        assert!(definition.fields_processed().iter().any(|field| field.name() == "extra"));
+
+        definition.set_fields(vec![field("only")]);
+        assert_eq!(definition.fields_processed().len(), 1);
+    }
+
+    #[test]
+    fn test_definition_json_round_trip_keeps_patches_and_rebuilds_processed_fields() {
+        let definition = processed_test_definition();
+
+        let mut json = serde_json::to_value(&definition).unwrap();
+        assert!(json["fields_processed"].is_array());
+        assert!(json["patches"]["key"].is_object());
+
+        // Processed fields sent by a client are ignored, and rebuilt from the raw ones.
+        json["fields_processed"] = serde_json::Value::Array(vec![]);
+        let decoded: Definition = serde_json::from_value(json).unwrap();
+        assert_eq!(decoded, definition);
+    }
+
+    #[cfg(feature = "support_error_bitcode")]
+    #[test]
+    fn test_definition_bitcode_round_trip() {
+        let definition = processed_test_definition();
+
+        let data = bitcode::serialize(&definition).unwrap();
+        let decoded: Definition = bitcode::deserialize(&data).unwrap();
+        assert_eq!(decoded, definition);
+    }
+
+    #[test]
+    fn test_stored_definitions_only_keep_raw_parts() {
+        let definition = processed_test_definition();
+        let definitions = HashMap::from([("test_tables".to_owned(), definition.clone())]);
+
+        let stored = Schema::export_definitions_to_str(&definitions).unwrap();
+        assert!(!stored.contains("fields_processed"));
+        assert!(!stored.contains("patches"));
+        assert!(!stored.contains("unused"));
+
+        // Loading them back gets the same definition, minus the patches.
+        let mut loaded = Schema::load_definitions_from_str(&stored).unwrap().remove("test_tables").unwrap();
+        loaded.set_patches(definition.patches().clone());
+        assert_eq!(loaded, definition);
     }
 }

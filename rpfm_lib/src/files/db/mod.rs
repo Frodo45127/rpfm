@@ -618,7 +618,7 @@ impl DB {
         // Get the tables/rows that need to be edited.
         let fields_processed = definition.fields_processed();
         let fields_localised = definition.localised_fields();
-        let (mut ref_table_data, _) = schema.tables_and_columns_referencing_our_own(&table_name, field.name(), &fields_processed, fields_localised);
+        let (mut ref_table_data, _) = schema.tables_and_columns_referencing_our_own(&table_name, field.name(), fields_processed, fields_localised);
 
         // Add the source table and column to the list to edit.
         ref_table_data.insert(table_name, vec![field.name().to_owned()]);
@@ -630,7 +630,7 @@ impl DB {
         for file in files.iter_mut() {
             let path = file.path_in_container();
             if let Ok(RFileDecoded::DB(table)) = file.decoded_mut() {
-                let fields_processed = table.definition().fields_processed();
+                let fields_processed = table.definition().fields_processed().to_vec();
                 let fields_localised = table.definition().localised_fields().to_vec();
                 let localised_order = table.definition().localised_key_order().to_vec();
                 let patches = table.definition().patches().clone();

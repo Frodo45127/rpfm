@@ -90,7 +90,7 @@ pub enum TableDiagnosticReportType {
 struct TableInfo<'a> {
     path: &'a str,
     pack_key: &'a str,
-    fields_processed: Vec<Field>,
+    fields_processed: &'a [Field],
     patches: Option<&'a DefinitionPatch>,
     key_amount: usize,
     table_data: Cow<'a, [Vec<DecodedData>]>,
@@ -457,7 +457,7 @@ impl TableDiagnostic {
                             }
 
                             if !path_found {
-                                let result = TableDiagnosticReport::new(TableDiagnosticReportType::FieldWithPathNotFound(paths), &[(row as i32, column as i32)], &table_info.fields_processed);
+                                let result = TableDiagnosticReport::new(TableDiagnosticReportType::FieldWithPathNotFound(paths), &[(row as i32, column as i32)], table_info.fields_processed);
                                 diagnostic.results_mut().push(result);
                             }
                         }
@@ -489,13 +489,13 @@ impl TableDiagnostic {
                                         if !dependencies.is_asskit_data_loaded() {
                                             if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("NoReferenceTableNorColumnFoundNoPak"), &table_info.ignored_fields, &table_info.ignored_diagnostics, &table_info.ignored_diagnostics_for_fields) {
                                                 let field_name = table_info.fields_processed[column].name().to_string();
-                                                let result = TableDiagnosticReport::new(TableDiagnosticReportType::NoReferenceTableNorColumnFoundNoPak(field_name), &[(-1, column as i32)], &table_info.fields_processed);
+                                                let result = TableDiagnosticReport::new(TableDiagnosticReportType::NoReferenceTableNorColumnFoundNoPak(field_name), &[(-1, column as i32)], table_info.fields_processed);
                                                 diagnostic.results_mut().push(result);
                                             }
                                         }
                                         else if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("NoReferenceTableNorColumnFoundPak"), &table_info.ignored_fields, &table_info.ignored_diagnostics, &table_info.ignored_diagnostics_for_fields) {
                                             let field_name = table_info.fields_processed[column].name().to_string();
-                                            let result = TableDiagnosticReport::new(TableDiagnosticReportType::NoReferenceTableNorColumnFoundPak(field_name), &[(-1, column as i32)], &table_info.fields_processed);
+                                            let result = TableDiagnosticReport::new(TableDiagnosticReportType::NoReferenceTableNorColumnFoundPak(field_name), &[(-1, column as i32)], table_info.fields_processed);
                                             diagnostic.results_mut().push(result);
                                         }
 
@@ -509,7 +509,7 @@ impl TableDiagnostic {
                                         let is_number = *field.field_type() == FieldType::I32 || *field.field_type() == FieldType::I64 || *field.field_type() == FieldType::OptionalI32 || *field.field_type() == FieldType::OptionalI64;
                                         let is_valid_reference = if is_number { cell_data != "0" } else { true };
                                         if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("InvalidReference"), &table_info.ignored_fields, &table_info.ignored_diagnostics, &table_info.ignored_diagnostics_for_fields) && is_valid_reference {
-                                            let result = TableDiagnosticReport::new(TableDiagnosticReportType::InvalidReference(cell_data.to_string(), field.name().to_string()), &[(row as i32, column as i32)], &table_info.fields_processed);
+                                            let result = TableDiagnosticReport::new(TableDiagnosticReportType::InvalidReference(cell_data.to_string(), field.name().to_string()), &[(row as i32, column as i32)], table_info.fields_processed);
                                             diagnostic.results_mut().push(result);
                                         }
                                     }
@@ -520,7 +520,7 @@ impl TableDiagnostic {
                                     if no_ref_table_found_marked.is_empty() || !no_ref_table_found_marked.contains(&column) {
                                         if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("NoReferenceTableFound"), &table_info.ignored_fields, &table_info.ignored_diagnostics, &table_info.ignored_diagnostics_for_fields) {
                                             let field_name = table_info.fields_processed[column].name().to_string();
-                                            let result = TableDiagnosticReport::new(TableDiagnosticReportType::NoReferenceTableFound(field_name), &[(-1, column as i32)], &table_info.fields_processed);
+                                            let result = TableDiagnosticReport::new(TableDiagnosticReportType::NoReferenceTableFound(field_name), &[(-1, column as i32)], table_info.fields_processed);
                                             diagnostic.results_mut().push(result);
                                         }
                                         no_ref_table_found_marked.insert(column);
@@ -534,17 +534,17 @@ impl TableDiagnostic {
                         }
 
                         if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("EmptyKeyField"), &table_info.ignored_fields, &table_info.ignored_diagnostics, &table_info.ignored_diagnostics_for_fields) && field.is_key(table_info.patches) && table_info.key_amount == 1 && *field.field_type() != FieldType::OptionalStringU8 && *field.field_type() != FieldType::Boolean && (cell_data.is_empty() || cell_data == "false") {
-                            let result = TableDiagnosticReport::new(TableDiagnosticReportType::EmptyKeyField(field.name().to_string()), &[(row as i32, column as i32)], &table_info.fields_processed);
+                            let result = TableDiagnosticReport::new(TableDiagnosticReportType::EmptyKeyField(field.name().to_string()), &[(row as i32, column as i32)], table_info.fields_processed);
                             diagnostic.results_mut().push(result);
                         }
 
                         if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("InvalidKey"), &table_info.ignored_fields, &table_info.ignored_diagnostics, &table_info.ignored_diagnostics_for_fields) && field.is_key(table_info.patches) && !cell_data.is_empty() && (cell_data.ends_with(' ') || cell_data.contains('\n') || cell_data.contains('\r') || cell_data.contains('\t')) {
-                            let result = TableDiagnosticReport::new(TableDiagnosticReportType::InvalidKey, &[(row as i32, column as i32)], &table_info.fields_processed);
+                            let result = TableDiagnosticReport::new(TableDiagnosticReportType::InvalidKey, &[(row as i32, column as i32)], table_info.fields_processed);
                             diagnostic.results_mut().push(result);
                         }
 
                         if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, Some(field.name()), Some("ValueCannotBeEmpty"), &table_info.ignored_fields, &table_info.ignored_diagnostics, &table_info.ignored_diagnostics_for_fields) && cell_data.is_empty() && field.cannot_be_empty(table_info.patches) {
-                            let result = TableDiagnosticReport::new(TableDiagnosticReportType::ValueCannotBeEmpty(field.name().to_string()), &[(row as i32, column as i32)], &table_info.fields_processed);
+                            let result = TableDiagnosticReport::new(TableDiagnosticReportType::ValueCannotBeEmpty(field.name().to_string()), &[(row as i32, column as i32)], table_info.fields_processed);
                             diagnostic.results_mut().push(result);
                         }
 
@@ -554,13 +554,13 @@ impl TableDiagnostic {
                     }
 
                     if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("EmptyRow"), &table_info.ignored_fields, &table_info.ignored_diagnostics, &table_info.ignored_diagnostics_for_fields) && cells == &table_info.default_row {
-                        let result = TableDiagnosticReport::new(TableDiagnosticReportType::EmptyRow, &[(row as i32, -1)], &table_info.fields_processed);
+                        let result = TableDiagnosticReport::new(TableDiagnosticReportType::EmptyRow, &[(row as i32, -1)], table_info.fields_processed);
                         diagnostic.results_mut().push(result);
                     }
 
                     if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, None, Some("EmptyKeyFields"), &table_info.ignored_fields, &table_info.ignored_diagnostics, &table_info.ignored_diagnostics_for_fields) && row_keys_are_empty && table_info.key_amount > 1 {
                         let cells_affected = row_keys.keys().map(|column| (row as i32, *column)).collect::<Vec<(i32, i32)>>();
-                        let result = TableDiagnosticReport::new(TableDiagnosticReportType::EmptyKeyFields, &cells_affected, &table_info.fields_processed);
+                        let result = TableDiagnosticReport::new(TableDiagnosticReportType::EmptyKeyFields, &cells_affected, table_info.fields_processed);
                         diagnostic.results_mut().push(result);
                     }
 
@@ -604,7 +604,7 @@ impl TableDiagnostic {
                                                 key.iter().map(|x| x.data_to_string()).join("| |")
                                             ),
                                             pos,
-                                            &table_info.fields_processed
+                                            table_info.fields_processed
                                         )
                                     )
                                 }
@@ -616,7 +616,7 @@ impl TableDiagnostic {
                                                 key.iter().map(|x| x.data_to_string()).join("| |")
                                             ),
                                             pos,
-                                            &table_info.fields_processed
+                                            table_info.fields_processed
                                         )
                                     );
 
@@ -685,18 +685,18 @@ impl TableDiagnostic {
                     let key = cells[0].data_to_string();
                     let data = cells[1].data_to_string();
                     if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, Some(field_key_name), Some("InvalidKey"), &table_info.ignored_fields, &table_info.ignored_diagnostics, &table_info.ignored_diagnostics_for_fields) && !key.is_empty() && (key.ends_with(' ') || key.contains('\n') || key.contains('\r') || key.contains('\t')) {
-                        let result = TableDiagnosticReport::new(TableDiagnosticReportType::InvalidKey, &[(row as i32, 0)], &fields);
+                        let result = TableDiagnosticReport::new(TableDiagnosticReportType::InvalidKey, &[(row as i32, 0)], fields);
                         diagnostic.results_mut().push(result);
                     }
 
                     // Only in case none of the two columns are ignored, we perform these checks.
                     if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, Some(field_key_name), Some("EmptyRow"), &table_info.ignored_fields, &table_info.ignored_diagnostics, &table_info.ignored_diagnostics_for_fields) && !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, Some(field_text_name), Some("EmptyRow"), &table_info.ignored_fields, &table_info.ignored_diagnostics, &table_info.ignored_diagnostics_for_fields) && key.is_empty() && data.is_empty() {
-                        let result = TableDiagnosticReport::new(TableDiagnosticReportType::EmptyRow, &[(row as i32, -1)], &fields);
+                        let result = TableDiagnosticReport::new(TableDiagnosticReportType::EmptyRow, &[(row as i32, -1)], fields);
                         diagnostic.results_mut().push(result);
                     }
 
                     if !Diagnostics::ignore_diagnostic(global_ignored_diagnostics, Some(field_key_name), Some("EmptyKeyField"), &table_info.ignored_fields, &table_info.ignored_diagnostics, &table_info.ignored_diagnostics_for_fields) && key.is_empty() && !data.is_empty() {
-                        let result = TableDiagnosticReport::new(TableDiagnosticReportType::EmptyKeyField("Key".to_string()), &[(row as i32, 0)], &fields);
+                        let result = TableDiagnosticReport::new(TableDiagnosticReportType::EmptyKeyField("Key".to_string()), &[(row as i32, 0)], fields);
                         diagnostic.results_mut().push(result);
                     }
 
@@ -710,7 +710,7 @@ impl TableDiagnostic {
                             (data.contains("\n") || (data.match_indices("\\n").count() != data.match_indices("\\\\n").count())) ||
                             (data.contains("\t") || (data.match_indices("\\t").count() != data.match_indices("\\\\t").count()))
                         ) {
-                        let result = TableDiagnosticReport::new(TableDiagnosticReportType::InvalidEscape, &[(row as i32, 1)], &fields);
+                        let result = TableDiagnosticReport::new(TableDiagnosticReportType::InvalidEscape, &[(row as i32, 1)], fields);
                         diagnostic.results_mut().push(result);
                     }
 
@@ -751,7 +751,7 @@ impl TableDiagnostic {
                                                 key.data_to_string().to_string()
                                             ),
                                             &[*pos],
-                                            &table_info.fields_processed
+                                            table_info.fields_processed
                                         )
                                     )
                                 }
@@ -763,7 +763,7 @@ impl TableDiagnostic {
                                                 key.data_to_string().to_string()
                                             ),
                                             &[*pos],
-                                            &table_info.fields_processed
+                                            table_info.fields_processed
                                         )
                                     );
 
@@ -806,7 +806,7 @@ impl TableDiagnostic {
                                                     String::from(table_info.table_data[*row as usize][0].data_to_string()) + "| |" + &data.data_to_string()
                                                 ),
                                                 &[(*row, 0), (*row, 1)],
-                                                &table_info.fields_processed
+                                                table_info.fields_processed
                                             )
                                         )
                                     }
@@ -818,7 +818,7 @@ impl TableDiagnostic {
                                                     String::from(table_info.table_data[*row as usize][0].data_to_string()) + "| |" + &data.data_to_string()
                                                 ),
                                                 &[(*row, 0), (*row, 1)],
-                                                &table_info.fields_processed
+                                                table_info.fields_processed
                                             )
                                         );
 

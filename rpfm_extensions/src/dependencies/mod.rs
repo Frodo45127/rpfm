@@ -2428,10 +2428,12 @@ impl Dependencies {
                 }
             }
 
+            // Keys come from the raw fields, as the game builds loc keys from them, not from the patched ones.
             let fields = definition.fields_processed();
+            let raw_key_names = definition.fields().iter().filter(|field| field.is_key(None)).map(|field| field.name()).collect::<HashSet<_>>();
             let key_fields = fields.iter()
                 .enumerate()
-                .filter(|(_, field)| field.is_key(None))
+                .filter(|(_, field)| raw_key_names.contains(field.name()))
                 .collect::<Vec<_>>();
 
             // Check which fields from the missing field list are actually loc fields.
@@ -2447,11 +2449,15 @@ impl Dependencies {
 
             // Some fields fail the previous check because the table contains a field with the same name. So we must repeat it with the table fields.
             // There is a weird corner case here where a localised field may start like the name of another table field. We need to avoid that.
-            for table_field in &fields {
+            for table_field in fields {
                 if loc_fields_final.iter().all(|x| !x.name().starts_with(table_field.name())) {
                     let localised_key = format!("{}_{}_", short_table_name, table_field.name());
                     if loc_table.keys().any(|x| x.starts_with(&localised_key)) && loc_fields_final.iter().all(|x| x.name() != table_field.name()) {
-                        loc_fields_final.push(table_field.clone());
+
+                        // Store the raw field, so the patches applied to the processed one don't end up in the schema.
+                        let mut loc_field = definition.fields().iter().find(|field| field.name() == table_field.name()).cloned().unwrap_or_else(|| table_field.clone());
+                        loc_field.set_field_type(table_field.field_type().clone());
+                        loc_fields_final.push(loc_field);
                     }
                 }
             }
@@ -2639,6 +2645,9 @@ impl Dependencies {
                     FieldType::OptionalStringU8 |
                     FieldType::OptionalStringU16 => {
 
+                        // Checks for existing paths use the raw field, as the processed one has the patches applied.
+                        let raw_field = definition.fields().iter().find(|raw_field| raw_field.name() == field.name()).unwrap_or(field);
+
                         // Icons can be found by:
                         // - Checking if the data contains ".png" or ".tga".
                         // - Checking if the data contains "Icon" or "Image" in the name.
@@ -2661,10 +2670,10 @@ impl Dependencies {
                             .filter_map(|row| {
 
                                 // Only check fields that are not already marked, or are marked but without path (like override_icon in incidents).
-                                if !field.is_filename(None) || (
-                                        field.is_filename(None) && (
-                                            field.filename_relative_path(None).is_none() ||
-                                            field.filename_relative_path(None).unwrap().is_empty()
+                                if !raw_field.is_filename(None) || (
+                                        raw_field.is_filename(None) && (
+                                            raw_field.filename_relative_path(None).is_none() ||
+                                            raw_field.filename_relative_path(None).unwrap().is_empty()
                                         )
                                     ) || (
 
@@ -2833,10 +2842,10 @@ impl Dependencies {
                             table.data().par_iter().filter_map(|row| {
 
                                 // Only check fields that are not already marked, or are marked but without path (like override_icon in incidents).
-                                if !field.is_filename(None) || (
-                                        field.is_filename(None) && (
-                                            field.filename_relative_path(None).is_none() ||
-                                            field.filename_relative_path(None).unwrap().is_empty()
+                                if !raw_field.is_filename(None) || (
+                                        raw_field.is_filename(None) && (
+                                            raw_field.filename_relative_path(None).is_none() ||
+                                            raw_field.filename_relative_path(None).unwrap().is_empty()
                                         )
                                     ) || (
 
@@ -2938,7 +2947,7 @@ impl Dependencies {
                             possible_relative_paths.sort();
 
                             let mut patch = HashMap::new();
-                            if !field.is_filename(None) {
+                            if !raw_field.is_filename(None) {
                                 patch.insert("is_filename".to_owned(), "true".to_owned());
                             }
 
@@ -2950,8 +2959,8 @@ impl Dependencies {
                                     possible_relative_paths[0] != "%"
                                 ) || (
                                     possible_relative_paths[0] == "%" &&
-                                    field.filename_relative_path(None).is_some() &&
-                                    !field.filename_relative_path(None).unwrap().is_empty()
+                                    raw_field.filename_relative_path(None).is_some() &&
+                                    !raw_field.filename_relative_path(None).unwrap().is_empty()
                                 )
                             ) {
                                 patch.insert("filename_relative_path".to_owned(), possible_relative_paths.into_iter().join(";"));
@@ -3703,43 +3712,48 @@ impl Dependencies {
     pub fn add_recursive_lookups_to_definition(&self, schema: &Schema, definition: &mut Definition, table_name: &str) {
         let schema_patches = definition.patches().clone();
 
-        for field in definition.fields_mut().iter_mut() {
+        definition.edit_fields(|fields| {
+            for field in fields.iter_mut() {
 
-            // First check lookups on the local table.
-            if let Some(lookup_data_old) = field.lookup(Some(&schema_patches)) {
-                let mut lookup_data = vec![];
+                // First check lookups on the local table.
+                if let Some(lookup_data_old) = field.lookup(Some(&schema_patches)) {
+                    let mut lookup_data = vec![];
 
-                // Check first for local lookups.
-                if !lookup_data_old.is_empty() {
+                    // Check first for local lookups.
+                    if !lookup_data_old.is_empty() {
 
-                    let table_name = if let Some(table_name) = table_name.strip_suffix("_tables") {
-                        table_name.to_owned()
+                        let table_name = if let Some(table_name) = table_name.strip_suffix("_tables") {
+                            table_name.to_owned()
+                        } else {
+                            table_name.to_owned()
+                        };
+
+                        for lookup_data_old in &lookup_data_old {
+                            let lookup_string = format!("{}#{}#{}", table_name, field.name(), lookup_data_old);
+                            self.add_recursive_lookups(schema, &schema_patches, lookup_data_old, &mut lookup_data, &lookup_string, &table_name);
+                        }
+
+                    }
+
+                    // If our field is a reference, do recursive checks to find out all the lookup data of a specific field.
+                    if let Some((ref_table_name, ref_column)) = field.is_reference(Some(&schema_patches)) {
+                        for lookup_data_old in &lookup_data_old {
+                            let lookup_string = format!("{ref_table_name}#{ref_column}#{lookup_data_old}");
+                            self.add_recursive_lookups(schema, &schema_patches, lookup_data_old, &mut lookup_data, &lookup_string, &ref_table_name);
+                        }
+                    }
+
+                    if !lookup_data.is_empty() {
+                        field.set_lookup(Some(lookup_data));
                     } else {
-                        table_name.to_owned()
-                    };
-
-                    for lookup_data_old in &lookup_data_old {
-                        let lookup_string = format!("{}#{}#{}", table_name, field.name(), lookup_data_old);
-                        self.add_recursive_lookups(schema, &schema_patches, lookup_data_old, &mut lookup_data, &lookup_string, &table_name);
+                        field.set_lookup(None);
                     }
-
-                }
-
-                // If our field is a reference, do recursive checks to find out all the lookup data of a specific field.
-                if let Some((ref_table_name, ref_column)) = field.is_reference(Some(&schema_patches)) {
-                    for lookup_data_old in &lookup_data_old {
-                        let lookup_string = format!("{ref_table_name}#{ref_column}#{lookup_data_old}");
-                        self.add_recursive_lookups(schema, &schema_patches, lookup_data_old, &mut lookup_data, &lookup_string, &ref_table_name);
-                    }
-                }
-
-                if !lookup_data.is_empty() {
-                    field.set_lookup(Some(lookup_data));
-                } else {
-                    field.set_lookup(None);
                 }
             }
-        }
+        });
+
+        // The expanded lookups already include the patched ones, so drop their patches to stop them overriding them.
+        definition.edit_patches(|patches| patches.values_mut().for_each(|patch| { patch.remove("lookup"); }));
     }
 
     fn add_recursive_lookups(&self,

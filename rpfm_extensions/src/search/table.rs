@@ -84,7 +84,7 @@ impl Searchable for DB {
 
         for (row_number, row) in self.data().iter().enumerate() {
             for (column_number, cell) in row.iter().enumerate() {
-                matches.match_decoded_data(&cell.data_to_string(), pattern_to_search, case_sensitive, matching_mode, &fields_processed, column_number as u32, row_number as i64);
+                matches.match_decoded_data(&cell.data_to_string(), pattern_to_search, case_sensitive, matching_mode, fields_processed, column_number as u32, row_number as i64);
             }
         }
 
@@ -102,7 +102,7 @@ impl Searchable for Loc {
 
         for (row_number, row) in self.data().iter().enumerate() {
             for (column_number, cell) in row.iter().enumerate() {
-                matches.match_decoded_data(&cell.data_to_string(), pattern_to_search, case_sensitive, matching_mode, &fields_processed, column_number as u32, row_number as i64);
+                matches.match_decoded_data(&cell.data_to_string(), pattern_to_search, case_sensitive, matching_mode, fields_processed, column_number as u32, row_number as i64);
             }
         }
 

@@ -402,7 +402,7 @@ impl SearchView {
     /// This function takes care of updating the search data whenever a change that can alter the results happens.
     pub unsafe fn update_search(&self, parent: &TableView) {
         {
-            let fields_processed = parent.table_definition().fields_processed();
+            let fields_processed = parent.table_definition().fields_processed().to_vec();
             let table_search = &mut self.last_search_data.write().unwrap();
             table_search.matches.clear();
 
@@ -432,7 +432,7 @@ impl SearchView {
     /// This function takes care of searching the patter we provided in the TableView.
     pub unsafe fn search(&self, parent: &TableView) {
         {
-            let fields_processed = parent.table_definition().fields_processed();
+            let fields_processed = parent.table_definition().fields_processed().to_vec();
             let table_search = &mut self.last_search_data.write().unwrap();
             table_search.matches.clear();
             table_search.current_item = None;
@@ -488,7 +488,7 @@ impl SearchView {
         // NOTE: WE CANNOT HAVE THE SEARCH DATA LOCK UNTIL AFTER WE DO THE REPLACE. That's why there are a lot of read here.
         let text_source = self.last_search_data.read().unwrap().pattern.to_std_string();
         if !text_source.is_empty() {
-            let fields_processed = parent.table_definition().fields_processed();
+            let fields_processed = parent.table_definition().fields_processed().to_vec();
 
             // Get the replace data here, as we probably don't have it updated.
             self.last_search_data.write().unwrap().replace = self.replace_line_edit.text().into_ptr();
@@ -560,7 +560,7 @@ impl SearchView {
         // NOTE: WE CANNOT HAVE THE SEARCH DATA LOCK UNTIL AFTER WE DO THE REPLACE. That's why there are a lot of read here.
         let text_source = self.last_search_data.read().unwrap().pattern.to_std_string();
         if !text_source.is_empty() {
-            let fields_processed = parent.table_definition().fields_processed();
+            let fields_processed = parent.table_definition().fields_processed().to_vec();
 
             // Get the replace data here, as we probably don't have it updated.
             self.last_search_data.write().unwrap().replace = self.replace_line_edit.text().into_ptr();

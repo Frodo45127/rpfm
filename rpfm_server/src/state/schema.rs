@@ -88,14 +88,14 @@ impl SessionState {
         // Fix for old file relative paths using incorrect separators.
         schema.definitions_mut().par_iter_mut().for_each(|(_, definitions)| {
             definitions.iter_mut().for_each(|definition| {
-                definition.fields_mut().iter_mut().for_each(|field| {
+                definition.edit_fields(|fields| fields.iter_mut().for_each(|field| {
                     if let Some(path) = field.filename_relative_path(None) {
                         if path.len() == 1 && path[0].contains(',') {
                             let new_paths = path[0].split(',').map(|path| path.trim()).join(";");
                             field.set_filename_relative_path(Some(new_paths));
                         }
                     }
-                });
+                }));
             });
         });
 
@@ -229,7 +229,7 @@ impl SessionState {
     pub fn raw_definitions(&self, table_name: &str, version: Option<i32>) -> Result<RawDefinitions> {
         let definitions = self.definitions_by_table_name(table_name)?.iter()
             .filter(|definition| version.is_none_or(|version| *definition.version() == version))
-            .map(serde_json::to_value)
+            .map(|definition| serde_json::to_value(definition.stored()))
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok(RawDefinitions { definitions })

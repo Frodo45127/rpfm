@@ -1270,7 +1270,7 @@ impl PackedFileDecoderView {
                     "OptionalStringU16" => FieldType::OptionalStringU16,
                     "SequenceU32" => FieldType::SequenceU32({
                         let mut definition = Definition::new(-100, None);
-                        *definition.fields_mut() = self.get_fields_from_view(Some(model_index));
+                        definition.set_fields(self.get_fields_from_view(Some(model_index)));
                         Box::new(definition)
                     }),
                     _ => unimplemented!()
@@ -1311,7 +1311,7 @@ impl PackedFileDecoderView {
     /// This function returns the definition currently in the view.
     unsafe fn definition_from_view(&self) -> Definition {
         let mut definition = Definition::new(self.version, None);
-        *definition.fields_mut() = self.get_fields_from_view(None);
+        definition.set_fields(self.get_fields_from_view(None));
         definition
     }
 

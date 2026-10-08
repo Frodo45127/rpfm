@@ -268,7 +268,7 @@ impl SchemaV4 {
         // Fix for empty dependencies, again.
         schema.definitions.par_iter_mut().for_each(|(table_name, definitions)| {
             definitions.iter_mut().for_each(|definition| {
-                definition.fields.iter_mut().for_each(|field| {
+                definition.edit_fields(|fields| fields.iter_mut().for_each(|field| {
                     if let Some((ref_table, ref_column)) = field.is_reference(None) {
                         if ref_table.trim().is_empty() || ref_column.trim().is_empty() {
                             dbg!(&table_name);
@@ -276,7 +276,7 @@ impl SchemaV4 {
                             field.is_reference = None;
                         }
                     }
-                })
+                }))
             })
         });
 

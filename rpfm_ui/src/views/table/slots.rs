@@ -832,7 +832,7 @@ impl TableViewSlots {
         let mut freeze_columns = vec![];
 
         let fields = view.table_definition().fields_processed_sorted(settings_bool(TABLES_USE_OLD_COLUMN_ORDER));
-        let fields_processed = view.table_definition().fields_processed();
+        let fields_processed = view.table_definition().fields_processed().to_vec();
         for field in &fields {
             if let Some(index) = fields_processed.iter().position(|x| x == field) {
                 let hide_show_slot = SlotOfInt::new(&view.table_view, clone!(
@@ -877,7 +877,7 @@ impl TableViewSlots {
                 // Build the reverse mapping: logical column index -> sidebar checkbox index.
                 // The sidebar checkboxes are in sorted field order, not logical column order.
                 let fields = view.table_definition().fields_processed_sorted(settings_bool(TABLES_USE_OLD_COLUMN_ORDER));
-                let fields_processed = view.table_definition().fields_processed();
+                let fields_processed = view.table_definition().fields_processed().to_vec();
                 let sidebar_index = fields.iter().enumerate().find_map(|(sidebar_pos, field)| {
                     fields_processed.iter().position(|x| x == field).and_then(|col_idx| {
                         if col_idx == logical_index as usize { Some(sidebar_pos) } else { None }

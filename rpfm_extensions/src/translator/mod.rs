@@ -708,17 +708,15 @@ impl PackTranslation {
     }
 
     pub fn definition() -> Definition {
-        let mut definition = Definition::default();
-
         // We put the booleans first because they may act as a kind of filter.
-        definition.fields_mut().push(Field { name: "key".to_string(), field_type: FieldType::StringU8, is_key: true, ..Default::default() });
-        definition.fields_mut().push(Field { name: "retr".to_string(), field_type: FieldType::Boolean, ..Default::default() });
-        definition.fields_mut().push(Field { name: "rem".to_string(), field_type: FieldType::Boolean, ..Default::default() });
-        definition.fields_mut().push(Field { name: "aut".to_string(), field_type: FieldType::Boolean, ..Default::default() });
-        definition.fields_mut().push(Field { name: "src".to_string(), field_type: FieldType::StringU8, ..Default::default() });
-        definition.fields_mut().push(Field { name: "dst".to_string(), field_type: FieldType::StringU8, ..Default::default() });
-
-        definition
+        Definition::new_with_fields(0, &[
+            Field { name: "key".to_string(), field_type: FieldType::StringU8, is_key: true, ..Default::default() },
+            Field { name: "retr".to_string(), field_type: FieldType::Boolean, ..Default::default() },
+            Field { name: "rem".to_string(), field_type: FieldType::Boolean, ..Default::default() },
+            Field { name: "aut".to_string(), field_type: FieldType::Boolean, ..Default::default() },
+            Field { name: "src".to_string(), field_type: FieldType::StringU8, ..Default::default() },
+            Field { name: "dst".to_string(), field_type: FieldType::StringU8, ..Default::default() },
+        ], &[], None)
     }
 
     pub fn from_table(&mut self, table: &TableInMemory) -> Result<()> {
@@ -785,10 +783,10 @@ impl PackTranslation {
     /// The glossary is a flat two-column table: a source term (used as the key) and the
     /// preferred translation for it.
     pub fn glossary_definition() -> Definition {
-        let mut definition = Definition::default();
-        definition.fields_mut().push(Field { name: "source".to_string(), field_type: FieldType::StringU8, is_key: true, ..Default::default() });
-        definition.fields_mut().push(Field { name: "translation".to_string(), field_type: FieldType::StringU8, ..Default::default() });
-        definition
+        Definition::new_with_fields(0, &[
+            Field { name: "source".to_string(), field_type: FieldType::StringU8, is_key: true, ..Default::default() },
+            Field { name: "translation".to_string(), field_type: FieldType::StringU8, ..Default::default() },
+        ], &[], None)
     }
 
     /// Materialize the glossary as an editable [`TableInMemory`] for the UI.

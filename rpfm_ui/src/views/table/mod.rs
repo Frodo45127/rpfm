@@ -1369,10 +1369,10 @@ impl TableView {
 
     /// Synthetic [`Definition`] for the Dependency Manager pseudo-table.
     fn dependency_manager_definition() -> Definition {
-        let mut definition = Definition::new(-1, None);
-        definition.fields_mut().push(Field { name: "Load before ingame?".to_owned(), field_type: FieldType::Boolean, is_key: true, ..Default::default() });
-        definition.fields_mut().push(Field { name: "Parent Packs".to_owned(), field_type: FieldType::StringU8, is_key: true, ..Default::default() });
-        definition
+        Definition::new_with_fields(-1, &[
+            Field { name: "Load before ingame?".to_owned(), field_type: FieldType::Boolean, is_key: true, ..Default::default() },
+            Field { name: "Parent Packs".to_owned(), field_type: FieldType::StringU8, is_key: true, ..Default::default() },
+        ], &[], None)
     }
 
     /// This function returns a reference to the definition of this table.
@@ -1834,7 +1834,7 @@ impl TableView {
             }
             realer_cells.reverse();
 
-            let fields_processed = self.table_definition().fields_processed();
+            let fields_processed = self.table_definition().fields_processed().to_vec();
             self.set_data_on_cells(&realer_cells, 0, &[], &fields_processed, app_ui, pack_file_contents_ui);
         }
     }
@@ -1902,7 +1902,7 @@ impl TableView {
         }
         realer_cells.reverse();
 
-        let fields_processed = self.table_definition().fields_processed();
+        let fields_processed = self.table_definition().fields_processed().to_vec();
         self.set_data_on_cells(&realer_cells, 0, &[], &fields_processed, app_ui, pack_file_contents_ui);
     }
 
@@ -1920,7 +1920,7 @@ impl TableView {
             } else { 0 }
         } else { 0 };
 
-        let fields_processed = self.table_definition().fields_processed();
+        let fields_processed = self.table_definition().fields_processed().to_vec();
         let is_i64 = indexes_sorted.iter().map(|x| x.column()).all(|x| fields_processed[x as usize].field_type() == &FieldType::I64 || fields_processed[x as usize].field_type() == &FieldType::OptionalI64);
 
         if let Some(value) = self.create_generate_ids_dialog(initial_value, is_i64) {
@@ -1957,7 +1957,7 @@ impl TableView {
         // Create a string to keep all the values in a TSV format (x\tx\tx) and populate it.
         let mut copy = String::new();
         let mut row = 0;
-        let fields_processed = self.table_definition.read().unwrap().fields_processed();
+        let fields_processed = self.table_definition.read().unwrap().fields_processed().to_vec();
         for (cycle, model_index) in indexes_sorted.iter().enumerate() {
             if model_index.is_valid() {
 
@@ -2169,7 +2169,7 @@ impl TableView {
             (self.table_filter.map_to_source(*index), text)
         }).collect::<Vec<(CppBox<QModelIndex>, &str)>>();
 
-        let fields_processed = self.table_definition().fields_processed();
+        let fields_processed = self.table_definition().fields_processed().to_vec();
         self.set_data_on_cells(&real_cells, 0, &[], &fields_processed, app_ui, pack_file_contents_ui);
     }
 
@@ -2192,7 +2192,7 @@ impl TableView {
             }
         }).collect::<Vec<(CppBox<QModelIndex>, &str)>>();
 
-        let fields_processed = self.table_definition().fields_processed();
+        let fields_processed = self.table_definition().fields_processed().to_vec();
         self.set_data_on_cells(&real_cells, 0, &[], &fields_processed, app_ui, pack_file_contents_ui);
     }
 
@@ -2308,7 +2308,7 @@ impl TableView {
             update_undo_model(&self.table_model_ptr(), &self.undo_model_ptr());
         }
 
-        self.set_data_on_cells(&real_cells, added_rows, &[], &fields_processed, app_ui, pack_file_contents_ui);
+        self.set_data_on_cells(&real_cells, added_rows, &[], fields_processed, app_ui, pack_file_contents_ui);
     }
 
     /// Function to undo/redo an operation in the table.
@@ -2507,9 +2507,9 @@ impl TableView {
                     // If it's the same row as before, take the row from the table data and append it.
                     Some(row) if current_row == row => {
                         let entry = table_data.last_mut().unwrap();
-                        let data = self.get_escaped_lua_string_from_index(*index, &fields_processed);
+                        let data = self.get_escaped_lua_string_from_index(*index, fields_processed);
                         if entry.0.is_none() && fields_processed[index.column() as usize].is_key(patches) && has_keys {
-                            entry.0 = Some(self.escape_string_from_index(*index, &fields_processed));
+                            entry.0 = Some(self.escape_string_from_index(*index, fields_processed));
                         }
                         entry.1.push(data);
                     }
@@ -2517,19 +2517,19 @@ impl TableView {
                     // If it's not the same row as before, we create it as a new row.
                     Some(_) => {
                         let mut entry = (None, vec![]);
-                        let data = self.get_escaped_lua_string_from_index(*index, &fields_processed);
+                        let data = self.get_escaped_lua_string_from_index(*index, fields_processed);
                         entry.1.push(data.to_string());
                         if entry.0.is_none() && fields_processed[index.column() as usize].is_key(patches) && has_keys {
-                            entry.0 = Some(self.escape_string_from_index(*index, &fields_processed));
+                            entry.0 = Some(self.escape_string_from_index(*index, fields_processed));
                         }
                         table_data.push(entry);
                     }
                     None => {
                         let mut entry = (None, vec![]);
-                        let data = self.get_escaped_lua_string_from_index(*index, &fields_processed);
+                        let data = self.get_escaped_lua_string_from_index(*index, fields_processed);
                         entry.1.push(data.to_string());
                         if entry.0.is_none() && fields_processed[index.column() as usize].is_key(patches) && has_keys {
-                            entry.0 = Some(self.escape_string_from_index(*index, &fields_processed));
+                            entry.0 = Some(self.escape_string_from_index(*index, fields_processed));
                         }
                         table_data.push(entry);
                     }
@@ -2874,7 +2874,7 @@ impl TableView {
         rows_to_delete.dedup();
         rows_to_delete.reverse();
 
-        let fields_processed = self.table_definition().fields_processed();
+        let fields_processed = self.table_definition().fields_processed().to_vec();
         self.set_data_on_cells(&[], 0, &rows_to_delete, &fields_processed, app_ui, pack_file_contents_ui);
     }
 
@@ -2883,7 +2883,7 @@ impl TableView {
 
         // Get the selected indexes, the split them in two groups: one with full rows selected and another with single cells selected.
         let indexes_sorted = get_real_indexes_from_visible_selection_sorted(&self.table_view_ptr(), &self.table_view_filter_ptr());
-        let fields_processed = self.table_definition().fields_processed();
+        let fields_processed = self.table_definition().fields_processed().to_vec();
 
         if delete_all_rows {
             let mut rows_to_delete: Vec<i32> = indexes_sorted.iter().filter_map(|x| if x.is_valid() { Some(x.row()) } else { None }).collect();
@@ -3426,7 +3426,7 @@ impl TableView {
                 .map(|(_, new_value, row, column)| (self.table_model.index_2a(*row, *column), &**new_value))
                 .collect::<Vec<(CppBox<QModelIndex>, &str)>>();
 
-            let fields_processed = self.table_definition().fields_processed();
+            let fields_processed = self.table_definition().fields_processed().to_vec();
             self.set_data_on_cells(&real_cells, 0, &[], &fields_processed, app_ui, pack_file_contents_ui);
 
             // Stop the timer again.

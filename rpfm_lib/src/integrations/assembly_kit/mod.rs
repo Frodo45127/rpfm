@@ -261,13 +261,13 @@ pub fn update_schema_from_raw_files(
 
                         // Check in the extra relationships for missing relations.
                         if let Some(ref raw_extra_relationships) = raw_extra_relationships {
-                            raw_extra_relationships.relationships.iter()
+                            definition.edit_fields(|fields| raw_extra_relationships.relationships.iter()
                                 .filter(|relation| relation.table_name == name)
                                 .for_each(|relation| {
-                                    if let Some(field) = definition.fields_mut().iter_mut().find(|x| x.name() == relation.column_name) {
+                                    if let Some(field) = fields.iter_mut().find(|x| x.name() == relation.column_name) {
                                         field.set_is_reference(Some((relation.foreign_table_name.to_owned(), relation.foreign_column_name.to_owned())));
                                     }
-                                }
+                                })
                             );
                         }
 
@@ -276,7 +276,7 @@ pub fn update_schema_from_raw_files(
                         }
 
                         // Not the best way to do it, but it works.
-                        definition.patches_mut().clear();
+                        let mut unused_patches = DefinitionPatch::new();
 
                         // Add unused field info.
                         for raw_field in &raw_definition.fields {
@@ -284,9 +284,14 @@ pub fn update_schema_from_raw_files(
                                 let mut hashmap = HashMap::new();
                                 hashmap.insert("unused".to_owned(), "true".to_owned());
 
-                                definition.patches_mut().insert(raw_field.name.to_string(), hashmap);
+                                unused_patches.insert(raw_field.name.to_string(), hashmap);
                             }
                         }
+
+                        definition.set_patches(unused_patches);
+
+                        // Lookup patches are collected apart, as the processed fields they're based on borrow the definition.
+                        let mut lookup_patches = DefinitionPatch::new();
 
                         // Update the patches with description data if found. We only support single-key tables for this.
                         if raw_definition.fields.iter().any(|x| x.name == "description") &&
@@ -325,7 +330,7 @@ pub fn update_schema_from_raw_files(
                                 let mut hashmap = HashMap::new();
                                 hashmap.insert("lookup_hardcoded".to_owned(), data.join(":::::"));
 
-                                definition.patches_mut().insert(key_field.name().to_string(), hashmap);
+                                lookup_patches.insert(key_field.name().to_string(), hashmap);
                             }
                         }
 
@@ -344,7 +349,7 @@ pub fn update_schema_from_raw_files(
                                     ];
 
                                     hashmap.insert("lookup_hardcoded".to_owned(), data.join(":::::"));
-                                    definition.patches_mut().insert(field.name().to_string(), hashmap);
+                                    lookup_patches.insert(field.name().to_string(), hashmap);
                                 }
                             }
 
@@ -358,10 +363,12 @@ pub fn update_schema_from_raw_files(
                                     ];
 
                                     hashmap.insert("lookup_hardcoded".to_owned(), data.join(":::::"));
-                                    definition.patches_mut().insert(field.name().to_string(), hashmap);
+                                    lookup_patches.insert(field.name().to_string(), hashmap);
                                 }
                             }
                         }
+
+                        definition.edit_patches(|patches| patches.extend(lookup_patches));
                     }
                 }
             }

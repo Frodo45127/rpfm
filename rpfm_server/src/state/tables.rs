@@ -721,7 +721,7 @@ impl SessionState {
     /// a row that doesn't exist, or a value that doesn't fit its column.
     pub fn edit_table(&mut self, request: &EditTable) -> Result<TableEdited> {
         let file = FileRef { source: FileSource::Pack(request.pack.clone()), path: request.path.clone() };
-        let fields = self.table(&file)?.definition().fields_processed();
+        let fields = self.table(&file)?.definition().fields_processed().to_vec();
         let copied = self.copied_row_values(&request.edits, &fields)?;
 
         let row_count = match self.decoded_table_file(&file)?.decoded_mut()? {
@@ -816,8 +816,9 @@ impl SessionState {
             .ok_or_else(|| ApiError::DefinitionNotFound(request.table_name.clone()))?
             .clone();
 
-        let field = definition.fields_processed().into_iter()
+        let field = definition.fields_processed().iter()
             .find(|field| field.name() == request.column)
+            .cloned()
             .ok_or_else(|| ApiError::InvalidParams(format!("The table has no column named {}.", request.column)))?;
 
         let changes = [(field, request.old_value.clone(), request.new_value.clone())];

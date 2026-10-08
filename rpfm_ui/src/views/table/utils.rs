@@ -229,7 +229,7 @@ pub unsafe fn get_new_row(table_definition: &Definition) -> CppBox<QListOfQStand
     let qlist = QListOfQStandardItem::new_0a();
     let patches = Some(table_definition.patches());
     for field in table_definition.fields_processed() {
-        let item = get_default_item_from_field(&field, patches);
+        let item = get_default_item_from_field(field, patches);
         qlist.append_q_standard_item(&item.into_ptr().as_mut_raw_ptr());
     }
     qlist
@@ -760,7 +760,7 @@ pub unsafe fn build_columns(
 
     let patches = Some(definition.patches());
 
-    let tooltips = get_column_tooltips(referencing_columns, &fields_processed, loc_fields, patches, table_name);
+    let tooltips = get_column_tooltips(referencing_columns, fields_processed, loc_fields, patches, table_name);
     let adjust_columns = settings_bool(ADJUST_COLUMNS_TO_CONTENT);
     let header = table_view.horizontal_header();
 

@@ -315,25 +315,27 @@ impl AnimFragmentBattle {
     ///
     /// A tuple of `(entry_definition, anim_ref_definition)`.
     pub fn definitions() -> (Definition, Definition) {
-        let mut anim_refs_definition = Definition::default();
-        anim_refs_definition.fields_mut().push(Field { name: "file_path".to_string(), field_type: FieldType::StringU8, ..Default::default() });
-        anim_refs_definition.fields_mut().push(Field { name: "meta_file_path".to_string(), field_type: FieldType::StringU8, ..Default::default() });
-        anim_refs_definition.fields_mut().push(Field { name: "snd_file_path".to_string(), field_type: FieldType::StringU8, ..Default::default() });
+        let anim_refs_definition = Definition::new_with_fields(0, &[
+            Field { name: "file_path".to_string(), field_type: FieldType::StringU8, ..Default::default() },
+            Field { name: "meta_file_path".to_string(), field_type: FieldType::StringU8, ..Default::default() },
+            Field { name: "snd_file_path".to_string(), field_type: FieldType::StringU8, ..Default::default() },
+        ], &[], None);
 
-        let mut definition = Definition::default();
-        definition.fields_mut().push(Field { name: "animation_id".to_string(), field_type: FieldType::I32, is_key: true, ..Default::default() });
-        definition.fields_mut().push(Field { name: "blend_in_time".to_string(), field_type: FieldType::F32, ..Default::default() });
-        definition.fields_mut().push(Field { name: "selection_weight".to_string(), field_type: FieldType::F32, ..Default::default() });
-        definition.fields_mut().push(Field { name: "weapon_bone".to_string(), field_type: FieldType::I32, is_bitwise: 6, ..Default::default() });
-        definition.fields_mut().push(Field { name: "anim_refs".to_string(), field_type: FieldType::SequenceU32(Box::new(anim_refs_definition.clone())), ..Default::default() });
-        definition.fields_mut().push(Field { name: "slot_id".to_string(), field_type: FieldType::I32, is_key: true, ..Default::default() });
-        definition.fields_mut().push(Field { name: "filename".to_string(), field_type: FieldType::StringU8, ..Default::default() });
-        definition.fields_mut().push(Field { name: "metadata".to_string(), field_type: FieldType::StringU8, ..Default::default() });
-        definition.fields_mut().push(Field { name: "metadata_sound".to_string(), field_type: FieldType::StringU8, ..Default::default() });
-        definition.fields_mut().push(Field { name: "skeleton_type".to_string(), field_type: FieldType::StringU8, ..Default::default() });
-        definition.fields_mut().push(Field { name: "uk_3".to_string(), field_type: FieldType::I32, ..Default::default() });
-        definition.fields_mut().push(Field { name: "uk_4".to_string(), field_type: FieldType::StringU8, ..Default::default() });
-        definition.fields_mut().push(Field { name: "single_frame_variant".to_string(), field_type: FieldType::Boolean, ..Default::default() });
+        let definition = Definition::new_with_fields(0, &[
+            Field { name: "animation_id".to_string(), field_type: FieldType::I32, is_key: true, ..Default::default() },
+            Field { name: "blend_in_time".to_string(), field_type: FieldType::F32, ..Default::default() },
+            Field { name: "selection_weight".to_string(), field_type: FieldType::F32, ..Default::default() },
+            Field { name: "weapon_bone".to_string(), field_type: FieldType::I32, is_bitwise: 6, ..Default::default() },
+            Field { name: "anim_refs".to_string(), field_type: FieldType::SequenceU32(Box::new(anim_refs_definition.clone())), ..Default::default() },
+            Field { name: "slot_id".to_string(), field_type: FieldType::I32, is_key: true, ..Default::default() },
+            Field { name: "filename".to_string(), field_type: FieldType::StringU8, ..Default::default() },
+            Field { name: "metadata".to_string(), field_type: FieldType::StringU8, ..Default::default() },
+            Field { name: "metadata_sound".to_string(), field_type: FieldType::StringU8, ..Default::default() },
+            Field { name: "skeleton_type".to_string(), field_type: FieldType::StringU8, ..Default::default() },
+            Field { name: "uk_3".to_string(), field_type: FieldType::I32, ..Default::default() },
+            Field { name: "uk_4".to_string(), field_type: FieldType::StringU8, ..Default::default() },
+            Field { name: "single_frame_variant".to_string(), field_type: FieldType::Boolean, ..Default::default() },
+        ], &[], None);
 
         (definition, anim_refs_definition)
     }
