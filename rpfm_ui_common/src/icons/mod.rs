@@ -18,7 +18,7 @@ use cpp_core::Ref;
 
 use std::sync::atomic::AtomicPtr;
 
-use rpfm_lib::files::{anim, animpack, anim_fragment_battle, anims_table, atlas, audio, esf, bmd, bmd_vegetation, dat, FileType, font, group_formations, hlsl_compiled, image, loc, matched_combat, pack, portrait_settings, rigidmodel, sound_bank, text, text::*, unit_variant, video, uic};
+use rpfm_lib::files::{anim, animpack, anim_fragment_battle, anims_table, atlas, audio, esf, bmd, bmd_vegetation, dat, FileType, font, group_formations, hlsl_compiled, image, loc, matched_combat, pack, portrait_settings, rigidmodel, sound_bank, text, text::*, trade_routes, unit_variant, video, uic};
 use rpfm_lib::{REGEX_DB, REGEX_PORTRAIT_SETTINGS};
 
 use crate::{ASSETS_PATH, ROOT_NODE_TYPE_EDITABLE_PACKFILE, ROOT_NODE_TYPE_MYMOD_PACKFILE, ROOT_NODE_TYPE};
@@ -60,6 +60,7 @@ pub struct Icons {
     pub font: AtomicPtr<QIcon>,
     pub group_formations: AtomicPtr<QIcon>,
     pub hlsl_compiled: AtomicPtr<QIcon>,
+    pub trade_routes: AtomicPtr<QIcon>,
 
     pub image_generic: AtomicPtr<QIcon>,
     pub image_png: AtomicPtr<QIcon>,
@@ -130,6 +131,7 @@ impl Icons {
             font: atomic_from_cpp_box(Self::load_icon("esf", "application-x-font-type1")),
             group_formations: atomic_from_cpp_box(Self::load_icon("group_formations", "dialog-transform")),
             hlsl_compiled: atomic_from_cpp_box(Self::load_icon("hlsl_compiled", "application-x-macbinary")),
+            trade_routes: atomic_from_cpp_box(Self::load_icon("trade_routes", "application-x-macbinary")),
             image_generic: atomic_from_cpp_box(Self::load_icon("image_generic", "image-x-generic")),
             image_png: atomic_from_cpp_box(Self::load_icon("image_png", "image-png")),
             image_jpg: atomic_from_cpp_box(Self::load_icon("image_jpg", "image-jpeg")),
@@ -328,6 +330,10 @@ impl Icons {
                     &self.hlsl_compiled
                 }
 
+                else if path.ends_with(trade_routes::EXTENSION) {
+                    &self.trade_routes
+                }
+
                 // If we reach this... we're clueless. Leave it unknown.
                 else {
                     &self.file
@@ -409,6 +415,7 @@ impl Icons {
                             None => &self.text_generic,
                         }
                     },
+                    FileType::TradeRoutes => &self.trade_routes,
                     FileType::UIC => &self.uic,
                     FileType::UnitVariant => &self.unit_variant,
                     FileType::Video => &self.video,

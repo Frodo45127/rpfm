@@ -78,6 +78,7 @@
 //! | SoundEvents            | Limited            | Limited            |
 //! | [`Text`]               | Yes                | Yes                |
 //! | [`TileDatabase`]       | Yes                | Yes                |
+//! | [`TradeRoutes`]        | Yes                | Yes                |
 //! | [`UIC`]                | No                 | No                 |
 //! | [`UnitVariant`]        | Yes                | Yes                |
 //! | [`Video`]              | Yes                | Yes                |
@@ -131,6 +132,7 @@
 //! [`SoundEvents`]: crate::files::sound_events::SoundEvents
 //! [`Text`]: crate::files::text::Text
 //! [`TileDatabase`]: crate::files::tile_database::TileDatabase
+//! [`TradeRoutes`]: crate::files::trade_routes::TradeRoutes
 //! [`UIC`]: crate::files::uic::UIC
 //! [`UnitVariant`]: crate::files::unit_variant::UnitVariant
 //! [`Unknown`]: crate::files::unknown::Unknown
@@ -185,6 +187,7 @@ use self::portrait_settings::PortraitSettings;
 use self::rigidmodel::RigidModel;
 use self::sound_bank::SoundBank;
 use self::text::Text;
+use self::trade_routes::TradeRoutes;
 use self::uic::UIC;
 use self::unit_variant::UnitVariant;
 use self::unknown::Unknown;
@@ -218,6 +221,7 @@ pub mod sound_events;
 pub mod table;
 pub mod text;
 pub mod tile_database;
+pub mod trade_routes;
 pub mod uic;
 pub mod unit_variant;
 pub mod unknown;
@@ -396,6 +400,7 @@ pub enum RFileDecoded {
     RigidModel(RigidModel),
     SoundBank(SoundBank),
     Text(Text),
+    TradeRoutes(TradeRoutes),
     UIC(UIC),
     UnitVariant(UnitVariant),
     Unknown(Unknown),
@@ -453,6 +458,7 @@ pub enum FileType {
     RigidModel,
     SoundBank,
     Text,
+    TradeRoutes,
     UIC,
     UnitVariant,
     Video,
@@ -2138,6 +2144,7 @@ impl RFile {
             (FileType::RigidModel, &RFileDecoded::RigidModel(_)) |
             (FileType::SoundBank, &RFileDecoded::SoundBank(_)) |
             (FileType::Text, &RFileDecoded::Text(_)) |
+            (FileType::TradeRoutes, &RFileDecoded::TradeRoutes(_)) |
             (FileType::UIC, &RFileDecoded::UIC(_)) |
             (FileType::UnitVariant, &RFileDecoded::UnitVariant(_)) |
             (FileType::Video, &RFileDecoded::Video(_)) |
@@ -2225,6 +2232,7 @@ impl RFile {
                     FileType::RigidModel => RFileDecoded::RigidModel(RigidModel::decode(&mut data, &Some(extra_data))?),
                     FileType::SoundBank => RFileDecoded::SoundBank(SoundBank::decode(&mut data, &Some(extra_data))?),
                     FileType::Text => RFileDecoded::Text(Text::decode(&mut data, &Some(extra_data))?),
+                    FileType::TradeRoutes => RFileDecoded::TradeRoutes(TradeRoutes::decode(&mut data, &Some(extra_data))?),
                     FileType::UIC => RFileDecoded::UIC(UIC::decode(&mut data, &Some(extra_data))?),
                     FileType::UnitVariant => RFileDecoded::UnitVariant(UnitVariant::decode(&mut data, &Some(extra_data))?),
                     FileType::Unknown => RFileDecoded::Unknown(Unknown::decode(&mut data, &Some(extra_data))?),
@@ -2287,6 +2295,7 @@ impl RFile {
                     FileType::RigidModel => RFileDecoded::RigidModel(RigidModel::decode(&mut data, &Some(extra_data))?),
                     FileType::SoundBank => RFileDecoded::SoundBank(SoundBank::decode(&mut data, &Some(extra_data))?),
                     FileType::Text => RFileDecoded::Text(Text::decode(&mut data, &Some(extra_data))?),
+                    FileType::TradeRoutes => RFileDecoded::TradeRoutes(TradeRoutes::decode(&mut data, &Some(extra_data))?),
                     FileType::UIC => RFileDecoded::UIC(UIC::decode(&mut data, &Some(extra_data))?),
                     FileType::UnitVariant => RFileDecoded::UnitVariant(UnitVariant::decode(&mut data, &Some(extra_data))?),
                     FileType::Unknown => RFileDecoded::Unknown(Unknown::decode(&mut data, &Some(extra_data))?),
@@ -2351,6 +2360,7 @@ impl RFile {
                     RFileDecoded::RigidModel(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::SoundBank(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::Text(data) => data.encode(&mut buffer, extra_data)?,
+                    RFileDecoded::TradeRoutes(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::UIC(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::UnitVariant(data) => data.encode(&mut buffer, extra_data)?,
                     RFileDecoded::Unknown(data) => data.encode(&mut buffer, extra_data)?,
@@ -2632,6 +2642,10 @@ impl RFile {
 
         else if path.ends_with(hlsl_compiled::EXTENSION) {
             self.file_type = FileType::HlslCompiled;
+        }
+
+        else if path.ends_with(trade_routes::EXTENSION) {
+            self.file_type = FileType::TradeRoutes;
         }
 
         // If we reach this... we're clueless. Leave it unknown.
@@ -3093,6 +3107,7 @@ impl Display for FileType {
             FileType::RigidModel => write!(f, "RigidModel"),
             FileType::SoundBank => write!(f, "SoundBank"),
             FileType::Text => write!(f, "Text"),
+            FileType::TradeRoutes => write!(f, "Trade Routes"),
             FileType::UIC => write!(f, "UI Component"),
             FileType::UnitVariant => write!(f, "Unit Variant"),
             FileType::Unknown => write!(f, "Unknown"),
@@ -3128,6 +3143,7 @@ impl From<&str> for FileType {
             "RigidModel" => FileType::RigidModel,
             "SoundBank" => FileType::SoundBank,
             "Text" => FileType::Text,
+            "TradeRoutes" => FileType::TradeRoutes,
             "UIC" => FileType::UIC,
             "UnitVariant" => FileType::UnitVariant,
             "Unknown" => FileType::Unknown,
@@ -3164,6 +3180,7 @@ impl From<FileType> for String {
             FileType::RigidModel => "RigidModel",
             FileType::SoundBank => "SoundBank",
             FileType::Text => "Text",
+            FileType::TradeRoutes => "TradeRoutes",
             FileType::UIC => "UIC",
             FileType::UnitVariant => "UnitVariant",
             FileType::Unknown => "Unknown",
@@ -3199,6 +3216,7 @@ impl From<&RFileDecoded> for FileType {
             RFileDecoded::RigidModel(_) => Self::RigidModel,
             RFileDecoded::SoundBank(_) => Self::SoundBank,
             RFileDecoded::Text(_) => Self::Text,
+            RFileDecoded::TradeRoutes(_) => Self::TradeRoutes,
             RFileDecoded::UIC(_) => Self::UIC,
             RFileDecoded::UnitVariant(_) => Self::UnitVariant,
             RFileDecoded::Unknown(_) => Self::Unknown,

@@ -249,6 +249,16 @@ pub enum RLibError {
     #[error("Unsupported signature: {0}.")]
     EncodingESFUnsupportedSignature(String),
 
+    // Trade Routes Errors
+
+    /// Trade routes (PTD) file signature not supported.
+    #[error("Unsupported trade routes signature: {0:#X?}.")]
+    DecodingPTDUnsupportedSignature(Vec<u8>),
+
+    /// Trade routes (PTD) file version not supported.
+    #[error("Unsupported trade routes version: {0}.")]
+    DecodingPTDUnsupportedVersion(u32),
+
     // Font File Errors
 
     /// Font file signature not supported.

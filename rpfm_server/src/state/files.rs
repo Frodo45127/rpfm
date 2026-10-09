@@ -366,6 +366,7 @@ impl SessionState {
             RFileDecoded::HlslCompiled(_) |
             RFileDecoded::Pack(_) |
             RFileDecoded::SoundBank(_) |
+            RFileDecoded::TradeRoutes(_) |
             RFileDecoded::Unknown(_) => ViewData::Unsupported,
             decoded @ (RFileDecoded::AnimFragmentBattle(_) |
                 RFileDecoded::AnimsTable(_) |
