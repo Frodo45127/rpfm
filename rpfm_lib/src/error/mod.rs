@@ -249,7 +249,7 @@ pub enum RLibError {
     #[error("Unsupported signature: {0}.")]
     EncodingESFUnsupportedSignature(String),
 
-    // Trade Routes Errors
+    // Campaign Map Data Errors
 
     /// Trade routes (PTD) file signature not supported.
     #[error("Unsupported trade routes signature: {0:#X?}.")]
@@ -258,6 +258,10 @@ pub enum RLibError {
     /// Trade routes (PTD) file version not supported.
     #[error("Unsupported trade routes version: {0}.")]
     DecodingPTDUnsupportedVersion(u32),
+
+    /// Campaign map data missing or malformed.
+    #[error("Invalid campaign map data: {0}")]
+    CampaignMapDataError(String),
 
     // Font File Errors
 

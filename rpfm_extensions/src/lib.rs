@@ -71,6 +71,7 @@
 //!
 //! - Campaign map coordinate systems (world, raw map units, hex cells)
 //! - Trade network from `trade_routes.ptd`
+//! - Settlement slot and sprawl layouts from `map_data.esf`
 //!
 //! ## Translation Support
 //!

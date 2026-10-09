@@ -22,9 +22,11 @@
 //!
 //! - [`coords`]: coordinate systems of the campaign map (world, raw map units, hex cells).
 //! - [`trade`]: the trade network (`CAMPAIGN_TRADE_MANAGER` splines and routes), from `trade_routes.ptd`.
+//! - [`settlements`]: settlement layouts (slots and sprawl cells of each region).
 
 pub mod coords;
-#[cfg(test)] mod esf_nav;
+mod esf_nav;
+pub mod settlements;
 pub mod trade;
 
 #[cfg(test)] mod startpos_test;
