@@ -65,6 +65,13 @@
 //! - Remove unnecessary XML and auxiliary files
 //! - Datacore management for `twad_key_deletes` tables
 //!
+//! ## Startpos Generation
+//!
+//! The [`startpos`] module rebuilds campaign startpos files without the game:
+//!
+//! - Campaign map coordinate systems (world, raw map units, hex cells)
+//! - Trade network from `trade_routes.ptd`
+//!
 //! ## Translation Support
 //!
 //! The [`translator`] module assists with mod localization:
@@ -91,6 +98,7 @@ pub mod lua;
 pub mod merge;
 pub mod optimizer;
 pub mod search;
+pub mod startpos;
 pub mod translator;
 
 /// Current version of the rpfm_extensions crate.
