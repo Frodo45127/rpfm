@@ -13,9 +13,9 @@
 //! Records without a generator yet keep the values of their layouts.
 
 use rpfm_lib::error::Result;
-use rpfm_lib::files::esf::{BoolNode, Coordinates2DNode, ESF, F32Node, NodeType, U32Node};
+use rpfm_lib::files::esf::{BoolNode, Coordinates2DNode, ESF, F32Node, I32Node, NodeType, U32Node};
 
-use super::layout::MAX_COMPACT_U32;
+use super::layout::{COMPACT_I32, MAX_COMPACT_U32};
 use super::missions::VictoryObjectives;
 use super::trade::TradeNetwork;
 use super::world::writer::forces::ForcePlan;
@@ -113,6 +113,14 @@ pub(super) fn u32_node(value: u32) -> NodeType {
     node.set_value(value);
     node.set_optimized(value <= MAX_COMPACT_U32);
     NodeType::U32(node)
+}
+
+/// Returns a signed leaf, compact when the value fits.
+pub(super) fn i32_node(value: i32) -> NodeType {
+    let mut node = I32Node::default();
+    node.set_value(value);
+    node.set_optimized(COMPACT_I32.contains(&value));
+    NodeType::I32(node)
 }
 
 /// Returns a float leaf, compact when it's zero.

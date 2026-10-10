@@ -88,7 +88,7 @@ pub const VARIANT_ARRAYS: [&str; 3] = ["CAI_BDI_POOL_BELIEFS", "CAI_BDI_POOL_DES
 pub(crate) const MAX_COMPACT_U32: u32 = 0xFF_FFFF;
 
 /// Signed values with a compact ESF encoding (24 bits).
-const COMPACT_I32: RangeInclusive<i32> = -0x80_0000..=0x7F_FFFF;
+pub(crate) const COMPACT_I32: RangeInclusive<i32> = -0x80_0000..=0x7F_FFFF;
 
 //---------------------------------------------------------------------------//
 //                              Types

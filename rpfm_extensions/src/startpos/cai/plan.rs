@@ -22,6 +22,7 @@ use getset::{CopyGetters, Getters};
 
 use std::collections::{HashMap, HashSet};
 
+use super::managers::{FACTION_DESIRES, REBEL_DESIRES};
 use super::map::MapRegion;
 use super::world_view::WorldView;
 
@@ -98,6 +99,11 @@ pub struct CaiPlan {
     /// Ids of each faction's government posts, in world order.
     #[getset(get = "pub")]
     posts: Vec<Vec<u32>>,
+
+    /// Ids of the AI managers of the factions owning regions or mobiles, in `factions` order (the rebels always have
+    /// one).
+    #[getset(get = "pub")]
+    managers: Vec<ManagerIds>,
 }
 
 /// What the id plan is built from.
@@ -115,6 +121,35 @@ pub struct PlanInputs<'a> {
 
     /// Number of trade splines of the map.
     pub trade_splines: usize,
+}
+
+/// Ids of a faction's AI manager.
+#[derive(Debug, Clone, Default, Getters, CopyGetters)]
+pub struct ManagerIds {
+
+    /// Position of its faction in the plan's factions.
+    #[getset(get_copy = "pub")]
+    faction: usize,
+
+    /// Ids of its desires, in creation order (see [`FACTION_DESIRES`]).
+    #[getset(get = "pub")]
+    desires: Vec<u32>,
+
+    /// Id of its faction-wide intention.
+    #[getset(get_copy = "pub")]
+    intention: u32,
+
+    /// Ids of its financial and strategic context beliefs (the rebels have none).
+    #[getset(get_copy = "pub")]
+    beliefs: Option<(u32, u32)>,
+
+    /// Ids of the skill management intentions of each of its characters, in character order.
+    #[getset(get = "pub")]
+    character_intentions: Vec<u32>,
+
+    /// Ids of the skill management intentions of each of its mobiles, in mobile order.
+    #[getset(get = "pub")]
+    mobile_intentions: Vec<u32>,
 }
 
 /// Ids of a faction.
@@ -284,6 +319,26 @@ impl CaiPlan {
         plan.faction_seas = world.seas().iter().map(|sea| sea.managers().iter().map(|_| plan.take(1)).collect()).collect();
         plan.governorships = world.factions().iter().map(|_| plan.take(1)).collect();
         plan.posts = world.factions().iter().map(|faction| faction.posts().iter().map(|_| plan.take(1)).collect()).collect();
+
+        let owners = world.regions().iter().map(|region| region.owner()).collect::<HashSet<_>>();
+        let counts = plan.characters.iter()
+            .map(|characters| (characters.len(), characters.iter().filter(|character| character.mobile().is_some()).count()))
+            .collect::<Vec<_>>();
+        for (position, (faction, (characters, mobiles))) in world.factions().iter().zip(counts).enumerate() {
+            if !owners.contains(&faction.id()) && mobiles == 0 {
+                continue;
+            }
+
+            let desires = (0..FACTION_DESIRES.len()).map(|_| plan.take(1)).collect();
+            let intention = plan.take(1);
+            let beliefs = Some((plan.take(1), plan.take(1)));
+            let character_intentions = (0..characters).map(|_| plan.take(1)).collect();
+            let mobile_intentions = (0..mobiles).map(|_| plan.take(1)).collect();
+            plan.managers.push(ManagerIds { faction: position, desires, intention, beliefs, character_intentions, mobile_intentions });
+        }
+        let desires = (0..REBEL_DESIRES).map(|_| plan.take(1)).collect();
+        let intention = plan.take(1);
+        plan.managers.push(ManagerIds { faction: plan.factions.len() - 1, desires, intention, ..Default::default() });
         plan
     }
 
