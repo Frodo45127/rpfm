@@ -121,9 +121,13 @@ pub enum Slot {
         /// Most common value, with its encoding.
         default: NodeType,
 
-        /// The leaf isn't in every instance. Optional leaves start out of a built record until they're set.
+        /// The leaf isn't in every instance.
         #[serde(default)]
         optional: bool,
+
+        /// The optional leaf is missing in most instances, so it starts out of a built record until it's set.
+        #[serde(default)]
+        absent_by_default: bool,
     },
 
     /// A child record.
@@ -337,8 +341,8 @@ impl<'a> RecordBuilder<'a> {
         let mut values = vec![];
         for slot in &self.record.slots {
             values.push(match slot {
-                Slot::Leaf { optional: true, .. } => None,
-                Slot::Leaf { default, optional: false, .. } => Some(default.clone()),
+                Slot::Leaf { absent_by_default: true, .. } => None,
+                Slot::Leaf { default, .. } => Some(default.clone()),
                 Slot::Record { optional: true, .. } => None,
                 Slot::Record { key, optional: false } => Some(NodeType::Record(Box::new(self.layout.default_record(&child_path(&self.path, key))?))),
             });
@@ -481,6 +485,48 @@ impl GroupBuilder<'_> {
         Ok(self)
     }
 
+    /// Replaces a string array leaf (ASCII or UTF-16).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the field doesn't exist or isn't a string array.
+    pub fn set_strings(&mut self, name: &str, values: Vec<String>) -> Result<&mut Self> {
+        let mut node = self.default_of(name)?;
+        match &mut node {
+            NodeType::AsciiArray(node) | NodeType::Utf16Array(node) => { *node = values; },
+            _ => return Err(self.wrong_type(name, &values)),
+        }
+        self.set(name, node)
+    }
+
+    /// Replaces a byte array leaf (`U8Array` or `I8Array`).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the field doesn't exist or isn't a byte array.
+    pub fn set_bytes(&mut self, name: &str, values: Vec<u8>) -> Result<&mut Self> {
+        let mut node = self.default_of(name)?;
+        match &mut node {
+            NodeType::U8Array(node) | NodeType::I8Array(node) => { *node = values; },
+            _ => return Err(self.wrong_type(name, &values)),
+        }
+        self.set(name, node)
+    }
+
+    /// Replaces an unsigned array leaf, keeping its encoding.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the field doesn't exist or isn't an unsigned array.
+    pub fn set_u32s(&mut self, name: &str, values: Vec<u32>) -> Result<&mut Self> {
+        let mut node = self.default_of(name)?;
+        match &mut node {
+            NodeType::U32Array(node) => { node.set_value(values); },
+            _ => return Err(self.wrong_type(name, &values)),
+        }
+        self.set(name, node)
+    }
+
     /// Leaves an optional leaf out of the record.
     ///
     /// # Errors
@@ -601,13 +647,15 @@ impl PathStats {
                     slots.push(Slot::Record { key, optional });
                 },
                 SlotStats::Leaf { values, .. } => {
-                    let optional = values.values().map(|(count, _)| count).sum::<usize>() < self.groups;
+                    let seen = values.values().map(|(count, _)| count).sum::<usize>();
+                    let optional = seen < self.groups;
+                    let absent_by_default = seen * 2 < self.groups;
                     offset += 1;
 
                     // The most common value is the default; ties go to the smallest text form, to stay deterministic.
                     let (_, (_, mut default)) = values.into_iter().max_by(|(text_a, (count_a, _)), (text_b, (count_b, _))| count_a.cmp(count_b).then_with(|| text_b.cmp(text_a))).expect("leaves have at least one value");
                     trim_default(&mut default);
-                    slots.push(Slot::Leaf { name: format!("{anchor}+{offset}"), default, optional });
+                    slots.push(Slot::Leaf { name: format!("{anchor}+{offset}"), default, optional, absent_by_default });
                 },
             }
         }

@@ -107,7 +107,7 @@ fn test_arrays_start_empty() {
 fn test_optional_leaves() {
     let short_item = record("ITEM", RecordNodeFlags::empty(), vec![vec![NodeType::U16(1), NodeType::U8(2)]]);
     let long_item = record("ITEM", RecordNodeFlags::empty(), vec![vec![NodeType::U16(1), NodeType::Ascii("extra".to_owned()), NodeType::U8(2)]]);
-    let items = vec![vec![short_item.clone()], vec![long_item]];
+    let items = vec![vec![short_item.clone()], vec![short_item.clone()], vec![long_item]];
     let mut esf = ESF::default();
     esf.set_root_node(record("ROOT", RecordNodeFlags::empty(), vec![vec![record("ITEMS", RecordNodeFlags::HAS_NESTED_BLOCKS, items)]]));
     let layout = StartposLayout::from_esf(&esf).unwrap();
