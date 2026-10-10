@@ -12,7 +12,8 @@
 //! (`REGIONS_DATA/theatres/CAMPAIGN_THEATRE/HEX_MAP_DATA`).
 //!
 //! The data has 7 bytes per cell, row by row; the first byte is the index of the cell's region in
-//! `REGIONS_DATA/REGIONS_BLOCK` (land regions, then seas and rivers). The meaning of the other bytes isn't known.
+//! `REGIONS_DATA/REGIONS_BLOCK` (land regions, then seas and rivers), and the last two are hex-edge masks (the
+//! startpos builds the road pieces of settlement sprawls from them). The meaning of the other bytes isn't known.
 //! Verified on Attila's main campaign: every garrison stands on a cell of its own region. Prefer it over the map's
 //! lookup image, which also paints seas the map data leaves empty.
 
@@ -27,6 +28,9 @@ use super::settlements::{region_data_records, region_key};
 
 /// Bytes stored per cell.
 const BYTES_PER_CELL: usize = 7;
+
+/// Position of the first hex-edge mask in a cell's bytes (the second one follows it).
+const EDGE_MASKS_OFFSET: usize = 5;
 
 //---------------------------------------------------------------------------//
 //                              Types
@@ -104,10 +108,23 @@ impl RegionMap {
     ///
     /// `None` for cells outside the map or with an unknown region index.
     pub fn region_at(&self, cell: HexCell) -> Option<&str> {
+        let index = self.cell_offset(cell)?;
+        self.keys.get(usize::from(self.cells[index])).map(String::as_str)
+    }
+
+    /// Returns the two hex-edge masks of a cell (bit `n` stands for the `n`-th neighbour in the game's direction
+    /// order), or zeros for cells outside the map.
+    pub fn edge_masks(&self, cell: HexCell) -> [u8; 2] {
+        self.cell_offset(cell)
+            .map(|index| [self.cells[index + EDGE_MASKS_OFFSET], self.cells[index + EDGE_MASKS_OFFSET + 1]])
+            .unwrap_or_default()
+    }
+
+    /// Returns the position of a cell's first byte, or `None` for cells outside the map.
+    fn cell_offset(&self, cell: HexCell) -> Option<usize> {
         if u32::from(cell.x()) >= self.width || u32::from(cell.y()) >= self.height {
             return None;
         }
-        let index = (u32::from(cell.y()) * self.width + u32::from(cell.x())) as usize * BYTES_PER_CELL;
-        self.keys.get(usize::from(self.cells[index])).map(String::as_str)
+        Some((u32::from(cell.y()) * self.width + u32::from(cell.x())) as usize * BYTES_PER_CELL)
     }
 }

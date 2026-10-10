@@ -75,3 +75,23 @@ fn test_world_position_matches_game_placements() {
     assert!((odd_x - 300.144_35).abs() < 1e-3 && (odd_y - 419.520_08).abs() < 1e-3);
     assert!((even_x - 377.018_74).abs() < 1e-3 && (even_y - 381.311_7).abs() < 1e-3);
 }
+
+#[test]
+fn test_neighbour_mask_follows_the_direction_order() {
+    let cell = HexCell::new(803, 181);
+    let south = HexCell::new(803, 182);
+    let north = HexCell::new(803, 180);
+
+    assert_eq!(cell.neighbour_mask(|neighbour| neighbour == south || neighbour == north), 0b1001);
+    assert_eq!(HexCell::new(0, 0).neighbour_mask(|_| true), 0b11);
+}
+
+#[test]
+fn test_edge_pieces_match_the_game() {
+
+    // Masks of sprawl cells of a game-built startpos (`SPRAWL_HEX_MAP_DATA`), with their shape and rotation.
+    for (mask, shape, rotation) in [(0, 0, 0), (8, 1, 3), (18, 9, 1), (36, 9, 2), (13, 19, 2), (33, 3, 5), (50, 11, 4), (51, 15, 4), (53, 23, 4), (45, 27, 2)] {
+        let piece = EdgePiece::from_mask(mask);
+        assert_eq!((piece.shape(), piece.rotation()), (shape, rotation), "mask {mask}");
+    }
+}

@@ -46,6 +46,15 @@ const ODD_COLUMN_NEIGHBOURS: [(i32, i32); 6] = [(0, 1), (1, 1), (1, 0), (0, -1),
 /// Neighbour offsets of a cell in an even column, in the order the game uses (south first, then clockwise).
 const EVEN_COLUMN_NEIGHBOURS: [(i32, i32); 6] = [(0, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0)];
 
+/// Edges of a hex cell.
+pub const HEX_EDGES: u8 = 6;
+
+/// Edge mask with every edge set.
+const ALL_EDGES: u8 = 0b11_1111;
+
+/// Edge mask of the first two edges.
+const FIRST_TWO_EDGES: u8 = 0b11;
+
 //---------------------------------------------------------------------------//
 //                              Types
 //---------------------------------------------------------------------------//
@@ -60,6 +69,18 @@ pub struct HexCell {
 
     /// Row.
     y: u16,
+}
+
+/// A piece covering some edges of a hex cell (a road or a coast), as a shape and a rotation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, CopyGetters)]
+#[getset(get_copy = "pub")]
+pub struct EdgePiece {
+
+    /// Edge mask of the piece before rotating it.
+    shape: u8,
+
+    /// Edges the shape is rotated by, in the game's direction order.
+    rotation: u8,
 }
 
 //---------------------------------------------------------------------------//
@@ -89,12 +110,28 @@ impl HexCell {
     ///
     /// Up to six cells; neighbours that would fall outside the `u16` range are skipped.
     pub fn neighbours(&self) -> impl Iterator<Item = HexCell> + '_ {
+        (0..HEX_EDGES).filter_map(|direction| self.neighbour(direction))
+    }
+
+    /// Returns the neighbour in a direction (0 to 5, in the game's direction order).
+    ///
+    /// # Returns
+    ///
+    /// `None` if the neighbour would fall outside the `u16` range, or the direction is over 5.
+    pub fn neighbour(&self, direction: u8) -> Option<HexCell> {
         let offsets = if self.x % 2 == 1 { &ODD_COLUMN_NEIGHBOURS } else { &EVEN_COLUMN_NEIGHBOURS };
-        offsets.iter().filter_map(|(dx, dy)| {
-            let x = u16::try_from(i32::from(self.x) + dx).ok()?;
-            let y = u16::try_from(i32::from(self.y) + dy).ok()?;
-            Some(HexCell::new(x, y))
-        })
+        let (dx, dy) = offsets.get(usize::from(direction))?;
+        let x = u16::try_from(i32::from(self.x) + dx).ok()?;
+        let y = u16::try_from(i32::from(self.y) + dy).ok()?;
+        Some(HexCell::new(x, y))
+    }
+
+    /// Returns the edge mask of the neighbours matching a predicate: bit `n` stands for the `n`-th neighbour in the
+    /// game's direction order. Neighbours outside the `u16` range never match.
+    pub fn neighbour_mask(&self, mut predicate: impl FnMut(HexCell) -> bool) -> u8 {
+        (0..HEX_EDGES)
+            .filter(|&direction| self.neighbour(direction).is_some_and(&mut predicate))
+            .fold(0, |mask, direction| mask | 1 << direction)
     }
 
     /// Returns the cell followed by its neighbours, in the order the game stores slot footprints.
@@ -110,6 +147,29 @@ impl HexCell {
             f32::from(self.y) * CELL_RAW_HEIGHT + row_offset + RAW_OFFSET,
         )
     }
+}
+
+impl EdgePiece {
+
+    /// Splits an edge mask into a piece shape and a rotation.
+    ///
+    /// The shape is the smallest rotation of the mask with its first two edges set, or the smallest rotation if
+    /// none has them (so a straight road is `0b1001` and a bend is `0b11`). The rotation is the smallest one turning
+    /// the shape into the mask.
+    pub fn from_mask(mask: u8) -> Self {
+        let mask = mask & ALL_EDGES;
+        let rotations = (0..HEX_EDGES).map(|rotation| rotate_edges(mask, rotation));
+        let shape = rotations.clone().filter(|rotated| rotated & FIRST_TWO_EDGES == FIRST_TWO_EDGES).min()
+            .or_else(|| rotations.min())
+            .unwrap_or_default();
+        let rotation = (0..HEX_EDGES).find(|&rotation| rotate_edges(shape, rotation) == mask).unwrap_or_default();
+        Self { shape, rotation }
+    }
+}
+
+/// Rotates an edge mask by some edges, in the game's direction order.
+fn rotate_edges(mask: u8, edges: u8) -> u8 {
+    ((mask << edges) | (mask >> ((HEX_EDGES - edges) % HEX_EDGES))) & ALL_EDGES
 }
 
 /// Converts a world position to raw map units.

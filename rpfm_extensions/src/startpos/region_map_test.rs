@@ -30,6 +30,18 @@ fn test_region_at_reads_the_first_byte_of_each_cell() {
 }
 
 #[test]
+fn test_edge_masks_read_the_last_two_bytes_of_each_cell() {
+    let mut cells = vec![0; 2 * BYTES_PER_CELL];
+    cells[BYTES_PER_CELL + 5] = 9;
+    cells[BYTES_PER_CELL + 6] = 36;
+    let map = RegionMap { keys: vec!["land".to_owned()], width: 2, height: 1, cells };
+
+    assert_eq!(map.edge_masks(HexCell::new(1, 0)), [9, 36]);
+    assert_eq!(map.edge_masks(HexCell::new(0, 0)), [0, 0]);
+    assert_eq!(map.edge_masks(HexCell::new(2, 0)), [0, 0]);
+}
+
+#[test]
 #[ignore = "needs the game data, see startpos_test.rs"]
 fn test_garrisons_stand_in_their_region() {
     let map = RegionMap::from_map_data(&test_data_esf("map_data.esf")).unwrap();
