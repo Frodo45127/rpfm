@@ -104,6 +104,7 @@
 
 # Ignore the table patches.
 /table_patches/
+/startpos_layout/
 
 # Ignore the table profiles.
 /table_profiles/
