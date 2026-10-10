@@ -169,6 +169,10 @@ pub struct ProvinceView {
     #[getset(get = "pub")]
     key: String,
 
+    /// Keys of the province's regions.
+    #[getset(get = "pub")]
+    regions: Vec<String>,
+
     /// Each faction's part of the province.
     #[getset(get = "pub")]
     managers: Vec<FactionPartView>,
@@ -206,6 +210,10 @@ pub struct FactionPartView {
     /// Runtime ids of the faction's regions in it.
     #[getset(get = "pub")]
     regions: Vec<u32>,
+
+    /// Runtime id of the main region of a faction's part of a province (0 for seas).
+    #[getset(get_copy = "pub")]
+    main_region: u32,
 }
 
 //---------------------------------------------------------------------------//
@@ -248,6 +256,7 @@ impl WorldView {
             .map(|(entry, province)| Ok(ProvinceView {
                 id: province.u32("^+1").unwrap_or_default(),
                 key: entry.str("^+1").unwrap_or_default().to_owned(),
+                regions: reader.province_regions(&province_path, &province)?,
                 managers: reader.parts(&province_path, &province, "FACTION_PROVINCE_MANAGER_ARRAY", "FACTION_PROVINCE_MANAGER")?,
             }))
             .collect::<Result<Vec<_>>>()?;
@@ -421,6 +430,16 @@ impl<'l> Reader<'l> {
         })
     }
 
+    /// Reads the keys of a province's regions (its fertility's region list).
+    fn province_regions(&self, path: &str, province: &GroupView) -> Result<Vec<String>> {
+        let fertility_path = child_path(path, "PROVINCE_FERTILITY");
+        let Some(fertility) = province.record("PROVINCE_FERTILITY") else { return Ok(vec![]) };
+        let fertility = self.single(&fertility_path, fertility)?;
+        let block_path = child_path(&fertility_path, "REGION_BLOCK");
+        let Some(block) = fertility.record("REGION_BLOCK") else { return Ok(vec![]) };
+        Ok(self.layout.read(&block_path, block)?.iter().map(|entry| entry.str("^+1").unwrap_or_default().to_owned()).collect())
+    }
+
     /// Reads the faction parts of a province or sea.
     fn parts(&self, path: &str, parent: &GroupView, array_key: &str, item_key: &str) -> Result<Vec<FactionPartView>> {
         let array_path = child_path(path, array_key);
@@ -429,6 +448,7 @@ impl<'l> Reader<'l> {
                 id: part.u32("^+1").unwrap_or_default(),
                 faction: part.u32("^+2").unwrap_or_default(),
                 regions: part.u32s("^+3").map(<[u32]>::to_vec).unwrap_or_default(),
+                main_region: part.u32("CAMPAIGN_EFFECT_BUNDLES+4").unwrap_or_default(),
             }))
             .collect()
     }
