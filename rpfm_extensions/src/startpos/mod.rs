@@ -28,6 +28,7 @@
 //! - [`tables`]: access to the database tables the build reads.
 //! - [`vision`]: vision areas (line of sight and shroud) and their quad tree encoding.
 //! - [`world`]: the world stage (factions, characters, armies, regions, provinces and seas).
+//! - [`writer`]: the writer of whole startposes.
 
 pub mod coords;
 mod esf_nav;
@@ -38,5 +39,6 @@ pub mod tables;
 pub mod trade;
 pub mod vision;
 pub mod world;
+pub mod writer;
 
 #[cfg(test)] mod startpos_test;

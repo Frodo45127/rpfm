@@ -52,7 +52,7 @@ pub mod provinces;
 pub mod regions;
 pub mod sight;
 
-#[cfg(test)] mod writer_test;
+#[cfg(test)] pub(crate) mod writer_test;
 
 /// Path of the `WORLD` record.
 pub const WORLD_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/WORLD";

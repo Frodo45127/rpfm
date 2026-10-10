@@ -10,189 +10,58 @@
 
 //! Comparison of written records against game-built ones, field by field.
 
-use rpfm_lib::files::esf::{NodeType, RecordNode};
-
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use super::*;
-use crate::startpos::layout::Slot;
 use crate::startpos::esf_nav::child_record;
 use crate::startpos::world::legacy::legacy_test::{linked_character, name_ids, overrides_from_pack};
-use crate::startpos::startpos_test::{array_items, field_str, test_data_esf, test_data_tables, test_startpos, world, world_factions, world_regions, TEST_CAMPAIGN};
+use crate::startpos::startpos_test::{array_items, compare, field_str, Report, test_data_esf, test_data_tables, test_startpos, world, world_factions, world_regions, TEST_CAMPAIGN};
 
 /// Share of the game's `WORLD` fields the writer must match. Raised as the writer covers more records.
 const MIN_MATCH_RATIO: f64 = 0.93;
 
-/// Matches and totals of each field, by `path:field`.
-#[derive(Debug, Default)]
-struct Report {
-    fields: BTreeMap<String, (usize, usize)>,
-}
-
-impl Report {
-
-    /// Counts a comparison of a field.
-    fn count(&mut self, field: String, matches: bool) {
-        let entry = self.fields.entry(field).or_default();
-        entry.0 += usize::from(matches);
-        entry.1 += 1;
-    }
-
-    /// Returns the matches and the total over every field.
-    fn totals(&self) -> (usize, usize) {
-        self.fields.values().fold((0, 0), |(matches, total), (field_matches, field_total)| (matches + field_matches, total + field_total))
-    }
-
-    /// Returns the fields with mismatches, worst first, as text.
-    fn worst(&self, count: usize) -> String {
-        let mut fields = self.fields.iter().filter(|(_, (matches, total))| matches < total).collect::<Vec<_>>();
-        fields.sort_by_key(|(_, (matches, total))| std::cmp::Reverse(total - matches));
-        fields.iter().take(count).map(|(field, (matches, total))| format!("{matches}/{total} {field}")).collect::<Vec<_>>().join("\n")
-    }
-}
-
-/// Kinds of identity keys of an array group, tried in order until one is unique on both sides.
-#[derive(Debug, Clone, Copy)]
-enum KeyKind {
-
-    /// The group's first string, or its first record's first string.
-    String,
-
-    /// The group's first two leaves (ids, or the cell of cell lists, which the game stores in hash order).
-    Leaves,
-}
-
-/// Returns an identity key of an array group.
-fn group_key(group: &[NodeType], kind: KeyKind) -> Option<String> {
-    match kind {
-        KeyKind::String => group.iter().find_map(|node| match node {
-            NodeType::Ascii(value) | NodeType::Utf16(value) => Some(value.to_owned()),
-            _ => None,
-        }).or_else(|| group.iter().find_map(|node| match node {
-            NodeType::Record(record) => record.children().first().and_then(|first| group_key(first, KeyKind::String)),
-            _ => None,
-        })),
-        KeyKind::Leaves => {
-            let leaves = group.iter().filter(|node| !matches!(node, NodeType::Record(_))).take(2).collect::<Vec<_>>();
-            match leaves.as_slice() {
-                [] => group.iter().find_map(|node| match node {
-                    NodeType::Record(record) => record.children().first().and_then(|first| group_key(first, KeyKind::Leaves)),
-                    _ => None,
-                }),
-                leaves => Some(format!("{leaves:?}")),
-            }
-        },
-    }
-}
-
-/// Pairs the groups of two records: single groups together, by the first kind of key unique on both sides, by
-/// position otherwise.
-fn pair_groups<'a>(ours: &'a [Vec<NodeType>], theirs: &'a [Vec<NodeType>]) -> Vec<(Option<&'a [NodeType]>, &'a [NodeType])> {
-    if let ([our_group], [their_group]) = (ours, theirs) {
-        return vec![(Some(our_group.as_slice()), their_group.as_slice())];
-    }
-    for kind in [KeyKind::String, KeyKind::Leaves] {
-        let keys = |groups: &'a [Vec<NodeType>]| groups.iter().map(|group| group_key(group, kind)).collect::<Option<Vec<_>>>();
-        if let (Some(our_keys), Some(their_keys)) = (keys(ours), keys(theirs)) {
-            let ours_by_key = our_keys.iter().zip(ours).map(|(key, group)| (key.as_str(), group.as_slice())).collect::<HashMap<_, _>>();
-            let unique = ours_by_key.len() == ours.len() && their_keys.iter().collect::<std::collections::HashSet<_>>().len() == theirs.len();
-            if unique {
-                return their_keys.iter().zip(theirs).map(|(key, group)| (ours_by_key.get(key.as_str()).copied(), group.as_slice())).collect();
-            }
-        }
-    }
-    theirs.iter().enumerate().map(|(index, group)| (ours.get(index).map(Vec::as_slice), group.as_slice())).collect()
-}
-
-/// Compares a written record with a game-built one, adding every field to the report.
-fn compare(layout: &StartposLayout, ours: &RecordNode, theirs: &RecordNode, path: &str, report: &mut Report) {
-    let Some(record_layout) = layout.record(path) else {
-        report.count(format!("{path}:<no layout>"), false);
-        return;
-    };
-
-    for (our_group, their_group) in pair_groups(ours.children(), theirs.children()) {
-        let Some(our_group) = our_group else {
-            for _ in 0..leaf_count(their_group) {
-                report.count(format!("{path}:<missing group>"), false);
-            }
-            continue;
-        };
-
-        if record_layout.free_form() {
-            report.count(format!("{path}:<children>"), our_group == their_group);
-            continue;
-        }
-
-        let fields = |group: &'_ [NodeType]| -> HashMap<String, NodeType> {
-            record_layout.match_children(group).map(|slots| slots.into_iter().zip(group).map(|(slot, node)| (slot_id(slot), node.clone())).collect()).unwrap_or_default()
-        };
-        let (our_fields, their_fields) = (fields(our_group), fields(their_group));
-
-        for slot in record_layout.slots() {
-            let id = slot_id(slot);
-            match (our_fields.get(&id), their_fields.get(&id)) {
-                (Some(NodeType::Record(our_child)), Some(NodeType::Record(their_child))) => compare(layout, our_child, their_child, &child_path(path, &id), report),
-                (None, Some(NodeType::Record(their_child))) => {
-                    for _ in 0..their_child.children().iter().map(|group| leaf_count(group)).sum::<usize>().max(1) {
-                        report.count(format!("{path}:{id}<missing>"), false);
-                    }
-                },
-                (ours, Some(theirs)) => report.count(format!("{path}:{id}"), ours == Some(theirs)),
-                (Some(_), None) => report.count(format!("{path}:{id}<extra>"), false),
-                (None, None) => {},
-            }
-        }
-    }
-}
-
-/// Returns the number of leaves in a group and everything under it.
-fn leaf_count(group: &[NodeType]) -> usize {
-    group.iter().map(|node| match node {
-        NodeType::Record(record) => record.children().iter().map(|group| leaf_count(group)).sum(),
-        _ => 1,
-    }).sum()
-}
-
-/// Returns a slot's name (leaves) or key (records).
-fn slot_id(slot: &Slot) -> String {
-    match slot {
-        Slot::Leaf { name, .. } => name.to_owned(),
-        Slot::Record { key, .. } => key.to_owned(),
-    }
-}
-
-#[test]
-#[ignore = "needs the game data, see startpos_test.rs"]
-fn test_world_matches_the_game_startpos() {
-    let tables = test_data_tables();
-    let index = CampaignIndex::new(tables, TEST_CAMPAIGN).unwrap();
+/// Loads what the world writer needs from the test data: the campaign index, the layouts of the game startpos, the
+/// settlement layouts, the region map and the legacy overrides.
+pub(crate) fn world_test_data() -> (CampaignIndex, StartposLayout, Vec<SettlementLayout>, RegionMap, HashSet<String>) {
+    let index = CampaignIndex::new(test_data_tables(), TEST_CAMPAIGN).unwrap();
     let layout = StartposLayout::from_esf(test_startpos()).unwrap();
     let map_data = test_data_esf("map_data.esf");
     let settlements = SettlementLayout::all_from_map_data(&map_data, |region| index.settlement_of(region).is_some_and(|settlement| settlement.is_major())).unwrap();
     let region_map = RegionMap::from_map_data(&map_data).unwrap();
-    let legacy_overrides = overrides_from_pack().into_iter().collect();
-    let inputs = WorldInputs { tables, index: &index, layout: &layout, settlements: &settlements, region_map: &region_map, legacy_overrides: &legacy_overrides };
+    (index, layout, settlements, region_map, overrides_from_pack().into_iter().collect())
+}
 
-    // The game's object orders come from hash tables; using them here checks the rules instead of the orders.
+/// Plans the world with the game startpos's orders of factions, regions and characters (characters linked to their
+/// table rows by name). The game takes them from hash tables; using them checks the rules instead of the orders.
+pub(crate) fn game_plan(index: &CampaignIndex) -> WorldPlan<'_> {
     let game_world = world(test_startpos());
     let factions = world_factions(game_world).iter().map(|faction| index.faction(field_str(faction, 1)).unwrap()).collect();
     let regions = world_regions(game_world).iter().map(|region| index.region(field_str(region, 1)).unwrap()).collect();
     let mut plan = WorldPlan::with_orders(factions, regions);
 
-    // Characters too, linked to their table rows by name.
-    let names = tables.table("start_pos_characters").unwrap().rows()
+    let names = test_data_tables().table("start_pos_characters").unwrap().rows()
         .map(|row| (row.str("ID").unwrap().into_owned(), ["Name", "Surname", "clan_name", "other_name"].iter().map(|column| row.str(column).unwrap().into_owned()).filter(|id| !id.is_empty()).collect::<BTreeSet<_>>()))
         .collect::<HashMap<_, _>>();
     for faction in world_factions(game_world) {
         let key = field_str(faction, 1);
         let order = child_record(faction, "CHARACTER_ARRAY").map(|array| array_items(array, "CHARACTER")).unwrap_or_default().into_iter()
             .filter(|character| field_str(character, 3) != "colonel")
-            .filter_map(|character| linked_character(&index, key, &names, &name_ids(character)))
+            .filter_map(|character| linked_character(index, key, &names, &name_ids(character)))
             .filter_map(|id| index.characters().iter().find(|entry| *entry.id() == id))
             .collect();
         plan.set_character_order(key, order);
     }
+    plan
+}
+
+#[test]
+#[ignore = "needs the game data, see startpos_test.rs"]
+fn test_world_matches_the_game_startpos() {
+    let tables = test_data_tables();
+    let (index, layout, settlements, region_map, legacy_overrides) = world_test_data();
+    let inputs = WorldInputs { tables, index: &index, layout: &layout, settlements: &settlements, region_map: &region_map, legacy_overrides: &legacy_overrides };
+    let plan = game_plan(&index);
+    let game_world = world(test_startpos());
 
     let written = write_world_with_plan(&inputs, &plan).unwrap();
     let mut report = Report::default();
