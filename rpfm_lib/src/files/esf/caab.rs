@@ -53,7 +53,7 @@ use crate::error::{RLibError, Result};
 
 use super::*;
 use super::stream::EsfStream;
-use super::utils::{string_hash_u16, string_hash_u8, string_table_order};
+use super::utils::{string_hash_u16, string_hash_u8, hash_map_order};
 
 #[cfg(test)] #[path = "caab_test.rs"] mod caab_test;
 
@@ -310,7 +310,7 @@ impl ESF {
         // Then UTF-16 Strings, in the order of the games' string hash maps.
         strings_data.write_u32(strings_utf16.len() as u32)?;
         let hashes = strings_utf16.iter().map(|string| string_hash_u16(string)).collect::<Vec<_>>();
-        for index in string_table_order(&hashes) {
+        for index in hash_map_order(&hashes) {
             strings_data.write_sized_string_u16(&strings_utf16[index])?;
             strings_data.write_u32(index as u32)?;
         }
@@ -318,7 +318,7 @@ impl ESF {
         // Then UTF-8 Strings, in the same kind of order.
         strings_data.write_u32(strings_utf8.len() as u32)?;
         let hashes = strings_utf8.iter().map(|string| string_hash_u8(string)).collect::<Vec<_>>();
-        for index in string_table_order(&hashes) {
+        for index in hash_map_order(&hashes) {
             strings_data.write_sized_string_u8(&strings_utf8[index])?;
             strings_data.write_u32(index as u32)?;
         }

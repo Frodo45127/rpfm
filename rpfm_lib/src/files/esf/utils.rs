@@ -1152,8 +1152,8 @@ impl ESF {
 /// Seed of the games' string hash.
 const STRING_HASH_SEED: u32 = 0xf73a_51c9;
 
-/// Buckets of the games' string hash map before it first grows.
-const STRING_MAP_INITIAL_BUCKETS: usize = 4;
+/// Buckets of the games' hash maps before they first grow.
+const HASH_MAP_INITIAL_BUCKETS: usize = 4;
 
 /// Returns the hash the games give an ASCII string table entry: every byte (sign-extended) xored into the seed, from
 /// the last one, shifted by 0, 8, 16 and 24 bits in turn.
@@ -1171,19 +1171,18 @@ fn string_hash(units: impl DoubleEndedIterator<Item = u32>) -> u32 {
     units.rev().zip((0..4).cycle()).fold(STRING_HASH_SEED, |hash, (unit, step)| hash ^ unit.wrapping_shl(step * 8))
 }
 
-/// Returns the order the games list a string table in: the order of their string hash map, which keeps entries at the
-/// end of their bucket and grows to `2n + 1` buckets (moving entries bucket by bucket) when it holds more entries than
-/// buckets.
+/// Returns the order the games list a hash map in (string tables, AI object maps): the map keeps entries at the end of
+/// their bucket and grows to `2n + 1` buckets (moving entries bucket by bucket) when it holds more entries than buckets.
 ///
 /// # Arguments
 ///
-/// * `hashes` - Hash of each string, in index order (the order they were added).
+/// * `hashes` - Hash of each entry, in the order they were added.
 ///
 /// # Returns
 ///
-/// The indexes of the strings, in table order.
-pub(crate) fn string_table_order(hashes: &[u32]) -> Vec<usize> {
-    let mut buckets = vec![vec![]; STRING_MAP_INITIAL_BUCKETS];
+/// The indexes of the entries, in map order.
+pub fn hash_map_order(hashes: &[u32]) -> Vec<usize> {
+    let mut buckets = vec![vec![]; HASH_MAP_INITIAL_BUCKETS];
     for (index, hash) in hashes.iter().enumerate() {
         if index + 1 > buckets.len() {
             let mut grown = vec![vec![]; buckets.len() * 2 + 1];

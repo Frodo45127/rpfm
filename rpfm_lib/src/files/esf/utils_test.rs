@@ -20,14 +20,14 @@ fn test_string_hash() {
 }
 
 #[test]
-fn test_string_table_order_without_growth() {
-    assert_eq!(string_table_order(&[9, 0]), vec![1, 0]);
+fn test_hash_map_order_without_growth() {
+    assert_eq!(hash_map_order(&[9, 0]), vec![1, 0]);
 }
 
 #[test]
-fn test_string_table_order_after_growth() {
+fn test_hash_map_order_after_growth() {
 
     // The fifth entry grows the map from 4 to 9 buckets, moving entries bucket by bucket: [1, 2] from bucket 0, then
     // [0, 3] from bucket 1, into buckets 0 (hashes 0 and 9) and 4 (hashes 4 and 13).
-    assert_eq!(string_table_order(&[9, 0, 4, 13, 18]), vec![1, 0, 4, 2, 3]);
+    assert_eq!(hash_map_order(&[9, 0, 4, 13, 18]), vec![1, 0, 4, 2, 3]);
 }
