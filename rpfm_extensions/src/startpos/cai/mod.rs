@@ -19,6 +19,7 @@ use rpfm_lib::files::esf::RecordNode;
 
 use super::layout::{child_path, StartposLayout};
 
+pub mod factions;
 pub mod map;
 pub mod plan;
 pub mod regions;
