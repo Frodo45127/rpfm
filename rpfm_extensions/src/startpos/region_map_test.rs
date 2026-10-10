@@ -70,3 +70,25 @@ fn test_garrisons_stand_in_their_region() {
     assert_eq!(map.keys().len(), 224);
     assert_eq!(checked, 175);
 }
+
+#[test]
+fn test_neighbour_pairs() {
+
+    // Three columns: "a" in the first one, "b" in the second, "c" in the third (only next to "b").
+    let mut cells = vec![0; 3 * BYTES_PER_CELL];
+    cells[BYTES_PER_CELL] = 1;
+    cells[2 * BYTES_PER_CELL] = 2;
+    let map = RegionMap { keys: vec!["a".to_owned(), "b".to_owned(), "c".to_owned()], width: 3, height: 1, cells };
+
+    let mut pairs = map.neighbour_pairs().into_iter().collect::<Vec<_>>();
+    pairs.sort();
+    assert_eq!(pairs, vec![("a", "b"), ("b", "c")]);
+}
+
+impl RegionMap {
+
+    /// Builds a region map from its parts, for tests of other modules.
+    pub(crate) fn from_cells(keys: Vec<String>, width: u32, height: u32, cells: Vec<u8>) -> Self {
+        Self { keys, width, height, cells }
+    }
+}

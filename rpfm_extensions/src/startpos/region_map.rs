@@ -17,6 +17,8 @@
 //! Verified on Attila's main campaign: every garrison stands on a cell of its own region. Prefer it over the map's
 //! lookup image, which also paints seas the map data leaves empty.
 
+use std::collections::HashSet;
+
 use rpfm_lib::error::{RLibError, Result};
 use rpfm_lib::files::esf::{ESF, NodeType};
 
@@ -24,7 +26,7 @@ use super::coords::HexCell;
 use super::esf_nav::{as_record, as_u32, child_record, leaves};
 use super::settlements::{region_data_records, region_key};
 
-#[cfg(test)] #[path = "region_map_test.rs"] mod region_map_test;
+#[cfg(test)] #[path = "region_map_test.rs"] pub(crate) mod region_map_test;
 
 /// Bytes stored per cell.
 const BYTES_PER_CELL: usize = 7;
@@ -118,6 +120,23 @@ impl RegionMap {
         self.cell_offset(cell)
             .map(|index| [self.cells[index + EDGE_MASKS_OFFSET], self.cells[index + EDGE_MASKS_OFFSET + 1]])
             .unwrap_or_default()
+    }
+
+    /// Returns every pair of different regions with neighbouring cells, each pair once with the keys in order.
+    pub fn neighbour_pairs(&self) -> HashSet<(&str, &str)> {
+        let mut pairs = HashSet::new();
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let cell = HexCell::new(x as u16, y as u16);
+                let Some(region) = self.region_at(cell) else { continue };
+                for neighbour in cell.neighbours() {
+                    if let Some(other) = self.region_at(neighbour).filter(|other| *other != region) {
+                        pairs.insert(if region < other { (region, other) } else { (other, region) });
+                    }
+                }
+            }
+        }
+        pairs
     }
 
     /// Returns the position of a cell's first byte, or `None` for cells outside the map.

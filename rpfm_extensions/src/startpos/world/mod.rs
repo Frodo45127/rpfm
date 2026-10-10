@@ -21,6 +21,7 @@
 //! - [`agents`]: agent abilities, attributes, skill sets and recruitment pools.
 //! - [`bodyguards`]: the default general unit of each faction.
 //! - [`characters`]: per-character values (birth year, loyalty, faction leader, map position).
+//! - [`diplomacy`]: diplomatic relationships between factions.
 //! - [`factions`]: per-faction values (capital, subjects, victory regions, flags and colours...).
 //! - [`garrisons`]: the garrison army and navy of each settlement.
 //! - [`government`]: government posts and political parties.
@@ -41,6 +42,7 @@ use super::tables::{Row, StartposTables};
 pub mod agents;
 pub mod bodyguards;
 pub mod characters;
+pub mod diplomacy;
 pub mod factions;
 pub mod garrisons;
 pub mod government;
