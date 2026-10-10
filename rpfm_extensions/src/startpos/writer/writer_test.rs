@@ -23,7 +23,7 @@ use crate::startpos::world::writer::writer_test::{game_plan, world_test_data};
 
 /// Share of the game's fields outside `WORLD` and `CAI_INTERFACE` the writer must match. Raised as the writer covers
 /// more records.
-const MIN_MATCH_RATIO: f64 = 0.62;
+const MIN_MATCH_RATIO: f64 = 0.79;
 
 /// Records compared elsewhere (`WORLD`) or not written yet (`CAI_INTERFACE`).
 const SKIPPED: [&str; 2] = ["WORLD", "CAI_INTERFACE"];

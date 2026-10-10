@@ -18,6 +18,7 @@ use rpfm_lib::files::esf::{ESF, NodeType};
 use super::trade::TradeNetwork;
 use super::world::writer::{write_world_with_plan, WorldInputs, WorldPlan};
 
+mod diplomacy;
 mod trade;
 
 #[cfg(test)] mod writer_test;
@@ -67,7 +68,8 @@ pub fn write_startpos<'a>(inputs: &StartposInputs<'a>, plan: &WorldPlan<'a>) -> 
     let mut model = layout.builder(MODEL_PATH)?;
     model.group()?
         .set_record("WORLD", Some(write_world_with_plan(world, plan)?))?
-        .set_record("CAMPAIGN_TRADE_MANAGER", Some(trade::write_trade_manager(layout, world.tables, plan, inputs.trade_network)?))?;
+        .set_record("CAMPAIGN_TRADE_MANAGER", Some(trade::write_trade_manager(layout, world.tables, plan, inputs.trade_network)?))?
+        .set_record("DIPLOMACY_MANAGER", Some(diplomacy::write_diplomacy_manager(layout, plan)?))?;
 
     let mut env = layout.builder(ENV_PATH)?;
     env.group()?.set_record("CAMPAIGN_MODEL", Some(model.build()?))?;
