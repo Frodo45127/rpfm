@@ -60,6 +60,32 @@ struct ProvinceWriter<'a, 'b> {
 
     /// Next recruitment manager id.
     next_recruitment: u32,
+
+    /// Next mercenary pool id.
+    next_pool: u32,
+
+    /// Runtime ids of the provinces, by key.
+    province_ids: HashMap<String, u32>,
+}
+
+/// The province and sea region managers, with the ids later records continue from.
+#[derive(Debug, Clone)]
+pub struct ProvinceRecords {
+
+    /// The province manager.
+    pub provinces: RecordNode,
+
+    /// The sea region manager.
+    pub seas: RecordNode,
+
+    /// Next free recruitment manager id (for horde armies without horde details).
+    pub next_recruitment: u32,
+
+    /// Next free mercenary pool id (for levy pools).
+    pub next_pool: u32,
+
+    /// Runtime ids of the provinces, by key.
+    pub province_ids: HashMap<String, u32>,
 }
 
 //---------------------------------------------------------------------------//
@@ -70,12 +96,12 @@ struct ProvinceWriter<'a, 'b> {
 ///
 /// # Returns
 ///
-/// The two records, and the next free recruitment manager id (for horde armies without horde details).
+/// The two records, with the ids later records continue from.
 ///
 /// # Errors
 ///
 /// Returns an error if a table, column or layout is missing.
-pub fn write_province_and_sea_managers(inputs: &WorldInputs, plan: &WorldPlan) -> Result<(RecordNode, RecordNode, u32)> {
+pub fn write_province_and_sea_managers(inputs: &WorldInputs, plan: &WorldPlan) -> Result<ProvinceRecords> {
     let mut regions = HashMap::new();
     for row in inputs.tables.table("start_pos_regions")?.rows() {
         if row.str("campaign")? == *inputs.index.campaign() {
@@ -84,10 +110,18 @@ pub fn write_province_and_sea_managers(inputs: &WorldInputs, plan: &WorldPlan) -
     }
 
     let first_recruitment = u32::try_from(horde_details(inputs)?.len()).unwrap_or(u32::MAX).saturating_add(1);
-    let mut writer = ProvinceWriter { inputs, plan, regions, next_recruitment: first_recruitment };
+    // Mercenary pool ids continue the ones of the factions (the rebels' and one per faction).
+    let first_pool = u32::try_from(plan.factions().len()).unwrap_or(u32::MAX).saturating_add(REBEL_FACTION_ID + 1);
+    let mut writer = ProvinceWriter { inputs, plan, regions, next_recruitment: first_recruitment, next_pool: first_pool, province_ids: HashMap::new() };
     let provinces = writer.write_province_manager()?;
     let seas = writer.write_sea_region_manager()?;
-    Ok((provinces, seas, writer.next_recruitment))
+    Ok(ProvinceRecords {
+        provinces,
+        seas,
+        next_recruitment: writer.next_recruitment,
+        next_pool: writer.next_pool,
+        province_ids: writer.province_ids,
+    })
 }
 
 impl ProvinceWriter<'_, '_> {
@@ -110,11 +144,11 @@ impl ProvinceWriter<'_, '_> {
             }
         }
 
-        // Mercenary pool ids continue the ones of the factions (the rebels' and one per faction).
-        let mut next_pool = u32::try_from(self.plan.factions().len()).unwrap_or(u32::MAX).saturating_add(REBEL_FACTION_ID + 1);
         let mut next_manager = 1;
         let mut array = child(inputs.layout, &format!("{WORLD_PATH}/PROVINCE_MANAGER"), "PROVINCE_ARRAY")?;
         for (index, (province, regions)) in provinces.iter().enumerate() {
+            let province_id = u32::try_from(index + 1).unwrap_or(u32::MAX);
+            self.province_ids.insert(province.to_owned(), province_id);
             let mut manager_array = child(inputs.layout, PROVINCE_PATH, "FACTION_PROVINCE_MANAGER_ARRAY")?;
             for manager in managers.iter().filter(|manager| manager.province() == province) {
                 let record = self.write_province_faction_manager(manager, next_id(&mut next_manager))?;
@@ -123,9 +157,9 @@ impl ProvinceWriter<'_, '_> {
 
             let mut record = self.inputs.layout.builder(PROVINCE_PATH)?;
             record.group()?
-                .set_u32("^+1", u32::try_from(index + 1).unwrap_or(u32::MAX))?
+                .set_u32("^+1", province_id)?
                 .set_record("FACTION_PROVINCE_MANAGER_ARRAY", Some(manager_array.build()?))?
-                .set_record("PROVINCE_MERCENARY_POOL", Some(self.write_province_mercenary_pool(province, next_id(&mut next_pool))?))?
+                .set_record("PROVINCE_MERCENARY_POOL", Some(self.write_province_mercenary_pool(province)?))?
                 .set_record("PROVINCE_FERTILITY", Some(self.write_fertility(regions)?))?;
             array.push_group()?
                 .set_str("^+1", province)?
@@ -166,8 +200,9 @@ impl ProvinceWriter<'_, '_> {
         record.build()
     }
 
-    /// Writes the mercenary pool of a province.
-    fn write_province_mercenary_pool(&self, province: &str, id: u32) -> Result<RecordNode> {
+    /// Writes the mercenary pool of a province, with the next mercenary pool id.
+    fn write_province_mercenary_pool(&mut self, province: &str) -> Result<RecordNode> {
+        let id = next_id(&mut self.next_pool);
         let path = format!("{PROVINCE_PATH}/PROVINCE_MERCENARY_POOL");
         let units = province_mercenary_pool(self.inputs.tables, province)?;
         let mut record = self.inputs.layout.builder(&path)?;

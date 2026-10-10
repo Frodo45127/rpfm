@@ -98,6 +98,9 @@ pub struct CharacterWriter<'a, 'b> {
     /// Family member id of each planned character, by position in the plan.
     family_ids: Vec<u32>,
 
+    /// Family member id of each table character, living or dead, by `start_pos_characters` id.
+    entry_family_ids: HashMap<String, u32>,
+
     /// The campaign's start year.
     start_year: u32,
 }
@@ -187,8 +190,10 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
             bodyguards.insert(faction.key().to_owned(), bodyguard(tables, faction, false)?);
         }
 
+        let (family_ids, entry_family_ids) = family_ids(inputs.index, plan, forces);
         Ok(Self {
-            family_ids: family_ids(inputs.index, plan, forces),
+            family_ids,
+            entry_family_ids,
             start_year: super::armies::start_year(inputs)?,
             inputs,
             forces,
@@ -373,6 +378,22 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
         record.build()
     }
 
+    /// Returns the family member id of a faction's progenitor (`start_pos_characters.progenitor`, living or dead), or
+    /// 0 if it has none.
+    pub fn progenitor_family_id(&self, faction: &FactionEntry) -> u32 {
+        self.inputs.index.characters_of(faction.key())
+            .find(|entry| entry.progenitor())
+            .and_then(|entry| self.entry_family_ids.get(entry.id()))
+            .copied()
+            .unwrap_or_default()
+    }
+
+    /// Returns the runtime id of a faction's leader, if it has one.
+    pub fn leader_id(&self, faction: &FactionEntry) -> Option<u32> {
+        let leader = faction_leader(self.inputs.index, faction.key())?;
+        self.forces.characters_of(faction.key()).find(|character| character.entry() == Some(leader)).map(|character| character.id())
+    }
+
     /// Returns the `start_pos_characters` row of a character, `None` for colonels.
     pub(super) fn row(&self, character: &PlannedCharacter) -> Option<&Row<'a>> {
         character.entry().and_then(|entry| self.rows.get(entry.id()))
@@ -443,20 +464,25 @@ fn art_set_agent(agent: &str) -> &str {
     if agent == COLONEL_AGENT { GENERAL_AGENT } else { agent }
 }
 
-/// Returns the family member id of every planned character. The counter numbers each faction's table characters
+/// Returns the family member ids: of every planned character (by position in the plan), and of every table
+/// character, living or dead (by `start_pos_characters` id). The counter numbers each faction's table characters
 /// (the living ones, then the dead ones, which only appear in the family tree), then the colonels.
-fn family_ids(index: &CampaignIndex, plan: &WorldPlan, forces: &ForcePlan) -> Vec<u32> {
+fn family_ids(index: &CampaignIndex, plan: &WorldPlan, forces: &ForcePlan) -> (Vec<u32>, HashMap<String, u32>) {
     let mut ids = vec![0; forces.characters().len()];
+    let mut by_entry = HashMap::new();
     let mut next_id = 1;
     for faction in plan.factions() {
         for (position, character) in forces.characters().iter().enumerate() {
-            if character.faction().key() == faction.key() && character.entry().is_some() {
+            if let Some(entry) = character.entry().filter(|_| character.faction().key() == faction.key()) {
                 ids[position] = next_id;
+                by_entry.insert(entry.id().to_owned(), next_id);
                 next_id += 1;
             }
         }
-        let dead = index.characters_of(faction.key()).filter(|entry| !entry.death_type().is_empty()).count();
-        next_id += u32::try_from(dead).unwrap_or_default();
+        for entry in index.characters_of(faction.key()).filter(|entry| !entry.death_type().is_empty()) {
+            by_entry.insert(entry.id().to_owned(), next_id);
+            next_id += 1;
+        }
     }
     for (position, character) in forces.characters().iter().enumerate() {
         if character.entry().is_none() {
@@ -464,5 +490,5 @@ fn family_ids(index: &CampaignIndex, plan: &WorldPlan, forces: &ForcePlan) -> Ve
             next_id += 1;
         }
     }
-    ids
+    (ids, by_entry)
 }

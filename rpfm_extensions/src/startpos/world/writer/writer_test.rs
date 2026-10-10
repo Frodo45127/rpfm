@@ -21,7 +21,7 @@ use crate::startpos::world::legacy::legacy_test::{linked_character, name_ids, ov
 use crate::startpos::startpos_test::{array_items, field_str, test_data_esf, test_data_tables, test_startpos, world, world_factions, world_regions, TEST_CAMPAIGN};
 
 /// Share of the game's `WORLD` fields the writer must match. Raised as the writer covers more records.
-const MIN_MATCH_RATIO: f64 = 0.67;
+const MIN_MATCH_RATIO: f64 = 0.68;
 
 /// Matches and totals of each field, by `path:field`.
 #[derive(Debug, Default)]

@@ -10,12 +10,19 @@
 
 //! Writer of the `FACTION` records (`WORLD/FACTION_ARRAY`).
 
+use std::collections::HashMap;
+
 use rpfm_lib::error::Result;
 use rpfm_lib::files::esf::RecordNode;
 
 use super::armies::ArmyWriter;
 use super::characters::CharacterWriter;
-use super::{child, start_pos_faction_row, WorldInputs, WorldPlan, WORLD_PATH};
+use super::government::{write_character_posts, PostPlan};
+use super::provinces::write_mercenary_pool;
+use super::{child, next_id, start_pos_faction_row, WorldInputs, WorldPlan, WORLD_PATH};
+use crate::startpos::world::agents::recruitment_pool_agents;
+use crate::startpos::world::government::political_parties;
+use crate::startpos::world::pools::{faction_mercenary_pool, levy_pools};
 use crate::startpos::world::FactionEntry;
 use crate::startpos::world::factions::{faction_flags, faction_summary, FactionFlag};
 
@@ -28,8 +35,52 @@ const SCREEN_NAME_PREFIX: &str = "factions_screen_name_";
 /// Lowest `start_pos_factions.honour` of the factions that start with an empty diplomatic memory (`+21` field).
 const EMPTY_MEMORY_HONOUR: i64 = 129;
 
+/// Length of the per-type event counters of a faction (`FACTION_FLAG_AND_COLOURS@2+19`). The game fills some of them
+/// for playable factions during the build (source unknown); zeros are compatible.
+const EVENT_COUNTERS: usize = 151;
+
+/// Culture whose factions have `FACTION_ACTION_LOG_BLOCK+12` unset (meaning unknown).
+const NOMADIC_CULTURE: &str = "att_cult_nomadic";
+
 /// Diplomatic memory of most factions (`FACTION_FLAG_AND_COLOURS@2+21`): only its fourth value is set.
 const DEFAULT_MEMORY: [u8; 22] = [0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+//---------------------------------------------------------------------------//
+//                              Types
+//---------------------------------------------------------------------------//
+
+/// What the faction writer takes from the other writers and plans.
+pub struct FactionContext<'c, 'a, 'b> {
+
+    /// Writer of the forces.
+    pub armies: &'c ArmyWriter<'a, 'b>,
+
+    /// Writer of the characters.
+    pub characters: &'c CharacterWriter<'a, 'b>,
+
+    /// Government posts of the factions.
+    pub posts: &'c PostPlan,
+
+    /// Levy pools of the overlords.
+    pub levy_pools: &'c [PlannedLevyPool],
+}
+
+/// A levy pool of an overlord, with its runtime ids.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlannedLevyPool {
+
+    /// Mercenary pool id.
+    id: u32,
+
+    /// Overlord faction key.
+    overlord: String,
+
+    /// Runtime id of the subject faction.
+    subject: u32,
+
+    /// Runtime id of the province.
+    province: u32,
+}
 
 //---------------------------------------------------------------------------//
 //                              Implementations
@@ -40,12 +91,43 @@ const DEFAULT_MEMORY: [u8; 22] = [0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 /// # Errors
 ///
 /// Returns an error if a table, column or layout is missing.
-pub fn write_faction_array(inputs: &WorldInputs, plan: &WorldPlan, armies: &ArmyWriter, characters: &CharacterWriter) -> Result<RecordNode> {
+pub fn write_faction_array(inputs: &WorldInputs, plan: &WorldPlan, context: &FactionContext) -> Result<RecordNode> {
     let mut array = child(inputs.layout, WORLD_PATH, "FACTION_ARRAY")?;
     for faction in plan.factions() {
-        array.push_group()?.set_record("FACTION", Some(write_faction(inputs, plan, armies, characters, faction)?))?;
+        array.push_group()?.set_record("FACTION", Some(write_faction(inputs, plan, context, faction)?))?;
     }
     array.build()
+}
+
+/// Plans the levy pools of the overlords: their ids continue the province pools, in order of the subject's and the
+/// province's runtime ids.
+///
+/// # Arguments
+///
+/// * `inputs` - Tables, startpos rows and layouts.
+/// * `plan` - Order and runtime ids of the world's objects.
+/// * `province_ids` - Runtime ids of the provinces, by key.
+/// * `first_pool` - Id of the first levy pool.
+///
+/// # Errors
+///
+/// Returns an error if a table or column is missing.
+pub fn plan_levy_pools(inputs: &WorldInputs, plan: &WorldPlan, province_ids: &HashMap<String, u32>, first_pool: u32) -> Result<Vec<PlannedLevyPool>> {
+    let mut pools = levy_pools(inputs.tables, inputs.index)?.into_iter()
+        .map(|pool| PlannedLevyPool {
+            id: 0,
+            subject: plan.faction_id(pool.subject()).unwrap_or_default(),
+            province: province_ids.get(pool.province()).copied().unwrap_or_default(),
+            overlord: pool.overlord().to_owned(),
+        })
+        .collect::<Vec<_>>();
+    pools.sort_by_key(|pool| (pool.subject, pool.province));
+
+    let mut next_pool = first_pool;
+    for pool in &mut pools {
+        pool.id = next_id(&mut next_pool);
+    }
+    Ok(pools)
 }
 
 /// Writes a faction.
@@ -53,7 +135,7 @@ pub fn write_faction_array(inputs: &WorldInputs, plan: &WorldPlan, armies: &Army
 /// # Errors
 ///
 /// Returns an error if a table, column or layout is missing.
-pub fn write_faction(inputs: &WorldInputs, plan: &WorldPlan, armies: &ArmyWriter, characters: &CharacterWriter, faction: &FactionEntry) -> Result<RecordNode> {
+pub fn write_faction(inputs: &WorldInputs, plan: &WorldPlan, context: &FactionContext, faction: &FactionEntry) -> Result<RecordNode> {
     let layout = inputs.layout;
     let key = faction.key();
     let row = start_pos_faction_row(inputs.tables, faction)?;
@@ -68,14 +150,17 @@ pub fn write_faction(inputs: &WorldInputs, plan: &WorldPlan, armies: &ArmyWriter
     let mut economics = child(layout, FACTION_PATH, "FACTION_ECONOMICS")?;
     economics.group()?.set_i32("history+1", i32::try_from(row.int("treasury")?).unwrap_or(i32::MAX))?;
 
+    let posts = write_character_posts(inputs, context.posts, key, context.characters.leader_id(faction))?;
     let mut government = child(layout, FACTION_PATH, "GOVERNMENT")?;
-    government.group()?.set_str("^+2", &row.str("government_type")?)?;
+    government.group()?
+        .set_str("^+2", &row.str("government_type")?)?
+        .set_record("CHARACTER_POSTS", Some(posts))?;
 
     let mut religion = child(layout, FACTION_PATH, "FACTION_RELIGION_MANAGER")?;
     religion.group()?.set_str("^+1", &row.str("state_religion")?)?;
 
     let mut localisation = child(layout, FACTION_PATH, "CAMPAIGN_LOCALISATION")?;
-    localisation.group()?.set_str("^+1", &format!("{SCREEN_NAME_PREFIX}{key}"))?;
+    localisation.group()?.set_str("^+1", &format!("{SCREEN_NAME_PREFIX}{key}"))?.unset("^+2")?;
 
     let [flag, republican_flag] = faction_flags(inputs.tables, key)?;
     let honour = row.int("honour")?;
@@ -88,6 +173,8 @@ pub fn write_faction(inputs: &WorldInputs, plan: &WorldPlan, armies: &ArmyWriter
         horde = Some(manager.build()?);
     }
 
+    let mission_manager = faction.playable().then(|| layout.default_record(&format!("{FACTION_PATH}/CAMPAIGN_MISSION_MANAGER"))).transpose()?;
+
     let mut record = layout.builder(FACTION_PATH)?;
     record.group()?
         .set_u32("^+1", plan.faction_id(key).unwrap_or_default())?
@@ -98,8 +185,9 @@ pub fn write_faction(inputs: &WorldInputs, plan: &WorldPlan, armies: &ArmyWriter
         .set_record("FACTION_HORDE_MANAGER", horde)?
         .set_bool("GOVERNMENT+3", row.bool("is_major")?)?
         .set_record("FACTION_RELIGION_MANAGER", Some(religion.build()?))?
-        .set_record("CHARACTER_ARRAY", Some(characters.write_character_array(faction)?))?
-        .set_record("ARMY_ARRAY", Some(armies.write_army_array(faction)?))?
+        .set_record("CHARACTER_ARRAY", Some(context.characters.write_character_array(faction)?))?
+        .set_record("FACTION_TECHNOLOGY_MANAGER", Some(write_technologies(inputs, faction)?))?
+        .set_record("ARMY_ARRAY", Some(context.armies.write_army_array(faction)?))?
         .set_bool("MORGUE+1", faction.playable())?
         .set_strings("MORGUE+2", summary.victory_regions().to_vec())?
         .set_u32("MORGUE+3", summary.capital().as_deref().and_then(|capital| plan.region_id(capital)).unwrap_or_default())?
@@ -114,9 +202,105 @@ pub fn write_faction(inputs: &WorldInputs, plan: &WorldPlan, armies: &ArmyWriter
         .set_u32("FACTION_FLAG_AND_COLOURS@2+14", u32::try_from(summary.region_count()).unwrap_or(u32::MAX))?
         .set_bytes("FACTION_FLAG_AND_COLOURS@2+21", memory)?
         .set_record("CAMPAIGN_LOCALISATION", Some(localisation.build()?))?
-        .set_strings("FACTION_ACTION_LOG_BLOCK+2", summary.subjects().to_vec())?;
+        .set_strings("FACTION_ACTION_LOG_BLOCK+2", summary.subjects().to_vec())?
+        .set_record("FACTION_MERCENARY_POOL", Some(write_faction_mercenary_pool(inputs, plan, faction)?))?
+        .set_record("LEVY_MERCENARY_MANAGER", Some(write_levy_pools(inputs, context.levy_pools, faction)?))?
+        .set_record("CHARACTER_RECRUITMENT_POOL_MANAGER", Some(write_recruitment_pools(inputs, faction)?))?
+        .set_record("CAMPAIGN_POLITICS", Some(write_politics(inputs, faction)?))?
+        .set_record("MILITARY_FORCE_LEGACY_NAMES_AND_EMBLEMS", Some(context.armies.write_used_legacies(faction)?))?
+        .set_record("CAMPAIGN_MISSION_MANAGER", mission_manager)?
+        .set_u32s("FACTION_FLAG_AND_COLOURS@2+19", vec![0; EVENT_COUNTERS])?
+        .set_u32("FACTION_ACTION_LOG_BLOCK+11", context.characters.progenitor_family_id(faction))?
+        .set_bool("FACTION_ACTION_LOG_BLOCK+12", *faction.culture() != NOMADIC_CULTURE)?;
 
     record.build()
+}
+
+/// Writes the technologies a faction starts with (`start_pos_technologies`), in table order (the game uses a hash
+/// order).
+fn write_technologies(inputs: &WorldInputs, faction: &FactionEntry) -> Result<RecordNode> {
+    let path = format!("{FACTION_PATH}/FACTION_TECHNOLOGY_MANAGER");
+    let mut researched = child(inputs.layout, &path, "RESEARCHED_TECHS")?;
+    for row in inputs.tables.table("start_pos_technologies")?.rows() {
+        if row.str("faction")? == *faction.id() {
+            researched.push_group()?
+                .set_str("^+1", &row.str("technology")?)?
+                .set_bool("^+2", true)?;
+        }
+    }
+
+    let mut record = inputs.layout.builder(&path)?;
+    record.group()?
+        .set_str("^+1", faction.key())?
+        .set_record("RESEARCHED_TECHS", Some(researched.build()?))?;
+    record.build()
+}
+
+/// Writes the mercenary pool of a faction. Its id is the faction's runtime id.
+fn write_faction_mercenary_pool(inputs: &WorldInputs, plan: &WorldPlan, faction: &FactionEntry) -> Result<RecordNode> {
+    let path = format!("{FACTION_PATH}/FACTION_MERCENARY_POOL");
+    let units = faction_mercenary_pool(inputs.tables, faction.key())?;
+    let mut record = inputs.layout.builder(&path)?;
+    record.group()?
+        .set_u32("^+1", plan.faction_id(faction.key()).unwrap_or_default())?
+        .set_record("MERCENARY_POOL", Some(write_mercenary_pool(inputs, &path, &units)?))?;
+    record.build()
+}
+
+/// Writes the levy pools of an overlord: an empty mercenary pool per subject and province.
+fn write_levy_pools(inputs: &WorldInputs, pools: &[PlannedLevyPool], faction: &FactionEntry) -> Result<RecordNode> {
+    let path = format!("{FACTION_PATH}/LEVY_MERCENARY_MANAGER");
+    let pool_path = format!("{path}/LEVY_POOLS_BLOCK/LEVY_MERCENARY_POOL");
+    let mut block = child(inputs.layout, &path, "LEVY_POOLS_BLOCK")?;
+    for pool in pools.iter().filter(|pool| pool.overlord == *faction.key()) {
+        let mut record = inputs.layout.builder(&pool_path)?;
+        record.group()?
+            .set_u32("^+1", pool.id)?
+            .set_record("MERCENARY_POOL", Some(write_mercenary_pool(inputs, &pool_path, &[])?))?
+            .set_u32("MERCENARY_POOL+1", pool.subject)?
+            .set_u32("MERCENARY_POOL+2", pool.province)?;
+        block.push_group()?.set_record("LEVY_MERCENARY_POOL", Some(record.build()?))?;
+    }
+
+    let mut manager = inputs.layout.builder(&path)?;
+    manager.group()?.set_record("LEVY_POOLS_BLOCK", Some(block.build()?))?;
+    manager.build()
+}
+
+/// Writes the character recruitment pools of a faction: an empty pool per agent type it can recruit.
+fn write_recruitment_pools(inputs: &WorldInputs, faction: &FactionEntry) -> Result<RecordNode> {
+    let path = format!("{FACTION_PATH}/CHARACTER_RECRUITMENT_POOL_MANAGER");
+    let mut block = child(inputs.layout, &path, "CHARACTER_RECRUITMENT_POOL_BLOCK")?;
+    for agent in recruitment_pool_agents(inputs.tables, faction)? {
+        block.push_group()?.set_str("^+1", &agent)?;
+    }
+
+    let mut manager = inputs.layout.builder(&path)?;
+    manager.group()?.set_record("CHARACTER_RECRUITMENT_POOL_BLOCK", Some(block.build()?))?;
+    manager.build()
+}
+
+/// Writes the politics of a faction: its political parties with their starting power.
+fn write_politics(inputs: &WorldInputs, faction: &FactionEntry) -> Result<RecordNode> {
+    let path = format!("{FACTION_PATH}/CAMPAIGN_POLITICS");
+    let parties_path = format!("{path}/POLITICAL_PARTIES");
+    let parties = political_parties(inputs.tables, faction.key())?;
+    let mut array = child(inputs.layout, &path, "POLITICAL_PARTIES")?;
+    for party in &parties {
+        let mut record = child(inputs.layout, &parties_path, "CAMPAIGN_POLITICAL_PARTY")?;
+        record.group()?
+            .set_str("^+1", party.key())?
+            .set_u32("^+2", party.power())?;
+        array.push_group()?
+            .set_str("^+1", party.key())?
+            .set_record("CAMPAIGN_POLITICAL_PARTY", Some(record.build()?))?;
+    }
+
+    let mut politics = inputs.layout.builder(&path)?;
+    politics.group()?
+        .set_record("POLITICAL_PARTIES", Some(array.build()?))?
+        .set_bool("POLITICAL_PARTIES+1", !parties.is_empty())?;
+    politics.build()
 }
 
 /// Writes the flag record (`FACTION_FLAG_AND_COLOURS`) of a parent record: the flag path, then each colour's red,

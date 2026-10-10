@@ -31,6 +31,7 @@ use rpfm_lib::files::esf::RecordNode;
 
 use self::armies::ArmyWriter;
 use self::characters::CharacterWriter;
+use self::factions::FactionContext;
 use self::forces::ForcePlan;
 use self::government::PostPlan;
 use super::{CampaignIndex, CharacterEntry, FactionEntry, RegionEntry};
@@ -144,14 +145,17 @@ pub fn write_world_with_plan<'a>(inputs: &WorldInputs<'a>, plan: &WorldPlan<'a>)
 
     let posts = PostPlan::new(inputs, plan)?;
     let characters = CharacterWriter::new(inputs, plan, &forces, &posts)?;
-    let (provinces, seas, next_recruitment) = provinces::write_province_and_sea_managers(inputs, plan)?;
-    let armies = ArmyWriter::new(inputs, &forces, &characters, &residences, next_recruitment)?;
+    let provinces = provinces::write_province_and_sea_managers(inputs, plan)?;
+    let armies = ArmyWriter::new(inputs, &forces, &characters, &residences, provinces.next_recruitment)?;
+    let levy_pools = factions::plan_levy_pools(inputs, plan, &provinces.province_ids, provinces.next_pool)?;
+    let context = FactionContext { armies: &armies, characters: &characters, posts: &posts, levy_pools: &levy_pools };
+
     let mut world = inputs.layout.builder(WORLD_PATH)?;
     world.group()?
-        .set_record("FACTION_ARRAY", Some(factions::write_faction_array(inputs, plan, &armies, &characters)?))?
+        .set_record("FACTION_ARRAY", Some(factions::write_faction_array(inputs, plan, &context)?))?
         .set_record("REGION_MANAGER", Some(regions::write_region_manager(inputs, plan, &forces)?))?
-        .set_record("PROVINCE_MANAGER", Some(provinces))?
-        .set_record("SEA_REGION_MANAGER", Some(seas))?;
+        .set_record("PROVINCE_MANAGER", Some(provinces.provinces))?
+        .set_record("SEA_REGION_MANAGER", Some(provinces.seas))?;
     world.build()
 }
 

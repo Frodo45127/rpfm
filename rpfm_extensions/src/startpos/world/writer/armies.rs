@@ -23,6 +23,9 @@ use crate::startpos::world::FactionEntry;
 use crate::startpos::world::factions::faction_summary;
 use crate::startpos::world::legacy::{legacies, legacy_skill_set, ForceKind, Legacy, LegacyForce};
 
+/// Path of a faction.
+const FACTION_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/WORLD/FACTION_ARRAY/FACTION";
+
 /// Path of the forces of a faction.
 const ARMY_ARRAY_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/WORLD/FACTION_ARRAY/FACTION/ARMY_ARRAY";
 
@@ -168,17 +171,53 @@ impl<'a, 'b> ArmyWriter<'a, 'b> {
     /// Returns an error if a table, column or layout is missing.
     pub fn write_army_array(&self, faction: &FactionEntry) -> Result<RecordNode> {
         let faction_forces = self.forces.forces_of(faction.key()).collect::<Vec<_>>();
-        let legacy_forces = faction_forces.iter().map(|force| LegacyForce {
-            kind: force.kind(),
-            general: self.forces.characters()[force.commander()].entry().map(|entry| entry.id().to_owned()),
-        }).collect::<Vec<_>>();
-        let force_legacies = legacies(self.inputs.tables, self.inputs.index, faction, &legacy_forces, self.inputs.legacy_overrides)?;
+        let force_legacies = self.legacies(faction)?;
 
         let mut array = self.inputs.layout.builder(ARMY_ARRAY_PATH)?;
         for (force, legacy) in faction_forces.iter().zip(&force_legacies) {
             array.push_group()?.set_record("MILITARY_FORCE", Some(self.write_force(force, legacy)?))?;
         }
         array.build()
+    }
+
+    /// Returns the legacies of a faction's forces, in startpos order.
+    fn legacies(&self, faction: &FactionEntry) -> Result<Vec<Legacy>> {
+        let legacy_forces = self.forces.forces_of(faction.key()).map(|force| LegacyForce {
+            kind: force.kind(),
+            general: self.forces.characters()[force.commander()].entry().map(|entry| entry.id().to_owned()),
+        }).collect::<Vec<_>>();
+        legacies(self.inputs.tables, self.inputs.index, faction, &legacy_forces, self.inputs.legacy_overrides)
+    }
+
+    /// Writes the legacy names and emblems a faction has used (`MILITARY_FORCE_LEGACY_NAMES_AND_EMBLEMS`): the drawn
+    /// names and the emblems of its armies and navies, and whether it uses override names. The rest of the record is
+    /// the game's RNG state.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if a table, column or layout is missing.
+    pub fn write_used_legacies(&self, faction: &FactionEntry) -> Result<RecordNode> {
+        let mut used = [vec![], vec![], vec![], vec![]];
+        let mut overrides = false;
+        for (force, legacy) in self.forces.forces_of(faction.key()).zip(self.legacies(faction)?) {
+            let navy = usize::from(force.kind() == ForceKind::Navy);
+            match force.kind() {
+                ForceKind::Army | ForceKind::Navy if legacy.override_name().is_empty() => used[navy].push(legacy.name().to_owned()),
+                ForceKind::Army | ForceKind::Navy => overrides = true,
+                ForceKind::GarrisonArmy | ForceKind::GarrisonNavy => continue,
+            }
+            used[2 + navy].push(legacy.emblem().to_owned());
+        }
+
+        let [army_names, navy_names, army_emblems, navy_emblems] = used;
+        let mut record = child(self.inputs.layout, FACTION_PATH, "MILITARY_FORCE_LEGACY_NAMES_AND_EMBLEMS")?;
+        record.group()?
+            .set_strings("^+3", army_names)?
+            .set_strings("^+6", navy_names)?
+            .set_strings("^+9", army_emblems)?
+            .set_strings("^+12", navy_emblems)?
+            .set_bool("^+13", overrides)?;
+        record.build()
     }
 
     /// Writes a force: ids, legacy, units, the residences it belongs to and its kind.

@@ -49,7 +49,7 @@ const TEST_TABLES: &[&str] = &[
     "start_pos_calendars", "start_pos_character_to_settlements", "start_pos_character_traits", "start_pos_characters",
     "start_pos_diplomacy", "start_pos_factions", "start_pos_horde_details", "start_pos_land_units",
     "start_pos_naval_units", "start_pos_region_religions", "start_pos_region_slot_templates", "start_pos_regions",
-    "start_pos_settlements", "start_pos_victory_conditions", "technology_unit_upgrades",
+    "start_pos_settlements", "start_pos_technologies", "start_pos_victory_conditions", "technology_unit_upgrades",
     "units_to_groupings_military_permissions",
 ];
 
