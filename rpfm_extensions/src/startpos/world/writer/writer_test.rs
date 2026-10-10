@@ -21,7 +21,7 @@ use crate::startpos::world::legacy::legacy_test::{linked_character, name_ids, ov
 use crate::startpos::startpos_test::{array_items, field_str, test_data_esf, test_data_tables, test_startpos, world, world_factions, world_regions, TEST_CAMPAIGN};
 
 /// Share of the game's `WORLD` fields the writer must match. Raised as the writer covers more records.
-const MIN_MATCH_RATIO: f64 = 0.68;
+const MIN_MATCH_RATIO: f64 = 0.93;
 
 /// Matches and totals of each field, by `path:field`.
 #[derive(Debug, Default)]
@@ -51,33 +51,54 @@ impl Report {
     }
 }
 
-/// Returns the identity key of an array group: its first string, its first record's first string, or its first two
-/// leaves (the cell of cell lists, which the game stores in hash order).
-fn group_key(group: &[NodeType]) -> Option<String> {
-    group.iter().find_map(|node| match node {
-        NodeType::Ascii(value) | NodeType::Utf16(value) => Some(value.to_owned()),
-        _ => None,
-    }).or_else(|| group.iter().find_map(|node| match node {
-        NodeType::Record(record) => record.children().first().and_then(|first| group_key(first)),
-        _ => None,
-    })).or_else(|| {
-        let leaves = group.iter().filter(|node| !matches!(node, NodeType::Record(_))).take(2).collect::<Vec<_>>();
-        (leaves.len() == 2).then(|| format!("{leaves:?}"))
-    })
+/// Kinds of identity keys of an array group, tried in order until one is unique on both sides.
+#[derive(Debug, Clone, Copy)]
+enum KeyKind {
+
+    /// The group's first string, or its first record's first string.
+    String,
+
+    /// The group's first two leaves (ids, or the cell of cell lists, which the game stores in hash order).
+    Leaves,
 }
 
-/// Pairs the groups of two records: single groups together, by key when every key is unique on both sides, by
+/// Returns an identity key of an array group.
+fn group_key(group: &[NodeType], kind: KeyKind) -> Option<String> {
+    match kind {
+        KeyKind::String => group.iter().find_map(|node| match node {
+            NodeType::Ascii(value) | NodeType::Utf16(value) => Some(value.to_owned()),
+            _ => None,
+        }).or_else(|| group.iter().find_map(|node| match node {
+            NodeType::Record(record) => record.children().first().and_then(|first| group_key(first, KeyKind::String)),
+            _ => None,
+        })),
+        KeyKind::Leaves => {
+            let leaves = group.iter().filter(|node| !matches!(node, NodeType::Record(_))).take(2).collect::<Vec<_>>();
+            match leaves.as_slice() {
+                [] => group.iter().find_map(|node| match node {
+                    NodeType::Record(record) => record.children().first().and_then(|first| group_key(first, KeyKind::Leaves)),
+                    _ => None,
+                }),
+                leaves => Some(format!("{leaves:?}")),
+            }
+        },
+    }
+}
+
+/// Pairs the groups of two records: single groups together, by the first kind of key unique on both sides, by
 /// position otherwise.
 fn pair_groups<'a>(ours: &'a [Vec<NodeType>], theirs: &'a [Vec<NodeType>]) -> Vec<(Option<&'a [NodeType]>, &'a [NodeType])> {
     if let ([our_group], [their_group]) = (ours, theirs) {
         return vec![(Some(our_group.as_slice()), their_group.as_slice())];
     }
-    let keys = |groups: &'a [Vec<NodeType>]| groups.iter().map(|group| group_key(group)).collect::<Option<Vec<_>>>();
-    if let (Some(our_keys), Some(their_keys)) = (keys(ours), keys(theirs)) {
-        let ours_by_key = our_keys.iter().zip(ours).map(|(key, group)| (key.as_str(), group.as_slice())).collect::<HashMap<_, _>>();
-        let unique = ours_by_key.len() == ours.len() && their_keys.iter().collect::<std::collections::HashSet<_>>().len() == theirs.len();
-        if unique {
-            return their_keys.iter().zip(theirs).map(|(key, group)| (ours_by_key.get(key.as_str()).copied(), group.as_slice())).collect();
+    for kind in [KeyKind::String, KeyKind::Leaves] {
+        let keys = |groups: &'a [Vec<NodeType>]| groups.iter().map(|group| group_key(group, kind)).collect::<Option<Vec<_>>>();
+        if let (Some(our_keys), Some(their_keys)) = (keys(ours), keys(theirs)) {
+            let ours_by_key = our_keys.iter().zip(ours).map(|(key, group)| (key.as_str(), group.as_slice())).collect::<HashMap<_, _>>();
+            let unique = ours_by_key.len() == ours.len() && their_keys.iter().collect::<std::collections::HashSet<_>>().len() == theirs.len();
+            if unique {
+                return their_keys.iter().zip(theirs).map(|(key, group)| (ours_by_key.get(key.as_str()).copied(), group.as_slice())).collect();
+            }
         }
     }
     theirs.iter().enumerate().map(|(index, group)| (ours.get(index).map(Vec::as_slice), group.as_slice())).collect()

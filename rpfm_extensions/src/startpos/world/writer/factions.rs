@@ -21,6 +21,7 @@ use super::government::{write_character_posts, PostPlan};
 use super::provinces::write_mercenary_pool;
 use super::{child, next_id, start_pos_faction_row, WorldInputs, WorldPlan, WORLD_PATH};
 use crate::startpos::world::agents::recruitment_pool_agents;
+use crate::startpos::world::diplomacy::Diplomacy;
 use crate::startpos::world::government::political_parties;
 use crate::startpos::world::pools::{faction_mercenary_pool, levy_pools};
 use crate::startpos::world::FactionEntry;
@@ -63,6 +64,9 @@ pub struct FactionContext<'c, 'a, 'b> {
 
     /// Levy pools of the overlords.
     pub levy_pools: &'c [PlannedLevyPool],
+
+    /// Diplomatic relationships between the factions.
+    pub diplomacy: &'c Diplomacy,
 }
 
 /// A levy pool of an overlord, with its runtime ids.
@@ -207,6 +211,7 @@ pub fn write_faction(inputs: &WorldInputs, plan: &WorldPlan, context: &FactionCo
         .set_record("LEVY_MERCENARY_MANAGER", Some(write_levy_pools(inputs, context.levy_pools, faction)?))?
         .set_record("CHARACTER_RECRUITMENT_POOL_MANAGER", Some(write_recruitment_pools(inputs, faction)?))?
         .set_record("CAMPAIGN_POLITICS", Some(write_politics(inputs, faction)?))?
+        .set_record("OLD_DIPLOMACY_MANAGER", Some(write_diplomacy(inputs, plan, context.diplomacy, faction)?))?
         .set_record("MILITARY_FORCE_LEGACY_NAMES_AND_EMBLEMS", Some(context.armies.write_used_legacies(faction)?))?
         .set_record("CAMPAIGN_MISSION_MANAGER", mission_manager)?
         .set_u32s("FACTION_FLAG_AND_COLOURS@2+19", vec![0; EVENT_COUNTERS])?
@@ -277,6 +282,46 @@ fn write_recruitment_pools(inputs: &WorldInputs, faction: &FactionEntry) -> Resu
 
     let mut manager = inputs.layout.builder(&path)?;
     manager.group()?.set_record("CHARACTER_RECRUITMENT_POOL_BLOCK", Some(block.build()?))?;
+    manager.build()
+}
+
+/// Writes the diplomatic relationships of a faction with every other faction, in startpos order (the game uses a
+/// hash order).
+fn write_diplomacy(inputs: &WorldInputs, plan: &WorldPlan, diplomacy: &Diplomacy, faction: &FactionEntry) -> Result<RecordNode> {
+    let path = format!("{FACTION_PATH}/OLD_DIPLOMACY_MANAGER");
+    let relationship_path = format!("{path}/DIPLOMACY_RELATIONSHIPS_ARRAY/OLD_DIPLOMACY_RELATIONSHIP");
+    let mut array = child(inputs.layout, &path, "DIPLOMACY_RELATIONSHIPS_ARRAY")?;
+    for other in plan.factions().iter().filter(|other| other.key() != faction.key()) {
+        let relationship = diplomacy.relationship(faction.key(), other.key());
+        let other_id = plan.faction_id(other.key()).unwrap_or_default();
+
+        let mut allied = child(inputs.layout, &relationship_path, "ALLIED_IN_WAR_AGAINST")?;
+        for (enemy, defensive_ally) in relationship.allied_against() {
+            allied.push_group()?
+                .set_u32("^+1", plan.faction_id(enemy).unwrap_or_default())?
+                .set_i32("^+2", if *defensive_ally { -1 } else { 0 })?;
+        }
+
+        let (vassal_value, master_value) = relationship.vassal_values();
+        let mut record = inputs.layout.builder(&relationship_path)?;
+        record.group()?
+            .set_u32("^+1", other_id)?
+            .set_bool("^+2", relationship.trade())?
+            .set_i32("^+3", if relationship.allied_against().is_empty() { 0 } else { -1 })?
+            .set_str("^+4", relationship.stance())?
+            .set_i32("^+8", vassal_value)?
+            .set_i32("^+9", master_value)?
+            .set_record("ALLIED_IN_WAR_AGAINST", Some(allied.build()?))?
+            .set_bool("HOSTAGES+2", relationship.known())?
+            .set_bool("HOSTAGES+3", relationship.non_aggression())?
+            .set_i32("HOSTAGES+4", if relationship.military_access() { -1 } else { 0 })?;
+        array.push_group()?
+            .set_u32("^+1", other_id)?
+            .set_record("OLD_DIPLOMACY_RELATIONSHIP", Some(record.build()?))?;
+    }
+
+    let mut manager = inputs.layout.builder(&path)?;
+    manager.group()?.set_record("DIPLOMACY_RELATIONSHIPS_ARRAY", Some(array.build()?))?;
     manager.build()
 }
 

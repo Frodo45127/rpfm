@@ -35,6 +35,7 @@ use self::factions::FactionContext;
 use self::forces::ForcePlan;
 use self::government::PostPlan;
 use super::{CampaignIndex, CharacterEntry, FactionEntry, RegionEntry};
+use super::diplomacy::Diplomacy;
 use crate::startpos::layout::{child_path, RecordBuilder, StartposLayout};
 use crate::startpos::region_map::RegionMap;
 use crate::startpos::settlements::SettlementLayout;
@@ -148,7 +149,8 @@ pub fn write_world_with_plan<'a>(inputs: &WorldInputs<'a>, plan: &WorldPlan<'a>)
     let provinces = provinces::write_province_and_sea_managers(inputs, plan)?;
     let armies = ArmyWriter::new(inputs, &forces, &characters, &residences, provinces.next_recruitment)?;
     let levy_pools = factions::plan_levy_pools(inputs, plan, &provinces.province_ids, provinces.next_pool)?;
-    let context = FactionContext { armies: &armies, characters: &characters, posts: &posts, levy_pools: &levy_pools };
+    let diplomacy = Diplomacy::new(inputs.tables, inputs.index, inputs.region_map)?;
+    let context = FactionContext { armies: &armies, characters: &characters, posts: &posts, levy_pools: &levy_pools, diplomacy: &diplomacy };
 
     let mut world = inputs.layout.builder(WORLD_PATH)?;
     world.group()?
