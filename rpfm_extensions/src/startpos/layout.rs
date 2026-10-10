@@ -50,6 +50,7 @@ use std::fmt::Debug;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
 use std::mem::{discriminant, Discriminant};
+use std::ops::RangeInclusive;
 use std::path::Path;
 
 use rpfm_lib::error::{RLibError, Result};
@@ -71,6 +72,12 @@ const MAX_ALIGNMENT_CELLS: usize = 1 << 20;
 
 /// Longest array kept as a default value. Longer ones become empty arrays.
 const MAX_DEFAULT_ARRAY_LEN: usize = 64;
+
+/// Largest unsigned value with a compact ESF encoding (24 bits).
+const MAX_COMPACT_U32: u32 = 0xFF_FFFF;
+
+/// Signed values with a compact ESF encoding (24 bits).
+const COMPACT_I32: RangeInclusive<i32> = -0x80_0000..=0x7F_FFFF;
 
 //---------------------------------------------------------------------------//
 //                              Types
@@ -398,7 +405,10 @@ impl GroupBuilder<'_> {
         Ok(self)
     }
 
-    /// Replaces an unsigned leaf, keeping its encoding.
+    /// Replaces an unsigned leaf, keeping its type.
+    ///
+    /// Games write integers and floats with their compact encoding when the value has one, so the leaf gets the
+    /// `optimized` flag a decoded startpos would have.
     ///
     /// # Errors
     ///
@@ -406,7 +416,7 @@ impl GroupBuilder<'_> {
     pub fn set_u32(&mut self, name: &str, value: u32) -> Result<&mut Self> {
         let mut node = self.default_of(name)?;
         match &mut node {
-            NodeType::U32(node) => { node.set_value(value); },
+            NodeType::U32(node) => { node.set_value(value).set_optimized(value <= MAX_COMPACT_U32); },
             NodeType::U16(node) => { *node = u16::try_from(value).map_err(|_| self.wrong_type(name, &value))?; },
             NodeType::U8(node) => { *node = u8::try_from(value).map_err(|_| self.wrong_type(name, &value))?; },
             _ => return Err(self.wrong_type(name, &value)),
@@ -414,7 +424,7 @@ impl GroupBuilder<'_> {
         self.set(name, node)
     }
 
-    /// Replaces a signed leaf, keeping its encoding.
+    /// Replaces a signed leaf, keeping its type. See [`Self::set_u32`] for its `optimized` flag.
     ///
     /// # Errors
     ///
@@ -422,7 +432,7 @@ impl GroupBuilder<'_> {
     pub fn set_i32(&mut self, name: &str, value: i32) -> Result<&mut Self> {
         let mut node = self.default_of(name)?;
         match &mut node {
-            NodeType::I32(node) => { node.set_value(value); },
+            NodeType::I32(node) => { node.set_value(value).set_optimized(COMPACT_I32.contains(&value)); },
             NodeType::I16(node) => { *node = i16::try_from(value).map_err(|_| self.wrong_type(name, &value))?; },
             NodeType::I8(node) => { *node = i8::try_from(value).map_err(|_| self.wrong_type(name, &value))?; },
             _ => return Err(self.wrong_type(name, &value)),
@@ -430,7 +440,7 @@ impl GroupBuilder<'_> {
         self.set(name, node)
     }
 
-    /// Replaces a float leaf, keeping its encoding.
+    /// Replaces a float leaf. Only zero has a compact encoding: see [`Self::set_u32`] for its `optimized` flag.
     ///
     /// # Errors
     ///
@@ -438,7 +448,7 @@ impl GroupBuilder<'_> {
     pub fn set_f32(&mut self, name: &str, value: f32) -> Result<&mut Self> {
         let mut node = self.default_of(name)?;
         match &mut node {
-            NodeType::F32(node) => { node.set_value(value); },
+            NodeType::F32(node) => { node.set_value(value).set_optimized(value == 0.0); },
             _ => return Err(self.wrong_type(name, &value)),
         }
         self.set(name, node)
