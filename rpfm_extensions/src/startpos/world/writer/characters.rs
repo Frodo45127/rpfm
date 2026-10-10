@@ -23,7 +23,7 @@ use super::forces::{ForcePlan, PlannedCharacter};
 use super::government::PostPlan;
 use super::sight::{write_line_of_sight, SightPlan};
 use super::{child, WorldInputs, WorldPlan};
-use crate::startpos::layout::child_path;
+use crate::startpos::layout::{child_path, StartposLayout};
 use crate::startpos::coords::HexCell;
 use crate::startpos::tables::Row;
 use crate::startpos::vision::Vision;
@@ -338,28 +338,9 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
         record.build()
     }
 
-    /// Writes the names of a character (`CHARACTER_NAME`) under a parent record: one block per name kind, with the
-    /// name's localisation key if it has one.
+    /// Writes the names of a character (`CHARACTER_NAME`) under a parent record. See [`write_character_name`].
     pub(super) fn write_name(&self, parent: &str, row: Option<&Row>) -> Result<RecordNode> {
-        let layout = self.inputs.layout;
-        let names_path = format!("{parent}/CHARACTER_NAME/NAMES_BLOCK");
-        let mut blocks = child(layout, &format!("{parent}/CHARACTER_NAME"), "NAMES_BLOCK")?;
-        for (kind, column) in NAME_COLUMNS.iter().enumerate() {
-            let name = row.map(|row| row.str(column)).transpose()?.unwrap_or_default();
-            let mut localisation = child(layout, &names_path, "CAMPAIGN_LOCALISATION")?;
-            if name.is_empty() {
-                localisation.group()?.set_str("^+1", "")?;
-            } else {
-                localisation.group()?.set_str("^+1", &format!("{NAME_KEY_PREFIX}{name}"))?.unset("^+2")?;
-            }
-            blocks.push_group()?
-                .set_record("CAMPAIGN_LOCALISATION", Some(localisation.build()?))?
-                .set_i32("CAMPAIGN_LOCALISATION+1", i32::try_from(kind).unwrap_or_default())?;
-        }
-
-        let mut record = child(layout, parent, "CHARACTER_NAME")?;
-        record.group()?.set_record("NAMES_BLOCK", Some(blocks.build()?))?;
-        record.build()
+        write_character_name(self.inputs.layout, parent, row)
     }
 
     /// Writes the bodyguard of a character: the faction's default one for generals without a force, empty otherwise
@@ -520,4 +501,37 @@ fn family_ids(index: &CampaignIndex, plan: &WorldPlan, forces: &ForcePlan) -> (V
         }
     }
     (ids, by_entry)
+}
+
+/// Writes the names of a character (`CHARACTER_NAME`) under a parent record: one block per name kind, with the name's
+/// localisation key if it has one. Nameless characters get the same blocks, all of kind 0.
+///
+/// # Arguments
+///
+/// * `layout` - Record layouts of the game.
+/// * `parent` - Path of the record holding the names.
+/// * `row` - The character's `start_pos_characters` row, or `None` for a nameless character.
+///
+/// # Errors
+///
+/// Returns an error if the layout lacks the records or the row a name column.
+pub(crate) fn write_character_name(layout: &StartposLayout, parent: &str, row: Option<&Row>) -> Result<RecordNode> {
+    let names_path = format!("{parent}/CHARACTER_NAME/NAMES_BLOCK");
+    let mut blocks = child(layout, &format!("{parent}/CHARACTER_NAME"), "NAMES_BLOCK")?;
+    for (kind, column) in NAME_COLUMNS.iter().enumerate() {
+        let name = row.map(|row| row.str(column)).transpose()?.unwrap_or_default();
+        let mut localisation = child(layout, &names_path, "CAMPAIGN_LOCALISATION")?;
+        if name.is_empty() {
+            localisation.group()?.set_str("^+1", "")?;
+        } else {
+            localisation.group()?.set_str("^+1", &format!("{NAME_KEY_PREFIX}{name}"))?.unset("^+2")?;
+        }
+        blocks.push_group()?
+            .set_record("CAMPAIGN_LOCALISATION", Some(localisation.build()?))?
+            .set_i32("CAMPAIGN_LOCALISATION+1", if row.is_some() { i32::try_from(kind).unwrap_or_default() } else { 0 })?;
+    }
+
+    let mut record = child(layout, parent, "CHARACTER_NAME")?;
+    record.group()?.set_record("NAMES_BLOCK", Some(blocks.build()?))?;
+    record.build()
 }

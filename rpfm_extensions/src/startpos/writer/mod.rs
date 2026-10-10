@@ -16,9 +16,11 @@ use rpfm_lib::error::Result;
 use rpfm_lib::files::esf::{ESF, NodeType};
 
 use super::trade::TradeNetwork;
+use super::world::writer::forces::ForcePlan;
 use super::world::writer::{write_world_with_plan, WorldInputs, WorldPlan};
 
 mod diplomacy;
+mod preopen;
 mod trade;
 
 #[cfg(test)] mod writer_test;
@@ -72,10 +74,15 @@ pub fn write_startpos<'a>(inputs: &StartposInputs<'a>, plan: &WorldPlan<'a>) -> 
         .set_record("DIPLOMACY_MANAGER", Some(diplomacy::write_diplomacy_manager(layout, plan)?))?;
 
     let mut env = layout.builder(ENV_PATH)?;
-    env.group()?.set_record("CAMPAIGN_MODEL", Some(model.build()?))?;
+    env.group()?
+        .set_record("CAMPAIGN_SETUP", Some(preopen::write_campaign_setup(layout, plan)?))?
+        .set_record("CAMPAIGN_MODEL", Some(model.build()?))?;
 
+    let forces = ForcePlan::new(world.tables, world.index, plan)?;
     let mut root = layout.builder(ROOT_PATH)?;
-    root.group()?.set_record("CAMPAIGN_ENV", Some(env.build()?))?;
+    root.group()?
+        .set_record("CAMPAIGN_PREOPEN_MAP_INFO", Some(preopen::write_preopen_map_info(world, plan, &forces)?))?
+        .set_record("CAMPAIGN_ENV", Some(env.build()?))?;
 
     let mut startpos = ESF::default();
     startpos.set_root_node(NodeType::Record(Box::new(root.build()?)));
