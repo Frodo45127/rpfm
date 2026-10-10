@@ -30,6 +30,15 @@ fn test_region_at_reads_the_first_byte_of_each_cell() {
 }
 
 #[test]
+fn test_region_index_and_area_read_the_first_two_bytes_of_each_cell() {
+    let map = RegionMap::from_cells(vec!["reg_a".to_owned(), "reg_b".to_owned()], 2, 1, vec![0, 6, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0]);
+
+    assert_eq!((map.region_index_at(HexCell::new(0, 0)), map.area_at(HexCell::new(0, 0))), (Some(0), Some(3)));
+    assert_eq!((map.region_index_at(HexCell::new(1, 0)), map.area_at(HexCell::new(1, 0))), (Some(1), Some(0)));
+    assert_eq!(map.area_at(HexCell::new(2, 0)), None);
+}
+
+#[test]
 fn test_edge_masks_read_the_last_two_bytes_of_each_cell() {
     let mut cells = vec![0; 2 * BYTES_PER_CELL];
     cells[BYTES_PER_CELL + 5] = 9;

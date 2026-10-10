@@ -34,6 +34,9 @@ const BYTES_PER_CELL: usize = 7;
 /// Position of the first hex-edge mask in a cell's bytes (the second one follows it).
 const EDGE_MASKS_OFFSET: usize = 5;
 
+/// Position of a cell's area byte: the index of the region's area the cell is in, shifted one bit left.
+const AREA_OFFSET: usize = 1;
+
 //---------------------------------------------------------------------------//
 //                              Types
 //---------------------------------------------------------------------------//
@@ -125,6 +128,22 @@ impl RegionMap {
     pub fn region_at(&self, cell: HexCell) -> Option<&str> {
         let index = self.cell_offset(cell)?;
         self.keys.get(usize::from(self.cells[index])).map(String::as_str)
+    }
+
+    /// Returns the index (in `REGIONS_BLOCK` order) of the region a cell belongs to, or `None` for cells outside the map.
+    pub fn region_index_at(&self, cell: HexCell) -> Option<usize> {
+        self.cell_offset(cell).map(|index| usize::from(self.cells[index]))
+    }
+
+    /// Returns the index of the area (in the region's `REGION_AREAS` order) a cell is in, or `None` for cells outside
+    /// the map.
+    pub fn area_at(&self, cell: HexCell) -> Option<usize> {
+        self.cell_offset(cell).map(|index| usize::from(self.cells[index + AREA_OFFSET] >> 1))
+    }
+
+    /// Returns the size of the map in cells.
+    pub fn size(&self) -> (u32, u32) {
+        (self.width, self.height)
     }
 
     /// Returns the two hex-edge masks of a cell (bit `n` stands for the `n`-th neighbour in the game's direction

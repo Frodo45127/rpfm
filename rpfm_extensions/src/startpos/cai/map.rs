@@ -18,7 +18,9 @@ use std::collections::HashMap;
 use rpfm_lib::error::{RLibError, Result};
 use rpfm_lib::files::esf::{NodeType, RecordNode, ESF};
 
+use crate::startpos::coords::HexCell;
 use crate::startpos::esf_nav::{as_record, as_u32, child_record, leaves};
+use crate::startpos::region_map::RegionMap;
 use crate::startpos::settlements::{region_data_records, region_key};
 
 #[cfg(test)] #[path = "map_test.rs"] mod map_test;
@@ -57,6 +59,25 @@ pub struct MapRegion {
     /// The region connects directly to a region of the other kind (land to sea or sea to land).
     #[getset(get_copy = "pub")]
     connects_to_other_kind: bool,
+
+    /// The region has a settlement (land regions do, seas don't).
+    #[getset(get_copy = "pub")]
+    has_settlement: bool,
+}
+
+/// The connectivity group of each cell (land masses and seas), from the group of the area it's in. Seas without areas
+/// take the most common group of the sea areas around them.
+#[derive(Debug, Clone)]
+pub struct AreaGroups<'a> {
+
+    /// Region and area of each cell.
+    map: &'a RegionMap,
+
+    /// Regions of the map, in map order.
+    regions: &'a [MapRegion],
+
+    /// Group of each sea without areas, by region index.
+    sea_groups: HashMap<usize, u32>,
 }
 
 /// Reads the integer leaves of a flat list one by one.
@@ -123,8 +144,9 @@ impl MapRegion {
             }
         }
         let connects_to_other_kind = child_record(record, CONNECTIVITY_RECORDS[1]).is_some_and(|list| !list.children().is_empty());
+        let has_settlement = child_record(record, "SETTLEMENT_INFO").is_some();
 
-        Ok(Self { key, area_groups, area_sizes, connections, connects_to_other_kind })
+        Ok(Self { key, area_groups, area_sizes, connections, connects_to_other_kind, has_settlement })
     }
 
     /// Returns the region's HLCIs: the distinct connectivity groups of its areas, in the order they first appear,
@@ -150,6 +172,53 @@ impl MapRegion {
     pub fn hlci_of_area(&self, area: usize) -> Option<usize> {
         let group = self.area_groups.get(area)?;
         self.hlcis().iter().position(|(hlci_group, _)| hlci_group == group)
+    }
+}
+
+impl<'a> AreaGroups<'a> {
+
+    /// Finds the groups of the seas without areas.
+    ///
+    /// # Arguments
+    ///
+    /// * `map` - Region and area of each cell.
+    /// * `regions` - Regions of the map, in map order.
+    pub fn new(map: &'a RegionMap, regions: &'a [MapRegion]) -> Self {
+        let mut groups = Self { map, regions, sea_groups: HashMap::new() };
+        let is_bare_sea = |region: usize| regions.get(region).is_some_and(|region| !region.has_settlement && region.area_groups.is_empty());
+
+        // Seas next to other bare seas only get a group once those have one, so repeat until nothing changes.
+        let (width, height) = map.size();
+        loop {
+            let mut counts: HashMap<usize, HashMap<u32, usize>> = HashMap::new();
+            for y in 0..height as u16 {
+                for x in 0..width as u16 {
+                    let cell = HexCell::new(x, y);
+                    let Some(region) = map.region_index_at(cell).filter(|region| is_bare_sea(*region) && !groups.sea_groups.contains_key(region)) else { continue };
+                    for neighbour in cell.neighbours() {
+                        let is_other_sea = map.region_index_at(neighbour).is_some_and(|other| other != region && regions.get(other).is_some_and(|other| !other.has_settlement));
+                        if let Some(group) = groups.group_at(neighbour).filter(|_| is_other_sea) {
+                            *counts.entry(region).or_default().entry(group).or_default() += 1;
+                        }
+                    }
+                }
+            }
+            if counts.is_empty() {
+                break;
+            }
+            for (region, counts) in counts {
+                let group = counts.into_iter().max_by_key(|(group, count)| (*count, std::cmp::Reverse(*group))).map(|(group, _)| group).unwrap_or_default();
+                groups.sea_groups.insert(region, group);
+            }
+        }
+        groups
+    }
+
+    /// Returns the group of a cell, or `None` for cells outside the map or in seas without a known group.
+    pub fn group_at(&self, cell: HexCell) -> Option<u32> {
+        let region = self.map.region_index_at(cell)?;
+        let area = self.map.area_at(cell)?;
+        self.regions.get(region)?.area_groups.get(area).copied().or_else(|| self.sea_groups.get(&region).copied())
     }
 }
 
