@@ -72,6 +72,8 @@
 //! - Campaign map coordinate systems (world, raw map units, hex cells)
 //! - Trade network from `trade_routes.ptd`
 //! - Settlement slot and sprawl layouts from `map_data.esf`
+//! - Region of each map cell, from `map_data.esf`
+//! - The world stage: garrisons, bodyguards, pools, government, legacies, rebels, provinces and seas
 //!
 //! ## Translation Support
 //!
