@@ -47,7 +47,7 @@ fn sample() -> ESF {
 fn slot_names(layout: &StartposLayout, path: &str) -> Vec<(String, bool)> {
     layout.record(path).unwrap().slots().iter().map(|slot| match slot {
         Slot::Leaf { name, optional, .. } => (name.to_owned(), *optional),
-        Slot::Record { key, optional } => (key.to_owned(), *optional),
+        Slot::Record { key, optional, .. } => (key.to_owned(), *optional),
     }).collect()
 }
 
@@ -131,7 +131,7 @@ fn rebuild(layout: &StartposLayout, record: &RecordNode, path: &str) -> RecordNo
         // Clear the optional slots first: only the ones in this instance come back.
         for slot in record_layout.slots() {
             match slot {
-                Slot::Record { key, optional: true } => { target.set_record(key, None).unwrap(); },
+                Slot::Record { key, optional: true, .. } => { target.set_record(key, None).unwrap(); },
                 Slot::Leaf { name, optional: true, .. } => { target.unset(name).unwrap(); },
                 _ => {},
             }
@@ -193,4 +193,21 @@ fn test_long_records_are_free_form() {
     }
     assert_eq!(NodeType::Record(Box::new(builder.build().unwrap())), long);
     assert!(layout.builder("ROOT").unwrap().group().unwrap().push_child(NodeType::U8(1)).is_err());
+}
+
+#[test]
+fn test_repeated_records_keep_their_contents_by_slot() {
+    let numbered = |value: u8| record("STANCE", RecordNodeFlags::empty(), vec![vec![NodeType::U8(value)]]);
+    let manager = record("MANAGER", RecordNodeFlags::empty(), vec![vec![numbered(0), numbered(1), numbered(2)]]);
+    let mut esf = ESF::default();
+    esf.set_root_node(record("ROOT", RecordNodeFlags::empty(), vec![vec![manager.clone(), manager.clone()]]));
+    let layout = StartposLayout::from_esf(&esf).unwrap();
+
+    assert_eq!(NodeType::Record(Box::new(layout.default_record("ROOT/MANAGER").unwrap())), manager);
+
+    // The first occurrence matches the path's default, so it doesn't need its own.
+    let defaults = layout.record("ROOT/MANAGER").unwrap().slots().iter()
+        .map(|slot| matches!(slot, Slot::Record { default: Some(_), .. }))
+        .collect::<Vec<_>>();
+    assert_eq!(defaults, vec![false, true, true]);
 }

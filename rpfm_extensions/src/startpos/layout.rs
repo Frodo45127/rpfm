@@ -70,6 +70,9 @@ pub const MAX_LAYOUT_SLOTS: usize = 256;
 /// Largest subsequence table (cells) used to align two leaf runs. Bigger runs are aligned in a single pass.
 const MAX_ALIGNMENT_CELLS: usize = 1 << 20;
 
+/// Most leaves a child record can have to keep a default per slot (see [`Slot::Record`]).
+const MAX_SLOT_DEFAULT_LEAVES: usize = 16;
+
 /// Longest array kept as a default value. Longer ones become empty arrays.
 const MAX_DEFAULT_ARRAY_LEN: usize = 64;
 
@@ -145,6 +148,11 @@ pub enum Slot {
 
         /// The record isn't in every instance.
         optional: bool,
+
+        /// Most common content of the record in this slot, for small records whose content depends on the slot
+        /// (like repeated records numbered by position). `None` uses the default record of the child's path.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        default: Option<RecordNode>,
     },
 }
 
@@ -169,7 +177,7 @@ pub struct GroupBuilder<'a> {
 #[derive(Debug, Clone)]
 enum SlotStats {
     Leaf { kind: Discriminant<NodeType>, values: HashMap<String, (usize, NodeType)> },
-    Record { key: String, seen: usize },
+    Record { key: String, seen: usize, contents: Option<HashMap<String, (usize, RecordNode)>> },
 }
 
 /// What's known so far about the records of a path.
@@ -208,7 +216,30 @@ impl StartposLayout {
         collect(root, root.name(), &mut stats);
 
         let records = stats.into_iter().map(|(path, stats)| (path, stats.into_layout())).collect();
-        Ok(Self { records })
+        let mut layout = Self { records };
+        layout.drop_redundant_slot_defaults()?;
+        Ok(layout)
+    }
+
+    /// Removes the slot defaults of child records that match the default record of the child's path.
+    fn drop_redundant_slot_defaults(&mut self) -> Result<()> {
+        let mut redundant = vec![];
+        for (path, record) in &self.records {
+            for (index, slot) in record.slots.iter().enumerate() {
+                if let Slot::Record { key, default: Some(default), .. } = slot {
+                    if *default == self.default_record(&child_path(path, key))? {
+                        redundant.push((path.to_owned(), index));
+                    }
+                }
+            }
+        }
+
+        for (path, index) in redundant {
+            if let Some(Slot::Record { default, .. }) = self.records.get_mut(&path).and_then(|record| record.slots.get_mut(index)) {
+                *default = None;
+            }
+        }
+        Ok(())
     }
 
     /// Loads a layout file.
@@ -351,7 +382,8 @@ impl<'a> RecordBuilder<'a> {
                 Slot::Leaf { absent_by_default: true, .. } => None,
                 Slot::Leaf { default, .. } => Some(default.clone()),
                 Slot::Record { optional: true, .. } => None,
-                Slot::Record { key, optional: false } => Some(NodeType::Record(Box::new(self.layout.default_record(&child_path(&self.path, key))?))),
+                Slot::Record { default: Some(default), .. } => Some(NodeType::Record(Box::new(default.clone()))),
+                Slot::Record { key, default: None, .. } => Some(NodeType::Record(Box::new(self.layout.default_record(&child_path(&self.path, key))?))),
             });
         }
         self.groups.push(GroupBuilder { path: self.path.to_owned(), record: self.record, values });
@@ -652,13 +684,18 @@ impl PathStats {
         let mut offset = 0;
         for slot in self.slots {
             match slot {
-                SlotStats::Record { key, seen } => {
+                SlotStats::Record { key, seen, contents } => {
                     let optional = seen < self.groups;
                     if !optional {
                         anchor = key.to_owned();
                         offset = 0;
                     }
-                    slots.push(Slot::Record { key, optional });
+
+                    // Like leaves, ties go to the smallest text form.
+                    let default = contents.and_then(|contents| contents.into_iter()
+                        .max_by(|(text_a, (count_a, _)), (text_b, (count_b, _))| count_a.cmp(count_b).then_with(|| text_b.cmp(text_a)))
+                        .map(|(_, (_, record))| record));
+                    slots.push(Slot::Record { key, optional, default });
                 },
                 SlotStats::Leaf { values, .. } => {
                     let seen = values.values().map(|(count, _)| count).sum::<usize>();
@@ -691,7 +728,11 @@ impl SlotStats {
     /// Creates the stats of a slot from its first token.
     fn new(token: &(Option<String>, &NodeType)) -> Self {
         match token {
-            (Some(key), _) => Self::Record { key: key.to_owned(), seen: 1 },
+            (Some(key), node) => {
+                let mut stats = Self::Record { key: key.to_owned(), seen: 0, contents: Some(HashMap::new()) };
+                stats.record(node);
+                stats
+            },
             (None, node) => {
                 let mut values = HashMap::new();
                 values.insert(format!("{node:?}"), (1, (*node).clone()));
@@ -703,7 +744,17 @@ impl SlotStats {
     /// Records another instance of the slot.
     fn record(&mut self, node: &NodeType) {
         match self {
-            Self::Record { seen, .. } => *seen += 1,
+            Self::Record { seen, contents, .. } => {
+                *seen += 1;
+
+                // Only small records keep their contents: big ones would take too much memory.
+                match (node, contents.as_mut()) {
+                    (NodeType::Record(record), Some(counts)) if record_leaf_count(record) <= MAX_SLOT_DEFAULT_LEAVES => {
+                        counts.entry(format!("{record:?}")).or_insert_with(|| (0, (**record).clone())).0 += 1;
+                    },
+                    _ => *contents = None,
+                }
+            },
             Self::Leaf { values, .. } => values.entry(format!("{node:?}")).or_insert_with(|| (0, node.clone())).0 += 1,
         }
     }
@@ -764,6 +815,14 @@ fn trim_default(node: &mut NodeType) {
         NodeType::Utf16Array(values) | NodeType::AsciiArray(values) => values.clear(),
         _ => {},
     }
+}
+
+/// Returns the number of leaves of a record and everything under it.
+fn record_leaf_count(record: &RecordNode) -> usize {
+    record.children().iter().flatten().map(|node| match node {
+        NodeType::Record(child) => record_leaf_count(child),
+        _ => 1,
+    }).sum()
 }
 
 /// Collects the stats of a record and everything under it.
