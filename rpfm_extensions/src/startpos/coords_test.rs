@@ -72,8 +72,8 @@ fn test_world_position_matches_game_placements() {
     let (odd_x, odd_y) = HexCell::new(449, 543).world_position();
     let (even_x, even_y) = HexCell::new(564, 494).world_position();
 
-    assert!((odd_x - 300.144_35).abs() < 1e-3 && (odd_y - 419.520_08).abs() < 1e-3);
-    assert!((even_x - 377.018_74).abs() < 1e-3 && (even_y - 381.311_7).abs() < 1e-3);
+    assert_eq!((odd_x, odd_y), (300.144_35, 419.520_08));
+    assert_eq!((even_x, even_y), (377.018_74, 381.311_7));
 }
 
 #[test]
