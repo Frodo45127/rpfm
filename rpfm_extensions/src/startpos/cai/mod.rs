@@ -27,6 +27,7 @@ pub mod plan;
 pub mod regions;
 pub mod settlements;
 pub mod technologies;
+pub mod world;
 pub mod world_view;
 
 #[cfg(test)] mod cai_test;

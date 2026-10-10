@@ -19,7 +19,7 @@ use rpfm_lib::error::{RLibError, Result};
 use rpfm_lib::files::esf::{NodeType, RecordNode, ESF};
 
 use crate::startpos::coords::HexCell;
-use crate::startpos::esf_nav::{as_record, as_u32, cell_groups, child_record, leaves};
+use crate::startpos::esf_nav::{as_record, as_str, as_u32, cell_groups, child_record, leaves};
 use crate::startpos::region_map::RegionMap;
 use crate::startpos::settlements::{region_data_records, region_key};
 
@@ -251,6 +251,22 @@ impl<'a> AreaGroups<'a> {
         let area = self.map.area_at(cell)?;
         self.regions.get(region)?.area_groups.get(area).copied().or_else(|| self.sea_groups.get(&region).copied())
     }
+}
+
+/// Returns the key of the map's theatre (`REGIONS_DATA/theatres/CAMPAIGN_THEATRE`'s string).
+///
+/// # Errors
+///
+/// Returns an error if the map lacks its theatre.
+pub fn theatre_key(map_data: &ESF) -> Result<String> {
+    as_record(map_data.root_node())
+        .and_then(|root| child_record(root, "REGIONS_DATA"))
+        .and_then(|regions| child_record(regions, "theatres"))
+        .and_then(|theatres| child_record(theatres, "CAMPAIGN_THEATRE"))
+        .and_then(|theatre| theatre.children().first())
+        .and_then(|group| leaves(group).find_map(as_str))
+        .map(str::to_owned)
+        .ok_or_else(|| RLibError::CampaignMapDataError("missing the key of REGIONS_DATA/theatres/CAMPAIGN_THEATRE".to_owned()))
 }
 
 /// Reads the nodes of the high-level pathfinder of a `hlp_data.esf`, by region index.

@@ -34,8 +34,13 @@ pub(crate) fn map_inputs() -> (Vec<MapRegion>, HashMap<usize, Vec<PathfinderNode
 
 /// Returns a list of the game startpos's `CAI_WORLD`.
 pub(crate) fn game_cai_world_list(name: &str) -> &'static RecordNode {
+    child_record(game_cai_record("CAI_WORLD"), name).unwrap()
+}
+
+/// Returns a record of the game startpos's `CAI_INTERFACE`.
+pub(crate) fn game_cai_record(name: &str) -> &'static RecordNode {
     let mut record = as_record(test_startpos().root_node()).unwrap();
-    for name in ["CAMPAIGN_ENV", "CAMPAIGN_MODEL", "CAI_INTERFACE", "CAI_WORLD", name] {
+    for name in ["CAMPAIGN_ENV", "CAMPAIGN_MODEL", "CAI_INTERFACE", name] {
         record = child_record(record, name).unwrap();
     }
     record
