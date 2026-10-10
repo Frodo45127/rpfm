@@ -46,18 +46,20 @@ pub struct Bodyguard {
 //                              Implementations
 //---------------------------------------------------------------------------//
 
-/// Returns the default bodyguard of a faction's generals.
+/// Returns the default bodyguard of a faction's generals, or the flagship of its admirals.
 ///
 /// The candidates are the `commander_unit_permissions` units of the faction, of its subculture (rows without
 /// faction) and of its culture (rows without faction and subculture), allowed for the faction's military group
-/// and not naval. The bodyguard is the candidate no other candidate upgrades into (`technology_unit_upgrades`),
-/// that is, the start of the upgrade chain; the first one in table order if there are several.
+/// and naval only for flagships. The bodyguard is the candidate no other candidate upgrades into
+/// (`technology_unit_upgrades`), that is, the start of the upgrade chain; the first one in table order if there are
+/// several.
 ///
 /// # Arguments
 ///
 /// * `tables` - Tables with `commander_unit_permissions`, `units_to_groupings_military_permissions`,
 ///   `technology_unit_upgrades` and `main_units`.
 /// * `faction` - The faction.
+/// * `naval` - Look for a flagship instead of a land bodyguard.
 ///
 /// # Returns
 ///
@@ -66,7 +68,7 @@ pub struct Bodyguard {
 /// # Errors
 ///
 /// Returns an error if a table or column is missing.
-pub fn bodyguard(tables: &StartposTables, faction: &FactionEntry) -> Result<Option<Bodyguard>> {
+pub fn bodyguard(tables: &StartposTables, faction: &FactionEntry, naval: bool) -> Result<Option<Bodyguard>> {
     let mut allowed = HashSet::new();
     for row in tables.table("units_to_groupings_military_permissions")?.rows() {
         if row.str("military_group")? == *faction.military_group() {
@@ -74,12 +76,12 @@ pub fn bodyguard(tables: &StartposTables, faction: &FactionEntry) -> Result<Opti
         }
     }
 
-    let mut naval = HashSet::new();
+    let mut naval_units = HashSet::new();
     let mut men = HashMap::new();
     for row in tables.table("main_units")?.rows() {
         let unit = row.str("unit")?.into_owned();
         if row.bool("is_naval")? {
-            naval.insert(unit.to_owned());
+            naval_units.insert(unit.to_owned());
         }
         men.insert(unit, row.int("num_men")?);
     }
@@ -93,7 +95,7 @@ pub fn bodyguard(tables: &StartposTables, faction: &FactionEntry) -> Result<Opti
             || (row_faction.is_empty() && row_subculture.is_empty() && row.str("culture_key")? == *faction.culture());
 
         let unit = row.str("unit_key")?.into_owned();
-        if matches && allowed.contains(&unit) && !naval.contains(&unit) && !candidates.contains(&unit) {
+        if matches && allowed.contains(&unit) && naval_units.contains(&unit) == naval && !candidates.contains(&unit) {
             candidates.push(unit);
         }
     }

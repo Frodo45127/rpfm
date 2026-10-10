@@ -71,12 +71,12 @@ pub(crate) fn fixture_tables() -> StartposTables {
         &["22", "12", "bld_city_minor_1", "", "", "", "", "", ""],
         &["23", "13", "bld_city_minor_1", "", "", "", "", "", ""],
     ]);
-    add_table(&mut tables, "start_pos_characters", &["ID", "faction", "Type", "Age", "startx", "starty", "ministerial_position", "loyalty", "death_type", "progenitor"], &[
-        &["30", "1", "general", "40", "0.0", "0.0", "", "0", "", "true"],
-        &["31", "1", "general", "20", "5.0", "7.0", "faction_leader", "16", "", "false"],
-        &["32", "1", "general", "60", "0.0", "0.0", "", "5", "EXECUTED", "false"],
-        &["33", "2", "general", "30", "0.0", "0.0", "", "5", "", "false"],
-        &["34", "3", "general", "30", "0.0", "0.0", "", "5", "", "false"],
+    add_table(&mut tables, "start_pos_characters", &["ID", "faction", "Type", "Age", "startx", "starty", "ministerial_position", "loyalty", "death_type", "progenitor", "override_general_unit"], &[
+        &["30", "1", "general", "40", "0.0", "0.0", "", "0", "", "true", ""],
+        &["31", "1", "general", "20", "5.0", "7.0", "faction_leader", "16", "", "false", ""],
+        &["32", "1", "general", "60", "0.0", "0.0", "", "5", "EXECUTED", "false", ""],
+        &["33", "2", "general", "30", "0.0", "0.0", "", "5", "", "false", ""],
+        &["34", "3", "general", "30", "0.0", "0.0", "", "5", "", "false", ""],
     ]);
     tables
 }

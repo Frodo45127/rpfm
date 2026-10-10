@@ -51,10 +51,20 @@ fn test_bodyguard_is_the_root_of_the_upgrade_chain() {
     let tables = bodyguard_tables();
     let index = fixture_index(&tables);
 
-    let bodyguard = bodyguard(&tables, index.faction("fact_a").unwrap()).unwrap().unwrap();
+    let bodyguard = bodyguard(&tables, index.faction("fact_a").unwrap(), false).unwrap().unwrap();
 
     assert_eq!(bodyguard.unit(), "nobles");
     assert_eq!(bodyguard.men(), 160);
+}
+
+#[test]
+fn test_flagship_is_the_naval_candidate() {
+    let tables = bodyguard_tables();
+    let index = fixture_index(&tables);
+
+    let flagship = bodyguard(&tables, index.faction("fact_a").unwrap(), true).unwrap().unwrap();
+
+    assert_eq!((flagship.unit().as_str(), flagship.men()), ("guard_ship", 40));
 }
 
 #[test]
@@ -62,7 +72,7 @@ fn test_no_candidates_gives_no_bodyguard() {
     let tables = bodyguard_tables();
     let index = fixture_index(&tables);
 
-    assert_eq!(bodyguard(&tables, index.faction("fact_b").unwrap()).unwrap(), None);
+    assert_eq!(bodyguard(&tables, index.faction("fact_b").unwrap(), false).unwrap(), None);
 }
 
 #[test]
@@ -86,7 +96,7 @@ fn test_bodyguards_real_data() {
 
     let matching = expected.iter()
         .filter(|(faction, (unit, men))| {
-            let bodyguard = bodyguard(tables, index.faction(faction).unwrap()).unwrap().unwrap();
+            let bodyguard = bodyguard(tables, index.faction(faction).unwrap(), false).unwrap().unwrap();
             bodyguard.unit() == unit && bodyguard.men() == *men
         })
         .count();

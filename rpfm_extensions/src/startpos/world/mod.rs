@@ -206,6 +206,10 @@ pub struct CharacterEntry {
     /// The character starts its faction's family tree.
     #[getset(get_copy = "pub")]
     progenitor: bool,
+
+    /// Unit of the character's bodyguard, overriding the faction's default. Empty for the default.
+    #[getset(get = "pub")]
+    override_general_unit: String,
 }
 
 //---------------------------------------------------------------------------//
@@ -300,6 +304,7 @@ impl CampaignIndex {
                 loyalty: row.int("loyalty")?,
                 death_type: row.str("death_type")?.into_owned(),
                 progenitor: row.bool("progenitor")?,
+                override_general_unit: row.str("override_general_unit")?.into_owned(),
             });
         }
 
