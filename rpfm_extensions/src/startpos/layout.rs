@@ -173,6 +173,13 @@ pub struct GroupBuilder<'a> {
     values: Vec<Option<NodeType>>,
 }
 
+/// A group of an existing record, read through the layout of its path: its children by slot id (leaf name or child
+/// record key).
+#[derive(Debug, Clone, Default)]
+pub struct GroupView<'a> {
+    fields: HashMap<&'a str, &'a NodeType>,
+}
+
 /// A child slot seen while extracting, with what's known so far about it.
 #[derive(Debug, Clone)]
 enum SlotStats {
@@ -299,6 +306,24 @@ impl StartposLayout {
     /// Returns an error if the layout lacks the path or one of its child records.
     pub fn default_record(&self, path: &str) -> Result<RecordNode> {
         self.builder(path)?.build()
+    }
+
+    /// Reads the groups of a record through the layout of its path.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path of the record.
+    /// * `record` - The record to read.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the path has no layout, its layout is free-form, or a group doesn't fit it.
+    pub fn read<'a>(&'a self, path: &str, record: &'a RecordNode) -> Result<Vec<GroupView<'a>>> {
+        let layout = self.record(path).ok_or_else(|| missing(path))?;
+        record.children().iter().enumerate().map(|(index, group)| {
+            let slots = layout.match_children(group).ok_or_else(|| missing(&format!("{path}[{index}]")))?;
+            Ok(GroupView { fields: slots.into_iter().map(Slot::id).zip(group).collect() })
+        }).collect()
     }
 
     /// Builds a record with the given children as its only group, as they are. For records whose shape varies too
@@ -636,6 +661,66 @@ impl GroupBuilder<'_> {
     }
 }
 
+impl<'a> GroupView<'a> {
+
+    /// Returns a child by slot id, if the group has it.
+    pub fn get(&self, id: &str) -> Option<&'a NodeType> {
+        self.fields.get(id).copied()
+    }
+
+    /// Returns an unsigned leaf (`U32`, `U16` or `U8`).
+    pub fn u32(&self, name: &str) -> Option<u32> {
+        match self.get(name)? {
+            NodeType::U32(node) => Some(*node.value()),
+            NodeType::U16(value) => Some(u32::from(*value)),
+            NodeType::U8(value) => Some(u32::from(*value)),
+            _ => None,
+        }
+    }
+
+    /// Returns a signed leaf (`I32`, `I16` or `I8`).
+    pub fn i32(&self, name: &str) -> Option<i32> {
+        match self.get(name)? {
+            NodeType::I32(node) => Some(*node.value()),
+            NodeType::I16(value) => Some(i32::from(*value)),
+            NodeType::I8(value) => Some(i32::from(*value)),
+            _ => None,
+        }
+    }
+
+    /// Returns a boolean leaf.
+    pub fn bool(&self, name: &str) -> Option<bool> {
+        match self.get(name)? {
+            NodeType::Bool(node) => Some(*node.value()),
+            _ => None,
+        }
+    }
+
+    /// Returns a string leaf (ASCII or UTF-16).
+    pub fn str(&self, name: &str) -> Option<&'a str> {
+        match self.get(name)? {
+            NodeType::Ascii(value) | NodeType::Utf16(value) => Some(value),
+            _ => None,
+        }
+    }
+
+    /// Returns an unsigned array leaf.
+    pub fn u32s(&self, name: &str) -> Option<&'a [u32]> {
+        match self.get(name)? {
+            NodeType::U32Array(node) => Some(node.value()),
+            _ => None,
+        }
+    }
+
+    /// Returns a child record by key.
+    pub fn record(&self, key: &str) -> Option<&'a RecordNode> {
+        match self.get(key)? {
+            NodeType::Record(record) => Some(record),
+            _ => None,
+        }
+    }
+}
+
 impl PathStats {
 
     /// Adds a group of a record instance, aligning it with the slots seen so far.
@@ -899,6 +984,14 @@ impl SlotStats {
 }
 
 impl Slot {
+
+    /// Returns the slot's id: the name of a leaf, or the key of a child record.
+    pub fn id(&self) -> &str {
+        match self {
+            Self::Leaf { name, .. } => name,
+            Self::Record { key, .. } => key,
+        }
+    }
 
     /// Returns the kind of the slot.
     fn kind(&self) -> Kind<'_> {

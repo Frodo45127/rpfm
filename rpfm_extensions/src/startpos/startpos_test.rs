@@ -28,7 +28,7 @@ use rpfm_lib::games::supported_games::{SupportedGames, KEY_ATTILA};
 use rpfm_lib::schema::Schema;
 
 use super::esf_nav::{as_record, as_u32, child_record};
-use super::layout::{child_path, Slot, StartposLayout};
+use super::layout::{child_path, StartposLayout};
 use super::tables::StartposTables;
 
 /// Environment variable with the folder of the game data used by the ignored tests.
@@ -271,12 +271,12 @@ pub(crate) fn compare(layout: &StartposLayout, ours: &RecordNode, theirs: &Recor
         }
 
         let fields = |group: &'_ [NodeType]| -> HashMap<String, NodeType> {
-            record_layout.match_children(group).map(|slots| slots.into_iter().zip(group).map(|(slot, node)| (slot_id(slot), node.clone())).collect()).unwrap_or_default()
+            record_layout.match_children(group).map(|slots| slots.into_iter().zip(group).map(|(slot, node)| (slot.id().to_owned(), node.clone())).collect()).unwrap_or_default()
         };
         let (our_fields, their_fields) = (fields(our_group), fields(their_group));
 
         for slot in record_layout.slots() {
-            let id = slot_id(slot);
+            let id = slot.id().to_owned();
             match (our_fields.get(&id), their_fields.get(&id)) {
                 (Some(NodeType::Record(our_child)), Some(NodeType::Record(their_child))) => compare(layout, our_child, their_child, &child_path(path, &id), report),
                 (None, Some(NodeType::Record(their_child))) => {
@@ -312,10 +312,3 @@ pub(crate) fn leaf_count(group: &[NodeType]) -> usize {
     }).sum()
 }
 
-/// Returns a slot's name (leaves) or key (records).
-pub(crate) fn slot_id(slot: &Slot) -> String {
-    match slot {
-        Slot::Leaf { name, .. } => name.to_owned(),
-        Slot::Record { key, .. } => key.to_owned(),
-    }
-}

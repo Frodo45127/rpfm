@@ -93,6 +93,20 @@ fn test_builder_sets_fields_and_optional_records() {
 }
 
 #[test]
+fn test_reader_names_the_children_of_each_group() {
+    let layout = StartposLayout::from_esf(&sample()).unwrap();
+    let NodeType::Record(item) = item(5, true, 4) else { unreachable!() };
+
+    let groups = layout.read("ROOT/ITEMS/ITEM", &item).unwrap();
+
+    assert_eq!(groups.len(), 1);
+    assert_eq!((groups[0].u32("^+1"), groups[0].u32("A@2+1")), (Some(5), Some(4)));
+    assert!(groups[0].record("OPT").is_some());
+    assert!(groups[0].u32("A").is_none());
+    assert!(layout.read("ROOT/MISSING", &item).is_err());
+}
+
+#[test]
 fn test_arrays_start_empty() {
     let layout = StartposLayout::from_esf(&sample()).unwrap();
 
