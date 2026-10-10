@@ -36,6 +36,7 @@ full_moon.workspace = true
 mlua.workspace = true
 
 # Serialization support.
+ron.workspace = true
 serde.workspace = true
 serde_derive.workspace = true
 serde_json.workspace = true

@@ -271,6 +271,10 @@ pub enum RLibError {
     #[error("Missing column {1} in table {0}, needed to build the startpos.")]
     StartposMissingColumn(String, String),
 
+    /// A startpos layout is missing something, or a value doesn't fit it.
+    #[error("Startpos layout error: {0}")]
+    StartposLayoutError(String),
+
     /// A table value needed to build a startpos has the wrong type or is out of range.
     #[error("Invalid value in column {1} of table {0}, needed to build the startpos: {2}")]
     StartposInvalidValue(String, String, String),

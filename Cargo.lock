@@ -4767,6 +4767,7 @@ dependencies = [
  "open",
  "rayon",
  "regex",
+ "ron",
  "rpfm_lib",
  "serde",
  "serde_derive",

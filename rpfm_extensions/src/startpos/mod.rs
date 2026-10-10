@@ -23,12 +23,14 @@
 //! - [`coords`]: coordinate systems of the campaign map (world, raw map units, hex cells).
 //! - [`trade`]: the trade network (`CAMPAIGN_TRADE_MANAGER` splines and routes), from `trade_routes.ptd`.
 //! - [`settlements`]: settlement layouts (slots and sprawl cells of each region).
+//! - [`layout`]: record layouts used to write startposes.
 //! - [`region_map`]: the region of each cell of the campaign map.
 //! - [`tables`]: access to the database tables the build reads.
 //! - [`world`]: the world stage (factions, characters, armies, regions, provinces and seas).
 
 pub mod coords;
 mod esf_nav;
+pub mod layout;
 pub mod region_map;
 pub mod settlements;
 pub mod tables;
