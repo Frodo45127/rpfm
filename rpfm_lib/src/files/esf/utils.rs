@@ -21,12 +21,13 @@
 //! - [`ESF::read_string_from_node`]: Collects all strings from a node tree for string table generation
 
 use std::collections::BTreeMap;
-use std::io::SeekFrom;
+use std::io::{SeekFrom, Write};
 
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{RLibError, Result};
 
 use super::*;
+use super::stream::EsfStream;
 
 //---------------------------------------------------------------------------//
 //                                  Functions
@@ -669,7 +670,7 @@ impl ESF {
     /// # Errors
     ///
     /// Returns an error if write operations fail or string lookups fail.
-    pub(crate) fn save_node<W: WriteBytes>(buffer: &mut W, node_type: &NodeType, is_root_node: bool, record_names: &[String], strings_utf8: &[String], strings_utf16: &[String]) -> Result<()> {
+    pub(crate) fn save_node(buffer: &mut EsfStream, node_type: &NodeType, is_root_node: bool, record_names: &[String], strings_utf8: &[String], strings_utf16: &[String]) -> Result<()> {
         match node_type {
 
             // Crash with this for now.
@@ -862,24 +863,21 @@ impl ESF {
 
                 let mut list = vec![];
                 value.iter().try_for_each(|x| list.write_bool(*x))?;
-                buffer.write_cauleb128(list.len() as u32, 0)?;
-                buffer.write_all(&list)?;
+                buffer.write_sized(&list)?;
             },
             NodeType::I8Array(value) => {
                 buffer.write_u8(I8_ARRAY)?;
 
                 let mut list = vec![];
                 value.iter().try_for_each(|x| list.write_i8(*x as i8))?;
-                buffer.write_cauleb128(list.len() as u32, 0)?;
-                buffer.write_all(&list)?;
+                buffer.write_sized(&list)?;
             },
             NodeType::I16Array(value) => {
                 buffer.write_u8(I16_ARRAY)?;
 
                 let mut list = vec![];
                 value.iter().try_for_each(|x| list.write_i16(*x))?;
-                buffer.write_cauleb128(list.len() as u32, 0)?;
-                buffer.write_all(&list)?;
+                buffer.write_sized(&list)?;
             },
             NodeType::I32Array(value) => {
                 let mut list = vec![];
@@ -907,8 +905,7 @@ impl ESF {
                     value.value().iter().try_for_each(|x| list.write_i32(*x))?;
                 }
 
-                buffer.write_cauleb128(list.len() as u32, 0)?;
-                buffer.write_all(&list)?;
+                buffer.write_sized(&list)?;
             },
 
             NodeType::I64Array(value) => {
@@ -916,21 +913,18 @@ impl ESF {
 
                 let mut list = vec![];
                 value.iter().try_for_each(|x| list.write_i64(*x))?;
-                buffer.write_cauleb128(list.len() as u32, 0)?;
-                buffer.write_all(&list)?;
+                buffer.write_sized(&list)?;
             },
             NodeType::U8Array(value) => {
                 buffer.write_u8(U8_ARRAY)?;
-                buffer.write_cauleb128(value.len() as u32, 0)?;
-                buffer.write_all(value)?;
+                buffer.write_sized(value)?;
             },
             NodeType::U16Array(value) => {
                 buffer.write_u8(U16_ARRAY)?;
 
                 let mut list = vec![];
                 value.iter().try_for_each(|x| list.write_u16(*x))?;
-                buffer.write_cauleb128(list.len() as u32, 0)?;
-                buffer.write_all(&list)?;
+                buffer.write_sized(&list)?;
             },
             NodeType::U32Array(value) => {
                 let mut list = vec![];
@@ -955,32 +949,28 @@ impl ESF {
                     value.value().iter().try_for_each(|x| list.write_u32(*x))?;
                 }
 
-                buffer.write_cauleb128(list.len() as u32, 0)?;
-                buffer.write_all(&list)?;
+                buffer.write_sized(&list)?;
             },
             NodeType::U64Array(value) => {
                 buffer.write_u8(U64_ARRAY)?;
 
                 let mut list = vec![];
                 value.iter().try_for_each(|x| list.write_u64(*x))?;
-                buffer.write_cauleb128(list.len() as u32, 0)?;
-                buffer.write_all(&list)?;
+                buffer.write_sized(&list)?;
             },
             NodeType::F32Array(value) => {
                 buffer.write_u8(F32_ARRAY)?;
 
                 let mut list = vec![];
                 value.iter().try_for_each(|x| list.write_f32(*x))?;
-                buffer.write_cauleb128(list.len() as u32, 0)?;
-                buffer.write_all(&list)?;
+                buffer.write_sized(&list)?;
             },
             NodeType::F64Array(value) => {
                 buffer.write_u8(F64_ARRAY)?;
 
                 let mut list = vec![];
                 value.iter().try_for_each(|x| list.write_f64(*x))?;
-                buffer.write_cauleb128(list.len() as u32, 0)?;
-                buffer.write_all(&list)?;
+                buffer.write_sized(&list)?;
             },
 
             //------------------------------------------------//
@@ -996,8 +986,7 @@ impl ESF {
                     if v1.is_err() { v1 } else if v2.is_err() { v2 } else { v1 }
                 })?;
 
-                buffer.write_cauleb128(list.len() as u32, 0)?;
-                buffer.write_all(&list)?;
+                buffer.write_sized(&list)?;
             },
             NodeType::Coord3dArray(value) => {
                 buffer.write_u8(COORD_3D_ARRAY)?;
@@ -1010,8 +999,7 @@ impl ESF {
                     if v1.is_err() { v1 } else if v2.is_err() { v2 } else if v3.is_err() { v3 } else { v1 }
                 })?;
 
-                buffer.write_cauleb128(list.len() as u32, 0)?;
-                buffer.write_all(&list)?;
+                buffer.write_sized(&list)?;
             },
 
             //------------------------------------------------//
@@ -1025,8 +1013,7 @@ impl ESF {
                     list.write_u32(strings_utf16.iter().position(|x| x == y).unwrap() as u32)
                 })?;
 
-                buffer.write_cauleb128(list.len() as u32, 0)?;
-                buffer.write_all(&list)?;
+                buffer.write_sized(&list)?;
             },
             NodeType::AsciiArray(value) => {
                 buffer.write_u8(ASCII_ARRAY)?;
@@ -1036,8 +1023,7 @@ impl ESF {
                     list.write_u32(strings_utf8.iter().position(|x| x == y).unwrap() as u32)
                 })?;
 
-                buffer.write_cauleb128(list.len() as u32, 0)?;
-                buffer.write_all(&list)?;
+                buffer.write_sized(&list)?;
             },
 
             //------------------------------------------------//
@@ -1048,8 +1034,7 @@ impl ESF {
 
                 let mut list = vec![];
                 value.iter().try_for_each(|x| list.write_i16(*x))?;
-                buffer.write_cauleb128(list.len() as u32, 0)?;
-                buffer.write_all(&list)?;
+                buffer.write_sized(&list)?;
             },
 
             //------------------------------------------------//
@@ -1064,41 +1049,45 @@ impl ESF {
                 }
 
                 // If it's not the root node or uses optimized data, it needs special encoding.
+                // The games write its two bytes one by one, which matters for where their write buffer flushes.
                 else {
                     let mut info: u16 = (value.record_flags().bits() as u16) << 8;
                     info |= (value.version as u16) << 9;
                     info |= record_names.iter().position(|x| x == &value.name).unwrap() as u16;
 
-                    buffer.write_u16(info.swap_bytes())?;
+                    let [high, low] = info.to_be_bytes();
+                    buffer.write_u8(high)?;
+                    buffer.write_u8(low)?;
                 }
 
-                let mut children_data = vec![];
-
+                let block = buffer.open_size()?;
                 if value.record_flags.contains(RecordNodeFlags::HAS_NESTED_BLOCKS) {
+                    let groups = buffer.open_size()?;
                     for group_node in &value.children {
-                        let mut group_node_data = vec![];
+                        let entry = buffer.open_size()?;
                         for node in group_node {
-                            Self::save_node(&mut group_node_data, node, false, record_names, strings_utf8, strings_utf16)?;
+                            Self::save_node(buffer, node, false, record_names, strings_utf8, strings_utf16)?;
                         }
-
-                        children_data.write_cauleb128(group_node_data.len() as u32, 0)?;
-                        children_data.extend_from_slice(&group_node_data);
+                        let entry_size = buffer.len() - buffer.end_of(&entry);
+                        buffer.close_size(entry, entry_size as u32)?;
                     }
 
-                    buffer.write_cauleb128(children_data.len() as u32, 0)?;
-                    buffer.write_cauleb128(value.children.len() as u32, 0)?;
+                    // The block size of nested records counts from after their group count.
+                    let groups_end = buffer.close_size(groups, value.children.len() as u32)?;
+                    let block_size = buffer.len() - groups_end;
+                    buffer.close_size(block, block_size as u32)?;
                 } else {
 
                     // For non-nested nodes, we just get the first and only children group.
                     if let Some(children) = value.children.first() {
                         for node in children {
-                            Self::save_node(&mut children_data, node, false, record_names, strings_utf8, strings_utf16)?;
+                            Self::save_node(buffer, node, false, record_names, strings_utf8, strings_utf16)?;
                         }
                     }
 
-                    buffer.write_cauleb128(children_data.len() as u32, 0)?;
+                    let block_size = buffer.len() - buffer.end_of(&block);
+                    buffer.close_size(block, block_size as u32)?;
                 }
-                buffer.write_all(&children_data)?;
             },
         }
 
@@ -1155,3 +1144,4 @@ impl ESF {
         }
     }
 }
+

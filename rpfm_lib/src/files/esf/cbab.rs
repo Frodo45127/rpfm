@@ -50,6 +50,7 @@ use crate::compression::{Compressible, CompressionFormat, Decompressible};
 use crate::error::{RLibError, Result};
 
 use super::*;
+use super::stream::EsfStream;
 
 //---------------------------------------------------------------------------//
 //                           Implementation of ESF
@@ -286,8 +287,11 @@ impl ESF {
         Self::read_string_from_node(&self.root_node, &mut record_names, &mut strings_utf8, &mut strings_utf16);
 
         // Next, encode the nodes. We need them (and the strings) encoded in order to know their offsets.
-        let mut nodes_data = vec![];
-        Self::save_node(&mut nodes_data, &self.root_node, true, &record_names, &strings_utf8, &strings_utf16)?;
+        // The header before the nodes (signature, unknown, date and the string tables offset) also went through the
+        // games' write buffer, so the stream counts it.
+        let mut nodes = EsfStream::new(16);
+        Self::save_node(&mut nodes, &self.root_node, true, &record_names, &strings_utf8, &strings_utf16)?;
+        let nodes_data = nodes.into_inner();
 
         // Then, encode the strings.
         let mut strings_data: Vec<u8> = vec![];

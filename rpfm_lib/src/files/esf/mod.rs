@@ -144,6 +144,7 @@ pub const SIGNATURE_CFAB: &[u8; 4] = &[0xCF, 0xAB, 0x00, 0x00];
 
 mod caab;
 mod cbab;
+mod stream;
 mod utils;
 
 //#[cfg(test)] mod esf_test;
