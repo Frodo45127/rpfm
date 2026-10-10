@@ -17,9 +17,10 @@
 //! # Submodules
 //!
 //! - [`factions`]: the `FACTION` records.
+//! - [`provinces`]: the provinces and the sea regions.
 //! - [`regions`]: the `REGION` records and their settlements.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use rpfm_lib::error::{RLibError, Result};
 use rpfm_lib::files::esf::RecordNode;
@@ -31,6 +32,7 @@ use crate::startpos::settlements::SettlementLayout;
 use crate::startpos::tables::{Row, StartposTables};
 
 pub mod factions;
+pub mod provinces;
 pub mod regions;
 
 #[cfg(test)] mod writer_test;
@@ -110,10 +112,13 @@ pub fn write_world(inputs: &WorldInputs) -> Result<RecordNode> {
 ///
 /// Returns an error if a table, column or layout is missing.
 pub fn write_world_with_plan(inputs: &WorldInputs, plan: &WorldPlan) -> Result<RecordNode> {
+    let (provinces, seas) = provinces::write_province_and_sea_managers(inputs, plan)?;
     let mut world = inputs.layout.builder(WORLD_PATH)?;
     world.group()?
         .set_record("FACTION_ARRAY", Some(factions::write_faction_array(inputs, plan)?))?
-        .set_record("REGION_MANAGER", Some(regions::write_region_manager(inputs, plan)?))?;
+        .set_record("REGION_MANAGER", Some(regions::write_region_manager(inputs, plan)?))?
+        .set_record("PROVINCE_MANAGER", Some(provinces))?
+        .set_record("SEA_REGION_MANAGER", Some(seas))?;
     world.build()
 }
 
@@ -170,4 +175,23 @@ pub(crate) fn start_pos_faction_row<'a>(tables: &'a StartposTables, faction: &Fa
         }
     }
     Err(RLibError::StartposInvalidValue("start_pos_factions".to_owned(), "ID".to_owned(), faction.id().to_owned()))
+}
+
+/// Returns the `start_pos_horde_details` rows of the campaign's characters.
+pub(crate) fn horde_details<'a>(inputs: &WorldInputs<'a>) -> Result<Vec<Row<'a>>> {
+    let characters = inputs.index.characters().iter().map(|character| character.id().as_str()).collect::<HashSet<_>>();
+    let mut rows = vec![];
+    for row in inputs.tables.table("start_pos_horde_details")?.rows() {
+        if characters.contains(row.str("general")?.as_ref()) {
+            rows.push(row);
+        }
+    }
+    Ok(rows)
+}
+
+/// Returns the current value of an id counter, and advances it.
+pub(crate) fn next_id(counter: &mut u32) -> u32 {
+    let id = *counter;
+    *counter += 1;
+    id
 }

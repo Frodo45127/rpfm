@@ -16,7 +16,7 @@ use rpfm_lib::error::{RLibError, Result};
 use rpfm_lib::files::esf::RecordNode;
 
 use super::factions::write_flag;
-use super::{child, WorldInputs, WorldPlan, REBEL_FACTION_ID, WORLD_PATH};
+use super::{child, horde_details, next_id, WorldInputs, WorldPlan, REBEL_FACTION_ID, WORLD_PATH};
 use crate::startpos::coords::{EdgePiece, HexCell};
 use crate::startpos::settlements::{SettlementLayout, SlotLayout};
 use crate::startpos::tables::Row;
@@ -514,15 +514,11 @@ fn garrison_zone(map_layout: &SettlementLayout) -> Vec<HexCell> {
         .collect()
 }
 
-/// Returns the number of horde buildings of the campaign's characters. The game numbers them before the region
-/// buildings, with the same counter.
+/// Returns the number of horde buildings of the campaign. The game numbers them before the region buildings, with
+/// the same counter.
 fn horde_building_count(inputs: &WorldInputs) -> Result<u32> {
-    let characters = inputs.index.characters().iter().map(|character| character.id().as_str()).collect::<HashSet<_>>();
     let mut count = 0;
-    for row in inputs.tables.table("start_pos_horde_details")?.rows() {
-        if !characters.contains(row.str("general")?.as_ref()) {
-            continue;
-        }
+    for row in horde_details(inputs)? {
         for column in HORDE_BUILDING_COLUMNS {
             if !row.str(column)?.is_empty() {
                 count += 1;
@@ -530,11 +526,4 @@ fn horde_building_count(inputs: &WorldInputs) -> Result<u32> {
         }
     }
     Ok(count)
-}
-
-/// Returns the current value of an id counter, and advances it.
-fn next_id(counter: &mut u32) -> u32 {
-    let id = *counter;
-    *counter += 1;
-    id
 }

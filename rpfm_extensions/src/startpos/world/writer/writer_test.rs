@@ -19,7 +19,7 @@ use crate::startpos::layout::Slot;
 use crate::startpos::startpos_test::{field_str, test_data_esf, test_data_tables, test_startpos, world, world_factions, world_regions, TEST_CAMPAIGN};
 
 /// Share of the game's `WORLD` fields the writer must match. Raised as the writer covers more records.
-const MIN_MATCH_RATIO: f64 = 0.48;
+const MIN_MATCH_RATIO: f64 = 0.49;
 
 /// Matches and totals of each field, by `path:field`.
 #[derive(Debug, Default)]
@@ -64,8 +64,12 @@ fn group_key(group: &[NodeType]) -> Option<String> {
     })
 }
 
-/// Pairs the groups of two records: by key when every key is unique on both sides, by position otherwise.
+/// Pairs the groups of two records: single groups together, by key when every key is unique on both sides, by
+/// position otherwise.
 fn pair_groups<'a>(ours: &'a [Vec<NodeType>], theirs: &'a [Vec<NodeType>]) -> Vec<(Option<&'a [NodeType]>, &'a [NodeType])> {
+    if let ([our_group], [their_group]) = (ours, theirs) {
+        return vec![(Some(our_group.as_slice()), their_group.as_slice())];
+    }
     let keys = |groups: &'a [Vec<NodeType>]| groups.iter().map(|group| group_key(group)).collect::<Option<Vec<_>>>();
     if let (Some(our_keys), Some(their_keys)) = (keys(ours), keys(theirs)) {
         let ours_by_key = our_keys.iter().zip(ours).map(|(key, group)| (key.as_str(), group.as_slice())).collect::<HashMap<_, _>>();
