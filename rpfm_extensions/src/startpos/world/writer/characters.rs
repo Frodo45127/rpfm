@@ -21,10 +21,12 @@ use rpfm_lib::files::esf::{Coordinates2DNode, NodeType, RecordNode};
 
 use super::forces::{ForcePlan, PlannedCharacter};
 use super::government::PostPlan;
+use super::sight::{write_line_of_sight, SightPlan};
 use super::{child, WorldInputs, WorldPlan};
 use crate::startpos::layout::child_path;
 use crate::startpos::coords::HexCell;
 use crate::startpos::tables::Row;
+use crate::startpos::vision::Vision;
 use crate::startpos::world::agents::{agent_abilities, agent_attributes, skill_set, ABILITIES, ATTRIBUTES};
 use crate::startpos::world::bodyguards::{bodyguard, Bodyguard};
 use crate::startpos::world::characters::{birth_year, loyalty, placement, Placement};
@@ -79,6 +81,9 @@ pub struct CharacterWriter<'a, 'b> {
 
     /// Government posts of the factions.
     posts: &'b PostPlan,
+
+    /// Vision of the world.
+    sight: &'b SightPlan,
 
     /// `start_pos_characters` rows, by id.
     rows: HashMap<String, Row<'a>>,
@@ -138,11 +143,12 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
     /// * `plan` - Order of the factions and regions.
     /// * `forces` - Characters and forces of the world.
     /// * `posts` - Government posts of the factions.
+    /// * `sight` - Vision of the world.
     ///
     /// # Errors
     ///
     /// Returns an error if a table or column is missing.
-    pub fn new(inputs: &'b WorldInputs<'a>, plan: &WorldPlan<'a>, forces: &'b ForcePlan<'a>, posts: &'b PostPlan) -> Result<Self> {
+    pub fn new(inputs: &'b WorldInputs<'a>, plan: &WorldPlan<'a>, forces: &'b ForcePlan<'a>, posts: &'b PostPlan, sight: &'b SightPlan) -> Result<Self> {
         let tables = inputs.tables;
         let mut rows = HashMap::new();
         for row in tables.table("start_pos_characters")?.rows() {
@@ -198,6 +204,7 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
             inputs,
             forces,
             posts,
+            sight,
             rows,
             traits,
             agents,
@@ -256,7 +263,8 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
             .set_f32("LINE_OF_SIGHT+4", line_of_sight)?
             .set_str("LINE_OF_SIGHT+16", override_unit)?
             .set_u32("LINE_OF_SIGHT+18", if is_leader { LEADER_VALUE } else { 0 })?
-            .set_bool("LINE_OF_SIGHT+19", is_leader)?;
+            .set_bool("LINE_OF_SIGHT+19", is_leader)?
+            .set_record("LINE_OF_SIGHT", Some(write_line_of_sight(layout, CHARACTER_PATH, self.sight.grid(), self.vision(character)?.as_ref())?))?;
         record.build()
     }
 
@@ -386,6 +394,27 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
             .and_then(|entry| self.entry_family_ids.get(entry.id()))
             .copied()
             .unwrap_or_default()
+    }
+
+    /// Returns what a character sees: a disk of its agent's sight radius around it. Generals without a force don't
+    /// see anything.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if a table or column is missing.
+    pub fn vision(&self, character: &PlannedCharacter) -> Result<Option<Vision>> {
+        let agent = self.info(character)?.agent;
+        if agent == GENERAL_AGENT && character.force().is_none() {
+            return Ok(None);
+        }
+        let (_, line_of_sight) = self.agents.get(&agent).copied().unwrap_or_default();
+        let (position, _) = self.position(character)?;
+        Ok(Some(self.sight.grid().disk(position, line_of_sight)))
+    }
+
+    /// Returns the planned characters of a faction.
+    pub fn characters_of<'s>(&'s self, faction: &FactionEntry) -> impl Iterator<Item = &'s PlannedCharacter<'a>> + 's {
+        self.forces.characters_of(faction.key())
     }
 
     /// Returns the runtime id of a faction's leader, if it has one.

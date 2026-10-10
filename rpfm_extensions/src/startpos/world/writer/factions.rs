@@ -19,7 +19,9 @@ use super::armies::ArmyWriter;
 use super::characters::CharacterWriter;
 use super::government::{write_character_posts, PostPlan};
 use super::provinces::write_mercenary_pool;
+use super::sight::{write_shroud, SightPlan};
 use super::{child, next_id, start_pos_faction_row, WorldInputs, WorldPlan, WORLD_PATH};
+use crate::startpos::vision::Vision;
 use crate::startpos::world::agents::recruitment_pool_agents;
 use crate::startpos::world::diplomacy::Diplomacy;
 use crate::startpos::world::government::political_parties;
@@ -67,6 +69,9 @@ pub struct FactionContext<'c, 'a, 'b> {
 
     /// Diplomatic relationships between the factions.
     pub diplomacy: &'c Diplomacy,
+
+    /// Vision of the world.
+    pub sight: &'c SightPlan,
 }
 
 /// A levy pool of an overlord, with its runtime ids.
@@ -178,6 +183,7 @@ pub fn write_faction(inputs: &WorldInputs, plan: &WorldPlan, context: &FactionCo
     }
 
     let mission_manager = faction.playable().then(|| layout.default_record(&format!("{FACTION_PATH}/CAMPAIGN_MISSION_MANAGER"))).transpose()?;
+    let shroud = if faction.playable() { Some(write_shroud(layout, FACTION_PATH, context.sight.grid(), &faction_vision(inputs, context, faction)?)?) } else { None };
 
     let mut record = layout.builder(FACTION_PATH)?;
     record.group()?
@@ -214,11 +220,28 @@ pub fn write_faction(inputs: &WorldInputs, plan: &WorldPlan, context: &FactionCo
         .set_record("OLD_DIPLOMACY_MANAGER", Some(write_diplomacy(inputs, plan, context.diplomacy, faction)?))?
         .set_record("MILITARY_FORCE_LEGACY_NAMES_AND_EMBLEMS", Some(context.armies.write_used_legacies(faction)?))?
         .set_record("CAMPAIGN_MISSION_MANAGER", mission_manager)?
+        .set_record("CAMPAIGN_SHROUD", shroud)?
         .set_u32s("FACTION_FLAG_AND_COLOURS@2+19", vec![0; EVENT_COUNTERS])?
         .set_u32("FACTION_ACTION_LOG_BLOCK+11", context.characters.progenitor_family_id(faction))?
         .set_bool("FACTION_ACTION_LOG_BLOCK+12", *faction.culture() != NOMADIC_CULTURE)?;
 
     record.build()
+}
+
+/// Returns what a faction sees: its regions, its settlements and its forces' commanders.
+fn faction_vision(inputs: &WorldInputs, context: &FactionContext, faction: &FactionEntry) -> Result<Vision> {
+    let mut vision = Vision::default();
+    for region in inputs.index.regions_of(faction.key()) {
+        for area in [context.sight.region(region.key()), context.sight.settlement(region.key())].into_iter().flatten() {
+            vision.extend(area);
+        }
+    }
+    for character in context.characters.characters_of(faction) {
+        if let Some(area) = context.characters.vision(character)? {
+            vision.extend(&area);
+        }
+    }
+    Ok(vision)
 }
 
 /// Writes the technologies a faction starts with (`start_pos_technologies`), in table order (the game uses a hash

@@ -17,6 +17,7 @@ use rpfm_lib::files::esf::RecordNode;
 
 use super::factions::write_flag;
 use super::forces::{ForcePlan, PlannedForce};
+use super::sight::{write_line_of_sight, SightPlan};
 use super::{child, horde_details, next_id, HORDE_BUILDING_COLUMNS, WorldInputs, WorldPlan, REBEL_FACTION_ID, WORLD_PATH};
 use crate::startpos::coords::{EdgePiece, HexCell};
 use crate::startpos::settlements::{SettlementLayout, SlotLayout};
@@ -77,6 +78,9 @@ struct RegionWriter<'a, 'b> {
     /// Characters and forces of the world.
     forces: &'b ForcePlan<'a>,
 
+    /// Vision of the world.
+    sight: &'b SightPlan,
+
     /// Table rows the regions use, indexed once.
     rows: RegionRows<'a>,
 
@@ -135,11 +139,12 @@ struct SlotContent<'s> {
 /// # Errors
 ///
 /// Returns an error if a table, column or layout is missing, or a region has no settlement layout.
-pub fn write_region_manager<'a>(inputs: &WorldInputs<'a>, plan: &WorldPlan<'a>, forces: &ForcePlan<'a>) -> Result<RecordNode> {
+pub fn write_region_manager<'a>(inputs: &WorldInputs<'a>, plan: &WorldPlan<'a>, forces: &ForcePlan<'a>, sight: &SightPlan) -> Result<RecordNode> {
     let mut writer = RegionWriter {
         inputs,
         plan,
         forces,
+        sight,
         rows: RegionRows::new(inputs)?,
         next_slot: 1,
         next_residence: 1,
@@ -236,7 +241,8 @@ impl RegionWriter<'_, '_> {
             .set_str("LINE_OF_SIGHT+4", &row.str("cultural_originator")?)?
             .set_record("CAMPAIGN_LOCALISATION", Some(localisation.build()?))?
             .set_record("REGION_REBEL_MANAGER", Some(self.write_rebel_manager(region)?))?
-            .set_bool("REGION_REBEL_MANAGER+1", region.owner().is_none())?;
+            .set_bool("REGION_REBEL_MANAGER+1", region.owner().is_none())?
+            .set_record("LINE_OF_SIGHT", Some(write_line_of_sight(layout, REGION_PATH, self.sight.grid(), self.sight.region(key))?))?;
         record.build()
     }
 
@@ -405,6 +411,7 @@ impl RegionWriter<'_, '_> {
             .set_u32("^+1", next_id(&mut self.next_residence))?
             .set_u32("^+2", force_id(self.forces.stationed_in(key)))?
             .set_record("ZOE_BLOCK", Some(zone))?
+            .set_record("LINE_OF_SIGHT", Some(write_line_of_sight(layout, &format!("{SETTLEMENT_PATH}/GARRISON_RESIDENCE"), self.sight.grid(), self.sight.settlement(key))?))?
             .set_u32("ZOE_BLOCK+3", force_id(self.forces.garrison_of(key, ForceKind::GarrisonArmy)))?
             .set_u32("ZOE_BLOCK+4", force_id(self.forces.garrison_of(key, ForceKind::GarrisonNavy)))?;
 

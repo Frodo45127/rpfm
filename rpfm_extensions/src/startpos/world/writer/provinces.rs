@@ -18,8 +18,10 @@ use std::collections::HashMap;
 use rpfm_lib::error::Result;
 use rpfm_lib::files::esf::RecordNode;
 
+use super::sight::{write_line_of_sight, SightPlan};
 use super::{child, horde_details, next_id, WorldInputs, WorldPlan, REBEL_FACTION_ID, WORLD_PATH};
 use crate::startpos::tables::Row;
+use crate::startpos::vision::Vision;
 use crate::startpos::world::pools::{province_mercenary_pool, MercenaryUnit};
 use crate::startpos::world::provinces::{province_managers, sea_regions, ProvinceManager, SeaRegion};
 
@@ -54,6 +56,9 @@ struct ProvinceWriter<'a, 'b> {
 
     /// Order and runtime ids of the world's objects.
     plan: &'b WorldPlan<'a>,
+
+    /// Vision of the world.
+    sight: &'b SightPlan,
 
     /// `start_pos_regions` rows, by region key.
     regions: HashMap<String, Row<'a>>,
@@ -101,7 +106,7 @@ pub struct ProvinceRecords {
 /// # Errors
 ///
 /// Returns an error if a table, column or layout is missing.
-pub fn write_province_and_sea_managers(inputs: &WorldInputs, plan: &WorldPlan) -> Result<ProvinceRecords> {
+pub fn write_province_and_sea_managers(inputs: &WorldInputs, plan: &WorldPlan, sight: &SightPlan) -> Result<ProvinceRecords> {
     let mut regions = HashMap::new();
     for row in inputs.tables.table("start_pos_regions")?.rows() {
         if row.str("campaign")? == *inputs.index.campaign() {
@@ -112,7 +117,7 @@ pub fn write_province_and_sea_managers(inputs: &WorldInputs, plan: &WorldPlan) -
     let first_recruitment = u32::try_from(horde_details(inputs)?.len()).unwrap_or(u32::MAX).saturating_add(1);
     // Mercenary pool ids continue the ones of the factions (the rebels' and one per faction).
     let first_pool = u32::try_from(plan.factions().len()).unwrap_or(u32::MAX).saturating_add(REBEL_FACTION_ID + 1);
-    let mut writer = ProvinceWriter { inputs, plan, regions, next_recruitment: first_recruitment, next_pool: first_pool, province_ids: HashMap::new() };
+    let mut writer = ProvinceWriter { inputs, plan, sight, regions, next_recruitment: first_recruitment, next_pool: first_pool, province_ids: HashMap::new() };
     let provinces = writer.write_province_manager()?;
     let seas = writer.write_sea_region_manager()?;
     Ok(ProvinceRecords {
@@ -254,12 +259,21 @@ impl ProvinceWriter<'_, '_> {
             let mut region_ids = regions.iter().map(|region| self.plan.region_id(region).unwrap_or_default()).collect::<Vec<_>>();
             region_ids.sort_unstable();
 
+            // What the faction's port settlements see (an approximation of the game's sea vision).
+            let mut vision = Vision::default();
+            for region in regions {
+                if let Some(settlement) = self.sight.settlement(region) {
+                    vision.extend(settlement);
+                }
+            }
+
             let mut manager = layout.builder(SEA_MANAGER_PATH)?;
             manager.group()?
                 .set_u32("^+1", next_id(next_manager))?
                 .set_u32("^+2", self.faction_id(faction.as_deref()))?
                 .set_u32s("^+3", region_ids)?
-                .set_record("RECRUITMENT_MANAGER", Some(self.write_recruitment_manager(SEA_MANAGER_PATH)?))?;
+                .set_record("RECRUITMENT_MANAGER", Some(self.write_recruitment_manager(SEA_MANAGER_PATH)?))?
+                .set_record("LINE_OF_SIGHT", Some(write_line_of_sight(layout, SEA_MANAGER_PATH, self.sight.grid(), Some(&vision))?))?;
             managers.push_group()?.set_record("FACTION_SEA_REGION_MANAGER", Some(manager.build()?))?;
         }
 

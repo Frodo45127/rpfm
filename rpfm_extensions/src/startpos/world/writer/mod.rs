@@ -23,6 +23,7 @@
 //! - [`government`]: the plan of the government posts.
 //! - [`provinces`]: the provinces and the sea regions.
 //! - [`regions`]: the `REGION` records and their settlements.
+//! - [`sight`]: the vision of regions, settlements and forces, and the factions' shroud.
 
 use std::collections::{HashMap, HashSet};
 
@@ -34,6 +35,7 @@ use self::characters::CharacterWriter;
 use self::factions::FactionContext;
 use self::forces::ForcePlan;
 use self::government::PostPlan;
+use self::sight::SightPlan;
 use super::{CampaignIndex, CharacterEntry, FactionEntry, RegionEntry};
 use super::diplomacy::Diplomacy;
 use crate::startpos::layout::{child_path, RecordBuilder, StartposLayout};
@@ -48,6 +50,7 @@ pub mod forces;
 pub mod government;
 pub mod provinces;
 pub mod regions;
+pub mod sight;
 
 #[cfg(test)] mod writer_test;
 
@@ -145,17 +148,18 @@ pub fn write_world_with_plan<'a>(inputs: &WorldInputs<'a>, plan: &WorldPlan<'a>)
     let residences = regions::settlement_residences(inputs, plan)?;
 
     let posts = PostPlan::new(inputs, plan)?;
-    let characters = CharacterWriter::new(inputs, plan, &forces, &posts)?;
-    let provinces = provinces::write_province_and_sea_managers(inputs, plan)?;
+    let sight = SightPlan::new(inputs, plan);
+    let characters = CharacterWriter::new(inputs, plan, &forces, &posts, &sight)?;
+    let provinces = provinces::write_province_and_sea_managers(inputs, plan, &sight)?;
     let armies = ArmyWriter::new(inputs, &forces, &characters, &residences, provinces.next_recruitment)?;
     let levy_pools = factions::plan_levy_pools(inputs, plan, &provinces.province_ids, provinces.next_pool)?;
     let diplomacy = Diplomacy::new(inputs.tables, inputs.index, inputs.region_map)?;
-    let context = FactionContext { armies: &armies, characters: &characters, posts: &posts, levy_pools: &levy_pools, diplomacy: &diplomacy };
+    let context = FactionContext { armies: &armies, characters: &characters, posts: &posts, levy_pools: &levy_pools, diplomacy: &diplomacy, sight: &sight };
 
     let mut world = inputs.layout.builder(WORLD_PATH)?;
     world.group()?
         .set_record("FACTION_ARRAY", Some(factions::write_faction_array(inputs, plan, &context)?))?
-        .set_record("REGION_MANAGER", Some(regions::write_region_manager(inputs, plan, &forces)?))?
+        .set_record("REGION_MANAGER", Some(regions::write_region_manager(inputs, plan, &forces, &sight)?))?
         .set_record("PROVINCE_MANAGER", Some(provinces.provinces))?
         .set_record("SEA_REGION_MANAGER", Some(provinces.seas))?;
     world.build()
