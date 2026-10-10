@@ -18,12 +18,13 @@ use rpfm_lib::files::trade_routes::TradeRoutes;
 use super::*;
 use crate::startpos::esf_nav::as_record;
 use crate::startpos::layout::StartposLayout;
+use crate::startpos::missions::parse_victory_objectives;
 use crate::startpos::startpos_test::{compare, test_data_path, test_data_tables, test_startpos, Report};
 use crate::startpos::world::writer::writer_test::{game_plan, world_test_data};
 
 /// Share of the game's fields outside `WORLD` and `CAI_INTERFACE` the writer must match. Raised as the writer covers
 /// more records.
-const MIN_MATCH_RATIO: f64 = 0.87;
+const MIN_MATCH_RATIO: f64 = 0.99;
 
 /// Records compared elsewhere (`WORLD`) or not written yet (`CAI_INTERFACE`).
 const SKIPPED: [&str; 2] = ["WORLD", "CAI_INTERFACE"];
@@ -56,7 +57,9 @@ fn test_startpos_matches_the_game_startpos() {
     let world = WorldInputs { tables, index: &index, layout: &layout, settlements: &settlements, region_map: &region_map, legacy_overrides: &legacy_overrides };
     let trade_routes = TradeRoutes::decode(&mut BufReader::new(File::open(test_data_path("trade_routes.ptd")).unwrap()), &None).unwrap();
     let trade_network = TradeNetwork::from_trade_routes(&trade_routes);
-    let inputs = StartposInputs { world: &world, trade_network: &trade_network };
+    let victory_text = std::fs::read(test_data_path("victory_objectives.txt")).unwrap();
+    let victory_objectives = parse_victory_objectives(&String::from_utf8_lossy(&victory_text)).unwrap();
+    let inputs = StartposInputs { world: &world, trade_network: &trade_network, victory_objectives: &victory_objectives };
     let plan = game_plan(&index);
 
     let written = write_startpos(&inputs, &plan).unwrap();

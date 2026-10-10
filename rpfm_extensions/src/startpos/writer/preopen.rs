@@ -16,9 +16,11 @@ use std::collections::HashMap;
 use rpfm_lib::error::Result;
 use rpfm_lib::files::esf::{Coordinates2DNode, NodeType, RecordNode};
 
+use super::victory::write_victory_mission_options;
 use super::ENV_PATH;
 use crate::startpos::coords::HexCell;
 use crate::startpos::layout::{child_path, StartposLayout};
+use crate::startpos::missions::VictoryObjectives;
 use crate::startpos::world::FactionEntry;
 use crate::startpos::world::government::faction_leader;
 use crate::startpos::world::writer::characters::write_character_name;
@@ -44,22 +46,24 @@ const DIFFICULTY_KEY_PREFIX: &str = "random_localisation_strings_string_";
 //                              Implementations
 //---------------------------------------------------------------------------//
 
-/// Writes the pre-open map info of a campaign: its players, factions and region owners.
+/// Writes the pre-open map info of a campaign: its players, victory missions, factions and region owners.
 ///
 /// # Arguments
 ///
 /// * `inputs` - Tables, startpos rows, layouts and map data.
 /// * `plan` - Order and runtime ids of the world's objects.
 /// * `forces` - Characters and forces of the world.
+/// * `victory_objectives` - Victory objectives of the campaign.
 ///
 /// # Errors
 ///
 /// Returns an error if a table, column or layout is missing.
-pub fn write_preopen_map_info(inputs: &WorldInputs, plan: &WorldPlan, forces: &ForcePlan) -> Result<RecordNode> {
+pub fn write_preopen_map_info(inputs: &WorldInputs, plan: &WorldPlan, forces: &ForcePlan, victory_objectives: &[VictoryObjectives]) -> Result<RecordNode> {
     let layout = inputs.layout;
     let mut record = layout.builder(PREOPEN_PATH)?;
     record.group()?
         .set_record("CAMPAIGN_PLAYERS_SETUP", Some(write_players_setup(layout, PREOPEN_PATH, plan)?))?
+        .set_record("VICTORY_MISSION_OPTIONS", Some(write_victory_mission_options(layout, victory_objectives)?))?
         .set_record("FACTION_INFOS", Some(write_faction_infos(inputs, plan, forces)?))?
         .set_record("REGION_OWNERSHIPS_BY_THEATRE", Some(write_region_ownerships(layout, plan)?))?;
     record.build()

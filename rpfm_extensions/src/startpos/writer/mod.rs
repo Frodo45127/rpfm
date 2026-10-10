@@ -13,8 +13,10 @@
 //! Records without a generator yet keep the values of their layouts.
 
 use rpfm_lib::error::Result;
-use rpfm_lib::files::esf::{ESF, NodeType};
+use rpfm_lib::files::esf::{BoolNode, Coordinates2DNode, ESF, F32Node, NodeType, U32Node};
 
+use super::layout::MAX_COMPACT_U32;
+use super::missions::VictoryObjectives;
 use super::trade::TradeNetwork;
 use super::world::writer::forces::ForcePlan;
 use super::world::writer::{write_world_with_plan, WorldInputs, WorldPlan};
@@ -24,6 +26,7 @@ mod dynamic_resources;
 mod map_data;
 mod preopen;
 mod trade;
+mod victory;
 
 #[cfg(test)] mod writer_test;
 
@@ -49,6 +52,9 @@ pub struct StartposInputs<'a> {
 
     /// Trade network of the campaign map.
     pub trade_network: &'a TradeNetwork,
+
+    /// Victory objectives of the campaign (its `victory_objectives.txt`).
+    pub victory_objectives: &'a [VictoryObjectives],
 }
 
 //---------------------------------------------------------------------------//
@@ -85,10 +91,42 @@ pub fn write_startpos<'a>(inputs: &StartposInputs<'a>, plan: &WorldPlan<'a>) -> 
     let forces = ForcePlan::new(world.tables, world.index, plan)?;
     let mut root = layout.builder(ROOT_PATH)?;
     root.group()?
-        .set_record("CAMPAIGN_PREOPEN_MAP_INFO", Some(preopen::write_preopen_map_info(world, plan, &forces)?))?
+        .set_record("CAMPAIGN_PREOPEN_MAP_INFO", Some(preopen::write_preopen_map_info(world, plan, &forces, inputs.victory_objectives)?))?
         .set_record("CAMPAIGN_ENV", Some(env.build()?))?;
 
     let mut startpos = ESF::default();
     startpos.set_root_node(NodeType::Record(Box::new(root.build()?)));
     Ok(startpos)
+}
+
+/// Returns a boolean leaf, with the compact encoding the game uses for them.
+pub(super) fn bool_node(value: bool) -> NodeType {
+    let mut node = BoolNode::default();
+    node.set_value(value);
+    node.set_optimized(true);
+    NodeType::Bool(node)
+}
+
+/// Returns an unsigned leaf, compact when the value fits.
+pub(super) fn u32_node(value: u32) -> NodeType {
+    let mut node = U32Node::default();
+    node.set_value(value);
+    node.set_optimized(value <= MAX_COMPACT_U32);
+    NodeType::U32(node)
+}
+
+/// Returns a float leaf, compact when it's zero.
+pub(super) fn f32_node(value: f32) -> NodeType {
+    let mut node = F32Node::default();
+    node.set_value(value);
+    node.set_optimized(value == 0.0);
+    NodeType::F32(node)
+}
+
+/// Returns a `Coord2d` leaf.
+pub(super) fn coordinates_node(x: f32, y: f32) -> NodeType {
+    let mut node = Coordinates2DNode::default();
+    node.set_x(x);
+    node.set_y(y);
+    NodeType::Coord2d(node)
 }

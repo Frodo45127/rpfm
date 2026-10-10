@@ -279,6 +279,11 @@ pub enum RLibError {
     #[error("Invalid value in column {1} of table {0}, needed to build the startpos: {2}")]
     StartposInvalidValue(String, String, String),
 
+    /// A mission script needed to build a startpos (like `victory_objectives.txt`) is malformed or uses something
+    /// unsupported.
+    #[error("Invalid mission script: {0}")]
+    StartposScriptError(String),
+
     // Font File Errors
 
     /// Font file signature not supported.

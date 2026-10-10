@@ -300,6 +300,19 @@ impl StartposLayout {
     pub fn default_record(&self, path: &str) -> Result<RecordNode> {
         self.builder(path)?.build()
     }
+
+    /// Builds a record with the given children as its only group, as they are. For records whose shape varies too
+    /// much for slots, like lists of buildings.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the layout has no such path.
+    pub fn raw_record(&self, path: &str, children: Vec<NodeType>) -> Result<RecordNode> {
+        let record = self.records.get(path).ok_or_else(|| missing(path))?;
+        let mut builder = RecordBuilder { layout: self, path: path.to_owned(), record, groups: vec![] };
+        builder.push_children(children);
+        builder.build()
+    }
 }
 
 impl RecordLayout {

@@ -24,6 +24,7 @@
 //! - [`trade`]: the trade network (`CAMPAIGN_TRADE_MANAGER` splines and routes), from `trade_routes.ptd`.
 //! - [`settlements`]: settlement layouts (slots and sprawl cells of each region).
 //! - [`layout`]: record layouts used to write startposes.
+//! - [`missions`]: mission scripts and the victory objectives they define.
 //! - [`region_map`]: the region of each cell of the campaign map.
 //! - [`tables`]: access to the database tables the build reads.
 //! - [`vision`]: vision areas (line of sight and shroud) and their quad tree encoding.
@@ -33,6 +34,7 @@
 pub mod coords;
 mod esf_nav;
 pub mod layout;
+pub mod missions;
 pub mod region_map;
 pub mod settlements;
 pub mod tables;

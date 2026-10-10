@@ -17,9 +17,10 @@
 use std::collections::HashMap;
 
 use rpfm_lib::error::Result;
-use rpfm_lib::files::esf::{BoolNode, Coordinates2DNode, F32Node, NodeType, RecordNode, U32Node};
+use rpfm_lib::files::esf::{NodeType, RecordNode};
 
-use crate::startpos::layout::{child_path, StartposLayout, MAX_COMPACT_U32};
+use super::{bool_node, coordinates_node, f32_node, u32_node};
+use crate::startpos::layout::{child_path, StartposLayout};
 use crate::startpos::tables::StartposTables;
 use crate::startpos::trade::{NetworkRoute, NetworkSpline, TradeNetwork};
 use crate::startpos::world::writer::WorldPlan;
@@ -133,36 +134,4 @@ fn write_faction_routes(layout: &StartposLayout, plan: &WorldPlan, key: &str) ->
         array.push_group()?.set_u32("^+1", plan.faction_id(faction.key()).unwrap_or_default())?;
     }
     array.build()
-}
-
-/// Returns a boolean leaf, with the compact encoding the game uses for them.
-fn bool_node(value: bool) -> NodeType {
-    let mut node = BoolNode::default();
-    node.set_value(value);
-    node.set_optimized(true);
-    NodeType::Bool(node)
-}
-
-/// Returns an unsigned leaf, compact when the value fits.
-fn u32_node(value: u32) -> NodeType {
-    let mut node = U32Node::default();
-    node.set_value(value);
-    node.set_optimized(value <= MAX_COMPACT_U32);
-    NodeType::U32(node)
-}
-
-/// Returns a float leaf, compact when it's zero.
-fn f32_node(value: f32) -> NodeType {
-    let mut node = F32Node::default();
-    node.set_value(value);
-    node.set_optimized(value == 0.0);
-    NodeType::F32(node)
-}
-
-/// Returns a `Coord2d` leaf.
-fn coordinates_node(x: f32, y: f32) -> NodeType {
-    let mut node = Coordinates2DNode::default();
-    node.set_x(x);
-    node.set_y(y);
-    NodeType::Coord2d(node)
 }
