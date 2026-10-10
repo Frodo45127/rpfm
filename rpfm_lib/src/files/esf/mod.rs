@@ -516,7 +516,7 @@ pub struct F32Node {
 ///
 /// When `optimized` is true, the encoder analyzes all values to find the smallest
 /// encoding that fits all elements, using byte/16-bit/24-bit arrays when possible.
-#[derive(Getters, MutGetters, Setters, Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(Getters, MutGetters, Setters, Eq, PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct VecI32Node {
     /// The array of i32 values.
@@ -529,7 +529,7 @@ pub struct VecI32Node {
 ///
 /// When `optimized` is true, the encoder analyzes all values to find the smallest
 /// encoding that fits all elements, using byte/16-bit/24-bit arrays when possible.
-#[derive(Getters, MutGetters, Setters, Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(Getters, MutGetters, Setters, Eq, PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct VecU32Node {
     /// The array of u32 values.

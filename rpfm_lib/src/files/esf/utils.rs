@@ -883,28 +883,26 @@ impl ESF {
             },
             NodeType::I32Array(value) => {
                 let mut list = vec![];
-                if *value.optimized() {
-                    if let Some(max_value) = value.value().iter().max() {
-                        if let Some(min_value) = value.value().iter().min() {
-                            let max_value = std::cmp::max(min_value.abs(), max_value.abs());
-                            if max_value <= i8::MAX as i32 {
-                                buffer.write_u8(I32_BYTE_ARRAY)?;
-                                value.value().iter().try_for_each(|x| list.write_i8(*x as i8))?;
-                            } else if max_value <= i16::MAX as i32 {
-                                buffer.write_u8(I32_16BIT_ARRAY)?;
-                                value.value().iter().try_for_each(|x| list.write_i16(*x as i16))?;
-                            } else if max_value <= 8_388_607 {
-                                buffer.write_u8(I32_24BIT_ARRAY)?;
-                                value.value().iter().try_for_each(|x| list.write_i24_be(*x))?;
-                            } else {
-                                buffer.write_u8(I32_ARRAY)?;
-                                value.value().iter().try_for_each(|x| list.write_i32(*x))?;
-                            }
-                        }
-                    }
-                } else {
-                    buffer.write_u8(I32_ARRAY)?;
-                    value.value().iter().try_for_each(|x| list.write_i32(*x))?;
+
+                // Empty arrays have no optimized encoding: the games write them as plain arrays.
+                let largest = value.value().iter().map(|x| x.unsigned_abs()).max();
+                match largest {
+                    Some(largest) if *value.optimized() && largest <= i8::MAX as u32 => {
+                        buffer.write_u8(I32_BYTE_ARRAY)?;
+                        value.value().iter().try_for_each(|x| list.write_i8(*x as i8))?;
+                    },
+                    Some(largest) if *value.optimized() && largest <= i16::MAX as u32 => {
+                        buffer.write_u8(I32_16BIT_ARRAY)?;
+                        value.value().iter().try_for_each(|x| list.write_i16(*x as i16))?;
+                    },
+                    Some(largest) if *value.optimized() && largest <= 8_388_607 => {
+                        buffer.write_u8(I32_24BIT_ARRAY)?;
+                        value.value().iter().try_for_each(|x| list.write_i24_be(*x))?;
+                    },
+                    _ => {
+                        buffer.write_u8(I32_ARRAY)?;
+                        value.value().iter().try_for_each(|x| list.write_i32(*x))?;
+                    },
                 }
 
                 buffer.write_sized(&list)?;
@@ -930,25 +928,25 @@ impl ESF {
             },
             NodeType::U32Array(value) => {
                 let mut list = vec![];
-                if *value.optimized() {
-                    if let Some(max_value) = value.value().iter().max() {
-                        if max_value < &0xFF {
-                            buffer.write_u8(U32_BYTE_ARRAY)?;
-                            value.value().iter().for_each(|x| list.push(*x as u8));
-                        } else if max_value < &0xFFFF {
-                            buffer.write_u8(U32_16BIT_ARRAY)?;
-                            value.value().iter().try_for_each(|x| list.write_u16(*x as u16))?;
-                        } else if max_value < &0xFFFFFF {
-                            buffer.write_u8(U32_24BIT_ARRAY)?;
-                            value.value().iter().try_for_each(|x| list.write_u24_be(*x))?;
-                        } else {
-                            buffer.write_u8(U32_ARRAY)?;
-                            value.value().iter().try_for_each(|x| list.write_u32(*x))?;
-                        }
-                    }
-                } else {
-                    buffer.write_u8(U32_ARRAY)?;
-                    value.value().iter().try_for_each(|x| list.write_u32(*x))?;
+
+                // Empty arrays have no optimized encoding: the games write them as plain arrays.
+                match value.value().iter().max() {
+                    Some(max_value) if *value.optimized() && max_value < &0xFF => {
+                        buffer.write_u8(U32_BYTE_ARRAY)?;
+                        value.value().iter().for_each(|x| list.push(*x as u8));
+                    },
+                    Some(max_value) if *value.optimized() && max_value < &0xFFFF => {
+                        buffer.write_u8(U32_16BIT_ARRAY)?;
+                        value.value().iter().try_for_each(|x| list.write_u16(*x as u16))?;
+                    },
+                    Some(max_value) if *value.optimized() && max_value < &0xFFFFFF => {
+                        buffer.write_u8(U32_24BIT_ARRAY)?;
+                        value.value().iter().try_for_each(|x| list.write_u24_be(*x))?;
+                    },
+                    _ => {
+                        buffer.write_u8(U32_ARRAY)?;
+                        value.value().iter().try_for_each(|x| list.write_u32(*x))?;
+                    },
                 }
 
                 buffer.write_sized(&list)?;
