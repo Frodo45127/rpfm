@@ -1025,7 +1025,7 @@ impl ESF {
                     list.write_u32(strings_utf16.iter().position(|x| x == y).unwrap() as u32)
                 })?;
 
-                buffer.write_u32(list.len() as u32)?;
+                buffer.write_cauleb128(list.len() as u32, 0)?;
                 buffer.write_all(&list)?;
             },
             NodeType::AsciiArray(value) => {
