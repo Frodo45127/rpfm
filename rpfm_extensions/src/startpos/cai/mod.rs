@@ -21,8 +21,10 @@ use super::layout::{child_path, StartposLayout};
 
 pub mod factions;
 pub mod map;
+pub mod mobiles;
 pub mod plan;
 pub mod regions;
+pub mod settlements;
 pub mod technologies;
 pub mod world_view;
 

@@ -189,6 +189,18 @@ pub fn write_hlcis(layout: &StartposLayout, plan: &CaiPlan, map_regions: &[MapRe
     hlcis.build()
 }
 
+/// Returns where the AI places each region (see [`region_node`]), or (0, 0) for regions without nodes.
+///
+/// # Arguments
+///
+/// * `map_regions` - Regions of the map, in map order.
+/// * `nodes` - Pathfinder nodes, by region index.
+pub fn region_positions(map_regions: &[MapRegion], nodes: &HashMap<usize, Vec<PathfinderNode>>) -> Vec<(u16, u16)> {
+    map_regions.iter().enumerate()
+        .map(|(index, region)| region_node(region, nodes.get(&index)).map(|node| (node.x(), node.y())).unwrap_or((0, 0)))
+        .collect()
+}
+
 /// Returns the pathfinder node where the AI places a region: the one in its largest area, else its first one.
 fn region_node(region: &MapRegion, nodes: Option<&Vec<PathfinderNode>>) -> Option<PathfinderNode> {
     let nodes = nodes?;

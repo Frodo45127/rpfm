@@ -23,6 +23,7 @@ fn region() -> MapRegion {
         connections: vec![],
         connects_to_other_kind: false,
         has_settlement: true,
+        port: None,
     }
 }
 

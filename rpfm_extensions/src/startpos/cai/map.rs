@@ -13,13 +13,13 @@
 
 use getset::{CopyGetters, Getters};
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use rpfm_lib::error::{RLibError, Result};
 use rpfm_lib::files::esf::{NodeType, RecordNode, ESF};
 
 use crate::startpos::coords::HexCell;
-use crate::startpos::esf_nav::{as_record, as_u32, child_record, leaves};
+use crate::startpos::esf_nav::{as_record, as_u32, cell_groups, child_record, leaves};
 use crate::startpos::region_map::RegionMap;
 use crate::startpos::settlements::{region_data_records, region_key};
 
@@ -63,6 +63,10 @@ pub struct MapRegion {
     /// The region has a settlement (land regions do, seas don't).
     #[getset(get_copy = "pub")]
     has_settlement: bool,
+
+    /// Position of the settlement's port, if it has one (the first of `PORT_POSITIONS_BLOCK`).
+    #[getset(get_copy = "pub")]
+    port: Option<HexCell>,
 }
 
 /// The connectivity group of each cell (land masses and seas), from the group of the area it's in. Seas without areas
@@ -144,9 +148,11 @@ impl MapRegion {
             }
         }
         let connects_to_other_kind = child_record(record, CONNECTIVITY_RECORDS[1]).is_some_and(|list| !list.children().is_empty());
-        let has_settlement = child_record(record, "SETTLEMENT_INFO").is_some();
+        let settlement = child_record(record, "SETTLEMENT_INFO");
+        let has_settlement = settlement.is_some();
+        let port = settlement.and_then(|settlement| child_record(settlement, "PORT_POSITIONS_BLOCK")).and_then(|ports| cell_groups(ports).first().copied());
 
-        Ok(Self { key, area_groups, area_sizes, connections, connects_to_other_kind, has_settlement })
+        Ok(Self { key, area_groups, area_sizes, connections, connects_to_other_kind, has_settlement, port })
     }
 
     /// Returns the region's HLCIs: the distinct connectivity groups of its areas, in the order they first appear,
@@ -212,6 +218,31 @@ impl<'a> AreaGroups<'a> {
             }
         }
         groups
+    }
+
+    /// Returns the sea cell where the AI places a port: the sea cell closest to the port's position, searching
+    /// neighbours ring by ring in the game's direction order. The game picks other cells for most ports (its rule
+    /// isn't known), always within a few cells.
+    pub fn port_cell(&self, port: HexCell) -> Option<HexCell> {
+        let is_sea = |cell: HexCell| self.map.region_index_at(cell).and_then(|region| self.regions.get(region)).is_some_and(|region| !region.has_settlement);
+        let mut seen = HashSet::from([port]);
+        let mut ring = vec![port];
+        while !ring.is_empty() {
+            let mut next = vec![];
+            for cell in ring {
+                for neighbour in cell.neighbours() {
+                    if self.map.region_index_at(neighbour).is_none() || !seen.insert(neighbour) {
+                        continue;
+                    }
+                    if is_sea(neighbour) {
+                        return Some(neighbour);
+                    }
+                    next.push(neighbour);
+                }
+            }
+            ring = next;
+        }
+        None
     }
 
     /// Returns the group of a cell, or `None` for cells outside the map or in seas without a known group.

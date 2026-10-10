@@ -27,7 +27,7 @@ use crate::startpos::world::CampaignIndex;
 #[cfg(test)] #[path = "factions_test.rs"] mod factions_test;
 
 /// World id of the rebels.
-const REBELS_WORLD_ID: u32 = 1;
+pub(crate) const REBELS_WORLD_ID: u32 = 1;
 
 /// Personality group of the rebels.
 const REBELS_PERSONALITY: &str = "default";
@@ -89,6 +89,24 @@ pub struct FactionLinks {
 //---------------------------------------------------------------------------//
 //                              Implementations
 //---------------------------------------------------------------------------//
+
+/// Returns the component of the faction whose capital each map region is, by map region index.
+///
+/// # Arguments
+///
+/// * `index` - The campaign's startpos rows.
+/// * `world` - The world's objects.
+/// * `plan` - Component ids.
+/// * `map_regions` - Regions of the map, in map order.
+pub fn capitals(index: &CampaignIndex, world: &WorldView, plan: &CaiPlan, map_regions: &[MapRegion]) -> HashMap<usize, u32> {
+    world.factions().iter().zip(plan.factions())
+        .filter_map(|(faction, ids)| {
+            let capital = index.capital_of(faction.key())?;
+            let region = map_regions.iter().position(|region| region.key() == capital.key())?;
+            Some((region, ids.faction()))
+        })
+        .collect()
+}
 
 /// Returns what each AI faction refers to: the world factions, then the rebels.
 ///
