@@ -16,10 +16,11 @@ use std::collections::{BTreeMap, HashMap};
 
 use super::*;
 use crate::startpos::layout::Slot;
+use crate::startpos::world::legacy::legacy_test::overrides_from_pack;
 use crate::startpos::startpos_test::{field_str, test_data_esf, test_data_tables, test_startpos, world, world_factions, world_regions, TEST_CAMPAIGN};
 
 /// Share of the game's `WORLD` fields the writer must match. Raised as the writer covers more records.
-const MIN_MATCH_RATIO: f64 = 0.49;
+const MIN_MATCH_RATIO: f64 = 0.59;
 
 /// Matches and totals of each field, by `path:field`.
 #[derive(Debug, Default)]
@@ -148,7 +149,8 @@ fn test_world_matches_the_game_startpos() {
     let map_data = test_data_esf("map_data.esf");
     let settlements = SettlementLayout::all_from_map_data(&map_data, |region| index.settlement_of(region).is_some_and(|settlement| settlement.is_major())).unwrap();
     let region_map = RegionMap::from_map_data(&map_data).unwrap();
-    let inputs = WorldInputs { tables, index: &index, layout: &layout, settlements: &settlements, region_map: &region_map };
+    let legacy_overrides = overrides_from_pack().into_iter().collect();
+    let inputs = WorldInputs { tables, index: &index, layout: &layout, settlements: &settlements, region_map: &region_map, legacy_overrides: &legacy_overrides };
 
     // The game's object orders come from hash tables; using them here checks the rules instead of the orders.
     let game_world = world(test_startpos());

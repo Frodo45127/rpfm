@@ -78,7 +78,7 @@ fn test_legacy_skill_set() {
 
 /// Reads the characters with a `legacy_override` text from the `start_pos_characters` XML the Assembly Kit stores
 /// in the campaign pack.
-fn overrides_from_pack() -> BTreeSet<String> {
+pub(crate) fn overrides_from_pack() -> BTreeSet<String> {
     let pack = String::from_utf8_lossy(&std::fs::read(test_data_path("main_attila.pack")).unwrap()).into_owned();
     let record = Regex::new(r"(?s)<start_pos_characters [^>]*>(.*?)</start_pos_characters>").unwrap();
     let id = Regex::new(r"<ID>(\d+)</ID>").unwrap();

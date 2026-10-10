@@ -25,7 +25,7 @@ use rpfm_lib::error::Result;
 use super::{CampaignIndex, FactionEntry};
 use crate::startpos::tables::StartposTables;
 
-#[cfg(test)] #[path = "legacy_test.rs"] mod legacy_test;
+#[cfg(test)] #[path = "legacy_test.rs"] pub(crate) mod legacy_test;
 
 /// Localisation key prefix of the names of `military_force_legacy_names`.
 const NAME_KEY_PREFIX: &str = "military_force_legacy_names_localised_name_";

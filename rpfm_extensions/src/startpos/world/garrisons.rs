@@ -24,7 +24,7 @@ use rpfm_lib::error::Result;
 use super::CampaignIndex;
 use crate::startpos::tables::StartposTables;
 
-#[cfg(test)] #[path = "garrisons_test.rs"] mod garrisons_test;
+#[cfg(test)] #[path = "garrisons_test.rs"] pub(crate) mod garrisons_test;
 
 //---------------------------------------------------------------------------//
 //                              Types

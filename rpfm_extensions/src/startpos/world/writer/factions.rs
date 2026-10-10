@@ -13,6 +13,7 @@
 use rpfm_lib::error::Result;
 use rpfm_lib::files::esf::RecordNode;
 
+use super::armies::ArmyWriter;
 use super::{child, start_pos_faction_row, WorldInputs, WorldPlan, WORLD_PATH};
 use crate::startpos::world::FactionEntry;
 use crate::startpos::world::factions::{faction_flags, faction_summary, FactionFlag};
@@ -38,10 +39,10 @@ const DEFAULT_MEMORY: [u8; 22] = [0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 /// # Errors
 ///
 /// Returns an error if a table, column or layout is missing.
-pub fn write_faction_array(inputs: &WorldInputs, plan: &WorldPlan) -> Result<RecordNode> {
+pub fn write_faction_array(inputs: &WorldInputs, plan: &WorldPlan, armies: &ArmyWriter) -> Result<RecordNode> {
     let mut array = child(inputs.layout, WORLD_PATH, "FACTION_ARRAY")?;
     for faction in plan.factions() {
-        array.push_group()?.set_record("FACTION", Some(write_faction(inputs, plan, faction)?))?;
+        array.push_group()?.set_record("FACTION", Some(write_faction(inputs, plan, armies, faction)?))?;
     }
     array.build()
 }
@@ -51,7 +52,7 @@ pub fn write_faction_array(inputs: &WorldInputs, plan: &WorldPlan) -> Result<Rec
 /// # Errors
 ///
 /// Returns an error if a table, column or layout is missing.
-pub fn write_faction(inputs: &WorldInputs, plan: &WorldPlan, faction: &FactionEntry) -> Result<RecordNode> {
+pub fn write_faction(inputs: &WorldInputs, plan: &WorldPlan, armies: &ArmyWriter, faction: &FactionEntry) -> Result<RecordNode> {
     let layout = inputs.layout;
     let key = faction.key();
     let row = start_pos_faction_row(inputs.tables, faction)?;
@@ -96,6 +97,7 @@ pub fn write_faction(inputs: &WorldInputs, plan: &WorldPlan, faction: &FactionEn
         .set_record("FACTION_HORDE_MANAGER", horde)?
         .set_bool("GOVERNMENT+3", row.bool("is_major")?)?
         .set_record("FACTION_RELIGION_MANAGER", Some(religion.build()?))?
+        .set_record("ARMY_ARRAY", Some(armies.write_army_array(faction)?))?
         .set_bool("MORGUE+1", faction.playable())?
         .set_strings("MORGUE+2", summary.victory_regions().to_vec())?
         .set_u32("MORGUE+3", summary.capital().as_deref().and_then(|capital| plan.region_id(capital)).unwrap_or_default())?

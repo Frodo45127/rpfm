@@ -17,7 +17,7 @@ use crate::startpos::world::world_test::{add_table, fixture_index, fixture_table
 
 /// Adds the unit tables to the fixture: the city gives a levy, a group the faction can't use (substituted by its
 /// first allowed member), a bastion and a group that isn't a unit; the port gives a ship.
-fn garrison_tables() -> StartposTables {
+pub(crate) fn garrison_tables() -> StartposTables {
     let mut tables = fixture_tables();
     add_table(&mut tables, "building_level_armed_citizenry_junctions", &["building_level", "id", "unit_group"], &[
         &["bld_city_major_1", "1", "levy"],

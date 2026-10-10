@@ -16,11 +16,13 @@ use rpfm_lib::error::{RLibError, Result};
 use rpfm_lib::files::esf::RecordNode;
 
 use super::factions::write_flag;
+use super::forces::{ForcePlan, PlannedForce};
 use super::{child, horde_details, next_id, WorldInputs, WorldPlan, REBEL_FACTION_ID, WORLD_PATH};
 use crate::startpos::coords::{EdgePiece, HexCell};
 use crate::startpos::settlements::{SettlementLayout, SlotLayout};
 use crate::startpos::tables::Row;
 use crate::startpos::world::RegionEntry;
+use crate::startpos::world::legacy::ForceKind;
 use crate::startpos::world::rebels::rebel_setup;
 
 /// Path of a region.
@@ -78,6 +80,9 @@ struct RegionWriter<'a, 'b> {
 
     /// Order and runtime ids of the world's objects.
     plan: &'b WorldPlan<'a>,
+
+    /// Characters and forces of the world.
+    forces: &'b ForcePlan<'a>,
 
     /// Table rows the regions use, indexed once.
     rows: RegionRows<'a>,
@@ -137,10 +142,11 @@ struct SlotContent<'s> {
 /// # Errors
 ///
 /// Returns an error if a table, column or layout is missing, or a region has no settlement layout.
-pub fn write_region_manager(inputs: &WorldInputs, plan: &WorldPlan) -> Result<RecordNode> {
+pub fn write_region_manager<'a>(inputs: &WorldInputs<'a>, plan: &WorldPlan<'a>, forces: &ForcePlan<'a>) -> Result<RecordNode> {
     let mut writer = RegionWriter {
         inputs,
         plan,
+        forces,
         rows: RegionRows::new(inputs)?,
         next_slot: 1,
         next_residence: 1,
@@ -216,8 +222,7 @@ impl RegionWriter<'_, '_> {
             .ok_or_else(|| RLibError::StartposInvalidValue("start_pos_regions".to_owned(), "id".to_owned(), region.id().to_owned()))?;
         let wealth = u32::try_from(row.int("town_wealth")?).unwrap_or_default();
         let owner = region.owner().as_deref().and_then(|owner| self.plan.faction_id(owner)).unwrap_or(REBEL_FACTION_ID);
-        let map_layout = self.inputs.settlements.iter().find(|settlement| settlement.region() == key)
-            .ok_or_else(|| RLibError::StartposInvalidValue("map_data".to_owned(), "SETTLEMENT_INFO".to_owned(), key.to_owned()))?;
+        let map_layout = settlement_layout(self.inputs, region)?;
 
         let mut localisation = child(layout, REGION_PATH, "CAMPAIGN_LOCALISATION")?;
         localisation.group()?.set_str("^+1", &format!("{REGION_NAME_PREFIX}{key}"))?;
@@ -321,7 +326,7 @@ impl RegionWriter<'_, '_> {
         let others = settlement.map(|settlement| settlement.buildings().as_slice()).unwrap_or_default();
 
         let mut contents = vec![SlotContent { slot_type: "primary", building: primary }];
-        if map_layout.slots().get(1).is_some_and(|slot| slot.position().is_some()) {
+        if has_port(map_layout) {
             contents.push(SlotContent { slot_type: "port", building: port });
         }
         for index in 0..map_layout.slots().len().saturating_sub(2) {
@@ -390,7 +395,8 @@ impl RegionWriter<'_, '_> {
         record.build()
     }
 
-    /// Writes the settlement of a region. Its residence id comes after the ones of the region's slots.
+    /// Writes the settlement of a region: its residence (id after the ones of the region's slots, the general's army
+    /// starting in it and its garrison forces), name and expansion data.
     fn write_settlement(&mut self, region: &RegionEntry, map_layout: &SettlementLayout) -> Result<RecordNode> {
         let layout = self.inputs.layout;
         let key = region.key();
@@ -404,9 +410,13 @@ impl RegionWriter<'_, '_> {
 
         let zone = write_cells(self.inputs, &format!("{SETTLEMENT_PATH}/GARRISON_RESIDENCE/ZOE_BLOCK"), &garrison_zone(map_layout))?;
         let mut residence = child(layout, SETTLEMENT_PATH, "GARRISON_RESIDENCE")?;
+        let force_id = |force: Option<&PlannedForce>| force.map(|force| force.id()).unwrap_or_default();
         residence.group()?
             .set_u32("^+1", next_id(&mut self.next_residence))?
-            .set_record("ZOE_BLOCK", Some(zone))?;
+            .set_u32("^+2", force_id(self.forces.stationed_in(key)))?
+            .set_record("ZOE_BLOCK", Some(zone))?
+            .set_u32("ZOE_BLOCK+3", force_id(self.forces.garrison_of(key, ForceKind::GarrisonArmy)))?
+            .set_u32("ZOE_BLOCK+4", force_id(self.forces.garrison_of(key, ForceKind::GarrisonNavy)))?;
 
         let mut expansion = child(layout, SETTLEMENT_PATH, "SETTLEMENT_EXPANSION_MANAGER")?;
         expansion.group()?.set_record("SETTLEMENT_EXPANSION_MAP_DATA", Some(write_expansion_map_data(self.inputs, map_layout)?))?;
@@ -512,6 +522,35 @@ fn garrison_zone(map_layout: &SettlementLayout) -> Vec<HexCell> {
         .filter(|cell| seen.insert(**cell))
         .copied()
         .collect()
+}
+
+/// Returns the garrison residence id of each region's settlement, by region key. The residence counter numbers each
+/// region's slots, then its settlement, in region order.
+///
+/// # Errors
+///
+/// Returns an error if a region has no settlement layout.
+pub(crate) fn settlement_residences(inputs: &WorldInputs, plan: &WorldPlan) -> Result<HashMap<String, u32>> {
+    let mut residences = HashMap::new();
+    let mut next_residence = 1;
+    for region in plan.regions() {
+        let map_layout = settlement_layout(inputs, region)?;
+        let slots = 1 + usize::from(has_port(map_layout)) + map_layout.slots().len().saturating_sub(2);
+        next_residence += u32::try_from(slots).unwrap_or(u32::MAX);
+        residences.insert(region.key().to_owned(), next_id(&mut next_residence));
+    }
+    Ok(residences)
+}
+
+/// Returns the settlement layout of a region.
+fn settlement_layout<'a>(inputs: &WorldInputs<'a>, region: &RegionEntry) -> Result<&'a SettlementLayout> {
+    inputs.settlements.iter().find(|settlement| settlement.region() == region.key())
+        .ok_or_else(|| RLibError::StartposInvalidValue("map_data".to_owned(), "SETTLEMENT_INFO".to_owned(), region.key().to_owned()))
+}
+
+/// Returns if a settlement has a port (its second primary slot has a position).
+fn has_port(map_layout: &SettlementLayout) -> bool {
+    map_layout.slots().get(1).is_some_and(|slot| slot.position().is_some())
 }
 
 /// Returns the number of horde buildings of the campaign. The game numbers them before the region buildings, with

@@ -16,7 +16,9 @@
 //!
 //! # Submodules
 //!
+//! - [`armies`]: the forces of each faction.
 //! - [`factions`]: the `FACTION` records.
+//! - [`forces`]: the plan of the characters and forces.
 //! - [`provinces`]: the provinces and the sea regions.
 //! - [`regions`]: the `REGION` records and their settlements.
 
@@ -25,13 +27,17 @@ use std::collections::{HashMap, HashSet};
 use rpfm_lib::error::{RLibError, Result};
 use rpfm_lib::files::esf::RecordNode;
 
+use self::armies::ArmyWriter;
+use self::forces::ForcePlan;
 use super::{CampaignIndex, FactionEntry, RegionEntry};
 use crate::startpos::layout::{child_path, RecordBuilder, StartposLayout};
 use crate::startpos::region_map::RegionMap;
 use crate::startpos::settlements::SettlementLayout;
 use crate::startpos::tables::{Row, StartposTables};
 
+pub mod armies;
 pub mod factions;
+pub mod forces;
 pub mod provinces;
 pub mod regions;
 
@@ -65,6 +71,10 @@ pub struct WorldInputs<'a> {
 
     /// Region of each cell of the campaign map.
     pub region_map: &'a RegionMap,
+
+    /// `start_pos_characters` ids of the characters with a `legacy_override` text (a localised column, so it comes
+    /// from the campaign's localisation).
+    pub legacy_overrides: &'a HashSet<String>,
 }
 
 /// Order and runtime ids of the objects of the world.
@@ -111,12 +121,15 @@ pub fn write_world(inputs: &WorldInputs) -> Result<RecordNode> {
 /// # Errors
 ///
 /// Returns an error if a table, column or layout is missing.
-pub fn write_world_with_plan(inputs: &WorldInputs, plan: &WorldPlan) -> Result<RecordNode> {
+pub fn write_world_with_plan<'a>(inputs: &WorldInputs<'a>, plan: &WorldPlan<'a>) -> Result<RecordNode> {
+    let forces = ForcePlan::new(inputs.tables, inputs.index, plan)?;
+    let residences = regions::settlement_residences(inputs, plan)?;
+    let armies = ArmyWriter::new(inputs, &forces, &residences)?;
     let (provinces, seas) = provinces::write_province_and_sea_managers(inputs, plan)?;
     let mut world = inputs.layout.builder(WORLD_PATH)?;
     world.group()?
-        .set_record("FACTION_ARRAY", Some(factions::write_faction_array(inputs, plan)?))?
-        .set_record("REGION_MANAGER", Some(regions::write_region_manager(inputs, plan)?))?
+        .set_record("FACTION_ARRAY", Some(factions::write_faction_array(inputs, plan, &armies)?))?
+        .set_record("REGION_MANAGER", Some(regions::write_region_manager(inputs, plan, &forces)?))?
         .set_record("PROVINCE_MANAGER", Some(provinces))?
         .set_record("SEA_REGION_MANAGER", Some(seas))?;
     world.build()
