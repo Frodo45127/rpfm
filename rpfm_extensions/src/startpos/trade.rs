@@ -10,10 +10,9 @@
 
 //! Trade network of a startpos (`CAMPAIGN_TRADE_MANAGER`), built from `trade_routes.ptd`.
 //!
-//! Verified against Attila's main campaign: every spline (flags, segments, points, lengths) and every region
-//! and port route matches the game-built startpos. Not covered yet: the 100-entry table stored per segment
-//! (it ends at `100 * length`, but the intermediate values aren't arc length at uniform `t`), and the order the
-//! game lists the routes in (hash order).
+//! Verified against Attila's main campaign: every spline (flags, segments, points, lengths, speed tables) and every
+//! region and port route matches the game-built startpos. Not covered: the order the game lists the routes in (hash
+//! order).
 
 use getset::Getters;
 use serde_derive::{Deserialize, Serialize};
@@ -35,6 +34,9 @@ const GAUSS_WEIGHTS: [f64; 5] = [0.236_926_885_056_189, 0.478_628_670_499_366, 0
 /// Subintervals each segment is split into when integrating its length.
 const LENGTH_SUBINTERVALS: usize = 64;
 
+/// Samples of the speed table of each segment.
+const SPEED_SAMPLES: usize = 100;
+
 //---------------------------------------------------------------------------//
 //                              Types
 //---------------------------------------------------------------------------//
@@ -43,6 +45,9 @@ const LENGTH_SUBINTERVALS: usize = 64;
 #[derive(Debug, Clone, PartialEq, Default, Getters, Serialize, Deserialize)]
 #[getset(get = "pub")]
 pub struct TradeNetwork {
+
+    /// Region keys. Routes refer to regions by their index in this list.
+    regions: Vec<String>,
 
     /// Splines, in file order (`CAMPAIGN_TRADE_MANAGER/SPLINES`).
     splines: Vec<NetworkSpline>,
@@ -64,6 +69,9 @@ pub struct NetworkSpline {
 
     /// Bezier control points of each segment: start, first control, second control, end.
     segments: Vec<[(f32, f32); 4]>,
+
+    /// Speed table of each segment: the running sum of the curve's speed at `t = k / 100`, for k from 0 to 99.
+    speed_tables: Vec<Vec<f32>>,
 
     /// Length of each segment.
     lengths: Vec<f32>,
@@ -106,16 +114,19 @@ impl TradeNetwork {
         let splines = trade_routes.splines().iter().map(|spline| {
             let segments = spline.segments().iter().map(control_points_world).collect::<Vec<_>>();
             let lengths = segments.iter().map(bezier_length).collect::<Vec<_>>();
+            let speed_tables = segments.iter().map(speed_table).collect();
             let total_length = lengths.iter().sum();
             NetworkSpline {
                 flags: *spline.flags(),
                 segments,
+                speed_tables,
                 lengths,
                 total_length,
             }
         }).collect();
 
         Self {
+            regions: trade_routes.regions().clone(),
             splines,
             region_routes: first_route_per_pair(trade_routes.region_routes()),
             port_routes: first_route_per_pair(trade_routes.port_routes()),
@@ -151,15 +162,28 @@ fn control_points_world(segment: &TradeSplineSegment) -> [(f32, f32); 4] {
     ]
 }
 
+/// Returns the speed of a cubic Bezier curve (the length of its derivative) at `t`.
+fn bezier_speed(points: &[(f32, f32); 4], t: f64) -> f64 {
+    let [p0, p1, p2, p3] = points.map(|(x, y)| (f64::from(x), f64::from(y)));
+    let u = 1.0 - t;
+    let dx = 3.0 * u * u * (p1.0 - p0.0) + 6.0 * u * t * (p2.0 - p1.0) + 3.0 * t * t * (p3.0 - p2.0);
+    let dy = 3.0 * u * u * (p1.1 - p0.1) + 6.0 * u * t * (p2.1 - p1.1) + 3.0 * t * t * (p3.1 - p2.1);
+    (dx * dx + dy * dy).sqrt()
+}
+
+/// Returns the speed table of a segment: the running sum of its speed at `t = k / 100`. The last entry is close to
+/// 100 times its length.
+fn speed_table(points: &[(f32, f32); 4]) -> Vec<f32> {
+    let mut sum = 0.0;
+    (0..SPEED_SAMPLES).map(|sample| {
+        sum += bezier_speed(points, sample as f64 / SPEED_SAMPLES as f64);
+        sum as f32
+    }).collect()
+}
+
 /// Returns the length of a cubic Bezier curve, integrating its speed with Gauss-Legendre quadrature.
 fn bezier_length(points: &[(f32, f32); 4]) -> f32 {
-    let [p0, p1, p2, p3] = points.map(|(x, y)| (f64::from(x), f64::from(y)));
-    let speed = |t: f64| {
-        let u = 1.0 - t;
-        let dx = 3.0 * u * u * (p1.0 - p0.0) + 6.0 * u * t * (p2.0 - p1.0) + 3.0 * t * t * (p3.0 - p2.0);
-        let dy = 3.0 * u * u * (p1.1 - p0.1) + 6.0 * u * t * (p2.1 - p1.1) + 3.0 * t * t * (p3.1 - p2.1);
-        (dx * dx + dy * dy).sqrt()
-    };
+    let speed = |t: f64| bezier_speed(points, t);
 
     let step = 1.0 / LENGTH_SUBINTERVALS as f64;
     let length: f64 = (0..LENGTH_SUBINTERVALS).map(|interval| {

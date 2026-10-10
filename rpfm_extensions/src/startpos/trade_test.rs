@@ -36,6 +36,18 @@ fn test_bezier_length_first_attila_spline() {
 }
 
 #[test]
+fn test_speed_table_straight_line() {
+
+    // Evenly spaced control points move at a constant speed of 3.
+    let line = [(0.0, 0.0), (1.0, 0.0), (2.0, 0.0), (3.0, 0.0)];
+    let table = speed_table(&line);
+
+    assert_eq!(table.len(), 100);
+    assert!((table[0] - 3.0).abs() < 1e-5);
+    assert!((table[99] - 300.0).abs() < 1e-3);
+}
+
+#[test]
 fn test_control_points_world() {
 
     // First spline of Attila's main campaign: raw points from its trade_routes.ptd, world points from its startpos.
@@ -85,6 +97,8 @@ fn test_matches_game_startpos() {
     assert_eq!(trade_routes.regions().len(), 187);
     assert_eq!(trade_routes.region_routes().len(), 1137);
     let manager = startpos_trade_manager(&test_data_esf("startpos.esf"));
+    let NodeType::Utf16Array(regions) = &manager.children()[0][0] else { panic!("the trade manager doesn't start with its regions") };
+    assert_eq!(regions, network.regions());
 
     let game_splines = child_record(&manager, "SPLINES").unwrap().children();
     assert_eq!(network.splines().len(), game_splines.len());
@@ -97,6 +111,10 @@ fn test_matches_game_startpos() {
             for (point, node) in segment.iter().zip(group[5 + index * 5..].iter()) {
                 let NodeType::Coord2d(game) = node else { panic!("{node:?}") };
                 assert!((point.0 - game.x()).abs() < 1e-3 && (point.1 - game.y()).abs() < 1e-3);
+            }
+            let NodeType::F32Array(game_table) = &group[5 + index * 5 + 4] else { panic!() };
+            for (ours, theirs) in spline.speed_tables()[index].iter().zip(game_table) {
+                assert!((ours - theirs).abs() <= 1e-3 * theirs.abs().max(1.0), "{ours} != {theirs}");
             }
         }
         let NodeType::F32(total) = &group[5 + spline.segments().len() * 5 + 2] else { panic!() };
