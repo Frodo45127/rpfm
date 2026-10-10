@@ -21,6 +21,7 @@ fn diplomacy_tables() -> StartposTables {
         &["1", "2", "1", "vassal", "false", "true", "false"],
         &["2", "1", "4", "war", "false", "false", "false"],
     ]);
+    add_table(&mut tables, "start_pos_past_events", &["event", "source", "target", "turns_ago"], &[]);
     tables
 }
 
@@ -68,4 +69,20 @@ fn test_neighbours_know_each_other() {
 
     assert!(diplomacy.relationship("fact_a", "fact_b").known());
     assert_eq!(diplomacy.relationship("fact_a", "fact_c"), Relationship { stance: "war".to_owned(), known: true, ..Default::default() });
+}
+
+#[test]
+fn test_past_events_make_factions_known() {
+    let mut tables = fixture_tables();
+    add_table(&mut tables, "start_pos_diplomacy", &["key", "faction1", "faction2", "stance", "grants_military_access", "grants_trade_agreement", "non_aggression_pact"], &[]);
+    add_table(&mut tables, "start_pos_past_events", &["event", "source", "target", "turns_ago"], &[
+        &["RAIDING", "1", "2", "5"],
+    ]);
+    let index = fixture_index(&tables);
+    let map = RegionMap::from_cells(vec![], 0, 0, vec![]);
+
+    let diplomacy = Diplomacy::new(&tables, &index, &map).unwrap();
+
+    assert_eq!(diplomacy.relationship("fact_a", "fact_b"), Relationship { known: true, ..Default::default() });
+    assert!(diplomacy.relationship("fact_b", "fact_a").known());
 }

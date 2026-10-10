@@ -12,8 +12,9 @@
 //!
 //! Each `start_pos_diplomacy` row gives both factions a relationship: its stance (vassal and client state rows give
 //! the overlord the `master` and `protector` stances), trade agreement, non-aggression pact and military access.
-//! Vassals join their master's wars. Verified on Attila's main campaign: stances and flags match for every pair of
-//! factions. Which factions know each other is only partly known (rows, wars and land borders give 284 of 370).
+//! Vassals join their master's wars. Factions know each other if they have a row, an inherited war, neighbouring
+//! regions or a `start_pos_past_events` row. Verified on Attila's main campaign: stances, flags and known factions
+//! match for every pair of factions.
 
 use getset::{CopyGetters, Getters};
 
@@ -107,7 +108,7 @@ impl Diplomacy {
     ///
     /// # Arguments
     ///
-    /// * `tables` - Tables with `start_pos_diplomacy`.
+    /// * `tables` - Tables with `start_pos_diplomacy` and `start_pos_past_events`.
     /// * `index` - The campaign's startpos rows.
     /// * `map` - Region of each cell of the campaign map, to find the factions with neighbouring regions.
     ///
@@ -188,6 +189,15 @@ impl Diplomacy {
                     diplomacy.entry(owner, other_owner).known = true;
                     diplomacy.entry(other_owner, owner).known = true;
                 }
+            }
+        }
+
+        // Factions with past events between them know each other.
+        for row in tables.table("start_pos_past_events")?.rows() {
+            let (Some(source), Some(target)) = (index.faction_by_id(&row.str("source")?), index.faction_by_id(&row.str("target")?)) else { continue };
+            if source.key() != target.key() {
+                diplomacy.entry(source.key(), target.key()).known = true;
+                diplomacy.entry(target.key(), source.key()).known = true;
             }
         }
 
