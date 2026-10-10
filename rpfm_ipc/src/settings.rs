@@ -31,6 +31,7 @@ use std::fs::{DirBuilder, File};
 use std::path::{Path, PathBuf};
 
 use rpfm_extensions::optimizer::OptimizerOptions;
+use rpfm_extensions::startpos::layout::STARTPOS_LAYOUT_FOLDER;
 use rpfm_extensions::translator::DEFAULT_SRC_LANG;
 
 use crate::settings_keys::*;
@@ -712,6 +713,7 @@ pub fn init_config_path() -> Result<()> {
     DirBuilder::new().recursive(true).create(backup_autosave_path()?)?;
     DirBuilder::new().recursive(true).create(error_path()?)?;
     DirBuilder::new().recursive(true).create(schemas_path()?)?;
+    DirBuilder::new().recursive(true).create(startpos_layouts_path()?)?;
     DirBuilder::new().recursive(true).create(table_patches_path()?)?;
     DirBuilder::new().recursive(true).create(table_profiles_path()?)?;
     DirBuilder::new().recursive(true).create(scripts_path()?)?;
@@ -748,6 +750,11 @@ pub fn init_config_path() -> Result<()> {
 /// This function returns the schema path.
 pub fn schemas_path() -> Result<PathBuf> {
     Ok(config_path()?.join(SCHEMA_FOLDER))
+}
+
+/// Folder under [`config_path`] where the startpos layout files live.
+pub fn startpos_layouts_path() -> Result<PathBuf> {
+    Ok(config_path()?.join(STARTPOS_LAYOUT_FOLDER))
 }
 
 /// Folder under [`config_path`] where user-side schema patches live.
