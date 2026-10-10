@@ -15,7 +15,10 @@
 use rpfm_lib::error::Result;
 use rpfm_lib::files::esf::{ESF, NodeType};
 
+use super::trade::TradeNetwork;
 use super::world::writer::{write_world_with_plan, WorldInputs, WorldPlan};
+
+mod trade;
 
 #[cfg(test)] mod writer_test;
 
@@ -27,6 +30,21 @@ pub const ENV_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_ENV";
 
 /// Path of the campaign model.
 pub const MODEL_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL";
+
+//---------------------------------------------------------------------------//
+//                              Types
+//---------------------------------------------------------------------------//
+
+/// What a startpos is built from.
+#[derive(Clone, Copy)]
+pub struct StartposInputs<'a> {
+
+    /// Inputs of the world: tables, startpos rows, layouts and map data.
+    pub world: &'a WorldInputs<'a>,
+
+    /// Trade network of the campaign map.
+    pub trade_network: &'a TradeNetwork,
+}
 
 //---------------------------------------------------------------------------//
 //                              Implementations
@@ -42,11 +60,14 @@ pub const MODEL_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL";
 /// # Errors
 ///
 /// Returns an error if a table, column or layout is missing.
-pub fn write_startpos(inputs: &WorldInputs, plan: &WorldPlan) -> Result<ESF> {
-    let layout = inputs.layout;
+pub fn write_startpos<'a>(inputs: &StartposInputs<'a>, plan: &WorldPlan<'a>) -> Result<ESF> {
+    let world = inputs.world;
+    let layout = world.layout;
 
     let mut model = layout.builder(MODEL_PATH)?;
-    model.group()?.set_record("WORLD", Some(write_world_with_plan(inputs, plan)?))?;
+    model.group()?
+        .set_record("WORLD", Some(write_world_with_plan(world, plan)?))?
+        .set_record("CAMPAIGN_TRADE_MANAGER", Some(trade::write_trade_manager(layout, world.tables, plan, inputs.trade_network)?))?;
 
     let mut env = layout.builder(ENV_PATH)?;
     env.group()?.set_record("CAMPAIGN_MODEL", Some(model.build()?))?;

@@ -8,17 +8,22 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+use std::fs::File;
+use std::io::BufReader;
+
+use rpfm_lib::files::Decodeable;
 use rpfm_lib::files::esf::RecordNode;
+use rpfm_lib::files::trade_routes::TradeRoutes;
 
 use super::*;
 use crate::startpos::esf_nav::as_record;
 use crate::startpos::layout::StartposLayout;
-use crate::startpos::startpos_test::{compare, test_data_tables, test_startpos, Report};
+use crate::startpos::startpos_test::{compare, test_data_path, test_data_tables, test_startpos, Report};
 use crate::startpos::world::writer::writer_test::{game_plan, world_test_data};
 
 /// Share of the game's fields outside `WORLD` and `CAI_INTERFACE` the writer must match. Raised as the writer covers
 /// more records.
-const MIN_MATCH_RATIO: f64 = 0.005;
+const MIN_MATCH_RATIO: f64 = 0.62;
 
 /// Records compared elsewhere (`WORLD`) or not written yet (`CAI_INTERFACE`).
 const SKIPPED: [&str; 2] = ["WORLD", "CAI_INTERFACE"];
@@ -48,7 +53,10 @@ fn compare_sections(layout: &StartposLayout, ours: &RecordNode, theirs: &RecordN
 fn test_startpos_matches_the_game_startpos() {
     let tables = test_data_tables();
     let (index, layout, settlements, region_map, legacy_overrides) = world_test_data();
-    let inputs = WorldInputs { tables, index: &index, layout: &layout, settlements: &settlements, region_map: &region_map, legacy_overrides: &legacy_overrides };
+    let world = WorldInputs { tables, index: &index, layout: &layout, settlements: &settlements, region_map: &region_map, legacy_overrides: &legacy_overrides };
+    let trade_routes = TradeRoutes::decode(&mut BufReader::new(File::open(test_data_path("trade_routes.ptd")).unwrap()), &None).unwrap();
+    let trade_network = TradeNetwork::from_trade_routes(&trade_routes);
+    let inputs = StartposInputs { world: &world, trade_network: &trade_network };
     let plan = game_plan(&index);
 
     let written = write_startpos(&inputs, &plan).unwrap();

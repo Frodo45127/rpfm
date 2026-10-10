@@ -34,6 +34,9 @@ use super::tables::StartposTables;
 /// Environment variable with the folder of the game data used by the ignored tests.
 const TEST_DATA_VAR: &str = "RPFM_STARTPOS_TEST_DATA";
 
+/// Relative difference under which two floats of a startpos count as equal.
+const FLOAT_TOLERANCE: f32 = 1e-3;
+
 /// Campaign of the test data.
 pub(crate) const TEST_CAMPAIGN: &str = "main_attila";
 
@@ -42,11 +45,11 @@ const TEST_TABLES: &[&str] = &[
     "agent_culture_details", "agent_to_agent_abilities", "agent_to_agent_attributes", "agents",
     "armed_citizenry_units_to_unit_groups_junctions", "battlefield_engines", "building_level_armed_citizenry_junctions",
     "building_levels", "campaign_character_art_sets", "campaign_character_art_sets_group_junctions",
-    "character_skill_node_sets", "character_trait_levels", "commander_unit_permissions", "cultures_subcultures",
+    "character_skill_node_sets", "character_trait_levels", "commander_unit_permissions", "commodities", "cultures_subcultures",
     "faction_political_parties_junctions", "faction_to_mercenary_set_junctions", "factions", "land_units", "main_units",
     "mercenary_pool_to_groups_junctions", "mercenary_unit_groups", "military_force_legacy_emblems",
     "military_force_legacy_names", "ministerial_positions", "ministerial_positions_culture_details", "naval_units",
-    "political_parties", "province_to_mercenary_set_junctions", "region_to_province_junctions", "religions",
+    "political_parties", "province_to_mercenary_set_junctions", "region_to_province_junctions", "religions", "resources",
     "start_pos_calendars", "start_pos_character_to_settlements", "start_pos_character_traits", "start_pos_characters",
     "start_pos_diplomacy", "start_pos_factions", "start_pos_horde_details", "start_pos_land_units",
     "start_pos_naval_units", "start_pos_region_religions", "start_pos_region_slot_templates", "start_pos_regions",
@@ -281,11 +284,23 @@ pub(crate) fn compare(layout: &StartposLayout, ours: &RecordNode, theirs: &Recor
                         report.count(format!("{path}:{id}<missing>"), false);
                     }
                 },
-                (ours, Some(theirs)) => report.count(format!("{path}:{id}"), ours == Some(theirs)),
+                (ours, Some(theirs)) => report.count(format!("{path}:{id}"), ours.is_some_and(|ours| same_leaf(ours, theirs))),
                 (Some(_), None) => report.count(format!("{path}:{id}<extra>"), false),
                 (None, None) => {},
             }
         }
+    }
+}
+
+/// Returns if two leaves are equal. Floats only need to be close: the game's float rounding isn't always
+/// reproducible (trade spline points are off by one ulp in 10% of the cases).
+pub(crate) fn same_leaf(ours: &NodeType, theirs: &NodeType) -> bool {
+    let close = |ours: f32, theirs: f32| (ours - theirs).abs() <= FLOAT_TOLERANCE * theirs.abs().max(1.0);
+    match (ours, theirs) {
+        (NodeType::F32(ours), NodeType::F32(theirs)) => close(*ours.value(), *theirs.value()) && ours.optimized() == theirs.optimized(),
+        (NodeType::Coord2d(ours), NodeType::Coord2d(theirs)) => close(*ours.x(), *theirs.x()) && close(*ours.y(), *theirs.y()),
+        (NodeType::F32Array(ours), NodeType::F32Array(theirs)) => ours.len() == theirs.len() && ours.iter().zip(theirs).all(|(ours, theirs)| close(*ours, *theirs)),
+        _ => ours == theirs,
     }
 }
 

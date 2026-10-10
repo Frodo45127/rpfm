@@ -77,7 +77,7 @@ const MAX_SLOT_DEFAULT_LEAVES: usize = 16;
 const MAX_DEFAULT_ARRAY_LEN: usize = 64;
 
 /// Largest unsigned value with a compact ESF encoding (24 bits).
-const MAX_COMPACT_U32: u32 = 0xFF_FFFF;
+pub(crate) const MAX_COMPACT_U32: u32 = 0xFF_FFFF;
 
 /// Signed values with a compact ESF encoding (24 bits).
 const COMPACT_I32: RangeInclusive<i32> = -0x80_0000..=0x7F_FFFF;
@@ -388,6 +388,13 @@ impl<'a> RecordBuilder<'a> {
         }
         self.groups.push(GroupBuilder { path: self.path.to_owned(), record: self.record, values });
         Ok(self.groups.last_mut().expect("a group was just pushed"))
+    }
+
+    /// Adds a group with the given children, as they are. For array items whose shape varies too much for slots, like
+    /// trade splines with their segments.
+    pub fn push_children(&mut self, children: Vec<NodeType>) {
+        let values = children.into_iter().map(Some).collect();
+        self.groups.push(GroupBuilder { path: self.path.to_owned(), record: self.record, values });
     }
 
     /// Returns the first group, where normal (non array) records keep their children.
