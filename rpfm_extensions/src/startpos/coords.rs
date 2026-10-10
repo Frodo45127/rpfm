@@ -101,6 +101,15 @@ impl HexCell {
     pub fn footprint(&self) -> Vec<HexCell> {
         std::iter::once(*self).chain(self.neighbours()).collect()
     }
+
+    /// Returns the world position of the cell's top-left corner, where the game places characters given by cell.
+    pub fn world_position(&self) -> (f32, f32) {
+        let row_offset = if self.x % 2 == 1 { CELL_RAW_HEIGHT / 2.0 } else { 0.0 };
+        raw_to_world(
+            f32::from(self.x) * CELL_RAW_WIDTH + RAW_OFFSET,
+            f32::from(self.y) * CELL_RAW_HEIGHT + row_offset + RAW_OFFSET,
+        )
+    }
 }
 
 /// Converts a world position to raw map units.

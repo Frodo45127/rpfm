@@ -202,7 +202,7 @@ impl SlotLayout {
 }
 
 /// Returns the `REGION_DATA` records of the map, in file order.
-fn region_data_records(map_data: &ESF) -> Result<Vec<&RecordNode>> {
+pub(crate) fn region_data_records(map_data: &ESF) -> Result<Vec<&RecordNode>> {
     let root = as_record(map_data.root_node()).ok_or_else(|| RLibError::CampaignMapDataError("the root node is not a record".to_owned()))?;
     let block = child_record(root, "REGIONS_DATA")
         .and_then(|regions_data| child_record(regions_data, "REGIONS_BLOCK"))
@@ -211,7 +211,7 @@ fn region_data_records(map_data: &ESF) -> Result<Vec<&RecordNode>> {
 }
 
 /// Returns the key of a `REGION_DATA` record (its first string leaf).
-fn region_key(region: &RecordNode) -> Result<&str> {
+pub(crate) fn region_key(region: &RecordNode) -> Result<&str> {
     region.children().first()
         .and_then(|group| leaves(group).find_map(as_str))
         .ok_or_else(|| RLibError::CampaignMapDataError("a REGION_DATA record has no key".to_owned()))
