@@ -20,7 +20,7 @@ use rpfm_lib::files::esf::RecordNode;
 
 use super::sight::{write_line_of_sight, SightPlan};
 use super::{child, horde_details, next_id, WorldInputs, WorldPlan, REBEL_FACTION_ID, WORLD_PATH};
-use crate::startpos::tables::Row;
+use crate::startpos::tables::{Row, StartposTables};
 use crate::startpos::vision::Vision;
 use crate::startpos::world::pools::{province_mercenary_pool, MercenaryUnit};
 use crate::startpos::world::provinces::{province_managers, sea_regions, ProvinceManager, SeaRegion};
@@ -136,18 +136,7 @@ impl ProvinceWriter<'_, '_> {
         let inputs = self.inputs;
         let managers = province_managers(inputs.tables, inputs.index)?;
 
-        let mut provinces = Vec::<(String, Vec<String>)>::new();
-        for row in inputs.tables.table("region_to_province_junctions")?.rows() {
-            let region = row.str("region")?;
-            if !self.regions.contains_key(region.as_ref()) {
-                continue;
-            }
-            let province = row.str("province")?;
-            match provinces.iter_mut().find(|(key, _)| *key == province) {
-                Some((_, regions)) => regions.push(region.into_owned()),
-                None => provinces.push((province.into_owned(), vec![region.into_owned()])),
-            }
-        }
+        let provinces = campaign_provinces(inputs.tables, self.plan)?;
 
         let mut next_manager = 1;
         let mut array = child(inputs.layout, &format!("{WORLD_PATH}/PROVINCE_MANAGER"), "PROVINCE_ARRAY")?;
@@ -306,6 +295,32 @@ impl ProvinceWriter<'_, '_> {
         }
         Ok(total)
     }
+}
+
+/// Returns the provinces of a campaign with their regions, in `region_to_province_junctions` order.
+///
+/// # Arguments
+///
+/// * `tables` - Tables with `region_to_province_junctions`.
+/// * `plan` - The campaign's regions. Regions of other campaigns are left out.
+///
+/// # Errors
+///
+/// Returns an error if the table or a column is missing.
+pub(crate) fn campaign_provinces(tables: &StartposTables, plan: &WorldPlan) -> Result<Vec<(String, Vec<String>)>> {
+    let mut provinces = Vec::<(String, Vec<String>)>::new();
+    for row in tables.table("region_to_province_junctions")?.rows() {
+        let region = row.str("region")?;
+        if plan.region_id(&region).is_none() {
+            continue;
+        }
+        let province = row.str("province")?;
+        match provinces.iter_mut().find(|(key, _)| *key == province) {
+            Some((_, province_regions)) => province_regions.push(region.into_owned()),
+            None => provinces.push((province.into_owned(), vec![region.into_owned()])),
+        }
+    }
+    Ok(provinces)
 }
 
 /// Writes a mercenary pool (`MERCENARY_POOL`) under a parent record: one entry per unit, numbered in order.
