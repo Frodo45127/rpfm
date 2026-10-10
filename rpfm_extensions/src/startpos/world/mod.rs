@@ -28,6 +28,7 @@
 //! - [`pools`]: mercenary and levy pools.
 //! - [`provinces`]: per-faction province managers and sea regions.
 //! - [`rebels`]: the rebel setup of each region.
+//! - [`writer`]: the writer of the `WORLD` record, from the generators above and the record layouts.
 
 use getset::{CopyGetters, Getters};
 
@@ -47,6 +48,7 @@ pub mod legacy;
 pub mod pools;
 pub mod provinces;
 pub mod rebels;
+pub mod writer;
 
 #[cfg(test)] mod world_test;
 
