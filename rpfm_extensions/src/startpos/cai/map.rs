@@ -1,0 +1,203 @@
+//---------------------------------------------------------------------------//
+// Copyright (c) 2017-2026 Ismael Gutiérrez González. All rights reserved.
+//
+// This file is part of the Rusted PackFile Manager (RPFM) project,
+// which can be found here: https://github.com/Frodo45127/rpfm.
+//
+// This file is licensed under the MIT license, which can be found here:
+// https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
+//---------------------------------------------------------------------------//
+
+//! What the campaign AI reads from the map files: the regions of `map_data.esf` (land regions, then seas), their
+//! areas and connections, and the high-level pathfinder nodes of `hlp_data.esf`.
+
+use getset::{CopyGetters, Getters};
+
+use std::collections::HashMap;
+
+use rpfm_lib::error::{RLibError, Result};
+use rpfm_lib::files::esf::{NodeType, RecordNode, ESF};
+
+use crate::startpos::esf_nav::{as_record, as_u32, child_record, leaves};
+use crate::startpos::settlements::{region_data_records, region_key};
+
+#[cfg(test)] #[path = "map_test.rs"] mod map_test;
+
+/// Bits of a pathfinder node id holding its region index. The bits above hold the index of the area it lies in.
+const NODE_REGION_BITS: u32 = 9;
+
+/// Connection lists of a map region, in the order the AI walks them.
+const CONNECTIVITY_RECORDS: [&str; 2] = ["CONNECTIVITY_DIRECT_TRAVERSABLE_SAME", "CONNECTIVITY_DIRECT_TRAVERSABLE_OTHER"];
+
+//---------------------------------------------------------------------------//
+//                              Types
+//---------------------------------------------------------------------------//
+
+/// A region of the map (`REGION_DATA`), land or sea.
+#[derive(Debug, Clone, PartialEq, Getters, CopyGetters)]
+pub struct MapRegion {
+
+    /// Region key.
+    #[getset(get = "pub")]
+    key: String,
+
+    /// Connectivity group of each of the region's areas (`REGION_AREA_DATA`), in map order.
+    #[getset(get = "pub")]
+    area_groups: Vec<u32>,
+
+    /// Size of each of the region's areas, in map order.
+    #[getset(get = "pub")]
+    area_sizes: Vec<u32>,
+
+    /// Directly traversable connections to other regions (same kind of region first, then the other kind), as
+    /// (region index, value) pairs.
+    #[getset(get = "pub")]
+    connections: Vec<(usize, u32)>,
+
+    /// The region connects directly to a region of the other kind (land to sea or sea to land).
+    #[getset(get_copy = "pub")]
+    connects_to_other_kind: bool,
+}
+
+/// Reads the integer leaves of a flat list one by one.
+struct Cursor<'a> {
+    values: &'a [&'a NodeType],
+    position: usize,
+}
+
+/// A high-level pathfinder node: a cell where the AI can place a region.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, CopyGetters)]
+#[getset(get_copy = "pub")]
+pub struct PathfinderNode {
+
+    /// Index of the region's area the node lies in.
+    area: u32,
+
+    /// Cell column.
+    x: u16,
+
+    /// Cell row.
+    y: u16,
+}
+
+//---------------------------------------------------------------------------//
+//                              Implementations
+//---------------------------------------------------------------------------//
+
+impl MapRegion {
+
+    /// Reads every region of a `map_data.esf`, in map order.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the map lacks its regions block or a region is malformed.
+    pub fn all_from_map_data(map_data: &ESF) -> Result<Vec<Self>> {
+        region_data_records(map_data)?.into_iter().map(Self::from_region_data).collect()
+    }
+
+    /// Reads a `REGION_DATA` record.
+    fn from_region_data(record: &RecordNode) -> Result<Self> {
+        let key = region_key(record)?.to_owned();
+        let mut area_groups = vec![];
+        let mut area_sizes = vec![];
+        for area in child_record(record, "REGION_AREAS").iter().flat_map(|areas| areas.children().iter().flatten().filter_map(as_record)) {
+            let values = area.children().iter().flat_map(|group| leaves(group)).collect::<Vec<_>>();
+
+            // After the type byte and the two corners: the group, four bounds, two lists, a cell, and the size.
+            let group = values.get(3).and_then(|node| as_u32(node));
+            let size = values.last().and_then(|node| as_u32(node));
+            let (Some(group), Some(size)) = (group, size) else {
+                return Err(RLibError::CampaignMapDataError(format!("region {key}: an area is malformed")));
+            };
+            area_groups.push(group);
+            area_sizes.push(size);
+        }
+
+        let mut connections = vec![];
+        for name in CONNECTIVITY_RECORDS {
+            for group in child_record(record, name).iter().flat_map(|list| list.children()) {
+                let mut values = leaves(group).filter_map(as_u32);
+                if let (Some(region), Some(value)) = (values.next(), values.next()) {
+                    connections.push((region as usize, value));
+                }
+            }
+        }
+        let connects_to_other_kind = child_record(record, CONNECTIVITY_RECORDS[1]).is_some_and(|list| !list.children().is_empty());
+
+        Ok(Self { key, area_groups, area_sizes, connections, connects_to_other_kind })
+    }
+
+    /// Returns the region's HLCIs: the distinct connectivity groups of its areas, in the order they first appear,
+    /// each with the indexes of its areas.
+    pub fn hlcis(&self) -> Vec<(u32, Vec<u32>)> {
+        let mut hlcis: Vec<(u32, Vec<u32>)> = vec![];
+        for (index, group) in self.area_groups.iter().enumerate() {
+            let index = index as u32;
+            match hlcis.iter_mut().find(|(hlci_group, _)| hlci_group == group) {
+                Some((_, areas)) => areas.push(index),
+                None => hlcis.push((*group, vec![index])),
+            }
+        }
+        hlcis
+    }
+
+    /// Returns the index of the region's largest area (the first one on ties), if it has areas.
+    pub fn largest_area(&self) -> Option<usize> {
+        self.area_sizes.iter().enumerate().max_by_key(|(index, size)| (**size, std::cmp::Reverse(*index))).map(|(index, _)| index)
+    }
+
+    /// Returns the index of the HLCI holding an area.
+    pub fn hlci_of_area(&self, area: usize) -> Option<usize> {
+        let group = self.area_groups.get(area)?;
+        self.hlcis().iter().position(|(hlci_group, _)| hlci_group == group)
+    }
+}
+
+/// Reads the nodes of the high-level pathfinder of a `hlp_data.esf`, by region index.
+///
+/// The pathfinder record is a flat list: the region count, then for each region its index, its node count and its
+/// nodes. Each node has its id, cell, a value, its edges (9 values each) and an edge-to-edge cost table.
+///
+/// # Errors
+///
+/// Returns an error if the file lacks the pathfinder or it ends early.
+pub fn pathfinder_nodes(hlp_data: &ESF) -> Result<HashMap<usize, Vec<PathfinderNode>>> {
+    let root = as_record(hlp_data.root_node()).ok_or_else(|| pathfinder_error("the root node is not a record"))?;
+    let pathfinder = child_record(root, "CAI_HIGH_LEVEL_PATHFINDER").ok_or_else(|| pathfinder_error("missing CAI_HIGH_LEVEL_PATHFINDER"))?;
+    let values = pathfinder.children().iter().flat_map(|group| leaves(group)).collect::<Vec<&NodeType>>();
+    let mut cursor = Cursor { values: &values, position: 0 };
+
+    let mut nodes = HashMap::new();
+    for _ in 0..cursor.next()? {
+        let region = cursor.next()? as usize;
+        let mut region_nodes = vec![];
+        for _ in 0..cursor.next()? {
+            let id = cursor.next()?;
+            let x = cursor.next()? as u16;
+            let y = cursor.next()? as u16;
+            cursor.next()?;
+            let edges = cursor.next()? as usize;
+
+            // Each edge has 9 values (cells, cost, target, index and two flags), then a cost per pair of edges.
+            cursor.position += edges * 9 + edges * edges.saturating_sub(1);
+            region_nodes.push(PathfinderNode { area: id >> NODE_REGION_BITS, x, y });
+        }
+        nodes.insert(region, region_nodes);
+    }
+    Ok(nodes)
+}
+
+impl Cursor<'_> {
+
+    /// Returns the next leaf as an unsigned integer.
+    fn next(&mut self) -> Result<u32> {
+        let value = self.values.get(self.position).and_then(|node| as_u32(node)).ok_or_else(|| pathfinder_error("the node list ends early"))?;
+        self.position += 1;
+        Ok(value)
+    }
+}
+
+/// Builds the error for a malformed pathfinder.
+fn pathfinder_error(message: &str) -> RLibError {
+    RLibError::CampaignMapDataError(format!("high-level pathfinder: {message}"))
+}

@@ -31,6 +31,7 @@
 //! - [`world`]: the world stage (factions, characters, armies, regions, provinces and seas).
 //! - [`writer`]: the writer of whole startposes.
 
+pub mod cai;
 pub mod coords;
 mod esf_nav;
 pub mod layout;
