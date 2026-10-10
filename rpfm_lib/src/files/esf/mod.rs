@@ -474,7 +474,7 @@ pub struct BoolNode {
 /// - `I32_16BIT` (0x1b): Value fits in i16 (-32768 to 32767), 2 bytes
 /// - `I32_24BIT` (0x1c): Value fits in 24 bits, 3 bytes
 /// - `I32` (0x04): Full 4-byte encoding
-#[derive(Getters, MutGetters, Setters, Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(Getters, MutGetters, Setters, Eq, PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct I32Node {
     /// The signed 32-bit integer value.
