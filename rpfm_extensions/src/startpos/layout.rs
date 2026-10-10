@@ -600,7 +600,8 @@ impl GroupBuilder<'_> {
         self.set(name, node)
     }
 
-    /// Replaces an unsigned array leaf, keeping its encoding.
+    /// Replaces an unsigned array leaf. Games write non-empty arrays with the compact encoding when every value has
+    /// one, so the leaf gets the `optimized` flag a decoded startpos would have.
     ///
     /// # Errors
     ///
@@ -608,7 +609,10 @@ impl GroupBuilder<'_> {
     pub fn set_u32s(&mut self, name: &str, values: Vec<u32>) -> Result<&mut Self> {
         let mut node = self.default_of(name)?;
         match &mut node {
-            NodeType::U32Array(node) => { node.set_value(values); },
+            NodeType::U32Array(node) => {
+                let optimized = !values.is_empty() && values.iter().all(|value| *value <= MAX_COMPACT_U32);
+                node.set_value(values).set_optimized(optimized);
+            },
             _ => return Err(self.wrong_type(name, &values)),
         }
         self.set(name, node)
