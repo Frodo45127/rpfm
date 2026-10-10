@@ -17,8 +17,10 @@
 //! # Submodules
 //!
 //! - [`armies`]: the forces of each faction.
+//! - [`characters`]: the characters of each faction.
 //! - [`factions`]: the `FACTION` records.
 //! - [`forces`]: the plan of the characters and forces.
+//! - [`government`]: the plan of the government posts.
 //! - [`provinces`]: the provinces and the sea regions.
 //! - [`regions`]: the `REGION` records and their settlements.
 
@@ -28,16 +30,20 @@ use rpfm_lib::error::{RLibError, Result};
 use rpfm_lib::files::esf::RecordNode;
 
 use self::armies::ArmyWriter;
+use self::characters::CharacterWriter;
 use self::forces::ForcePlan;
-use super::{CampaignIndex, FactionEntry, RegionEntry};
+use self::government::PostPlan;
+use super::{CampaignIndex, CharacterEntry, FactionEntry, RegionEntry};
 use crate::startpos::layout::{child_path, RecordBuilder, StartposLayout};
 use crate::startpos::region_map::RegionMap;
 use crate::startpos::settlements::SettlementLayout;
 use crate::startpos::tables::{Row, StartposTables};
 
 pub mod armies;
+pub mod characters;
 pub mod factions;
 pub mod forces;
+pub mod government;
 pub mod provinces;
 pub mod regions;
 
@@ -45,6 +51,13 @@ pub mod regions;
 
 /// Path of the `WORLD` record.
 pub const WORLD_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/WORLD";
+
+/// Columns of `start_pos_horde_details` with building levels.
+pub(crate) const HORDE_BUILDING_COLUMNS: [&str; 11] = [
+    "primary_building", "secondary_building_1", "secondary_building_2", "secondary_building_3", "secondary_building_4",
+    "secondary_building_5", "secondary_building_6", "secondary_building_7", "secondary_building_8",
+    "secondary_building_9", "secondary_building_10",
+];
 
 /// Runtime id of the rebel faction. Real factions are numbered from the next one, in startpos order.
 pub const REBEL_FACTION_ID: u32 = 1;
@@ -92,6 +105,10 @@ pub struct WorldPlan<'a> {
 
     /// Runtime ids of the regions, by key.
     region_ids: HashMap<String, u32>,
+
+    /// Order of the living characters of some factions, by faction key. Factions without one put their leader
+    /// first, then the others in table order.
+    character_orders: HashMap<String, Vec<&'a CharacterEntry>>,
 }
 
 //---------------------------------------------------------------------------//
@@ -124,11 +141,14 @@ pub fn write_world(inputs: &WorldInputs) -> Result<RecordNode> {
 pub fn write_world_with_plan<'a>(inputs: &WorldInputs<'a>, plan: &WorldPlan<'a>) -> Result<RecordNode> {
     let forces = ForcePlan::new(inputs.tables, inputs.index, plan)?;
     let residences = regions::settlement_residences(inputs, plan)?;
-    let armies = ArmyWriter::new(inputs, &forces, &residences)?;
-    let (provinces, seas) = provinces::write_province_and_sea_managers(inputs, plan)?;
+
+    let posts = PostPlan::new(inputs, plan)?;
+    let characters = CharacterWriter::new(inputs, plan, &forces, &posts)?;
+    let (provinces, seas, next_recruitment) = provinces::write_province_and_sea_managers(inputs, plan)?;
+    let armies = ArmyWriter::new(inputs, &forces, &characters, &residences, next_recruitment)?;
     let mut world = inputs.layout.builder(WORLD_PATH)?;
     world.group()?
-        .set_record("FACTION_ARRAY", Some(factions::write_faction_array(inputs, plan, &armies)?))?
+        .set_record("FACTION_ARRAY", Some(factions::write_faction_array(inputs, plan, &armies, &characters)?))?
         .set_record("REGION_MANAGER", Some(regions::write_region_manager(inputs, plan, &forces)?))?
         .set_record("PROVINCE_MANAGER", Some(provinces))?
         .set_record("SEA_REGION_MANAGER", Some(seas))?;
@@ -151,7 +171,23 @@ impl<'a> WorldPlan<'a> {
     pub fn with_orders(factions: Vec<&'a FactionEntry>, regions: Vec<&'a RegionEntry>) -> Self {
         let faction_ids = factions.iter().zip(REBEL_FACTION_ID + 1..).map(|(faction, id)| (faction.key().to_owned(), id)).collect();
         let region_ids = regions.iter().zip(1..).map(|(region, id)| (region.key().to_owned(), id)).collect();
-        Self { factions, faction_ids, regions, region_ids }
+        Self { factions, faction_ids, regions, region_ids, character_orders: HashMap::new() }
+    }
+
+    /// Sets the order of a faction's living characters, for example the one of a game-built startpos. Living
+    /// characters left out of it go after it, in table order.
+    ///
+    /// # Arguments
+    ///
+    /// * `faction` - Faction key.
+    /// * `characters` - The faction's characters, in the order of their runtime ids.
+    pub fn set_character_order(&mut self, faction: &str, characters: Vec<&'a CharacterEntry>) {
+        self.character_orders.insert(faction.to_owned(), characters);
+    }
+
+    /// Returns the order set for a faction's living characters, if any.
+    pub fn character_order(&self, faction: &str) -> Option<&[&'a CharacterEntry]> {
+        self.character_orders.get(faction).map(Vec::as_slice)
     }
 
     /// Returns the factions, in startpos order.

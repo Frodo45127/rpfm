@@ -89,7 +89,7 @@ pub(crate) fn overrides_from_pack() -> BTreeSet<String> {
 }
 
 /// Returns the name ids of a startpos character.
-fn name_ids(character: &RecordNode) -> BTreeSet<String> {
+pub(crate) fn name_ids(character: &RecordNode) -> BTreeSet<String> {
     let names = child_record(character, "CHARACTER_DETAILS")
         .and_then(|details| child_record(details, "CHARACTER_NAME"))
         .and_then(|name| child_record(name, "NAMES_BLOCK"))
@@ -103,7 +103,7 @@ fn name_ids(character: &RecordNode) -> BTreeSet<String> {
 
 /// Finds the living table character of a faction with the given startpos name ids. The startpos drops names it
 /// can't resolve, so the ids only have to include the table's first name and be among the table's names.
-fn linked_character(index: &CampaignIndex, faction: &str, names: &HashMap<String, BTreeSet<String>>, ids: &BTreeSet<String>) -> Option<String> {
+pub(crate) fn linked_character(index: &CampaignIndex, faction: &str, names: &HashMap<String, BTreeSet<String>>, ids: &BTreeSet<String>) -> Option<String> {
     let candidates = index.characters_of(faction)
         .filter(|entry| entry.death_type().is_empty() && ids.is_subset(&names[entry.id()]))
         .filter(|entry| names[entry.id()].iter().any(|name| ids.contains(name)))

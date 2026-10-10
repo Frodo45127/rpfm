@@ -29,7 +29,7 @@ use crate::startpos::world::garrisons::garrisons;
 use crate::startpos::world::government::faction_leader;
 use crate::startpos::world::legacy::ForceKind;
 
-#[cfg(test)] #[path = "forces_test.rs"] mod forces_test;
+#[cfg(test)] #[path = "forces_test.rs"] pub(crate) mod forces_test;
 
 /// Percentage of men of a full unit.
 const FULL_UNIT: u32 = 100;
@@ -156,7 +156,7 @@ impl<'a> ForcePlan<'a> {
         let mut force_plan = Self::default();
         for faction in plan.factions() {
             let bodyguards = [bodyguard(tables, faction, false)?, bodyguard(tables, faction, true)?];
-            for character in characters_in_startpos_order(index, faction) {
+            for character in characters_in_startpos_order(index, plan, faction) {
                 let (kind, units) = match (land_units.get(character.id()), naval_units.get(character.id())) {
                     (Some(units), _) => (Some(ForceKind::Army), units.as_slice()),
                     (None, Some(units)) => (Some(ForceKind::Navy), units.as_slice()),
@@ -278,11 +278,19 @@ fn grouped(units: &[PlannedUnit]) -> Vec<PlannedUnit> {
     keys.iter().flat_map(|key| units.iter().filter(move |unit| unit.unit == *key).cloned()).collect()
 }
 
-/// Returns the living characters of a faction in startpos order: the leader, then the others in table order (the
-/// game uses a hash order for them).
-fn characters_in_startpos_order<'a>(index: &'a CampaignIndex, faction: &'a FactionEntry) -> Vec<&'a CharacterEntry> {
-    let leader = faction_leader(index, faction.key());
-    leader.into_iter()
-        .chain(index.characters_of(faction.key()).filter(|character| character.death_type().is_empty() && Some(*character) != leader))
-        .collect()
+/// Returns the living characters of a faction in startpos order: the plan's order if it has one for the faction,
+/// otherwise the leader, then the others in table order (the game uses a hash order for them). Living characters
+/// left out of the plan's order go after it, in table order.
+fn characters_in_startpos_order<'a>(index: &'a CampaignIndex, plan: &WorldPlan<'a>, faction: &'a FactionEntry) -> Vec<&'a CharacterEntry> {
+    let first = match plan.character_order(faction.key()) {
+        Some(order) => order.to_vec(),
+        None => faction_leader(index, faction.key()).into_iter().collect(),
+    };
+    let mut characters = Vec::<&CharacterEntry>::new();
+    for character in first.into_iter().chain(index.characters_of(faction.key()).filter(|character| character.death_type().is_empty())) {
+        if !characters.contains(&character) {
+            characters.push(character);
+        }
+    }
+    characters
 }

@@ -17,7 +17,7 @@ use rpfm_lib::files::esf::RecordNode;
 
 use super::factions::write_flag;
 use super::forces::{ForcePlan, PlannedForce};
-use super::{child, horde_details, next_id, WorldInputs, WorldPlan, REBEL_FACTION_ID, WORLD_PATH};
+use super::{child, horde_details, next_id, HORDE_BUILDING_COLUMNS, WorldInputs, WorldPlan, REBEL_FACTION_ID, WORLD_PATH};
 use crate::startpos::coords::{EdgePiece, HexCell};
 use crate::startpos::settlements::{SettlementLayout, SlotLayout};
 use crate::startpos::tables::Row;
@@ -57,13 +57,6 @@ const POPULATION_CLASS_VALUE: u32 = 7;
 
 /// Coordinate the startpos uses for slots without position (the port slot of settlements without port).
 const NO_POSITION: u32 = 65535;
-
-/// Columns of `start_pos_horde_details` with building levels.
-const HORDE_BUILDING_COLUMNS: [&str; 11] = [
-    "primary_building", "secondary_building_1", "secondary_building_2", "secondary_building_3", "secondary_building_4",
-    "secondary_building_5", "secondary_building_6", "secondary_building_7", "secondary_building_8",
-    "secondary_building_9", "secondary_building_10",
-];
 
 /// Added to a building's level to get the lowest value of the two floats of its `BUILDING_BASE`.
 const BUILDING_BASE_VALUE_OFFSET: i64 = 3;
@@ -175,10 +168,7 @@ impl<'a> RegionRows<'a> {
             regions.insert(row.str("id")?.into_owned(), row);
         }
 
-        let mut settlement_keys = HashMap::new();
-        for row in tables.table("start_pos_settlements")?.rows() {
-            settlement_keys.insert(row.str("id")?.into_owned(), row.str("settlement_id")?.into_owned());
-        }
+        let settlement_keys = settlement_keys(inputs)?;
 
         let mut governments = HashMap::new();
         for row in tables.table("start_pos_factions")?.rows() {
@@ -406,7 +396,7 @@ impl RegionWriter<'_, '_> {
             .unwrap_or_default();
 
         let mut localisation = child(layout, SETTLEMENT_PATH, "CAMPAIGN_LOCALISATION")?;
-        localisation.group()?.set_str("^+1", &format!("{SETTLEMENT_NAME_PREFIX}{settlement_key}{}", region.id()))?;
+        localisation.group()?.set_str("^+1", &settlement_name_key(&settlement_key, region))?;
 
         let zone = write_cells(self.inputs, &format!("{SETTLEMENT_PATH}/GARRISON_RESIDENCE/ZOE_BLOCK"), &garrison_zone(map_layout))?;
         let mut residence = child(layout, SETTLEMENT_PATH, "GARRISON_RESIDENCE")?;
@@ -540,6 +530,24 @@ pub(crate) fn settlement_residences(inputs: &WorldInputs, plan: &WorldPlan) -> R
         residences.insert(region.key().to_owned(), next_id(&mut next_residence));
     }
     Ok(residences)
+}
+
+/// Returns the `start_pos_settlements.settlement_id` of every settlement, by row id.
+///
+/// # Errors
+///
+/// Returns an error if the table or a column is missing.
+pub(crate) fn settlement_keys(inputs: &WorldInputs) -> Result<HashMap<String, String>> {
+    let mut keys = HashMap::new();
+    for row in inputs.tables.table("start_pos_settlements")?.rows() {
+        keys.insert(row.str("id")?.into_owned(), row.str("settlement_id")?.into_owned());
+    }
+    Ok(keys)
+}
+
+/// Returns the localisation key of the name of a region's settlement, from its `settlement_id`.
+pub(crate) fn settlement_name_key(settlement_key: &str, region: &RegionEntry) -> String {
+    format!("{SETTLEMENT_NAME_PREFIX}{settlement_key}{}", region.id())
 }
 
 /// Returns the settlement layout of a region.

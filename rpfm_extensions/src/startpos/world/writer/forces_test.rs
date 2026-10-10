@@ -15,7 +15,7 @@ use crate::startpos::world::garrisons::garrisons_test::garrison_tables;
 use crate::startpos::world::world_test::{add_table, fixture_index};
 
 /// Adds the unit tables of the generals: the leader of `fact_a` has an army, the general of `fact_b` a navy.
-fn force_tables() -> StartposTables {
+pub(crate) fn force_tables() -> StartposTables {
     let mut tables = garrison_tables();
     add_table(&mut tables, "start_pos_land_units", &["id", "unit_type", "general", "soldiers"], &[
         &["1", "levy", "31", "100"],

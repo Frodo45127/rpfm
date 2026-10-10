@@ -15,9 +15,12 @@ use std::collections::HashMap;
 use rpfm_lib::error::{RLibError, Result};
 use rpfm_lib::files::esf::RecordNode;
 
+use super::characters::CharacterWriter;
 use super::forces::{ForcePlan, PlannedForce, PlannedUnit};
-use super::{child, WorldInputs};
+use super::regions::{settlement_keys, settlement_name_key};
+use super::{child, horde_details, next_id, start_pos_faction_row, WorldInputs, HORDE_BUILDING_COLUMNS};
 use crate::startpos::world::FactionEntry;
+use crate::startpos::world::factions::faction_summary;
 use crate::startpos::world::legacy::{legacies, legacy_skill_set, ForceKind, Legacy, LegacyForce};
 
 /// Path of the forces of a faction.
@@ -31,6 +34,24 @@ const UNIT_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/WORLD/FAC
 
 /// Path of a force's legacy.
 const LEGACY_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/WORLD/FACTION_ARRAY/FACTION/ARMY_ARRAY/MILITARY_FORCE/MILITARY_FORCE_LEGACY";
+
+/// Path of a force's legacy history.
+const HISTORY_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/WORLD/FACTION_ARRAY/FACTION/ARMY_ARRAY/MILITARY_FORCE/MILITARY_FORCE_LEGACY/MILITARY_FORCE_LEGACY_HISTORY";
+
+/// Path of a force's horde details.
+const HORDE_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/WORLD/FACTION_ARRAY/FACTION/ARMY_ARRAY/MILITARY_FORCE/MILITARY_FORCE_HORDE_DETAILS";
+
+/// Path of a building slot of a horde.
+const HORDE_SLOT_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/WORLD/FACTION_ARRAY/FACTION/ARMY_ARRAY/MILITARY_FORCE/MILITARY_FORCE_HORDE_DETAILS/MILITARY_FORCE_SLOT_MANAGER/SLOT_BLOCK/MILITARY_FORCE_SLOT";
+
+/// Slot type of a horde's primary building slot.
+const HORDE_PRIMARY_SLOT: &str = "horde_primary";
+
+/// Slot type of a horde's other building slots.
+const HORDE_SECONDARY_SLOT: &str = "horde_secondary";
+
+/// Value of the two floats of a horde building (`BUILDING_BASE^+3` and `^+4`, meaning unknown).
+const HORDE_BUILDING_VALUE: f32 = 1.0;
 
 /// Action point multiplier of the units of generals' forces. Garrison units keep their base action points.
 const GENERAL_ACTION_POINTS_MULTIPLIER: f32 = 1.1;
@@ -56,6 +77,38 @@ pub struct ArmyWriter<'a, 'b> {
 
     /// The campaign's start year.
     start_year: u32,
+
+    /// Horde details of the horde armies, by force id.
+    hordes: HashMap<u32, HordePlan>,
+
+    /// Writer of the characters, for the commanders' positions and names.
+    characters: &'b CharacterWriter<'a, 'b>,
+
+    /// `start_pos_settlements.settlement_id` of every settlement, by row id.
+    settlement_keys: HashMap<String, String>,
+
+    /// Province of every region, by region key.
+    provinces: HashMap<String, String>,
+}
+
+/// The horde details of a horde army: ids of its recruitment manager and slots, its buildings and development.
+#[derive(Debug, Clone, Default)]
+struct HordePlan {
+
+    /// Recruitment manager id.
+    recruitment_id: u32,
+
+    /// Id of the first building slot (the others follow it).
+    first_slot_id: u32,
+
+    /// Building of each slot, with its id: the row's buildings in column order, packed into the first slots.
+    buildings: Vec<Option<(String, u32)>>,
+
+    /// Development points (`start_pos_horde_details.starting_dev_points` plus one).
+    development: u32,
+
+    /// Government type of the faction, for its buildings.
+    government: String,
 }
 
 /// Men and action points of a unit (`main_units` and its land or naval unit).
@@ -81,13 +134,31 @@ impl<'a, 'b> ArmyWriter<'a, 'b> {
     ///
     /// * `inputs` - Tables, startpos rows and layouts.
     /// * `forces` - Characters and forces of the world.
+    /// * `characters` - Writer of the characters.
     /// * `residences` - Garrison residence id of each region's settlement, by region key.
+    /// * `late_recruitment` - First recruitment manager id free after the provinces and seas, for horde armies
+    ///   without horde details.
     ///
     /// # Errors
     ///
     /// Returns an error if a table or column is missing.
-    pub fn new(inputs: &'b WorldInputs<'a>, forces: &'b ForcePlan<'a>, residences: &'b HashMap<String, u32>) -> Result<Self> {
-        Ok(Self { inputs, forces, residences, stats: unit_stats(inputs)?, start_year: start_year(inputs)? })
+    pub fn new(inputs: &'b WorldInputs<'a>, forces: &'b ForcePlan<'a>, characters: &'b CharacterWriter<'a, 'b>, residences: &'b HashMap<String, u32>, late_recruitment: u32) -> Result<Self> {
+        let mut provinces = HashMap::new();
+        for row in inputs.tables.table("region_to_province_junctions")?.rows() {
+            provinces.insert(row.str("region")?.into_owned(), row.str("province")?.into_owned());
+        }
+
+        Ok(Self {
+            hordes: horde_plans(inputs, forces, late_recruitment)?,
+            settlement_keys: settlement_keys(inputs)?,
+            provinces,
+            characters,
+            stats: unit_stats(inputs)?,
+            start_year: start_year(inputs)?,
+            inputs,
+            forces,
+            residences,
+        })
     }
 
     /// Writes the forces of a faction.
@@ -135,6 +206,62 @@ impl<'a, 'b> ArmyWriter<'a, 'b> {
             .set_u32("UNIT_CONTAINER+11", garrison_residence(ForceKind::GarrisonArmy))?
             .set_u32("UNIT_CONTAINER+12", garrison_residence(ForceKind::GarrisonNavy))?
             .set_bool("UNIT_CONTAINER+13", is_navy(force))?;
+        if let Some(horde) = self.hordes.get(&force.id()) {
+            record.group()?
+                .set_bool("MILITARY_FORCE_MORALE+1", true)?
+                .set_record("MILITARY_FORCE_HORDE_DETAILS", Some(self.write_horde_details(force, horde)?))?;
+        }
+        record.build()
+    }
+
+    /// Writes the horde details of a horde army: its recruitment manager, building slots and development.
+    fn write_horde_details(&self, force: &PlannedForce, horde: &HordePlan) -> Result<RecordNode> {
+        let layout = self.inputs.layout;
+        let mut recruitment = child(layout, HORDE_PATH, "RECRUITMENT_MANAGER")?;
+        recruitment.group()?.set_u32("^+1", horde.recruitment_id)?;
+
+        let mut slots = child(layout, &format!("{HORDE_PATH}/MILITARY_FORCE_SLOT_MANAGER"), "SLOT_BLOCK")?;
+        for (index, building) in horde.buildings.iter().enumerate() {
+            let primary = index == 0;
+            let base = building.as_ref().map(|(key, id)| {
+                let mut base = child(layout, &format!("{HORDE_SLOT_PATH}/MILITARY_FORCE_BUILDING_MANAGER"), "BUILDING_BASE")?;
+                base.group()?
+                    .set_u32("^+1", *id)?
+                    .set_str("^+2", key)?
+                    .set_f32("^+3", HORDE_BUILDING_VALUE)?
+                    .set_f32("^+4", HORDE_BUILDING_VALUE)?
+                    .set_str("^+5", force.faction().key())?
+                    .set_str("^+6", &horde.government)?;
+                base.build()
+            }).transpose()?;
+
+            let mut manager = child(layout, HORDE_SLOT_PATH, "MILITARY_FORCE_BUILDING_MANAGER")?;
+            manager.group()?
+                .set_bool("^+2", base.is_some())?
+                .set_record("BUILDING_BASE", base)?;
+
+            let slot_type = if primary { HORDE_PRIMARY_SLOT } else { HORDE_SECONDARY_SLOT };
+            let mut slot = layout.builder(HORDE_SLOT_PATH)?;
+            slot.group()?
+                .set_u32("^+1", horde.first_slot_id + u32::try_from(index).unwrap_or_default())?
+                .set_u32("^+2", u32::try_from(index).unwrap_or_default())?
+                .set_record("MILITARY_FORCE_BUILDING_MANAGER", Some(manager.build()?))?
+                .set_str("MILITARY_FORCE_BUILDING_MANAGER+1", slot_type)?
+                .set_str("MILITARY_FORCE_BUILDING_MANAGER+2", slot_type)?
+                .set_bool("MILITARY_FORCE_BUILDING_MANAGER+4", primary)?;
+            slots.push_group()?.set_record("MILITARY_FORCE_SLOT", Some(slot.build()?))?;
+        }
+        let mut slot_manager = child(layout, HORDE_PATH, "MILITARY_FORCE_SLOT_MANAGER")?;
+        slot_manager.group()?.set_record("SLOT_BLOCK", Some(slots.build()?))?;
+
+        let mut development = child(layout, HORDE_PATH, "MILITARY_FORCE_DEVELOPMENT")?;
+        development.group()?.set_u32("^+1", horde.development)?;
+
+        let mut record = layout.builder(HORDE_PATH)?;
+        record.group()?
+            .set_record("RECRUITMENT_MANAGER", Some(recruitment.build()?))?
+            .set_record("MILITARY_FORCE_SLOT_MANAGER", Some(slot_manager.build()?))?
+            .set_record("MILITARY_FORCE_DEVELOPMENT", Some(development.build()?))?;
         record.build()
     }
 
@@ -149,6 +276,7 @@ impl<'a, 'b> ArmyWriter<'a, 'b> {
 
         let mut record = layout.builder(LEGACY_PATH)?;
         record.group()?
+            .set_record("MILITARY_FORCE_LEGACY_HISTORY", Some(self.write_history(force)?))?
             .set_u32("^+1", force.id())?
             .set_record("CAMPAIGN_SKILLS", Some(skills.build()?))?
             .set_record("CAMPAIGN_LOCALISATION", Some(name.build()?))?
@@ -156,6 +284,44 @@ impl<'a, 'b> ArmyWriter<'a, 'b> {
             .set_u32("CAMPAIGN_LOCALISATION+2", force.kind() as u32)?
             .set_str("CAMPAIGN_LOCALISATION+3", legacy.emblem())?
             .set_u32("CAMPAIGN_LOCALISATION+4", legacy.number())?;
+        record.build()
+    }
+
+    /// Writes where and when a force was raised (`MILITARY_FORCE_LEGACY_HISTORY`): the campaign's start (the game
+    /// subtracts up to 5 random years), its commander's name, and the settlement and province of the region its
+    /// commander stands on. Forces at sea use their faction's capital; at sea without capital, the history is empty.
+    fn write_history(&self, force: &PlannedForce) -> Result<RecordNode> {
+        let layout = self.inputs.layout;
+        let index = self.inputs.index;
+        let commander = &self.forces.characters()[force.commander()];
+        let (_, cell) = self.characters.position(commander)?;
+        let region = self.inputs.region_map.region_at(cell)
+            .and_then(|key| index.region(key))
+            .or_else(|| index.capital_of(force.faction().key()));
+
+        let mut record = layout.builder(HISTORY_PATH)?;
+        let mut localisation = child(layout, HISTORY_PATH, "CAMPAIGN_LOCALISATION")?;
+        let Some(region) = region else {
+            localisation.group()?.set_str("^+1", "")?;
+            let mut date = child(layout, HISTORY_PATH, "DATE")?;
+            date.group()?.set_u32("^+1", 0)?;
+            record.group()?
+                .set_record("DATE", Some(date.build()?))?
+                .set_record("CHARACTER_NAME", Some(self.characters.write_name(HISTORY_PATH, None)?))?
+                .set_record("CAMPAIGN_LOCALISATION", Some(localisation.build()?))?
+                .set_str("CAMPAIGN_LOCALISATION+1", "")?;
+            return record.build();
+        };
+
+        let settlement_key = index.settlement_of(region.key()).and_then(|settlement| self.settlement_keys.get(settlement.id())).cloned().unwrap_or_default();
+        localisation.group()?.set_str("^+1", &settlement_name_key(&settlement_key, region))?.unset("^+2")?;
+        let mut date = child(layout, HISTORY_PATH, "DATE")?;
+        date.group()?.set_u32("^+1", self.start_year)?;
+        record.group()?
+            .set_record("DATE", Some(date.build()?))?
+            .set_record("CHARACTER_NAME", Some(self.characters.write_name(HISTORY_PATH, self.characters.row(commander))?))?
+            .set_record("CAMPAIGN_LOCALISATION", Some(localisation.build()?))?
+            .set_str("CAMPAIGN_LOCALISATION+1", self.provinces.get(region.key()).map(String::as_str).unwrap_or_default())?;
         record.build()
     }
 
@@ -200,6 +366,53 @@ impl<'a, 'b> ArmyWriter<'a, 'b> {
 /// Returns if a force is a navy.
 fn is_navy(force: &PlannedForce) -> bool {
     matches!(force.kind(), ForceKind::Navy | ForceKind::GarrisonNavy)
+}
+
+/// Plans the horde details of the horde armies: the generals' armies of horde factions (factions that can be
+/// hordes and own no regions).
+///
+/// Recruitment manager, slot and building ids are counters over the horde armies in force order. Buildings fill the
+/// slots in column order, without gaps for empty columns. Armies without a
+/// `start_pos_horde_details` row get empty slots, and a recruitment manager id after the ones of the provinces and
+/// seas.
+fn horde_plans(inputs: &WorldInputs, forces: &ForcePlan, late_recruitment: u32) -> Result<HashMap<u32, HordePlan>> {
+    let rows = horde_details(inputs)?.into_iter()
+        .map(|row| Ok((row.str("general")?.into_owned(), row)))
+        .collect::<Result<HashMap<_, _>>>()?;
+
+    let mut horde_factions = HashMap::new();
+    let (mut next_recruitment, mut late_recruitment, mut next_slot, mut next_building) = (1, late_recruitment, 1, 1);
+    let mut plans = HashMap::new();
+    for force in forces.forces().iter().filter(|force| force.kind() == ForceKind::Army) {
+        let faction = force.faction();
+        if !horde_factions.contains_key(faction.key()) {
+            let is_horde = faction_summary(inputs.tables, inputs.index, faction)?.horde() == Some(true);
+            horde_factions.insert(faction.key().to_owned(), is_horde);
+        }
+        if !horde_factions[faction.key()] {
+            continue;
+        }
+
+        let row = forces.characters()[force.commander()].entry().and_then(|entry| rows.get(entry.id()));
+        let mut buildings = vec![];
+        for column in HORDE_BUILDING_COLUMNS {
+            if let Some(building) = row.map(|row| row.str(column)).transpose()?.filter(|building| !building.is_empty()) {
+                buildings.push(Some((building.into_owned(), next_id(&mut next_building))));
+            }
+        }
+        buildings.resize(HORDE_BUILDING_COLUMNS.len(), None);
+
+        let first_slot_id = next_slot;
+        next_slot += u32::try_from(HORDE_BUILDING_COLUMNS.len()).unwrap_or_default();
+        plans.insert(force.id(), HordePlan {
+            recruitment_id: if row.is_some() { next_id(&mut next_recruitment) } else { next_id(&mut late_recruitment) },
+            first_slot_id,
+            buildings,
+            development: u32::try_from(row.map(|row| row.int("starting_dev_points")).transpose()?.unwrap_or_default()).unwrap_or_default() + 1,
+            government: start_pos_faction_row(inputs.tables, faction)?.str("government_type")?.into_owned(),
+        });
+    }
+    Ok(plans)
 }
 
 /// Returns the men and base action points of every unit, by `main_units` key.

@@ -40,15 +40,17 @@ pub(crate) const TEST_CAMPAIGN: &str = "main_attila";
 const TEST_TABLES: &[&str] = &[
     "agent_culture_details", "agent_to_agent_abilities", "agent_to_agent_attributes", "agents",
     "armed_citizenry_units_to_unit_groups_junctions", "battlefield_engines", "building_level_armed_citizenry_junctions",
-    "building_levels", "character_skill_node_sets", "commander_unit_permissions", "cultures_subcultures",
+    "building_levels", "campaign_character_art_sets", "campaign_character_art_sets_group_junctions",
+    "character_skill_node_sets", "character_trait_levels", "commander_unit_permissions", "cultures_subcultures",
     "faction_political_parties_junctions", "faction_to_mercenary_set_junctions", "factions", "land_units", "main_units",
     "mercenary_pool_to_groups_junctions", "mercenary_unit_groups", "military_force_legacy_emblems",
     "military_force_legacy_names", "ministerial_positions", "ministerial_positions_culture_details", "naval_units",
     "political_parties", "province_to_mercenary_set_junctions", "region_to_province_junctions", "religions",
-    "start_pos_calendars", "start_pos_character_to_settlements", "start_pos_characters", "start_pos_diplomacy",
-    "start_pos_factions", "start_pos_horde_details", "start_pos_land_units", "start_pos_naval_units",
-    "start_pos_region_religions", "start_pos_region_slot_templates", "start_pos_regions", "start_pos_settlements",
-    "start_pos_victory_conditions", "technology_unit_upgrades", "units_to_groupings_military_permissions",
+    "start_pos_calendars", "start_pos_character_to_settlements", "start_pos_character_traits", "start_pos_characters",
+    "start_pos_diplomacy", "start_pos_factions", "start_pos_horde_details", "start_pos_land_units",
+    "start_pos_naval_units", "start_pos_region_religions", "start_pos_region_slot_templates", "start_pos_regions",
+    "start_pos_settlements", "start_pos_victory_conditions", "technology_unit_upgrades",
+    "units_to_groupings_military_permissions",
 ];
 
 /// Returns the path of a file of the startpos test data folder.

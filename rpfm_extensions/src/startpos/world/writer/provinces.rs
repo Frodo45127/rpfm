@@ -68,10 +68,14 @@ struct ProvinceWriter<'a, 'b> {
 
 /// Writes the province manager and the sea region manager.
 ///
+/// # Returns
+///
+/// The two records, and the next free recruitment manager id (for horde armies without horde details).
+///
 /// # Errors
 ///
 /// Returns an error if a table, column or layout is missing.
-pub fn write_province_and_sea_managers(inputs: &WorldInputs, plan: &WorldPlan) -> Result<(RecordNode, RecordNode)> {
+pub fn write_province_and_sea_managers(inputs: &WorldInputs, plan: &WorldPlan) -> Result<(RecordNode, RecordNode, u32)> {
     let mut regions = HashMap::new();
     for row in inputs.tables.table("start_pos_regions")?.rows() {
         if row.str("campaign")? == *inputs.index.campaign() {
@@ -83,7 +87,7 @@ pub fn write_province_and_sea_managers(inputs: &WorldInputs, plan: &WorldPlan) -
     let mut writer = ProvinceWriter { inputs, plan, regions, next_recruitment: first_recruitment };
     let provinces = writer.write_province_manager()?;
     let seas = writer.write_sea_region_manager()?;
-    Ok((provinces, seas))
+    Ok((provinces, seas, writer.next_recruitment))
 }
 
 impl ProvinceWriter<'_, '_> {

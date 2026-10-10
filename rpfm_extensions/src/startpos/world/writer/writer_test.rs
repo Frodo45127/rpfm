@@ -12,15 +12,16 @@
 
 use rpfm_lib::files::esf::{NodeType, RecordNode};
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use super::*;
 use crate::startpos::layout::Slot;
-use crate::startpos::world::legacy::legacy_test::overrides_from_pack;
-use crate::startpos::startpos_test::{field_str, test_data_esf, test_data_tables, test_startpos, world, world_factions, world_regions, TEST_CAMPAIGN};
+use crate::startpos::esf_nav::child_record;
+use crate::startpos::world::legacy::legacy_test::{linked_character, name_ids, overrides_from_pack};
+use crate::startpos::startpos_test::{array_items, field_str, test_data_esf, test_data_tables, test_startpos, world, world_factions, world_regions, TEST_CAMPAIGN};
 
 /// Share of the game's `WORLD` fields the writer must match. Raised as the writer covers more records.
-const MIN_MATCH_RATIO: f64 = 0.59;
+const MIN_MATCH_RATIO: f64 = 0.67;
 
 /// Matches and totals of each field, by `path:field`.
 #[derive(Debug, Default)]
@@ -156,7 +157,21 @@ fn test_world_matches_the_game_startpos() {
     let game_world = world(test_startpos());
     let factions = world_factions(game_world).iter().map(|faction| index.faction(field_str(faction, 1)).unwrap()).collect();
     let regions = world_regions(game_world).iter().map(|region| index.region(field_str(region, 1)).unwrap()).collect();
-    let plan = WorldPlan::with_orders(factions, regions);
+    let mut plan = WorldPlan::with_orders(factions, regions);
+
+    // Characters too, linked to their table rows by name.
+    let names = tables.table("start_pos_characters").unwrap().rows()
+        .map(|row| (row.str("ID").unwrap().into_owned(), ["Name", "Surname", "clan_name", "other_name"].iter().map(|column| row.str(column).unwrap().into_owned()).filter(|id| !id.is_empty()).collect::<BTreeSet<_>>()))
+        .collect::<HashMap<_, _>>();
+    for faction in world_factions(game_world) {
+        let key = field_str(faction, 1);
+        let order = child_record(faction, "CHARACTER_ARRAY").map(|array| array_items(array, "CHARACTER")).unwrap_or_default().into_iter()
+            .filter(|character| field_str(character, 3) != "colonel")
+            .filter_map(|character| linked_character(&index, key, &names, &name_ids(character)))
+            .filter_map(|id| index.characters().iter().find(|entry| *entry.id() == id))
+            .collect();
+        plan.set_character_order(key, order);
+    }
 
     let written = write_world_with_plan(&inputs, &plan).unwrap();
     let mut report = Report::default();
