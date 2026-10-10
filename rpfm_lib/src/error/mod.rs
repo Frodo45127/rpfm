@@ -263,6 +263,18 @@ pub enum RLibError {
     #[error("Invalid campaign map data: {0}")]
     CampaignMapDataError(String),
 
+    /// A table needed to build a startpos is missing.
+    #[error("Missing table needed to build the startpos: {0}.")]
+    StartposMissingTable(String),
+
+    /// A column needed to build a startpos is missing from its table.
+    #[error("Missing column {1} in table {0}, needed to build the startpos.")]
+    StartposMissingColumn(String, String),
+
+    /// A table value needed to build a startpos has the wrong type or is out of range.
+    #[error("Invalid value in column {1} of table {0}, needed to build the startpos: {2}")]
+    StartposInvalidValue(String, String, String),
+
     // Font File Errors
 
     /// Font file signature not supported.
