@@ -595,21 +595,25 @@ impl PathStats {
 
         // Fast path: same shape as the slots seen so far.
         let same_shape = group.len() == self.slots.len() && group.iter().zip(&self.slots).all(|(token, slot)| token_kind(token) == slot.kind());
-        let alignment = if same_shape {
-            (0..group.len()).map(|index| (index, index)).collect()
-        } else {
-            align(&self.slots, group)
-        };
+        if same_shape {
+            for (slot, token) in self.slots.iter_mut().zip(group) {
+                slot.record(token.1);
+            }
+            return;
+        }
 
-        // Insert the tokens that didn't align, keeping the order of both sequences.
-        let mut merged = Vec::with_capacity(self.slots.len().max(group.len()));
+        // Insert the tokens that didn't align, keeping the order of both sequences. Slots are moved, not cloned.
+        let alignment = align(&self.slots, group);
+        let slot_count = self.slots.len();
+        let mut old_slots = std::mem::take(&mut self.slots).into_iter();
+        let mut merged = Vec::with_capacity(slot_count.max(group.len()));
         let mut slot_index = 0;
         let mut group_index = 0;
         let mut pairs = alignment.into_iter().peekable();
-        while slot_index < self.slots.len() || group_index < group.len() {
+        while slot_index < slot_count || group_index < group.len() {
             match pairs.peek().copied() {
                 Some((slot, token)) if slot == slot_index && token == group_index => {
-                    let mut stats = self.slots[slot].clone();
+                    let mut stats = old_slots.next().expect("slots are consumed in order");
                     stats.record(group[token].1);
                     merged.push(stats);
                     slot_index += 1;
@@ -617,15 +621,15 @@ impl PathStats {
                     pairs.next();
                 },
                 Some((slot, _)) if slot_index < slot => {
-                    merged.push(self.slots[slot_index].clone());
+                    merged.push(old_slots.next().expect("slots are consumed in order"));
                     slot_index += 1;
                 },
                 Some(_) => {
                     merged.push(SlotStats::new(&group[group_index]));
                     group_index += 1;
                 },
-                None if slot_index < self.slots.len() => {
-                    merged.push(self.slots[slot_index].clone());
+                None if slot_index < slot_count => {
+                    merged.push(old_slots.next().expect("slots are consumed in order"));
                     slot_index += 1;
                 },
                 None => {
