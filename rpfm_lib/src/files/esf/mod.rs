@@ -454,7 +454,7 @@ pub enum NodeType {
 /// When `optimized` is true, the value is encoded using `BOOL_TRUE` (0x12) or
 /// `BOOL_FALSE` (0x13) markers which require no additional bytes. When false,
 /// uses the standard `BOOL` (0x01) marker followed by a byte.
-#[derive(Getters, MutGetters, Setters, Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(Getters, MutGetters, Setters, Eq, PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct BoolNode {
     /// The boolean value.
@@ -489,7 +489,7 @@ pub struct I32Node {
 /// - `U32_16BIT` (0x17): Value fits in u16 (0-65535), 2 bytes
 /// - `U32_24BIT` (0x18): Value fits in 24 bits (0-16777215), 3 bytes
 /// - `U32` (0x08): Full 4-byte encoding
-#[derive(Getters, MutGetters, Setters, Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(Getters, MutGetters, Setters, Eq, PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct U32Node {
     /// The unsigned 32-bit integer value.
@@ -502,7 +502,7 @@ pub struct U32Node {
 ///
 /// When `optimized` is true and the value is exactly 0.0, uses `F32_ZERO` (0x1d)
 /// which requires no additional bytes. Otherwise uses standard `F32` (0x0a) encoding.
-#[derive(Getters, MutGetters, Setters, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(Getters, MutGetters, Setters, PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct F32Node {
     /// The 32-bit floating point value.
