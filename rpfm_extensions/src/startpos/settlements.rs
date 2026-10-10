@@ -11,24 +11,27 @@
 //! Settlement layouts of a startpos (`REGION/SETTLEMENT/SETTLEMENT_EXPANSION_MANAGER/SETTLEMENT_EXPANSION_MAP_DATA`),
 //! built from the campaign map's `map_data.esf` (`REGION_DATA/SETTLEMENT_INFO`).
 //!
-//! Verified against Attila's main campaign (186 settlements, 983 slots): slot ids, kinds, positions, footprints
-//! and zones match the game-built startpos, and so do the sprawl cells and their footprint/zone flags. Not covered
-//! yet: the order of the wall cells (the game stores a walk around the zone, with repeated cells; this module
-//! returns the set of boundary cells, which matches 967 of 983 slots), the trailing value of each slot, and the
-//! road/wall connection fields of the sprawl cells.
+//! Verified against Attila's main campaign (186 settlements, 983 slots): slot ids, kinds, positions, footprints,
+//! zones, walls and touching slots match the game-built startpos, and so do the sprawl cells and their
+//! footprint/zone flags. The edge pieces of the sprawl cells need the cells' regions, so the world writer computes
+//! them.
 
 use getset::{CopyGetters, Getters};
 use serde_derive::{Deserialize, Serialize};
 
-use std::collections::{BTreeSet, HashSet};
+use std::cmp::Reverse;
+use std::collections::HashSet;
 
 use rpfm_lib::error::{RLibError, Result};
 use rpfm_lib::files::esf::{ESF, NodeType, RecordNode};
 
-use super::coords::HexCell;
+use super::coords::{HexCell, HEX_EDGES};
 use super::esf_nav::{as_record, as_str, as_u32, cell_groups, child_record, child_records, leaves};
 
 #[cfg(test)] #[path = "settlements_test.rs"] mod settlements_test;
+
+/// Directions from a wall walk step to the first direction it scans next: the one after the step's reverse.
+const WALL_SCAN_OFFSET: u8 = 4;
 
 //---------------------------------------------------------------------------//
 //                              Types
@@ -85,9 +88,14 @@ pub struct SlotLayout {
     #[getset(get = "pub")]
     zone: Vec<HexCell>,
 
-    /// Zone cells with a neighbour outside the zone, for walled settlements. Empty otherwise.
+    /// Walk around the zone's outer boundary, for walled settlements (see [`wall_walk`]). Empty otherwise.
     #[getset(get = "pub")]
-    walls: BTreeSet<HexCell>,
+    walls: Vec<HexCell>,
+
+    /// Bit set of the other slots (by position in the settlement's slot list) whose zone shares or touches a cell
+    /// of this slot's zone.
+    #[getset(get_copy = "pub")]
+    touching_slots: u32,
 }
 
 /// A cell of the sprawl area of a settlement.
@@ -173,6 +181,8 @@ impl SettlementLayout {
             slots.push(SlotLayout::new(index as u32 + 1, SlotKind::Secondary, Some(position), zone, walled));
         }
 
+        link_touching_slots(&mut slots);
+
         let sprawl_cells = child_record(info, "LOGICAL_POSITION_BIT_ARRAY")
             .ok_or_else(|| map_error(region, "missing LOGICAL_POSITION_BIT_ARRAY"))
             .and_then(|bits| bit_array_cells(region, bits))?;
@@ -189,7 +199,7 @@ impl SlotLayout {
 
     /// Creates a slot anchored to a cell, computing its footprint and walls.
     fn new(id: u32, kind: SlotKind, position: Option<HexCell>, zone: Vec<HexCell>, walled: bool) -> Self {
-        let walls = if walled { boundary(&zone) } else { BTreeSet::new() };
+        let walls = if walled { wall_walk(&zone) } else { vec![] };
         Self {
             id,
             kind,
@@ -197,6 +207,7 @@ impl SlotLayout {
             position,
             zone,
             walls,
+            touching_slots: 0,
         }
     }
 }
@@ -265,13 +276,49 @@ fn sprawl(cells: &[HexCell], slots: &[SlotLayout]) -> Vec<SprawlCell> {
     }).collect()
 }
 
-/// Returns the cells of a zone with at least one neighbour outside the zone.
-fn boundary(zone: &[HexCell]) -> BTreeSet<HexCell> {
+/// Fills the touching slots of every slot of a settlement.
+fn link_touching_slots(slots: &mut [SlotLayout]) {
+    let reaches = slots.iter()
+        .map(|slot| slot.zone.iter().flat_map(HexCell::footprint).collect::<HashSet<_>>())
+        .collect::<Vec<_>>();
+    let masks = reaches.iter().enumerate().map(|(index, reach)| {
+        slots.iter().enumerate()
+            .filter(|(other, slot)| *other != index && slot.zone.iter().any(|cell| reach.contains(cell)))
+            .fold(0, |mask, (other, _)| mask | 1u32.checked_shl(other as u32).unwrap_or_default())
+    }).collect::<Vec<_>>();
+
+    for (slot, mask) in slots.iter_mut().zip(masks) {
+        slot.touching_slots = mask;
+    }
+}
+
+/// Returns the walk around the outer boundary of a zone the game stores as a slot's walls.
+///
+/// The walk starts on the zone cell with the highest column (then the lowest row), as if it came from direction 0.
+/// Each step looks for the next zone cell scanning the directions from the one after the reverse of the last step,
+/// and records it. The walk ends when it is about to repeat its first step, so cells on one-cell-wide parts of the
+/// zone appear twice and cells only next to holes don't appear.
+fn wall_walk(zone: &[HexCell]) -> Vec<HexCell> {
     let cells = zone.iter().copied().collect::<HashSet<_>>();
-    cells.iter()
-        .filter(|cell| cell.neighbours().count() < 6 || cell.neighbours().any(|neighbour| !cells.contains(&neighbour)))
-        .copied()
-        .collect()
+    let Some(start) = zone.iter().copied().min_by_key(|cell| (Reverse(cell.x()), cell.y())) else { return vec![] };
+
+    // Every step uses an edge of a zone cell, and a closed walk uses each edge in each direction at most once.
+    let max_steps = zone.len() * usize::from(HEX_EDGES) + 1;
+    let mut walk = Vec::new();
+    let (mut cell, mut incoming, mut first_step) = (start, 0, None);
+    while walk.len() < max_steps {
+        let next = (0..HEX_EDGES)
+            .map(|offset| (incoming + WALL_SCAN_OFFSET + offset) % HEX_EDGES)
+            .find_map(|direction| cell.neighbour(direction).filter(|neighbour| cells.contains(neighbour)).map(|neighbour| (direction, neighbour)));
+        let Some((direction, neighbour)) = next else { return vec![start] };
+        if cell == start && first_step == Some(direction) {
+            break;
+        }
+        first_step.get_or_insert(direction);
+        walk.push(neighbour);
+        (cell, incoming) = (neighbour, direction);
+    }
+    walk
 }
 
 fn map_error(region: &str, message: &str) -> RLibError {

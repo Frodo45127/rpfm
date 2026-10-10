@@ -87,16 +87,25 @@ fn test_sprawl_cells_and_flags() {
 }
 
 #[test]
+fn test_touching_slots() {
+    let layout = SettlementLayout::from_settlement_info("reg", &sample_info(true), false).unwrap();
+    let touching = layout.slots().iter().map(|slot| slot.touching_slots()).collect::<Vec<_>>();
+
+    // The main slot's zone touches the port's; the secondary slot is alone.
+    assert_eq!(touching, vec![0b10, 0b01, 0]);
+}
+
+#[test]
 fn test_walls_only_when_walled() {
     let walled = SettlementLayout::from_settlement_info("reg", &sample_info(false), true).unwrap();
     let open = SettlementLayout::from_settlement_info("reg", &sample_info(false), false).unwrap();
 
-    assert_eq!(walled.slots()[0].walls(), &BTreeSet::from([HexCell::new(10, 10), HexCell::new(11, 10)]));
+    assert_eq!(walled.slots()[0].walls(), &vec![HexCell::new(10, 10), HexCell::new(11, 10)]);
     assert!(open.slots()[0].walls().is_empty());
 }
 
-/// Slot data read back from a game-built startpos: (id, kind, position, footprint, zone, walls).
-type GameSlot = (u32, SlotKind, Option<HexCell>, Vec<HexCell>, Vec<HexCell>, BTreeSet<HexCell>);
+/// Slot data read back from a game-built startpos: (id, kind, position, footprint, zone, walls, touching slots).
+type GameSlot = (u32, SlotKind, Option<HexCell>, Vec<HexCell>, Vec<HexCell>, Vec<HexCell>, u32);
 
 /// Reads a `SLOT_MAP_DATA` record of a game-built startpos.
 fn game_slot(slot: &RecordNode, kind: SlotKind) -> GameSlot {
@@ -104,7 +113,7 @@ fn game_slot(slot: &RecordNode, kind: SlotKind) -> GameSlot {
     let id = as_u32(leaves[0]).unwrap();
     let position = HexCell::new(as_u32(leaves[1]).unwrap() as u16, as_u32(leaves[2]).unwrap() as u16);
     let cells = |name: &str| cell_groups(child_record(slot, name).unwrap());
-    (id, kind, (position.x() != u16::MAX).then_some(position), cells("SLOT_FOOTPRINT_ARRAY"), cells("SLOT_ZOE_ARRAY"), cells("SLOT_WALL_ARRAY").into_iter().collect())
+    (id, kind, (position.x() != u16::MAX).then_some(position), cells("SLOT_FOOTPRINT_ARRAY"), cells("SLOT_ZOE_ARRAY"), cells("SLOT_WALL_ARRAY"), as_u32(leaves[3]).unwrap())
 }
 
 #[test]
@@ -139,7 +148,6 @@ fn test_matches_game_startpos() {
     let layouts = SettlementLayout::all_from_map_data(&map_data, walled).unwrap();
     assert_eq!(layouts.len(), game.len());
 
-    let mut wall_mismatches = 0;
     for layout in &layouts {
         let (game_slots, game_sprawl) = &game[layout.region()];
         assert_eq!(layout.slots().len(), game_slots.len(), "{}", layout.region());
@@ -147,12 +155,25 @@ fn test_matches_game_startpos() {
             assert_eq!((slot.id(), slot.kind(), slot.position()), (game_slot.0, game_slot.1, game_slot.2), "{}", layout.region());
             assert_eq!(slot.footprint(), &game_slot.3, "{}", layout.region());
             assert_eq!(slot.zone(), &game_slot.4, "{}", layout.region());
-            wall_mismatches += usize::from(slot.walls() != &game_slot.5);
+            assert_eq!(slot.walls(), &game_slot.5, "{}", layout.region());
+            assert_eq!(slot.touching_slots(), game_slot.6, "{}", layout.region());
         }
         let sprawl = layout.sprawl().iter().map(|cell| (cell.cell(), cell.in_footprint(), cell.in_zone(), cell.zone_slots())).collect::<BTreeSet<_>>();
         assert_eq!(&sprawl, game_sprawl, "{}", layout.region());
     }
 
-    // Known gap: 16 secondary slots whose game walls skip some boundary cells.
-    assert!(wall_mismatches <= 16, "{wall_mismatches} wall mismatches");
+}
+
+#[test]
+fn test_wall_walk_goes_around_thin_parts_twice() {
+
+    // A 2x2 block with a one-cell arm going up from its top-right cell.
+    let zone = [HexCell::new(10, 10), HexCell::new(11, 10), HexCell::new(10, 11), HexCell::new(11, 11), HexCell::new(11, 9), HexCell::new(11, 8)];
+    let walk = wall_walk(&zone);
+
+    assert_eq!(walk.first(), Some(&HexCell::new(11, 9)));
+    assert_eq!(walk.last(), Some(&HexCell::new(11, 8)));
+    assert_eq!(walk.iter().filter(|cell| **cell == HexCell::new(11, 9)).count(), 2);
+    assert!(wall_walk(&[]).is_empty());
+    assert_eq!(wall_walk(&[HexCell::new(3, 3)]), vec![HexCell::new(3, 3)]);
 }
