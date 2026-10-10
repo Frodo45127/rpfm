@@ -17,7 +17,7 @@
 //! Verified on Attila's main campaign: every garrison stands on a cell of its own region. Prefer it over the map's
 //! lookup image, which also paints seas the map data leaves empty.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use rpfm_lib::error::{RLibError, Result};
 use rpfm_lib::files::esf::{ESF, NodeType};
@@ -39,7 +39,7 @@ const EDGE_MASKS_OFFSET: usize = 5;
 //---------------------------------------------------------------------------//
 
 /// Region of each cell of the campaign map.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct RegionMap {
 
     /// Region keys, in `REGIONS_BLOCK` order.
@@ -53,6 +53,9 @@ pub struct RegionMap {
 
     /// Raw cell data, row by row.
     cells: Vec<u8>,
+
+    /// Size of the map in world units.
+    world_size: (f32, f32),
 }
 
 //---------------------------------------------------------------------------//
@@ -76,12 +79,17 @@ impl RegionMap {
             .collect::<Result<Vec<_>>>()?;
 
         let missing = || RLibError::CampaignMapDataError("missing REGIONS_DATA/theatres/CAMPAIGN_THEATRE/HEX_MAP_DATA".to_owned());
-        let hex_map = as_record(map_data.root_node())
+        let theatre = as_record(map_data.root_node())
             .and_then(|root| child_record(root, "REGIONS_DATA"))
             .and_then(|regions| child_record(regions, "theatres"))
             .and_then(|theatres| child_record(theatres, "CAMPAIGN_THEATRE"))
-            .and_then(|theatre| child_record(theatre, "HEX_MAP_DATA"))
             .ok_or_else(missing)?;
+        let hex_map = child_record(theatre, "HEX_MAP_DATA").ok_or_else(missing)?;
+
+        // The theatre's second position is its far corner: the size of the map in world units.
+        let world_size = theatre.children().first()
+            .and_then(|group| group.iter().filter_map(|node| match node { NodeType::Coord2d(corner) => Some((*corner.x(), *corner.y())), _ => None }).nth(1))
+            .ok_or_else(|| RLibError::CampaignMapDataError("missing the size of REGIONS_DATA/theatres/CAMPAIGN_THEATRE".to_owned()))?;
 
         let group = hex_map.children().first().ok_or_else(missing)?;
         let mut values = leaves(group);
@@ -96,7 +104,12 @@ impl RegionMap {
             return Err(RLibError::CampaignMapDataError(format!("the hex map has {} bytes, expected {width}x{height} cells", cells.len())));
         }
 
-        Ok(Self { keys, width, height, cells })
+        Ok(Self { keys, width, height, cells, world_size })
+    }
+
+    /// Returns the size of the map in world units.
+    pub fn world_size(&self) -> (f32, f32) {
+        self.world_size
     }
 
     /// Returns the region keys of the map, in `REGIONS_BLOCK` order.
@@ -120,6 +133,20 @@ impl RegionMap {
         self.cell_offset(cell)
             .map(|index| [self.cells[index + EDGE_MASKS_OFFSET], self.cells[index + EDGE_MASKS_OFFSET + 1]])
             .unwrap_or_default()
+    }
+
+    /// Returns the cells of every region, by region key.
+    pub fn cells_by_region(&self) -> HashMap<&str, Vec<HexCell>> {
+        let mut cells = HashMap::<&str, Vec<HexCell>>::new();
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let cell = HexCell::new(x as u16, y as u16);
+                if let Some(region) = self.region_at(cell) {
+                    cells.entry(region).or_default().push(cell);
+                }
+            }
+        }
+        cells
     }
 
     /// Returns every pair of different regions with neighbouring cells, each pair once with the keys in order.

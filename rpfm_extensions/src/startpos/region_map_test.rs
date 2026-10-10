@@ -21,7 +21,7 @@ fn test_region_at_reads_the_first_byte_of_each_cell() {
     let mut cells = vec![0; 3 * 2 * BYTES_PER_CELL];
     cells[(3 + 2) * BYTES_PER_CELL] = 1;
     cells[(3 + 2) * BYTES_PER_CELL + 1] = 5;
-    let map = RegionMap { keys: vec!["land".to_owned(), "sea".to_owned()], width: 3, height: 2, cells };
+    let map = RegionMap { keys: vec!["land".to_owned(), "sea".to_owned()], width: 3, height: 2, cells, world_size: (0.0, 0.0) };
 
     assert_eq!(map.region_at(HexCell::new(2, 1)), Some("sea"));
     assert_eq!(map.region_at(HexCell::new(0, 0)), Some("land"));
@@ -34,7 +34,7 @@ fn test_edge_masks_read_the_last_two_bytes_of_each_cell() {
     let mut cells = vec![0; 2 * BYTES_PER_CELL];
     cells[BYTES_PER_CELL + 5] = 9;
     cells[BYTES_PER_CELL + 6] = 36;
-    let map = RegionMap { keys: vec!["land".to_owned()], width: 2, height: 1, cells };
+    let map = RegionMap { keys: vec!["land".to_owned()], width: 2, height: 1, cells, world_size: (0.0, 0.0) };
 
     assert_eq!(map.edge_masks(HexCell::new(1, 0)), [9, 36]);
     assert_eq!(map.edge_masks(HexCell::new(0, 0)), [0, 0]);
@@ -68,6 +68,7 @@ fn test_garrisons_stand_in_their_region() {
     }
 
     assert_eq!(map.keys().len(), 224);
+    assert_eq!(map.world_size(), (678.5, 556.143_9));
     assert_eq!(checked, 175);
 }
 
@@ -78,7 +79,7 @@ fn test_neighbour_pairs() {
     let mut cells = vec![0; 3 * BYTES_PER_CELL];
     cells[BYTES_PER_CELL] = 1;
     cells[2 * BYTES_PER_CELL] = 2;
-    let map = RegionMap { keys: vec!["a".to_owned(), "b".to_owned(), "c".to_owned()], width: 3, height: 1, cells };
+    let map = RegionMap { keys: vec!["a".to_owned(), "b".to_owned(), "c".to_owned()], width: 3, height: 1, cells, world_size: (0.0, 0.0) };
 
     let mut pairs = map.neighbour_pairs().into_iter().collect::<Vec<_>>();
     pairs.sort();
@@ -89,6 +90,6 @@ impl RegionMap {
 
     /// Builds a region map from its parts, for tests of other modules.
     pub(crate) fn from_cells(keys: Vec<String>, width: u32, height: u32, cells: Vec<u8>) -> Self {
-        Self { keys, width, height, cells }
+        Self { keys, width, height, cells, world_size: (0.0, 0.0) }
     }
 }

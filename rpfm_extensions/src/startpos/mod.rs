@@ -26,6 +26,7 @@
 //! - [`layout`]: record layouts used to write startposes.
 //! - [`region_map`]: the region of each cell of the campaign map.
 //! - [`tables`]: access to the database tables the build reads.
+//! - [`vision`]: vision areas (line of sight and shroud) and their quad tree encoding.
 //! - [`world`]: the world stage (factions, characters, armies, regions, provinces and seas).
 
 pub mod coords;
@@ -35,6 +36,7 @@ pub mod region_map;
 pub mod settlements;
 pub mod tables;
 pub mod trade;
+pub mod vision;
 pub mod world;
 
 #[cfg(test)] mod startpos_test;
