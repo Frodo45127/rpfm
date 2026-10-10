@@ -108,6 +108,22 @@ pub fn write_characters(inputs: &MobileInputs) -> Result<RecordNode> {
     list.build()
 }
 
+/// Returns where each mobile stands, in creation order: its component and the cell of its `CAI_SITUATED`.
+///
+/// Mobiles stand on their commander's cell, except garrison fleets, which wait at their settlement's port.
+pub fn mobile_cells(inputs: &MobileInputs) -> Vec<(u32, HexCell)> {
+    let mut cells = vec![];
+    for (position, faction) in inputs.world.factions().iter().enumerate() {
+        for (character, ids) in faction.characters().iter().zip(&inputs.plan.characters()[position]) {
+            let Some(mobile) = ids.mobile() else { continue };
+            let port = force_of(faction.forces(), character).filter(|force| force.garrison_navy_of() != 0).and_then(|force| inputs.ports.get(&force.garrison_navy_of()));
+            let (x, y) = character.cell();
+            cells.push((mobile, port.copied().unwrap_or(HexCell::new(x, y))));
+        }
+    }
+    cells
+}
+
 /// Writes the mobiles list: each force, and each agent moving on its own, in character order.
 ///
 /// # Errors
@@ -116,6 +132,7 @@ pub fn write_characters(inputs: &MobileInputs) -> Result<RecordNode> {
 pub fn write_mobiles(inputs: &MobileInputs) -> Result<RecordNode> {
     let layout = inputs.layout;
     let path = child_path(CAI_WORLD_PATH, "CAI_WORLD_RESOURCE_MOBILES");
+    let mut cells = mobile_cells(inputs).into_iter();
     let mut list = layout.builder(&path)?;
     for (position, faction) in inputs.world.factions().iter().enumerate() {
         let faction_id = inputs.plan.factions()[position].faction();
@@ -124,12 +141,9 @@ pub fn write_mobiles(inputs: &MobileInputs) -> Result<RecordNode> {
             let force = force_of(faction.forces(), character);
             let residence = force.map(|force| [force.garrison_army_of(), force.garrison_navy_of(), force.residence()].into_iter().find(|residence| *residence != 0).unwrap_or_default()).unwrap_or_default();
 
-            // Garrison fleets wait at their settlement's port. Agents have no position of their own.
-            let (x, y) = match force {
-                Some(force) if force.garrison_navy_of() != 0 => inputs.ports.get(&force.garrison_navy_of()).map(|cell| (cell.x(), cell.y())).unwrap_or(character.cell()),
-                _ => character.cell(),
-            };
-            let (own_x, own_y) = if force.is_none() { (0, 0) } else { (x, y) };
+            // Agents have no position of their own.
+            let cell = cells.next().map(|(_, cell)| cell).unwrap_or_default();
+            let (own_x, own_y) = if force.is_none() { (0, 0) } else { (cell.x(), cell.y()) };
 
             let mut record = layout.builder(&child_path(&path, "CAI_RESOURCE_MOBILE"))?;
             record.group()?
@@ -145,7 +159,7 @@ pub fn write_mobiles(inputs: &MobileInputs) -> Result<RecordNode> {
 
             list.push_group()?
                 .set_record("OWNED_DIRECT", Some(owned_direct(layout, &path, faction_id)?))?
-                .set_record("CAI_SITUATED", Some(situated(inputs, &path, HexCell::new(x, y))?))?
+                .set_record("CAI_SITUATED", Some(situated(inputs, &path, cell)?))?
                 .set_record("CAI_BDI_COMPONENT", Some(component(layout, &path, mobile, vec![])?))?
                 .set_record("CAI_RESOURCE_MOBILE", Some(record.build()?))?;
         }

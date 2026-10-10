@@ -21,6 +21,9 @@ use rpfm_lib::files::esf::RecordNode;
 
 use super::map::{MapRegion, PathfinderNode};
 use super::plan::CaiPlan;
+use super::world_view::WorldView;
+use crate::startpos::coords::HexCell;
+use crate::startpos::region_map::RegionMap;
 use super::{component, CAI_WORLD_PATH};
 use crate::startpos::layout::{child_path, StartposLayout};
 
@@ -64,11 +67,88 @@ pub struct RegionLinks {
 
     /// Components of the factions' views of this sea (seas).
     faction_seas: Vec<u32>,
+
+    /// Components of the factions with this region among their victory conditions.
+    victory_factions: Vec<u32>,
+}
+
+/// What the regions' links are built from.
+#[derive(Debug, Clone, Copy)]
+pub struct LinkInputs<'a> {
+
+    /// Component ids.
+    pub plan: &'a CaiPlan,
+
+    /// The world's objects.
+    pub world: &'a WorldView,
+
+    /// Regions of the map, in map order.
+    pub map_regions: &'a [MapRegion],
+
+    /// Region of each cell.
+    pub region_map: &'a RegionMap,
+
+    /// Each mobile's component and cell, in creation order.
+    pub mobiles: &'a [(u32, HexCell)],
+
+    /// Port cell of each garrison residence's settlement.
+    pub ports: &'a HashMap<u32, HexCell>,
+
+    /// Components of the factions with victory conditions on each region, by region key.
+    pub victory_factions: &'a HashMap<String, Vec<u32>>,
 }
 
 //---------------------------------------------------------------------------//
 //                              Implementations
 //---------------------------------------------------------------------------//
+
+/// Returns what each map region refers to beyond the map, in map order.
+pub fn region_links(inputs: &LinkInputs) -> Vec<RegionLinks> {
+    let plan = inputs.plan;
+    let world = inputs.world;
+    let mut links = vec![RegionLinks::default(); inputs.map_regions.len()];
+
+    for boundary in plan.boundaries() {
+        for region in [boundary.region(), boundary.other()] {
+            links[region].boundaries.push(boundary.id());
+        }
+    }
+    for (mobile, cell) in inputs.mobiles {
+        if let Some(region) = inputs.region_map.region_index_at(*cell).filter(|region| *region < links.len()) {
+            links[region].mobiles.push(*mobile);
+        }
+    }
+
+    let index_of = inputs.map_regions.iter().enumerate().map(|(index, region)| (region.key().as_str(), index)).collect::<HashMap<_, _>>();
+    for (index, region) in inputs.map_regions.iter().enumerate() {
+        let link = &mut links[index];
+        link.victory_factions = inputs.victory_factions.get(region.key()).cloned().unwrap_or_default();
+        if let Some(settlement) = plan.settlements().get(&index) {
+            link.settlement = settlement.settlement();
+        }
+        if let Some(world_region) = world.regions().iter().find(|world_region| world_region.key() == region.key()) {
+            link.world_id = world_region.id();
+        }
+        if let Some(province) = world.provinces().iter().zip(plan.provinces()).find_map(|(province, ids)| province.regions().contains(region.key()).then(|| ids.province())) {
+            link.province = province;
+        }
+        if let Some((sea, ids)) = world.seas().iter().zip(plan.faction_seas()).find(|(sea, _)| sea.key() == region.key()) {
+            link.sea_index = sea.id();
+            link.faction_seas = ids.to_vec();
+        }
+    }
+
+    // Each port opens to the sea of its cell. Seas list their ports by world region id.
+    let mut world_regions = world.regions().iter().collect::<Vec<_>>();
+    world_regions.sort_by_key(|world_region| world_region.id());
+    for world_region in world_regions {
+        let (Some(cell), Some(land)) = (inputs.ports.get(&world_region.residence()), index_of.get(world_region.key().as_str())) else { continue };
+        let Some(sea) = inputs.region_map.region_index_at(*cell).filter(|sea| *sea < links.len()) else { continue };
+        links[*land].port_sea = plan.regions()[sea].id();
+        links[sea].port_regions.push(plan.regions()[*land].id());
+    }
+    links
+}
 
 /// Writes the theatres list: one theatre holding every army, fleet and region.
 ///
@@ -137,6 +217,7 @@ pub fn write_regions(layout: &StartposLayout, plan: &CaiPlan, map_regions: &[Map
             .set_u32s("^+10", links.mobiles.to_vec())?
             .set_str("^+11", region.key())?
             .set_u32("^+12", links.world_id)?
+            .set_u32s("^+13", links.victory_factions.to_vec())?
             .set_u32("^+14", links.province)?
             .set_u32("^+15", links.sea_index)?
             .set_u32s("^+16", links.port_regions.to_vec())?

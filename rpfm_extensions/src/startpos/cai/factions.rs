@@ -108,6 +108,34 @@ pub fn capitals(index: &CampaignIndex, world: &WorldView, plan: &CaiPlan, map_re
         .collect()
 }
 
+/// Returns the components of the factions with victory conditions on each region, by region key, in faction order.
+///
+/// # Arguments
+///
+/// * `tables` - Tables with `start_pos_victory_conditions`.
+/// * `index` - The campaign's startpos rows.
+/// * `world` - The world's objects.
+/// * `plan` - Component ids.
+///
+/// # Errors
+///
+/// Returns an error if a table or column is missing.
+pub fn victory_factions(tables: &StartposTables, index: &CampaignIndex, world: &WorldView, plan: &CaiPlan) -> Result<HashMap<String, Vec<u32>>> {
+    let components = world.factions().iter().zip(plan.factions()).map(|(faction, ids)| (faction.key().as_str(), ids.faction())).collect::<HashMap<_, _>>();
+    let mut factions: HashMap<String, Vec<u32>> = HashMap::new();
+    for row in tables.table("start_pos_victory_conditions")?.rows() {
+        let Some(component) = index.faction_by_id(&row.str("start_pos_faction")?).and_then(|faction| components.get(faction.key().as_str())) else { continue };
+        let list = factions.entry(row.str("region")?.into_owned()).or_default();
+        if !list.contains(component) {
+            list.push(*component);
+        }
+    }
+    for list in factions.values_mut() {
+        list.sort_unstable();
+    }
+    Ok(factions)
+}
+
 /// Returns what each AI faction refers to: the world factions, then the rebels.
 ///
 /// # Arguments
