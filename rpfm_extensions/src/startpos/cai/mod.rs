@@ -26,6 +26,7 @@ pub mod mobiles;
 pub mod plan;
 pub mod regions;
 pub mod settlements;
+pub mod stances;
 pub mod technologies;
 pub mod world;
 pub mod world_view;
