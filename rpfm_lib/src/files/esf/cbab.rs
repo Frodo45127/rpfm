@@ -51,6 +51,7 @@ use crate::error::{RLibError, Result};
 
 use super::*;
 use super::stream::EsfStream;
+use super::utils::{string_hash_u16, string_hash_u8, string_table_order};
 
 //---------------------------------------------------------------------------//
 //                           Implementation of ESF
@@ -302,17 +303,19 @@ impl ESF {
             strings_data.write_sized_string_u8(&name)?;
         }
 
-        // Then UTF-16 Strings.
+        // Then UTF-16 Strings, in the order of the games' string hash maps.
         strings_data.write_u32(strings_utf16.len() as u32)?;
-        for (index, string) in strings_utf16.iter().enumerate() {
-            strings_data.write_sized_string_u16_u32(string)?;
+        let hashes = strings_utf16.iter().map(|string| string_hash_u16(string)).collect::<Vec<_>>();
+        for index in string_table_order(&hashes) {
+            strings_data.write_sized_string_u16_u32(&strings_utf16[index])?;
             strings_data.write_u32(index as u32)?;
         }
 
-        // Then UTF-8 Strings.
+        // Then UTF-8 Strings, in the same kind of order.
         strings_data.write_u32(strings_utf8.len() as u32)?;
-        for (index, string) in strings_utf8.iter().enumerate() {
-            strings_data.write_sized_string_u8_u32(string)?;
+        let hashes = strings_utf8.iter().map(|string| string_hash_u8(string)).collect::<Vec<_>>();
+        for index in string_table_order(&hashes) {
+            strings_data.write_sized_string_u8_u32(&strings_utf8[index])?;
             strings_data.write_u32(index as u32)?;
         }
 

@@ -29,6 +29,8 @@ use crate::error::{RLibError, Result};
 use super::*;
 use super::stream::EsfStream;
 
+#[cfg(test)] #[path = "utils_test.rs"] mod utils_test;
+
 //---------------------------------------------------------------------------//
 //                                  Functions
 //---------------------------------------------------------------------------//
@@ -1145,3 +1147,56 @@ impl ESF {
     }
 }
 
+//---------------------------------------------------------------------------//
+//                       String table order
+//---------------------------------------------------------------------------//
+
+/// Seed of the games' string hash.
+const STRING_HASH_SEED: u32 = 0xf73a_51c9;
+
+/// Buckets of the games' string hash map before it first grows.
+const STRING_MAP_INITIAL_BUCKETS: usize = 4;
+
+/// Returns the hash the games give an ASCII string table entry: every byte (sign-extended) xored into the seed, from
+/// the last one, shifted by 0, 8, 16 and 24 bits in turn.
+pub(crate) fn string_hash_u8(string: &str) -> u32 {
+    string_hash(string.bytes().map(|byte| byte as i8 as u32))
+}
+
+/// Returns the hash the games give a UTF-16 string table entry, like [`string_hash_u8`] over its UTF-16 units.
+pub(crate) fn string_hash_u16(string: &str) -> u32 {
+    string_hash(string.encode_utf16().map(u32::from).collect::<Vec<_>>().into_iter())
+}
+
+/// Hashes the units of a string, from the last one.
+fn string_hash(units: impl DoubleEndedIterator<Item = u32>) -> u32 {
+    units.rev().zip((0..4).cycle()).fold(STRING_HASH_SEED, |hash, (unit, step)| hash ^ unit.wrapping_shl(step * 8))
+}
+
+/// Returns the order the games list a string table in: the order of their string hash map, which keeps entries at the
+/// end of their bucket and grows to `2n + 1` buckets (moving entries bucket by bucket) when it holds more entries than
+/// buckets.
+///
+/// # Arguments
+///
+/// * `hashes` - Hash of each string, in index order (the order they were added).
+///
+/// # Returns
+///
+/// The indexes of the strings, in table order.
+pub(crate) fn string_table_order(hashes: &[u32]) -> Vec<usize> {
+    let mut buckets = vec![vec![]; STRING_MAP_INITIAL_BUCKETS];
+    for (index, hash) in hashes.iter().enumerate() {
+        if index + 1 > buckets.len() {
+            let mut grown = vec![vec![]; buckets.len() * 2 + 1];
+            let count = grown.len();
+            for entry in buckets.into_iter().flatten() {
+                grown[hashes[entry] as usize % count].push(entry);
+            }
+            buckets = grown;
+        }
+        let count = buckets.len();
+        buckets[*hash as usize % count].push(index);
+    }
+    buckets.into_iter().flatten().collect()
+}
