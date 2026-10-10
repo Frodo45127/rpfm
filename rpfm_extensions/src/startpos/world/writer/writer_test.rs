@@ -16,10 +16,10 @@ use std::collections::{BTreeMap, HashMap};
 
 use super::*;
 use crate::startpos::layout::Slot;
-use crate::startpos::startpos_test::{field_str, test_data_tables, test_startpos, world, world_factions, world_regions, TEST_CAMPAIGN};
+use crate::startpos::startpos_test::{field_str, test_data_esf, test_data_tables, test_startpos, world, world_factions, world_regions, TEST_CAMPAIGN};
 
 /// Share of the game's `WORLD` fields the writer must match. Raised as the writer covers more records.
-const MIN_MATCH_RATIO: f64 = 0.017;
+const MIN_MATCH_RATIO: f64 = 0.48;
 
 /// Matches and totals of each field, by `path:field`.
 #[derive(Debug, Default)]
@@ -49,7 +49,8 @@ impl Report {
     }
 }
 
-/// Returns the identity key of an array group: its first string, or its first record's first string.
+/// Returns the identity key of an array group: its first string, its first record's first string, or its first two
+/// leaves (the cell of cell lists, which the game stores in hash order).
 fn group_key(group: &[NodeType]) -> Option<String> {
     group.iter().find_map(|node| match node {
         NodeType::Ascii(value) | NodeType::Utf16(value) => Some(value.to_owned()),
@@ -57,7 +58,10 @@ fn group_key(group: &[NodeType]) -> Option<String> {
     }).or_else(|| group.iter().find_map(|node| match node {
         NodeType::Record(record) => record.children().first().and_then(|first| group_key(first)),
         _ => None,
-    }))
+    })).or_else(|| {
+        let leaves = group.iter().filter(|node| !matches!(node, NodeType::Record(_))).take(2).collect::<Vec<_>>();
+        (leaves.len() == 2).then(|| format!("{leaves:?}"))
+    })
 }
 
 /// Pairs the groups of two records: by key when every key is unique on both sides, by position otherwise.
@@ -137,7 +141,10 @@ fn test_world_matches_the_game_startpos() {
     let tables = test_data_tables();
     let index = CampaignIndex::new(tables, TEST_CAMPAIGN).unwrap();
     let layout = StartposLayout::from_esf(test_startpos()).unwrap();
-    let inputs = WorldInputs { tables, index: &index, layout: &layout };
+    let map_data = test_data_esf("map_data.esf");
+    let settlements = SettlementLayout::all_from_map_data(&map_data, |region| index.settlement_of(region).is_some_and(|settlement| settlement.is_major())).unwrap();
+    let region_map = RegionMap::from_map_data(&map_data).unwrap();
+    let inputs = WorldInputs { tables, index: &index, layout: &layout, settlements: &settlements, region_map: &region_map };
 
     // The game's object orders come from hash tables; using them here checks the rules instead of the orders.
     let game_world = world(test_startpos());

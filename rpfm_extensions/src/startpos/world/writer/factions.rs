@@ -102,8 +102,8 @@ pub fn write_faction(inputs: &WorldInputs, plan: &WorldPlan, faction: &FactionEn
         .set_u32("MORGUE+4", summary.capital().as_deref().and_then(|capital| plan.region_id(capital)).unwrap_or_default())?
         .set_bool("PRESTIGE+1", summary.without_characters())?
         .set_str("PRESTIGE+6", &row.str("cdir_military_generator_config")?)?
-        .set_record("FACTION_FLAG_AND_COLOURS", Some(write_flag(inputs, &flag)?))?
-        .set_record("FACTION_FLAG_AND_COLOURS@2", Some(write_flag(inputs, &republican_flag)?))?
+        .set_record("FACTION_FLAG_AND_COLOURS", Some(write_flag(inputs, FACTION_PATH, &flag)?))?
+        .set_record("FACTION_FLAG_AND_COLOURS@2", Some(write_flag(inputs, FACTION_PATH, &republican_flag)?))?
         .set_u32("FACTION_FLAG_AND_COLOURS@2+1", faction_id(summary.client_state_of()))?
         .set_u32("FACTION_FLAG_AND_COLOURS@2+2", faction_id(summary.vassal_of()))?
         .set_bool("FACTION_FLAG_AND_COLOURS@2+5", summary.has_war_or_vassal())?
@@ -115,9 +115,10 @@ pub fn write_faction(inputs: &WorldInputs, plan: &WorldPlan, faction: &FactionEn
     record.build()
 }
 
-/// Writes a flag record (`FACTION_FLAG_AND_COLOURS`): the flag path, then each colour's red, green and blue.
-fn write_flag(inputs: &WorldInputs, flag: &FactionFlag) -> Result<RecordNode> {
-    let mut record = child(inputs.layout, FACTION_PATH, "FACTION_FLAG_AND_COLOURS")?;
+/// Writes the flag record (`FACTION_FLAG_AND_COLOURS`) of a parent record: the flag path, then each colour's red,
+/// green and blue.
+pub(super) fn write_flag(inputs: &WorldInputs, parent: &str, flag: &FactionFlag) -> Result<RecordNode> {
+    let mut record = child(inputs.layout, parent, "FACTION_FLAG_AND_COLOURS")?;
     let group = record.group()?;
     group.set_str("^+1", flag.path())?;
     for (index, value) in flag.colours().iter().flatten().enumerate() {

@@ -29,9 +29,6 @@ use crate::startpos::tables::StartposTables;
 
 #[cfg(test)] #[path = "provinces_test.rs"] mod provinces_test;
 
-/// Text in the primary building key of major settlements, which are the main region of their province.
-const MAJOR_SETTLEMENT_MARKER: &str = "city_major";
-
 /// Position of the port slot in a settlement layout.
 const PORT_SLOT: usize = 1;
 
@@ -108,7 +105,7 @@ pub fn province_managers(tables: &StartposTables, index: &CampaignIndex) -> Resu
 
     for manager in &mut managers {
         let capital = manager.faction.as_deref().and_then(|faction| index.capital_of(faction)).map(|capital| capital.key().as_str());
-        let is_major = |region: &str| index.settlement_of(region).is_some_and(|settlement| settlement.primary_building().contains(MAJOR_SETTLEMENT_MARKER));
+        let is_major = |region: &str| index.settlement_of(region).is_some_and(|settlement| settlement.is_major());
         manager.main_region = manager.regions.iter()
             .find(|region| Some(region.as_str()) == capital)
             .or_else(|| manager.regions.iter().find(|region| is_major(region)))

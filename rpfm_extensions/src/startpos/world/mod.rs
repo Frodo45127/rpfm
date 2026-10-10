@@ -52,6 +52,9 @@ pub mod writer;
 
 #[cfg(test)] mod world_test;
 
+/// Text in the primary building key of major settlements.
+const MAJOR_SETTLEMENT_MARKER: &str = "city_major";
+
 //---------------------------------------------------------------------------//
 //                              Types
 //---------------------------------------------------------------------------//
@@ -358,6 +361,12 @@ impl CampaignIndex {
 }
 
 impl SettlementEntry {
+
+    /// Returns if the settlement is a major one (its primary building is a `city_major` level). Major settlements
+    /// have walls and are the main region of their province.
+    pub fn is_major(&self) -> bool {
+        self.primary_building.contains(MAJOR_SETTLEMENT_MARKER)
+    }
 
     /// Returns every building level of the settlement: primary, port (if any) and the others, in that order.
     pub fn all_buildings(&self) -> impl Iterator<Item = &str> {

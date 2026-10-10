@@ -17,6 +17,7 @@
 //! # Submodules
 //!
 //! - [`factions`]: the `FACTION` records.
+//! - [`regions`]: the `REGION` records and their settlements.
 
 use std::collections::HashMap;
 
@@ -25,9 +26,12 @@ use rpfm_lib::files::esf::RecordNode;
 
 use super::{CampaignIndex, FactionEntry, RegionEntry};
 use crate::startpos::layout::{child_path, RecordBuilder, StartposLayout};
+use crate::startpos::region_map::RegionMap;
+use crate::startpos::settlements::SettlementLayout;
 use crate::startpos::tables::{Row, StartposTables};
 
 pub mod factions;
+pub mod regions;
 
 #[cfg(test)] mod writer_test;
 
@@ -53,6 +57,12 @@ pub struct WorldInputs<'a> {
 
     /// Record layouts of the game.
     pub layout: &'a StartposLayout,
+
+    /// Settlement layouts of the campaign map (walls only for major settlements).
+    pub settlements: &'a [SettlementLayout],
+
+    /// Region of each cell of the campaign map.
+    pub region_map: &'a RegionMap,
 }
 
 /// Order and runtime ids of the objects of the world.
@@ -101,7 +111,9 @@ pub fn write_world(inputs: &WorldInputs) -> Result<RecordNode> {
 /// Returns an error if a table, column or layout is missing.
 pub fn write_world_with_plan(inputs: &WorldInputs, plan: &WorldPlan) -> Result<RecordNode> {
     let mut world = inputs.layout.builder(WORLD_PATH)?;
-    world.group()?.set_record("FACTION_ARRAY", Some(factions::write_faction_array(inputs, plan)?))?;
+    world.group()?
+        .set_record("FACTION_ARRAY", Some(factions::write_faction_array(inputs, plan)?))?
+        .set_record("REGION_MANAGER", Some(regions::write_region_manager(inputs, plan)?))?;
     world.build()
 }
 
