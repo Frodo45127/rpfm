@@ -22,6 +22,7 @@ use super::layout::{child_path, StartposLayout};
 pub mod map;
 pub mod plan;
 pub mod regions;
+pub mod technologies;
 pub mod world_view;
 
 #[cfg(test)] mod cai_test;

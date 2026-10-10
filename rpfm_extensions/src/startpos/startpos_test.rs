@@ -54,7 +54,7 @@ const TEST_TABLES: &[&str] = &[
     "start_pos_diplomacy", "start_pos_factions", "start_pos_horde_details", "start_pos_land_units",
     "start_pos_naval_units", "start_pos_past_events", "start_pos_region_religions", "start_pos_region_slot_templates",
     "start_pos_regions", "start_pos_settlements", "start_pos_technologies", "start_pos_victory_conditions",
-    "technology_unit_upgrades", "units_to_groupings_military_permissions",
+    "technology_node_sets", "technology_nodes", "technology_unit_upgrades", "units_to_groupings_military_permissions",
 ];
 
 /// Returns the path of a file of the startpos test data folder.

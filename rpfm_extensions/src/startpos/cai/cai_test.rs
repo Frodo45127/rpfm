@@ -16,6 +16,7 @@ use rpfm_lib::files::esf::RecordNode;
 
 use super::map::{pathfinder_nodes, MapRegion, PathfinderNode};
 use crate::startpos::esf_nav::{as_record, child_record};
+use crate::startpos::layout::{child_path, GroupView, StartposLayout};
 use crate::startpos::startpos_test::{test_data_esf, test_startpos};
 
 /// Returns the regions of the test map and their pathfinder nodes.
@@ -32,4 +33,9 @@ pub(crate) fn game_cai_world_list(name: &str) -> &'static RecordNode {
         record = child_record(record, name).unwrap();
     }
     record
+}
+
+/// Returns the first leaf of a group's child record holding a single value (like `OWNED_DIRECT`).
+pub(crate) fn single_field_u32(layout: &StartposLayout, parent: &str, group: &GroupView, key: &str) -> u32 {
+    layout.read(&child_path(parent, key), group.record(key).unwrap()).unwrap()[0].u32("^+1").unwrap()
 }
