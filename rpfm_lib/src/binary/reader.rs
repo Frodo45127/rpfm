@@ -10,7 +10,7 @@
 
 //! Module with the [`ReadBytes`] trait, to read bytes to known types.
 
-use byteorder::{LittleEndian, ReadBytesExt};
+use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
 use encoding_rs::{ISO_8859_15, UTF_16LE};
 use itertools::Itertools;
 use nalgebra::{Vector2, Vector4};
@@ -193,6 +193,26 @@ pub trait ReadBytes: Read + Seek {
         ReadBytesExt::read_u24::<LittleEndian>(self).map_err(From::from)
     }
 
+    /// This function tries to read a big-endian u24 value from `self`.
+    ///
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![1, 134, 160, 152, 150];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_u24_be().unwrap();
+    ///
+    /// assert_eq!(data, 100_000);
+    /// assert_eq!(cursor.read_u24_be().is_err(), true);
+    /// ```
+    fn read_u24_be(&mut self) -> Result<u32> {
+        ReadBytesExt::read_u24::<BigEndian>(self).map_err(From::from)
+    }
+
     /// This function tries to read an u32 value from `self`.
     ///
     /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
@@ -322,6 +342,26 @@ pub trait ReadBytes: Read + Seek {
     /// ```
     fn read_i24(&mut self) -> Result<i32> {
         ReadBytesExt::read_i24::<LittleEndian>(self).map_err(From::from)
+    }
+
+    /// This function tries to read a big-endian i24 value from `self`.
+    ///
+    /// It may fail if there are not enough bytes to read the value or `self` cannot be read.
+    ///
+    /// ```rust
+    /// use std::io::Cursor;
+    ///
+    /// use rpfm_lib::binary::ReadBytes;
+    ///
+    /// let data = vec![255, 255, 254, 152, 150];
+    /// let mut cursor = Cursor::new(data);
+    /// let data = cursor.read_i24_be().unwrap();
+    ///
+    /// assert_eq!(data, -2);
+    /// assert_eq!(cursor.read_i24_be().is_err(), true);
+    /// ```
+    fn read_i24_be(&mut self) -> Result<i32> {
+        ReadBytesExt::read_i24::<BigEndian>(self).map_err(From::from)
     }
 
     /// This function tries to read an i32 value from `self`.

@@ -12,7 +12,7 @@
 //!
 //! [`Writer`]: std::io::Write
 
-use byteorder::{LittleEndian, WriteBytesExt};
+use byteorder::{BigEndian, LittleEndian, WriteBytesExt};
 use encoding_rs::ISO_8859_15;
 use half::f16;
 use nalgebra::{Vector2, Vector3, Vector4};
@@ -94,6 +94,21 @@ pub trait WriteBytes: Write {
     /// ```
     fn write_u24(&mut self, integer: u32) -> Result<()> {
         WriteBytesExt::write_u24::<LittleEndian>(self, integer).map_err(From::from)
+    }
+
+    /// This function tries to write a big-endian u24 value to `self`.
+    ///
+    /// It may fail if `self` cannot be written to.
+    ///
+    /// ```rust
+    /// use rpfm_lib::binary::WriteBytes;
+    ///
+    /// let mut data = vec![];
+    /// assert!(data.write_u24_be(100_000).is_ok());
+    /// assert_eq!(data, vec![1, 134, 160]);
+    /// ```
+    fn write_u24_be(&mut self, integer: u32) -> Result<()> {
+        WriteBytesExt::write_u24::<BigEndian>(self, integer).map_err(From::from)
     }
 
     /// This function tries to write an u32 value to `self`.
@@ -220,6 +235,21 @@ pub trait WriteBytes: Write {
     /// ```
     fn write_i24(&mut self, integer: i32) -> Result<()> {
         WriteBytesExt::write_i24::<LittleEndian>(self, integer).map_err(From::from)
+    }
+
+    /// This function tries to write a big-endian i24 value to `self`.
+    ///
+    /// It may fail if `self` cannot be written to.
+    ///
+    /// ```rust
+    /// use rpfm_lib::binary::WriteBytes;
+    ///
+    /// let mut data = vec![];
+    /// assert!(data.write_i24_be(-2).is_ok());
+    /// assert_eq!(data, vec![255, 255, 254]);
+    /// ```
+    fn write_i24_be(&mut self, integer: i32) -> Result<()> {
+        WriteBytesExt::write_i24::<BigEndian>(self, integer).map_err(From::from)
     }
 
     /// This function tries to write an i32 value to `self`.

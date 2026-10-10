@@ -87,6 +87,17 @@ fn read_u24() {
     assert!(ReadBytes::read_u24(&mut Cursor::new([152, 150])).is_err());
 }
 
+/// Test to `ReadBytes::read_u24_be()`.
+#[test]
+fn read_u24_be() {
+
+    // Check the reader works for a proper value.
+    assert_eq!(ReadBytes::read_u24_be(&mut Cursor::new([1, 134, 160])).unwrap(), 100_000);
+
+    // Check the reader returns an error for a slice whose length is smaller than 3.
+    assert!(ReadBytes::read_u24_be(&mut Cursor::new([1, 134])).is_err());
+}
+
 /// Test to `ReadBytes::read_u32()`.
 #[test]
 fn read_u32() {
@@ -151,6 +162,18 @@ fn read_i24() {
 
     // Check the reader returns an error for a slice whose length is smaller than 3.
     assert!(ReadBytes::read_i24(&mut Cursor::new([152, 150])).is_err());
+}
+
+/// Test to `ReadBytes::read_i24_be()`.
+#[test]
+fn read_i24_be() {
+
+    // Check the reader works for proper values.
+    assert_eq!(ReadBytes::read_i24_be(&mut Cursor::new([1, 134, 160])).unwrap(), 100_000);
+    assert_eq!(ReadBytes::read_i24_be(&mut Cursor::new([255, 255, 254])).unwrap(), -2);
+
+    // Check the reader returns an error for a slice whose length is smaller than 3.
+    assert!(ReadBytes::read_i24_be(&mut Cursor::new([255, 255])).is_err());
 }
 
 /// Test to `ReadBytes::read_u32()`.

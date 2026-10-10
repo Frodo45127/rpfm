@@ -258,7 +258,7 @@ impl ESF {
                     optimized: true,
                 }),
                 U32_24BIT => NodeType::U32(U32Node {
-                    value: data.read_u24()?,
+                    value: data.read_u24_be()?,
                     optimized: true,
                 }),
                 I32_ZERO => NodeType::I32(I32Node {
@@ -274,7 +274,7 @@ impl ESF {
                     optimized: true,
                 }),
                 I32_24BIT => NodeType::I32(I32Node {
-                    value: data.read_i24()?,
+                    value: data.read_i24_be()?,
                     optimized: true,
                 }),
                 F32_ZERO => NodeType::F32(F32Node {
@@ -561,7 +561,7 @@ impl ESF {
                     let end_offset = data.stream_position()? + size as u64;
 
                     while data.stream_position()? < end_offset {
-                        node_data.push(data.read_u24()?);
+                        node_data.push(data.read_u24_be()?);
                     }
 
                     NodeType::U32Array(VecU32Node {
@@ -606,7 +606,7 @@ impl ESF {
                     let end_offset = data.stream_position()? + size as u64;
 
                     while data.stream_position()? < end_offset {
-                        node_data.push(data.read_i24()?);
+                        node_data.push(data.read_i24_be()?);
                     }
 
                     NodeType::I32Array(VecI32Node {
@@ -715,7 +715,7 @@ impl ESF {
                             buffer.write_i16(value as i16)?;
                         } else if value <= 8_388_607 {
                             buffer.write_u8(I32_24BIT)?;
-                            buffer.write_i24(value)?;
+                            buffer.write_i24_be(value)?;
                         } else {
                             buffer.write_u8(I32)?;
                             buffer.write_i32(value)?;
@@ -728,7 +728,7 @@ impl ESF {
                         buffer.write_i16(value as i16)?;
                     } else if value >= -8_388_608 {
                         buffer.write_u8(I32_24BIT)?;
-                        buffer.write_i24(value)?;
+                        buffer.write_i24_be(value)?;
                     } else {
                         buffer.write_u8(I32)?;
                         buffer.write_i32(value)?;
@@ -765,7 +765,7 @@ impl ESF {
                         buffer.write_u16(value as u16)?;
                     } else if value <= 0xFFFFFF {
                         buffer.write_u8(U32_24BIT)?;
-                        buffer.write_u24(value)?;
+                        buffer.write_u24_be(value)?;
                     } else {
                         buffer.write_u8(U32)?;
                         buffer.write_u32(value)?;
@@ -895,7 +895,7 @@ impl ESF {
                                 value.value().iter().try_for_each(|x| list.write_i16(*x as i16))?;
                             } else if max_value <= 8_388_607 {
                                 buffer.write_u8(I32_24BIT_ARRAY)?;
-                                value.value().iter().try_for_each(|x| list.write_i24(*x))?;
+                                value.value().iter().try_for_each(|x| list.write_i24_be(*x))?;
                             } else {
                                 buffer.write_u8(I32_ARRAY)?;
                                 value.value().iter().try_for_each(|x| list.write_i32(*x))?;
@@ -944,7 +944,7 @@ impl ESF {
                             value.value().iter().try_for_each(|x| list.write_u16(*x as u16))?;
                         } else if max_value < &0xFFFFFF {
                             buffer.write_u8(U32_24BIT_ARRAY)?;
-                            value.value().iter().try_for_each(|x| list.write_u24(*x))?;
+                            value.value().iter().try_for_each(|x| list.write_u24_be(*x))?;
                         } else {
                             buffer.write_u8(U32_ARRAY)?;
                             value.value().iter().try_for_each(|x| list.write_u32(*x))?;

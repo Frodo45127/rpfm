@@ -64,6 +64,16 @@ fn write_u24() {
     assert_eq!(data, vec![152, 150, 129]);
 }
 
+/// Test for WriteBytes::write_u24_be().
+#[test]
+fn write_u24_be() {
+
+    // Check the writer works properly.
+    let mut data = vec![];
+    assert!(data.write_u24_be(100_000).is_ok());
+    assert_eq!(data, vec![1, 134, 160]);
+}
+
 /// Test for WriteBytes::write_u32().
 #[test]
 fn write_u32() {
@@ -122,6 +132,16 @@ fn write_i24() {
     let mut data = vec![];
     assert!(data.write_i24(8492696).is_ok());
     assert_eq!(data, vec![152, 150, 129]);
+}
+
+/// Test for WriteBytes::write_i24_be().
+#[test]
+fn write_i24_be() {
+
+    // Check the writer works properly.
+    let mut data = vec![];
+    assert!(data.write_i24_be(-2).is_ok());
+    assert_eq!(data, vec![255, 255, 254]);
 }
 
 /// Test for WriteBytes::write_i32().
