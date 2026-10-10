@@ -20,6 +20,7 @@ use super::world::writer::forces::ForcePlan;
 use super::world::writer::{write_world_with_plan, WorldInputs, WorldPlan};
 
 mod diplomacy;
+mod dynamic_resources;
 mod map_data;
 mod preopen;
 mod trade;
@@ -73,7 +74,8 @@ pub fn write_startpos<'a>(inputs: &StartposInputs<'a>, plan: &WorldPlan<'a>) -> 
         .set_record("WORLD", Some(write_world_with_plan(world, plan)?))?
         .set_record("CAMPAIGN_TRADE_MANAGER", Some(trade::write_trade_manager(layout, world.tables, plan, inputs.trade_network)?))?
         .set_record("DIPLOMACY_MANAGER", Some(diplomacy::write_diplomacy_manager(layout, plan)?))?
-        .set_record("CAMPAIGN_MAP_DATA", Some(map_data::write_map_data(world, plan)?))?;
+        .set_record("CAMPAIGN_MAP_DATA", Some(map_data::write_map_data(world, plan)?))?
+        .set_record("DYNAMIC_RESOURCES_MANAGER", Some(dynamic_resources::write_dynamic_resources_manager(layout, plan)?))?;
 
     let mut env = layout.builder(ENV_PATH)?;
     env.group()?
