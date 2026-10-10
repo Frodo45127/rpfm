@@ -37,6 +37,11 @@
 //! Records with more than [`MAX_LAYOUT_SLOTS`] slots are free-form: their layout has no slots and generators push
 //! their children directly. Their child records still have layouts.
 //!
+//! # Variants
+//!
+//! The AI pools ([`VARIANT_ARRAYS`]) hold objects of many types in one array, each group starting with its type code.
+//! Each type also gets its own layout, at [`variant_path`], so its groups start from that type's defaults.
+//!
 //! # Defaults
 //!
 //! A leaf's default is its most common value. Arrays longer than a few dozen elements are generated data (vision bits,
@@ -75,6 +80,9 @@ const MAX_SLOT_DEFAULT_LEAVES: usize = 16;
 
 /// Longest array kept as a default value. Longer ones become empty arrays.
 const MAX_DEFAULT_ARRAY_LEN: usize = 64;
+
+/// Names of the arrays whose groups start with a type code, which get a layout per type (see [`variant_path`]).
+pub const VARIANT_ARRAYS: [&str; 3] = ["CAI_BDI_POOL_BELIEFS", "CAI_BDI_POOL_DESIRES", "CAI_BDI_POOL_INTENTIONS"];
 
 /// Largest unsigned value with a compact ESF encoding (24 bits).
 pub(crate) const MAX_COMPACT_U32: u32 = 0xFF_FFFF;
@@ -414,17 +422,43 @@ impl<'a> RecordBuilder<'a> {
     ///
     /// Returns an error if the layout lacks one of the group's always present child records.
     pub fn push_group(&mut self) -> Result<&mut GroupBuilder<'a>> {
+        let path = self.path.to_owned();
+        self.push_group_of(path, self.record)
+    }
+
+    /// Adds a group of a variant array with every slot at the default of its type.
+    ///
+    /// # Arguments
+    ///
+    /// * `code` - Type code of the group.
+    ///
+    /// # Returns
+    ///
+    /// The new group, to set its values.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the layout has no such type, or lacks one of the group's always present child records.
+    pub fn push_variant(&mut self, code: u32) -> Result<&mut GroupBuilder<'a>> {
+        let path = variant_path(&self.path, code);
+        let layout = self.layout;
+        let record = layout.records.get(&path).ok_or_else(|| missing(&path))?;
+        self.push_group_of(path, record)
+    }
+
+    /// Adds a group with the defaults of the layout of a path.
+    fn push_group_of(&mut self, path: String, record: &'a RecordLayout) -> Result<&mut GroupBuilder<'a>> {
         let mut values = vec![];
-        for slot in &self.record.slots {
+        for slot in &record.slots {
             values.push(match slot {
                 Slot::Leaf { absent_by_default: true, .. } => None,
                 Slot::Leaf { default, .. } => Some(default.clone()),
                 Slot::Record { optional: true, .. } => None,
                 Slot::Record { default: Some(default), .. } => Some(NodeType::Record(Box::new(default.clone()))),
-                Slot::Record { key, default: None, .. } => Some(NodeType::Record(Box::new(self.layout.default_record(&child_path(&self.path, key))?))),
+                Slot::Record { key, default: None, .. } => Some(NodeType::Record(Box::new(self.layout.default_record(&child_path(&path, key))?))),
             });
         }
-        self.groups.push(GroupBuilder { path: self.path.to_owned(), record: self.record, values });
+        self.groups.push(GroupBuilder { path, record, values });
         Ok(self.groups.last_mut().expect("a group was just pushed"))
     }
 
@@ -886,6 +920,16 @@ pub fn child_path(parent: &str, key: &str) -> String {
     format!("{parent}/{name}")
 }
 
+/// Returns the path of the layout of a type of a variant array (see [`VARIANT_ARRAYS`]).
+///
+/// # Arguments
+///
+/// * `path` - Path of the array.
+/// * `code` - Type code of the groups.
+pub fn variant_path(path: &str, code: u32) -> String {
+    format!("{path}[{code}]")
+}
+
 /// Empties array defaults longer than [`MAX_DEFAULT_ARRAY_LEN`].
 fn trim_default(node: &mut NodeType) {
     let len = match node {
@@ -934,19 +978,31 @@ fn record_leaf_count(record: &RecordNode) -> usize {
     }).sum()
 }
 
-/// Collects the stats of a record and everything under it.
+/// Collects the stats of a record and everything under it. Groups of variant arrays also count for their type.
 fn collect(record: &RecordNode, path: &str, stats: &mut HashMap<String, PathStats>) {
     let groups = record.children().iter().map(|group| group_tokens(group)).collect::<Vec<_>>();
+    collect_groups(record, path, &groups, stats);
 
+    if VARIANT_ARRAYS.contains(&record.name().as_str()) {
+        for tokens in &groups {
+            if let Some((None, NodeType::U32(code))) = tokens.first() {
+                collect_groups(record, &variant_path(path, *code.value()), std::slice::from_ref(tokens), stats);
+            }
+        }
+    }
+}
+
+/// Collects the stats of some groups of a record, at a path, and of everything under them.
+fn collect_groups(record: &RecordNode, path: &str, groups: &[Vec<(Option<String>, &NodeType)>], stats: &mut HashMap<String, PathStats>) {
     let entry = stats.entry(path.to_owned()).or_insert_with(|| PathStats { name: record.name().to_owned(), ..Default::default() });
     *entry.versions.entry(*record.version()).or_default() += 1;
     *entry.flags.entry(record.record_flags().bits()).or_default() += 1;
     entry.array |= record.record_flags().contains(RecordNodeFlags::HAS_NESTED_BLOCKS);
-    for tokens in &groups {
+    for tokens in groups {
         entry.add_group(tokens);
     }
 
-    for tokens in &groups {
+    for tokens in groups {
         for (key, node) in tokens {
             if let (Some(key), NodeType::Record(child)) = (key, node) {
                 collect(child, &child_path(path, key), stats);

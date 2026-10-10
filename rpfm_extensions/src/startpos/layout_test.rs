@@ -8,6 +8,8 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+use rpfm_lib::files::esf::U32Node;
+
 use super::*;
 use crate::startpos::startpos_test::test_startpos;
 
@@ -224,4 +226,24 @@ fn test_repeated_records_keep_their_contents_by_slot() {
         .map(|slot| matches!(slot, Slot::Record { default: Some(_), .. }))
         .collect::<Vec<_>>();
     assert_eq!(defaults, vec![false, true, true]);
+}
+
+#[test]
+fn test_variant_arrays_keep_defaults_by_type() {
+    let desire = |code: u32, value: u8| vec![
+        NodeType::U32({ let mut node = U32Node::default(); node.set_value(code); node }),
+        record("CAI_BDI_COMPONENT", RecordNodeFlags::empty(), vec![vec![NodeType::U8(value), NodeType::U8(value + 1), NodeType::U8(value + 2)]]),
+    ];
+    let pool = record("CAI_BDI_POOL_DESIRES", RecordNodeFlags::HAS_NESTED_BLOCKS, vec![desire(1, 5), desire(1, 5), desire(2, 7), desire(2, 7), desire(2, 7)]);
+    let mut esf = ESF::default();
+    esf.set_root_node(record("ROOT", RecordNodeFlags::empty(), vec![vec![pool]]));
+    let layout = StartposLayout::from_esf(&esf).unwrap();
+
+    let mut builder = layout.builder("ROOT/CAI_BDI_POOL_DESIRES").unwrap();
+    builder.push_group().unwrap();
+    builder.push_variant(1).unwrap();
+    let built = builder.build().unwrap();
+
+    assert_eq!(built.children(), &vec![desire(2, 7), desire(1, 5)]);
+    assert!(layout.builder("ROOT/CAI_BDI_POOL_DESIRES").unwrap().push_variant(3).is_err());
 }
