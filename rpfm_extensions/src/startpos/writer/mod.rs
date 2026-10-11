@@ -13,7 +13,7 @@
 //! Records without a generator yet keep the values of their layouts.
 
 use rpfm_lib::error::Result;
-use rpfm_lib::files::esf::{BoolNode, Coordinates2DNode, ESF, F32Node, I32Node, NodeType, U32Node};
+use rpfm_lib::files::esf::{BoolNode, Coordinates2DNode, ESF, F32Node, I32Node, NodeType, U32Node, VecU32Node};
 
 use super::cai::world::{CaiContext, CaiInputs};
 use super::cai::world_view::international_routes;
@@ -26,6 +26,7 @@ use super::world::writer::{write_world_with_plan, WorldInputs, WorldPlan};
 mod counters;
 mod diplomacy;
 mod dynamic_resources;
+mod international_routes;
 mod map_data;
 mod preopen;
 mod trade;
@@ -88,7 +89,7 @@ pub fn write_startpos<'a>(inputs: &StartposInputs<'a>, plan: &WorldPlan<'a>) -> 
     let layout = world.layout;
 
     let world_record = write_world_with_plan(world, plan)?;
-    let trade_manager = trade::write_trade_manager(layout, world.tables, plan, inputs.trade_network)?;
+    let trade_manager = trade::write_trade_manager(layout, world.tables, world.index, plan, inputs.trade_network)?;
     let cai_inputs = CaiInputs {
         tables: world.tables,
         index: world.index,
@@ -146,6 +147,15 @@ pub(super) fn u32_node(value: u32) -> NodeType {
     node.set_value(value);
     node.set_optimized(value <= MAX_COMPACT_U32);
     NodeType::U32(node)
+}
+
+/// Returns an unsigned array leaf, compact when it has values and every one fits.
+pub(super) fn u32s_node(values: Vec<u32>) -> NodeType {
+    let mut node = VecU32Node::default();
+    let optimized = !values.is_empty() && values.iter().all(|value| *value <= MAX_COMPACT_U32);
+    node.set_value(values);
+    node.set_optimized(optimized);
+    NodeType::U32Array(node)
 }
 
 /// Returns a signed leaf, compact when the value fits.

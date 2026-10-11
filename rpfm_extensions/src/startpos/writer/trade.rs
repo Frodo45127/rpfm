@@ -11,8 +11,7 @@
 //! Writer of the trade manager (`CAMPAIGN_TRADE_MANAGER`): the trade network of the map, the tradeable resources and
 //! the trade routes of each faction.
 //!
-//! Factions start without trade routes: the game builds the international ones of factions with trade agreements while
-//! playing (Attila's startpos already has 40 of them, from its trade simulation).
+//! Factions start without domestic trade routes; the international ones come from the starting trade agreements.
 
 use std::collections::HashMap;
 
@@ -20,9 +19,11 @@ use rpfm_lib::error::Result;
 use rpfm_lib::files::esf::{NodeType, RecordNode};
 
 use super::{bool_node, coordinates_node, f32_node, u32_node};
+use super::international_routes::write_international_routes;
 use crate::startpos::layout::{child_path, StartposLayout};
 use crate::startpos::tables::StartposTables;
 use crate::startpos::trade::{NetworkRoute, NetworkSpline, TradeNetwork};
+use crate::startpos::world::CampaignIndex;
 use crate::startpos::world::writer::WorldPlan;
 
 /// Path of the trade manager.
@@ -44,14 +45,15 @@ const SPLINE_TRAILER: u32 = 1000;
 /// # Arguments
 ///
 /// * `layout` - Record layouts of the game.
-/// * `tables` - Tables with `resources` and `commodities`.
-/// * `plan` - Factions of the world, with their runtime ids.
+/// * `tables` - Tables with `resources`, `commodities` and `start_pos_diplomacy`.
+/// * `index` - The campaign's startpos rows.
+/// * `plan` - Factions and regions of the world, with their runtime ids.
 /// * `network` - Trade network of the campaign map.
 ///
 /// # Errors
 ///
 /// Returns an error if a table, column or layout is missing.
-pub fn write_trade_manager(layout: &StartposLayout, tables: &StartposTables, plan: &WorldPlan, network: &TradeNetwork) -> Result<RecordNode> {
+pub fn write_trade_manager(layout: &StartposLayout, tables: &StartposTables, index: &CampaignIndex, plan: &WorldPlan, network: &TradeNetwork) -> Result<RecordNode> {
     let mut manager = layout.builder(TRADE_PATH)?;
     manager.group()?
         .set_strings("^+1", network.regions().clone())?
@@ -60,7 +62,7 @@ pub fn write_trade_manager(layout: &StartposLayout, tables: &StartposTables, pla
         .set_record("PORT_ROUTES", Some(write_routes(layout, "PORT_ROUTES", network.port_routes())?))?
         .set_record("RESOURCES", Some(write_resources(layout, tables)?))?
         .set_record("DOMESTIC_TRADE_ROUTES", Some(write_faction_routes(layout, plan, "DOMESTIC_TRADE_ROUTES")?))?
-        .set_record("INTERNATIONAL_TRADE_ROUTES", Some(write_faction_routes(layout, plan, "INTERNATIONAL_TRADE_ROUTES")?))?;
+        .set_record("INTERNATIONAL_TRADE_ROUTES", Some(write_international_routes(layout, tables, index, plan, network)?))?;
     manager.build()
 }
 
@@ -127,7 +129,7 @@ fn write_resources(layout: &StartposLayout, tables: &StartposTables) -> Result<R
     array.build()
 }
 
-/// Writes one entry per faction, with its id and no routes, for `DOMESTIC_TRADE_ROUTES` or `INTERNATIONAL_TRADE_ROUTES`.
+/// Writes one entry per faction, with its id and no routes, for `DOMESTIC_TRADE_ROUTES`.
 fn write_faction_routes(layout: &StartposLayout, plan: &WorldPlan, key: &str) -> Result<RecordNode> {
     let mut array = layout.builder(&child_path(TRADE_PATH, key))?;
     for faction in plan.factions() {
