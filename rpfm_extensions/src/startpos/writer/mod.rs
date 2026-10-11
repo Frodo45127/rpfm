@@ -23,6 +23,7 @@ use super::trade::TradeNetwork;
 use super::world::writer::forces::ForcePlan;
 use super::world::writer::{write_world_with_plan, WorldInputs, WorldPlan};
 
+mod counters;
 mod diplomacy;
 mod dynamic_resources;
 mod map_data;
@@ -102,12 +103,14 @@ pub fn write_startpos<'a>(inputs: &StartposInputs<'a>, plan: &WorldPlan<'a>) -> 
     let cai_context = CaiContext::new(&cai_inputs)?;
     let cai = cai_context.write_interface(&cai_inputs)?;
     let campaign_director = cai_context.write_campaign_director(layout)?;
+    let index_tables = counters::write_index_tables(layout, &[&world_record, &trade_manager])?;
 
     let mut model = layout.builder(MODEL_PATH)?;
     model.group()?
         .set_record("WORLD", Some(world_record))?
         .set_record("CAI_INTERFACE", Some(cai))?
         .set_record("CAMPAIGN_DIRECTOR", Some(campaign_director))?
+        .set_record("CAMPAIGN_COMMAND_QUEUE_INDEX_TABLES", Some(index_tables))?
         .set_record("CAMPAIGN_TRADE_MANAGER", Some(trade_manager))?
         .set_record("DIPLOMACY_MANAGER", Some(diplomacy::write_diplomacy_manager(layout, plan)?))?
         .set_record("CAMPAIGN_MAP_DATA", Some(map_data::write_map_data(world, plan)?))?
