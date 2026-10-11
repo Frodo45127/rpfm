@@ -20,8 +20,8 @@ use crate::startpos::startpos_test::{array_items, compare, field_str, missing_re
 /// Share of the game's `WORLD` fields the writer must match. Raised as the writer covers more records.
 const MIN_MATCH_RATIO: f64 = 0.93;
 
-/// `WORLD` records the writer leaves empty on purpose: the shroud fillers (source unknown) and the starting skills
-/// of agents (the game's only one is a spy's, rule unknown).
+/// `WORLD` records the writer leaves empty on purpose: the starting skills of agents (the game's only one is a spy's,
+/// rule unknown).
 const KNOWN_EMPTY: [&str; 1] = [
     "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/WORLD/FACTION_ARRAY/FACTION/CHARACTER_ARRAY/CHARACTER/CHARACTER_DETAILS/CAMPAIGN_SKILLS/CAMPAIGN_SKILLS_BLOCK",
 ];
