@@ -163,6 +163,9 @@ pub struct SettlementEntry {
 
     /// Other building level keys (`building1` to `building5`), without the empty ones.
     buildings: Vec<String>,
+
+    /// Slave points the settlement starts with.
+    slave_points: i64,
 }
 
 /// A character of the campaign (`start_pos_characters`).
@@ -289,6 +292,7 @@ impl CampaignIndex {
                 primary_building: row.str("primary_building")?.into_owned(),
                 port_building: row.str("port_building")?.into_owned(),
                 buildings,
+                slave_points: row.int("startpos_slave_points")?,
             });
         }
 

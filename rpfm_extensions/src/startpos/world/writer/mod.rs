@@ -51,6 +51,7 @@ pub mod government;
 pub mod provinces;
 pub mod regions;
 pub mod sight;
+pub mod slaves;
 
 #[cfg(test)] pub(crate) mod writer_test;
 
@@ -162,7 +163,8 @@ pub fn write_world_with_plan<'a>(inputs: &WorldInputs<'a>, plan: &WorldPlan<'a>)
         .set_record("REGION_MANAGER", Some(regions::write_region_manager(inputs, plan, &forces, &sight)?))?
         .set_record("PROVINCE_MANAGER", Some(provinces.provinces))?
         .set_record("SEA_REGION_MANAGER", Some(provinces.seas))?
-        .set_record("FAMILY_TREE", Some(characters.write_family_tree()?))?;
+        .set_record("FAMILY_TREE", Some(characters.write_family_tree()?))?
+        .set_record("SLAVES", Some(slaves::write_slaves(inputs, plan)?))?;
     world.build()
 }
 
