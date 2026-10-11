@@ -105,6 +105,10 @@ const DIPLOMACY_ENTRY_PAIRS: u32 = 41;
 /// State the diplomacy manager keeps after its war entries, when it has any (the game writes 3 or 5).
 const DIPLOMACY_WAR_STATE: u32 = 3;
 
+/// Strategic context of the factions (0 to 4; most factions are at 4 in the game's startpos). The constructor's 5 is
+/// out of range: the finance manager's load fixup uses it as a row of the personality's parameter table and crashes.
+const STRATEGIC_CONTEXT: u32 = 4;
+
 /// Stances whose scores each stance re-evaluation mark can adjust.
 const STANCE_SCORES: usize = 7;
 
@@ -386,14 +390,12 @@ impl ManagerContext<'_> {
         Ok(())
     }
 
-    /// Writes a belief about the faction, in its constructor state.
+    /// Writes a belief about the faction: the financial one in its constructor state, the strategic context one in
+    /// the most common state of the game's.
     fn write_belief(&self, beliefs: &mut RecordBuilder, code: u32, id: u32) -> Result<()> {
         let layout = self.inputs.layout;
         let variant = variant_path(&child_path(&managers_path(), "CAI_BDI_POOL/CAI_BDI_POOL_BELIEFS"), code);
-        let (key, values) = match code {
-            FINANCIAL_ANALYSIS => ("CAI_FINANCIAL_ANALYSIS", (0.0, 0.0)),
-            _ => ("CAI_STRATEGIC_CONTEXT_ANALYSIS", (5.0, 0.0)),
-        };
+        let key = if code == FINANCIAL_ANALYSIS { "CAI_FINANCIAL_ANALYSIS" } else { "CAI_STRATEGIC_CONTEXT_ANALYSIS" };
         let references = if code == FINANCIAL_ANALYSIS { vec![self.desire(FINANCE_MANAGER)] } else { vec![] };
         let component = pool_component(layout, &variant, id, ComponentFields { flags: Some(FRESH_FLAGS), references, ..Default::default() })?;
 
@@ -403,9 +405,9 @@ impl ManagerContext<'_> {
         let group = analysis.group()?;
         group.set_u32("^+1", self.faction)?;
         if code == FINANCIAL_ANALYSIS {
-            group.set_f32("^+2", values.0)?.set_f32("^+3", values.1)?;
+            group.set_f32("^+2", 0.0)?.set_f32("^+3", 0.0)?;
         } else {
-            group.set_u32("^+2", values.0 as u32)?.set_u32("^+3", values.1 as u32)?;
+            group.set_u32("^+2", STRATEGIC_CONTEXT)?.set_u32("^+3", 0)?;
         }
 
         beliefs.push_variant(code)?
