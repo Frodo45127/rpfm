@@ -39,6 +39,9 @@ const FULL: u8 = 3;
 //                              Types
 //---------------------------------------------------------------------------//
 
+/// World bounds of an area: its corner closest to the origin and the opposite one.
+pub type WorldBounds = ((f32, f32), (f32, f32));
+
 /// The vision grid of a campaign map.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct VisionGrid {
@@ -136,6 +139,33 @@ impl VisionGrid {
         Vision { cells }
     }
 
+    /// Returns the cells of a world rectangle whose corner closest to the origin passes a test. The rectangle is
+    /// snapped outwards to the grid, as the game does.
+    ///
+    /// # Arguments
+    ///
+    /// * `min` - Corner of the rectangle closest to the origin.
+    /// * `max` - Opposite corner of the rectangle.
+    /// * `keep` - Test on the world position of each cell's corner.
+    ///
+    /// # Returns
+    ///
+    /// The area, and the world bounds of the snapped rectangle.
+    pub fn cells_where(&self, min: (f32, f32), max: (f32, f32), mut keep: impl FnMut((f32, f32)) -> bool) -> (Vision, WorldBounds) {
+        let first = self.cell_at(min);
+        let last = self.cell_at(max);
+        let last = (last.0.min(self.width - 1), last.1.min(self.height - 1));
+        let mut cells = HashSet::new();
+        for x in first.0..=last.0 {
+            for y in first.1..=last.1 {
+                if keep(self.cell_position((x, y))) {
+                    cells.insert((x, y));
+                }
+            }
+        }
+        (Vision { cells }, (self.cell_position(first), self.cell_position((last.0 + 1, last.1 + 1))))
+    }
+
     /// Returns if a cell is inside the grid.
     fn contains(&self, x: i64, y: i64) -> bool {
         (0..i64::from(self.width)).contains(&x) && (0..i64::from(self.height)).contains(&y)
@@ -160,7 +190,7 @@ impl Vision {
     }
 
     /// Returns the world bounds of the area: the corner of its first cell and the far corner of its last one.
-    pub fn bounds(&self, grid: &VisionGrid) -> Option<((f32, f32), (f32, f32))> {
+    pub fn bounds(&self, grid: &VisionGrid) -> Option<WorldBounds> {
         let min_x = self.cells.iter().map(|cell| cell.0).min()?;
         let min_y = self.cells.iter().map(|cell| cell.1).min()?;
         let max_x = self.cells.iter().map(|cell| cell.0).max()?;

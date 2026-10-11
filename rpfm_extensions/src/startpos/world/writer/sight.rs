@@ -17,27 +17,39 @@
 //!
 //! The shroud also lists the settlements a faction doesn't see yet (`CAMPAIGN_SHROUD_FILLERS`), each with what it
 //! would reveal, grouped by the tile of a 16x16 split of the map that holds them. The AI needs them to deal with
-//! other factions. The game's filler vision follows the terrain, so it's approximated by a disk.
+//! other factions. A settlement reveals the cells within two hexes of the zones of its primary slots, inside the
+//! bounds of those zones widened by [`FILLER_MARGIN`]. Verified on Attila's main campaign: 150 of 186 settlements
+//! reveal exactly what the game's do (the rest differ by a few cells at the edges of the bounds, whose vertical
+//! extent the game takes from elsewhere).
 
 use std::cmp::Reverse;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use rpfm_lib::error::Result;
 use rpfm_lib::files::esf::{Coordinates2DNode, NodeType, RecordNode};
 
 use super::{child, WorldInputs, WorldPlan};
-use crate::startpos::coords::{HexCell, CELL_RAW_HEIGHT, CELL_RAW_WIDTH, RAW_SCALE_X, RAW_SCALE_Y};
+use crate::startpos::coords::{HexCell, RAW_SCALE_X};
 use crate::startpos::layout::{child_path, StartposLayout};
-use crate::startpos::vision::{Vision, VisionGrid};
+use crate::startpos::settlements::SettlementLayout;
+use crate::startpos::vision::{Vision, VisionGrid, WorldBounds};
 
 #[cfg(test)] #[path = "sight_test.rs"] mod sight_test;
 
 /// Sight radius of settlements, in world units (a colonel's `agents.line_of_sight`).
 const SETTLEMENT_SIGHT: f32 = 5.0;
 
-/// Sight radius of the settlements of the shroud fillers, in world units, around the centre of their cell. Fitted to
-/// the game's fillers.
-const FILLER_SIGHT: f32 = 3.0;
+/// Hex steps a shroud filler reveals around the zones of its settlement's primary slots.
+const FILLER_STEPS: usize = 2;
+
+/// Slots whose zones a shroud filler reveals (`SprawlCell::zone_slots` bits): the main settlement and the port.
+const FILLER_SLOTS: u32 = 0b11;
+
+/// How far the bounds of a shroud filler's vision go past its zones, in world units (16 raw units).
+const FILLER_MARGIN: f32 = (16.0 / RAW_SCALE_X) as f32;
+
+/// Buckets of the hash map a tile keeps its shroud fillers in, keyed by settlement cell.
+const FILLER_BUCKETS: u32 = 4;
 
 /// Tiles per side of the split of the map the shroud fillers are grouped by.
 const FILLER_TILES: f32 = 16.0;
@@ -85,6 +97,9 @@ struct Filler {
 
     /// What the settlement reveals.
     vision: Vision,
+
+    /// World bounds of what the settlement reveals.
+    bounds: WorldBounds,
 }
 
 //---------------------------------------------------------------------------//
@@ -105,17 +120,11 @@ impl SightPlan {
             let corners = cells.get(region.key().as_str()).map(|cells| cells.iter().map(|cell| cell.world_position()).collect::<Vec<_>>()).unwrap_or_default();
             regions.insert(region.key().to_owned(), grid.around(&corners, REGION_SIGHT));
 
-            let position = inputs.settlements.iter()
-                .find(|settlement| settlement.region() == region.key())
-                .and_then(|settlement| settlement.slots().first())
-                .and_then(|slot| slot.position());
-            if let Some(position) = position {
+            let Some(settlement) = inputs.settlements.iter().find(|settlement| settlement.region() == region.key()) else { continue };
+            if let Some(position) = settlement.slots().first().and_then(|slot| slot.position()) {
                 settlements.insert(region.key().to_owned(), grid.disk(position.world_position(), SETTLEMENT_SIGHT));
-                fillers.push(Filler {
-                    cell: position,
-                    vision_cell: grid.cell_at(position.world_position()),
-                    vision: grid.around(&[cell_centre(position)], FILLER_SIGHT),
-                });
+                let (vision, bounds) = filler_vision(&grid, settlement);
+                fillers.push(Filler { cell: position, vision_cell: grid.cell_at(position.world_position()), vision, bounds });
             }
         }
 
@@ -147,6 +156,12 @@ impl SightPlan {
 ///
 /// Returns an error if the layout lacks the records.
 pub fn write_line_of_sight(layout: &StartposLayout, parent: &str, grid: &VisionGrid, vision: Option<&Vision>) -> Result<RecordNode> {
+    let bounds = vision.and_then(|vision| vision.bounds(grid)).unwrap_or_default();
+    line_of_sight(layout, parent, grid, vision, bounds)
+}
+
+/// Writes a `LINE_OF_SIGHT` record with the given world bounds.
+fn line_of_sight(layout: &StartposLayout, parent: &str, grid: &VisionGrid, vision: Option<&Vision>, bounds: WorldBounds) -> Result<RecordNode> {
     let path = format!("{parent}/LINE_OF_SIGHT");
     let mut record = layout.builder(&path)?;
     let Some(vision) = vision else {
@@ -158,7 +173,7 @@ pub fn write_line_of_sight(layout: &StartposLayout, parent: &str, grid: &VisionG
         return record.build();
     };
 
-    let ((min_x, min_y), (max_x, max_y)) = vision.bounds(grid).unwrap_or_default();
+    let ((min_x, min_y), (max_x, max_y)) = bounds;
     record.group()?
         .set_bool("^+1", true)?
         .set("^+2", coordinates(min_x, min_y))?
@@ -193,7 +208,8 @@ pub fn write_shroud(layout: &StartposLayout, faction_path: &str, sight: &SightPl
 }
 
 /// Writes the shroud fillers of a faction: the settlements outside its vision, by tile from the top row of tiles
-/// down, each tile with the world bounds of itself and what its settlements reveal.
+/// down, each tile with the world bounds of itself and what its settlements reveal, and its settlements in the order
+/// of its hash map.
 fn write_fillers(layout: &StartposLayout, shroud_path: &str, sight: &SightPlan, vision: &Vision) -> Result<RecordNode> {
     let path = child_path(shroud_path, "CAMPAIGN_SHROUD_FILLERS");
     let block_path = child_path(&path, "FILLERS_QUADTREE_DATA_BLOCK");
@@ -207,15 +223,15 @@ fn write_fillers(layout: &StartposLayout, shroud_path: &str, sight: &SightPlan, 
     }
 
     let mut block = layout.builder(&block_path)?;
-    for ((Reverse(row), column), fillers) in tiles {
+    for ((Reverse(row), column), mut fillers) in tiles {
+        fillers.sort_by_key(|filler| filler_bucket(filler.cell));
         let (mut min_x, mut min_y) = (column as f32 * tile_width, row as f32 * tile_height);
         let (mut max_x, mut max_y) = (min_x + tile_width, min_y + tile_height);
         let mut los_block = layout.builder(&los_path)?;
         for filler in fillers {
-            if let Some(((x0, y0), (x1, y1))) = filler.vision.bounds(&sight.grid) {
-                (min_x, min_y, max_x, max_y) = (min_x.min(x0), min_y.min(y0), max_x.max(x1), max_y.max(y1));
-            }
-            let line_of_sight = write_line_of_sight(layout, &los_path, &sight.grid, Some(&filler.vision))?;
+            let ((x0, y0), (x1, y1)) = filler.bounds;
+            (min_x, min_y, max_x, max_y) = (min_x.min(x0), min_y.min(y0), max_x.max(x1), max_y.max(y1));
+            let line_of_sight = line_of_sight(layout, &los_path, &sight.grid, Some(&filler.vision), filler.bounds)?;
             los_block.push_children(vec![NodeType::U16(filler.cell.x()), NodeType::U16(filler.cell.y()), NodeType::Record(Box::new(line_of_sight))]);
         }
         block.push_children(vec![coordinates(min_x, min_y), coordinates(max_x, max_y), NodeType::Record(Box::new(los_block.build()?))]);
@@ -226,10 +242,31 @@ fn write_fillers(layout: &StartposLayout, shroud_path: &str, sight: &SightPlan, 
     record.build()
 }
 
-/// Returns the world position of the centre of a cell.
-fn cell_centre(cell: HexCell) -> (f32, f32) {
-    let (x, y) = cell.world_position();
-    (x + (f64::from(CELL_RAW_WIDTH / 2.0) / RAW_SCALE_X) as f32, y + (f64::from(CELL_RAW_HEIGHT / 2.0) / RAW_SCALE_Y) as f32)
+/// Returns the bucket of a settlement cell in a tile's hash map of shroud fillers, which lists them bucket by bucket
+/// (each bucket in region order).
+fn filler_bucket(cell: HexCell) -> u32 {
+    (u32::from(cell.y()) * 0x3f8 + u32::from(cell.x())) % FILLER_BUCKETS
+}
+
+/// Returns what a settlement reveals as a shroud filler, and the world bounds of it: the cells within
+/// [`FILLER_STEPS`] hexes of its primary slots' zones, inside the zones' bounds widened by [`FILLER_MARGIN`].
+fn filler_vision(grid: &VisionGrid, settlement: &SettlementLayout) -> (Vision, WorldBounds) {
+    let zones = settlement.sprawl().iter().filter(|cell| cell.zone_slots() & FILLER_SLOTS != 0).map(|cell| cell.cell()).collect::<HashSet<_>>();
+    if zones.is_empty() {
+        return (Vision::default(), ((0.0, 0.0), (0.0, 0.0)));
+    }
+    let corners = zones.iter().map(|cell| cell.world_position()).collect::<Vec<_>>();
+    let min = corners.iter().fold((f32::MAX, f32::MAX), |min, corner| (min.0.min(corner.0), min.1.min(corner.1)));
+    let max = corners.iter().fold((f32::MIN, f32::MIN), |max, corner| (max.0.max(corner.0), max.1.max(corner.1)));
+
+    let mut revealed = zones;
+    for _ in 0..FILLER_STEPS {
+        let ring = revealed.iter().flat_map(|cell| cell.neighbours()).collect::<Vec<_>>();
+        revealed.extend(ring);
+    }
+    let min = (min.0 - FILLER_MARGIN, min.1 - FILLER_MARGIN);
+    let max = (max.0 + FILLER_MARGIN, max.1 + FILLER_MARGIN);
+    grid.cells_where(min, max, |(x, y)| revealed.contains(&HexCell::from_world(x, y)))
 }
 
 /// Writes a `QUAD_TREE_BIT_ARRAY` record under a parent record.

@@ -8,7 +8,7 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-use std::collections::BTreeSet;
+use std::collections::HashMap;
 
 use super::*;
 use crate::startpos::esf_nav::{as_record, child_record};
@@ -19,8 +19,11 @@ use crate::startpos::world::writer::writer_test::{game_plan, world_test_data};
 /// Path of the shroud of a faction.
 const SHROUD_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/WORLD/FACTION_ARRAY/FACTION/CAMPAIGN_SHROUD";
 
-/// Returns the settlement cells of each tile of a `CAMPAIGN_SHROUD_FILLERS` record, in tile order.
-fn filler_cells(fillers: &RecordNode) -> Vec<BTreeSet<(u16, u16)>> {
+/// Filler sights (vision and bounds) that must match the game's, of 186.
+const MIN_MATCHING_FILLER_SIGHTS: usize = 150;
+
+/// Returns the settlement cells of each tile of a `CAMPAIGN_SHROUD_FILLERS` record, in order.
+fn filler_cells(fillers: &RecordNode) -> Vec<Vec<(u16, u16)>> {
     let block = fillers.children().iter().flatten().find_map(as_record).unwrap();
     block.children().iter().map(|tile| {
         tile.iter().filter_map(as_record).flat_map(|los_block| los_block.children().iter()).map(|filler| match (&filler[0], &filler[1]) {
@@ -55,4 +58,41 @@ fn test_shroud_fillers_match_the_game_startpos() {
         compared += 1;
     }
     assert!(compared > 0, "the game startpos has no shroud fillers");
+}
+
+/// Returns the `LINE_OF_SIGHT` record of each filler of a `CAMPAIGN_SHROUD_FILLERS` record, by settlement cell.
+fn filler_sights(fillers: &RecordNode) -> HashMap<(u16, u16), RecordNode> {
+    let block = fillers.children().iter().flatten().find_map(as_record).unwrap();
+    block.children().iter()
+        .flat_map(|tile| tile.iter().filter_map(as_record))
+        .flat_map(|los_block| los_block.children().iter())
+        .filter_map(|filler| match (&filler[0], &filler[1], filler.iter().find_map(as_record)) {
+            (NodeType::U16(x), NodeType::U16(y), Some(sight)) => Some(((*x, *y), sight.clone())),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+#[ignore = "needs the game data, see startpos_test.rs"]
+fn test_shroud_filler_vision_matches_the_game_startpos() {
+    let (index, layout, settlements, region_map, legacy_overrides) = world_test_data();
+    let inputs = WorldInputs { tables: test_data_tables(), index: &index, layout: &layout, settlements: &settlements, region_map: &region_map, legacy_overrides: &legacy_overrides };
+    let plan = game_plan(&index);
+    let sight = SightPlan::new(&inputs, &plan);
+
+    // Without vision, a faction gets a filler for every settlement.
+    let ours = filler_sights(&write_fillers(&layout, SHROUD_PATH, &sight, &Vision::default()).unwrap());
+    let mut theirs = HashMap::new();
+    for faction in world_factions(world(test_startpos())) {
+        if let Some(fillers) = child_record(faction, "CAMPAIGN_SHROUD").and_then(|shroud| child_record(shroud, "CAMPAIGN_SHROUD_FILLERS")) {
+            theirs.extend(filler_sights(fillers));
+        }
+    }
+
+    let tree = |sight: &RecordNode| sight.children()[0].iter().find_map(as_record).cloned();
+    let leaves = |sight: &RecordNode| sight.children()[0].iter().filter(|node| as_record(node).is_none()).cloned().collect::<Vec<_>>();
+    let areas = theirs.iter().filter(|(cell, sight)| ours.get(cell).map(tree) == Some(tree(sight))).count();
+    let bounds = theirs.iter().filter(|(cell, sight)| ours.get(cell).map(leaves) == Some(leaves(sight))).count();
+    assert!(areas >= MIN_MATCHING_FILLER_SIGHTS, "{areas}/{} filler areas match ({bounds} bounds)", theirs.len());
 }
