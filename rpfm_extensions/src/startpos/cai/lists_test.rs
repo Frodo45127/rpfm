@@ -9,8 +9,12 @@
 //---------------------------------------------------------------------------//
 
 use super::*;
-use crate::startpos::cai::cai_test::{compare_list, test_inputs};
+use crate::startpos::cai::cai_test::{compare_list, game_trade_routes, test_inputs};
 use crate::startpos::startpos_test::{test_data_tables, TEST_CAMPAIGN};
+
+/// Share of the international trade routes' fields the writer must match. The rest are the end settlements and trade
+/// segments of the routes the game has already traced (20 of 42), left empty like the game's other ones.
+const MIN_TRADE_ROUTE_MATCH_RATIO: f64 = 0.94;
 
 #[test]
 #[ignore = "needs the game data, see startpos_test.rs"]
@@ -21,6 +25,7 @@ fn test_small_lists_match_the_game_startpos() {
     let (provinces, parts) = write_provinces(layout, plan, world, map_regions, &index).unwrap();
 
     compare_list(&inputs, &write_trade_segments(layout, plan, 2486).unwrap(), "CAI_WORLD_TRADE_ROUTE_SEGMENTS", 1.0);
+    compare_list(&inputs, &write_trade_routes(layout, plan, world, &game_trade_routes(layout)).unwrap(), "CAI_WORLD_TRADE_ROUTES", MIN_TRADE_ROUTE_MATCH_RATIO);
     compare_list(&inputs, &write_boundaries(layout, plan).unwrap(), "CAI_WORLD_REGION_BOUNDARIES", 1.0);
     compare_list(&inputs, &provinces, "CAI_PROVINCES", 1.0);
     compare_list(&inputs, &parts, "CAI_FACTION_PROVINCES", 1.0);

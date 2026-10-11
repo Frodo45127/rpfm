@@ -8,8 +8,8 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! Writer of the AI's smaller world lists: trade route segments, region boundaries, provinces and the factions' parts
-//! of them, the factions' views of the seas, governorships and government posts.
+//! Writer of the AI's smaller world lists: trade route segments, international trade routes, region boundaries,
+//! provinces and the factions' parts of them, the factions' views of the seas, governorships and government posts.
 
 use std::collections::HashMap;
 
@@ -50,6 +50,44 @@ pub fn write_trade_segments(layout: &StartposLayout, plan: &CaiPlan, splines: us
         list.push_group()?
             .set_record("CAI_BDI_COMPONENT", Some(component(layout, &path, plan.first_trade_segment() + index, vec![])?))?
             .set_record("CAI_TRADE_ROUTE_SEGMENT", Some(record.build()?))?;
+    }
+    list.build()
+}
+
+/// Writes the international trade routes list: one per route, in route id order, with its owner and the owner of the
+/// other route of its agreement (routes come in pairs, one per side: 1 and 2, 3 and 4...).
+///
+/// # Arguments
+///
+/// * `layout` - Record layouts.
+/// * `plan` - Component ids.
+/// * `world` - The world's objects.
+/// * `routes` - Each route's owner faction (runtime id) and route id.
+///
+/// # Errors
+///
+/// Returns an error if the layout lacks the records.
+pub fn write_trade_routes(layout: &StartposLayout, plan: &CaiPlan, world: &WorldView, routes: &[(u32, u32)]) -> Result<RecordNode> {
+    let path = child_path(CAI_WORLD_PATH, "CAI_WORLD_TRADE_ROUTES");
+    let mut components = world.factions().iter().zip(plan.factions()).map(|(faction, ids)| (faction.id(), ids.faction())).collect::<HashMap<_, _>>();
+    if let Some(rebels) = plan.factions().last() {
+        components.insert(REBELS_WORLD_ID, rebels.faction());
+    }
+    let owners = routes.iter().map(|(owner, route)| (*route, components.get(owner).copied().unwrap_or_default())).collect::<HashMap<_, _>>();
+    let mut ids = owners.keys().copied().collect::<Vec<_>>();
+    ids.sort_unstable();
+
+    let mut list = layout.builder(&path)?;
+    for (index, route) in ids.iter().enumerate() {
+        let partner = if route % 2 == 1 { route + 1 } else { route - 1 };
+        let mut record = layout.builder(&child_path(&path, "CAI_TRADE_ROUTE"))?;
+        record.group()?
+            .set_u32("^+2", *route)?
+            .set_u32("^+3", owners.get(&partner).copied().unwrap_or_default())?;
+        list.push_group()?
+            .set_record("CAI_BDI_COMPONENT", Some(component(layout, &path, plan.first_trade_route() + index as u32, vec![])?))?
+            .set_record("OWNED_DIRECT", Some(owned_direct(layout, &path, owners[route])?))?
+            .set_record("CAI_TRADE_ROUTE", Some(record.build()?))?;
     }
     list.build()
 }

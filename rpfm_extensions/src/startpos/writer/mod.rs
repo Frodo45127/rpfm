@@ -16,6 +16,7 @@ use rpfm_lib::error::Result;
 use rpfm_lib::files::esf::{BoolNode, Coordinates2DNode, ESF, F32Node, I32Node, NodeType, U32Node};
 
 use super::cai::world::{CaiContext, CaiInputs};
+use super::cai::world_view::international_routes;
 use super::layout::{COMPACT_I32, MAX_COMPACT_U32};
 use super::missions::VictoryObjectives;
 use super::trade::TradeNetwork;
@@ -86,6 +87,7 @@ pub fn write_startpos<'a>(inputs: &StartposInputs<'a>, plan: &WorldPlan<'a>) -> 
     let layout = world.layout;
 
     let world_record = write_world_with_plan(world, plan)?;
+    let trade_manager = trade::write_trade_manager(layout, world.tables, plan, inputs.trade_network)?;
     let cai_inputs = CaiInputs {
         tables: world.tables,
         index: world.index,
@@ -94,6 +96,7 @@ pub fn write_startpos<'a>(inputs: &StartposInputs<'a>, plan: &WorldPlan<'a>) -> 
         map_data: inputs.map_data,
         hlp_data: inputs.hlp_data,
         trade_splines: inputs.trade_network.splines().len(),
+        trade_routes: &international_routes(layout, &trade_manager)?,
         campaign: inputs.campaign,
     };
     let cai = CaiContext::new(&cai_inputs)?.write_interface(&cai_inputs)?;
@@ -102,7 +105,7 @@ pub fn write_startpos<'a>(inputs: &StartposInputs<'a>, plan: &WorldPlan<'a>) -> 
     model.group()?
         .set_record("WORLD", Some(world_record))?
         .set_record("CAI_INTERFACE", Some(cai))?
-        .set_record("CAMPAIGN_TRADE_MANAGER", Some(trade::write_trade_manager(layout, world.tables, plan, inputs.trade_network)?))?
+        .set_record("CAMPAIGN_TRADE_MANAGER", Some(trade_manager))?
         .set_record("DIPLOMACY_MANAGER", Some(diplomacy::write_diplomacy_manager(layout, plan)?))?
         .set_record("CAMPAIGN_MAP_DATA", Some(map_data::write_map_data(world, plan)?))?
         .set_record("DYNAMIC_RESOURCES_MANAGER", Some(dynamic_resources::write_dynamic_resources_manager(layout, plan)?))?;

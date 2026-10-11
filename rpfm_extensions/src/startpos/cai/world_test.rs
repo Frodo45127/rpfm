@@ -9,7 +9,7 @@
 //---------------------------------------------------------------------------//
 
 use super::*;
-use crate::startpos::cai::cai_test::{game_cai_record, test_inputs, translate, id_translation};
+use crate::startpos::cai::cai_test::{game_cai_record, game_trade_routes, test_inputs, translate, id_translation};
 use crate::startpos::startpos_test::{compare, test_data_esf, test_data_tables, test_startpos, world, Report, TEST_CAMPAIGN};
 
 /// Share of the world mirror's fields the writer must match. The rest are the beliefs the components refer to (left
@@ -23,7 +23,7 @@ fn test_world_mirror_matches_the_game_startpos() {
     let layout = StartposLayout::from_esf(test_startpos()).unwrap();
     let index = CampaignIndex::new(test_data_tables(), TEST_CAMPAIGN).unwrap();
     let (map_data, hlp_data) = (test_data_esf("map_data.esf"), test_data_esf("hlp_data.esf"));
-    let inputs = CaiInputs { tables: test_data_tables(), index: &index, layout: &layout, world: world(test_startpos()), map_data: &map_data, hlp_data: &hlp_data, trade_splines: 2486, campaign: TEST_CAMPAIGN };
+    let inputs = CaiInputs { tables: test_data_tables(), index: &index, layout: &layout, world: world(test_startpos()), map_data: &map_data, hlp_data: &hlp_data, trade_splines: 2486, trade_routes: &game_trade_routes(&layout), campaign: TEST_CAMPAIGN };
 
     let context = CaiContext::new(&inputs).unwrap();
     let written = context.write_world(&inputs).unwrap();

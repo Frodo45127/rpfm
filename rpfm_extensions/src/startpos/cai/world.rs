@@ -18,7 +18,7 @@ use rpfm_lib::error::Result;
 use rpfm_lib::files::esf::{RecordNode, ESF};
 
 use super::factions::{capitals, faction_links, victory_factions, write_factions, write_technologies, write_technology_trees};
-use super::lists::{write_boundaries, write_faction_seas, write_governorships, write_posts, write_provinces, write_trade_segments};
+use super::lists::{write_boundaries, write_faction_seas, write_governorships, write_posts, write_provinces, write_trade_routes, write_trade_segments};
 use super::map::{pathfinder_nodes, theatre_key, AreaGroups, MapRegion, PathfinderNode};
 use super::mobiles::{mobile_cells, write_characters, write_mobiles, write_units, MobileInputs};
 use super::plan::{CaiPlan, PlanInputs};
@@ -69,6 +69,9 @@ pub struct CaiInputs<'a> {
 
     /// Number of trade splines of the campaign map.
     pub trade_splines: usize,
+
+    /// International trade routes of the written trade manager: owner faction (runtime id) and route id.
+    pub trade_routes: &'a [(u32, u32)],
 
     /// Campaign key.
     pub campaign: &'a str,
@@ -130,7 +133,7 @@ impl CaiContext {
             .collect::<Result<Vec<_>>>()?;
         let technology_counts = technologies.iter().map(Vec::len).collect::<Vec<_>>();
         let playable = world.factions().iter().map(|faction| inputs.index.faction(faction.key()).is_some_and(|entry| entry.playable())).collect::<Vec<_>>();
-        let plan = CaiPlan::new(&PlanInputs { map_regions: &map_regions, world: &world, technology_counts: &technology_counts, trade_splines: inputs.trade_splines, playable: &playable });
+        let plan = CaiPlan::new(&PlanInputs { map_regions: &map_regions, world: &world, technology_counts: &technology_counts, trade_splines: inputs.trade_splines, playable: &playable, trade_routes: inputs.trade_routes.len() });
         Ok(Self { world, map_regions, nodes, region_map, settlement_layouts, technologies, theatre_key, plan })
     }
 
@@ -180,6 +183,7 @@ impl CaiContext {
             .set_record("CAI_BDI_COMPONENT", Some(component(layout, CAI_WORLD_PATH, WORLD_COMPONENT, vec![])?))?
             .set_record("CAI_BDI_COMPONENT@2", Some(component(layout, CAI_WORLD_PATH, TIME_COMPONENT, vec![])?))?
             .set_record("CAI_WORLD_TRADE_ROUTE_SEGMENTS", Some(write_trade_segments(layout, plan, inputs.trade_splines)?))?
+            .set_record("CAI_WORLD_TRADE_ROUTES", Some(write_trade_routes(layout, plan, world, inputs.trade_routes)?))?
             .set_record("CAI_WORLD_TECHNOLOGY_TREES", Some(write_technology_trees(layout, plan)?))?
             .set_record("CAI_WORLD_TECHNOLOGIES", Some(write_technologies(layout, plan, &self.technologies)?))?
             .set_record("CAI_WORLD_GOVERNORSHIPS", Some(write_governorships(layout, plan)?))?

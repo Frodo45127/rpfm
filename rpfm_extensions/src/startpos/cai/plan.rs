@@ -110,6 +110,10 @@ pub struct CaiPlan {
     /// Ids of the director pool's beliefs, then its desires, in creation order.
     #[getset(get = "pub")]
     director: Vec<u32>,
+
+    /// Id of the first international trade route (one per route, in route id order).
+    #[getset(get_copy = "pub")]
+    first_trade_route: u32,
 }
 
 /// What the id plan is built from.
@@ -130,6 +134,9 @@ pub struct PlanInputs<'a> {
 
     /// If players can pick each world faction, in world order.
     pub playable: &'a [bool],
+
+    /// Number of international trade routes of the trade manager.
+    pub trade_routes: usize,
 }
 
 /// Ids of a faction's AI manager.
@@ -358,6 +365,7 @@ impl CaiPlan {
         plan.managers.push(ManagerIds { faction: plan.factions.len() - 1, desires, intention, ..Default::default() });
 
         plan.director = (0..DIRECTOR_BELIEFS.len() + DIRECTOR_DESIRES.len()).map(|_| plan.take(1)).collect();
+        plan.first_trade_route = plan.take(inputs.trade_routes as u32);
         plan
     }
 

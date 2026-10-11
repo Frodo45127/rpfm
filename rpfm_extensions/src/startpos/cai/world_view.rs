@@ -23,6 +23,9 @@ use crate::startpos::layout::{child_path, GroupView, StartposLayout};
 /// Path of the world.
 const WORLD_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/WORLD";
 
+/// Path of the trade manager.
+const TRADE_MANAGER_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/CAMPAIGN_TRADE_MANAGER";
+
 //---------------------------------------------------------------------------//
 //                              Types
 //---------------------------------------------------------------------------//
@@ -275,6 +278,37 @@ impl WorldView {
 
         Ok(Self { factions, regions, provinces, seas })
     }
+}
+
+/// Reads the international trade routes of a written `CAMPAIGN_TRADE_MANAGER`.
+///
+/// # Arguments
+///
+/// * `layout` - Record layouts.
+/// * `trade_manager` - The written trade manager.
+///
+/// # Returns
+///
+/// Each route's owner faction (runtime id) and route id, in manager order.
+///
+/// # Errors
+///
+/// Returns an error if the record doesn't fit its layout.
+pub fn international_routes(layout: &StartposLayout, trade_manager: &RecordNode) -> Result<Vec<(u32, u32)>> {
+    let reader = Reader { layout };
+    let manager = reader.single(TRADE_MANAGER_PATH, trade_manager)?;
+    let Some(routes) = manager.record("INTERNATIONAL_TRADE_ROUTES") else { return Ok(vec![]) };
+
+    let routes_path = child_path(TRADE_MANAGER_PATH, "INTERNATIONAL_TRADE_ROUTES");
+    let faction_routes_path = child_path(&routes_path, "FACTION_INTERNATIONAL_TRADE_ROUTES_ARRAY");
+    let mut list = vec![];
+    for faction in layout.read(&routes_path, routes)? {
+        let owner = faction.u32("^+1").unwrap_or_default();
+        for (_, route) in reader.items(&faction_routes_path, &faction, "FACTION_INTERNATIONAL_TRADE_ROUTES_ARRAY", "INTERNATIONAL_TRADE_ROUTE")? {
+            list.push((owner, route.u32("^+1").unwrap_or_default()));
+        }
+    }
+    Ok(list)
 }
 
 /// Reads records through their layouts.

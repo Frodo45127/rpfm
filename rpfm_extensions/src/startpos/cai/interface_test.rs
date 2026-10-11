@@ -11,7 +11,7 @@
 use std::collections::HashMap;
 
 use super::*;
-use crate::startpos::cai::cai_test::{game_cai_record, id_translation, test_inputs, translate};
+use crate::startpos::cai::cai_test::{game_cai_record, game_trade_routes, id_translation, test_inputs, translate};
 use crate::startpos::cai::CAI_WORLD_PATH;
 use crate::startpos::esf_nav::as_u32;
 use crate::startpos::startpos_test::{compare, test_data_esf, test_data_tables, test_startpos, world, Report, TEST_CAMPAIGN};
@@ -79,7 +79,7 @@ fn test_interface_matches_the_game_startpos() {
     let layout = StartposLayout::from_esf(test_startpos()).unwrap();
     let index = CampaignIndex::new(test_data_tables(), TEST_CAMPAIGN).unwrap();
     let (map_data, hlp_data) = (test_data_esf("map_data.esf"), test_data_esf("hlp_data.esf"));
-    let inputs = CaiInputs { tables: test_data_tables(), index: &index, layout: &layout, world: world(test_startpos()), map_data: &map_data, hlp_data: &hlp_data, trade_splines: 2486, campaign: TEST_CAMPAIGN };
+    let inputs = CaiInputs { tables: test_data_tables(), index: &index, layout: &layout, world: world(test_startpos()), map_data: &map_data, hlp_data: &hlp_data, trade_splines: 2486, trade_routes: &game_trade_routes(&layout), campaign: TEST_CAMPAIGN };
     let context = CaiContext::new(&inputs).unwrap();
     let written = context.write_interface(&inputs).unwrap();
     assert_eq!(context.plan().director().len(), GAME_DIRECTOR_IDS.len());

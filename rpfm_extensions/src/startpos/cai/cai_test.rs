@@ -17,7 +17,7 @@ use rpfm_lib::files::esf::{NodeType, RecordNode};
 use super::map::{pathfinder_nodes, MapRegion, PathfinderNode};
 use super::plan::{CaiPlan, PlanInputs};
 use super::technologies::faction_technologies;
-use super::world_view::WorldView;
+use super::world_view::{international_routes, WorldView};
 use crate::startpos::startpos_test::{compare, test_data_tables, world, Report, TEST_CAMPAIGN};
 use super::CAI_WORLD_PATH;
 use crate::startpos::world::CampaignIndex;
@@ -51,6 +51,15 @@ pub(crate) fn single_field_u32(layout: &StartposLayout, parent: &str, group: &Gr
     layout.read(&child_path(parent, key), group.record(key).unwrap()).unwrap()[0].u32("^+1").unwrap()
 }
 
+/// Returns the international trade routes of the game startpos's trade manager.
+pub(crate) fn game_trade_routes(layout: &StartposLayout) -> Vec<(u32, u32)> {
+    let mut record = as_record(test_startpos().root_node()).unwrap();
+    for name in ["CAMPAIGN_ENV", "CAMPAIGN_MODEL", "CAMPAIGN_TRADE_MANAGER"] {
+        record = child_record(record, name).unwrap();
+    }
+    international_routes(layout, record).unwrap()
+}
+
 /// What the AI writer's tests build from: the game startpos's layouts and world, the test map, and the id plan.
 pub(crate) struct TestInputs {
     pub(crate) layout: StartposLayout,
@@ -72,21 +81,23 @@ pub(crate) fn test_inputs() -> TestInputs {
         .collect::<Vec<_>>();
     let technology_counts = technologies.iter().map(Vec::len).collect::<Vec<_>>();
     let playable = world.factions().iter().map(|faction| index.faction(faction.key()).is_some_and(|entry| entry.playable())).collect::<Vec<_>>();
-    let plan = CaiPlan::new(&PlanInputs { map_regions: &map_regions, world: &world, technology_counts: &technology_counts, trade_splines: 2486, playable: &playable });
+    let trade_routes = game_trade_routes(&layout).len();
+    let plan = CaiPlan::new(&PlanInputs { map_regions: &map_regions, world: &world, technology_counts: &technology_counts, trade_splines: 2486, playable: &playable, trade_routes });
     TestInputs { layout, map_regions, nodes, world, technologies, plan }
 }
 
 /// Lists whose components the plan numbers differently from the game, which creates beliefs in between.
-const SHIFTED_LISTS: [&str; 9] = [
+const SHIFTED_LISTS: [&str; 10] = [
     "CAI_WORLD_CHARACTERS", "CAI_WORLD_RESOURCE_MOBILES", "CAI_WORLD_UNITS", "CAI_WORLD_BUILDING_SLOTS", "CAI_PROVINCES",
-    "CAI_FACTION_PROVINCES", "CAI_FACTION_SEA_REGIONS", "CAI_WORLD_GOVERNORSHIPS", "CAI_CHARACTER_POSTS",
+    "CAI_FACTION_PROVINCES", "CAI_FACTION_SEA_REGIONS", "CAI_WORLD_GOVERNORSHIPS", "CAI_CHARACTER_POSTS", "CAI_WORLD_TRADE_ROUTES",
 ];
 
 /// Returns the game's id of each planned id that differs: the n-th id of a kind in the plan is the n-th of the game.
 pub(crate) fn id_translation(inputs: &TestInputs) -> HashMap<u32, u32> {
     let plan = &inputs.plan;
     let characters = plan.characters().iter().flatten();
-    let ours: [Vec<u32>; 9] = [
+    let routes = game_trade_routes(&inputs.layout).len() as u32;
+    let ours: [Vec<u32>; 10] = [
         characters.clone().map(|character| character.character()).collect(),
         characters.clone().filter_map(|character| character.mobile()).collect(),
         characters.clone().flat_map(|character| character.units().to_vec()).collect(),
@@ -96,6 +107,7 @@ pub(crate) fn id_translation(inputs: &TestInputs) -> HashMap<u32, u32> {
         plan.faction_seas().iter().flatten().copied().collect(),
         plan.governorships().to_vec(),
         plan.posts().iter().flatten().copied().collect(),
+        (0..routes).map(|index| plan.first_trade_route() + index).collect(),
     ];
 
     let mut translation = HashMap::new();
