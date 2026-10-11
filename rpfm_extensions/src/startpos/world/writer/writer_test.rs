@@ -20,12 +20,6 @@ use crate::startpos::startpos_test::{array_items, compare, field_str, missing_re
 /// Share of the game's `WORLD` fields the writer must match. Raised as the writer covers more records.
 const MIN_MATCH_RATIO: f64 = 0.93;
 
-/// `WORLD` records the writer leaves empty on purpose: the starting skills of agents (the game's only one is a spy's,
-/// rule unknown).
-const KNOWN_EMPTY: [&str; 1] = [
-    "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/WORLD/FACTION_ARRAY/FACTION/CHARACTER_ARRAY/CHARACTER/CHARACTER_DETAILS/CAMPAIGN_SKILLS/CAMPAIGN_SKILLS_BLOCK",
-];
-
 /// Loads what the world writer needs from the test data: the campaign index, the layouts of the game startpos, the
 /// settlement layouts, the region map and the legacy overrides.
 pub(crate) fn world_test_data() -> (CampaignIndex, StartposLayout, Vec<SettlementLayout>, RegionMap, HashSet<String>) {
@@ -77,6 +71,6 @@ fn test_world_matches_the_game_startpos() {
     let ratio = matches as f64 / total as f64;
     assert!(ratio >= MIN_MATCH_RATIO, "{matches}/{total} ({ratio:.4}) fields match. Worst:\n{}", report.worst(60));
 
-    let missing = missing_records(&written, game_world, WORLD_PATH, &KNOWN_EMPTY);
+    let missing = missing_records(&written, game_world, WORLD_PATH, &[]);
     assert!(missing.is_empty(), "records the writer leaves empty: {missing:#?}");
 }

@@ -9,8 +9,8 @@
 //---------------------------------------------------------------------------//
 
 //! Agent data of characters and factions: abilities (`CHARACTER_DETAILS/AGENT_ABILITIES`), attributes
-//! (`AGENT_ATTRIBUTES`), skill sets (`CAMPAIGN_SKILLS`) and the agent types of the recruitment pools
-//! (`FACTION/CHARACTER_RECRUITMENT_POOL_MANAGER`).
+//! (`AGENT_ATTRIBUTES`), skill sets and starting skills (`CAMPAIGN_SKILLS`) and the agent types of the recruitment
+//! pools (`FACTION/CHARACTER_RECRUITMENT_POOL_MANAGER`).
 //!
 //! Verified on Attila's main campaign for every living character and every faction. The game stores the
 //! recruitment pools in hash order.
@@ -119,6 +119,58 @@ pub fn skill_set(tables: &StartposTables, index: &CampaignIndex, agent: &str, fa
         }
     }
     Ok(None)
+}
+
+/// A skill a character starts with: a node of its skill set with points on creation.
+#[derive(Debug, Clone, PartialEq)]
+pub struct StartingSkill {
+
+    /// Skill key.
+    pub skill: String,
+
+    /// Tier of the node in the skill set.
+    pub tier: u32,
+
+    /// Indent of the node in the skill set.
+    pub indent: f32,
+
+    /// Points the skill starts with.
+    pub points: u32,
+}
+
+/// Returns the skills a character starts with: the nodes of its skill set with points on creation, by tier.
+///
+/// # Arguments
+///
+/// * `tables` - Tables with `character_skill_nodes`.
+/// * `index` - The campaign's startpos rows.
+/// * `skill_set` - The character's skill set.
+/// * `faction` - The character's faction.
+///
+/// # Errors
+///
+/// Returns an error if a table or column is missing.
+pub fn starting_skills(tables: &StartposTables, index: &CampaignIndex, skill_set: &str, faction: &FactionEntry) -> Result<Vec<StartingSkill>> {
+    let mut skills = vec![];
+    for row in tables.table("character_skill_nodes")?.rows() {
+        let points = row.int("points_on_creation")?;
+        if points <= 0 || row.str("character_skill_node_set_key")? != skill_set {
+            continue;
+        }
+        let (campaign, row_faction, subculture) = (row.str("campaign_key")?, row.str("faction_key")?, row.str("subculture")?);
+        if (campaign.is_empty() || campaign == *index.campaign())
+            && (row_faction.is_empty() || row_faction == *faction.key())
+            && (subculture.is_empty() || subculture == *faction.subculture()) {
+            skills.push(StartingSkill {
+                skill: row.str("character_skill_key")?.into_owned(),
+                tier: row.f32("tier")? as u32,
+                indent: row.f32("indent")?,
+                points: u32::try_from(points).unwrap_or_default(),
+            });
+        }
+    }
+    skills.sort_by_key(|skill| skill.tier);
+    Ok(skills)
 }
 
 /// Returns the agent types with a recruitment pool in a faction.

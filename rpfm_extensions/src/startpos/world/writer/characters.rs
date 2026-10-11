@@ -27,7 +27,7 @@ use crate::startpos::layout::{child_path, StartposLayout};
 use crate::startpos::coords::HexCell;
 use crate::startpos::tables::Row;
 use crate::startpos::vision::Vision;
-use crate::startpos::world::agents::{agent_abilities, agent_attributes, skill_set, ABILITIES, ATTRIBUTES};
+use crate::startpos::world::agents::{agent_abilities, agent_attributes, skill_set, starting_skills, ABILITIES, ATTRIBUTES};
 use crate::startpos::world::bodyguards::{bodyguard, Bodyguard};
 use crate::startpos::world::characters::{birth_year, loyalty, placement, Placement};
 use crate::startpos::world::government::faction_leader;
@@ -338,10 +338,20 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
             attributes.push_group()?.set_str("^+1", attribute)?.set_i32("^+2", i32::try_from(value).unwrap_or_default())?;
         }
 
+        let set_key = skill_set(self.inputs.tables, self.inputs.index, &info.agent, faction)?.unwrap_or_default();
+        let mut skills_block = child(layout, &format!("{path}/CAMPAIGN_SKILLS"), "CAMPAIGN_SKILLS_BLOCK")?;
+        for skill in starting_skills(self.inputs.tables, self.inputs.index, &set_key, faction)? {
+            skills_block.push_group()?
+                .set_str("^+1", &skill.skill)?
+                .set_u32("^+2", skill.tier)?
+                .set_f32("^+3", skill.indent)?
+                .set_u32("^+4", skill.points)?;
+        }
         let mut skills = child(layout, path, "CAMPAIGN_SKILLS")?;
         skills.group()?
-            .set_str("^+2", &skill_set(self.inputs.tables, self.inputs.index, &info.agent, faction)?.unwrap_or_default())?
-            .set_bool("^+4", info.is_male)?;
+            .set_str("^+2", &set_key)?
+            .set_bool("^+4", info.is_male)?
+            .set_record("CAMPAIGN_SKILLS_BLOCK", Some(skills_block.build()?))?;
 
         let seed = if subject.character_id != 0 { subject.character_id } else { subject.family_id };
         let art_set = self.art_set(faction, info, seed);

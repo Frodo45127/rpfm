@@ -26,12 +26,10 @@ use crate::startpos::world::writer::writer_test::{game_plan, world_test_data};
 /// more records.
 const MIN_MATCH_RATIO: f64 = 0.99;
 
-/// Records the writer leaves empty on purpose: the central AI beliefs and their links (the game rebuilds them) and
-/// agents' starting skills (source unknown).
-const KNOWN_EMPTY: [&str; 3] = [
+/// Records the writer leaves empty on purpose: the central AI beliefs and their links (the game rebuilds them).
+const KNOWN_EMPTY: [&str; 2] = [
     "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/CAI_INTERFACE/CAI_BDI_POOL/CAI_BDI_POOL_BELIEFS",
     "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/CAI_INTERFACE/CAI_BDI_POOL/CAI_BDI_POOL_DESIRES/CAI_BDI_COMPONENT/CAI_BDI_COMPONENT_BLOCK_OWNS",
-    "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/WORLD/FACTION_ARRAY/FACTION/CHARACTER_ARRAY/CHARACTER/CHARACTER_DETAILS/CAMPAIGN_SKILLS/CAMPAIGN_SKILLS_BLOCK",
 ];
 
 /// Records compared elsewhere, with the ids they hold translated (`WORLD`, `CAI_INTERFACE`).

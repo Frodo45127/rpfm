@@ -88,7 +88,7 @@ fn keyed_values(array: &RecordNode) -> Vec<(String, NodeType)> {
 fn test_agents_real_data() {
     let tables = test_data_tables();
     let index = CampaignIndex::new(tables, TEST_CAMPAIGN).unwrap();
-    let (mut characters, mut matches, mut pool_matches) = (0, 0, 0);
+    let (mut characters, mut matches, mut pool_matches, mut with_skills) = (0, 0, 0, 0);
 
     for faction_record in world_factions(world(test_startpos())) {
         let faction = index.faction(field_str(faction_record, 1)).unwrap();
@@ -103,14 +103,23 @@ fn test_agents_real_data() {
             let attributes = keyed_values(child_record(details, "AGENT_ATTRIBUTES").unwrap()).into_iter()
                 .map(|(key, value)| (key, match value { NodeType::I32(value) => i64::from(*value.value()), other => panic!("{other:?}") }))
                 .collect::<Vec<_>>();
-            let skills = field_str(child_record(details, "CAMPAIGN_SKILLS").unwrap(), 1);
+            let skills_record = child_record(details, "CAMPAIGN_SKILLS").unwrap();
+            let skills = field_str(skills_record, 1);
+            let starting = child_record(skills_record, "CAMPAIGN_SKILLS_BLOCK").map(|block| block.children().iter().map(|group| match group.as_slice() {
+                [NodeType::Ascii(skill), NodeType::U32(tier), NodeType::F32(indent), NodeType::U32(points)] => (skill.to_owned(), *tier.value(), *indent.value(), *points.value()),
+                other => panic!("{other:?}"),
+            }).collect::<Vec<_>>()).unwrap_or_default();
 
             let expected_abilities = ABILITIES.iter().map(|key| key.to_string()).zip(agent_abilities(tables, agent).unwrap()).collect::<Vec<_>>();
             let expected_attributes = ATTRIBUTES.iter().map(|key| key.to_string()).zip(agent_attributes(tables, agent).unwrap()).collect::<Vec<_>>();
             let expected_skills = skill_set(tables, &index, agent, faction).unwrap().unwrap_or_default();
+            let expected_starting = starting_skills(tables, &index, &expected_skills, faction).unwrap().into_iter()
+                .map(|skill| (skill.skill, skill.tier, skill.indent, skill.points))
+                .collect::<Vec<_>>();
 
             characters += 1;
-            matches += usize::from(abilities == expected_abilities && attributes == expected_attributes && skills == expected_skills);
+            matches += usize::from(abilities == expected_abilities && attributes == expected_attributes && skills == expected_skills && starting == expected_starting);
+            with_skills += usize::from(!starting.is_empty());
         }
 
         let mut pools = child_record(faction_record, "CHARACTER_RECRUITMENT_POOL_MANAGER")
@@ -125,5 +134,6 @@ fn test_agents_real_data() {
 
     assert_eq!(characters, 578);
     assert_eq!(matches, 578);
+    assert_eq!(with_skills, 1);
     assert_eq!(pool_matches, 118);
 }
