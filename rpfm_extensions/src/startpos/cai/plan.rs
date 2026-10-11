@@ -22,6 +22,7 @@ use getset::{CopyGetters, Getters};
 
 use std::collections::{HashMap, HashSet};
 
+use super::interface::{CENTRAL_DESIRES, DIRECTOR_BELIEFS, DIRECTOR_DESIRES};
 use super::managers::{FACTION_DESIRES, REBEL_DESIRES};
 use super::map::MapRegion;
 use super::world_view::WorldView;
@@ -33,9 +34,6 @@ pub const ROOT_ID: u32 = 2;
 
 /// Components of the AI's world mirror (its own and its time's).
 const WORLD_COMPONENTS: u32 = 2;
-
-/// Desires of the central pool: its analysers and log manager.
-pub const CENTRAL_DESIRES: u32 = 29;
 
 /// Agent types of the characters that only move with a force. Other agents move on their own, as mobiles.
 const FORCE_AGENTS: [&str; 2] = ["general", "colonel"];
@@ -104,6 +102,10 @@ pub struct CaiPlan {
     /// one).
     #[getset(get = "pub")]
     managers: Vec<ManagerIds>,
+
+    /// Ids of the director pool's beliefs, then its desires, in creation order.
+    #[getset(get = "pub")]
+    director: Vec<u32>,
 }
 
 /// What the id plan is built from.
@@ -261,7 +263,7 @@ impl CaiPlan {
     pub fn new(inputs: &PlanInputs) -> Self {
         let world = inputs.world;
         let mut plan = Self { next_id: ROOT_ID + 1 + WORLD_COMPONENTS, ..Default::default() };
-        plan.first_central_desire = plan.take(CENTRAL_DESIRES);
+        plan.first_central_desire = plan.take(CENTRAL_DESIRES.len() as u32);
         plan.theatre = plan.take(1);
         plan.regions = inputs.map_regions.iter().map(|region| {
             let id = plan.take(1);
@@ -339,6 +341,8 @@ impl CaiPlan {
         let desires = (0..REBEL_DESIRES).map(|_| plan.take(1)).collect();
         let intention = plan.take(1);
         plan.managers.push(ManagerIds { faction: plan.factions.len() - 1, desires, intention, ..Default::default() });
+
+        plan.director = (0..DIRECTOR_BELIEFS.len() + DIRECTOR_DESIRES.len()).map(|_| plan.take(1)).collect();
         plan
     }
 

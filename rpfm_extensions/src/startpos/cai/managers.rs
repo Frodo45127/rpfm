@@ -39,10 +39,10 @@ pub const FACTION_DESIRES: [u32; 28] = [39, 44, 37, 41, 38, 40, 34, 94, 108, 150
 pub const REBEL_DESIRES: usize = 18;
 
 /// AI level of the factions' managers.
-const FACTION_LEVEL: u32 = 7;
+pub(crate) const FACTION_LEVEL: u32 = 7;
 
 /// AI level of the rebels' manager.
-const REBEL_LEVEL: u32 = 2;
+pub(crate) const REBEL_LEVEL: u32 = 2;
 
 /// Value of `CAI_BDI_POOL_FAILED+1` in the rebels' pool (the factions' pools keep the layout's).
 const REBEL_POOL_VALUE: u32 = 3;
@@ -85,7 +85,7 @@ const FORCE_SKILLS_INTENTION: u32 = 172;
 const CHARACTER_SKILLS_INTENTION: u32 = 174;
 
 /// Values of an ownership entry linking an object to one it works for (analysers, intentions).
-const OWNER_LINK: (f32, f32, u32) = (0.0, 0.0, 1);
+pub(crate) const OWNER_LINK: (f32, f32, u32) = (0.0, 0.0, 1);
 
 /// Values of an ownership entry linking a skill desire to one of its intentions.
 const INTENTION_LINK: (f32, f32, u32) = (0.0, 1.0, 0);
@@ -137,19 +137,19 @@ pub struct ManagerInputs<'a> {
 
 /// Fields of a pool object's component that differ from its type's defaults.
 #[derive(Debug, Clone, Default)]
-struct ComponentFields {
+pub(crate) struct ComponentFields {
 
     /// Update flags.
-    flags: Option<u32>,
+    pub(crate) flags: Option<u32>,
 
     /// Ids of the objects the component lists (`^+5`).
-    users: Vec<u32>,
+    pub(crate) users: Option<Vec<u32>>,
 
     /// Ownership entries: the linked object, with the entry's values.
-    links: Vec<(u32, (f32, f32, u32))>,
+    pub(crate) links: Vec<(u32, (f32, f32, u32))>,
 
     /// Ids of the objects it refers to (`CAI_BDI_COMPONENT_BLOCK_OWNS+1`).
-    references: Vec<u32>,
+    pub(crate) references: Vec<u32>,
 }
 
 /// A manager being written: its ids and paths.
@@ -198,13 +198,51 @@ pub fn write_managers(inputs: &ManagerInputs) -> Result<RecordNode> {
     list.build()
 }
 
+/// Writes the component of a pool object from the defaults of its type.
+///
+/// # Arguments
+///
+/// * `layout` - Record layouts.
+/// * `variant` - Path of the object's type.
+/// * `id` - Component id.
+/// * `fields` - Fields that differ from the type's defaults.
+///
+/// # Errors
+///
+/// Returns an error if the layout lacks the component.
+pub(crate) fn pool_component(layout: &StartposLayout, variant: &str, id: u32, fields: ComponentFields) -> Result<RecordNode> {
+    let path = child_path(variant, "CAI_BDI_COMPONENT");
+    let mut ownership = layout.builder(&child_path(&path, "CAI_BDI_COMPONENT_BLOCK_OWNS"))?;
+    for (linked, (first, second, flag)) in &fields.links {
+        ownership.push_group()?
+            .set_u32("^+1", *linked)?
+            .set_u32("^+2", id)?
+            .set_f32("^+3", *first)?
+            .set_f32("^+4", *second)?
+            .set_u32("^+5", *flag)?;
+    }
+
+    let mut component = layout.builder(&path)?;
+    let group = component.group()?;
+    group.set_u32("^+1", id)?
+        .set_record("CAI_BDI_COMPONENT_BLOCK_OWNS", Some(ownership.build()?))?
+        .set_u32s("CAI_BDI_COMPONENT_BLOCK_OWNS+1", fields.references)?;
+    if let Some(users) = fields.users {
+        group.set_u32s("^+5", users)?;
+    }
+    if let Some(flags) = fields.flags {
+        group.set_u32("^+4", flags)?;
+    }
+    component.build()
+}
+
 /// Returns the path of the managers list.
 fn managers_path() -> String {
     child_path(CAI_PATH, "CAI_INTERFACE_MANAGERS")
 }
 
 /// Returns the order the game lists a map of AI objects in, from their components in insertion order.
-fn component_map_order(components: &[u32]) -> Vec<usize> {
+pub(crate) fn component_map_order(components: &[u32]) -> Vec<usize> {
     hash_map_order(&components.iter().map(|component| component ^ COMPONENT_HASH_SEED).collect::<Vec<_>>())
 }
 
@@ -289,8 +327,8 @@ impl ManagerContext<'_> {
             DIPLOMACY_MANAGER => Some(if wars.is_empty() { DIPLOMACY_FLAGS.1 } else { DIPLOMACY_FLAGS.0 }),
             _ => None,
         };
-        let users = if CAI_FACTION_USERS.contains(&code) { vec![self.cai_faction] } else { vec![] };
-        let component = self.component(&variant, id, ComponentFields { flags, users, links, references: vec![] })?;
+        let users = CAI_FACTION_USERS.contains(&code).then(|| vec![self.cai_faction]);
+        let component = pool_component(layout, &variant, id, ComponentFields { flags, users, links, references: vec![] })?;
 
         let group = desires.push_variant(code)?;
         group.set_record("CAI_BDI_COMPONENT", Some(component))?;
@@ -330,7 +368,7 @@ impl ManagerContext<'_> {
             _ => ("CAI_STRATEGIC_CONTEXT_ANALYSIS", (5.0, 0.0)),
         };
         let references = if code == FINANCIAL_ANALYSIS { vec![self.desire(FINANCE_MANAGER)] } else { vec![] };
-        let component = self.component(&variant, id, ComponentFields { flags: Some(FRESH_FLAGS), references, ..Default::default() })?;
+        let component = pool_component(layout, &variant, id, ComponentFields { flags: Some(FRESH_FLAGS), references, ..Default::default() })?;
 
         let mut properties = layout.builder(&child_path(&variant, "CAI_BDI_COMPONENT_PROPERTY_SET"))?;
         properties.group()?.set_u32("^+9", self.faction)?;
@@ -355,7 +393,7 @@ impl ManagerContext<'_> {
         let layout = self.inputs.layout;
         let variant = variant_path(&child_path(&managers_path(), "CAI_BDI_POOL/CAI_BDI_POOL_INTENTIONS"), code);
         let links = target.map(|target| vec![(target, OWNER_LINK)]).unwrap_or_default();
-        let component = self.component(&variant, id, ComponentFields { links, ..Default::default() })?;
+        let component = pool_component(layout, &variant, id, ComponentFields { links, ..Default::default() })?;
         let group = intentions.push_variant(code)?;
         group.set_record("CAI_BDI_COMPONENT", Some(component))?;
         if let Some(target) = target {
@@ -367,38 +405,6 @@ impl ManagerContext<'_> {
             self.set_single(group, &variant, key, "^+1", target)?;
         }
         Ok(())
-    }
-
-    /// Writes the component of a pool object from the defaults of its type.
-    ///
-    /// # Arguments
-    ///
-    /// * `variant` - Path of the object's type.
-    /// * `id` - Component id.
-    /// * `fields` - Fields that differ from the type's defaults.
-    fn component(&self, variant: &str, id: u32, fields: ComponentFields) -> Result<RecordNode> {
-        let layout = self.inputs.layout;
-        let path = child_path(variant, "CAI_BDI_COMPONENT");
-        let mut ownership = layout.builder(&child_path(&path, "CAI_BDI_COMPONENT_BLOCK_OWNS"))?;
-        for (linked, (first, second, flag)) in &fields.links {
-            ownership.push_group()?
-                .set_u32("^+1", *linked)?
-                .set_u32("^+2", id)?
-                .set_f32("^+3", *first)?
-                .set_f32("^+4", *second)?
-                .set_u32("^+5", *flag)?;
-        }
-
-        let mut component = layout.builder(&path)?;
-        let group = component.group()?;
-        group.set_u32("^+1", id)?
-            .set_u32s("^+5", fields.users)?
-            .set_record("CAI_BDI_COMPONENT_BLOCK_OWNS", Some(ownership.build()?))?
-            .set_u32s("CAI_BDI_COMPONENT_BLOCK_OWNS+1", fields.references)?;
-        if let Some(flags) = fields.flags {
-            group.set_u32("^+4", flags)?;
-        }
-        component.build()
     }
 
     /// Sets a child record of a pool object holding one reference.

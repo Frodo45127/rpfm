@@ -139,15 +139,26 @@ impl CaiContext {
     ///
     /// Returns an error if a table is missing or the layout lacks a record.
     pub fn write_world(&self, inputs: &CaiInputs) -> Result<RecordNode> {
-        let layout = inputs.layout;
+        self.with_mobiles(inputs, |mobile_inputs| self.write_world_with(inputs, mobile_inputs))
+    }
+
+    /// Runs a writer with what the mobiles are written from: their settlements, ports and connectivity groups.
+    pub(crate) fn with_mobiles<T>(&self, inputs: &CaiInputs, write: impl FnOnce(&MobileInputs) -> Result<T>) -> Result<T> {
         let (plan, world, map_regions) = (&self.plan, &self.world, &self.map_regions[..]);
         let groups = AreaGroups::new(&self.region_map, map_regions);
         let settlements = settlement_components(world, plan, map_regions);
         let ports = port_cells(world, map_regions, &groups);
-        let mobile_inputs = MobileInputs { layout, plan, world, region_map: &self.region_map, groups: &groups, settlements: &settlements, ports: &ports };
-        let mobiles = mobile_cells(&mobile_inputs);
+        write(&MobileInputs { layout: inputs.layout, plan, world, region_map: &self.region_map, groups: &groups, settlements: &settlements, ports: &ports })
+    }
+
+    /// Writes the world mirror from what the mobiles are written from.
+    pub(crate) fn write_world_with(&self, inputs: &CaiInputs, mobile_inputs: &MobileInputs) -> Result<RecordNode> {
+        let layout = inputs.layout;
+        let (plan, world, map_regions) = (&self.plan, &self.world, &self.map_regions[..]);
+        let ports = mobile_inputs.ports;
+        let mobiles = mobile_cells(mobile_inputs);
         let victory = victory_factions(inputs.tables, inputs.index, world, plan)?;
-        let links = region_links(&LinkInputs { plan, world, map_regions, region_map: &self.region_map, mobiles: &mobiles, ports: &ports, victory_factions: &victory });
+        let links = region_links(&LinkInputs { plan, world, map_regions, region_map: &self.region_map, mobiles: &mobiles, ports, victory_factions: &victory });
         let positions = region_positions(map_regions, &self.nodes);
         let capitals = capitals(inputs.index, world, plan, map_regions);
         let faction_links = faction_links(inputs.tables, inputs.index, world, plan, map_regions)?;
@@ -160,11 +171,11 @@ impl CaiContext {
             .set_record("CAI_WORLD_FACTIONS", Some(write_factions(layout, plan, &faction_links)?))?
             .set_record("CAI_WORLD_REGIONS", Some(write_regions(layout, plan, map_regions, &self.nodes, &links)?))?
             .set_record("CAI_WORLD_REGION_BOUNDARIES", Some(write_boundaries(layout, plan)?))?
-            .set_record("CAI_WORLD_SETTLEMENTS", Some(write_settlements(&mobile_inputs, map_regions, &positions, &capitals)?))?
+            .set_record("CAI_WORLD_SETTLEMENTS", Some(write_settlements(mobile_inputs, map_regions, &positions, &capitals)?))?
             .set_record("CAI_WORLD_BUILDING_SLOTS", Some(write_building_slots(layout, plan, world, map_regions, &self.settlement_layouts)?))?
-            .set_record("CAI_WORLD_RESOURCE_MOBILES", Some(write_mobiles(&mobile_inputs)?))?
-            .set_record("CAI_WORLD_UNITS", Some(write_units(&mobile_inputs)?))?
-            .set_record("CAI_WORLD_CHARACTERS", Some(write_characters(&mobile_inputs)?))?
+            .set_record("CAI_WORLD_RESOURCE_MOBILES", Some(write_mobiles(mobile_inputs)?))?
+            .set_record("CAI_WORLD_UNITS", Some(write_units(mobile_inputs)?))?
+            .set_record("CAI_WORLD_CHARACTERS", Some(write_characters(mobile_inputs)?))?
             .set_record("CAI_BDI_COMPONENT", Some(component(layout, CAI_WORLD_PATH, WORLD_COMPONENT, vec![])?))?
             .set_record("CAI_BDI_COMPONENT@2", Some(component(layout, CAI_WORLD_PATH, TIME_COMPONENT, vec![])?))?
             .set_record("CAI_WORLD_TRADE_ROUTE_SEGMENTS", Some(write_trade_segments(layout, plan, inputs.trade_splines)?))?
