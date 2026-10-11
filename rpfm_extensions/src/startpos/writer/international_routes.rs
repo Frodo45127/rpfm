@@ -25,6 +25,7 @@ use rpfm_lib::error::Result;
 use rpfm_lib::files::esf::{NodeType, RecordNode};
 
 use super::{bool_node, f32_node, u32_node, u32s_node};
+use super::trade::faction_map_order;
 use crate::startpos::layout::{child_path, StartposLayout};
 use crate::startpos::tables::StartposTables;
 use crate::startpos::trade::TradeNetwork;
@@ -142,7 +143,7 @@ pub fn write_international_routes(layout: &StartposLayout, tables: &StartposTabl
     let array_path = child_path(ROUTES_PATH, "FACTION_INTERNATIONAL_TRADE_ROUTES_ARRAY");
     let route_path = child_path(&array_path, "INTERNATIONAL_TRADE_ROUTE");
     let mut entries = layout.builder(ROUTES_PATH)?;
-    for faction in plan.factions() {
+    for faction in faction_map_order(plan) {
         let mut array = layout.builder(&array_path)?;
         for route in routes.iter().filter(|route| route.owner == *faction.key()) {
             let mut children = vec![u32_node(route.id), u32s_node(route.path.clone()), bool_node(route.sea_step.is_some())];

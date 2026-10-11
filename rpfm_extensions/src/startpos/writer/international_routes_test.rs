@@ -8,7 +8,7 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::BufReader;
 
@@ -52,9 +52,8 @@ fn test_international_routes_match_the_game_startpos() {
     let model = child_record(child_record(root, "CAMPAIGN_ENV").unwrap(), "CAMPAIGN_MODEL").unwrap();
     let game = child_record(child_record(model, "CAMPAIGN_TRADE_MANAGER").unwrap(), "INTERNATIONAL_TRADE_ROUTES").unwrap();
 
-    // Every faction has its entry (the game lists them in a hash order), and the same routes (by owner and
-    // destination) exist on both sides.
-    let entry_owners = |record: &RecordNode| record.children().iter().map(|entry| as_u32(&entry[0]).unwrap()).collect::<BTreeSet<_>>();
+    // Every faction has its entry, in the same order, and the same routes (by owner and destination) exist on both sides.
+    let entry_owners = |record: &RecordNode| record.children().iter().map(|entry| as_u32(&entry[0]).unwrap()).collect::<Vec<_>>();
     assert_eq!(entry_owners(&written), entry_owners(game));
     let (ours, theirs) = (routes_by_ends(&written), routes_by_ends(game));
     assert_eq!(ours.keys().collect::<Vec<_>>(), theirs.keys().collect::<Vec<_>>());

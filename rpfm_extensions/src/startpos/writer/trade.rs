@@ -20,10 +20,11 @@ use rpfm_lib::files::esf::{NodeType, RecordNode};
 
 use super::{bool_node, coordinates_node, f32_node, u32_node};
 use super::international_routes::write_international_routes;
+use crate::startpos::cai::managers::component_map_order;
 use crate::startpos::layout::{child_path, StartposLayout};
 use crate::startpos::tables::StartposTables;
 use crate::startpos::trade::{NetworkRoute, NetworkSpline, TradeNetwork};
-use crate::startpos::world::CampaignIndex;
+use crate::startpos::world::{CampaignIndex, FactionEntry};
 use crate::startpos::world::writer::WorldPlan;
 
 /// Path of the trade manager.
@@ -107,6 +108,12 @@ fn write_routes(layout: &StartposLayout, key: &str, routes: &[NetworkRoute]) -> 
     array.build()
 }
 
+/// Returns the factions in the order the game lists its maps of trade routes by faction in.
+pub(super) fn faction_map_order<'a>(plan: &WorldPlan<'a>) -> Vec<&'a FactionEntry> {
+    let ids = plan.factions().iter().map(|faction| plan.faction_id(faction.key()).unwrap_or_default()).collect::<Vec<_>>();
+    component_map_order(&ids).into_iter().map(|position| plan.factions()[position]).collect()
+}
+
 /// Writes the tradeable resources (`RESOURCES`): every `resources` row, with the baseline price of its commodity (1
 /// without one) as its supply and demand, and that price's value.
 fn write_resources(layout: &StartposLayout, tables: &StartposTables) -> Result<RecordNode> {
@@ -132,7 +139,7 @@ fn write_resources(layout: &StartposLayout, tables: &StartposTables) -> Result<R
 /// Writes one entry per faction, with its id and no routes, for `DOMESTIC_TRADE_ROUTES`.
 fn write_faction_routes(layout: &StartposLayout, plan: &WorldPlan, key: &str) -> Result<RecordNode> {
     let mut array = layout.builder(&child_path(TRADE_PATH, key))?;
-    for faction in plan.factions() {
+    for faction in faction_map_order(plan) {
         array.push_group()?.set_u32("^+1", plan.faction_id(faction.key()).unwrap_or_default())?;
     }
     array.build()
