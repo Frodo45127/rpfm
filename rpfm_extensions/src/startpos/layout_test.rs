@@ -8,7 +8,7 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-use rpfm_lib::files::esf::U32Node;
+use rpfm_lib::files::esf::{U32Node, VecU32Node};
 
 use super::*;
 use crate::startpos::startpos_test::test_startpos;
@@ -246,4 +246,17 @@ fn test_variant_arrays_keep_defaults_by_type() {
 
     assert_eq!(built.children(), &vec![desire(2, 7), desire(1, 5)]);
     assert!(layout.builder("ROOT/CAI_BDI_POOL_DESIRES").unwrap().push_variant(3).is_err());
+}
+
+#[test]
+fn test_slot_defaults_drop_long_arrays() {
+    let long = NodeType::U32Array({ let mut node = VecU32Node::default(); node.set_value((0..=MAX_DEFAULT_ARRAY_LEN as u32).collect()); node });
+    let analyser = record("ANALYSER", RecordNodeFlags::empty(), vec![vec![long, NodeType::U8(3)]]);
+    let mut esf = ESF::default();
+    esf.set_root_node(record("ROOT", RecordNodeFlags::empty(), vec![vec![analyser]]));
+    let layout = StartposLayout::from_esf(&esf).unwrap();
+
+    let built = layout.default_record("ROOT").unwrap();
+    let NodeType::Record(analyser) = &built.children()[0][0] else { panic!("not a record") };
+    assert_eq!(analyser.children()[0], vec![NodeType::U32Array(VecU32Node::default()), NodeType::U8(3)]);
 }

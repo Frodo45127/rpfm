@@ -837,7 +837,10 @@ impl PathStats {
                     // Like leaves, ties go to the smallest text form.
                     let default = contents.and_then(|contents| contents.into_iter()
                         .max_by(|(text_a, (count_a, _)), (text_b, (count_b, _))| count_a.cmp(count_b).then_with(|| text_b.cmp(text_a)))
-                        .map(|(_, (_, record))| record));
+                        .map(|(_, (_, mut record))| {
+                            trim_record(&mut record);
+                            record
+                        }));
                     slots.push(Slot::Record { key, optional, default });
                 },
                 SlotStats::Leaf { values, .. } => {
@@ -928,6 +931,16 @@ pub fn child_path(parent: &str, key: &str) -> String {
 /// * `code` - Type code of the groups.
 pub fn variant_path(path: &str, code: u32) -> String {
     format!("{path}[{code}]")
+}
+
+/// Empties the arrays longer than [`MAX_DEFAULT_ARRAY_LEN`] of a record and everything under it.
+fn trim_record(record: &mut RecordNode) {
+    for node in record.children_mut().iter_mut().flatten() {
+        match node {
+            NodeType::Record(child) => trim_record(child),
+            node => trim_default(node),
+        }
+    }
 }
 
 /// Empties array defaults longer than [`MAX_DEFAULT_ARRAY_LEN`].
