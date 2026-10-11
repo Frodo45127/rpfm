@@ -22,6 +22,7 @@ use super::missions::VictoryObjectives;
 use super::trade::TradeNetwork;
 use super::world::writer::forces::ForcePlan;
 use super::world::writer::{write_world_with_plan, WorldInputs, WorldPlan};
+use self::dynamic_resources::DynamicResourcesInputs;
 
 mod counters;
 mod diplomacy;
@@ -66,6 +67,9 @@ pub struct StartposInputs<'a> {
     /// Decoded `hlp_data.esf` of the campaign map.
     pub hlp_data: &'a ESF,
 
+    /// Decoded `dynamic_resources.esf` of the campaign map.
+    pub dynamic_resources: &'a ESF,
+
     /// Campaign key.
     pub campaign: &'a str,
 }
@@ -106,6 +110,8 @@ pub fn write_startpos<'a>(inputs: &StartposInputs<'a>, plan: &WorldPlan<'a>) -> 
     let campaign_director = cai_context.write_campaign_director(layout)?;
     let index_tables = counters::write_index_tables(layout, &[&world_record, &trade_manager])?;
 
+    let dynamic_resources_inputs = DynamicResourcesInputs { layout, tables: world.tables, index: world.index, plan, map_data: inputs.map_data, dynamic_resources: inputs.dynamic_resources };
+
     let mut model = layout.builder(MODEL_PATH)?;
     model.group()?
         .set_record("WORLD", Some(world_record))?
@@ -115,7 +121,7 @@ pub fn write_startpos<'a>(inputs: &StartposInputs<'a>, plan: &WorldPlan<'a>) -> 
         .set_record("CAMPAIGN_TRADE_MANAGER", Some(trade_manager))?
         .set_record("DIPLOMACY_MANAGER", Some(diplomacy::write_diplomacy_manager(layout, plan)?))?
         .set_record("CAMPAIGN_MAP_DATA", Some(map_data::write_map_data(world, plan)?))?
-        .set_record("DYNAMIC_RESOURCES_MANAGER", Some(dynamic_resources::write_dynamic_resources_manager(layout, plan)?))?;
+        .set_record("DYNAMIC_RESOURCES_MANAGER", Some(dynamic_resources::write_dynamic_resources_manager(&dynamic_resources_inputs)?))?;
 
     let mut env = layout.builder(ENV_PATH)?;
     env.group()?

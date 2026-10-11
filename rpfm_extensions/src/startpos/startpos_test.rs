@@ -44,7 +44,7 @@ pub(crate) const TEST_CAMPAIGN: &str = "main_attila";
 const TEST_TABLES: &[&str] = &[
     "agent_culture_details", "agent_to_agent_abilities", "agent_to_agent_attributes", "agents",
     "armed_citizenry_units_to_unit_groups_junctions", "battlefield_engines", "building_level_armed_citizenry_junctions",
-    "building_levels", "campaign_character_art_sets", "campaign_character_art_sets_group_junctions",
+    "building_chains", "building_levels", "campaign_character_art_sets", "campaign_character_art_sets_group_junctions",
     "character_skill_node_sets", "character_trait_levels", "commander_unit_permissions", "commodities", "cultures_subcultures",
     "faction_political_parties_junctions", "faction_to_mercenary_set_junctions", "factions", "land_units", "main_units",
     "mercenary_pool_to_groups_junctions", "mercenary_unit_groups", "military_force_legacy_emblems",

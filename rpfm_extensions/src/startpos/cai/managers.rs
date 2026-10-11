@@ -324,7 +324,8 @@ fn managers_path() -> String {
     child_path(CAI_PATH, "CAI_INTERFACE_MANAGERS")
 }
 
-/// Returns the order the game lists a map of AI objects in, from their components in insertion order.
+/// Returns the order the game lists a map of objects keyed by id in (AI components, regions...), from their ids in
+/// insertion order.
 pub(crate) fn component_map_order(components: &[u32]) -> Vec<usize> {
     hash_map_order(&components.iter().map(|component| component ^ COMPONENT_HASH_SEED).collect::<Vec<_>>())
 }

@@ -26,12 +26,11 @@ use crate::startpos::world::writer::writer_test::{game_plan, world_test_data};
 /// more records.
 const MIN_MATCH_RATIO: f64 = 0.99;
 
-/// Records the writer leaves empty on purpose: the central AI beliefs and their links (the game rebuilds them), the
-/// regions' dynamic resources and agents' starting skills (sources unknown).
-const KNOWN_EMPTY: [&str; 4] = [
+/// Records the writer leaves empty on purpose: the central AI beliefs and their links (the game rebuilds them) and
+/// agents' starting skills (source unknown).
+const KNOWN_EMPTY: [&str; 3] = [
     "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/CAI_INTERFACE/CAI_BDI_POOL/CAI_BDI_POOL_BELIEFS",
     "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/CAI_INTERFACE/CAI_BDI_POOL/CAI_BDI_POOL_DESIRES/CAI_BDI_COMPONENT/CAI_BDI_COMPONENT_BLOCK_OWNS",
-    "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/DYNAMIC_RESOURCES_MANAGER/REGION_DYNAMIC_RESOURCES_MANAGERS_BLOCK/REGION_DYNAMIC_RESOURCES_MANAGER/",
     "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/WORLD/FACTION_ARRAY/FACTION/CHARACTER_ARRAY/CHARACTER/CHARACTER_DETAILS/CAMPAIGN_SKILLS/CAMPAIGN_SKILLS_BLOCK",
 ];
 
@@ -69,7 +68,8 @@ fn test_startpos_matches_the_game_startpos() {
     let victory_text = std::fs::read(test_data_path("victory_objectives.txt")).unwrap();
     let victory_objectives = parse_victory_objectives(&String::from_utf8_lossy(&victory_text)).unwrap();
     let (map_data, hlp_data) = (test_data_esf("map_data.esf"), test_data_esf("hlp_data.esf"));
-    let inputs = StartposInputs { world: &world, trade_network: &trade_network, victory_objectives: &victory_objectives, map_data: &map_data, hlp_data: &hlp_data, campaign: TEST_CAMPAIGN };
+    let dynamic_resources = test_data_esf("dynamic_resources.esf");
+    let inputs = StartposInputs { world: &world, trade_network: &trade_network, victory_objectives: &victory_objectives, map_data: &map_data, hlp_data: &hlp_data, dynamic_resources: &dynamic_resources, campaign: TEST_CAMPAIGN };
     let plan = game_plan(&index);
 
     let written = write_startpos(&inputs, &plan).unwrap();
