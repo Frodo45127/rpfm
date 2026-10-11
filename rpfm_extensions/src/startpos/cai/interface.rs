@@ -9,7 +9,8 @@
 //---------------------------------------------------------------------------//
 
 //! Writer of the AI state (`CAI_INTERFACE`): the world mirror, the central pool of analysers, the faction managers
-//! and their AI levels, the director's pool, the high-level pathfinder and the influence maps.
+//! and their AI levels, the director's pool, the high-level pathfinder and the influence maps. Also writes the
+//! campaign director (`CAMPAIGN_DIRECTOR`), which refers to the director's pool.
 //!
 //! The pathfinder is copied from the map's `hlp_data.esf`. The influence maps and every belief start empty: the game
 //! fills them in while playing. The region distances keep the layout's values, which are the campaign's own.
@@ -17,7 +18,7 @@
 use rpfm_lib::error::{RLibError, Result};
 use rpfm_lib::files::esf::{NodeType, RecordNode};
 
-use super::managers::{component_map_order, empty_analyser, pool_component, write_managers, ComponentFields, ManagerInputs};
+use super::managers::{component_map_order, empty_analyser, pool_component, write_managers, ComponentFields, ManagerInputs, ManagerKind};
 use super::mobiles::mobile_cells;
 use super::stances::StartingStances;
 use super::world::{CaiContext, CaiInputs};
@@ -31,8 +32,17 @@ use crate::startpos::writer::{bool_node, i32_node, u32_node};
 /// Type codes of the central pool's desires, in creation order.
 pub const CENTRAL_DESIRES: [u32; 29] = [32, 33, 36, 35, 42, 31, 43, 30, 45, 47, 92, 39, 128, 130, 132, 136, 134, 46, 153, 155, 157, 162, 164, 166, 168, 178, 181, 187, 181];
 
-/// Type codes of the director pool's beliefs, in creation order: its time and its world.
-pub const DIRECTOR_BELIEFS: [u32; 2] = [3, 2];
+/// Type code of the director pool's time belief.
+const DIRECTOR_TIME: u32 = 3;
+
+/// Type code of the director pool's world belief.
+const DIRECTOR_WORLD: u32 = 2;
+
+/// Type codes of the director pool's beliefs, in creation order.
+pub const DIRECTOR_BELIEFS: [u32; 2] = [DIRECTOR_TIME, DIRECTOR_WORLD];
+
+/// Path of the campaign director.
+const CAMPAIGN_DIRECTOR_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/CAMPAIGN_DIRECTOR";
 
 /// Type codes of the director pool's desires, in creation order: the player rival score and unit balance analysers,
 /// the top level desire and the event generator.
@@ -99,6 +109,34 @@ impl CaiContext {
             .set_record("CAI_HIGH_LEVEL_PATHFINDER", Some(pathfinder.clone()))?
             .set_record("CAI_INFLUENCE_MAP_MANAGER", Some(influence))?;
         record.build()
+    }
+
+    /// Writes the campaign director (`CAMPAIGN_DIRECTOR`), which the game binds to the AI director's world belief
+    /// on load: a missing belief aborts the load, and another object under its id gets corrupted.
+    ///
+    /// # Arguments
+    ///
+    /// * `layout` - Record layouts.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the layout lacks the records.
+    pub fn write_campaign_director(&self, layout: &StartposLayout) -> Result<RecordNode> {
+        let plan = self.plan();
+        let world_belief = DIRECTOR_BELIEFS.iter().position(|code| *code == DIRECTOR_WORLD).map(|index| plan.director()[index]).unwrap_or_default();
+        let playable = plan.factions().iter().zip(plan.manager_kinds())
+            .filter(|(_, kind)| **kind == ManagerKind::Human)
+            .map(|(ids, _)| ids.faction())
+            .collect();
+
+        let mut interface = layout.builder(&child_path(CAMPAIGN_DIRECTOR_PATH, "CDIR_INTERFACE"))?;
+        interface.group()?
+            .set_u32("^+1", world_belief)?
+            .set_u32s("CDIR_INTERFACE_UBER_FACTIONS+2", playable)?;
+
+        let mut director = layout.builder(CAMPAIGN_DIRECTOR_PATH)?;
+        director.push_group()?.set_record("CDIR_INTERFACE", Some(interface.build()?))?;
+        director.build()
     }
 
     /// Writes the central pool: its analysers and log manager, with their type's defaults.

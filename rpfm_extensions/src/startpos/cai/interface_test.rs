@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use super::*;
 use crate::startpos::cai::cai_test::{game_cai_record, game_trade_routes, id_translation, test_inputs, translate};
 use crate::startpos::cai::CAI_WORLD_PATH;
-use crate::startpos::esf_nav::as_u32;
+use crate::startpos::esf_nav::{as_record, as_u32};
 use crate::startpos::startpos_test::{compare, test_data_esf, test_data_tables, test_startpos, world, Report, TEST_CAMPAIGN};
 use crate::startpos::world::CampaignIndex;
 
@@ -107,6 +107,13 @@ fn test_interface_matches_the_game_startpos() {
     // The factions' maps: count and faction components (the game's maps have tiles, ours start empty).
     let faction_keys = |record: &RecordNode, entries: usize| record.children()[0][1 + INFLUENCE_ENTRY_LEN * entries..].iter().filter_map(as_u32).collect::<Vec<_>>();
     assert_eq!(faction_keys(written_child(&written, "CAI_INFLUENCE_MAP_MANAGER"), ours.len()), faction_keys(game_cai_record("CAI_INFLUENCE_MAP_MANAGER"), theirs.len()));
+
+    let mut model = as_record(test_startpos().root_node()).unwrap();
+    for name in ["CAMPAIGN_ENV", "CAMPAIGN_MODEL", "CAMPAIGN_DIRECTOR"] {
+        model = child_record(model, name).unwrap();
+    }
+    let campaign_director = translate(&context.write_campaign_director(&layout).unwrap(), &translation);
+    assert_eq!(&campaign_director, model);
 
     let world_record = translate(written_child(&written, "CAI_WORLD"), &id_translation(&test_inputs()));
     assert!(match_ratio(&layout, &world_record, game_cai_record("CAI_WORLD"), CAI_WORLD_PATH) >= 0.99);
