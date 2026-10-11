@@ -51,7 +51,7 @@ const TEST_TABLES: &[&str] = &[
     "military_force_legacy_names", "ministerial_positions", "ministerial_positions_culture_details", "naval_units",
     "political_parties", "province_to_mercenary_set_junctions", "region_to_province_junctions", "religions", "resources",
     "start_pos_calendars", "start_pos_character_to_settlements", "start_pos_character_traits", "start_pos_characters",
-    "start_pos_diplomacy", "start_pos_factions", "start_pos_horde_details", "start_pos_land_units",
+    "start_pos_diplomacy", "start_pos_family_relationships", "start_pos_factions", "start_pos_horde_details", "start_pos_land_units",
     "start_pos_naval_units", "start_pos_past_events", "start_pos_region_religions", "start_pos_region_slot_templates",
     "start_pos_regions", "start_pos_settlements", "start_pos_technologies", "start_pos_victory_conditions",
     "technology_node_sets", "technology_nodes", "technology_unit_upgrades", "units_to_groupings_military_permissions",

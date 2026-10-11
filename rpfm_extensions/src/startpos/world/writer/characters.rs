@@ -31,7 +31,9 @@ use crate::startpos::world::agents::{agent_abilities, agent_attributes, skill_se
 use crate::startpos::world::bodyguards::{bodyguard, Bodyguard};
 use crate::startpos::world::characters::{birth_year, loyalty, placement, Placement};
 use crate::startpos::world::government::faction_leader;
-use crate::startpos::world::{CampaignIndex, FactionEntry};
+use crate::startpos::world::{CampaignIndex, CharacterEntry, FactionEntry};
+
+#[path = "family.rs"] mod family;
 
 #[cfg(test)] #[path = "characters_test.rs"] mod characters_test;
 
@@ -119,6 +121,31 @@ struct ArtSet {
     faction: String,
     subculture: String,
     culture: String,
+}
+
+/// Who a `CHARACTER_DETAILS` record describes: a character of the world, or a dead one of the family tree.
+struct DetailsSubject<'r> {
+
+    /// Path of the record.
+    path: &'r str,
+
+    /// The character's faction.
+    faction: &'r FactionEntry,
+
+    /// The character's table entry, `None` for colonels.
+    entry: Option<&'r CharacterEntry>,
+
+    /// Runtime id of the character, 0 for the dead.
+    character_id: u32,
+
+    /// Family member id of the character.
+    family_id: u32,
+
+    /// Death year and death type code, for the dead.
+    death: Option<(u32, i32)>,
+
+    /// Bodyguard of a general without a force.
+    bodyguard: Option<Bodyguard>,
 }
 
 /// What the writer needs to know about a character, from its table row or as a generated colonel.
@@ -255,7 +282,7 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
         record.group()?
             .set_record("LOCOMOTABLE", Some(locomotable.build()?))?
             .set_u32("LOCOMOTABLE+1", character.id())?
-            .set_record("CHARACTER_DETAILS", Some(self.write_details(position, character, &info)?))?
+            .set_record("CHARACTER_DETAILS", Some(self.write_details(&self.subject(position, character, &info), &info)?))?
             .set_str("CHARACTER_DETAILS+1", &info.agent)?
             .set_u32("CHARACTER_DETAILS+2", force.map(|force| force.id()).unwrap_or_default())?
             .set_u32("CHARACTER_DETAILS+3", force.and_then(|force| force.commander_unit_id()).unwrap_or_default())?
@@ -268,41 +295,57 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
         record.build()
     }
 
-    /// Writes the details of a character: names, birth, traits, abilities, skills, art set and bodyguard.
-    fn write_details(&self, position: usize, character: &PlannedCharacter, info: &CharacterInfo) -> Result<RecordNode> {
-        let layout = self.inputs.layout;
+    /// Returns what the details of a character of the world are written from.
+    fn subject<'r>(&'r self, position: usize, character: &'r PlannedCharacter, info: &CharacterInfo) -> DetailsSubject<'r> {
         let faction = character.faction();
+        let bodyguard = self.bodyguards.get(faction.key()).cloned().flatten().filter(|_| info.agent != COLONEL_AGENT && character.force().is_none());
+        DetailsSubject {
+            path: DETAILS_PATH,
+            faction,
+            entry: character.entry(),
+            character_id: character.id(),
+            family_id: self.family_ids[position],
+            death: None,
+            bodyguard,
+        }
+    }
+
+    /// Writes the details of a character: names, birth (and death), traits, abilities, skills, art set and bodyguard.
+    fn write_details(&self, subject: &DetailsSubject, info: &CharacterInfo) -> Result<RecordNode> {
+        let layout = self.inputs.layout;
+        let (path, faction) = (subject.path, subject.faction);
         let row = info.row;
 
-        let mut birth = child(layout, DETAILS_PATH, "DATE")?;
+        let mut birth = child(layout, path, "DATE")?;
         birth.group()?.set_u32("^+1", info.birth_year)?;
 
-        let mut traits = child(layout, &format!("{DETAILS_PATH}/TRAITS"), "TRAIT")?;
-        let character_traits = character.entry().and_then(|entry| self.traits.get(entry.id())).map(Vec::as_slice).unwrap_or_default();
+        let mut traits = child(layout, &format!("{path}/TRAITS"), "TRAIT")?;
+        let character_traits = subject.entry.and_then(|entry| self.traits.get(entry.id())).map(Vec::as_slice).unwrap_or_default();
         for (key, points) in character_traits {
             traits.push_group()?
                 .set_str("^+1", key)?
                 .set_i32("^+2", i32::try_from(*points).unwrap_or_default())?;
         }
-        let mut traits_record = child(layout, DETAILS_PATH, "TRAITS")?;
+        let mut traits_record = child(layout, path, "TRAITS")?;
         traits_record.group()?.set_record("TRAIT", Some(traits.build()?))?;
 
-        let mut abilities = child(layout, DETAILS_PATH, "AGENT_ABILITIES")?;
+        let mut abilities = child(layout, path, "AGENT_ABILITIES")?;
         for (ability, enabled) in ABILITIES.iter().zip(agent_abilities(self.inputs.tables, &info.agent)?) {
             abilities.push_group()?.set_str("^+1", ability)?.set_bool("^+2", enabled)?;
         }
-        let mut attributes = child(layout, DETAILS_PATH, "AGENT_ATTRIBUTES")?;
+        let mut attributes = child(layout, path, "AGENT_ATTRIBUTES")?;
         for (attribute, value) in ATTRIBUTES.iter().zip(agent_attributes(self.inputs.tables, &info.agent)?) {
             attributes.push_group()?.set_str("^+1", attribute)?.set_i32("^+2", i32::try_from(value).unwrap_or_default())?;
         }
 
-        let mut skills = child(layout, DETAILS_PATH, "CAMPAIGN_SKILLS")?;
+        let mut skills = child(layout, path, "CAMPAIGN_SKILLS")?;
         skills.group()?
             .set_str("^+2", &skill_set(self.inputs.tables, self.inputs.index, &info.agent, faction)?.unwrap_or_default())?
             .set_bool("^+4", info.is_male)?;
 
-        let art_set = self.art_set(character, info);
-        let mut art_set_info = child(layout, DETAILS_PATH, "CHARACTER_DETAILS_ART_SET_INFO")?;
+        let seed = if subject.character_id != 0 { subject.character_id } else { subject.family_id };
+        let art_set = self.art_set(faction, info, seed);
+        let mut art_set_info = child(layout, path, "CHARACTER_DETAILS_ART_SET_INFO")?;
         art_set_info.group()?
             .set_str("^+1", faction.key())?
             .set_str("^+2", faction.culture())?
@@ -310,27 +353,33 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
             .set_str("^+4", art_set_agent(&info.agent))?
             .set_str("^+5", art_set)?;
 
-        let mut record = layout.builder(DETAILS_PATH)?;
-        record.group()?
-            .set_record("TRAITS", Some(traits_record.build()?))?
-            .set_record("CHARACTER_NAME", Some(self.write_name(DETAILS_PATH, row)?))?
+        let mut record = layout.builder(path)?;
+        let group = record.group()?;
+        if let Some((year, code)) = subject.death {
+            let mut death = child(layout, path, "DATE@2")?;
+            death.group()?.set_u32("^+1", year)?;
+            group.set_record("DATE@2", Some(death.build()?))?.set_i32("DATE@2+1", code)?;
+        }
+        group.set_record("TRAITS", Some(traits_record.build()?))?
+            .set_record("CHARACTER_NAME", Some(self.write_name(path, row)?))?
             .set_record("DATE", Some(birth.build()?))?
             .set_str("DATE@2+2", faction.key())?
-            .set_u32("DATE@2+3", character.id())?
+            .set_u32("DATE@2+3", subject.character_id)?
             .set_record("AGENT_ABILITIES", Some(abilities.build()?))?
             .set_record("AGENT_ATTRIBUTES", Some(attributes.build()?))?
             .set_bool("AGENT_ATTRIBUTES+3", info.is_male)?
             .set_str("AGENT_ATTRIBUTES+6", &info.agent)?
             .set_record("CAMPAIGN_SKILLS", Some(skills.build()?))?
             .set_record("CHARACTER_DETAILS_ART_SET_INFO", Some(art_set_info.build()?))?
-            .set_record("GENERAL_BODYGUARD_DETAILS", Some(self.write_bodyguard(character, info)?))?
-            .set_u32("GENERAL_BODYGUARD_DETAILS+1", self.family_ids[position])?
+            .set_record("GENERAL_BODYGUARD_DETAILS", Some(self.write_bodyguard(path, subject.bodyguard.as_ref())?))?
+            .set_u32("GENERAL_BODYGUARD_DETAILS+1", subject.family_id)?
             .set_str("GENERAL_BODYGUARD_DETAILS+6", &format!("{art_set}{ART_SET_SUFFIX}"))?
             .set_str("GENERAL_BODYGUARD_DETAILS+8", faction.key())?;
 
-        if let (Some(row), Some(entry)) = (row, character.entry()) {
+        if let (Some(row), Some(entry)) = (row, subject.entry) {
+            let ambition = if subject.death.is_some() { 0 } else { u32::try_from(row.int("ambition")?).unwrap_or_default() };
             record.group()?
-                .set_u32("CAMPAIGN_EFFECT_BUNDLES+3", u32::try_from(row.int("ambition")?).unwrap_or_default())?
+                .set_u32("CAMPAIGN_EFFECT_BUNDLES+3", ambition)?
                 .set_str("CAMPAIGN_EFFECT_BUNDLES+4", &row.str("political_party")?)?
                 .set_bool("GENERAL_BODYGUARD_DETAILS+2", row.bool("immortal")?)?
                 .set_i32("GENERAL_BODYGUARD_DETAILS+4", i32::try_from(loyalty(entry)).unwrap_or_default())?;
@@ -345,9 +394,13 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
 
     /// Writes the bodyguard of a character: the faction's default one for generals without a force, empty otherwise
     /// (a general's force holds its bodyguard as a unit).
-    fn write_bodyguard(&self, character: &PlannedCharacter, info: &CharacterInfo) -> Result<RecordNode> {
-        let default = self.bodyguards.get(character.faction().key()).cloned().flatten().filter(|_| info.agent != COLONEL_AGENT && character.force().is_none());
-        let path = format!("{DETAILS_PATH}/GENERAL_BODYGUARD_DETAILS");
+    ///
+    /// # Arguments
+    ///
+    /// * `details_path` - Path of the character's details.
+    /// * `default` - The bodyguard, if the character keeps one.
+    fn write_bodyguard(&self, details_path: &str, default: Option<&Bodyguard>) -> Result<RecordNode> {
+        let path = format!("{details_path}/GENERAL_BODYGUARD_DETAILS");
         let mut record = self.inputs.layout.builder(&path)?;
         let Some(default) = default else {
             record.group()?.set_str("^+1", "")?;
@@ -425,16 +478,15 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
 
     /// Returns the art set of a character: one of the campaign's art sets for its agent type and gender, of its
     /// faction, subculture (sets without faction) or culture (sets without faction and subculture). The game draws
-    /// one at random; this takes them in turns by character id.
-    fn art_set(&self, character: &PlannedCharacter, info: &CharacterInfo) -> &str {
-        let faction = character.faction();
+    /// one at random; this takes them in turns by `seed` (the character's runtime id, or family id for the dead).
+    fn art_set(&self, faction: &FactionEntry, info: &CharacterInfo, seed: u32) -> &str {
         let candidates = self.art_sets.iter()
             .filter(|art_set| art_set.agent == art_set_agent(&info.agent) && art_set.is_male == info.is_male)
             .filter(|art_set| art_set.faction == *faction.key()
                 || (art_set.faction.is_empty() && art_set.subculture == *faction.subculture())
                 || (art_set.faction.is_empty() && art_set.subculture.is_empty() && art_set.culture == *faction.culture()))
             .collect::<Vec<_>>();
-        candidates.get(character.id() as usize % candidates.len().max(1)).map(|art_set| art_set.id.as_str()).unwrap_or_default()
+        candidates.get(seed as usize % candidates.len().max(1)).map(|art_set| art_set.id.as_str()).unwrap_or_default()
     }
 
     /// Returns the world position and cell of a character.
