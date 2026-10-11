@@ -71,7 +71,8 @@ pub(crate) fn test_inputs() -> TestInputs {
         .map(|faction| faction_technologies(test_data_tables(), TEST_CAMPAIGN, index.faction(faction.key()).unwrap()).unwrap())
         .collect::<Vec<_>>();
     let technology_counts = technologies.iter().map(Vec::len).collect::<Vec<_>>();
-    let plan = CaiPlan::new(&PlanInputs { map_regions: &map_regions, world: &world, technology_counts: &technology_counts, trade_splines: 2486 });
+    let playable = world.factions().iter().map(|faction| index.faction(faction.key()).is_some_and(|entry| entry.playable())).collect::<Vec<_>>();
+    let plan = CaiPlan::new(&PlanInputs { map_regions: &map_regions, world: &world, technology_counts: &technology_counts, trade_splines: 2486, playable: &playable });
     TestInputs { layout, map_regions, nodes, world, technologies, plan }
 }
 

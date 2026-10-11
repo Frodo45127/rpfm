@@ -129,7 +129,8 @@ impl CaiContext {
             })
             .collect::<Result<Vec<_>>>()?;
         let technology_counts = technologies.iter().map(Vec::len).collect::<Vec<_>>();
-        let plan = CaiPlan::new(&PlanInputs { map_regions: &map_regions, world: &world, technology_counts: &technology_counts, trade_splines: inputs.trade_splines });
+        let playable = world.factions().iter().map(|faction| inputs.index.faction(faction.key()).is_some_and(|entry| entry.playable())).collect::<Vec<_>>();
+        let plan = CaiPlan::new(&PlanInputs { map_regions: &map_regions, world: &world, technology_counts: &technology_counts, trade_splines: inputs.trade_splines, playable: &playable });
         Ok(Self { world, map_regions, nodes, region_map, settlement_layouts, technologies, theatre_key, plan })
     }
 

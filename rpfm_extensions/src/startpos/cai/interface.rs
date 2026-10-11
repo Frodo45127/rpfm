@@ -17,7 +17,7 @@
 use rpfm_lib::error::{RLibError, Result};
 use rpfm_lib::files::esf::{NodeType, RecordNode};
 
-use super::managers::{component_map_order, empty_analyser, pool_component, write_managers, ComponentFields, ManagerInputs, FACTION_LEVEL, REBEL_LEVEL};
+use super::managers::{component_map_order, empty_analyser, pool_component, write_managers, ComponentFields, ManagerInputs};
 use super::mobiles::mobile_cells;
 use super::stances::StartingStances;
 use super::world::{CaiContext, CaiInputs};
@@ -80,9 +80,8 @@ impl CaiContext {
         let hlp_root = as_record(inputs.hlp_data.root_node()).ok_or_else(|| RLibError::StartposLayoutError("the pathfinder file has no root record".to_owned()))?;
         let pathfinder = child_record(hlp_root, "CAI_HIGH_LEVEL_PATHFINDER").ok_or_else(|| RLibError::StartposLayoutError("the pathfinder file has no pathfinder".to_owned()))?;
 
-        let factions = plan.factions();
-        let levels = factions.iter().enumerate()
-            .flat_map(|(position, ids)| [ids.faction(), if position + 1 == factions.len() { REBEL_LEVEL } else { FACTION_LEVEL }])
+        let levels = plan.factions().iter().zip(plan.manager_kinds())
+            .flat_map(|(ids, kind)| [ids.faction(), kind.level()])
             .collect();
 
         // The central pool's slots hold the central desires' ids, which match the game's: they're created first.

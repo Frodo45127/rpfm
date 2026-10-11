@@ -35,17 +35,26 @@ use crate::startpos::writer::{bool_node, i32_node, u32_node};
 /// Type codes of a faction manager's desires, in creation order.
 pub const FACTION_DESIRES: [u32; 28] = [39, 44, 37, 41, 38, 40, 34, 94, 108, 150, 23, 82, 152, 144, 114, 141, 140, 25, 171, 98, 175, 185, 84, 173, 183, 90, 88, 159];
 
+/// Type codes of a human manager's desires, in creation order: the rebels' ones, then two more.
+pub const HUMAN_DESIRES: [u32; 20] = [39, 44, 37, 41, 38, 40, 34, 94, 108, 150, 23, 82, 152, 144, 114, 141, 140, 25, 159, 90];
+
 /// Desires of the rebels' manager: the first ones of [`FACTION_DESIRES`].
 pub const REBEL_DESIRES: usize = 18;
 
-/// AI level of the factions' managers.
+/// AI level of the AI factions' managers.
 pub(crate) const FACTION_LEVEL: u32 = 7;
+
+/// AI level of the playable factions' managers.
+pub(crate) const HUMAN_LEVEL: u32 = 6;
 
 /// AI level of the rebels' manager.
 pub(crate) const REBEL_LEVEL: u32 = 2;
 
-/// Value of `CAI_BDI_POOL_FAILED+1` in the rebels' pool (the factions' pools keep the layout's).
-const REBEL_POOL_VALUE: u32 = 3;
+/// Value of `CAI_BDI_POOL_FAILED+1` in the human and rebel pools (the AI pools keep the layout's).
+const NON_AI_POOL_VALUE: u32 = 3;
+
+/// Priorities of the human managers' desires that differ from the AI managers' ones.
+const HUMAN_PRIORITIES: [(u32, f32); 2] = [(TAXATION, 500.0), (CONSTRUCTION, 100.0)];
 
 /// Slots of `CAI_FACTION_BDI_POOL` holding a desire, with the desire's type. The other slots hold 0.
 const POOL_SLOTS: [(u32, u32); 17] = [
@@ -72,6 +81,8 @@ const TMS_COORDINATION: u32 = 140;
 const STANCE_MANAGER: u32 = 144;
 const STRATEGIC_ANALYSER: u32 = 150;
 const DIPLOMACY_MANAGER: u32 = 152;
+const TASK_GENERATOR: u32 = 114;
+const CONSTRUCTION: u32 = 159;
 const FORCE_SKILLS: u32 = 171;
 const CHARACTER_SKILLS: u32 = 173;
 
@@ -119,6 +130,22 @@ const BUDGET_CATEGORIES: usize = 6;
 //                              Types
 //---------------------------------------------------------------------------//
 
+/// Kinds of AI faction managers, by the AI level the game gives them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ManagerKind {
+
+    /// Level 7: a faction the AI plays.
+    #[default]
+    Ai,
+
+    /// Level 6: a faction players can pick. When a campaign starts, the game turns the ones nobody picked into AI
+    /// managers (it never turns AI managers into human ones in its own startposes).
+    Human,
+
+    /// Level 2: the rebels.
+    Rebels,
+}
+
 /// What the managers are written from.
 #[derive(Debug, Clone, Copy)]
 pub struct ManagerInputs<'a> {
@@ -146,6 +173,9 @@ pub(crate) struct ComponentFields {
     /// Update flags.
     pub(crate) flags: Option<u32>,
 
+    /// Priority (`^+2`).
+    pub(crate) priority: Option<f32>,
+
     /// Ids of the objects the component lists (`^+5`).
     pub(crate) users: Option<Vec<u32>>,
 
@@ -160,6 +190,7 @@ pub(crate) struct ComponentFields {
 struct ManagerContext<'a> {
     inputs: &'a ManagerInputs<'a>,
     ids: &'a ManagerIds,
+    kind: ManagerKind,
 
     /// The faction's component and AI faction record.
     faction: u32,
@@ -172,6 +203,27 @@ struct ManagerContext<'a> {
 //---------------------------------------------------------------------------//
 //                              Implementations
 //---------------------------------------------------------------------------//
+
+impl ManagerKind {
+
+    /// Returns the type codes of the manager's desires, in creation order.
+    pub fn desires(self) -> &'static [u32] {
+        match self {
+            Self::Ai => &FACTION_DESIRES,
+            Self::Human => &HUMAN_DESIRES,
+            Self::Rebels => &FACTION_DESIRES[..REBEL_DESIRES],
+        }
+    }
+
+    /// Returns the AI level of the manager.
+    pub fn level(self) -> u32 {
+        match self {
+            Self::Ai => FACTION_LEVEL,
+            Self::Human => HUMAN_LEVEL,
+            Self::Rebels => REBEL_LEVEL,
+        }
+    }
+}
 
 /// Writes the AI faction managers.
 ///
@@ -192,7 +244,8 @@ pub fn write_managers(inputs: &ManagerInputs) -> Result<RecordNode> {
             ids,
             faction: faction.faction(),
             cai_faction: faction.cai_faction(),
-            desires: FACTION_DESIRES.iter().copied().zip(ids.desires().iter().copied()).collect(),
+            kind: inputs.plan.manager_kinds()[ids.faction()],
+            desires: inputs.plan.manager_kinds()[ids.faction()].desires().iter().copied().zip(ids.desires().iter().copied()).collect(),
         };
         list.push_group()?
             .set_record("CAI_BDI_POOL", Some(context.write_pool()?))?
@@ -237,6 +290,9 @@ pub(crate) fn pool_component(layout: &StartposLayout, variant: &str, id: u32, fi
     if let Some(flags) = fields.flags {
         group.set_u32("^+4", flags)?;
     }
+    if let Some(priority) = fields.priority {
+        group.set_f32("^+2", priority)?;
+    }
     component.build()
 }
 
@@ -280,10 +336,6 @@ fn empty_u32s() -> NodeType {
 
 impl ManagerContext<'_> {
 
-    /// Returns if the manager is the rebels' one.
-    fn is_rebels(&self) -> bool {
-        self.ids.beliefs().is_none()
-    }
 
     /// Returns the id of a desire of the manager.
     fn desire(&self, code: u32) -> u32 {
@@ -298,7 +350,7 @@ impl ManagerContext<'_> {
         let mut desires = layout.builder(&child_path(&path, "CAI_BDI_POOL_DESIRES"))?;
         let ids = self.ids.desires();
         for index in component_map_order(ids) {
-            self.write_desire(&mut desires, FACTION_DESIRES[index], ids[index])?;
+            self.write_desire(&mut desires, self.kind.desires()[index], ids[index])?;
         }
 
         let mut beliefs = layout.builder(&child_path(&path, "CAI_BDI_POOL_BELIEFS"))?;
@@ -327,8 +379,8 @@ impl ManagerContext<'_> {
         group.set_record("CAI_BDI_POOL_BELIEFS", Some(beliefs.build()?))?
             .set_record("CAI_BDI_POOL_DESIRES", Some(desires.build()?))?
             .set_record("CAI_BDI_POOL_INTENTIONS", Some(intentions.build()?))?;
-        if self.is_rebels() {
-            group.set_u32("CAI_BDI_POOL_FAILED+1", REBEL_POOL_VALUE)?;
+        if self.kind != ManagerKind::Ai {
+            group.set_u32("CAI_BDI_POOL_FAILED+1", NON_AI_POOL_VALUE)?;
         }
         pool.build()
     }
@@ -355,7 +407,9 @@ impl ManagerContext<'_> {
             _ => None,
         };
         let users = CAI_FACTION_USERS.contains(&code).then(|| vec![self.cai_faction]);
-        let component = pool_component(layout, &variant, id, ComponentFields { flags, users, links, references: vec![] })?;
+        let human = self.kind == ManagerKind::Human;
+        let priority = HUMAN_PRIORITIES.iter().find(|(human_code, _)| human && *human_code == code).map(|(_, priority)| *priority);
+        let component = pool_component(layout, &variant, id, ComponentFields { flags, priority, users, links, references: vec![] })?;
 
         let group = desires.push_variant(code)?;
         group.set_record("CAI_BDI_COMPONENT", Some(component))?;
@@ -382,6 +436,11 @@ impl ManagerContext<'_> {
                     .set_record("CAI_TMS_COORDINATION_MANAGER", Some(coordination.build()?))?;
             },
             STANCE_MANAGER => { group.set_record("CAI_STRATEGIC_STANCE_MANAGER", Some(self.write_stance_manager(&variant)?))?; },
+            TASK_GENERATOR => {
+                let mut generator = layout.builder(&child_path(&variant, "CAI_TASK_GENERATOR_MANAGER"))?;
+                generator.group()?.set_bool("^+4", human)?;
+                group.set_record("CAI_TASK_GENERATOR_MANAGER", Some(generator.build()?))?;
+            },
             DIPLOMACY_MANAGER => { group.set_record("CAI_DIPLOMACY_MANAGER", Some(self.write_diplomacy_manager(&variant, &wars)?))?; },
             _ => if let Some(analyser) = empty_analyser(layout, &variant)? {
                 group.set_record("CAI_ANALYSER", Some(analyser))?;
@@ -563,8 +622,8 @@ impl ManagerContext<'_> {
         let mut record = self.inputs.layout.builder(&child_path(&managers_path(), "CAI_FACTION_MANAGER"))?;
         record.group()?
             .set_u32("^+1", self.faction)?
-            .set_u32("^+2", if self.is_rebels() { REBEL_LEVEL } else { FACTION_LEVEL })?
-            .set_bool("CAI_FACTION_LEARNT_PARAMETERS+1", !self.is_rebels())?
+            .set_u32("^+2", self.kind.level())?
+            .set_bool("CAI_FACTION_LEARNT_PARAMETERS+1", self.kind != ManagerKind::Rebels)?
             .set_u32("CAI_FACTION_LEARNT_PARAMETERS+2", 0)?
             .set_u32("CAI_FACTION_LEARNT_PARAMETERS+3", 0)?;
         record.build()

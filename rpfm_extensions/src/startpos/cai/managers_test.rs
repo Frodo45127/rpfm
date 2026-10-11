@@ -14,9 +14,9 @@ use crate::startpos::layout::GroupView;
 use crate::startpos::startpos_test::{compare, test_data_tables, Report, TEST_CAMPAIGN};
 use crate::startpos::world::CampaignIndex;
 
-/// Share of the managers' fields the writer must match (0.975). The rest is state the game computes on the first
-/// update (we write the constructors' values: finance managers, beliefs, stance empire data, update flags), the
-/// religion behaviour and the diplomacy managers' war state.
+/// Share of the fields of the managers at the game's level the writer must match (0.970). The rest is state the game
+/// computes on the first update (we write the constructors' values: finance managers, beliefs, stance empire data,
+/// update flags), the religion behaviour and the diplomacy managers' war state.
 const MIN_MANAGER_MATCH_RATIO: f64 = 0.97;
 
 /// Reads the objects of a pool list of a game manager as (type code, target or 0, id).
@@ -67,9 +67,9 @@ fn test_managers_match_the_game_startpos() {
     let mut kept = vec![];
     for (position, (game_manager, our_manager)) in game_managers.iter().zip(&ours).enumerate() {
         let faction = |manager: &GroupView| layout.read(&child_path(&path, "CAI_FACTION_MANAGER"), manager.record("CAI_FACTION_MANAGER").unwrap()).unwrap()[0].u32("^+1").unwrap();
-        let level = layout.read(&child_path(&path, "CAI_FACTION_MANAGER"), game_manager.record("CAI_FACTION_MANAGER").unwrap()).unwrap()[0].u32("^+2").unwrap();
+        let level = |manager: &GroupView| layout.read(&child_path(&path, "CAI_FACTION_MANAGER"), manager.record("CAI_FACTION_MANAGER").unwrap()).unwrap()[0].u32("^+2").unwrap();
         assert_eq!(faction(game_manager), faction(our_manager));
-        if level != FACTION_LEVEL && level != REBEL_LEVEL {
+        if level(game_manager) != level(our_manager) {
             continue;
         }
         kept.push(position);

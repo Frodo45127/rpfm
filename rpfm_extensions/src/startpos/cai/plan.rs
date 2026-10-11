@@ -23,7 +23,7 @@ use getset::{CopyGetters, Getters};
 use std::collections::{HashMap, HashSet};
 
 use super::interface::{CENTRAL_DESIRES, DIRECTOR_BELIEFS, DIRECTOR_DESIRES};
-use super::managers::{FACTION_DESIRES, REBEL_DESIRES};
+use super::managers::ManagerKind;
 use super::map::MapRegion;
 use super::world_view::WorldView;
 
@@ -103,6 +103,10 @@ pub struct CaiPlan {
     #[getset(get = "pub")]
     managers: Vec<ManagerIds>,
 
+    /// Kind of AI manager of each faction, in `factions` order.
+    #[getset(get = "pub")]
+    manager_kinds: Vec<ManagerKind>,
+
     /// Ids of the director pool's beliefs, then its desires, in creation order.
     #[getset(get = "pub")]
     director: Vec<u32>,
@@ -123,6 +127,9 @@ pub struct PlanInputs<'a> {
 
     /// Number of trade splines of the map.
     pub trade_splines: usize,
+
+    /// If players can pick each world faction, in world order.
+    pub playable: &'a [bool],
 }
 
 /// Ids of a faction's AI manager.
@@ -133,7 +140,7 @@ pub struct ManagerIds {
     #[getset(get_copy = "pub")]
     faction: usize,
 
-    /// Ids of its desires, in creation order (see [`FACTION_DESIRES`]).
+    /// Ids of its desires, in creation order (see [`ManagerKind::desires`]).
     #[getset(get = "pub")]
     desires: Vec<u32>,
 
@@ -322,6 +329,11 @@ impl CaiPlan {
         plan.governorships = world.factions().iter().map(|_| plan.take(1)).collect();
         plan.posts = world.factions().iter().map(|faction| faction.posts().iter().map(|_| plan.take(1)).collect()).collect();
 
+        plan.manager_kinds = (0..world.factions().len())
+            .map(|position| if inputs.playable.get(position).copied().unwrap_or_default() { ManagerKind::Human } else { ManagerKind::Ai })
+            .chain(std::iter::once(ManagerKind::Rebels))
+            .collect();
+
         let owners = world.regions().iter().map(|region| region.owner()).collect::<HashSet<_>>();
         let counts = plan.characters.iter()
             .map(|characters| (characters.len(), characters.iter().filter(|character| character.mobile().is_some()).count()))
@@ -331,14 +343,17 @@ impl CaiPlan {
                 continue;
             }
 
-            let desires = (0..FACTION_DESIRES.len()).map(|_| plan.take(1)).collect();
+            // Only AI managers have intentions for their characters and mobiles.
+            let kind = plan.manager_kinds[position];
+            let (characters, mobiles) = if kind == ManagerKind::Ai { (characters, mobiles) } else { (0, 0) };
+            let desires = kind.desires().iter().map(|_| plan.take(1)).collect();
             let intention = plan.take(1);
             let beliefs = Some((plan.take(1), plan.take(1)));
             let character_intentions = (0..characters).map(|_| plan.take(1)).collect();
             let mobile_intentions = (0..mobiles).map(|_| plan.take(1)).collect();
             plan.managers.push(ManagerIds { faction: position, desires, intention, beliefs, character_intentions, mobile_intentions });
         }
-        let desires = (0..REBEL_DESIRES).map(|_| plan.take(1)).collect();
+        let desires = ManagerKind::Rebels.desires().iter().map(|_| plan.take(1)).collect();
         let intention = plan.take(1);
         plan.managers.push(ManagerIds { faction: plan.factions.len() - 1, desires, intention, ..Default::default() });
 
