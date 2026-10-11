@@ -183,7 +183,7 @@ pub fn write_faction(inputs: &WorldInputs, plan: &WorldPlan, context: &FactionCo
     }
 
     let mission_manager = faction.playable().then(|| layout.default_record(&format!("{FACTION_PATH}/CAMPAIGN_MISSION_MANAGER"))).transpose()?;
-    let shroud = if faction.playable() { Some(write_shroud(layout, FACTION_PATH, context.sight.grid(), &faction_vision(inputs, context, faction)?)?) } else { None };
+    let shroud = if faction.playable() { Some(write_shroud(layout, FACTION_PATH, context.sight, &faction_vision(inputs, context, faction)?)?) } else { None };
 
     let mut record = layout.builder(FACTION_PATH)?;
     record.group()?

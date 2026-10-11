@@ -22,7 +22,7 @@
 
 use std::collections::HashSet;
 
-#[cfg(test)] #[path = "vision_test.rs"] mod vision_test;
+#[cfg(test)] #[path = "vision_test.rs"] pub(crate) mod vision_test;
 
 /// World units per vision cell, horizontally.
 const CELL_SIZE: f32 = 0.5;
@@ -147,6 +147,11 @@ impl Vision {
     /// Returns if the area has no cells.
     pub fn is_empty(&self) -> bool {
         self.cells.is_empty()
+    }
+
+    /// Returns if the area has a cell.
+    pub fn contains(&self, cell: (u32, u32)) -> bool {
+        self.cells.contains(&cell)
     }
 
     /// Adds the cells of another area to this one.

@@ -22,8 +22,7 @@ const MIN_MATCH_RATIO: f64 = 0.93;
 
 /// `WORLD` records the writer leaves empty on purpose: the shroud fillers (source unknown) and the starting skills
 /// of agents (the game's only one is a spy's, rule unknown).
-const KNOWN_EMPTY: [&str; 2] = [
-    "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/WORLD/FACTION_ARRAY/FACTION/CAMPAIGN_SHROUD/CAMPAIGN_SHROUD_FILLERS/",
+const KNOWN_EMPTY: [&str; 1] = [
     "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/WORLD/FACTION_ARRAY/FACTION/CHARACTER_ARRAY/CHARACTER/CHARACTER_DETAILS/CAMPAIGN_SKILLS/CAMPAIGN_SKILLS_BLOCK",
 ];
 

@@ -20,7 +20,7 @@ fn attila_grid() -> VisionGrid {
 }
 
 /// Decodes a quad tree (see the module docs) into an area.
-fn decode(bytes: &[u8], grid: &VisionGrid) -> Vision {
+pub(crate) fn decode(bytes: &[u8], grid: &VisionGrid) -> Vision {
     fn node(bytes: &[u8], position: &mut usize, (x, y, size): (u32, u32, u32), cells: &mut Vec<(u32, u32)>) {
         let byte = bytes[*position];
         *position += 1;
