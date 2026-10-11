@@ -292,6 +292,30 @@ pub(crate) fn compare(layout: &StartposLayout, ours: &RecordNode, theirs: &Recor
     }
 }
 
+/// Counts the leaves under each record path of a record (occurrences of a path add up).
+fn leaves_by_path(record: &RecordNode, path: &str, counts: &mut HashMap<String, usize>) {
+    for node in record.children().iter().flatten() {
+        match node {
+            NodeType::Record(child) => leaves_by_path(child, &format!("{path}/{}", child.name()), counts),
+            _ => *counts.entry(path.to_owned()).or_default() += 1,
+        }
+    }
+}
+
+/// Returns the record paths with leaves in the game's record and none in ours: records the writer leaves out or
+/// empty. Paths starting with one of `known` are expected to be empty.
+pub(crate) fn missing_records(ours: &RecordNode, theirs: &RecordNode, path: &str, known: &[&str]) -> Vec<String> {
+    let (mut our_counts, mut their_counts) = (HashMap::new(), HashMap::new());
+    leaves_by_path(ours, path, &mut our_counts);
+    leaves_by_path(theirs, path, &mut their_counts);
+    let mut missing = their_counts.keys()
+        .filter(|path| !our_counts.contains_key(*path) && !known.iter().any(|known| path.starts_with(known)))
+        .cloned()
+        .collect::<Vec<_>>();
+    missing.sort();
+    missing
+}
+
 /// Returns if two leaves are equal. Floats only need to be close: the game's float rounding isn't always
 /// reproducible (trade spline points are off by one ulp in 10% of the cases).
 pub(crate) fn same_leaf(ours: &NodeType, theirs: &NodeType) -> bool {

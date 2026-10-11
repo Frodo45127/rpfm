@@ -19,12 +19,25 @@ use super::*;
 use crate::startpos::esf_nav::as_record;
 use crate::startpos::layout::StartposLayout;
 use crate::startpos::missions::parse_victory_objectives;
-use crate::startpos::startpos_test::{compare, test_data_esf, test_data_path, test_data_tables, test_startpos, Report, TEST_CAMPAIGN};
+use crate::startpos::startpos_test::{compare, missing_records, test_data_esf, test_data_path, test_data_tables, test_startpos, Report, TEST_CAMPAIGN};
 use crate::startpos::world::writer::writer_test::{game_plan, world_test_data};
 
 /// Share of the game's fields outside `WORLD` and `CAI_INTERFACE` the writer must match. Raised as the writer covers
 /// more records.
 const MIN_MATCH_RATIO: f64 = 0.99;
+
+/// Records the writer leaves empty on purpose: the central AI beliefs and their links (the game rebuilds them), the
+/// international trade routes and their AI mirror (from the trade simulation), the regions' dynamic resources, the
+/// shroud fillers and agents' starting skills (sources unknown).
+const KNOWN_EMPTY: [&str; 7] = [
+    "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/CAI_INTERFACE/CAI_BDI_POOL/CAI_BDI_POOL_BELIEFS",
+    "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/CAI_INTERFACE/CAI_BDI_POOL/CAI_BDI_POOL_DESIRES/CAI_BDI_COMPONENT/CAI_BDI_COMPONENT_BLOCK_OWNS",
+    "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/CAI_INTERFACE/CAI_WORLD/CAI_WORLD_TRADE_ROUTES/",
+    "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/CAMPAIGN_TRADE_MANAGER/INTERNATIONAL_TRADE_ROUTES/",
+    "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/DYNAMIC_RESOURCES_MANAGER/REGION_DYNAMIC_RESOURCES_MANAGERS_BLOCK/REGION_DYNAMIC_RESOURCES_MANAGER/",
+    "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/WORLD/FACTION_ARRAY/FACTION/CAMPAIGN_SHROUD/CAMPAIGN_SHROUD_FILLERS/",
+    "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/WORLD/FACTION_ARRAY/FACTION/CHARACTER_ARRAY/CHARACTER/CHARACTER_DETAILS/CAMPAIGN_SKILLS/CAMPAIGN_SKILLS_BLOCK",
+];
 
 /// Records compared elsewhere, with the ids they hold translated (`WORLD`, `CAI_INTERFACE`).
 const SKIPPED: [&str; 2] = ["WORLD", "CAI_INTERFACE"];
@@ -70,6 +83,8 @@ fn test_startpos_matches_the_game_startpos() {
 
     let (matches, total) = report.totals();
     let ratio = matches as f64 / total as f64;
+    let missing = missing_records(ours, theirs, ROOT_PATH, &KNOWN_EMPTY);
+    assert!(missing.is_empty(), "records the writer leaves empty: {missing:#?}");
     assert_eq!(written.signature(), test_startpos().signature());
     assert!(ratio >= MIN_MATCH_RATIO, "{matches}/{total} ({ratio:.4}) fields match. Worst:\n{}", report.worst(80));
 }
