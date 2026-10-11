@@ -236,6 +236,29 @@ pub(crate) fn pool_component(layout: &StartposLayout, variant: &str, id: u32, fi
     component.build()
 }
 
+/// Writes the analyser of a pool object type with its maps empty, if the type has one. The type's defaults can hold
+/// the maps of the game's objects, whose ids mean other objects in a generated startpos.
+///
+/// # Arguments
+///
+/// * `layout` - Record layouts.
+/// * `variant` - Path of the object's type.
+///
+/// # Errors
+///
+/// Returns an error if the analyser's layout lacks its maps.
+pub(crate) fn empty_analyser(layout: &StartposLayout, variant: &str) -> Result<Option<RecordNode>> {
+    let path = child_path(variant, "CAI_ANALYSER");
+    if layout.record(&path).is_none() {
+        return Ok(None);
+    }
+    let mut analyser = layout.builder(&path)?;
+    analyser.group()?
+        .set_u32s("^+1", vec![])?
+        .set("^+2", NodeType::U64Array(vec![]))?;
+    analyser.build().map(Some)
+}
+
 /// Returns the path of the managers list.
 fn managers_path() -> String {
     child_path(CAI_PATH, "CAI_INTERFACE_MANAGERS")
@@ -339,7 +362,9 @@ impl ManagerContext<'_> {
             TAXATION => self.set_single(group, &variant, "CAI_BDI_DESIRE_TAXATION", "^+1", self.faction)?,
             FINANCIAL_ANALYSER | STRATEGIC_ANALYSER => {
                 let mut analyser = layout.builder(&child_path(&variant, "CAI_ANALYSER"))?;
-                analyser.group()?.set_u32s("^+1", analysed_belief.map(|belief| vec![self.faction, belief]).unwrap_or_default())?;
+                analyser.group()?
+                    .set_u32s("^+1", analysed_belief.map(|belief| vec![self.faction, belief]).unwrap_or_default())?
+                    .set("^+2", NodeType::U64Array(vec![]))?;
                 group.set_record("CAI_ANALYSER", Some(analyser.build()?))?;
             },
             TMS_COORDINATION => {
@@ -354,7 +379,9 @@ impl ManagerContext<'_> {
             },
             STANCE_MANAGER => { group.set_record("CAI_STRATEGIC_STANCE_MANAGER", Some(self.write_stance_manager(&variant)?))?; },
             DIPLOMACY_MANAGER => { group.set_record("CAI_DIPLOMACY_MANAGER", Some(self.write_diplomacy_manager(&variant, &wars)?))?; },
-            _ => {},
+            _ => if let Some(analyser) = empty_analyser(layout, &variant)? {
+                group.set_record("CAI_ANALYSER", Some(analyser))?;
+            },
         }
         Ok(())
     }

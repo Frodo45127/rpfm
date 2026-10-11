@@ -17,7 +17,7 @@
 use rpfm_lib::error::{RLibError, Result};
 use rpfm_lib::files::esf::{NodeType, RecordNode};
 
-use super::managers::{component_map_order, pool_component, write_managers, ComponentFields, ManagerInputs, FACTION_LEVEL, REBEL_LEVEL};
+use super::managers::{component_map_order, empty_analyser, pool_component, write_managers, ComponentFields, ManagerInputs, FACTION_LEVEL, REBEL_LEVEL};
 use super::mobiles::mobile_cells;
 use super::stances::StartingStances;
 use super::world::{CaiContext, CaiInputs};
@@ -110,8 +110,13 @@ impl CaiContext {
         let mut desires = layout.builder(&desires_path)?;
         for index in component_map_order(&ids) {
             let code = CENTRAL_DESIRES[index];
-            let component = pool_component(layout, &variant_path(&desires_path, code), ids[index], ComponentFields::default())?;
-            desires.push_variant(code)?.set_record("CAI_BDI_COMPONENT", Some(component))?;
+            let variant = variant_path(&desires_path, code);
+            let component = pool_component(layout, &variant, ids[index], ComponentFields::default())?;
+            let group = desires.push_variant(code)?;
+            group.set_record("CAI_BDI_COMPONENT", Some(component))?;
+            if let Some(analyser) = empty_analyser(layout, &variant)? {
+                group.set_record("CAI_ANALYSER", Some(analyser))?;
+            }
         }
 
         let mut pool = layout.builder(&path)?;
@@ -148,8 +153,13 @@ impl CaiContext {
         for index in component_map_order(desire_ids) {
             let (code, id) = (DIRECTOR_DESIRES[index], desire_ids[index]);
             let links = if index == 2 { vec![(generator, TOP_LEVEL_LINK)] } else { vec![] };
-            let component = pool_component(layout, &variant_path(&desires_path, code), id, ComponentFields { links, ..Default::default() })?;
-            desires.push_variant(code)?.set_record("CAI_BDI_COMPONENT", Some(component))?;
+            let variant = variant_path(&desires_path, code);
+            let component = pool_component(layout, &variant, id, ComponentFields { links, ..Default::default() })?;
+            let group = desires.push_variant(code)?;
+            group.set_record("CAI_BDI_COMPONENT", Some(component))?;
+            if let Some(analyser) = empty_analyser(layout, &variant)? {
+                group.set_record("CAI_ANALYSER", Some(analyser))?;
+            }
         }
 
         let mut pool = layout.builder(&pool_path)?;

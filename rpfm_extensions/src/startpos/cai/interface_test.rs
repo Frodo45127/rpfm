@@ -17,7 +17,8 @@ use crate::startpos::esf_nav::as_u32;
 use crate::startpos::startpos_test::{compare, test_data_esf, test_data_tables, test_startpos, world, Report, TEST_CAMPAIGN};
 use crate::startpos::world::CampaignIndex;
 
-/// Share of the central pool's fields the writer must match, leaving out its beliefs and their links (left empty).
+/// Share of the central pool's fields the writer must match, leaving out its beliefs and their links. The rest are the
+/// analysers' maps (left empty too).
 const MIN_CENTRAL_MATCH_RATIO: f64 = 0.95;
 
 /// Lists left empty on purpose: the game rebuilds the beliefs, and the components' links to them.
