@@ -95,14 +95,31 @@ impl HexCell {
         Self { x, y }
     }
 
-    /// Returns the cell containing a world position.
+    /// Returns the cell containing a world position, as the game finds it.
     ///
-    /// Odd columns are shifted half a cell down, so their rows start half a cell height later.
+    /// Odd columns are shifted half a cell down, so their rows start half a cell height later. Cells are hexagons
+    /// wider than their column: the first third of a column holds the slanted edges shared with the previous column,
+    /// where positions above or below the edge belong to the previous column's cells.
     pub fn from_world(x: f32, y: f32) -> Self {
         let (raw_x, raw_y) = world_to_raw(x, y);
-        let column = (raw_x / CELL_RAW_WIDTH).floor() as u16;
+        let columns = raw_x / CELL_RAW_WIDTH;
+        let mut column = columns.floor() as i32;
         let row_offset = if column % 2 == 1 { CELL_RAW_HEIGHT / 2.0 } else { 0.0 };
-        Self::new(column, ((raw_y - row_offset) / CELL_RAW_HEIGHT).floor() as u16)
+        let rows = (raw_y - row_offset) / CELL_RAW_HEIGHT;
+        let mut row = rows.floor() as i32;
+
+        // Distance into the column in thirds, and height from the middle of the row in rows.
+        let into_column = (columns - column as f32) * 3.0;
+        let from_middle = rows - row as f32 - 0.5;
+        if into_column < 1.0 {
+            let odd = column & 1;
+            if into_column <= from_middle * 2.0 {
+                (column, row) = (column - 1, row + odd);
+            } else if into_column <= from_middle * -2.0 {
+                (column, row) = (column - 1, row + odd - 1);
+            }
+        }
+        Self::new(column.max(0) as u16, row.max(0) as u16)
     }
 
     /// Returns the existing neighbours of the cell, in the game's direction order.

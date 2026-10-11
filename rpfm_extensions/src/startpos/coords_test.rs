@@ -20,6 +20,20 @@ fn test_from_world_matches_game_cells() {
 }
 
 #[test]
+fn test_from_world_follows_slanted_edges() {
+
+    // Near the left vertex of cell (3, 10), raw x 18.2: in the middle of the row it's still the cell; near its top
+    // and bottom it's past the slanted edges, in the previous column's cells.
+    let at = |raw_x: f32, raw_y: f32| {
+        let (x, y) = raw_to_world(raw_x, raw_y);
+        HexCell::from_world(x, y)
+    };
+    assert_eq!(at(18.2, 88.0), HexCell::new(3, 10));
+    assert_eq!(at(18.2, 91.2), HexCell::new(2, 11));
+    assert_eq!(at(18.2, 84.8), HexCell::new(2, 10));
+}
+
+#[test]
 fn test_world_raw_roundtrip() {
     let (raw_x, raw_y) = world_to_raw(482.63748, 41.295902);
     let (x, y) = raw_to_world(raw_x, raw_y);
