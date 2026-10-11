@@ -19,14 +19,14 @@ use super::*;
 use crate::startpos::esf_nav::as_record;
 use crate::startpos::layout::StartposLayout;
 use crate::startpos::missions::parse_victory_objectives;
-use crate::startpos::startpos_test::{compare, test_data_path, test_data_tables, test_startpos, Report};
+use crate::startpos::startpos_test::{compare, test_data_esf, test_data_path, test_data_tables, test_startpos, Report, TEST_CAMPAIGN};
 use crate::startpos::world::writer::writer_test::{game_plan, world_test_data};
 
 /// Share of the game's fields outside `WORLD` and `CAI_INTERFACE` the writer must match. Raised as the writer covers
 /// more records.
 const MIN_MATCH_RATIO: f64 = 0.99;
 
-/// Records compared elsewhere (`WORLD`) or not written yet (`CAI_INTERFACE`).
+/// Records compared elsewhere, with the ids they hold translated (`WORLD`, `CAI_INTERFACE`).
 const SKIPPED: [&str; 2] = ["WORLD", "CAI_INTERFACE"];
 
 /// Compares the records under a record one by one, going into the records holding skipped ones.
@@ -59,7 +59,8 @@ fn test_startpos_matches_the_game_startpos() {
     let trade_network = TradeNetwork::from_trade_routes(&trade_routes);
     let victory_text = std::fs::read(test_data_path("victory_objectives.txt")).unwrap();
     let victory_objectives = parse_victory_objectives(&String::from_utf8_lossy(&victory_text)).unwrap();
-    let inputs = StartposInputs { world: &world, trade_network: &trade_network, victory_objectives: &victory_objectives };
+    let (map_data, hlp_data) = (test_data_esf("map_data.esf"), test_data_esf("hlp_data.esf"));
+    let inputs = StartposInputs { world: &world, trade_network: &trade_network, victory_objectives: &victory_objectives, map_data: &map_data, hlp_data: &hlp_data, campaign: TEST_CAMPAIGN };
     let plan = game_plan(&index);
 
     let written = write_startpos(&inputs, &plan).unwrap();
