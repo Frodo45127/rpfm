@@ -161,6 +161,7 @@ pub fn write_world_with_plan<'a>(inputs: &WorldInputs<'a>, plan: &WorldPlan<'a>)
     let mut world = inputs.layout.builder(WORLD_PATH)?;
     world.group()?
         .set_record("FACTION_ARRAY", Some(factions::write_faction_array(inputs, plan, &context)?))?
+        .set_record("REBEL_FACTION", Some(factions::write_rebel_faction(inputs.layout, plan)?))?
         .set_record("REGION_MANAGER", Some(regions::write_region_manager(inputs, plan, &forces, &sight)?))?
         .set_record("PROVINCE_MANAGER", Some(provinces.provinces))?
         .set_record("SEA_REGION_MANAGER", Some(provinces.seas))?

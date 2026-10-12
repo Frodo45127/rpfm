@@ -21,6 +21,7 @@ use super::government::{write_character_posts, PostPlan};
 use super::provinces::write_mercenary_pool;
 use super::sight::{write_shroud, SightPlan};
 use super::{child, next_id, start_pos_faction_row, WorldInputs, WorldPlan, WORLD_PATH};
+use crate::startpos::layout::{child_path, StartposLayout};
 use crate::startpos::vision::Vision;
 use crate::startpos::world::agents::recruitment_pool_agents;
 use crate::startpos::world::diplomacy::Diplomacy;
@@ -94,6 +95,22 @@ pub struct PlannedLevyPool {
 //---------------------------------------------------------------------------//
 //                              Implementations
 //---------------------------------------------------------------------------//
+
+/// Writes the rebel faction (`REBEL_FACTION`): the layout's, with the number of regions without an owner.
+///
+/// # Errors
+///
+/// Returns an error if the layout lacks the records.
+pub fn write_rebel_faction(layout: &StartposLayout, plan: &WorldPlan) -> Result<RecordNode> {
+    let path = child_path(WORLD_PATH, "REBEL_FACTION");
+    let region_count = plan.regions().iter().filter(|region| region.owner().is_none()).count();
+    let mut faction = layout.builder(&child_path(&path, "FACTION"))?;
+    faction.group()?.set_u32("FACTION_FLAG_AND_COLOURS@2+14", u32::try_from(region_count).unwrap_or(u32::MAX))?;
+
+    let mut rebels = layout.builder(&path)?;
+    rebels.group()?.set_record("FACTION", Some(faction.build()?))?;
+    rebels.build()
+}
 
 /// Writes the faction array.
 ///

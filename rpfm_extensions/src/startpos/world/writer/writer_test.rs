@@ -83,3 +83,20 @@ fn test_world_matches_the_game_startpos() {
     let missing = missing_records(&written, game_world, WORLD_PATH, &[]);
     assert!(missing.is_empty(), "records the writer leaves empty: {missing:#?}");
 }
+
+#[test]
+#[ignore = "needs the game data, see startpos_test.rs"]
+fn test_rebel_faction_counts_the_regions_without_owner() {
+    let (index, layout, ..) = world_test_data();
+    let plan = game_plan(&index);
+    let path = format!("{WORLD_PATH}/REBEL_FACTION");
+
+    let written = factions::write_rebel_faction(&layout, &plan).unwrap();
+
+    let region_count = |rebels: &RecordNode| {
+        let faction = child_record(rebels, "FACTION").unwrap();
+        layout.read(&format!("{path}/FACTION"), faction).unwrap()[0].get("FACTION_FLAG_AND_COLOURS@2+14").cloned()
+    };
+    let game_rebels = child_record(world(test_startpos()), "REBEL_FACTION").unwrap();
+    assert_eq!(region_count(&written), region_count(game_rebels));
+}
