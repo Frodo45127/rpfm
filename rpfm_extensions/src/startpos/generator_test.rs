@@ -223,7 +223,8 @@ fn test_script_variables_match_the_game_startposes() {
     let mut dependencies = Dependencies::load(&test_data_path("att.pak"), &Some(schema.clone())).unwrap();
     dependencies.rebuild(&Some(schema.clone()), &[], None, game, &test_data_path("game"), Path::new("")).unwrap();
 
-    // The scripts of cha_attila are in a pack the game's manifest doesn't list, and bel_attila's in none.
+    // cha_attila's scripts are in charlemagne.pack, passed directly so the test doesn't depend on the cache having it.
+    // bel_attila's aren't in any installed pack.
     let charlemagne = test_data_path("game").join("data").join("charlemagne.pack");
     let charlemagne = Pack::read_and_merge(&[charlemagne], game, true, false, false).unwrap();
     for (campaign, pack) in [("main_attila", &Pack::default()), ("pro_attila", &Pack::default()), ("cha_attila", &charlemagne)] {

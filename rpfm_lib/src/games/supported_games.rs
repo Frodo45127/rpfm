@@ -2388,7 +2388,8 @@ impl Default for SupportedGames {
                         "tiles3.pack".to_owned(),
                         "tiles4.pack".to_owned(),
                     ],
-                    use_manifest: true,
+                    // The manifest lacks the DLC packs, like charlemagne.pack, so the list above is used instead.
+                    use_manifest: false,
                     store_id: 325_610,
                     store_id_ak: 343_660,
                     executable: "Attila.exe".to_owned(),
