@@ -57,3 +57,14 @@ fn test_typed_values() {
     assert_eq!(row.int("i").unwrap(), -3);
     assert!(row.bool("f").is_err());
 }
+
+#[test]
+fn test_hex_colours() {
+    let mut tables = StartposTables::new();
+    tables.add_rows("t", &["good", "short", "bad"], &[vec![DecodedData::ColourRGB("0620F9".to_owned()), text("0620F"), text("0620FZ")]]).unwrap();
+    let row = tables.table("t").unwrap().rows().next().unwrap();
+
+    assert_eq!(row.colour("good").unwrap(), [0x06, 0x20, 0xF9]);
+    assert!(row.colour("short").is_err());
+    assert!(row.colour("bad").is_err());
+}

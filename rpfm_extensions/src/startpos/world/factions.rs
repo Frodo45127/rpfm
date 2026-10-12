@@ -185,14 +185,7 @@ pub(crate) fn faction_row<'a>(tables: &'a StartposTables, faction: &str) -> Resu
 pub(crate) fn flag(row: &Row, path_column: &str, colour_columns: [&str; 3]) -> Result<FactionFlag> {
     let mut colours = [[0; 3]; 3];
     for (colour, column) in colours.iter_mut().zip(colour_columns) {
-        let hex = row.str(column)?;
-        let invalid = || RLibError::StartposInvalidValue("factions".to_owned(), column.to_owned(), hex.to_string());
-        if hex.len() != 6 {
-            return Err(invalid());
-        }
-        for (channel, component) in colour.iter_mut().enumerate() {
-            *component = u8::from_str_radix(&hex[channel * 2..channel * 2 + 2], 16).map_err(|_| invalid())?;
-        }
+        *colour = row.colour(column)?;
     }
     Ok(FactionFlag { path: row.str(path_column)?.into_owned(), colours })
 }

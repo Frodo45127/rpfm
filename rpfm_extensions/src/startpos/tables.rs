@@ -158,6 +158,25 @@ impl<'a> Row<'a> {
         Ok(&self.data[self.table.column(column)?])
     }
 
+    /// Returns a colour of the row, stored as an `RRGGBB` hex text, as its red, green and blue channels.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the table has no such column, or the value isn't an `RRGGBB` hex text.
+    pub fn colour(&self, column: &str) -> Result<[u8; 3]> {
+        let hex = self.str(column)?;
+        let invalid = || RLibError::StartposInvalidValue(self.table.name.to_owned(), column.to_owned(), hex.to_string());
+        if hex.len() != 6 {
+            return Err(invalid());
+        }
+
+        let mut colour = [0; 3];
+        for (channel, component) in colour.iter_mut().enumerate() {
+            *component = u8::from_str_radix(hex.get(channel * 2..channel * 2 + 2).ok_or_else(invalid)?, 16).map_err(|_| invalid())?;
+        }
+        Ok(colour)
+    }
+
     /// Returns a value of the row as text (numbers and booleans are formatted).
     ///
     /// # Errors
