@@ -33,7 +33,7 @@
 
 use getset::{CopyGetters, Getters};
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use rpfm_lib::error::{RLibError, Result};
 
@@ -54,8 +54,8 @@ pub mod writer;
 
 #[cfg(test)] mod world_test;
 
-/// Text in the primary building key of major settlements.
-const MAJOR_SETTLEMENT_MARKER: &str = "city_major";
+/// Building instance (`building_levels.building_instance_key`) of the primary buildings of major settlements.
+const MAJOR_SETTLEMENT_INSTANCE: &str = "att_city_major";
 
 //---------------------------------------------------------------------------//
 //                              Types
@@ -166,6 +166,10 @@ pub struct SettlementEntry {
 
     /// Slave points the settlement starts with.
     slave_points: i64,
+
+    /// The primary building is a major settlement one.
+    #[getset(skip)]
+    major: bool,
 }
 
 /// A character of the campaign (`start_pos_characters`).
@@ -276,6 +280,11 @@ impl CampaignIndex {
         }
         let region_of_id = regions.iter().map(|region| (region.id.to_owned(), region.key.to_owned())).collect::<HashMap<_, _>>();
 
+        let major_buildings = tables.table("building_levels")?.rows()
+            .filter(|row| row.str("building_instance_key").is_ok_and(|instance| instance == MAJOR_SETTLEMENT_INSTANCE))
+            .map(|row| row.str("level_name").map(|level| level.into_owned()))
+            .collect::<Result<HashSet<_>>>()?;
+
         let mut settlements = vec![];
         for row in tables.table("start_pos_settlements")?.rows() {
             let Some(region) = region_of_id.get(row.str("region")?.as_ref()) else { continue };
@@ -286,10 +295,12 @@ impl CampaignIndex {
                     buildings.push(building.into_owned());
                 }
             }
+            let primary_building = row.str("primary_building")?.into_owned();
             settlements.push(SettlementEntry {
                 id: row.str("id")?.into_owned(),
                 region: region.to_owned(),
-                primary_building: row.str("primary_building")?.into_owned(),
+                major: major_buildings.contains(&primary_building),
+                primary_building,
                 port_building: row.str("port_building")?.into_owned(),
                 buildings,
                 slave_points: row.int("startpos_slave_points")?,
@@ -373,10 +384,10 @@ impl CampaignIndex {
 
 impl SettlementEntry {
 
-    /// Returns if the settlement is a major one (its primary building is a `city_major` level). Major settlements
-    /// have walls and are the main region of their province.
+    /// Returns if the settlement is a major one (its primary building is a [`MAJOR_SETTLEMENT_INSTANCE`]). Major
+    /// settlements have walls and are the main region of their province.
     pub fn is_major(&self) -> bool {
-        self.primary_building.contains(MAJOR_SETTLEMENT_MARKER)
+        self.major
     }
 
     /// Returns every building level of the settlement: primary, port (if any) and the others, in that order.
