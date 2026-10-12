@@ -25,6 +25,7 @@ pub mod lists;
 pub mod managers;
 pub mod map;
 pub mod mobiles;
+pub mod pathfinder;
 pub mod plan;
 pub mod regions;
 pub mod settlements;

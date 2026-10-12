@@ -13,13 +13,15 @@
 //! campaign director (`CAMPAIGN_DIRECTOR`), which refers to the director's pool.
 //!
 //! The pathfinder is copied from the map's `hlp_data.esf`. The influence maps and every belief start empty: the game
-//! fills them in while playing. The region distances keep the layout's values, which are the campaign's own.
+//! fills them in while playing. The largest distance between regions comes from the pathfinder's graph; the median
+//! distance between bordering regions is left for the game to compute at load.
 
 use rpfm_lib::error::{RLibError, Result};
 use rpfm_lib::files::esf::{NodeType, RecordNode};
 
 use super::managers::{component_map_order, empty_analyser, pool_component, write_managers, ComponentFields, ManagerInputs, ManagerKind};
 use super::mobiles::mobile_cells;
+use super::pathfinder::Pathfinder;
 use super::stances::StartingStances;
 use super::world::{CaiContext, CaiInputs};
 use super::CAI_PATH;
@@ -41,6 +43,9 @@ const DIRECTOR_WORLD: u32 = 2;
 
 /// Type codes of the director pool's beliefs, in creation order.
 pub const DIRECTOR_BELIEFS: [u32; 2] = [DIRECTOR_TIME, DIRECTOR_WORLD];
+
+/// Median distance between bordering regions that makes the game compute it at load.
+const MEDIAN_DISTANCE_UNSET: u32 = u32::MAX;
 
 /// Path of the campaign director.
 const CAMPAIGN_DIRECTOR_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/CAMPAIGN_DIRECTOR";
@@ -92,6 +97,13 @@ impl CaiContext {
         let hlp_root = as_record(inputs.hlp_data.root_node()).ok_or_else(|| RLibError::StartposLayoutError("the pathfinder file has no root record".to_owned()))?;
         let pathfinder = child_record(hlp_root, "CAI_HIGH_LEVEL_PATHFINDER").ok_or_else(|| RLibError::StartposLayoutError("the pathfinder file has no pathfinder".to_owned()))?;
 
+        let mut max_distance = layout.builder(&child_path(CAI_PATH, "CAI_INTERFACE_MAX_REGION_DISTANCE"))?;
+        max_distance.group()?.set_u32("^+1", Pathfinder::read(pathfinder)?.max_region_distance())?;
+
+        // The game computes the median at load when it finds this value.
+        let mut median_distance = layout.builder(&child_path(CAI_PATH, "CAI_INTERFACE_MEDIAN_BORDERING_INTERREGION_DISTANCE"))?;
+        median_distance.group()?.set_u32("^+1", MEDIAN_DISTANCE_UNSET)?;
+
         let levels = plan.factions().iter().zip(plan.manager_kinds())
             .flat_map(|(ids, kind)| [ids.faction(), kind.level()])
             .collect();
@@ -109,6 +121,8 @@ impl CaiContext {
             .set_u32s("CAI_INTERFACE_MANAGERS+1", levels)?
             .set_record("CAI_INTERFACE_DIRECTOR_BDI_POOL", Some(self.write_director_pool(layout)?))?
             .set_record("CAI_HIGH_LEVEL_PATHFINDER", Some(pathfinder.clone()))?
+            .set_record("CAI_INTERFACE_MAX_REGION_DISTANCE", Some(max_distance.build()?))?
+            .set_record("CAI_INTERFACE_MEDIAN_BORDERING_INTERREGION_DISTANCE", Some(median_distance.build()?))?
             .set_record("CAI_INFLUENCE_MAP_MANAGER", Some(influence))?;
         record.build()
     }
