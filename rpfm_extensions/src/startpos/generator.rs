@@ -226,6 +226,11 @@ impl FileSource<'_> {
 ///
 /// Returns an error if the sources lack data the build needs.
 pub fn generate_startpos(sources: &StartposSources, layout: &StartposLayout) -> Result<ESF> {
+    generate_startpos_with_plan(sources, layout, |index| WorldPlan::new(index))
+}
+
+/// Generates the startpos of a campaign with the orders and ids of its world given by a plan.
+pub(crate) fn generate_startpos_with_plan(sources: &StartposSources, layout: &StartposLayout, plan: impl for<'i> FnOnce(&'i CampaignIndex) -> WorldPlan<'i>) -> Result<ESF> {
     let index = CampaignIndex::new(&sources.tables, &sources.campaign)?;
     let settlements = SettlementLayout::all_from_map_data(&sources.map_data, |region| index.settlement_of(region).is_some_and(|settlement| settlement.is_major()))?;
     let region_map = RegionMap::from_map_data(&sources.map_data)?;
@@ -248,7 +253,7 @@ pub fn generate_startpos(sources: &StartposSources, layout: &StartposLayout) -> 
         dynamic_resources: &sources.dynamic_resources,
         campaign: &sources.campaign,
     };
-    write_startpos(&inputs, &WorldPlan::new(&index))
+    write_startpos(&inputs, &plan(&index))
 }
 
 /// Record layouts of a game: one per campaign the game has a startpos for, and one merged from all of them.
