@@ -248,11 +248,23 @@ impl StartposLayout {
         Self::from_stats(stats)
     }
 
-    /// Adds the layouts of the record paths this layout lacks from another one, like records a campaign never uses
-    /// from a layout merged from all the game's campaigns. Paths this layout has keep their own layouts.
+    /// Adds what this layout lacks from another one, like records a campaign never uses from a layout merged from all
+    /// the game's campaigns:
+    ///
+    /// - Paths it doesn't have, and paths it has only seen empty (arrays without items).
+    /// - Slots its records lack, after the slot they follow in the other layout. They're optional and start out of
+    ///   built records, so records only have them when a generator sets them.
+    ///
+    /// Everything this layout has keeps its own layout and defaults.
     pub fn with_fallback(mut self, fallback: &StartposLayout) -> Self {
         for (path, record) in &fallback.records {
-            self.records.entry(path.to_owned()).or_insert_with(|| record.clone());
+            match self.records.get_mut(path) {
+                Some(own) if own.slots.is_empty() => *own = record.clone(),
+                Some(own) => add_missing_slots(&mut own.slots, &record.slots),
+                None => {
+                    self.records.insert(path.to_owned(), record.clone());
+                },
+            }
         }
         self
     }
@@ -1021,6 +1033,26 @@ fn record_leaf_count(record: &RecordNode) -> usize {
         NodeType::Record(child) => record_leaf_count(child),
         _ => 1,
     }).sum()
+}
+
+/// Adds the slots of another layout's record that a record's slots lack, each after the slot it follows there, as
+/// optional slots that start out of built records.
+fn add_missing_slots(slots: &mut Vec<Slot>, fallback: &[Slot]) {
+    let mut position = 0;
+    for slot in fallback {
+        if let Some(own) = slots.iter().position(|own| own.id() == slot.id()) {
+            position = own + 1;
+            continue;
+        }
+
+        let mut slot = slot.clone();
+        match &mut slot {
+            Slot::Leaf { optional, absent_by_default, .. } => (*optional, *absent_by_default) = (true, true),
+            Slot::Record { optional, .. } => *optional = true,
+        }
+        slots.insert(position, slot);
+        position += 1;
+    }
 }
 
 /// Collects the stats of every record of a startpos.

@@ -260,3 +260,25 @@ fn test_slot_defaults_drop_long_arrays() {
     let NodeType::Record(analyser) = &built.children()[0][0] else { panic!("not a record") };
     assert_eq!(analyser.children()[0], vec![NodeType::U32Array(VecU32Node::default()), NodeType::U8(3)]);
 }
+
+/// Returns the layout of a startpos whose root holds one record with the given leaves.
+fn layout_with_child(name: &str, leaves: Vec<NodeType>) -> StartposLayout {
+    let mut esf = ESF::default();
+    esf.set_root_node(record("ROOT", RecordNodeFlags::IS_RECORD_NODE, vec![vec![record(name, RecordNodeFlags::IS_RECORD_NODE, vec![leaves])]]));
+    StartposLayout::from_esf(&esf).unwrap()
+}
+
+#[test]
+fn test_fallback_adds_missing_records_and_slots_only() {
+    let fallback = layout_with_child("A", vec![NodeType::U16(2), NodeType::U16(3)]).with_fallback(&layout_with_child("B", vec![NodeType::U16(4)]));
+    let layout = layout_with_child("A", vec![NodeType::U16(1)]).with_fallback(&fallback);
+
+    // Own slots keep their defaults, and slots only the fallback has start out of the record.
+    assert_eq!(layout.default_record("ROOT/A").unwrap().children(), &vec![vec![NodeType::U16(1)]]);
+    assert!(layout.record("ROOT/B").is_some());
+
+    let mut builder = layout.builder("ROOT/A").unwrap();
+    builder.group().unwrap().set("^+2", NodeType::U16(5)).unwrap();
+    assert_eq!(builder.build().unwrap().children(), &vec![vec![NodeType::U16(1), NodeType::U16(5)]]);
+}
+

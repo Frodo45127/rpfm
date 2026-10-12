@@ -10,7 +10,6 @@
 
 use std::collections::BTreeSet;
 
-use rpfm_lib::files::esf::{NodeType, RecordNode};
 use rpfm_lib::files::table::DecodedData;
 use rpfm_lib::games::supported_games::SupportedGames;
 use rpfm_lib::schema::{Definition, Field, FieldType};
@@ -69,25 +68,6 @@ fn test_layouts_are_extracted_once_and_picked_by_campaign() {
 
     let cached = GameLayouts::load_or_extract(layouts_folder.path(), game, game_data.path()).unwrap();
     assert_eq!(cached.for_campaign(&tables, TEST_CAMPAIGN), expected);
-}
-
-#[test]
-fn test_fallback_layouts_only_add_missing_records() {
-    let startpos = |name: &str, value: u16| {
-        let mut child = RecordNode::default();
-        child.set_name(name.to_owned());
-        child.set_children(vec![vec![NodeType::U16(value)]]);
-        let mut root = RecordNode::default();
-        root.set_name("ROOT".to_owned());
-        root.set_children(vec![vec![NodeType::Record(Box::new(child))]]);
-        let mut esf = ESF::default();
-        esf.set_root_node(NodeType::Record(Box::new(root)));
-        StartposLayout::from_esf(&esf).unwrap()
-    };
-
-    let layout = startpos("A", 1).with_fallback(&startpos("A", 2)).with_fallback(&startpos("B", 3));
-    assert_eq!(layout.default_record("ROOT/A").unwrap().children()[0][0], NodeType::U16(1));
-    assert!(layout.record("ROOT/B").is_some());
 }
 
 #[test]
