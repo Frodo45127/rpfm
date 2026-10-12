@@ -457,11 +457,15 @@ fn test_vanilla_scripts() {
         RFile::new_from_vec(b"", FileType::Text, 0, "script/events.lua"),
         RFile::new_from_vec(b"", FileType::Text, 0, "script/readme.txt"),
         RFile::new_from_vec(b"", FileType::Text, 0, "scripts_other/other.lua"),
+        RFile::new_from_vec(b"", FileType::Text, 0, "lua_scripts/campaign_scripted.lua"),
+        RFile::new_from_vec(b"", FileType::Text, 0, "campaigns/main_attila/scripting.lua"),
     ]);
 
     let mut scripts = vanilla_scripts(&dependencies);
     scripts.sort();
     assert_eq!(scripts, vec![
+        ("campaigns/main_attila/scripting.lua".to_owned(), String::new()),
+        ("lua_scripts/campaign_scripted.lua".to_owned(), String::new()),
         ("script/_lib/lib_core.lua".to_owned(), "return 1".to_owned()),
         ("script/events.lua".to_owned(), String::new()),
     ]);

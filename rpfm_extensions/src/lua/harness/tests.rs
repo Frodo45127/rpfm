@@ -335,3 +335,63 @@ fn test_run_tests_broken_libraries() {
     assert!(result.errors()[0].starts_with("The game's script libraries failed to load:"));
     assert!(result.errors()[0].contains("library broke"));
 }
+
+/// A tiny stand-in for the script libraries of Attila and older games: events stored in the global `events` table,
+/// a scripting module loaded through the compiled UI library's `Require`, and the game interface got on `NewSession`.
+const LEGACY_CAMPAIGN_SCRIPTED: &str = r#"
+events = { NewSession = {}, WorldCreated = {}, SavingGame = {} }
+local core = require "ui/CoreUtils"
+scripting = core.Require "lua_scripts.legacy_scripting"
+"#;
+
+const LEGACY_SCRIPTING: &str = r#"
+local scripting = {}
+function scripting.add_callback(event, callback)
+    table.insert(events[event], callback)
+    out.tom("added a callback to " .. event)
+end
+scripting.add_callback("NewSession", function(context) scripting.game_interface = GAME(context) end)
+return scripting
+"#;
+
+const LEGACY_CAMPAIGN_SCRIPT: &str = r#"
+scripting.add_callback("WorldCreated", function() world_created = true end)
+scripting.add_callback("SavingGame", function(context)
+    local game = scripting.game_interface
+    game:save_named_value("flag", true, context)
+    game:save_named_value("count", 2.5, context)
+    game:save_named_value("text", "a", context)
+    game:save_named_value("table", {}, context)
+    game:save_named_value("world_created", world_created == true, context)
+end)
+"#;
+
+fn legacy_scripts() -> LuaScripts {
+    let mut scripts = LuaScripts::default();
+    scripts.add("lua_scripts/campaign_scripted.lua", LEGACY_CAMPAIGN_SCRIPTED.to_owned(), false);
+    scripts.add("lua_scripts/legacy_scripting.lua", LEGACY_SCRIPTING.to_owned(), false);
+    scripts.add("campaigns/test_campaign/scripting.lua", LEGACY_CAMPAIGN_SCRIPT.to_owned(), false);
+    scripts
+}
+
+fn legacy_options(campaign: &str) -> LuaTestOptions {
+    let mut options = LuaTestOptions::default();
+    options.set_campaign(Some(campaign.to_owned()));
+    options
+}
+
+#[test]
+fn test_run_tests_boots_legacy_campaigns() {
+    let test_source = r#"
+rpfm.test("boot", function()
+    assert(scripting.game_interface ~= nil, "the game interface should be set on NewSession")
+    assert(world_created, "the campaign script should run")
+end)
+"#;
+
+    let report = run_tests(&LuaApi::default(), &legacy_scripts(), test_source, &legacy_options("test_campaign")).unwrap();
+
+    let result = test_result(&report, "boot");
+    assert!(result.passed(), "{:?}", result.errors());
+    assert!(result.log().iter().any(|line| line == "[tom] added a callback to SavingGame"));
+}

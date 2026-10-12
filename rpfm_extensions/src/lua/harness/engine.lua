@@ -505,12 +505,10 @@ print = function(...)
     log(table.concat(parts, "\t"));
 end;
 
--- Output channels. The game has one per tab of its script debug console.
-out = {};
-for _, channel in ipairs({ "out", "design", "invasions", "narrative", "ui", "chaos", "interventions", "savegame", "help_pages", "grudges", "scripted_tours", "traits" }) do
-    local prefix = channel == "out" and "" or "[" .. channel .. "] ";
-    out[channel] = function(text) log(prefix .. tostring(text)) end;
-end;
+-- Output channels. The game has one per tab of its script debug console, and each game has its own tabs.
+out = setmetatable({ out = log }, { __index = function(_, channel)
+    return function(text) log("[" .. tostring(channel) .. "] " .. tostring(text)) end;
+end });
 
 --------------------------------------------------------------------------------
 -- Test API.
@@ -753,12 +751,29 @@ end;
 -- Entry points used by RPFM.
 --------------------------------------------------------------------------------
 
+-- Script Attila and older games run first when loading a campaign. Their campaign scripts are in `campaigns/<campaign>/`.
+local LEGACY_BOOT_SCRIPT = "lua_scripts/campaign_scripted.lua";
+
 -- Loads the script libraries, the vanilla scripts of a campaign if any, and the mods, then gets to the first tick.
 -- Returns the error of loading the libraries, if they fail to load.
 function rpfm.__boot(campaign)
     CampaignName = campaign or "main_warhammer";
 
     local ok, err = xpcall(function()
+        if read_script("script/campaign_scripted.lua") == nil and read_script(LEGACY_BOOT_SCRIPT) ~= nil then
+
+            -- The UI library of these games is compiled, so the `Require` the scripts use from it is emulated.
+            package.preload["ui/CoreUtils"] = function() return { Require = require } end;
+            dofile(LEGACY_BOOT_SCRIPT);
+
+            -- Campaigns without scripts are valid, they just have no campaign manager.
+            local campaign_script = campaign and "campaigns/" .. campaign .. "/scripting.lua";
+            if campaign_script and read_script(campaign_script) ~= nil then
+                dofile(campaign_script);
+            end;
+            return;
+        end;
+
         dofile("script/campaign_scripted.lua");
         if campaign then
             package.path = package.path .. ";script/campaign/" .. campaign .. "/?.lua;script/campaign/?.lua";

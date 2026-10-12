@@ -45,6 +45,9 @@ const ENGINE_SCRIPT: &str = include_str!("engine.lua");
 /// Script the game runs first when loading a campaign, which loads everything else.
 const CAMPAIGN_BOOT_SCRIPT: &str = "script/campaign_scripted.lua";
 
+/// Script Attila and older games run first when loading a campaign.
+const LEGACY_CAMPAIGN_BOOT_SCRIPT: &str = "lua_scripts/campaign_scripted.lua";
+
 /// Name of the chunk holding the test file, as shown in errors.
 const TEST_FILE_CHUNK: &str = "@test";
 
@@ -191,6 +194,16 @@ impl LuaScripts {
         self.scripts.get(&path.to_lowercase())
     }
 
+    /// This function checks if there's a script with a path.
+    pub fn contains(&self, path: &str) -> bool {
+        self.get(path).is_some()
+    }
+
+    /// This function checks if the script the game runs first when loading a campaign is there.
+    fn has_campaign_boot_script(&self) -> bool {
+        self.contains(CAMPAIGN_BOOT_SCRIPT) || self.contains(LEGACY_CAMPAIGN_BOOT_SCRIPT)
+    }
+
     /// This function returns the paths of the scripts directly inside a folder, like the game's `filesystem_lookup`.
     ///
     /// # Arguments
@@ -241,7 +254,7 @@ impl LuaScripts {
 ///
 /// Returns an error if the game's scripts are missing, if the test file can't be loaded, or if the Lua runtime fails.
 pub fn run_tests(api: &LuaApi, scripts: &LuaScripts, test_source: &str, options: &LuaTestOptions) -> Result<LuaTestReport> {
-    if scripts.get(CAMPAIGN_BOOT_SCRIPT).is_none() {
+    if !scripts.has_campaign_boot_script() {
         return Err(RLibError::LuaTestGameScriptsNotFound);
     }
 

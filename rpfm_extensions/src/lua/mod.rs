@@ -55,8 +55,9 @@ const BOOLEAN_RETURN_DOC_FIXES: [(&str, &str); 3] = [
     ("FACTION_SCRIPT_INTERFACE", "was_confederated"),
 ];
 
-/// Folder of the vanilla scripts, without trailing slash, as dependency lookups add it.
-const VANILLA_SCRIPTS_FOLDER: &str = "script";
+/// Folders of the vanilla scripts, without trailing slash, as dependency lookups add it. Attila and older games
+/// keep their libraries in `lua_scripts` and the scripts of each campaign in `campaigns`.
+const VANILLA_SCRIPTS_FOLDERS: [&str; 3] = ["script", "lua_scripts", "campaigns"];
 
 /// Vanilla script declaring one table per event the game can trigger.
 const VANILLA_EVENTS_SCRIPT: &str = "script/events.lua";
@@ -585,7 +586,8 @@ impl LuaApi {
 ///
 /// The path and code of each script.
 pub fn vanilla_scripts(dependencies: &Dependencies) -> Vec<(String, String)> {
-    dependencies.files_by_path(&[ContainerPath::Folder(VANILLA_SCRIPTS_FOLDER.to_owned())], true, false, false)
+    let folders = VANILLA_SCRIPTS_FOLDERS.map(|folder| ContainerPath::Folder(folder.to_owned()));
+    dependencies.files_by_path(&folders, true, false, false)
         .into_par_iter()
         .filter(|(path, _)| path.ends_with(".lua"))
         .filter_map(|(path, file)| {
