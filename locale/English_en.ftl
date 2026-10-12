@@ -1773,6 +1773,8 @@ updater_update_schemas_updating = Updating, pls wait...
 updater_update_twautogen_updating = Updating, pls wait...
 updater_update_old_ak_updating = Updating, pls wait...
 special_stuff_build_starpos = Build Startpos
+generate_starpos = Generate with RPFM (Experimental)
+generate_starpos_in_progress_message = Generating the startpos. This may take a few seconds...
 special_stuff_build_ceo = Build CEOs
 games_closed = Hit this when the game is closed
 build_starpos = Build Startpos
@@ -1804,6 +1806,8 @@ build_starpos_instructions = <p>Instructions:</p>
         <li>Shogun 2.</li>
     </ul>
     <p>If it's not on this list, it has not been tested and may work... or not, so report any issue you see if you use it. If it says "partially, it means I did some limited testing on it and it works, but may still contain bugs, so if you use it and something doesn't work, report it.</p>
+
+    <p>Attila only: tick <b>Generate with RPFM</b> to build the startpos with RPFM instead of the game. It's faster and doesn't need the Pack in /data, but it's experimental: test the result in game.</p>
 
 build_ceo = Build CEO
 build_ceo_instructions = <p>Instructions:</p>
