@@ -11,14 +11,14 @@
 //! Writer of the victory missions the faction selection screen shows (`VICTORY_MISSION_OPTIONS`), from the campaign's
 //! `victory_objectives.txt`.
 //!
-//! Each objective is a `CAMPAIGN_MISSION_OBJECTIVE` with its type id and a record of the type's values. The ids come
-//! from the game's objective type enum, matched against Attila's startpos: only the types its victory missions use are
-//! known.
+//! Each objective is a `CAMPAIGN_MISSION_OBJECTIVE` with its type id and a record of the type's values (none for
+//! types without values). The ids come from the game's objective type enum, matched against Attila's startposes:
+//! only the types the victory missions of its campaigns use are known.
 
 use rpfm_lib::error::{RLibError, Result};
 use rpfm_lib::files::esf::{NodeType, RecordNode};
 
-use super::{bool_node, u32_node};
+use super::{bool_node, f32_node, u32_node};
 use crate::startpos::layout::{child_path, StartposLayout};
 use crate::startpos::missions::{MissionObjective, VictoryMission, VictoryObjectives};
 
@@ -122,6 +122,7 @@ fn write_objective(layout: &StartposLayout, objective: &MissionObjective) -> Res
     let impl_path = child_path(OBJECTIVE_PATH, &impl_key);
 
     let values = match objective {
+        MissionObjective::StayHorde => None,
         MissionObjective::ConstructNBuildingsIncluding { total, buildings, faction } => {
             let mut children = vec![u32_node(u32::try_from(buildings.len()).unwrap_or(u32::MAX))];
             for building in buildings {
@@ -129,16 +130,30 @@ fn write_objective(layout: &StartposLayout, objective: &MissionObjective) -> Res
                 children.push(bool_node(false));
             }
             children.extend([u32_node(0), u32_node(*total), u32_node(0), NodeType::Ascii(faction.to_owned())]);
-            layout.raw_record(&impl_path, children)?
+            Some(layout.raw_record(&impl_path, children)?)
         },
-        _ => write_objective_values(layout, &impl_path, objective)?,
+
+        // Objectives with lists start with what the game resolves while playing (empty here), then the list's keys.
+        MissionObjective::ReclaimNDifferentSettlementsIncluding { total, regions } => Some(layout.raw_record(&impl_path, keyed_list(vec![u32_node(*total)], regions))?),
+        MissionObjective::AtLeastXPublicOrderInProvinces { total, provinces } => Some(layout.raw_record(&impl_path, keyed_list(vec![f32_node(*total)], provinces))?),
+        MissionObjective::EnsureFactionsHaveNoMilitaryPresence { factions } => Some(layout.raw_record(&impl_path, keyed_list(vec![], factions))?),
+        _ => Some(write_objective_values(layout, &impl_path, objective)?),
     };
 
     let mut record = layout.builder(OBJECTIVE_PATH)?;
-    record.group()?
-        .set_u32("^+1", id)?
-        .set_record(&impl_key, Some(values))?;
+    let group = record.group()?.set_u32("^+1", id)?;
+    if let Some(values) = values {
+        group.set_record(&impl_key, Some(values))?;
+    }
     record.build()
+}
+
+/// Returns the leaves of an objective with a list of keys: its leading values, an empty list of resolved entries, and
+/// the keys (count, then each key).
+fn keyed_list(mut leading: Vec<NodeType>, keys: &[String]) -> Vec<NodeType> {
+    leading.extend([u32_node(0), u32_node(u32::try_from(keys.len()).unwrap_or(u32::MAX))]);
+    leading.extend(keys.iter().map(|key| NodeType::Ascii(key.to_owned())));
+    leading
 }
 
 /// Writes the record with the values of an objective of a fixed shape.
@@ -167,10 +182,23 @@ fn write_objective_values(layout: &StartposLayout, path: &str, objective: &Missi
         MissionObjective::AtLeastXReligionInAllProvinces { total, religion } => {
             group.set_f32("^+1", *total)?.set_str("^+2", religion)?;
         },
+        MissionObjective::ControlNRegionsIncluding { total, regions } => {
+            group.set_u32("^+1", *total)?.set_strings("^+2", regions.clone())?;
+        },
+        MissionObjective::IncomeAtLeastX { income } => {
+            group.set_u32("^+1", *income)?;
+        },
+        MissionObjective::EliminateCharacterInBattle { faction } => {
+            group.set_str("^+2", faction)?;
+        },
+        MissionObjective::AttainFameLevel { level } => {
+            group.set_u32("^+1", *level)?;
+        },
 
         // The game drops the settlements listed by loot and raze objectives: only their total is kept.
-        MissionObjective::ControlNRegionsIncluding { total } |
         MissionObjective::EarnXAmountFromBuildingWealth { total } |
+        MissionObjective::MaintainNAlliances { total } |
+        MissionObjective::ConfederateFactions { total } |
         MissionObjective::EarnXAmountFromRaiding { total } |
         MissionObjective::OwnNProvincesWithCulturalDominance { total } |
         MissionObjective::SubjugateFactions { total } |
@@ -179,8 +207,12 @@ fn write_objective_values(layout: &StartposLayout, path: &str, objective: &Missi
         MissionObjective::RazeOrSackNDifferentSettlementsIncluding { total, .. } => {
             group.set_u32("^+1", *total)?;
         },
-        MissionObjective::ConstructNBuildingsIncluding { .. } => {
-            return Err(RLibError::StartposLayoutError(format!("{path}: building lists have no fixed layout")));
+        MissionObjective::ConstructNBuildingsIncluding { .. } |
+        MissionObjective::ReclaimNDifferentSettlementsIncluding { .. } |
+        MissionObjective::AtLeastXPublicOrderInProvinces { .. } |
+        MissionObjective::EnsureFactionsHaveNoMilitaryPresence { .. } |
+        MissionObjective::StayHorde => {
+            return Err(RLibError::StartposLayoutError(format!("{path}: lists have no fixed layout")));
         },
     }
     record.build()
@@ -204,5 +236,14 @@ fn objective_type(objective: &MissionObjective) -> (u32, &'static str) {
         MissionObjective::AtLeastXReligionInAllProvinces { .. } => (69, "AT_LEAST_X_RELIGION_IN_ALL_PROVINCES"),
         MissionObjective::ReachSpecifiedDate { .. } => (77, "REACH_SPECIFIED_DATE"),
         MissionObjective::LootOrSackNDifferentSettlementsIncluding { .. } => (81, "LOOT_OR_SACK_N_DIFFERENT_SETTLEMENTS_INCLUDING"),
+        MissionObjective::EnsureFactionsHaveNoMilitaryPresence { .. } => (7, "ENSURE_FACTIONS_HAVE_NO_MILITARY_PRESENCE"),
+        MissionObjective::EliminateCharacterInBattle { .. } => (14, "ELIMINATE_CHARACTER_IN_BATTLE"),
+        MissionObjective::IncomeAtLeastX { .. } => (36, "INCOME_AT_LEAST_X"),
+        MissionObjective::MaintainNAlliances { .. } => (51, "MAINTAIN_N_ALLIANCES"),
+        MissionObjective::ConfederateFactions { .. } => (52, "CONFEDERATE_FACTIONS"),
+        MissionObjective::StayHorde => (65, "STAY_HORDE"),
+        MissionObjective::AtLeastXPublicOrderInProvinces { .. } => (76, "AT_LEAST_X_PUBLIC_ORDER_IN_PROVINCES"),
+        MissionObjective::ReclaimNDifferentSettlementsIncluding { .. } => (86, "RECLAIM_N_DIFFERENT_SETTLEMENTS_INCLUDING"),
+        MissionObjective::AttainFameLevel { .. } => (89, "ATTAIN_FAME_LEVEL"),
     }
 }

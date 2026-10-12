@@ -84,3 +84,24 @@ fn test_parse_victory_objectives_unsupported() {
     assert!(parse_victory_objectives(&unknown_objective).is_err());
     assert!(parse_victory_objectives(&unknown_payload).is_err());
 }
+
+#[test]
+fn test_parse_objectives_of_other_campaigns() {
+    let script = |objective: &str| ScriptItem { words: vec!["objective".to_owned()], block: Some(parse_script(objective).unwrap()) };
+    let parsed = [
+        ("type RECLAIM_N_DIFFERENT_SETTLEMENTS_INCLUDING; total 40; region reg_a; region reg_b;", MissionObjective::ReclaimNDifferentSettlementsIncluding { total: 40, regions: vec!["reg_a".to_owned(), "reg_b".to_owned()] }),
+        ("type ENSURE_FACTIONS_HAVE_NO_MILITARY_PRESENCE; total 1; faction fact_a;", MissionObjective::EnsureFactionsHaveNoMilitaryPresence { factions: vec!["fact_a".to_owned()] }),
+        ("type AT_LEAST_X_PUBLIC_ORDER_IN_PROVINCES; total 30; province prov_a;", MissionObjective::AtLeastXPublicOrderInProvinces { total: 30.0, provinces: vec!["prov_a".to_owned()] }),
+        ("type STAY_HORDE;", MissionObjective::StayHorde),
+        ("type MAINTAIN_N_ALLIANCES; total 3;", MissionObjective::MaintainNAlliances { total: 3 }),
+        ("type INCOME_AT_LEAST_X; income 10000;", MissionObjective::IncomeAtLeastX { income: 10000 }),
+        ("type ELIMINATE_CHARACTER_IN_BATTLE; faction fact_a;", MissionObjective::EliminateCharacterInBattle { faction: "fact_a".to_owned() }),
+        ("type CONFEDERATE_FACTIONS; total 1;", MissionObjective::ConfederateFactions { total: 1 }),
+        ("type ATTAIN_FAME_LEVEL; fame_level 5;", MissionObjective::AttainFameLevel { level: 5 }),
+        ("type CONTROL_N_REGIONS_INCLUDING; total 45; region reg_a;", MissionObjective::ControlNRegionsIncluding { total: 45, regions: vec!["reg_a".to_owned()] }),
+    ];
+
+    for (text, expected) in parsed {
+        assert_eq!(MissionObjective::from_item(&script(text)).unwrap(), expected, "{text}");
+    }
+}

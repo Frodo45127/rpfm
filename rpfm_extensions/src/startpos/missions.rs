@@ -91,8 +91,8 @@ pub enum MissionObjective {
     /// Reach a date (`year`, `week_of_year`).
     ReachSpecifiedDate { year: u32, week: u32 },
 
-    /// Control a number of regions.
-    ControlNRegionsIncluding { total: u32 },
+    /// Control a number of regions among some (`region`).
+    ControlNRegionsIncluding { total: u32, regions: Vec<String> },
 
     /// Control a number of provinces among some (`province`).
     ControlNProvincesIncluding { total: u32, provinces: Vec<String> },
@@ -130,6 +130,33 @@ pub enum MissionObjective {
 
     /// Have a religion at a percentage in every province.
     AtLeastXReligionInAllProvinces { total: f32, religion: String },
+
+    /// Reclaim a number of settlements among some (`region`).
+    ReclaimNDifferentSettlementsIncluding { total: u32, regions: Vec<String> },
+
+    /// Leave some factions (`faction`) without armies.
+    EnsureFactionsHaveNoMilitaryPresence { factions: Vec<String> },
+
+    /// Have public order at a level in some provinces (`province`).
+    AtLeastXPublicOrderInProvinces { total: f32, provinces: Vec<String> },
+
+    /// Stay a horde.
+    StayHorde,
+
+    /// Keep a number of alliances.
+    MaintainNAlliances { total: u32 },
+
+    /// Have an income of at least an amount (`income`).
+    IncomeAtLeastX { income: u32 },
+
+    /// Kill a faction's leader in battle (`faction`).
+    EliminateCharacterInBattle { faction: String },
+
+    /// Confederate a number of factions.
+    ConfederateFactions { total: u32 },
+
+    /// Reach a fame level (`fame_level`).
+    AttainFameLevel { level: u32 },
 }
 
 //---------------------------------------------------------------------------//
@@ -218,7 +245,7 @@ impl MissionObjective {
         let total = || item.child_number::<u32>("total");
         Ok(match item.child_value("type")?.as_str() {
             "REACH_SPECIFIED_DATE" => Self::ReachSpecifiedDate { year: item.child_number("year")?, week: item.child_number("week_of_year")? },
-            "CONTROL_N_REGIONS_INCLUDING" => Self::ControlNRegionsIncluding { total: total()? },
+            "CONTROL_N_REGIONS_INCLUDING" => Self::ControlNRegionsIncluding { total: total()?, regions: item.child_values("region") },
             "CONTROL_N_PROVINCES_INCLUDING" => Self::ControlNProvincesIncluding { total: total()?, provinces: item.child_values("province") },
             "RESEARCH_N_TECHS_OF_TYPE_X" => Self::ResearchNTechsOfTypeX {
                 total: total()?,
@@ -240,6 +267,15 @@ impl MissionObjective {
             "LOOT_OR_SACK_N_DIFFERENT_SETTLEMENTS_INCLUDING" => Self::LootOrSackNDifferentSettlementsIncluding { total: total()?, regions: item.child_values("region") },
             "RAZE_OR_SACK_N_DIFFERENT_SETTLEMENTS_INCLUDING" => Self::RazeOrSackNDifferentSettlementsIncluding { total: total()?, regions: item.child_values("region") },
             "AT_LEAST_X_RELIGION_IN_ALL_PROVINCES" => Self::AtLeastXReligionInAllProvinces { total: item.child_number("total")?, religion: item.child_value("religion")? },
+            "RECLAIM_N_DIFFERENT_SETTLEMENTS_INCLUDING" => Self::ReclaimNDifferentSettlementsIncluding { total: total()?, regions: item.child_values("region") },
+            "ENSURE_FACTIONS_HAVE_NO_MILITARY_PRESENCE" => Self::EnsureFactionsHaveNoMilitaryPresence { factions: item.child_values("faction") },
+            "AT_LEAST_X_PUBLIC_ORDER_IN_PROVINCES" => Self::AtLeastXPublicOrderInProvinces { total: item.child_number("total")?, provinces: item.child_values("province") },
+            "STAY_HORDE" => Self::StayHorde,
+            "MAINTAIN_N_ALLIANCES" => Self::MaintainNAlliances { total: total()? },
+            "INCOME_AT_LEAST_X" => Self::IncomeAtLeastX { income: item.child_number("income")? },
+            "ELIMINATE_CHARACTER_IN_BATTLE" => Self::EliminateCharacterInBattle { faction: item.child_value("faction")? },
+            "CONFEDERATE_FACTIONS" => Self::ConfederateFactions { total: total()? },
+            "ATTAIN_FAME_LEVEL" => Self::AttainFameLevel { level: item.child_number("fame_level")? },
             other => return Err(script_error(format!("unsupported objective type {other}"))),
         })
     }
