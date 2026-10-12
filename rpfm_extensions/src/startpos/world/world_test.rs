@@ -71,9 +71,11 @@ pub(crate) fn fixture_tables() -> StartposTables {
         &["22", "12", "bld_city_minor_1", "", "", "", "", "", "", "40"],
         &["23", "13", "bld_city_minor_1", "", "", "", "", "", "", "50"],
     ]);
-    add_table(&mut tables, "building_levels", &["level_name", "building_instance_key"], &[
-        &["bld_city_major_1", "att_city_major"],
-        &["bld_city_minor_1", "att_city_minor"],
+    add_table(&mut tables, "building_levels", &["level_name", "building_instance_key", "chain"], &[
+        &["bld_city_major_1", "att_city_major", "chain_city"],
+        &["bld_city_minor_1", "att_city_minor", "chain_city"],
+        &["bld_port_1", "", "chain_port"],
+        &["bld_farm_1", "", "chain_farm"],
     ]);
     add_table(&mut tables, "start_pos_characters", &["ID", "faction", "Type", "Age", "startx", "starty", "ministerial_position", "loyalty", "death_type", "progenitor", "override_general_unit"], &[
         &["30", "1", "general", "40", "0.0", "0.0", "", "0", "", "true", ""],
@@ -150,7 +152,7 @@ fn test_wives_married_into_another_faction_know_their_husbands_faction() {
     ]);
     add_table(&mut tables, "start_pos_regions", &["id", "region", "campaign", "owning_faction", "faction_capital"], &[]);
     add_table(&mut tables, "start_pos_settlements", &["id", "region", "primary_building", "port_building", "building1", "building2", "building3", "building4", "building5", "startpos_slave_points"], &[]);
-    add_table(&mut tables, "building_levels", &["level_name", "building_instance_key"], &[]);
+    add_table(&mut tables, "building_levels", &["level_name", "building_instance_key", "chain"], &[]);
     add_table(&mut tables, "start_pos_characters", &["ID", "faction", "Type", "Age", "startx", "starty", "ministerial_position", "loyalty", "death_type", "progenitor", "override_general_unit", "is_male"], &[
         &["30", "1", "general", "40", "0.0", "0.0", "faction_leader", "5", "", "false", "", "true"],
         &["31", "2", "general", "30", "0.0", "0.0", "", "5", "", "false", "", "false"],

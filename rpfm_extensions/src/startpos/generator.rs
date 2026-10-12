@@ -53,7 +53,8 @@ pub const SUPPORTED_GAMES: [&str; 1] = [KEY_ATTILA];
 /// Tables the startpos build reads, without the `_tables` suffix.
 pub const STARTPOS_TABLES: &[&str] = &[
     "agent_culture_details", "agent_to_agent_abilities", "agent_to_agent_attributes", "agent_uniforms", "agents",
-    "armed_citizenry_units_to_unit_groups_junctions", "battlefield_engines", "building_chains", "building_level_armed_citizenry_junctions",
+    "armed_citizenry_units_to_unit_groups_junctions", "battlefield_engines", "building_chain_availabilities",
+    "building_chain_availability_sets", "building_chains", "building_level_armed_citizenry_junctions",
     "building_levels", "campaign_character_art_sets", "campaign_character_art_sets_group_junctions", "campaigns",
     "character_skill_node_sets", "character_skill_nodes", "character_trait_levels", "commander_unit_permissions", "commodities",
     "cultures_subcultures", "faction_political_parties_junctions", "faction_to_mercenary_set_junctions", "factions", "land_units",

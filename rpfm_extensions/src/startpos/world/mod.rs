@@ -19,6 +19,7 @@
 //! # Submodules
 //!
 //! - [`agents`]: agent abilities, attributes, skill sets and recruitment pools.
+//! - [`availability`]: the building chains each faction can have.
 //! - [`bodyguards`]: the default general unit of each faction.
 //! - [`calendar`]: the campaign's start date and turns per year.
 //! - [`characters`]: per-character values (birth year, loyalty, faction leader, map position).
@@ -39,8 +40,10 @@ use std::collections::{HashMap, HashSet};
 use rpfm_lib::error::{RLibError, Result};
 
 use super::tables::{Row, StartposTables};
+use self::availability::available_chains;
 
 pub mod agents;
+pub mod availability;
 pub mod bodyguards;
 pub mod calendar;
 pub mod characters;
@@ -295,23 +298,42 @@ impl CampaignIndex {
             .map(|row| row.str("level_name").map(|level| level.into_owned()))
             .collect::<Result<HashSet<_>>>()?;
 
+        // The game drops the starting buildings whose chain the settlement's owner can't have.
+        let mut available = HashMap::new();
+        for faction in &factions {
+            if let Some(chains) = available_chains(tables, campaign, faction)? {
+                available.insert(faction.key.to_owned(), chains);
+            }
+        }
+        let mut chain_of = HashMap::new();
+        if !available.is_empty() {
+            for row in tables.table("building_levels")?.rows() {
+                chain_of.insert(row.str("level_name")?.into_owned(), row.str("chain")?.into_owned());
+            }
+        }
+        let owner_of = regions.iter().map(|region| (region.key.as_str(), region.owner.as_deref())).collect::<HashMap<_, _>>();
+
         let mut settlements = vec![];
         for row in tables.table("start_pos_settlements")?.rows() {
             let Some(region) = region_of_id.get(row.str("region")?.as_ref()) else { continue };
+            let chains = owner_of.get(region.as_str()).copied().flatten().and_then(|owner| available.get(owner));
+            let allowed = |building: &str| chains.is_none_or(|chains| chain_of.get(building).is_some_and(|chain| chains.contains(chain)));
+
             let mut buildings = vec![];
             for column in ["building1", "building2", "building3", "building4", "building5"] {
                 let building = row.str(column)?;
-                if !building.is_empty() {
+                if !building.is_empty() && allowed(&building) {
                     buildings.push(building.into_owned());
                 }
             }
+            let port_building = row.str("port_building")?;
             let primary_building = row.str("primary_building")?.into_owned();
             settlements.push(SettlementEntry {
                 id: row.str("id")?.into_owned(),
                 region: region.to_owned(),
                 major: major_buildings.contains(&primary_building),
                 primary_building,
-                port_building: row.str("port_building")?.into_owned(),
+                port_building: if allowed(&port_building) { port_building.into_owned() } else { String::new() },
                 buildings,
                 slave_points: row.int("startpos_slave_points")?,
             });
