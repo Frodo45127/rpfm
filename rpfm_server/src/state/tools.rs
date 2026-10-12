@@ -23,7 +23,7 @@ use std::path::{Component, Path, PathBuf};
 use rpfm_extensions::dependencies::{GAMES_NEEDING_VICTORY_OBJECTIVES, VICTORY_OBJECTIVES_FILE_NAME};
 use rpfm_extensions::gltf::{gltf_from_rigid, save_gltf_to_disk};
 use rpfm_extensions::optimizer::{OptimizableContainer, OptimizerOptions};
-use rpfm_extensions::startpos::generator::{generate_startpos, load_or_extract_layout, load_tables, StartposSources, SUPPORTED_GAMES as GENERATOR_GAMES};
+use rpfm_extensions::startpos::generator::{generate_startpos, load_tables, GameLayouts, StartposSources, SUPPORTED_GAMES as GENERATOR_GAMES};
 use rpfm_extensions::startpos::validation::{validate, Severity};
 use rpfm_extensions::translator::PackTranslation;
 
@@ -606,9 +606,9 @@ impl SessionState {
             return Err(anyhow!("The startpos tables have errors that would break the build:\n{}", errors.join("\n")));
         }
 
-        let sources = StartposSources::from_tables(tables, &self.dependencies, pack_to_build, &request.campaign)?;
         let game_data_path = self.game.data_path(&settings.path_buf(self.game.key()))?;
-        let layout = load_or_extract_layout(&startpos_layouts_path()?, &self.game, &game_data_path, &request.campaign)?;
+        let layout = GameLayouts::load_or_extract(&startpos_layouts_path()?, &self.game, &game_data_path)?.for_campaign(&tables, &request.campaign);
+        let sources = StartposSources::from_tables(tables, &self.dependencies, pack_to_build, &request.campaign)?;
         let startpos = generate_startpos(&sources, &layout)?;
 
         let path = format!("campaigns/{}/startpos.esf", request.campaign);

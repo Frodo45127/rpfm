@@ -10,6 +10,7 @@
 
 use std::collections::BTreeSet;
 
+use rpfm_lib::files::esf::{NodeType, RecordNode};
 use rpfm_lib::files::table::DecodedData;
 use rpfm_lib::games::supported_games::SupportedGames;
 use rpfm_lib::schema::{Definition, Field, FieldType};
@@ -42,24 +43,51 @@ fn test_later_fragments_replace_rows_with_the_same_key() {
 
 #[test]
 #[ignore = "needs the game data, see startpos_test.rs"]
-fn test_layouts_are_extracted_once_and_shared_with_new_campaigns() {
+fn test_layouts_are_extracted_once_and_picked_by_campaign() {
     let game_data = tempfile::tempdir().unwrap();
-    let campaign_folder = game_data.path().join("campaigns").join(TEST_CAMPAIGN);
-    std::fs::create_dir_all(&campaign_folder).unwrap();
-    std::fs::copy(test_data_path("startpos.esf"), campaign_folder.join("startpos.esf")).unwrap();
-    let layouts = tempfile::tempdir().unwrap();
+    for campaign in [TEST_CAMPAIGN, "other_campaign"] {
+        let folder = game_data.path().join("campaigns").join(campaign);
+        std::fs::create_dir_all(&folder).unwrap();
+        std::fs::copy(test_data_path("startpos.esf"), folder.join("startpos.esf")).unwrap();
+    }
+    let layouts_folder = tempfile::tempdir().unwrap();
     let games = SupportedGames::default();
     let game = games.game(KEY_ATTILA).unwrap();
 
-    let extracted = load_or_extract_layout(layouts.path(), game, game_data.path(), TEST_CAMPAIGN).unwrap();
-    let cached = layouts.path().join(layout_file_name(game.key(), TEST_CAMPAIGN));
-    assert!(cached.is_file());
-    assert_eq!(extracted, StartposLayout::from_esf(test_startpos()).unwrap());
+    let layouts = GameLayouts::load_or_extract(layouts_folder.path(), game, game_data.path()).unwrap();
+    for name in [layout_file_name(game.key(), None), layout_file_name(game.key(), Some(TEST_CAMPAIGN)), layout_file_name(game.key(), Some("other_campaign"))] {
+        assert!(layouts_folder.path().join(name).is_file());
+    }
 
-    // A campaign the game has no startpos for takes the layouts of the game's campaign, from the cache.
-    let new_campaign = load_or_extract_layout(layouts.path(), game, game_data.path(), "my_new_campaign").unwrap();
-    assert_eq!(new_campaign, extracted);
-    assert_eq!(std::fs::read_dir(layouts.path()).unwrap().count(), 1);
+    // Two copies of a startpos give the same most common values as one, so every layout matches the startpos's.
+    let expected = StartposLayout::from_esf(test_startpos()).unwrap();
+    let mut tables = StartposTables::new();
+    tables.add_rows("campaigns", &["campaign_name", "map_name"], &[vec![text(TEST_CAMPAIGN), text("main_map")], vec![text("my_campaign"), text("main_map")]]).unwrap();
+    assert_eq!(layouts.for_campaign(&tables, TEST_CAMPAIGN), expected);
+    assert_eq!(layouts.for_campaign(&tables, "my_campaign"), expected);
+    assert_eq!(layouts.for_campaign(&tables, "campaign_on_a_new_map"), expected);
+
+    let cached = GameLayouts::load_or_extract(layouts_folder.path(), game, game_data.path()).unwrap();
+    assert_eq!(cached.for_campaign(&tables, TEST_CAMPAIGN), expected);
+}
+
+#[test]
+fn test_fallback_layouts_only_add_missing_records() {
+    let startpos = |name: &str, value: u16| {
+        let mut child = RecordNode::default();
+        child.set_name(name.to_owned());
+        child.set_children(vec![vec![NodeType::U16(value)]]);
+        let mut root = RecordNode::default();
+        root.set_name("ROOT".to_owned());
+        root.set_children(vec![vec![NodeType::Record(Box::new(child))]]);
+        let mut esf = ESF::default();
+        esf.set_root_node(NodeType::Record(Box::new(root)));
+        StartposLayout::from_esf(&esf).unwrap()
+    };
+
+    let layout = startpos("A", 1).with_fallback(&startpos("A", 2)).with_fallback(&startpos("B", 3));
+    assert_eq!(layout.default_record("ROOT/A").unwrap().children()[0][0], NodeType::U16(1));
+    assert!(layout.record("ROOT/B").is_some());
 }
 
 #[test]

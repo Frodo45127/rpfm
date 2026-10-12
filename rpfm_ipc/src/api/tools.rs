@@ -320,8 +320,9 @@ pub struct StartposIssue {
 ///
 /// The tables are validated first (see `startpos.validate`), and the startpos isn't generated if they have errors.
 ///
-/// Experimental, and only available for Attila. The record layouts are taken from the game's own startpos of the
-/// campaign (or of one of its campaigns, for new ones) and cached in the config folder.
+/// Experimental, and only available for Attila. The record layouts come from the game's own startpos of the campaign,
+/// or of a campaign on the same map for new ones, completed with a layout merged from all the game's campaigns, and
+/// are cached in the config folder.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GenerateStartpos {

@@ -12,10 +12,11 @@
 //!
 //! [`load_tables`] loads the tables (the game's, its Assembly Kit's and the pack's, merged as the game loads them),
 //! which [`validation`](super::validation) checks. [`StartposSources`] adds what else the build reads: the campaign
-//! map's files, the victory objectives and the characters with legacy override texts. [`load_or_extract_layout`] gets the record layouts from the game's own startpos of the
-//! campaign, cached in a layouts folder. [`generate_startpos`] writes the startpos.
+//! map's files, the victory objectives and the characters with legacy override texts. [`GameLayouts`] gets the
+//! record layouts from the game's startposes, cached in a layouts folder.
+//! [`generate_startpos`] writes the startpos.
 
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufReader, Cursor};
 use std::path::{Path, PathBuf};
@@ -250,60 +251,101 @@ pub fn generate_startpos(sources: &StartposSources, layout: &StartposLayout) -> 
     write_startpos(&inputs, &WorldPlan::new(&index))
 }
 
-/// Returns the record layouts to write a campaign's startpos with, extracted from the game's own startpos of it.
-///
-/// Layouts are cached in a folder, and extracted again when the game's startpos is newer than the cache. Campaigns
-/// the game has no startpos for (new ones from mods) use the layouts of one of the game's campaigns.
-///
-/// # Arguments
-///
-/// * `layouts_folder` - Folder with the cached layouts.
-/// * `game` - The game.
-/// * `game_data_path` - The game's data folder, with `campaigns/<campaign>/startpos.esf`.
-/// * `campaign` - Campaign key.
-///
-/// # Errors
-///
-/// Returns an error if the game has no startpos to take the layouts from, or it can't be decoded or cached.
-pub fn load_or_extract_layout(layouts_folder: &Path, game: &GameInfo, game_data_path: &Path, campaign: &str) -> Result<StartposLayout> {
-    let source_campaign = layout_source_campaign(game_data_path, campaign)?;
-    let startpos_path = game_startpos_path(game_data_path, &source_campaign);
-    let layout_path = layouts_folder.join(layout_file_name(game.key(), &source_campaign));
+/// Record layouts of a game: one per campaign the game has a startpos for, and one merged from all of them.
+#[derive(Debug, Clone)]
+pub struct GameLayouts {
 
-    let modified = |path: &Path| path.metadata().and_then(|metadata| metadata.modified()).ok();
-    let is_current = matches!((modified(&layout_path), modified(&startpos_path)), (Some(cached), Some(startpos)) if cached >= startpos);
-    if is_current {
-        if let Ok(layout) = StartposLayout::load(&layout_path) {
-            return Ok(layout);
+    /// Layout merged from the startposes of all the game's campaigns.
+    merged: StartposLayout,
+
+    /// Layout of each of the game's campaigns, by campaign key.
+    campaigns: BTreeMap<String, StartposLayout>,
+}
+
+impl GameLayouts {
+
+    /// Loads the layouts of a game, extracting them from the game's startposes if they aren't cached or one of the
+    /// startposes is newer than the cache (like after a patch, or a new campaign).
+    ///
+    /// # Arguments
+    ///
+    /// * `layouts_folder` - Folder with the cached layouts.
+    /// * `game` - The game.
+    /// * `game_data_path` - The game's data folder, with `campaigns/<campaign>/startpos.esf`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the game has no startpos to take the layouts from, or one can't be decoded or cached.
+    pub fn load_or_extract(layouts_folder: &Path, game: &GameInfo, game_data_path: &Path) -> Result<Self> {
+        let startposes = game_startposes(game_data_path);
+        if startposes.is_empty() {
+            return Err(RLibError::StartposLayoutError(format!("the game has no startpos in {} to take the record layouts from", game_data_path.join("campaigns").display())));
+        }
+
+        let merged_path = layouts_folder.join(layout_file_name(game.key(), None));
+        let campaign_path = |campaign: &str| layouts_folder.join(layout_file_name(game.key(), Some(campaign)));
+        let modified = |path: &Path| path.metadata().and_then(|metadata| metadata.modified()).ok();
+        let newest_startpos = startposes.values().filter_map(|path| modified(path)).max();
+        let is_current = |path: &Path| modified(path).is_some_and(|cached| newest_startpos.is_some_and(|newest| cached >= newest));
+
+        if is_current(&merged_path) && startposes.keys().all(|campaign| is_current(&campaign_path(campaign))) {
+            let cached = StartposLayout::load(&merged_path).and_then(|merged| {
+                let campaigns = startposes.keys().map(|campaign| Ok((campaign.to_owned(), StartposLayout::load(&campaign_path(campaign))?))).collect::<Result<_>>()?;
+                Ok(Self { merged, campaigns })
+            });
+            if let Ok(layouts) = cached {
+                return Ok(layouts);
+            }
+        }
+
+        // Each startpos is decoded once, for its own layout and for the merged one.
+        let mut campaigns = BTreeMap::new();
+        let merged = StartposLayout::from_esfs(startposes.iter().map(|(campaign, path)| {
+            let startpos = ESF::decode(&mut BufReader::new(File::open(path)?), &None)?;
+            campaigns.insert(campaign.to_owned(), StartposLayout::from_esf(&startpos)?);
+            Ok(startpos)
+        }))?;
+
+        std::fs::create_dir_all(layouts_folder)?;
+        for (campaign, layout) in &campaigns {
+            layout.save(&campaign_path(campaign))?;
+        }
+        merged.save(&merged_path)?;
+        Ok(Self { merged, campaigns })
+    }
+
+    /// Returns the layout to write a campaign's startpos with: the campaign's own if the game has its startpos,
+    /// otherwise the one of a game campaign on the same map, otherwise the merged one. The campaign's or map's layout
+    /// takes the records it lacks from the merged one.
+    ///
+    /// # Arguments
+    ///
+    /// * `tables` - Tables with `campaigns`, to find the campaigns on the same map.
+    /// * `campaign` - Campaign key.
+    pub fn for_campaign(&self, tables: &StartposTables, campaign: &str) -> StartposLayout {
+        let maps = tables.table("campaigns").map(|table| table.rows()
+            .filter_map(|row| Some((row.str("campaign_name").ok()?.into_owned(), row.str("map_name").ok()?.into_owned())))
+            .collect::<HashMap<_, _>>())
+            .unwrap_or_default();
+        let map = maps.get(campaign);
+
+        let primary = self.campaigns.get(campaign)
+            .or_else(|| self.campaigns.iter().find(|(other, _)| map.is_some() && maps.get(other.as_str()) == map).map(|(_, layout)| layout));
+        match primary {
+            Some(layout) => layout.clone().with_fallback(&self.merged),
+            None => self.merged.clone(),
         }
     }
-
-    let startpos = ESF::decode(&mut BufReader::new(File::open(&startpos_path)?), &None)?;
-    let layout = StartposLayout::from_esf(&startpos)?;
-    std::fs::create_dir_all(layouts_folder)?;
-    layout.save(&layout_path)?;
-    Ok(layout)
 }
 
-/// Returns the campaign whose game startpos gives the layouts: the campaign itself if the game has its startpos,
-/// otherwise the first of the game's campaigns, by name.
-fn layout_source_campaign(game_data_path: &Path, campaign: &str) -> Result<String> {
-    if game_startpos_path(game_data_path, campaign).is_file() {
-        return Ok(campaign.to_owned());
-    }
-
-    let mut campaigns = std::fs::read_dir(game_data_path.join("campaigns"))
-        .map(|entries| entries.flatten().filter_map(|entry| entry.file_name().into_string().ok()).collect::<Vec<_>>())
-        .unwrap_or_default();
-    campaigns.sort();
-    campaigns.into_iter()
-        .find(|campaign| game_startpos_path(game_data_path, campaign).is_file())
-        .ok_or_else(|| RLibError::StartposLayoutError(format!("the game has no startpos to take the record layouts of the {campaign} campaign from")))
-}
-
-/// Returns the path of the game's startpos of a campaign.
-fn game_startpos_path(game_data_path: &Path, campaign: &str) -> PathBuf {
-    game_data_path.join("campaigns").join(campaign).join("startpos.esf")
+/// Returns the paths of the game's startposes, by campaign key.
+fn game_startposes(game_data_path: &Path) -> BTreeMap<String, PathBuf> {
+    std::fs::read_dir(game_data_path.join("campaigns"))
+        .map(|entries| entries.flatten()
+            .filter_map(|entry| Some((entry.file_name().into_string().ok()?, entry.path().join("startpos.esf"))))
+            .filter(|(_, path)| path.is_file())
+            .collect())
+        .unwrap_or_default()
 }
 
 /// Returns a decoded DB from a file, decoding a copy of it if needed. Empty files of tables without definitions

@@ -11,12 +11,13 @@
 //! Layouts of the records of a startpos, used to write new ones.
 //!
 //! A startpos is a tree of records with dozens of fields each, most of them constant. Instead of building each record
-//! by hand, the writer starts from a layout extracted from a game-built startpos: for every record path, its version,
+//! by hand, the writer starts from a layout extracted from game-built startposes: for every record path, its version,
 //! its child slots in order (leaves with their most common value, child records always present or optional) and
 //! whether its children are an array of groups. Generators then only set the fields that change.
 //!
-//! Layout files live in the [`STARTPOS_LAYOUT_FOLDER`] folder of RPFM's config folder, one per game and campaign (see
-//! [`layout_file_name`]).
+//! Each campaign has its own layout, and the game has one merged from all its campaigns, so records any of them uses
+//! are known to all (and to new campaigns, see [`StartposLayout::with_fallback`]). Layout files live in the
+//! [`STARTPOS_LAYOUT_FOLDER`] folder of RPFM's config folder (see [`layout_file_name`]).
 //!
 //! # Field names
 //!
@@ -223,13 +224,41 @@ impl StartposLayout {
     ///
     /// Returns an error if the root isn't a record.
     pub fn from_esf(startpos: &ESF) -> Result<Self> {
-        let NodeType::Record(root) = startpos.root_node() else {
-            return Err(RLibError::StartposLayoutError("the startpos root is not a record".to_owned()));
-        };
-
         let mut stats = HashMap::new();
-        collect(root, root.name(), &mut stats);
+        collect_startpos(startpos, &mut stats)?;
+        Self::from_stats(stats)
+    }
 
+    /// Extracts the layouts of every record of several startposes, as if their records were in a single one: defaults
+    /// are the most common values across all of them. Startposes are taken one at a time, so only one needs to be in
+    /// memory.
+    ///
+    /// # Arguments
+    ///
+    /// * `startposes` - Game-built startposes of the same game, or the errors getting them.
+    ///
+    /// # Errors
+    ///
+    /// Returns the first error getting a startpos, or an error if a root isn't a record.
+    pub fn from_esfs(startposes: impl IntoIterator<Item = Result<ESF>>) -> Result<Self> {
+        let mut stats = HashMap::new();
+        for startpos in startposes {
+            collect_startpos(&startpos?, &mut stats)?;
+        }
+        Self::from_stats(stats)
+    }
+
+    /// Adds the layouts of the record paths this layout lacks from another one, like records a campaign never uses
+    /// from a layout merged from all the game's campaigns. Paths this layout has keep their own layouts.
+    pub fn with_fallback(mut self, fallback: &StartposLayout) -> Self {
+        for (path, record) in &fallback.records {
+            self.records.entry(path.to_owned()).or_insert_with(|| record.clone());
+        }
+        self
+    }
+
+    /// Builds the layouts from the stats of the records of some startposes.
+    fn from_stats(stats: HashMap<String, PathStats>) -> Result<Self> {
         let records = stats.into_iter().map(|(path, stats)| (path, stats.into_layout())).collect();
         let mut layout = Self { records };
         layout.drop_redundant_slot_defaults()?;
@@ -906,14 +935,17 @@ impl SlotStats {
     }
 }
 
-/// Returns the file name of the layout of a game's campaign.
+/// Returns the file name of a layout: the one merged from all the game's campaigns, or a campaign's.
 ///
 /// # Arguments
 ///
 /// * `game_key` - Key of the game (`attila`).
-/// * `campaign` - Campaign key (`main_attila`).
-pub fn layout_file_name(game_key: &str, campaign: &str) -> String {
-    format!("{game_key}_{campaign}.ron")
+/// * `campaign` - Campaign key (`main_attila`), or `None` for the merged layout.
+pub fn layout_file_name(game_key: &str, campaign: Option<&str>) -> String {
+    match campaign {
+        Some(campaign) => format!("{game_key}_{campaign}.ron"),
+        None => format!("{game_key}.ron"),
+    }
 }
 
 /// Returns the path of a child record from its parent's path and its key: the occurrence suffix is dropped, so every
@@ -989,6 +1021,15 @@ fn record_leaf_count(record: &RecordNode) -> usize {
         NodeType::Record(child) => record_leaf_count(child),
         _ => 1,
     }).sum()
+}
+
+/// Collects the stats of every record of a startpos.
+fn collect_startpos(startpos: &ESF, stats: &mut HashMap<String, PathStats>) -> Result<()> {
+    let NodeType::Record(root) = startpos.root_node() else {
+        return Err(RLibError::StartposLayoutError("the startpos root is not a record".to_owned()));
+    };
+    collect(root, root.name(), stats);
+    Ok(())
 }
 
 /// Collects the stats of a record and everything under it. Groups of variant arrays also count for their type.

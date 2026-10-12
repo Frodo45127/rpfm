@@ -284,8 +284,9 @@ adds it to the pack as `campaigns/<campaign>/startpos.esf`. Unlike `startpos.sta
 
 The tables are validated first (see `startpos.validate`), and the startpos isn't generated if they have errors.
 
-Experimental, and only available for Attila. The record layouts are taken from the game's own startpos of the
-campaign (or of one of its campaigns, for new ones) and cached in the config folder.
+Experimental, and only available for Attila. The record layouts come from the game's own startpos of the campaign,
+or of a campaign on the same map for new ones, completed with a layout merged from all the game's campaigns, and
+are cached in the config folder.
 
 Runs as a job: answers right away with a job ID, and sends its result when the job ends (see [Jobs](../ws-protocol.md#jobs)).
 
