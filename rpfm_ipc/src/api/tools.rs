@@ -20,6 +20,7 @@ use std::path::PathBuf;
 use rpfm_extensions::optimizer::OptimizerOptions;
 
 use super::{Done, Request};
+use super::diagnostics::DiagnosticLevel;
 use super::files::FileRef;
 use super::tables::FilesEdited;
 
@@ -273,8 +274,51 @@ pub struct StartStartpos {
     pub process_hlp_spd_data: bool,
 }
 
+/// `startpos.validate`: checks the tables a campaign's startpos is built from, and reports what would make the build
+/// fail, hang, or drop data. Works for both ways of building startposes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ValidateStartpos {
+
+    /// Key of the pack with the startpos tables.
+    pub pack: String,
+
+    /// Campaign to check.
+    pub campaign: String,
+}
+
+/// Problems found in the tables a startpos is built from.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct StartposValidation {
+
+    /// The problems, errors first.
+    pub issues: Vec<StartposIssue>,
+}
+
+/// A problem in the tables a startpos is built from.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct StartposIssue {
+
+    /// `error` if the build fails or hangs, `warning` if it works but drops or ignores data.
+    pub level: DiagnosticLevel,
+
+    /// Table, without the `_tables` suffix.
+    pub table: String,
+
+    /// Key values of the row, joined by `|`, or its position (`#n`) if the table has no keys.
+    pub row: String,
+
+    /// Column with the problem, if it's about one.
+    pub column: Option<String>,
+
+    /// What's wrong.
+    pub message: String,
+}
+
 /// `startpos.generate`: generates the startpos of a campaign from the tables of an open pack and the game's files, and
 /// adds it to the pack as `campaigns/<campaign>/startpos.esf`. Unlike `startpos.start`, it doesn't launch the game.
+///
+/// The tables are validated first (see `startpos.validate`), and the startpos isn't generated if they have errors.
 ///
 /// Experimental, and only available for Attila. The record layouts are taken from the game's own startpos of the
 /// campaign (or of one of its campaigns, for new ones) and cached in the config folder.
@@ -382,6 +426,12 @@ impl Request for StartStartpos {
 impl Request for FinishStartpos {
     const METHOD: &'static str = "startpos.finish";
     type Response = FilesEdited;
+}
+
+impl Request for ValidateStartpos {
+    const METHOD: &'static str = "startpos.validate";
+    type Response = StartposValidation;
+    const IS_JOB: bool = true;
 }
 
 impl Request for GenerateStartpos {

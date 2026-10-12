@@ -37,7 +37,7 @@ use rpfm_ipc::api::references::{FindDefinition, FindLoc, FindUsages, GetLocSourc
 use rpfm_ipc::api::tables::{AddKeyDeletes, EditTable, ExportTsv, GetColumnValues, GetTableDefinition, GetTableInfo, GetTableRows, GetUnusedNumbers, ImportTsv, MergeTables, RenameKey, UpgradeTable};
 use rpfm_ipc::api::updates::{ApplyUpdate, CheckUpdate};
 use rpfm_ipc::api::tools::{
-    AddCeoEntries, AnimsBySkeleton, BuildCeo, ExportGltf, FinishStartpos, GenerateMissingLocs, GenerateStartpos, GetLuaHovers, GetOptimizerOptions, GetStartposCampaigns,
+    AddCeoEntries, AnimsBySkeleton, BuildCeo, ExportGltf, FinishStartpos, GenerateMissingLocs, GenerateStartpos, ValidateStartpos, GetLuaHovers, GetOptimizerOptions, GetStartposCampaigns,
     ImportCeo, InitMyMod, ListPluginScripts, ListTraitCeos, LiveExport, LuaHover, LuaHovers, LuaTestResults, OptimizePack, OptimizerOptionValues, PackMap,
     optimizer_option_values, PatchSiegeAi, PluginScripts, RunLuaTests, RunPluginScript, SetVideoFormat, StartStartpos, TraitCeos, UpdateAnimIds,
 };
@@ -51,8 +51,9 @@ use crate::translation_hub::{self, SubmitOutcome};
 use crate::updater::{apply_component, check_component, git_update_repo};
 
 /// Methods that run as jobs.
-const JOB_METHODS: [&str; 10] = [
+const JOB_METHODS: [&str; 11] = [
     GenerateStartpos::METHOD,
+    ValidateStartpos::METHOD,
     OptimizePack::METHOD,
     RunLuaTests::METHOD,
     SetGame::METHOD,
@@ -354,6 +355,10 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         GetStartposCampaigns::METHOD => call(params, |request: GetStartposCampaigns| state.startpos_campaigns(&request.pack)),
         StartStartpos::METHOD => call(params, |request: StartStartpos| state.start_startpos(&request, settings).map(|_| Done {})),
         FinishStartpos::METHOD => call(params, |request: FinishStartpos| state.finish_startpos(request.cancel, settings)),
+        ValidateStartpos::METHOD => call(params, |request: ValidateStartpos| {
+            context.report_stage("Checking the startpos tables");
+            state.validate_startpos(&request)
+        }),
         GenerateStartpos::METHOD => call(params, |request: GenerateStartpos| {
             context.report_stage("Generating the startpos");
             state.generate_startpos(&request, settings)

@@ -152,6 +152,7 @@ Methods meant for clients with their own views of the files, like the UI, return
 | [`startpos.campaigns`](./methods/tools.md#startposcampaigns) | Returns the campaigns a startpos can be built for. |
 | [`startpos.start`](./methods/tools.md#startposstart) | Prepares the Assembly Kit to build a startpos with the tables of an open pack, and launches the game to build it. |
 | [`startpos.finish`](./methods/tools.md#startposfinish) | Imports the startpos built by the game into the pack, or cancels the build, and cleans up the build files. |
+| [`startpos.validate`](./methods/tools.md#startposvalidate) | Checks the tables a campaign's startpos is built from, and reports what would make the build fail, hang, or drop data. Works for both ways of building startposes. Runs as a job. |
 | [`startpos.generate`](./methods/tools.md#startposgenerate) | Generates the startpos of a campaign from the tables of an open pack and the game's files, and adds it to the pack as `campaigns/<campaign>/startpos.esf`. Unlike `startpos.start`, it doesn't launch the game. Runs as a job. |
 | [`tools.plugin_scripts`](./methods/tools.md#toolsplugin_scripts) | Returns the plugin scripts in the scripts folder of the config. |
 | [`tools.run_plugin_script`](./methods/tools.md#toolsrun_plugin_script) | Runs a plugin script over files of an open pack, reading back the files it changes. |

@@ -62,7 +62,7 @@ use rpfm_ipc::api::schema::{
 };
 use rpfm_ipc::api::translations::{GenerateVanillaTexts, ListTranslations, Translations, VanillaTextsAvailable};
 use rpfm_ipc::api::tools::{
-    AnimsBySkeleton, ExportGltf, FilePaths, FilesChanged, FinishStartpos, GenerateMissingLocs, GenerateStartpos, GetOptimizerOptions, GetStartposCampaigns, InitMyMod, LiveExport,
+    AnimsBySkeleton, ExportGltf, FilePaths, FilesChanged, FinishStartpos, GenerateMissingLocs, GenerateStartpos, StartposValidation, ValidateStartpos, GetOptimizerOptions, GetStartposCampaigns, InitMyMod, LiveExport,
     MyModCreated, OptimizePack, OptimizerOptionValues, PackMap, PatchSiegeAi, RunLuaTests, SetVideoFormat, SiegeAiPatched, StartStartpos, StartposCampaigns,
     UpdateAnimIds,
 };
@@ -1207,6 +1207,16 @@ impl McpServer {
     )]
     pub async fn finish_startpos(&self, params: Parameters<FinishStartpos>) -> Result<CallToolResult, McpError> {
         self.call_api("finish_startpos", params.0).await
+    }
+
+    #[tool(
+        name = "validate_startpos",
+        description = "Check the tables a campaign's startpos is built from: broken references and data that make the game's build fail, hang or drop rows. Works for both ways of building startposes.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<StartposValidation>(),
+    )]
+    pub async fn validate_startpos(&self, params: Parameters<ValidateStartpos>) -> Result<CallToolResult, McpError> {
+        self.call_api("validate_startpos", params.0).await
     }
 
     #[tool(

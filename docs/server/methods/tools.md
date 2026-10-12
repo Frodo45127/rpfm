@@ -257,10 +257,32 @@ Imports the startpos built by the game into the pack, or cancels the build, and 
 |------|------|----------|-------------|
 | `edited` | array of `string` | yes | Paths of the edited files. |
 
+## `startpos.validate`
+
+Checks the tables a campaign's startpos is built from, and reports what would make the build
+fail, hang, or drop data. Works for both ways of building startposes.
+
+Runs as a job: answers right away with a job ID, and sends its result when the job ends (see [Jobs](../ws-protocol.md#jobs)).
+
+**Params** (`ValidateStartpos`)
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `pack` | `string` | yes | Key of the pack with the startpos tables. |
+| `campaign` | `string` | yes | Campaign to check. |
+
+**Result** (`StartposValidation`)
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `issues` | array of [`StartposIssue`](#type-startposissue) | yes | The problems, errors first. |
+
 ## `startpos.generate`
 
 Generates the startpos of a campaign from the tables of an open pack and the game's files, and
 adds it to the pack as `campaigns/<campaign>/startpos.esf`. Unlike `startpos.start`, it doesn't launch the game.
+
+The tables are validated first (see `startpos.validate`), and the startpos isn't generated if they have errors.
 
 Experimental, and only available for Attila. The record layouts are taken from the game's own startpos of the
 campaign (or of one of its campaigns, for new ones) and cached in the config folder.
@@ -449,3 +471,25 @@ A tile of a map.
 |------|------|----------|-------------|
 | `path` | `string` | yes | Path on disk of the tile. |
 | `folder` | `string` | yes | Subfolder of the pack's terrain tiles folder to add it to. |
+
+### Type `StartposIssue`
+
+A problem in the tables a startpos is built from.
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `level` | [`DiagnosticLevel`](#type-diagnosticlevel) | yes | `error` if the build fails or hangs, `warning` if it works but drops or ignores data. |
+| `table` | `string` | yes | Table, without the `_tables` suffix. |
+| `row` | `string` | yes | Key values of the row, joined by `\|`, or its position (`#n`) if the table has no keys. |
+| `column` | `string` or `null` | yes | Column with the problem, if it's about one. |
+| `message` | `string` | yes | What's wrong. |
+
+### Type `DiagnosticLevel`
+
+Severity of a result.
+
+One of:
+
+- `"info"`: A suggestion, or information about the mod.
+- `"warning"`: Something that may be a mistake, or cause problems in some situations.
+- `"error"`: Something that will likely cause problems, like invalid references or malformed data.

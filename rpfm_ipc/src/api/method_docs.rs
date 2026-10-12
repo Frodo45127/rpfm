@@ -564,6 +564,7 @@ fn pages() -> Vec<Page> {
     page.method::<tools::GetStartposCampaigns>();
     page.method::<tools::StartStartpos>();
     page.method::<tools::FinishStartpos>();
+    page.method::<tools::ValidateStartpos>();
     page.method::<tools::GenerateStartpos>();
     page.method::<tools::ListPluginScripts>();
     page.method::<tools::RunPluginScript>();
