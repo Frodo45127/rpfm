@@ -12,8 +12,11 @@
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 
+use rpfm_lib::files::esf::ESF;
+
 use super::*;
 use crate::startpos::esf_nav::child_record;
+use crate::startpos::tables::StartposTables;
 use crate::startpos::world::legacy::legacy_test::{linked_character, name_ids, overrides_from_pack};
 use crate::startpos::startpos_test::{array_items, compare, field_str, missing_records, Report, test_data_esf, test_data_tables, test_startpos, world, world_factions, world_regions, TEST_CAMPAIGN};
 
@@ -34,12 +37,18 @@ pub(crate) fn world_test_data() -> (CampaignIndex, StartposLayout, Vec<Settlemen
 /// Plans the world with the game startpos's orders of factions, regions and characters (characters linked to their
 /// table rows by name). The game takes them from hash tables; using them checks the rules instead of the orders.
 pub(crate) fn game_plan(index: &CampaignIndex) -> WorldPlan<'_> {
-    let game_world = world(test_startpos());
-    let factions = world_factions(game_world).iter().map(|faction| index.faction(field_str(faction, 1)).unwrap()).collect();
-    let regions = world_regions(game_world).iter().map(|region| index.region(field_str(region, 1)).unwrap()).collect();
+    plan_from_startpos(index, test_startpos(), test_data_tables())
+}
+
+/// Plans the world with the orders of factions, regions and characters of a game-built startpos (characters linked
+/// to their table rows by name).
+pub(crate) fn plan_from_startpos<'a>(index: &'a CampaignIndex, startpos: &ESF, tables: &StartposTables) -> WorldPlan<'a> {
+    let game_world = world(startpos);
+    let factions = world_factions(game_world).iter().filter_map(|faction| index.faction(field_str(faction, 1))).collect();
+    let regions = world_regions(game_world).iter().filter_map(|region| index.region(field_str(region, 1))).collect();
     let mut plan = WorldPlan::with_orders(factions, regions);
 
-    let names = test_data_tables().table("start_pos_characters").unwrap().rows()
+    let names = tables.table("start_pos_characters").unwrap().rows()
         .map(|row| (row.str("ID").unwrap().into_owned(), ["Name", "Surname", "clan_name", "other_name"].iter().map(|column| row.str(column).unwrap().into_owned()).filter(|id| !id.is_empty()).collect::<BTreeSet<_>>()))
         .collect::<HashMap<_, _>>();
     for faction in world_factions(game_world) {
