@@ -29,7 +29,7 @@ use rpfm_lib::error::Result;
 use rpfm_lib::files::esf::{Coordinates2DNode, NodeType, RecordNode};
 
 use super::{child, WorldInputs, WorldPlan};
-use crate::startpos::coords::{HexCell, RAW_SCALE_X};
+use crate::startpos::coords::{HexCell, MapScale};
 use crate::startpos::layout::{child_path, StartposLayout};
 use crate::startpos::settlements::SettlementLayout;
 use crate::startpos::vision::{Vision, VisionGrid, WorldBounds};
@@ -45,8 +45,8 @@ const FILLER_STEPS: usize = 2;
 /// Slots whose zones a shroud filler reveals (`SprawlCell::zone_slots` bits): the main settlement and the port.
 const FILLER_SLOTS: u32 = 0b11;
 
-/// How far the bounds of a shroud filler's vision go past its zones, in world units (16 raw units).
-const FILLER_MARGIN: f32 = (16.0 / RAW_SCALE_X) as f32;
+/// How far the bounds of a shroud filler's vision go past its zones, in horizontal raw units.
+const FILLER_MARGIN: f32 = 16.0;
 
 /// Buckets of the hash map a tile keeps its shroud fillers in, keyed by settlement cell.
 const FILLER_BUCKETS: u32 = 4;
@@ -71,6 +71,9 @@ pub struct SightPlan {
 
     /// The vision grid of the map.
     grid: VisionGrid,
+
+    /// Scale between the map's world and raw units.
+    scale: MapScale,
 
     /// What each region sees, by region key.
     regions: HashMap<String, Vision>,
@@ -111,26 +114,27 @@ impl SightPlan {
     /// Computes the vision of the regions and settlements.
     pub fn new(inputs: &WorldInputs, plan: &WorldPlan) -> Self {
         let grid = VisionGrid::new(inputs.region_map.world_size());
+        let scale = inputs.region_map.scale();
         let cells = inputs.region_map.cells_by_region();
 
         let mut regions = HashMap::new();
         let mut settlements = HashMap::new();
         let mut fillers = vec![];
         for region in plan.regions() {
-            let corners = cells.get(region.key().as_str()).map(|cells| cells.iter().map(|cell| cell.world_position()).collect::<Vec<_>>()).unwrap_or_default();
+            let corners = cells.get(region.key().as_str()).map(|cells| cells.iter().map(|cell| scale.world_position(*cell)).collect::<Vec<_>>()).unwrap_or_default();
             regions.insert(region.key().to_owned(), grid.around(&corners, REGION_SIGHT));
 
             let Some(settlement) = inputs.settlements.iter().find(|settlement| settlement.region() == region.key()) else { continue };
             if let Some(position) = settlement.slots().first().and_then(|slot| slot.position()) {
-                settlements.insert(region.key().to_owned(), grid.disk(position.world_position(), SETTLEMENT_SIGHT));
-                let (vision, bounds) = filler_vision(&grid, settlement);
-                fillers.push(Filler { cell: position, vision_cell: grid.cell_at(position.world_position()), vision, bounds });
+                settlements.insert(region.key().to_owned(), grid.disk(scale.world_position(position), SETTLEMENT_SIGHT));
+                let (vision, bounds) = filler_vision(&grid, &scale, settlement);
+                fillers.push(Filler { cell: position, vision_cell: grid.cell_at(scale.world_position(position)), vision, bounds });
             }
         }
 
         let (width, height) = inputs.region_map.world_size();
         let filler_tile_size = (width / FILLER_TILES, height / FILLER_TILES);
-        Self { grid, regions, settlements, fillers, filler_tile_size }
+        Self { grid, scale, regions, settlements, fillers, filler_tile_size }
     }
 
     /// Returns the vision grid of the map.
@@ -218,7 +222,7 @@ fn write_fillers(layout: &StartposLayout, shroud_path: &str, sight: &SightPlan, 
 
     let mut tiles = BTreeMap::<(Reverse<u32>, u32), Vec<&Filler>>::new();
     for filler in sight.fillers.iter().filter(|filler| !vision.contains(filler.vision_cell)) {
-        let (x, y) = filler.cell.world_position();
+        let (x, y) = sight.scale.world_position(filler.cell);
         tiles.entry((Reverse((y / tile_height) as u32), (x / tile_width) as u32)).or_default().push(filler);
     }
 
@@ -250,12 +254,12 @@ fn filler_bucket(cell: HexCell) -> u32 {
 
 /// Returns what a settlement reveals as a shroud filler, and the world bounds of it: the cells within
 /// [`FILLER_STEPS`] hexes of its primary slots' zones, inside the zones' bounds widened by [`FILLER_MARGIN`].
-fn filler_vision(grid: &VisionGrid, settlement: &SettlementLayout) -> (Vision, WorldBounds) {
+fn filler_vision(grid: &VisionGrid, scale: &MapScale, settlement: &SettlementLayout) -> (Vision, WorldBounds) {
     let zones = settlement.sprawl().iter().filter(|cell| cell.zone_slots() & FILLER_SLOTS != 0).map(|cell| cell.cell()).collect::<HashSet<_>>();
     if zones.is_empty() {
         return (Vision::default(), ((0.0, 0.0), (0.0, 0.0)));
     }
-    let corners = zones.iter().map(|cell| cell.world_position()).collect::<Vec<_>>();
+    let corners = zones.iter().map(|cell| scale.world_position(*cell)).collect::<Vec<_>>();
     let min = corners.iter().fold((f32::MAX, f32::MAX), |min, corner| (min.0.min(corner.0), min.1.min(corner.1)));
     let max = corners.iter().fold((f32::MIN, f32::MIN), |max, corner| (max.0.max(corner.0), max.1.max(corner.1)));
 
@@ -264,9 +268,10 @@ fn filler_vision(grid: &VisionGrid, settlement: &SettlementLayout) -> (Vision, W
         let ring = revealed.iter().flat_map(|cell| cell.neighbours()).collect::<Vec<_>>();
         revealed.extend(ring);
     }
-    let min = (min.0 - FILLER_MARGIN, min.1 - FILLER_MARGIN);
-    let max = (max.0 + FILLER_MARGIN, max.1 + FILLER_MARGIN);
-    grid.cells_where(min, max, |(x, y)| revealed.contains(&HexCell::from_world(x, y)))
+    let margin = FILLER_MARGIN * scale.x();
+    let min = (min.0 - margin, min.1 - margin);
+    let max = (max.0 + margin, max.1 + margin);
+    grid.cells_where(min, max, |(x, y)| revealed.contains(&scale.cell_at(x, y)))
 }
 
 /// Writes a `QUAD_TREE_BIT_ARRAY` record under a parent record.

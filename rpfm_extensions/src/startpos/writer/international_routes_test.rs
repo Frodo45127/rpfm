@@ -16,6 +16,7 @@ use rpfm_lib::files::Decodeable;
 use rpfm_lib::files::trade_routes::TradeRoutes;
 
 use super::*;
+use crate::startpos::coords::coords_test::attila_scale;
 use crate::startpos::esf_nav::{as_record, as_u32, child_record};
 use crate::startpos::startpos_test::{test_data_path, test_data_tables, test_startpos};
 use crate::startpos::world::writer::writer_test::{game_plan, world_test_data};
@@ -45,7 +46,7 @@ fn test_international_routes_match_the_game_startpos() {
     let (index, layout, _, _, _) = world_test_data();
     let plan = game_plan(&index);
     let trade_routes = TradeRoutes::decode(&mut BufReader::new(File::open(test_data_path("trade_routes.ptd")).unwrap()), &None).unwrap();
-    let network = TradeNetwork::from_trade_routes(&trade_routes);
+    let network = TradeNetwork::from_trade_routes(&trade_routes, &attila_scale());
 
     let written = write_international_routes(&layout, test_data_tables(), &index, &plan, &network).unwrap();
     let NodeType::Record(root) = test_startpos().root_node() else { panic!("the startpos root isn't a record") };

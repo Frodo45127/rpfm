@@ -21,7 +21,7 @@ use std::collections::HashSet;
 
 use rpfm_lib::files::trade_routes::{TradeRoute, TradeRouteEdge, TradeRoutes, TradeSplineSegment};
 
-use super::coords::{raw_offset_to_world, raw_to_world};
+use super::coords::MapScale;
 
 #[cfg(test)] #[path = "trade_test.rs"] mod trade_test;
 
@@ -106,13 +106,14 @@ impl TradeNetwork {
     /// # Arguments
     ///
     /// * `trade_routes` - Decoded `trade_routes.ptd` of the campaign map.
+    /// * `scale` - Scale between the campaign map's world and raw units.
     ///
     /// # Returns
     ///
     /// The splines with their lengths, and the first route listed for each region and port pair.
-    pub fn from_trade_routes(trade_routes: &TradeRoutes) -> Self {
+    pub fn from_trade_routes(trade_routes: &TradeRoutes, scale: &MapScale) -> Self {
         let splines = trade_routes.splines().iter().map(|spline| {
-            let segments = spline.segments().iter().map(control_points_world).collect::<Vec<_>>();
+            let segments = spline.segments().iter().map(|segment| control_points_world(segment, scale)).collect::<Vec<_>>();
             let lengths = segments.iter().map(bezier_length).collect::<Vec<_>>();
             let speed_tables = segments.iter().map(speed_table).collect();
             let total_length = lengths.iter().sum();
@@ -149,11 +150,11 @@ fn first_route_per_pair(routes: &[TradeRoute]) -> Vec<NetworkRoute> {
 
 /// Returns the four Bezier control points of a segment in world coordinates: start, start + first control,
 /// end + second control, end.
-fn control_points_world(segment: &TradeSplineSegment) -> [(f32, f32); 4] {
-    let start = raw_to_world(f32::from(segment.start().0), f32::from(segment.start().1));
-    let end = raw_to_world(f32::from(segment.end().0), f32::from(segment.end().1));
-    let start_offset = raw_offset_to_world(segment.start_control().0, segment.start_control().1);
-    let end_offset = raw_offset_to_world(segment.end_control().0, segment.end_control().1);
+fn control_points_world(segment: &TradeSplineSegment, scale: &MapScale) -> [(f32, f32); 4] {
+    let start = scale.raw_to_world(f32::from(segment.start().0), f32::from(segment.start().1));
+    let end = scale.raw_to_world(f32::from(segment.end().0), f32::from(segment.end().1));
+    let start_offset = scale.raw_offset_to_world(segment.start_control().0, segment.start_control().1);
+    let end_offset = scale.raw_offset_to_world(segment.end_control().0, segment.end_control().1);
     [
         start,
         (start.0 + start_offset.0, start.1 + start_offset.1),

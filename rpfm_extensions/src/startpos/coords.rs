@@ -14,23 +14,18 @@
 //!
 //! - **World**: the `f32` positions stored in startpos `Coord2d` nodes.
 //! - **Raw**: the `u16` units stored in the map files (`trade_routes.ptd`). `raw = world * scale + 4`.
-//! - **Cell**: the logical hex grid (1016x720 cells in Attila, the size of `pathfinding.ppd`). A cell is
+//! - **Cell**: the logical hex grid of the map (`HEX_MAP_DATA`, 1016x720 cells in Attila's main map). A cell is
 //!   6 raw units wide and 8 raw units high, and odd columns are shifted half a cell down.
 //!
-//! The scales were fitted from the game data: characters placed on cells land exactly where the game puts them
-//! (518 of 519 in Attila's main campaign), and trade spline points within 7.5e-5 world units. Their ratio is
-//! `2 / sqrt(3)`, as expected from a hex grid.
+//! The scales of a map ([`MapScale`]) come from its hex grid and its size in world units: the last column starts
+//! at the map's right edge, and the last row of odd columns ends at its bottom edge. Characters placed on cells land
+//! exactly where the current game build (the one BOB uses) puts them: 518 of 518 in Attila's main campaign. CA's
+//! older build of the shipped startposes rounds the horizontal position differently, one ulp away at most.
 
 use getset::CopyGetters;
 use serde_derive::{Deserialize, Serialize};
 
-#[cfg(test)] #[path = "coords_test.rs"] mod coords_test;
-
-/// Raw units per world unit, horizontally.
-pub const RAW_SCALE_X: f64 = 8.975_681_124;
-
-/// Raw units per world unit, vertically.
-pub const RAW_SCALE_Y: f64 = 10.364_224_094;
+#[cfg(test)] #[path = "coords_test.rs"] pub(crate) mod coords_test;
 
 /// Offset added to raw coordinates.
 pub const RAW_OFFSET: f32 = 4.0;
@@ -72,6 +67,21 @@ pub struct HexCell {
     y: u16,
 }
 
+/// World units per raw unit of a campaign map, horizontally and vertically.
+#[derive(Debug, Clone, Copy, PartialEq, CopyGetters)]
+#[getset(get_copy = "pub")]
+pub struct MapScale {
+
+    /// World units per raw unit, horizontally.
+    x: f32,
+
+    /// World units per raw unit, vertically.
+    y: f32,
+
+    /// World units per cell, horizontally.
+    cell_width: f32,
+}
+
 /// A piece covering some edges of a hex cell (a road or a coast), as a shape and a rotation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, CopyGetters)]
 #[getset(get_copy = "pub")]
@@ -93,33 +103,6 @@ impl HexCell {
     /// Creates a cell from its column and row.
     pub fn new(x: u16, y: u16) -> Self {
         Self { x, y }
-    }
-
-    /// Returns the cell containing a world position, as the game finds it.
-    ///
-    /// Odd columns are shifted half a cell down, so their rows start half a cell height later. Cells are hexagons
-    /// wider than their column: the first third of a column holds the slanted edges shared with the previous column,
-    /// where positions above or below the edge belong to the previous column's cells.
-    pub fn from_world(x: f32, y: f32) -> Self {
-        let (raw_x, raw_y) = world_to_raw(x, y);
-        let columns = raw_x / CELL_RAW_WIDTH;
-        let mut column = columns.floor() as i32;
-        let row_offset = if column % 2 == 1 { CELL_RAW_HEIGHT / 2.0 } else { 0.0 };
-        let rows = (raw_y - row_offset) / CELL_RAW_HEIGHT;
-        let mut row = rows.floor() as i32;
-
-        // Distance into the column in thirds, and height from the middle of the row in rows.
-        let into_column = (columns - column as f32) * 3.0;
-        let from_middle = rows - row as f32 - 0.5;
-        if into_column < 1.0 {
-            let odd = column & 1;
-            if into_column <= from_middle * 2.0 {
-                (column, row) = (column - 1, row + odd);
-            } else if into_column <= from_middle * -2.0 {
-                (column, row) = (column - 1, row + odd - 1);
-            }
-        }
-        Self::new(column.max(0) as u16, row.max(0) as u16)
     }
 
     /// Returns the existing neighbours of the cell, in the game's direction order.
@@ -156,16 +139,80 @@ impl HexCell {
     pub fn footprint(&self) -> Vec<HexCell> {
         std::iter::once(*self).chain(self.neighbours()).collect()
     }
+}
 
-    /// Returns the world position of the cell's top-left corner, where the game places characters given by cell.
+impl MapScale {
+
+    /// Returns the scale of a map.
     ///
-    /// The game converts in double precision and adds the half-cell shift of odd columns as a separate single
-    /// precision term, so the position is computed the same way to get the same floats.
-    pub fn world_position(&self) -> (f32, f32) {
-        let x = (f64::from(self.x) * f64::from(CELL_RAW_WIDTH) / RAW_SCALE_X) as f32;
-        let y = (f64::from(self.y) * f64::from(CELL_RAW_HEIGHT) / RAW_SCALE_Y) as f32;
-        let row_offset = if self.x % 2 == 1 { (f64::from(CELL_RAW_HEIGHT / 2.0) / RAW_SCALE_Y) as f32 } else { 0.0 };
+    /// # Arguments
+    ///
+    /// * `cells` - Columns and rows of the map's hex grid.
+    /// * `world_size` - Size of the map in world units.
+    pub fn new(cells: (u32, u32), world_size: (f32, f32)) -> Self {
+        let width = f64::from(cells.0.saturating_sub(1)) * f64::from(CELL_RAW_WIDTH);
+        let height = f64::from(cells.1) * f64::from(CELL_RAW_HEIGHT) + f64::from(CELL_RAW_HEIGHT / 2.0);
+        let raw_per_world = (width / f64::from(world_size.0)) as f32;
+        Self {
+            x: (f64::from(world_size.0) / width) as f32,
+            y: (f64::from(world_size.1) / height) as f32,
+            cell_width: CELL_RAW_WIDTH / raw_per_world,
+        }
+    }
+
+    /// Returns the cell containing a world position, as the game finds it.
+    ///
+    /// Odd columns are shifted half a cell down, so their rows start half a cell height later. Cells are hexagons
+    /// wider than their column: the first third of a column holds the slanted edges shared with the previous column,
+    /// where positions above or below the edge belong to the previous column's cells.
+    pub fn cell_at(&self, x: f32, y: f32) -> HexCell {
+        let (raw_x, raw_y) = self.world_to_raw(x, y);
+        let columns = raw_x / CELL_RAW_WIDTH;
+        let mut column = columns.floor() as i32;
+        let row_offset = if column % 2 == 1 { CELL_RAW_HEIGHT / 2.0 } else { 0.0 };
+        let rows = (raw_y - row_offset) / CELL_RAW_HEIGHT;
+        let mut row = rows.floor() as i32;
+
+        // Distance into the column in thirds, and height from the middle of the row in rows.
+        let into_column = (columns - column as f32) * 3.0;
+        let from_middle = rows - row as f32 - 0.5;
+        if into_column < 1.0 {
+            let odd = column & 1;
+            if into_column <= from_middle * 2.0 {
+                (column, row) = (column - 1, row + odd);
+            } else if into_column <= from_middle * -2.0 {
+                (column, row) = (column - 1, row + odd - 1);
+            }
+        }
+        HexCell::new(column.max(0) as u16, row.max(0) as u16)
+    }
+
+    /// Returns the world position of a cell's top-left corner, where the game places characters given by cell.
+    ///
+    /// The game multiplies in double precision by single precision scales, and adds the half-cell shift of odd
+    /// columns as a separate single precision term, so the position is computed the same way.
+    pub fn world_position(&self, cell: HexCell) -> (f32, f32) {
+        let x = (f64::from(cell.x) * f64::from(self.cell_width)) as f32;
+        let y = (f64::from(cell.y) * f64::from(CELL_RAW_HEIGHT) * f64::from(self.y)) as f32;
+        let row_offset = if cell.x % 2 == 1 { (f64::from(CELL_RAW_HEIGHT / 2.0) * f64::from(self.y)) as f32 } else { 0.0 };
         (x, y + row_offset)
+    }
+
+    /// Converts a world position to raw map units.
+    pub fn world_to_raw(&self, x: f32, y: f32) -> (f32, f32) {
+        (x / self.x + RAW_OFFSET, y / self.y + RAW_OFFSET)
+    }
+
+    /// Converts raw map units to a world position.
+    pub fn raw_to_world(&self, x: f32, y: f32) -> (f32, f32) {
+        ((x - RAW_OFFSET) * self.x, (y - RAW_OFFSET) * self.y)
+    }
+
+    /// Converts a raw offset (a vector, no translation) to world units.
+    ///
+    /// Map files store offsets at 100 times the raw scale.
+    pub fn raw_offset_to_world(&self, x: i16, y: i16) -> (f32, f32) {
+        (f32::from(x) * self.x / 100.0, f32::from(y) * self.y / 100.0)
     }
 }
 
@@ -192,19 +239,3 @@ fn rotate_edges(mask: u8, edges: u8) -> u8 {
     ((mask << edges) | (mask >> ((HEX_EDGES - edges) % HEX_EDGES))) & ALL_EDGES
 }
 
-/// Converts a world position to raw map units.
-pub fn world_to_raw(x: f32, y: f32) -> (f32, f32) {
-    (x * RAW_SCALE_X as f32 + RAW_OFFSET, y * RAW_SCALE_Y as f32 + RAW_OFFSET)
-}
-
-/// Converts raw map units to a world position.
-pub fn raw_to_world(x: f32, y: f32) -> (f32, f32) {
-    ((x - RAW_OFFSET) / RAW_SCALE_X as f32, (y - RAW_OFFSET) / RAW_SCALE_Y as f32)
-}
-
-/// Converts a raw offset (a vector, no translation) to world units.
-///
-/// Map files store offsets at 100 times the raw scale.
-pub fn raw_offset_to_world(x: i16, y: i16) -> (f32, f32) {
-    (f32::from(x) / (RAW_SCALE_X as f32 * 100.0), f32::from(y) / (RAW_SCALE_Y as f32 * 100.0))
-}

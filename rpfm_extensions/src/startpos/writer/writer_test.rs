@@ -80,7 +80,7 @@ fn test_startpos_matches_the_game_startpos() {
     let (index, layout, settlements, region_map, legacy_overrides) = world_test_data();
     let world = WorldInputs { tables, index: &index, layout: &layout, settlements: &settlements, region_map: &region_map, legacy_overrides: &legacy_overrides };
     let trade_routes = TradeRoutes::decode(&mut BufReader::new(File::open(test_data_path("trade_routes.ptd")).unwrap()), &None).unwrap();
-    let trade_network = TradeNetwork::from_trade_routes(&trade_routes);
+    let trade_network = TradeNetwork::from_trade_routes(&trade_routes, &region_map.scale());
     let victory_text = std::fs::read(test_data_path("victory_objectives.txt")).unwrap();
     let victory_objectives = parse_victory_objectives(&String::from_utf8_lossy(&victory_text)).unwrap();
     let (map_data, hlp_data) = (test_data_esf("map_data.esf"), test_data_esf("hlp_data.esf"));

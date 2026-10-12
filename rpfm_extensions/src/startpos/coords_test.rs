@@ -10,23 +10,30 @@
 
 use super::*;
 
-#[test]
-fn test_from_world_matches_game_cells() {
-
-    // Character positions of a game-built startpos (`LOCOMOTABLE`), with the cells stored next to them.
-    assert_eq!(HexCell::from_world(201.21036, 380.1539), HexCell::new(301, 492));
-    assert_eq!(HexCell::from_world(60.83104, 451.16742), HexCell::new(91, 584));
-    assert_eq!(HexCell::from_world(48.13005, 460.0441), HexCell::new(72, 596));
+/// Returns the scale of Attila's main campaign map.
+pub(crate) fn attila_scale() -> MapScale {
+    MapScale::new((1016, 720), (678.5, 556.143_9))
 }
 
 #[test]
-fn test_from_world_follows_slanted_edges() {
+fn test_cell_at_matches_game_cells() {
+    let scale = attila_scale();
+
+    // Character positions of a game-built startpos (`LOCOMOTABLE`), with the cells stored next to them.
+    assert_eq!(scale.cell_at(201.21036, 380.1539), HexCell::new(301, 492));
+    assert_eq!(scale.cell_at(60.83104, 451.16742), HexCell::new(91, 584));
+    assert_eq!(scale.cell_at(48.13005, 460.0441), HexCell::new(72, 596));
+}
+
+#[test]
+fn test_cell_at_follows_slanted_edges() {
+    let scale = attila_scale();
 
     // Near the left vertex of cell (3, 10), raw x 18.2: in the middle of the row it's still the cell; near its top
     // and bottom it's past the slanted edges, in the previous column's cells.
     let at = |raw_x: f32, raw_y: f32| {
-        let (x, y) = raw_to_world(raw_x, raw_y);
-        HexCell::from_world(x, y)
+        let (x, y) = scale.raw_to_world(raw_x, raw_y);
+        scale.cell_at(x, y)
     };
     assert_eq!(at(18.2, 88.0), HexCell::new(3, 10));
     assert_eq!(at(18.2, 91.2), HexCell::new(2, 11));
@@ -35,8 +42,9 @@ fn test_from_world_follows_slanted_edges() {
 
 #[test]
 fn test_world_raw_roundtrip() {
-    let (raw_x, raw_y) = world_to_raw(482.63748, 41.295902);
-    let (x, y) = raw_to_world(raw_x, raw_y);
+    let scale = attila_scale();
+    let (raw_x, raw_y) = scale.world_to_raw(482.63748, 41.295902);
+    let (x, y) = scale.raw_to_world(raw_x, raw_y);
 
     assert!((x - 482.63748).abs() < 1e-3);
     assert!((y - 41.295902).abs() < 1e-3);
@@ -82,12 +90,15 @@ fn test_neighbours_skip_out_of_range() {
 #[test]
 fn test_world_position_matches_game_placements() {
 
-    // Characters with startx/starty in the table, placed by the game (Attila, Roxolani generals).
-    let (odd_x, odd_y) = HexCell::new(449, 543).world_position();
-    let (even_x, even_y) = HexCell::new(564, 494).world_position();
+    // Characters with startx/starty in the table, placed by the game: Roxolani generals in the main campaign, and
+    // Charlemagne's generals on its own map (920x800 cells; CA's build has x one ulp lower for the first one).
+    let scale = attila_scale();
+    assert_eq!(scale.world_position(HexCell::new(449, 543)), (300.144_35, 419.520_08));
+    assert_eq!(scale.world_position(HexCell::new(564, 494)), (377.018_74, 381.311_7));
 
-    assert_eq!((odd_x, odd_y), (300.144_35, 419.520_08));
-    assert_eq!((even_x, even_y), (377.018_74, 381.311_7));
+    let charlemagne = MapScale::new((920, 800), (613.8, 617.365_05));
+    assert_eq!(charlemagne.world_position(HexCell::new(338, 412)), (225.750_17, 317.744_42));
+    assert_eq!(charlemagne.world_position(HexCell::new(377, 370)), (251.798_26, 285.738_62));
 }
 
 #[test]

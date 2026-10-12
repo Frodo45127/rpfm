@@ -511,7 +511,8 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
             .find(|settlement| settlement.region() == region)
             .and_then(|settlement| settlement.slots().first())
             .and_then(|slot| slot.position());
-        let at = |cell: Option<HexCell>| cell.map(|cell| (cell.world_position(), cell)).unwrap_or_default();
+        let scale = self.inputs.region_map.scale();
+        let at = |cell: Option<HexCell>| cell.map(|cell| (scale.world_position(cell), cell)).unwrap_or_default();
 
         let Some(entry) = character.entry() else {
             let region = character.force().and_then(|force| self.forces.forces()[force].region().clone()).unwrap_or_default();

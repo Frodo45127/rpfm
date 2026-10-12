@@ -277,7 +277,7 @@ pub(crate) fn generate_startpos_with_plan(sources: &StartposSources, layout: &St
         legacy_overrides: &sources.legacy_overrides,
     };
 
-    let trade_network = TradeNetwork::from_trade_routes(&sources.trade_routes);
+    let trade_network = TradeNetwork::from_trade_routes(&sources.trade_routes, &region_map.scale());
     let inputs = StartposInputs {
         world: &world,
         trade_network: &trade_network,

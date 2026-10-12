@@ -61,7 +61,7 @@ fn test_garrisons_stand_in_their_region() {
     for faction in world_factions(world) {
         for character in child_record(faction, "CHARACTER_ARRAY").map(|array| array_items(array, "CHARACTER")).unwrap_or_default() {
             if let NodeType::Coord2d(position) = field(child_record(character, "LOCOMOTABLE").unwrap(), 0) {
-                positions.insert(field_u32(character, 4), HexCell::from_world(*position.x(), *position.y()));
+                positions.insert(field_u32(character, 4), map.scale().cell_at(*position.x(), *position.y()));
             }
         }
     }

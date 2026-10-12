@@ -22,7 +22,7 @@ use std::collections::{HashMap, HashSet};
 use rpfm_lib::error::{RLibError, Result};
 use rpfm_lib::files::esf::{ESF, NodeType};
 
-use super::coords::HexCell;
+use super::coords::{HexCell, MapScale};
 use super::esf_nav::{as_record, as_u32, child_record, leaves};
 use super::settlements::{region_data_records, region_key};
 
@@ -113,6 +113,11 @@ impl RegionMap {
     /// Returns the size of the map in world units.
     pub fn world_size(&self) -> (f32, f32) {
         self.world_size
+    }
+
+    /// Returns the scale between the map's world and raw units.
+    pub fn scale(&self) -> MapScale {
+        MapScale::new((self.width, self.height), self.world_size)
     }
 
     /// Returns the region keys of the map, in `REGIONS_BLOCK` order.

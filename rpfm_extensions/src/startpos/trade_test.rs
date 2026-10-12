@@ -16,6 +16,7 @@ use rpfm_lib::files::Decodeable;
 use rpfm_lib::files::esf::{NodeType, RecordNode, ESF};
 
 use super::*;
+use crate::startpos::coords::coords_test::attila_scale;
 use crate::startpos::esf_nav::{as_record, child_record};
 use crate::startpos::startpos_test::{test_data_esf, test_data_path};
 
@@ -58,7 +59,7 @@ fn test_control_points_world() {
     segment.set_end((4336, 576));
 
     let expected = [(482.63748, 41.295902), (482.63748, 45.46409), (482.63748, 51.021664), (482.63748, 55.18985)];
-    for (point, expected) in control_points_world(&segment).iter().zip(expected.iter()) {
+    for (point, expected) in control_points_world(&segment, &attila_scale()).iter().zip(expected.iter()) {
         assert!((point.0 - expected.0).abs() < 1e-3 && (point.1 - expected.1).abs() < 1e-3, "{point:?} != {expected:?}");
     }
 }
@@ -92,7 +93,7 @@ fn startpos_routes(manager: &RecordNode, name: &str) -> BTreeSet<(u32, u32, Vec<
 #[ignore = "needs RPFM_STARTPOS_TEST_DATA with trade_routes.ptd and startpos.esf"]
 fn test_matches_game_startpos() {
     let trade_routes = TradeRoutes::decode(&mut BufReader::new(File::open(test_data_path("trade_routes.ptd")).unwrap()), &None).unwrap();
-    let network = TradeNetwork::from_trade_routes(&trade_routes);
+    let network = TradeNetwork::from_trade_routes(&trade_routes, &attila_scale());
 
     assert_eq!(trade_routes.regions().len(), 187);
     assert_eq!(trade_routes.region_routes().len(), 1137);

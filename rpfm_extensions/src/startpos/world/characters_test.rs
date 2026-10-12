@@ -13,6 +13,7 @@ use rpfm_lib::files::esf::{NodeType, RecordNode};
 use std::collections::{BTreeSet, HashMap};
 
 use super::*;
+use crate::startpos::coords::coords_test::attila_scale;
 use crate::startpos::esf_nav::{as_record, child_record};
 use crate::startpos::startpos_test::{array_items, field, field_str, field_u32, test_data_tables, test_startpos, world, world_factions, world_regions, TEST_CAMPAIGN};
 use crate::startpos::world::world_test::{add_table, fixture_index, fixture_tables};
@@ -117,7 +118,7 @@ fn test_characters_real_data() {
         let birth = child_record(details, "DATE").map(|date| field_u32(date, 0)).unwrap();
         let stored_loyalty = match field(details, 32) { NodeType::I8(value) => i64::from(*value), other => panic!("{other:?}") };
         let expected_position = match placement(tables, &index, entry).unwrap() {
-            Placement::Cell(cell) => Some(cell.world_position()),
+            Placement::Cell(cell) => Some(attila_scale().world_position(cell)),
             Placement::Settlement(region) => settlement_positions.get(&region).copied(),
             Placement::FirstArmy => first_army_positions.get(*faction).copied(),
             Placement::OffMap => Some((0.0, 0.0)),

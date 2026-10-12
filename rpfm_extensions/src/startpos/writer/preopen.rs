@@ -155,7 +155,7 @@ pub(super) fn army_positions(inputs: &WorldInputs, forces: &ForcePlan, faction: 
             continue;
         }
 
-        let (x, y) = HexCell::new(entry.start_x(), entry.start_y()).world_position();
+        let (x, y) = inputs.region_map.scale().world_position(HexCell::new(entry.start_x(), entry.start_y()));
         let mut position = Coordinates2DNode::default();
         position.set_x(x / width);
         position.set_y(y / height);
