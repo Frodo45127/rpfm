@@ -20,6 +20,7 @@
 //!
 //! - [`agents`]: agent abilities, attributes, skill sets and recruitment pools.
 //! - [`bodyguards`]: the default general unit of each faction.
+//! - [`calendar`]: the campaign's start date and turns per year.
 //! - [`characters`]: per-character values (birth year, loyalty, faction leader, map position).
 //! - [`diplomacy`]: diplomatic relationships between factions.
 //! - [`factions`]: per-faction values (capital, subjects, victory regions, flags and colours...).
@@ -41,6 +42,7 @@ use super::tables::{Row, StartposTables};
 
 pub mod agents;
 pub mod bodyguards;
+pub mod calendar;
 pub mod characters;
 pub mod diplomacy;
 pub mod factions;

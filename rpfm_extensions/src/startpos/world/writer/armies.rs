@@ -12,13 +12,14 @@
 
 use std::collections::HashMap;
 
-use rpfm_lib::error::{RLibError, Result};
+use rpfm_lib::error::Result;
 use rpfm_lib::files::esf::RecordNode;
 
 use super::characters::CharacterWriter;
 use super::forces::{ForcePlan, PlannedForce, PlannedUnit};
 use super::regions::{settlement_keys, settlement_name_key};
 use super::{child, horde_details, next_id, start_pos_faction_row, WorldInputs, HORDE_BUILDING_COLUMNS};
+use crate::startpos::world::calendar::Calendar;
 use crate::startpos::world::FactionEntry;
 use crate::startpos::world::factions::faction_summary;
 use crate::startpos::world::legacy::{legacies, legacy_skill_set, ForceKind, Legacy, LegacyForce};
@@ -476,12 +477,7 @@ fn unit_stats(inputs: &WorldInputs) -> Result<HashMap<String, UnitStats>> {
     Ok(stats)
 }
 
-/// Returns the campaign's start year (`start_pos_calendars.start_year`).
+/// Returns the campaign's start year.
 pub(crate) fn start_year(inputs: &WorldInputs) -> Result<u32> {
-    for row in inputs.tables.table("start_pos_calendars")?.rows() {
-        if row.str("campaign")? == *inputs.index.campaign() {
-            return Ok(u32::try_from(row.int("start_year")?).unwrap_or_default());
-        }
-    }
-    Err(RLibError::StartposInvalidValue("start_pos_calendars".to_owned(), "campaign".to_owned(), inputs.index.campaign().to_owned()))
+    Ok(Calendar::new(inputs.tables, inputs.index.campaign())?.start_year())
 }
