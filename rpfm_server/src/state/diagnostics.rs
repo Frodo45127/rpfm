@@ -193,7 +193,7 @@ impl SessionState {
         let lua_api = cached_lua_api(&mut self.lua_api_cache, &self.game, settings, &self.dependencies)
             .ok_or_else(|| anyhow!("The Lua API of the game is not available. Lua tests need the game's Assembly Kit to be installed."))?;
 
-        let scripts = LuaScripts::from_game_and_packs(&self.dependencies, &self.packs);
+        let scripts = LuaScripts::from_game_and_packs(&self.dependencies, self.packs.values());
         let key_values = |table_name| self.dependencies.db_key_values(Some(&self.packs), table_name)
             .map(|(_, keys)| keys.into_iter().collect::<Vec<_>>())
             .unwrap_or_default();

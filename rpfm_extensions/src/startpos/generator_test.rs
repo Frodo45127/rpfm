@@ -197,3 +197,40 @@ fn test_new_campaigns_match_the_game_startposes() {
     }
     assert!(failures.is_empty(), "{failures:#?}");
 }
+
+/// Returns the script variables of a startpos, in order.
+fn startpos_script_variables(startpos: &ESF) -> Vec<(String, LuaSavedValue)> {
+    let NodeType::Record(root) = startpos.root_node() else { panic!("the startpos root isn't a record") };
+    let restrictions = ["CAMPAIGN_ENV", "CAMPAIGN_MODEL", "EPISODIC_RESTRICTIONS", "SCRIPT_VARIABLES"].iter()
+        .fold(root.as_ref(), |record, name| child_record(record, name).unwrap());
+    restrictions.children().iter().flatten().filter_map(as_record).map(|variable| {
+        let value = match &variable.children()[0][1] {
+            NodeType::Bool(value) => LuaSavedValue::Bool(*value.value()),
+            NodeType::I32(value) => LuaSavedValue::Integer(*value.value()),
+            NodeType::Ascii(value) => LuaSavedValue::String(value.to_owned()),
+            other => panic!("unexpected script variable {other:?}"),
+        };
+        (variable.name().to_owned(), value)
+    }).collect()
+}
+
+#[test]
+#[ignore = "needs the game data, see startpos_test.rs"]
+fn test_script_variables_match_the_game_startposes() {
+    let games = SupportedGames::default();
+    let game = games.game(KEY_ATTILA).unwrap();
+    let schema = Schema::load(&test_data_path("schema.ron"), None).unwrap();
+    let mut dependencies = Dependencies::load(&test_data_path("att.pak"), &Some(schema.clone())).unwrap();
+    dependencies.rebuild(&Some(schema.clone()), &[], None, game, &test_data_path("game"), Path::new("")).unwrap();
+
+    // The scripts of cha_attila are in a pack the game's manifest doesn't list, and bel_attila's in none.
+    let charlemagne = test_data_path("game").join("data").join("charlemagne.pack");
+    let charlemagne = Pack::read_and_merge(&[charlemagne], game, true, false, false).unwrap();
+    for (campaign, pack) in [("main_attila", &Pack::default()), ("pro_attila", &Pack::default()), ("cha_attila", &charlemagne)] {
+        let theirs = ESF::decode(&mut BufReader::new(File::open(game_startpos_path(campaign)).unwrap()), &None).unwrap();
+
+        let ours = script_variables(&dependencies, pack, campaign).unwrap();
+
+        assert_eq!(ours, startpos_script_variables(&theirs), "{campaign}");
+    }
+}

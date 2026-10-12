@@ -26,7 +26,7 @@ use mlua::{HookTriggers, Lua, LuaOptions, StdLib, Table, VmState};
 use serde_derive::{Deserialize, Serialize};
 
 use std::cell::Cell;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -165,13 +165,13 @@ impl LuaScripts {
     /// # Returns
     ///
     /// The scripts.
-    pub fn from_game_and_packs(dependencies: &Dependencies, packs: &BTreeMap<String, Pack>) -> Self {
+    pub fn from_game_and_packs<'a>(dependencies: &Dependencies, packs: impl IntoIterator<Item = &'a Pack>) -> Self {
         let mut scripts = Self::default();
         for (path, source) in vanilla_scripts(dependencies) {
             scripts.add(&path, source, false);
         }
 
-        for file in packs.values().flat_map(|pack| pack.files_by_type(&[FileType::Text])) {
+        for file in packs.into_iter().flat_map(|pack| pack.files_by_type(&[FileType::Text])) {
             let path = file.path_in_container_raw();
             if !path.ends_with(".lua") {
                 continue;

@@ -12,9 +12,9 @@
 //!
 //! [`load_tables`] loads the tables (the game's, its Assembly Kit's and the pack's, merged as the game loads them),
 //! which [`validation`](super::validation) checks. [`StartposSources`] adds what else the build reads: the campaign
-//! map's files, the victory objectives, the characters with legacy override texts and the start season's name. [`GameLayouts`] gets the
-//! record layouts from the game's startposes, cached in a layouts folder.
-//! [`generate_startpos`] writes the startpos.
+//! map's files, the victory objectives, the characters with legacy override texts, the start season's name and the
+//! values the campaign's scripts save. [`GameLayouts`] gets the record layouts from the game's startposes, cached in a
+//! layouts folder. [`generate_startpos`] writes the startpos.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fs::File;
@@ -33,6 +33,8 @@ use rpfm_lib::games::supported_games::KEY_ATTILA;
 use rpfm_lib::schema::Schema;
 
 use crate::dependencies::Dependencies;
+use crate::lua::LuaApi;
+use crate::lua::harness::{save_campaign, LuaSavedValue, LuaScripts, LuaTestOptions};
 use super::layout::{layout_file_name, StartposLayout};
 use super::missions::{parse_victory_objectives, VictoryObjectives};
 use super::region_map::RegionMap;
@@ -73,6 +75,13 @@ const VICTORY_OBJECTIVES_PATH: &str = "db/victory_objectives.txt";
 
 /// Localisation key prefix of the `start_pos_characters.legacy_override` texts.
 const LEGACY_OVERRIDE_PREFIX: &str = "start_pos_characters_legacy_override_";
+
+/// Folder with the scripts of each campaign, and the script the game runs first from a campaign's folder.
+const CAMPAIGN_SCRIPTS_FOLDER: &str = "campaigns";
+const CAMPAIGN_SCRIPT: &str = "scripting.lua";
+
+/// Events the game triggers while building a startpos, before saving it.
+const STARTPOS_BUILD_EVENTS: [&str; 2] = ["NewSession", "WorldCreated"];
 
 /// Localisation key prefix of the season names.
 const SEASON_NAME_PREFIX: &str = "seasons_onscreen_";
@@ -128,6 +137,9 @@ pub struct StartposSources {
 
     /// `start_pos_characters` ids of the characters with a legacy override text.
     legacy_overrides: HashSet<String>,
+
+    /// Values the campaign's scripts save when the game builds the startpos, or `None` if they couldn't run.
+    script_variables: Option<Vec<(String, LuaSavedValue)>>,
 }
 
 /// Where a file is looked for: the pack first, then the game's files.
@@ -182,6 +194,7 @@ impl StartposSources {
             trade_routes: TradeRoutes::decode(&mut Cursor::new(map_file("trade_routes.ptd")?), &None)?,
             victory_objectives: parse_victory_objectives(&String::from_utf8_lossy(&victory_text))?,
             legacy_overrides: legacy_overrides(dependencies, pack),
+            script_variables: script_variables(dependencies, pack, campaign),
             map,
             tables,
         })
@@ -290,6 +303,7 @@ pub(crate) fn generate_startpos_with_plan(sources: &StartposSources, layout: &St
         map: &sources.map,
         season_name: &sources.season_name,
         region_palette: &sources.region_palette,
+        script_variables: sources.script_variables.as_deref(),
     };
     write_startpos(&inputs, &plan(&index))
 }
@@ -443,6 +457,34 @@ fn legacy_overrides(dependencies: &Dependencies, pack: &Pack) -> HashSet<String>
         .filter(|(_, text)| !text.is_empty())
         .filter_map(|(key, _)| key.strip_prefix(LEGACY_OVERRIDE_PREFIX).map(str::to_owned))
         .collect()
+}
+
+/// Returns the values a campaign's scripts save when the game builds its startpos, running the scripts of the game and
+/// the pack, or `None` if they can't run or the campaign's scripts aren't there.
+fn script_variables(dependencies: &Dependencies, pack: &Pack, campaign: &str) -> Option<Vec<(String, LuaSavedValue)>> {
+    let scripts = LuaScripts::from_game_and_packs(dependencies, [pack]);
+    let campaign_script = format!("{CAMPAIGN_SCRIPTS_FOLDER}/{campaign}/{CAMPAIGN_SCRIPT}");
+    if !scripts.contains(&campaign_script) {
+        log::warn!("{campaign_script} isn't in the pack nor the game's files, so the startpos keeps the script variables of its layout");
+        return None;
+    }
+
+    let mut options = LuaTestOptions::default();
+    options.set_campaign(Some(campaign.to_owned()));
+
+    // The games with startposes have no scripting docs, so the engine has no typed methods.
+    match save_campaign(&LuaApi::default(), &scripts, &options, &STARTPOS_BUILD_EVENTS) {
+        Ok(save) => {
+            for error in save.errors() {
+                log::warn!("The scripts of {campaign} raised an error while saving its startpos: {error}");
+            }
+            Some(save.values().to_owned())
+        },
+        Err(error) => {
+            log::warn!("The scripts of {campaign} couldn't run, so its startpos keeps the script variables of its layout: {error}");
+            None
+        },
+    }
 }
 
 /// Returns the text of a localisation key, from the pack if it has it, else from the game.

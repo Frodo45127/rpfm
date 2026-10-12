@@ -23,6 +23,7 @@ use super::trade::TradeNetwork;
 use super::world::calendar::Calendar;
 use super::world::writer::forces::ForcePlan;
 use super::world::writer::{write_world_with_plan, WorldInputs, WorldPlan};
+use crate::lua::harness::LuaSavedValue;
 use self::dynamic_resources::DynamicResourcesInputs;
 
 mod counters;
@@ -32,6 +33,7 @@ mod header;
 mod international_routes;
 mod map_data;
 mod preopen;
+mod script_variables;
 mod trade;
 mod victory;
 
@@ -83,6 +85,9 @@ pub struct StartposInputs<'a> {
 
     /// RGB colours of the campaign map's region lookup image, by palette index.
     pub region_palette: &'a [[u8; 3]],
+
+    /// Values the campaign's scripts save when the game builds the startpos, in order, or `None` if they couldn't run.
+    pub script_variables: Option<&'a [(String, LuaSavedValue)]>,
 }
 
 //---------------------------------------------------------------------------//
@@ -134,7 +139,8 @@ pub fn write_startpos<'a>(inputs: &StartposInputs<'a>, plan: &WorldPlan<'a>) -> 
         .set_record("DIPLOMACY_MANAGER", Some(diplomacy::write_diplomacy_manager(layout, plan)?))?
         .set_record("CAMPAIGN_CALENDAR", Some(header::write_calendar(layout, &calendar)?))?
         .set_record("CAMPAIGN_MAP_DATA", Some(map_data::write_map_data(world, plan, inputs.map)?))?
-        .set_record("DYNAMIC_RESOURCES_MANAGER", Some(dynamic_resources::write_dynamic_resources_manager(&dynamic_resources_inputs)?))?;
+        .set_record("DYNAMIC_RESOURCES_MANAGER", Some(dynamic_resources::write_dynamic_resources_manager(&dynamic_resources_inputs)?))?
+        .set_record("EPISODIC_RESTRICTIONS", Some(script_variables::write_episodic_restrictions(layout, inputs.script_variables)?))?;
 
     let mut env = layout.builder(ENV_PATH)?;
     env.group()?

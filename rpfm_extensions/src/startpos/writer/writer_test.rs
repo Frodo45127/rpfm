@@ -97,6 +97,7 @@ fn test_startpos_matches_the_game_startpos() {
         map: TEST_MAP,
         season_name: TEST_SEASON_NAME,
         region_palette: &region_palette,
+        script_variables: None,
     };
     let plan = game_plan(&index);
 
