@@ -150,7 +150,7 @@ impl SightPlan {
 }
 
 /// Writes a `LINE_OF_SIGHT` record under a parent record: whether it sees, the world bounds of what it sees and the
-/// area itself. Without an area, it's the default record.
+/// area itself. Without an area, it sees nothing, over the same grid.
 ///
 /// # Errors
 ///
@@ -169,7 +169,7 @@ fn line_of_sight(layout: &StartposLayout, parent: &str, grid: &VisionGrid, visio
             .set_bool("^+1", false)?
             .unset("^+2")?
             .unset("^+3")?
-            .set_record("QUAD_TREE_BIT_ARRAY", None)?;
+            .set_record("QUAD_TREE_BIT_ARRAY", Some(write_quad_tree(layout, &path, grid, &Vision::default())?))?;
         return record.build();
     };
 

@@ -96,3 +96,20 @@ fn test_shroud_filler_vision_matches_the_game_startpos() {
     let bounds = theirs.iter().filter(|(cell, sight)| ours.get(cell).map(leaves) == Some(leaves(sight))).count();
     assert!(areas >= MIN_MATCHING_FILLER_SIGHTS, "{areas}/{} filler areas match ({bounds} bounds)", theirs.len());
 }
+
+#[test]
+#[ignore = "needs the game data, see startpos_test.rs"]
+fn test_lines_of_sight_without_vision_use_the_map_grid() {
+    let layout = StartposLayout::from_esf(test_startpos()).unwrap();
+    let grid = VisionGrid::new((100.0, 50.0));
+
+    let record = write_line_of_sight(&layout, "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/WORLD/FACTION_ARRAY/FACTION/CHARACTER_ARRAY/CHARACTER", &grid, None).unwrap();
+
+    let quad_tree = child_record(&record, "QUAD_TREE_BIT_ARRAY").unwrap();
+    let dimensions = quad_tree.children()[0][..3].iter().map(|leaf| match leaf {
+        NodeType::U32(node) => *node.value(),
+        _ => panic!("a quad tree dimension isn't a u32"),
+    }).collect::<Vec<_>>();
+    assert_eq!(dimensions, vec![200, 100, 256]);
+    assert_eq!(quad_tree.children()[0][3], NodeType::U8Array(vec![0; 9]));
+}
