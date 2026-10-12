@@ -25,9 +25,10 @@ use crate::startpos::world::FactionEntry;
 
 /// Returns the technologies of a faction's tree.
 ///
-/// The tree uses the campaign's node sets of the faction if it has any, else the ones of its subculture (for no
-/// faction), else the ones of its culture (for no faction nor subculture), by technology category from the last
-/// (military before civil), then in reverse table order. Each set lists its
+/// The tree uses the node sets of the faction if it has any, else the ones of its subculture (for no faction), else
+/// the ones of its culture (for no faction nor subculture), looking first at the campaign's sets and then at the ones
+/// without campaign. The sets go by technology category from the last (military before civil), then in reverse
+/// table order. Each set lists its
 /// nodes for the campaign and the faction by (tier, indent), the faction's own node replacing the generic one of its
 /// slot, and technologies appear once.
 ///
@@ -47,16 +48,23 @@ use crate::startpos::world::FactionEntry;
 pub fn faction_technologies(tables: &StartposTables, campaign: &str, faction: &FactionEntry) -> Result<Vec<String>> {
     let for_campaign = |key: &str| key.is_empty() || key == campaign;
 
-    let mut sets = vec![];
+    let mut campaign_sets = vec![];
+    let mut generic_sets = vec![];
     for row in tables.table("technology_node_sets")?.rows() {
-        if for_campaign(&row.str("campaign_key")?) {
-            sets.push((row.str("key")?.into_owned(), row.str("faction_key")?.into_owned(), row.str("subculture")?.into_owned(), row.str("culture")?.into_owned(), row.str("technology_category")?.into_owned()));
+        let set_campaign = row.str("campaign_key")?;
+        if for_campaign(&set_campaign) {
+            let set = (row.str("key")?.into_owned(), row.str("faction_key")?.into_owned(), row.str("subculture")?.into_owned(), row.str("culture")?.into_owned(), row.str("technology_category")?.into_owned());
+            if set_campaign.is_empty() { generic_sets.push(set) } else { campaign_sets.push(set) }
         }
     }
-    let faction_sets = sets.iter().filter(|set| set.1 == *faction.key()).collect::<Vec<_>>();
-    let subculture_sets = sets.iter().filter(|set| set.1.is_empty() && set.2 == *faction.subculture()).collect::<Vec<_>>();
-    let culture_sets = sets.iter().filter(|set| set.1.is_empty() && set.2.is_empty() && set.3 == *faction.culture()).collect::<Vec<_>>();
-    let mut chosen = [faction_sets, subculture_sets, culture_sets].into_iter().find(|sets| !sets.is_empty()).unwrap_or_default();
+    let mut chosen = [&campaign_sets, &generic_sets].into_iter()
+        .flat_map(|sets| [
+            sets.iter().filter(|set| set.1 == *faction.key()).collect::<Vec<_>>(),
+            sets.iter().filter(|set| set.1.is_empty() && set.2 == *faction.subculture()).collect(),
+            sets.iter().filter(|set| set.1.is_empty() && set.2.is_empty() && set.3 == *faction.culture()).collect(),
+        ])
+        .find(|sets| !sets.is_empty())
+        .unwrap_or_default();
     chosen.reverse();
     chosen.sort_by(|a, b| b.4.cmp(&a.4));
 

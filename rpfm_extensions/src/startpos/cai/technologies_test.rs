@@ -17,6 +17,30 @@ use crate::startpos::cai::CAI_WORLD_PATH;
 use crate::startpos::layout::{child_path, StartposLayout};
 use crate::startpos::startpos_test::{test_data_tables, test_startpos, world, TEST_CAMPAIGN};
 use crate::startpos::world::CampaignIndex;
+use crate::startpos::world::world_test::{add_table, fixture_index, fixture_tables, FIXTURE_CAMPAIGN};
+
+#[test]
+fn test_campaign_node_sets_replace_the_ones_without_campaign() {
+    let mut tables = fixture_tables();
+    add_table(&mut tables, "technology_node_sets", &["key", "campaign_key", "faction_key", "subculture", "culture", "technology_category"], &[
+        &["generic_civil", "", "", "", "cult_a", "civil"],
+        &["generic_faction", "", "fact_b", "", "", "civil"],
+        &["own_civil", FIXTURE_CAMPAIGN, "", "", "cult_a", "civil"],
+        &["other_civil", "other", "", "", "cult_b", "civil"],
+    ]);
+    add_table(&mut tables, "technology_nodes", &["technology_node_set", "campaign_key", "faction_key", "tier", "indent", "technology_key"], &[
+        &["generic_civil", "", "", "0", "0", "tech_generic"],
+        &["generic_faction", "", "", "0", "0", "tech_faction"],
+        &["own_civil", "", "", "0", "0", "tech_own"],
+        &["other_civil", "", "", "0", "0", "tech_other"],
+    ]);
+    let index = fixture_index(&tables);
+
+    let technologies = |faction| faction_technologies(&tables, FIXTURE_CAMPAIGN, index.faction(faction).unwrap()).unwrap();
+
+    assert_eq!(technologies("fact_a"), vec!["tech_own".to_owned()]);
+    assert_eq!(technologies("fact_b"), vec!["tech_faction".to_owned()]);
+}
 
 #[test]
 #[ignore = "needs the game data, see startpos_test.rs"]

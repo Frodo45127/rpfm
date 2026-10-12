@@ -54,7 +54,7 @@ pub mod provinces;
 pub mod rebels;
 pub mod writer;
 
-#[cfg(test)] mod world_test;
+#[cfg(test)] pub(crate) mod world_test;
 
 /// Relationship of married characters in `start_pos_family_relationships`.
 const SPOUSE_RELATIONSHIP: &str = "spouse";
