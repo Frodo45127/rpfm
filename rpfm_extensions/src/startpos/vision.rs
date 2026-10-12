@@ -10,8 +10,8 @@
 
 //! Vision areas of a startpos (`LINE_OF_SIGHT` and `CAMPAIGN_SHROUD` records) and their quad tree encoding.
 //!
-//! Vision lives on a square grid of half world units over the campaign map (1357x1112 cells in Attila; the height
-//! is stretched to fit the map exactly). The startpos stores an area as a quad tree over a power-of-two square that
+//! Vision lives on a square grid of half world units over the campaign map, rounded to whole cells (1357x1112 cells
+//! in Attila; both sides are stretched to fit the map exactly). The startpos stores an area as a quad tree over a power-of-two square that
 //! covers the grid, with its rows counted from the top:
 //!
 //! - A node with children is a byte with the code of each child in two bits, the first child in the lowest bits
@@ -76,8 +76,8 @@ impl VisionGrid {
 
     /// Creates the vision grid of a map of the given size in world units.
     pub fn new(world_size: (f32, f32)) -> Self {
-        let width = (world_size.0 / CELL_SIZE).floor().max(1.0) as u32;
-        let height = (world_size.1 / CELL_SIZE).floor().max(1.0) as u32;
+        let width = (world_size.0 / CELL_SIZE).round().max(1.0) as u32;
+        let height = (world_size.1 / CELL_SIZE).round().max(1.0) as u32;
         Self {
             width,
             height,

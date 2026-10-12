@@ -110,3 +110,9 @@ fn test_encoding_matches_the_game_startpos() {
     assert!(trees.len() > 1000);
     assert_eq!(mismatches, 0, "{mismatches} of {} quad trees re-encode differently", trees.len());
 }
+
+#[test]
+fn test_grid_sides_round_to_whole_cells() {
+    assert_eq!(attila_grid().dimensions(), (1357, 1112, 2048));
+    assert_eq!(VisionGrid::new((613.8, 617.365_05)).dimensions(), (1228, 1235, 2048));
+}
