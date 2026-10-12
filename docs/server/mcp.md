@@ -275,6 +275,7 @@ The MCP interface exposes **90 tools**. The descriptions below are the first sen
 | `startpos_campaigns` | `startpos.campaigns` | Get the campaigns a startpos can be built for, and the one the pack's last startpos was built for. |
 | `start_startpos` | `startpos.start` | Start building a startpos for a campaign with the tables of an open pack: prepares the Assembly Kit and launches the game. |
 | `finish_startpos` | `startpos.finish` | Finish building a startpos after the game was closed: imports it into the pack, or cancels the build with `cancel: true`. |
+| `generate_startpos` | `startpos.generate` | Generate the startpos of a campaign from the tables of an open pack and the game's files, without launching the game, and add it to the pack. |
 | `optimize_pack` | `tools.optimize` | Remove data of an open pack that's identical to vanilla or unneeded (duplicated rows, unchanged rows and files, empty tables, etc.). |
 
 ### Updates

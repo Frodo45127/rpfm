@@ -62,7 +62,7 @@ use rpfm_ipc::api::schema::{
 };
 use rpfm_ipc::api::translations::{GenerateVanillaTexts, ListTranslations, Translations, VanillaTextsAvailable};
 use rpfm_ipc::api::tools::{
-    AnimsBySkeleton, ExportGltf, FilePaths, FilesChanged, FinishStartpos, GenerateMissingLocs, GetOptimizerOptions, GetStartposCampaigns, InitMyMod, LiveExport,
+    AnimsBySkeleton, ExportGltf, FilePaths, FilesChanged, FinishStartpos, GenerateMissingLocs, GenerateStartpos, GetOptimizerOptions, GetStartposCampaigns, InitMyMod, LiveExport,
     MyModCreated, OptimizePack, OptimizerOptionValues, PackMap, PatchSiegeAi, RunLuaTests, SetVideoFormat, SiegeAiPatched, StartStartpos, StartposCampaigns,
     UpdateAnimIds,
 };
@@ -1207,6 +1207,16 @@ impl McpServer {
     )]
     pub async fn finish_startpos(&self, params: Parameters<FinishStartpos>) -> Result<CallToolResult, McpError> {
         self.call_api("finish_startpos", params.0).await
+    }
+
+    #[tool(
+        name = "generate_startpos",
+        description = "Generate the startpos of a campaign from the tables of an open pack and the game's files, without launching the game, and add it to the pack. Experimental, Attila only.",
+        annotations(read_only_hint = false, destructive_hint = false),
+        output_schema = schema_for_output::<FilesEdited>(),
+    )]
+    pub async fn generate_startpos(&self, params: Parameters<GenerateStartpos>) -> Result<CallToolResult, McpError> {
+        self.call_api("generate_startpos", params.0).await
     }
 
     #[tool(

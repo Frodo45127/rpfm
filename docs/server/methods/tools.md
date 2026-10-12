@@ -257,6 +257,29 @@ Imports the startpos built by the game into the pack, or cancels the build, and 
 |------|------|----------|-------------|
 | `edited` | array of `string` | yes | Paths of the edited files. |
 
+## `startpos.generate`
+
+Generates the startpos of a campaign from the tables of an open pack and the game's files, and
+adds it to the pack as `campaigns/<campaign>/startpos.esf`. Unlike `startpos.start`, it doesn't launch the game.
+
+Experimental, and only available for Attila. The record layouts are taken from the game's own startpos of the
+campaign (or of one of its campaigns, for new ones) and cached in the config folder.
+
+Runs as a job: answers right away with a job ID, and sends its result when the job ends (see [Jobs](../ws-protocol.md#jobs)).
+
+**Params** (`GenerateStartpos`)
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `pack` | `string` | yes | Key of the pack with the startpos tables. |
+| `campaign` | `string` | yes | Campaign to generate the startpos for. |
+
+**Result** (`FilesEdited`)
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `edited` | array of `string` | yes | Paths of the edited files. |
+
 ## `tools.plugin_scripts`
 
 Returns the plugin scripts in the scripts folder of the config.

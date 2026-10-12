@@ -37,7 +37,7 @@ use rpfm_ipc::api::references::{FindDefinition, FindLoc, FindUsages, GetLocSourc
 use rpfm_ipc::api::tables::{AddKeyDeletes, EditTable, ExportTsv, GetColumnValues, GetTableDefinition, GetTableInfo, GetTableRows, GetUnusedNumbers, ImportTsv, MergeTables, RenameKey, UpgradeTable};
 use rpfm_ipc::api::updates::{ApplyUpdate, CheckUpdate};
 use rpfm_ipc::api::tools::{
-    AddCeoEntries, AnimsBySkeleton, BuildCeo, ExportGltf, FinishStartpos, GenerateMissingLocs, GetLuaHovers, GetOptimizerOptions, GetStartposCampaigns,
+    AddCeoEntries, AnimsBySkeleton, BuildCeo, ExportGltf, FinishStartpos, GenerateMissingLocs, GenerateStartpos, GetLuaHovers, GetOptimizerOptions, GetStartposCampaigns,
     ImportCeo, InitMyMod, ListPluginScripts, ListTraitCeos, LiveExport, LuaHover, LuaHovers, LuaTestResults, OptimizePack, OptimizerOptionValues, PackMap,
     optimizer_option_values, PatchSiegeAi, PluginScripts, RunLuaTests, RunPluginScript, SetVideoFormat, StartStartpos, TraitCeos, UpdateAnimIds,
 };
@@ -51,7 +51,8 @@ use crate::translation_hub::{self, SubmitOutcome};
 use crate::updater::{apply_component, check_component, git_update_repo};
 
 /// Methods that run as jobs.
-const JOB_METHODS: [&str; 9] = [
+const JOB_METHODS: [&str; 10] = [
+    GenerateStartpos::METHOD,
     OptimizePack::METHOD,
     RunLuaTests::METHOD,
     SetGame::METHOD,
@@ -64,7 +65,7 @@ const JOB_METHODS: [&str; 9] = [
 ];
 
 /// Methods that change the contents of packs, so they need autosaving. They change their `pack` param's pack, or any open pack if they have none.
-const PACK_CHANGING_METHODS: [&str; 36] = [
+const PACK_CHANGING_METHODS: [&str; 37] = [
     AddCeoEntries::METHOD,
     AddFilesFromDisk::METHOD,
     AddKeyDeletes::METHOD,
@@ -81,6 +82,7 @@ const PACK_CHANGING_METHODS: [&str; 36] = [
     ExtractFromAnimPack::METHOD,
     FinishStartpos::METHOD,
     GenerateMissingLocs::METHOD,
+    GenerateStartpos::METHOD,
     IgnoreDiagnostics::METHOD,
     ImportCeo::METHOD,
     ImportTsv::METHOD,
@@ -352,6 +354,10 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         GetStartposCampaigns::METHOD => call(params, |request: GetStartposCampaigns| state.startpos_campaigns(&request.pack)),
         StartStartpos::METHOD => call(params, |request: StartStartpos| state.start_startpos(&request, settings).map(|_| Done {})),
         FinishStartpos::METHOD => call(params, |request: FinishStartpos| state.finish_startpos(request.cancel, settings)),
+        GenerateStartpos::METHOD => call(params, |request: GenerateStartpos| {
+            context.report_stage("Generating the startpos");
+            state.generate_startpos(&request, settings)
+        }),
 
         GetRawDefinitions::METHOD => call(params, |request: GetRawDefinitions| state.raw_definitions(&request.table_name, request.version)),
         SetDefinition::METHOD => call(params, |request: SetDefinition| state.set_definition(&request, settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES)).map(|_| Done {})),

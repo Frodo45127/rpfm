@@ -273,6 +273,22 @@ pub struct StartStartpos {
     pub process_hlp_spd_data: bool,
 }
 
+/// `startpos.generate`: generates the startpos of a campaign from the tables of an open pack and the game's files, and
+/// adds it to the pack as `campaigns/<campaign>/startpos.esf`. Unlike `startpos.start`, it doesn't launch the game.
+///
+/// Experimental, and only available for Attila. The record layouts are taken from the game's own startpos of the
+/// campaign (or of one of its campaigns, for new ones) and cached in the config folder.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GenerateStartpos {
+
+    /// Key of the pack with the startpos tables.
+    pub pack: String,
+
+    /// Campaign to generate the startpos for.
+    pub campaign: String,
+}
+
 /// `startpos.finish`: imports the startpos built by the game into the pack, or cancels the build, and cleans up the build files.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -366,6 +382,12 @@ impl Request for StartStartpos {
 impl Request for FinishStartpos {
     const METHOD: &'static str = "startpos.finish";
     type Response = FilesEdited;
+}
+
+impl Request for GenerateStartpos {
+    const METHOD: &'static str = "startpos.generate";
+    type Response = FilesEdited;
+    const IS_JOB: bool = true;
 }
 
 /// `tools.plugin_scripts`: returns the plugin scripts in the scripts folder of the config.

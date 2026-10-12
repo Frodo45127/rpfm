@@ -23,6 +23,7 @@ use std::path::{Component, Path, PathBuf};
 use rpfm_extensions::dependencies::{GAMES_NEEDING_VICTORY_OBJECTIVES, VICTORY_OBJECTIVES_FILE_NAME};
 use rpfm_extensions::gltf::{gltf_from_rigid, save_gltf_to_disk};
 use rpfm_extensions::optimizer::{OptimizableContainer, OptimizerOptions};
+use rpfm_extensions::startpos::generator::{generate_startpos, load_or_extract_layout, StartposSources, SUPPORTED_GAMES as GENERATOR_GAMES};
 use rpfm_extensions::translator::PackTranslation;
 
 use rpfm_ipc::settings_keys::ASSEMBLY_KIT_SUFFIX;
@@ -34,13 +35,13 @@ use rpfm_lib::integrations::git::GitIntegration;
 use rpfm_telemetry::{error, info, warn};
 
 use crate::ceo_builder::{build_ceo, build_ceo_entries, build_ceo_post, get_trait_ceos};
-use rpfm_ipc::settings::{lua_autogen_game_path, scripts_path, translations_local_path, translations_remote_path, Settings};
+use rpfm_ipc::settings::{lua_autogen_game_path, scripts_path, startpos_layouts_path, translations_local_path, translations_remote_path, Settings};
 
 use rpfm_ipc::api::ApiError;
 use rpfm_ipc::api::files::FileRef;
 use rpfm_ipc::api::tables::FilesEdited;
 use rpfm_ipc::api::translations::{DEFAULT_TRANSLATIONS_LIMIT, ListTranslations, TranslationEntry, TranslationFilter, Translations};
-use rpfm_ipc::api::tools::{optimizer_option_values, CeoEntryData, FilePaths, FilesChanged, InitMyMod, MyModCreated, PluginScriptRun, RunPluginScript, SiegeAiPatched, StartStartpos, StartposCampaigns};
+use rpfm_ipc::api::tools::{optimizer_option_values, CeoEntryData, FilePaths, FilesChanged, GenerateStartpos, InitMyMod, MyModCreated, PluginScriptRun, RunPluginScript, SiegeAiPatched, StartStartpos, StartposCampaigns};
 
 use super::{DecodedFile, ExtractOptions, SessionState, encode_extra_data, loaded_schema, pack, pack_mut};
 use super::files::{container_path, pack_key_and_data_source, raw_paths};
@@ -555,6 +556,34 @@ impl SessionState {
         });
 
         Ok(())
+    }
+
+    /// Generates the startpos of a campaign from the tables of a pack and the game's files, and adds it to the pack.
+    ///
+    /// The campaign is saved in the pack's settings, to suggest it next time.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the game isn't supported, the dependencies aren't loaded, or the pack or game lack data the build needs.
+    pub fn generate_startpos(&mut self, request: &GenerateStartpos, settings: &Settings) -> Result<FilesEdited> {
+        if !GENERATOR_GAMES.contains(&self.game.key()) {
+            return Err(ApiError::InvalidParams(format!("Startpos generation isn't supported for {} yet.", self.game.display_name())).into());
+        }
+        if !self.dependencies.is_vanilla_data_loaded(false) {
+            return Err(anyhow!("The dependencies cache isn't loaded. Generate it, then try again."));
+        }
+
+        let schema = loaded_schema(&self.schema)?;
+        let sources = StartposSources::from_pack(&self.dependencies, pack(&self.packs, &request.pack)?, schema, &request.campaign)?;
+        let game_data_path = self.game.data_path(&settings.path_buf(self.game.key()))?;
+        let layout = load_or_extract_layout(&startpos_layouts_path()?, &self.game, &game_data_path, &request.campaign)?;
+        let startpos = generate_startpos(&sources, &layout)?;
+
+        let path = format!("campaigns/{}/startpos.esf", request.campaign);
+        let pack = pack_mut(&mut self.packs, &request.pack)?;
+        pack.insert(RFile::new_from_decoded(&RFileDecoded::ESF(startpos), 0, &path))?;
+        pack.settings_mut().settings_text_mut().insert(STARTPOS_LAST_CAMPAIGN_SETTING.to_owned(), request.campaign.clone());
+        Ok(FilesEdited { edited: vec![path] })
     }
 
     /// Finishes building a startpos: imports it into its pack, or cancels the build, and cleans up the build files.
