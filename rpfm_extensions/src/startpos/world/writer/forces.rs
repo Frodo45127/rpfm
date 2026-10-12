@@ -62,6 +62,10 @@ pub struct PlannedCharacter<'a> {
     #[getset(get_copy = "pub")]
     faction: &'a FactionEntry,
 
+    /// Faction the character was created in: its table faction, also for wives moved to their husband's.
+    #[getset(get_copy = "pub")]
+    origin: &'a FactionEntry,
+
     /// Table row of the character, `None` for generated colonels.
     #[getset(get_copy = "pub")]
     entry: Option<&'a CharacterEntry>,
@@ -69,6 +73,9 @@ pub struct PlannedCharacter<'a> {
     /// Position of the character's force in the plan, if it commands one.
     #[getset(get_copy = "pub")]
     force: Option<usize>,
+
+    /// The character was moved to its faction after the world was created, so it comes after the faction's own.
+    moved: bool,
 }
 
 /// A force of the world.
@@ -106,6 +113,9 @@ pub struct PlannedForce<'a> {
     /// Position of the force's commander in the plan.
     #[getset(get_copy = "pub")]
     commander: usize,
+
+    /// The force was moved to its faction with its commander, so it comes after the faction's own.
+    moved: bool,
 }
 
 /// A unit of a force.
@@ -190,7 +200,23 @@ impl<'a> ForcePlan<'a> {
             }
         }
 
+        force_plan.move_wives(index);
         Ok(force_plan)
+    }
+
+    /// Moves the women married to a man of another faction, with their forces, to their husband's faction.
+    fn move_wives(&mut self, index: &'a CampaignIndex) {
+        for position in 0..self.characters.len() {
+            let character = &self.characters[position];
+            let Some(husband_faction) = character.entry.and_then(|entry| entry.husband_faction().as_deref()).and_then(|key| index.faction(key)) else { continue };
+            let force = character.force;
+            self.characters[position].faction = husband_faction;
+            self.characters[position].moved = true;
+            if let Some(force) = force {
+                self.forces[force].faction = husband_faction;
+                self.forces[force].moved = true;
+            }
+        }
     }
 
     /// Adds a garrison force and its colonel, who commands its first unit.
@@ -205,26 +231,37 @@ impl<'a> ForcePlan<'a> {
     fn push_force(&mut self, faction: &'a FactionEntry, kind: ForceKind, region: Option<String>, units: Vec<PlannedUnit>, commander: usize) -> usize {
         let id = u32::try_from(self.forces.len() + 1).unwrap_or(u32::MAX);
         let first_unit_id = self.forces.last().map(|force| force.first_unit_id + u32::try_from(force.units.len()).unwrap_or(u32::MAX)).unwrap_or(1);
-        self.forces.push(PlannedForce { id, faction, kind, region, stationed_in: None, units, first_unit_id, commander });
+        self.forces.push(PlannedForce { id, faction, kind, region, stationed_in: None, units, first_unit_id, commander, moved: false });
         self.forces.len() - 1
     }
 
     /// Adds a character.
     fn push_character(&mut self, faction: &'a FactionEntry, entry: Option<&'a CharacterEntry>, force: Option<usize>) {
         let id = u32::try_from(self.characters.len() + 1).unwrap_or(u32::MAX);
-        self.characters.push(PlannedCharacter { id, faction, entry, force });
+        self.characters.push(PlannedCharacter { id, faction, origin: faction, entry, force, moved: false });
     }
 
-    /// Returns the characters of a faction, in startpos order.
+    /// Returns the positions in the plan of the characters of a faction, in startpos order: its own, then the ones
+    /// moved to it.
+    pub fn character_positions(&self, faction: &str) -> Vec<usize> {
+        let of = |moved: bool| self.characters.iter().enumerate()
+            .filter(move |(_, character)| *character.faction.key() == faction && character.moved == moved)
+            .map(|(position, _)| position);
+        of(false).chain(of(true)).collect()
+    }
+
+    /// Returns the characters of a faction, in startpos order: its own, then the ones moved to it.
     pub fn characters_of(&self, faction: &str) -> impl Iterator<Item = &PlannedCharacter<'a>> {
-        let faction = faction.to_owned();
-        self.characters.iter().filter(move |character| *character.faction.key() == faction)
+        self.character_positions(faction).into_iter().map(|position| &self.characters[position])
     }
 
-    /// Returns the forces of a faction, in startpos order.
+    /// Returns the forces of a faction, in startpos order: its own, then the ones moved to it.
     pub fn forces_of(&self, faction: &str) -> impl Iterator<Item = &PlannedForce<'a>> {
-        let faction = faction.to_owned();
-        self.forces.iter().filter(move |force| *force.faction.key() == faction)
+        let of = |moved: bool| {
+            let faction = faction.to_owned();
+            self.forces.iter().filter(move |force| *force.faction.key() == faction && force.moved == moved)
+        };
+        of(false).chain(of(true))
     }
 
     /// Returns the first general's army starting in a region's settlement, if any.

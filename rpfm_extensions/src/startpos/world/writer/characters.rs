@@ -132,6 +132,9 @@ struct DetailsSubject<'r> {
     /// The character's faction.
     faction: &'r FactionEntry,
 
+    /// The faction the character was created in.
+    origin: &'r FactionEntry,
+
     /// The character's table entry, `None` for colonels.
     entry: Option<&'r CharacterEntry>,
 
@@ -247,10 +250,9 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
     /// Returns an error if a table, column or layout is missing.
     pub fn write_character_array(&self, faction: &FactionEntry) -> Result<RecordNode> {
         let mut array = self.inputs.layout.builder(CHARACTER_ARRAY_PATH)?;
-        for (position, character) in self.forces.characters().iter().enumerate() {
-            if character.faction().key() == faction.key() {
-                array.push_group()?.set_record("CHARACTER", Some(self.write_character(position, character)?))?;
-            }
+        for position in self.forces.character_positions(faction.key()) {
+            let character = &self.forces.characters()[position];
+            array.push_group()?.set_record("CHARACTER", Some(self.write_character(position, character)?))?;
         }
         array.build()
     }
@@ -302,6 +304,7 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
         DetailsSubject {
             path: DETAILS_PATH,
             faction,
+            origin: character.origin(),
             entry: character.entry(),
             character_id: character.id(),
             family_id: self.family_ids[position],
@@ -384,7 +387,7 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
             .set_record("GENERAL_BODYGUARD_DETAILS", Some(self.write_bodyguard(path, subject.bodyguard.as_ref())?))?
             .set_u32("GENERAL_BODYGUARD_DETAILS+1", subject.family_id)?
             .set_str("GENERAL_BODYGUARD_DETAILS+6", &format!("{art_set}{ART_SET_SUFFIX}"))?
-            .set_str("GENERAL_BODYGUARD_DETAILS+8", faction.key())?;
+            .set_str("GENERAL_BODYGUARD_DETAILS+8", subject.origin.key())?;
 
         if let (Some(row), Some(entry)) = (row, subject.entry) {
             let ambition = if subject.death.is_some() { 0 } else { u32::try_from(row.int("ambition")?).unwrap_or_default() };
@@ -545,7 +548,7 @@ fn family_ids(index: &CampaignIndex, plan: &WorldPlan, forces: &ForcePlan) -> (V
     let mut next_id = 1;
     for faction in plan.factions() {
         for (position, character) in forces.characters().iter().enumerate() {
-            if let Some(entry) = character.entry().filter(|_| character.faction().key() == faction.key()) {
+            if let Some(entry) = character.entry().filter(|_| character.origin().key() == faction.key()) {
                 ids[position] = next_id;
                 by_entry.insert(entry.id().to_owned(), next_id);
                 next_id += 1;

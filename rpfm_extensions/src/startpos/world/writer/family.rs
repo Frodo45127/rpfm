@@ -168,7 +168,7 @@ impl CharacterWriter<'_, '_> {
         };
         let code = DEATH_TYPE_CODES.iter().find(|(death_type, _)| *death_type == entry.death_type()).map(|(_, code)| *code).unwrap_or_default();
         let path = child_path(member_path, "CHARACTER_DETAILS");
-        let subject = DetailsSubject { path: &path, faction, entry: Some(entry), character_id: 0, family_id, death: Some((death_year, code)), bodyguard: None };
+        let subject = DetailsSubject { path: &path, faction, origin: faction, entry: Some(entry), character_id: 0, family_id, death: Some((death_year, code)), bodyguard: None };
         self.write_details(&subject, &info)
     }
 }

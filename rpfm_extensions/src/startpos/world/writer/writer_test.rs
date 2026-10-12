@@ -18,7 +18,7 @@ use super::*;
 use crate::startpos::esf_nav::child_record;
 use crate::startpos::tables::StartposTables;
 use crate::startpos::world::legacy::legacy_test::{linked_character, name_ids, overrides_from_pack};
-use crate::startpos::startpos_test::{array_items, compare, field_str, missing_records, Report, test_data_esf, test_data_tables, test_startpos, world, world_factions, world_regions, TEST_CAMPAIGN};
+use crate::startpos::startpos_test::{array_items, compare, field_str, field_u32, missing_records, Report, test_data_esf, test_data_tables, test_startpos, world, world_factions, world_regions, TEST_CAMPAIGN};
 
 /// Share of the game's `WORLD` fields the writer must match. Raised as the writer covers more records.
 const MIN_MATCH_RATIO: f64 = 0.93;
@@ -51,14 +51,28 @@ pub(crate) fn plan_from_startpos<'a>(index: &'a CampaignIndex, startpos: &ESF, t
     let names = tables.table("start_pos_characters").unwrap().rows()
         .map(|row| (row.str("ID").unwrap().into_owned(), ["Name", "Surname", "clan_name", "other_name"].iter().map(|column| row.str(column).unwrap().into_owned()).filter(|id| !id.is_empty()).collect::<BTreeSet<_>>()))
         .collect::<HashMap<_, _>>();
+    // Characters married into another faction are listed there, but were created, and numbered, in their own.
+    let mut orders = world_factions(game_world).iter().map(|faction| (field_str(faction, 1), vec![])).collect::<HashMap<&str, Vec<(u32, &CharacterEntry)>>>();
     for faction in world_factions(game_world) {
         let key = field_str(faction, 1);
-        let order = child_record(faction, "CHARACTER_ARRAY").map(|array| array_items(array, "CHARACTER")).unwrap_or_default().into_iter()
-            .filter(|character| field_str(character, 3) != "colonel")
-            .filter_map(|character| linked_character(index, key, &names, &name_ids(character)))
-            .filter_map(|id| index.characters().iter().find(|entry| *entry.id() == id))
-            .collect();
-        plan.set_character_order(key, order);
+        let origins = std::iter::once(key).chain(index.characters().iter()
+            .filter(|entry| entry.husband_faction().as_deref() == Some(key))
+            .map(|entry| entry.faction().as_str()));
+        let origins = origins.collect::<BTreeSet<_>>();
+        for character in child_record(faction, "CHARACTER_ARRAY").map(|array| array_items(array, "CHARACTER")).unwrap_or_default() {
+            if field_str(character, 3) == "colonel" {
+                continue;
+            }
+            let ids = name_ids(character);
+            let Some(entry) = origins.iter()
+                .find_map(|origin| linked_character(index, origin, &names, &ids))
+                .and_then(|id| index.characters().iter().find(|entry| *entry.id() == id)) else { continue };
+            orders.entry(entry.faction().as_str()).or_default().push((field_u32(character, 1), entry));
+        }
+    }
+    for (faction, mut order) in orders {
+        order.sort_by_key(|(id, _)| *id);
+        plan.set_character_order(faction, order.into_iter().map(|(_, entry)| entry).collect());
     }
     plan
 }

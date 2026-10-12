@@ -56,6 +56,9 @@ pub mod writer;
 
 #[cfg(test)] mod world_test;
 
+/// Relationship of married characters in `start_pos_family_relationships`.
+const SPOUSE_RELATIONSHIP: &str = "spouse";
+
 /// Building instance (`building_levels.building_instance_key`) of the primary buildings of major settlements.
 const MAJOR_SETTLEMENT_INSTANCE: &str = "att_city_major";
 
@@ -221,6 +224,11 @@ pub struct CharacterEntry {
     /// Unit of the character's bodyguard, overriding the faction's default. Empty for the default.
     #[getset(get = "pub")]
     override_general_unit: String,
+
+    /// Faction of the character's husband, for women married to a man of another faction. The game creates them in
+    /// their own faction, then moves them and their armies to the end of their husband's.
+    #[getset(get = "pub")]
+    husband_faction: Option<String>,
 }
 
 //---------------------------------------------------------------------------//
@@ -310,8 +318,12 @@ impl CampaignIndex {
         }
 
         let mut characters = vec![];
+        let mut women = HashSet::new();
         for row in tables.table("start_pos_characters")?.rows() {
             let Some(faction) = faction_of_id.get(row.str("faction")?.as_ref()) else { continue };
+            if row.bool("is_male").is_ok_and(|is_male| !is_male) {
+                women.insert(row.str("ID")?.into_owned());
+            }
             characters.push(CharacterEntry {
                 id: row.str("ID")?.into_owned(),
                 faction: faction.to_owned(),
@@ -324,7 +336,13 @@ impl CampaignIndex {
                 death_type: row.str("death_type")?.into_owned(),
                 progenitor: row.bool("progenitor")?,
                 override_general_unit: row.str("override_general_unit")?.into_owned(),
+                husband_faction: None,
             });
+        }
+
+        let husband_factions = husband_factions(tables, &characters, &women)?;
+        for character in &mut characters {
+            character.husband_faction = husband_factions.get(&character.id).cloned();
         }
 
         Ok(Self {
@@ -399,6 +417,31 @@ impl SettlementEntry {
             .chain(self.buildings.iter().map(String::as_str))
             .filter(|building| !building.is_empty())
     }
+}
+
+/// Returns the faction of the husband of each woman married to a man of another faction, by her id.
+fn husband_factions(tables: &StartposTables, characters: &[CharacterEntry], women: &HashSet<String>) -> Result<HashMap<String, String>> {
+    let Ok(relationships) = tables.table("start_pos_family_relationships") else { return Ok(HashMap::new()) };
+    let faction_of = characters.iter().map(|character| (character.id.as_str(), character.faction.as_str())).collect::<HashMap<_, _>>();
+
+    let mut moves = HashMap::new();
+    for row in relationships.rows() {
+        if row.str("relationship")? != SPOUSE_RELATIONSHIP {
+            continue;
+        }
+        let (character, related) = (row.str("character")?, row.str("related_to")?);
+        for (wife, husband) in [(&character, &related), (&related, &character)] {
+            if !women.contains(wife.as_ref()) || women.contains(husband.as_ref()) {
+                continue;
+            }
+            if let (Some(wife_faction), Some(husband_faction)) = (faction_of.get(wife.as_ref()), faction_of.get(husband.as_ref())) {
+                if wife_faction != husband_faction {
+                    moves.insert(wife.to_string(), husband_faction.to_string());
+                }
+            }
+        }
+    }
+    Ok(moves)
 }
 
 /// Reads a starting cell coordinate, stored as a float in `start_pos_characters`.

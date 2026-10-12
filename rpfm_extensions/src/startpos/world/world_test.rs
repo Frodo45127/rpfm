@@ -138,3 +138,32 @@ fn test_index_real_data() {
     assert_eq!(index.regions().iter().filter(|region| region.owner().is_none()).count(), 11);
     assert_eq!(index.capital_of("att_fact_sassanid_empire").unwrap().key(), "att_reg_asorstan_ctesiphon");
 }
+
+#[test]
+fn test_wives_married_into_another_faction_know_their_husbands_faction() {
+    let mut tables = StartposTables::new();
+    add_table(&mut tables, "cultures_subcultures", &["subculture", "culture"], &[&["sub_a", "cult_a"]]);
+    add_table(&mut tables, "factions", &["key", "subculture", "military_group"], &[&["fact_a", "sub_a", "mg_a"], &["fact_b", "sub_a", "mg_a"]]);
+    add_table(&mut tables, "start_pos_factions", &["ID", "faction", "campaign", "playable", "starting_order"], &[
+        &["1", "fact_a", FIXTURE_CAMPAIGN, "true", "0"],
+        &["2", "fact_b", FIXTURE_CAMPAIGN, "true", "1"],
+    ]);
+    add_table(&mut tables, "start_pos_regions", &["id", "region", "campaign", "owning_faction", "faction_capital"], &[]);
+    add_table(&mut tables, "start_pos_settlements", &["id", "region", "primary_building", "port_building", "building1", "building2", "building3", "building4", "building5", "startpos_slave_points"], &[]);
+    add_table(&mut tables, "building_levels", &["level_name", "building_instance_key"], &[]);
+    add_table(&mut tables, "start_pos_characters", &["ID", "faction", "Type", "Age", "startx", "starty", "ministerial_position", "loyalty", "death_type", "progenitor", "override_general_unit", "is_male"], &[
+        &["30", "1", "general", "40", "0.0", "0.0", "faction_leader", "5", "", "false", "", "true"],
+        &["31", "2", "general", "30", "0.0", "0.0", "", "5", "", "false", "", "false"],
+        &["32", "2", "general", "30", "0.0", "0.0", "faction_leader", "5", "", "false", "", "true"],
+        &["33", "1", "general", "30", "0.0", "0.0", "", "5", "", "false", "", "false"],
+    ]);
+    add_table(&mut tables, "start_pos_family_relationships", &["character", "related_to", "relationship"], &[
+        &["30", "31", "spouse"],
+        &["33", "32", "spouse"],
+    ]);
+
+    let index = fixture_index(&tables);
+
+    let husbands = index.characters().iter().map(|character| (character.id().as_str(), character.husband_faction().as_deref())).collect::<Vec<_>>();
+    assert_eq!(husbands, vec![("30", None), ("31", Some("fact_a")), ("32", None), ("33", Some("fact_b"))]);
+}
