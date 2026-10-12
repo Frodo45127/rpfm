@@ -4353,6 +4353,7 @@ impl AppUI {
         let template_path = if cfg!(debug_assertions) { BUILD_STARPOS_VIEW_DEBUG } else { BUILD_STARPOS_VIEW_RELEASE };
         let main_widget = load_template(app_ui.main_window(), template_path)?;
         let dialog = main_widget.static_downcast::<QDialog>();
+        dialog.set_minimum_height(800);
 
         // Create and configure the dialog.
         let instructions_label: QPtr<QLabel> = find_widget(&main_widget.static_upcast(), "instructions_label")?;
