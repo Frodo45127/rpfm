@@ -40,6 +40,9 @@ rpfm = {
     -- Contents of the files written by the scripts, by path.
     files = {},
 
+    -- Values saved by the scripts with `save_named_value`, in order, as { name = ..., value = ... }.
+    saved_values = {},
+
     -- Game state the engine objects expose.
     world = {
         turn = 1,
@@ -479,6 +482,10 @@ local game_interface = rpfm.object("cm", {
         time_triggers[tostring(id)] = { due = rpfm.world.time + interval, interval = interval, repeats = repeats == true };
     end,
     remove_time_trigger = function(id) time_triggers[tostring(id)] = nil end,
+
+    -- The game is always a new one, so loading gets the default, and saving goes to `rpfm.saved_values`.
+    load_named_value = function(_, default) return default end,
+    save_named_value = function(name, value) table.insert(rpfm.saved_values, { name = tostring(name), value = value }) end,
 });
 
 --------------------------------------------------------------------------------
@@ -754,9 +761,9 @@ end;
 -- Script Attila and older games run first when loading a campaign. Their campaign scripts are in `campaigns/<campaign>/`.
 local LEGACY_BOOT_SCRIPT = "lua_scripts/campaign_scripted.lua";
 
--- Loads the script libraries, the vanilla scripts of a campaign if any, and the mods, then gets to the first tick.
--- Returns the error of loading the libraries, if they fail to load.
-function rpfm.__boot(campaign)
+-- Loads the script libraries, the vanilla scripts of a campaign if any, and the mods, then triggers the events of
+-- loading a campaign, or the ones given. Returns the error of loading the libraries, if they fail to load.
+function rpfm.__boot(campaign, boot_events)
     CampaignName = campaign or "main_warhammer";
 
     local ok, err = xpcall(function()
@@ -791,7 +798,7 @@ function rpfm.__boot(campaign)
         return tostring(err);
     end;
 
-    for _, event in ipairs({ "NewSession", "WorldCreated", "UICreated", "FirstTickAfterWorldCreated" }) do
+    for _, event in ipairs(boot_events or { "NewSession", "WorldCreated", "UICreated", "FirstTickAfterWorldCreated" }) do
         rpfm.fire(event);
     end;
 end;

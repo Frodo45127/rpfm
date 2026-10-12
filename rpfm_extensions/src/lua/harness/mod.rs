@@ -48,6 +48,9 @@ const CAMPAIGN_BOOT_SCRIPT: &str = "script/campaign_scripted.lua";
 /// Script Attila and older games run first when loading a campaign.
 const LEGACY_CAMPAIGN_BOOT_SCRIPT: &str = "lua_scripts/campaign_scripted.lua";
 
+/// Event the game triggers when saving a campaign.
+const SAVING_GAME_EVENT: &str = "SavingGame";
+
 /// Name of the chunk holding the test file, as shown in errors.
 const TEST_FILE_CHUNK: &str = "@test";
 
@@ -101,6 +104,26 @@ pub struct LuaTestReport {
     /// Errors raised while booting by scripts that don't come from the tested packs, like vanilla scripts
     /// reacting to engine behavior the harness doesn't emulate. They don't fail tests.
     boot_errors: Vec<String>,
+}
+
+/// Values the scripts of a campaign save when the game saves it.
+#[derive(Clone, Debug, Default, PartialEq, Getters, Serialize, Deserialize)]
+#[getset(get = "pub")]
+pub struct LuaSave {
+
+    /// Name and value of each saved value, in the order the scripts saved them.
+    values: Vec<(String, LuaSavedValue)>,
+
+    /// Errors raised by the scripts while booting and saving.
+    errors: Vec<String>,
+}
+
+/// A value saved by the scripts. The game saves numbers as integers, and doesn't save other types.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum LuaSavedValue {
+    Bool(bool),
+    Integer(i32),
+    String(String),
 }
 
 /// Result of a test.
@@ -313,6 +336,59 @@ pub fn run_tests(api: &LuaApi, scripts: &LuaScripts, test_source: &str, options:
     }
 
     Ok(report)
+}
+
+/// This function boots a campaign and saves it, like the game does when it builds the campaign's startpos.
+///
+/// # Arguments
+///
+/// * `api` - API of the game, whose docs type the engine objects.
+/// * `scripts` - Scripts of the game and of the packs.
+/// * `options` - Campaign to boot, and the keys of the game's factions and regions.
+/// * `boot_events` - Events triggered after loading the scripts, before saving.
+///
+/// # Returns
+///
+/// The saved values, and the errors raised by the scripts.
+///
+/// # Errors
+///
+/// Returns an error if the game's scripts are missing or fail to load, or if the Lua runtime fails.
+pub fn save_campaign(api: &LuaApi, scripts: &LuaScripts, options: &LuaTestOptions, boot_events: &[&str]) -> Result<LuaSave> {
+    if !scripts.has_campaign_boot_script() {
+        return Err(RLibError::LuaTestGameScriptsNotFound);
+    }
+
+    let lua = new_state(api, scripts, options)?;
+    let rpfm: Table = lua.globals().get("rpfm").map_err(lua_error)?;
+    let boot: mlua::Function = rpfm.get("__boot").map_err(lua_error)?;
+    if let Some(error) = boot.call::<Option<String>>((options.campaign.as_deref(), boot_events.to_vec())).map_err(lua_error)? {
+        return Err(RLibError::LuaRuntimeError(format!("the game's script libraries failed to load: {error}")));
+    }
+
+    let fire: mlua::Function = rpfm.get("fire").map_err(lua_error)?;
+    fire.call::<()>(SAVING_GAME_EVENT).map_err(lua_error)?;
+
+    let mut values = vec![];
+    for entry in rpfm.get::<Table>("saved_values").map_err(lua_error)?.sequence_values::<Table>() {
+        let entry = entry.map_err(lua_error)?;
+        let name: String = entry.get("name").map_err(lua_error)?;
+
+        // The game converts numbers with `lua_tointeger`, which rounds to the nearest integer on its platform.
+        let value = match entry.get::<mlua::Value>("value").map_err(lua_error)? {
+            mlua::Value::Boolean(value) => LuaSavedValue::Bool(value),
+            mlua::Value::Integer(value) => LuaSavedValue::Integer(value as i32),
+            mlua::Value::Number(value) => LuaSavedValue::Integer(value.round_ties_even() as i32),
+            mlua::Value::String(value) => LuaSavedValue::String(String::from_utf8_lossy(&value.as_bytes()).into_owned()),
+            _ => continue,
+        };
+        values.push((name, value));
+    }
+
+    Ok(LuaSave {
+        values,
+        errors: string_list(&rpfm, "errors")?,
+    })
 }
 
 /// This function creates a sandboxed Lua state with the engine emulation loaded.

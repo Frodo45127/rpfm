@@ -395,3 +395,41 @@ end)
     assert!(result.passed(), "{:?}", result.errors());
     assert!(result.log().iter().any(|line| line == "[tom] added a callback to SavingGame"));
 }
+
+fn legacy_save(campaign: &str, boot_events: &[&str]) -> Result<LuaSave> {
+    save_campaign(&LuaApi::default(), &legacy_scripts(), &legacy_options(campaign), boot_events)
+}
+
+#[test]
+fn test_save_campaign_saves_values_in_order() {
+    let save = legacy_save("test_campaign", &["NewSession", "WorldCreated"]).unwrap();
+
+    assert_eq!(save.values(), &vec![
+        ("flag".to_owned(), LuaSavedValue::Bool(true)),
+        ("count".to_owned(), LuaSavedValue::Integer(2)),
+        ("text".to_owned(), LuaSavedValue::String("a".to_owned())),
+        ("world_created".to_owned(), LuaSavedValue::Bool(true)),
+    ]);
+    assert!(save.errors().is_empty(), "{:?}", save.errors());
+}
+
+#[test]
+fn test_save_campaign_only_triggers_the_given_events() {
+    let save = legacy_save("test_campaign", &["NewSession"]).unwrap();
+
+    assert_eq!(save.values().last(), Some(&("world_created".to_owned(), LuaSavedValue::Bool(false))));
+}
+
+#[test]
+fn test_save_campaign_without_campaign_scripts() {
+    let save = legacy_save("other_campaign", &["NewSession", "WorldCreated"]).unwrap();
+
+    assert!(save.values().is_empty());
+}
+
+#[test]
+fn test_save_campaign_without_game_scripts() {
+    let result = save_campaign(&LuaApi::default(), &LuaScripts::default(), &LuaTestOptions::default(), &[]);
+
+    assert!(matches!(result, Err(RLibError::LuaTestGameScriptsNotFound)));
+}
