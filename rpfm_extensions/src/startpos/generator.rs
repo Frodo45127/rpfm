@@ -1,0 +1,354 @@
+//---------------------------------------------------------------------------//
+// Copyright (c) 2017-2026 Ismael Gutiérrez González. All rights reserved.
+//
+// This file is part of the Rusted PackFile Manager (RPFM) project,
+// which can be found here: https://github.com/Frodo45127/rpfm.
+//
+// This file is licensed under the MIT license, which can be found here:
+// https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
+//---------------------------------------------------------------------------//
+
+//! Generation of a campaign's startpos from a pack and the game's files, without launching the game.
+//!
+//! [`StartposSources`] collects what the build reads: the tables (the game's, its Assembly Kit's and the pack's,
+//! merged as the game loads them), the campaign map's files, the victory objectives and the characters with
+//! legacy override texts. [`load_or_extract_layout`] gets the record layouts from the game's own startpos of the
+//! campaign, cached in a layouts folder. [`generate_startpos`] writes the startpos.
+
+use std::collections::{HashMap, HashSet};
+use std::fs::File;
+use std::io::{BufReader, Cursor};
+use std::path::{Path, PathBuf};
+
+use rpfm_lib::error::{RLibError, Result};
+use rpfm_lib::files::{Container, Decodeable, DecodeableExtraData, FileType, RFile, RFileDecoded};
+use rpfm_lib::files::db::DB;
+use rpfm_lib::files::esf::ESF;
+use rpfm_lib::files::pack::Pack;
+use rpfm_lib::files::table::DecodedData;
+use rpfm_lib::files::trade_routes::TradeRoutes;
+use rpfm_lib::games::GameInfo;
+use rpfm_lib::games::supported_games::KEY_ATTILA;
+use rpfm_lib::schema::Schema;
+
+use crate::dependencies::Dependencies;
+use super::layout::{layout_file_name, StartposLayout};
+use super::missions::{parse_victory_objectives, VictoryObjectives};
+use super::region_map::RegionMap;
+use super::settlements::SettlementLayout;
+use super::tables::StartposTables;
+use super::trade::TradeNetwork;
+use super::world::CampaignIndex;
+use super::world::writer::{WorldInputs, WorldPlan};
+use super::writer::{write_startpos, StartposInputs};
+
+#[cfg(test)] #[path = "generator_test.rs"] mod generator_test;
+
+/// Games whose startposes can be generated.
+pub const SUPPORTED_GAMES: [&str; 1] = [KEY_ATTILA];
+
+/// Tables the startpos build reads, without the `_tables` suffix.
+pub const STARTPOS_TABLES: &[&str] = &[
+    "agent_culture_details", "agent_to_agent_abilities", "agent_to_agent_attributes", "agents",
+    "armed_citizenry_units_to_unit_groups_junctions", "battlefield_engines", "building_chains", "building_level_armed_citizenry_junctions",
+    "building_levels", "campaign_character_art_sets", "campaign_character_art_sets_group_junctions", "campaigns",
+    "character_skill_node_sets", "character_skill_nodes", "character_trait_levels", "commander_unit_permissions", "commodities",
+    "cultures_subcultures", "faction_political_parties_junctions", "faction_to_mercenary_set_junctions", "factions", "land_units",
+    "main_units", "mercenary_pool_to_groups_junctions", "mercenary_unit_groups", "military_force_legacy_emblems",
+    "military_force_legacy_names", "ministerial_positions", "ministerial_positions_culture_details", "naval_units",
+    "political_parties", "province_to_mercenary_set_junctions", "region_to_province_junctions", "religions", "resources",
+    "start_pos_calendars", "start_pos_character_to_settlements", "start_pos_character_traits", "start_pos_characters",
+    "start_pos_diplomacy", "start_pos_family_relationships", "start_pos_factions", "start_pos_horde_details", "start_pos_land_units",
+    "start_pos_naval_units", "start_pos_past_events", "start_pos_region_religions", "start_pos_region_slot_templates",
+    "start_pos_regions", "start_pos_settlements", "start_pos_technologies", "start_pos_victory_conditions",
+    "technology_node_sets", "technology_nodes", "technology_unit_upgrades", "units_to_groupings_military_permissions",
+];
+
+/// Path of the victory objectives script.
+const VICTORY_OBJECTIVES_PATH: &str = "db/victory_objectives.txt";
+
+/// Localisation key prefix of the `start_pos_characters.legacy_override` texts.
+const LEGACY_OVERRIDE_PREFIX: &str = "start_pos_characters_legacy_override_";
+
+//---------------------------------------------------------------------------//
+//                              Types
+//---------------------------------------------------------------------------//
+
+/// What a campaign's startpos is built from.
+pub struct StartposSources {
+
+    /// Campaign key.
+    campaign: String,
+
+    /// Tables the build reads.
+    tables: StartposTables,
+
+    /// The campaign map's `map_data.esf`.
+    map_data: ESF,
+
+    /// The campaign map's `hlp_data.esf`.
+    hlp_data: ESF,
+
+    /// The campaign map's `dynamic_resources.esf`.
+    dynamic_resources: ESF,
+
+    /// The campaign map's `trade_routes.ptd`.
+    trade_routes: TradeRoutes,
+
+    /// Victory objectives of the campaigns (`db/victory_objectives.txt`).
+    victory_objectives: Vec<VictoryObjectives>,
+
+    /// `start_pos_characters` ids of the characters with a legacy override text.
+    legacy_overrides: HashSet<String>,
+}
+
+/// Where a file is looked for: the pack first, then the game's files.
+struct FileSource<'a> {
+    pack: &'a Pack,
+    dependencies: &'a Dependencies,
+}
+
+//---------------------------------------------------------------------------//
+//                              Implementations
+//---------------------------------------------------------------------------//
+
+impl StartposSources {
+
+    /// Collects the sources of a campaign's startpos from a pack and the game's files.
+    ///
+    /// Each table merges the game's fragments and then the pack's, in load order: a row replaces an earlier row with
+    /// the same key. Tables neither has come from the game's Assembly Kit. Files come from the pack if it has them,
+    /// otherwise from the game.
+    ///
+    /// # Arguments
+    ///
+    /// * `dependencies` - The game's files.
+    /// * `pack` - Pack with the campaign's startpos tables.
+    /// * `schema` - Schema of the game, to decode the tables.
+    /// * `campaign` - Campaign key.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if a table or file is missing or can't be decoded.
+    pub fn from_pack(dependencies: &Dependencies, pack: &Pack, schema: &Schema, campaign: &str) -> Result<Self> {
+        let mut extra = DecodeableExtraData::default();
+        extra.set_schema(Some(schema));
+        let extra = Some(extra);
+
+        let mut tables = StartposTables::new();
+        for table in STARTPOS_TABLES {
+            let folder = format!("db/{table}_tables/");
+            let mut fragments = vec![];
+            for file in dependencies.db_data(&format!("{table}_tables"), true, true)? {
+                fragments.extend(decoded_db(file, &extra)?);
+            }
+            let mut pack_files = pack.files().iter().filter(|(path, _)| path.starts_with(&folder)).collect::<Vec<_>>();
+            pack_files.sort_by_key(|(path, _)| *path);
+            let mut pack_fragments = vec![];
+            for (_, file) in pack_files {
+                pack_fragments.extend(decoded_db(file, &extra)?);
+            }
+
+            if fragments.is_empty() && pack_fragments.is_empty() {
+                fragments.extend(dependencies.asskit_only_db_tables().get(&format!("{table}_tables")).cloned());
+            }
+            fragments.extend(pack_fragments);
+            add_merged(&mut tables, table, &fragments)?;
+        }
+
+        let map = tables.table("campaigns")?.rows()
+            .find_map(|row| (row.str("campaign_name").ok()? == campaign).then(|| row.str("map_name").ok()).flatten())
+            .ok_or_else(|| RLibError::StartposInvalidValue("campaigns".to_owned(), "campaign_name".to_owned(), campaign.to_owned()))?
+            .into_owned();
+
+        let files = FileSource { pack, dependencies };
+        let map_file = |name: &str| files.bytes(&format!("campaign_maps/{map}/{name}"));
+        let esf = |name: &str| -> Result<ESF> { ESF::decode(&mut Cursor::new(map_file(name)?), &None) };
+        let victory_text = files.bytes(VICTORY_OBJECTIVES_PATH)?;
+
+        Ok(Self {
+            campaign: campaign.to_owned(),
+            map_data: esf("map_data.esf")?,
+            hlp_data: esf("hlp_data.esf")?,
+            dynamic_resources: esf("dynamic_resources.esf")?,
+            trade_routes: TradeRoutes::decode(&mut Cursor::new(map_file("trade_routes.ptd")?), &None)?,
+            victory_objectives: parse_victory_objectives(&String::from_utf8_lossy(&victory_text))?,
+            legacy_overrides: legacy_overrides(dependencies, pack),
+            tables,
+        })
+    }
+}
+
+impl FileSource<'_> {
+
+    /// Returns the bytes of a file, from the pack if it has it, otherwise from the game's files.
+    fn bytes(&self, path: &str) -> Result<Vec<u8>> {
+        let file = match self.pack.file(path, true) {
+            Some(file) => file,
+            None => self.dependencies.file(path, true, true, true)?,
+        };
+
+        // Files are cloned so the pack's and the cache's copies keep their state.
+        file.clone().encode(&None, false, false, true)?.ok_or_else(|| RLibError::FileNotFound(path.to_owned()))
+    }
+}
+
+/// Generates the startpos of a campaign.
+///
+/// # Arguments
+///
+/// * `sources` - What the startpos is built from.
+/// * `layout` - Record layouts of the game.
+///
+/// # Errors
+///
+/// Returns an error if the sources lack data the build needs.
+pub fn generate_startpos(sources: &StartposSources, layout: &StartposLayout) -> Result<ESF> {
+    let index = CampaignIndex::new(&sources.tables, &sources.campaign)?;
+    let settlements = SettlementLayout::all_from_map_data(&sources.map_data, |region| index.settlement_of(region).is_some_and(|settlement| settlement.is_major()))?;
+    let region_map = RegionMap::from_map_data(&sources.map_data)?;
+    let world = WorldInputs {
+        tables: &sources.tables,
+        index: &index,
+        layout,
+        settlements: &settlements,
+        region_map: &region_map,
+        legacy_overrides: &sources.legacy_overrides,
+    };
+
+    let trade_network = TradeNetwork::from_trade_routes(&sources.trade_routes);
+    let inputs = StartposInputs {
+        world: &world,
+        trade_network: &trade_network,
+        victory_objectives: &sources.victory_objectives,
+        map_data: &sources.map_data,
+        hlp_data: &sources.hlp_data,
+        dynamic_resources: &sources.dynamic_resources,
+        campaign: &sources.campaign,
+    };
+    write_startpos(&inputs, &WorldPlan::new(&index))
+}
+
+/// Returns the record layouts to write a campaign's startpos with, extracted from the game's own startpos of it.
+///
+/// Layouts are cached in a folder, and extracted again when the game's startpos is newer than the cache. Campaigns
+/// the game has no startpos for (new ones from mods) use the layouts of one of the game's campaigns.
+///
+/// # Arguments
+///
+/// * `layouts_folder` - Folder with the cached layouts.
+/// * `game` - The game.
+/// * `game_data_path` - The game's data folder, with `campaigns/<campaign>/startpos.esf`.
+/// * `campaign` - Campaign key.
+///
+/// # Errors
+///
+/// Returns an error if the game has no startpos to take the layouts from, or it can't be decoded or cached.
+pub fn load_or_extract_layout(layouts_folder: &Path, game: &GameInfo, game_data_path: &Path, campaign: &str) -> Result<StartposLayout> {
+    let source_campaign = layout_source_campaign(game_data_path, campaign)?;
+    let startpos_path = game_startpos_path(game_data_path, &source_campaign);
+    let layout_path = layouts_folder.join(layout_file_name(game.key(), &source_campaign));
+
+    let modified = |path: &Path| path.metadata().and_then(|metadata| metadata.modified()).ok();
+    let is_current = matches!((modified(&layout_path), modified(&startpos_path)), (Some(cached), Some(startpos)) if cached >= startpos);
+    if is_current {
+        if let Ok(layout) = StartposLayout::load(&layout_path) {
+            return Ok(layout);
+        }
+    }
+
+    let startpos = ESF::decode(&mut BufReader::new(File::open(&startpos_path)?), &None)?;
+    let layout = StartposLayout::from_esf(&startpos)?;
+    std::fs::create_dir_all(layouts_folder)?;
+    layout.save(&layout_path)?;
+    Ok(layout)
+}
+
+/// Returns the campaign whose game startpos gives the layouts: the campaign itself if the game has its startpos,
+/// otherwise the first of the game's campaigns, by name.
+fn layout_source_campaign(game_data_path: &Path, campaign: &str) -> Result<String> {
+    if game_startpos_path(game_data_path, campaign).is_file() {
+        return Ok(campaign.to_owned());
+    }
+
+    let mut campaigns = std::fs::read_dir(game_data_path.join("campaigns"))
+        .map(|entries| entries.flatten().filter_map(|entry| entry.file_name().into_string().ok()).collect::<Vec<_>>())
+        .unwrap_or_default();
+    campaigns.sort();
+    campaigns.into_iter()
+        .find(|campaign| game_startpos_path(game_data_path, campaign).is_file())
+        .ok_or_else(|| RLibError::StartposLayoutError(format!("the game has no startpos to take the record layouts of the {campaign} campaign from")))
+}
+
+/// Returns the path of the game's startpos of a campaign.
+fn game_startpos_path(game_data_path: &Path, campaign: &str) -> PathBuf {
+    game_data_path.join("campaigns").join(campaign).join("startpos.esf")
+}
+
+/// Returns a decoded DB from a file, decoding a copy of it if needed. Empty files of tables without definitions
+/// hold no rows, so they're skipped.
+fn decoded_db(file: &RFile, extra: &Option<DecodeableExtraData>) -> Result<Option<DB>> {
+    if let Ok(RFileDecoded::DB(db)) = file.decoded() {
+        return Ok(Some(db.clone()));
+    }
+    match file.clone().decode(extra, false, true) {
+        Ok(Some(RFileDecoded::DB(db))) => Ok(Some(db)),
+        Err(RLibError::DecodingDBNoDefinitionsFoundAndEmptyFile) => Ok(None),
+        Err(error) => Err(error),
+        Ok(_) => Err(RLibError::DecodingDBNotADBTable),
+    }
+}
+
+/// Adds a table merged from its fragments, in load order: a row replaces an earlier row with the same key, in place.
+fn add_merged(tables: &mut StartposTables, table: &str, fragments: &[DB]) -> Result<()> {
+    let Some(first) = fragments.first() else { return Ok(()) };
+    let columns = first.definition().fields_processed().iter().map(|field| field.name().to_owned()).collect::<Vec<_>>();
+
+    let mut rows: Vec<Vec<DecodedData>> = vec![];
+    let mut positions = HashMap::new();
+    for fragment in fragments {
+        let fragment_columns = fragment.definition().fields_processed().iter().map(|field| field.name().to_owned()).collect::<Vec<_>>();
+        let order = columns.iter()
+            .map(|column| fragment_columns.iter().position(|other| other == column).ok_or_else(|| RLibError::StartposMissingColumn(table.to_owned(), column.to_owned())))
+            .collect::<Result<Vec<_>>>()?;
+        let keys = fragment.definition().key_column_positions();
+
+        for row in fragment.data().iter() {
+            let key = keys.iter().map(|&column| row[column].data_to_string().into_owned()).collect::<Vec<_>>();
+            let row = order.iter().map(|&source| row[source].clone()).collect::<Vec<_>>();
+            match (keys.is_empty(), positions.get(&key)) {
+                (false, Some(&position)) => rows[position] = row,
+                (false, None) => {
+                    positions.insert(key, rows.len());
+                    rows.push(row);
+                },
+                (true, _) => rows.push(row),
+            }
+        }
+    }
+    tables.add_rows(table, &columns, &rows)
+}
+
+/// Returns the `start_pos_characters` ids with a legacy override text, in the pack's or the game's localisation.
+fn legacy_overrides(dependencies: &Dependencies, pack: &Pack) -> HashSet<String> {
+    let game_texts = dependencies.localisation_data().iter().map(|(key, text)| (key.to_owned(), text.to_owned()));
+    let pack_texts = pack.files_by_type(&[FileType::Loc]).into_iter().flat_map(loc_texts);
+    game_texts.chain(pack_texts)
+        .filter(|(_, text)| !text.is_empty())
+        .filter_map(|(key, _)| key.strip_prefix(LEGACY_OVERRIDE_PREFIX).map(str::to_owned))
+        .collect()
+}
+
+/// Returns the (key, text) pairs of a localisation file, or none if it can't be decoded.
+fn loc_texts(file: &RFile) -> Vec<(String, String)> {
+    let decoded = match file.decoded() {
+        Ok(decoded) => Some(decoded.clone()),
+        Err(_) => file.clone().decode(&None, false, true).ok().flatten(),
+    };
+    match decoded {
+        Some(RFileDecoded::Loc(loc)) => loc.data().iter()
+            .filter_map(|row| Some((row.first()?.data_to_string().into_owned(), row.get(1)?.data_to_string().into_owned())))
+            .collect(),
+        _ => vec![],
+    }
+}

@@ -27,6 +27,7 @@ use rpfm_lib::files::pack::Pack;
 use rpfm_lib::games::supported_games::{SupportedGames, KEY_ATTILA};
 use rpfm_lib::schema::Schema;
 
+use super::generator::STARTPOS_TABLES;
 use super::esf_nav::{as_record, as_u32, child_record};
 use super::layout::{child_path, StartposLayout};
 use super::tables::StartposTables;
@@ -39,23 +40,6 @@ const FLOAT_TOLERANCE: f32 = 1e-3;
 
 /// Campaign of the test data.
 pub(crate) const TEST_CAMPAIGN: &str = "main_attila";
-
-/// Tables the world stage tests read.
-const TEST_TABLES: &[&str] = &[
-    "agent_culture_details", "agent_to_agent_abilities", "agent_to_agent_attributes", "agents",
-    "armed_citizenry_units_to_unit_groups_junctions", "battlefield_engines", "building_level_armed_citizenry_junctions",
-    "building_chains", "building_levels", "campaign_character_art_sets", "campaign_character_art_sets_group_junctions",
-    "character_skill_node_sets", "character_skill_nodes", "character_trait_levels", "commander_unit_permissions", "commodities", "cultures_subcultures",
-    "faction_political_parties_junctions", "faction_to_mercenary_set_junctions", "factions", "land_units", "main_units",
-    "mercenary_pool_to_groups_junctions", "mercenary_unit_groups", "military_force_legacy_emblems",
-    "military_force_legacy_names", "ministerial_positions", "ministerial_positions_culture_details", "naval_units",
-    "political_parties", "province_to_mercenary_set_junctions", "region_to_province_junctions", "religions", "resources",
-    "start_pos_calendars", "start_pos_character_to_settlements", "start_pos_character_traits", "start_pos_characters",
-    "start_pos_diplomacy", "start_pos_family_relationships", "start_pos_factions", "start_pos_horde_details", "start_pos_land_units",
-    "start_pos_naval_units", "start_pos_past_events", "start_pos_region_religions", "start_pos_region_slot_templates",
-    "start_pos_regions", "start_pos_settlements", "start_pos_technologies", "start_pos_victory_conditions",
-    "technology_node_sets", "technology_nodes", "technology_unit_upgrades", "units_to_groupings_military_permissions",
-];
 
 /// Returns the path of a file of the startpos test data folder.
 pub(crate) fn test_data_path(file_name: &str) -> PathBuf {
@@ -90,7 +74,7 @@ pub(crate) fn test_data_tables() -> &'static StartposTables {
         for pack_name in ["data.pack", "main_attila.pack"] {
             let mut pack = Pack::read_and_merge(&[test_data_path(pack_name)], game, true, false, false).unwrap();
             let paths = pack.files().keys()
-                .filter(|path| TEST_TABLES.iter().any(|table| path.starts_with(&format!("db/{table}_tables/"))))
+                .filter(|path| STARTPOS_TABLES.iter().any(|table| path.starts_with(&format!("db/{table}_tables/"))))
                 .cloned()
                 .collect::<Vec<_>>();
             for path in paths {

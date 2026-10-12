@@ -21,7 +21,7 @@ use rpfm_lib::error::{RLibError, Result};
 use rpfm_lib::files::db::DB;
 use rpfm_lib::files::table::DecodedData;
 
-#[cfg(test)] #[path = "tables_test.rs"] mod tables_test;
+#[cfg(test)] #[path = "tables_test.rs"] pub(crate) mod tables_test;
 
 //---------------------------------------------------------------------------//
 //                              Types
