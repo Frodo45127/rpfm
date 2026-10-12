@@ -34,6 +34,9 @@ use crate::startpos::world::legacy::ForceKind;
 /// Percentage of men of a full unit.
 const FULL_UNIT: u32 = 100;
 
+/// Agent type of generals.
+const GENERAL_AGENT: &str = "general";
+
 //---------------------------------------------------------------------------//
 //                              Types
 //---------------------------------------------------------------------------//
@@ -167,20 +170,23 @@ impl<'a> ForcePlan<'a> {
         for faction in plan.factions() {
             let bodyguards = [bodyguard(tables, faction, false)?, bodyguard(tables, faction, true)?];
             for character in characters_in_startpos_order(index, plan, faction) {
+                let placement = placement(tables, index, character)?;
+                let override_unit = Some(character.override_general_unit()).filter(|unit| !unit.is_empty());
                 let (kind, units) = match (land_units.get(character.id()), naval_units.get(character.id())) {
                     (Some(units), _) => (Some(ForceKind::Army), units.as_slice()),
                     (None, Some(units)) => (Some(ForceKind::Navy), units.as_slice()),
+                    // Generals with their own bodyguard unit lead an army of it even without unit rows.
+                    (None, None) if override_unit.is_some() && *character.agent() == GENERAL_AGENT => (Some(ForceKind::Army), [].as_slice()),
                     (None, None) => (None, [].as_slice()),
                 };
                 let commander = force_plan.characters.len();
                 let force = kind.map(|kind| {
-                    let override_unit = Some(character.override_general_unit()).filter(|unit| !unit.is_empty());
                     let own_unit = override_unit.cloned().or_else(|| bodyguards[usize::from(kind == ForceKind::Navy)].as_ref().map(|bodyguard| bodyguard.unit().to_owned()));
                     let mut all_units = own_unit.map(|unit| PlannedUnit { unit, soldiers: FULL_UNIT, commands: true }).into_iter().collect::<Vec<_>>();
                     all_units.extend(grouped(units));
                     force_plan.push_force(faction, kind, None, all_units, commander)
                 });
-                if let (Some(force), Placement::Settlement(region)) = (force, placement(tables, index, character)?) {
+                if let (Some(force), Placement::Settlement(region)) = (force, placement) {
                     if force_plan.forces[force].kind == ForceKind::Army {
                         force_plan.forces[force].stationed_in = Some(region);
                     }

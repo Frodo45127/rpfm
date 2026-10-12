@@ -125,7 +125,7 @@ fn test_startpos_generates_from_a_pack() {
 }
 
 /// Campaigns with a game-built startpos, and the share of their fields a startpos generated without it must match.
-const CAMPAIGNS: [(&str, f64); 4] = [("main_attila", 0.899), ("pro_attila", 0.851), ("bel_attila", 0.906), ("cha_attila", 0.869)];
+const CAMPAIGNS: [(&str, f64); 4] = [("main_attila", 0.899), ("pro_attila", 0.906), ("bel_attila", 0.906), ("cha_attila", 0.899)];
 
 /// Returns the path of the game's startpos of a campaign, in the test data's game folder.
 fn game_startpos_path(campaign: &str) -> std::path::PathBuf {
