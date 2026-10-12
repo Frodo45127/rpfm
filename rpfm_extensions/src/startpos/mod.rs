@@ -22,6 +22,7 @@
 //!
 //! - [`coords`]: coordinate systems of the campaign map (world, raw map units, hex cells).
 //! - [`generator`]: generation of a campaign's startpos from a pack and the game's files.
+//! - [`validation`]: validation of the tables a startpos is built from.
 //! - [`trade`]: the trade network (`CAMPAIGN_TRADE_MANAGER` splines and routes), from `trade_routes.ptd`.
 //! - [`settlements`]: settlement layouts (slots and sprawl cells of each region).
 //! - [`layout`]: record layouts used to write startposes.
@@ -42,6 +43,7 @@ pub mod region_map;
 pub mod settlements;
 pub mod tables;
 pub mod trade;
+pub mod validation;
 pub mod vision;
 pub mod world;
 pub mod writer;

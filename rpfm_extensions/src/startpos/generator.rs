@@ -10,12 +10,12 @@
 
 //! Generation of a campaign's startpos from a pack and the game's files, without launching the game.
 //!
-//! [`StartposSources`] collects what the build reads: the tables (the game's, its Assembly Kit's and the pack's,
-//! merged as the game loads them), the campaign map's files, the victory objectives and the characters with
-//! legacy override texts. [`load_or_extract_layout`] gets the record layouts from the game's own startpos of the
+//! [`load_tables`] loads the tables (the game's, its Assembly Kit's and the pack's, merged as the game loads them),
+//! which [`validation`](super::validation) checks. [`StartposSources`] adds what else the build reads: the campaign
+//! map's files, the victory objectives and the characters with legacy override texts. [`load_or_extract_layout`] gets the record layouts from the game's own startpos of the
 //! campaign, cached in a layouts folder. [`generate_startpos`] writes the startpos.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufReader, Cursor};
 use std::path::{Path, PathBuf};
@@ -38,6 +38,7 @@ use super::region_map::RegionMap;
 use super::settlements::SettlementLayout;
 use super::tables::StartposTables;
 use super::trade::TradeNetwork;
+use super::validation::referenced_tables;
 use super::world::CampaignIndex;
 use super::world::writer::{WorldInputs, WorldPlan};
 use super::writer::{write_startpos, StartposInputs};
@@ -114,48 +115,20 @@ struct FileSource<'a> {
 
 impl StartposSources {
 
-    /// Collects the sources of a campaign's startpos from a pack and the game's files.
-    ///
-    /// Each table merges the game's fragments and then the pack's, in load order: a row replaces an earlier row with
-    /// the same key. Tables neither has come from the game's Assembly Kit. Files come from the pack if it has them,
-    /// otherwise from the game.
+    /// Collects the sources of a campaign's startpos from its tables (see [`load_tables`]), a pack and the game's
+    /// files. Files come from the pack if it has them, otherwise from the game.
     ///
     /// # Arguments
     ///
+    /// * `tables` - The tables of the build.
     /// * `dependencies` - The game's files.
     /// * `pack` - Pack with the campaign's startpos tables.
-    /// * `schema` - Schema of the game, to decode the tables.
     /// * `campaign` - Campaign key.
     ///
     /// # Errors
     ///
-    /// Returns an error if a table or file is missing or can't be decoded.
-    pub fn from_pack(dependencies: &Dependencies, pack: &Pack, schema: &Schema, campaign: &str) -> Result<Self> {
-        let mut extra = DecodeableExtraData::default();
-        extra.set_schema(Some(schema));
-        let extra = Some(extra);
-
-        let mut tables = StartposTables::new();
-        for table in STARTPOS_TABLES {
-            let folder = format!("db/{table}_tables/");
-            let mut fragments = vec![];
-            for file in dependencies.db_data(&format!("{table}_tables"), true, true)? {
-                fragments.extend(decoded_db(file, &extra)?);
-            }
-            let mut pack_files = pack.files().iter().filter(|(path, _)| path.starts_with(&folder)).collect::<Vec<_>>();
-            pack_files.sort_by_key(|(path, _)| *path);
-            let mut pack_fragments = vec![];
-            for (_, file) in pack_files {
-                pack_fragments.extend(decoded_db(file, &extra)?);
-            }
-
-            if fragments.is_empty() && pack_fragments.is_empty() {
-                fragments.extend(dependencies.asskit_only_db_tables().get(&format!("{table}_tables")).cloned());
-            }
-            fragments.extend(pack_fragments);
-            add_merged(&mut tables, table, &fragments)?;
-        }
-
+    /// Returns an error if a file is missing or can't be decoded.
+    pub fn from_tables(tables: StartposTables, dependencies: &Dependencies, pack: &Pack, campaign: &str) -> Result<Self> {
         let map = tables.table("campaigns")?.rows()
             .find_map(|row| (row.str("campaign_name").ok()? == campaign).then(|| row.str("map_name").ok()).flatten())
             .ok_or_else(|| RLibError::StartposInvalidValue("campaigns".to_owned(), "campaign_name".to_owned(), campaign.to_owned()))?
@@ -177,6 +150,54 @@ impl StartposSources {
             tables,
         })
     }
+}
+
+/// Loads the tables of a startpos build: the ones the build reads, and every `start_pos_*` table of the schema with
+/// the tables it references, for validation.
+///
+/// Each table merges the game's fragments and then the pack's, in load order: a row replaces an earlier row with the
+/// same key. Tables neither has come from the game's Assembly Kit.
+///
+/// # Arguments
+///
+/// * `dependencies` - The game's files.
+/// * `pack` - Pack with the campaign's startpos tables.
+/// * `schema` - Schema of the game, to decode the tables.
+///
+/// # Errors
+///
+/// Returns an error if a table can't be decoded, or its fragments don't share their columns.
+pub fn load_tables(dependencies: &Dependencies, pack: &Pack, schema: &Schema) -> Result<StartposTables> {
+    let mut extra = DecodeableExtraData::default();
+    extra.set_schema(Some(schema));
+    let extra = Some(extra);
+
+    let mut names = STARTPOS_TABLES.iter().map(|name| name.to_string()).collect::<BTreeSet<_>>();
+    names.extend(referenced_tables(schema));
+    names.extend(schema.definitions().keys().filter(|name| name.starts_with("start_pos_")).map(|name| name.trim_end_matches("_tables").to_owned()));
+
+    let mut tables = StartposTables::new();
+    for table in &names {
+        let folder = format!("db/{table}_tables/");
+        let mut fragments = vec![];
+        for file in dependencies.db_data(&format!("{table}_tables"), true, true)? {
+            fragments.extend(decoded_db(file, &extra)?);
+        }
+
+        let mut pack_files = pack.files().iter().filter(|(path, _)| path.starts_with(&folder)).collect::<Vec<_>>();
+        pack_files.sort_by_key(|(path, _)| *path);
+        let mut pack_fragments = vec![];
+        for (_, file) in pack_files {
+            pack_fragments.extend(decoded_db(file, &extra)?);
+        }
+
+        if fragments.is_empty() && pack_fragments.is_empty() {
+            fragments.extend(dependencies.asskit_only_db_tables().get(&format!("{table}_tables")).cloned());
+        }
+        fragments.extend(pack_fragments);
+        add_merged(&mut tables, table, &fragments)?;
+    }
+    Ok(tables)
 }
 
 impl FileSource<'_> {

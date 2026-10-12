@@ -71,7 +71,9 @@ fn test_startpos_generates_from_a_pack() {
     let packs = ["data.pack", "local.pack", "main_attila.pack"].map(test_data_path);
     let pack = Pack::read_and_merge(&packs, game, true, false, false).unwrap();
 
-    let sources = StartposSources::from_pack(&Dependencies::default(), &pack, &schema, TEST_CAMPAIGN).unwrap();
+    let dependencies = Dependencies::default();
+    let tables = load_tables(&dependencies, &pack, &schema).unwrap();
+    let sources = StartposSources::from_tables(tables, &dependencies, &pack, TEST_CAMPAIGN).unwrap();
     let startpos = generate_startpos(&sources, &StartposLayout::from_esf(test_startpos()).unwrap()).unwrap();
 
     assert_eq!(startpos.signature(), test_startpos().signature());
