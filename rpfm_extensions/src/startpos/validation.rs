@@ -18,6 +18,8 @@
 //!   the row or ignore the value, so they're warnings.
 //! - The campaign must exist.
 //! - Characters in the generals pool can't also be placed on the map with an army.
+//! - Progenitors can't adopt children under [`ADULT_AGE`]: the game gives the adopted child the progenitor's family
+//!   name through the child's character, which children don't have yet while the families are linked, and crashes.
 //!
 //! The outcomes of broken references were measured on Attila, one broken reference at a time.
 
@@ -56,6 +58,9 @@ pub const FATAL_REFERENCES: [(&str, &str); 22] = [
     ("start_pos_settlements", "region"),
     ("start_pos_settlements", "primary_building"),
 ];
+
+/// Age from which characters have a character while the game links their families.
+pub const ADULT_AGE: f64 = 16.0;
 
 /// Prefix of the tables whose references are checked.
 const STARTPOS_TABLE_PREFIX: &str = "start_pos_";
@@ -139,6 +144,7 @@ pub fn validate(tables: &StartposTables, schema: &Schema, campaign: &str) -> Vec
     validate_campaign(tables, campaign, &mut issues);
     validate_references(tables, schema, &mut issues);
     validate_generals_pool(tables, &mut issues);
+    validate_adoptions(tables, &mut issues);
     issues.sort_by_key(|issue| issue.severity);
     issues
 }
@@ -216,6 +222,37 @@ fn validate_generals_pool(tables: &StartposTables, issues: &mut Vec<StartposIssu
                 row: row_name(&row, &["ID".to_owned()], position),
                 column: Some("is_in_generals_pool".to_owned()),
                 message: "the character is in the generals pool, but also placed on the map with an army. The game quits while building the startpos.".to_owned(),
+            });
+        }
+    }
+}
+
+/// Checks no progenitor adopts a child under [`ADULT_AGE`].
+fn validate_adoptions(tables: &StartposTables, issues: &mut Vec<StartposIssue>) {
+    let (Ok(relationships), Ok(characters)) = (tables.table("start_pos_family_relationships"), tables.table("start_pos_characters")) else { return };
+    let mut ages = HashMap::new();
+    let mut progenitors = HashSet::new();
+    for row in characters.rows() {
+        let Ok(id) = row.str("ID") else { continue };
+        if let Ok(age) = row.number("Age") {
+            ages.insert(id.to_string(), age);
+        }
+        if row.bool("progenitor").unwrap_or_default() {
+            progenitors.insert(id.into_owned());
+        }
+    }
+
+    for (position, row) in relationships.rows().enumerate() {
+        let (Ok(child), Ok(parent)) = (row.str("character"), row.str("related_to")) else { continue };
+        let is_adoption = row.str("relationship").is_ok_and(|relationship| relationship == "child") && row.bool("adopted").unwrap_or_default();
+        let Some(age) = ages.get(child.as_ref()).filter(|age| **age < ADULT_AGE) else { continue };
+        if is_adoption && progenitors.contains(parent.as_ref()) {
+            issues.push(StartposIssue {
+                severity: Severity::Error,
+                table: "start_pos_family_relationships".to_owned(),
+                row: row_name(&row, &["character".to_owned(), "related_to".to_owned()], position),
+                column: Some("adopted".to_owned()),
+                message: format!("the progenitor {parent} adopts {child}, who is {age} years old. The game crashes when a progenitor adopts a child under {ADULT_AGE}."),
             });
         }
     }

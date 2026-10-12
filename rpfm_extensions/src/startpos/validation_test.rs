@@ -23,16 +23,23 @@ fn test_schema() -> Schema {
     Schema::load(&test_data_path("schema.ron"), None).unwrap()
 }
 
-/// Returns tables with a faction, two characters (one with a broken name, one in the generals pool leading an army)
-/// and a unit of a missing character.
+/// Returns tables with a faction, characters (one with a broken name, one in the generals pool leading an army, a
+/// child adopted by a progenitor and one adopted by another character), and a unit of a missing character.
 fn broken_tables() -> StartposTables {
     let mut tables = StartposTables::new();
     tables.add_rows("campaigns", &["campaign_name"], &[vec![text("main_attila")]]).unwrap();
     tables.add_rows("start_pos_factions", &["ID"], &[vec![text("1")]]).unwrap();
     tables.add_rows("names", &["id"], &[vec![text("10")]]).unwrap();
-    tables.add_rows("start_pos_characters", &["ID", "faction", "Name", "is_in_generals_pool"], &[
-        vec![text("100"), text("1"), text("99"), DecodedData::Boolean(false)],
-        vec![text("101"), text("1"), text("10"), DecodedData::Boolean(true)],
+    tables.add_rows("start_pos_characters", &["ID", "faction", "Name", "is_in_generals_pool", "Age", "progenitor"], &[
+        vec![text("100"), text("1"), text("99"), DecodedData::Boolean(false), DecodedData::I32(40), DecodedData::Boolean(true)],
+        vec![text("101"), text("1"), text("10"), DecodedData::Boolean(true), DecodedData::I32(30), DecodedData::Boolean(false)],
+        vec![text("103"), text("1"), text("10"), DecodedData::Boolean(false), DecodedData::I32(4), DecodedData::Boolean(false)],
+        vec![text("104"), text("1"), text("10"), DecodedData::Boolean(false), DecodedData::I32(2), DecodedData::Boolean(false)],
+    ]).unwrap();
+    tables.add_rows("start_pos_family_relationships", &["character", "related_to", "relationship", "adopted"], &[
+        vec![text("103"), text("100"), text("child"), DecodedData::Boolean(true)],
+        vec![text("104"), text("101"), text("child"), DecodedData::Boolean(true)],
+        vec![text("104"), text("100"), text("child"), DecodedData::Boolean(false)],
     ]).unwrap();
     tables.add_rows("start_pos_character_to_settlements", &["character"], &[vec![text("101")]]).unwrap();
     tables.add_rows("start_pos_land_units", &["id", "general"], &[vec![text("1"), text("101")], vec![text("2"), text("102")]]).unwrap();
@@ -49,6 +56,7 @@ fn test_broken_data_is_reported() {
         (Severity::Error, "campaigns", "missing_campaign", None),
         (Severity::Error, "start_pos_characters", "100", Some("Name")),
         (Severity::Error, "start_pos_characters", "101", Some("is_in_generals_pool")),
+        (Severity::Error, "start_pos_family_relationships", "103|100", Some("adopted")),
         (Severity::Warning, "start_pos_land_units", "2", Some("general")),
     ]);
 }
