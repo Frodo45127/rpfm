@@ -70,7 +70,8 @@ pub struct PoliticalParty {
 /// Returns the post groups of a faction's government.
 ///
 /// The groups are the `ministerial_positions_culture_details` rows for the faction's culture (without subculture
-/// and faction), its subculture (without faction) and the faction itself, with no campaign or the given campaign.
+/// and faction), its subculture (without faction) and the faction itself: the campaign's rows if it has any for the
+/// faction, else the rows without campaign.
 ///
 /// # Arguments
 ///
@@ -91,7 +92,9 @@ pub fn government_posts(tables: &StartposTables, index: &CampaignIndex, faction:
         concurrent.insert(row.str("minister_key")?.into_owned(), row.int("maximum_concurrent_ministers")?);
     }
 
-    let mut groups = vec![];
+    // Rows of the campaign replace the ones without campaign, if the campaign has any for the faction.
+    let mut generic = vec![];
+    let mut own = vec![];
     for row in tables.table("ministerial_positions_culture_details")?.rows() {
         let campaign = row.str("campaign")?;
         if !campaign.is_empty() && campaign != *index.campaign() {
@@ -108,13 +111,15 @@ pub fn government_posts(tables: &StartposTables, index: &CampaignIndex, faction:
         }
 
         let position = row.str("ministerial_position_key")?.into_owned();
-        groups.push(PostGroup {
+        let group = PostGroup {
             count: concurrent.get(&position).and_then(|&count| u32::try_from(count).ok()).unwrap_or_default(),
             unique_id: row.int("unique_id")?,
             position,
-        });
+        };
+        if campaign.is_empty() { generic.push(group) } else { own.push(group) }
     }
 
+    let groups = if own.is_empty() { generic } else { own };
     Ok(groups)
 }
 

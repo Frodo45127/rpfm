@@ -51,13 +51,13 @@ fn test_posts_of_culture_subculture_and_faction() {
     let tables = government_tables();
     let index = fixture_index(&tables);
 
-    let posts = government_posts(&tables, &index, index.faction("fact_a").unwrap()).unwrap();
+    let posts = |faction| government_posts(&tables, &index, index.faction(faction).unwrap()).unwrap().iter()
+        .map(|group| (group.position().to_owned(), group.unique_id(), group.count()))
+        .collect::<Vec<_>>();
 
-    assert_eq!(posts.iter().map(|group| (group.position().as_str(), group.unique_id(), group.count())).collect::<Vec<_>>(), vec![
-        ("faction_leader", 100, 1),
-        ("general", 101, 3),
-        ("general", 102, 3),
-    ]);
+    // The campaign's rows for fact_a replace the rows without campaign.
+    assert_eq!(posts("fact_a"), vec![("general".to_owned(), 102, 3)]);
+    assert_eq!(posts("fact_b"), vec![("general".to_owned(), 104, 3)]);
 }
 
 #[test]
