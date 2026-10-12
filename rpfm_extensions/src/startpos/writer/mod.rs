@@ -20,6 +20,7 @@ use super::cai::world_view::international_routes;
 use super::layout::{COMPACT_I32, MAX_COMPACT_U32};
 use super::missions::VictoryObjectives;
 use super::trade::TradeNetwork;
+use super::world::calendar::Calendar;
 use super::world::writer::forces::ForcePlan;
 use super::world::writer::{write_world_with_plan, WorldInputs, WorldPlan};
 use self::dynamic_resources::DynamicResourcesInputs;
@@ -27,6 +28,7 @@ use self::dynamic_resources::DynamicResourcesInputs;
 mod counters;
 mod diplomacy;
 mod dynamic_resources;
+mod header;
 mod international_routes;
 mod map_data;
 mod preopen;
@@ -72,6 +74,15 @@ pub struct StartposInputs<'a> {
 
     /// Campaign key.
     pub campaign: &'a str,
+
+    /// Campaign map key.
+    pub map: &'a str,
+
+    /// Localised name of the season the campaign starts in.
+    pub season_name: &'a str,
+
+    /// RGB colours of the campaign map's region lookup image, by palette index.
+    pub region_palette: &'a [[u8; 3]],
 }
 
 //---------------------------------------------------------------------------//
@@ -92,6 +103,7 @@ pub fn write_startpos<'a>(inputs: &StartposInputs<'a>, plan: &WorldPlan<'a>) -> 
     let world = inputs.world;
     let layout = world.layout;
 
+    let calendar = Calendar::new(world.tables, inputs.campaign)?;
     let world_record = write_world_with_plan(world, plan)?;
     let trade_manager = trade::write_trade_manager(layout, world.tables, world.index, plan, inputs.trade_network)?;
     let cai_inputs = CaiInputs {
@@ -120,18 +132,21 @@ pub fn write_startpos<'a>(inputs: &StartposInputs<'a>, plan: &WorldPlan<'a>) -> 
         .set_record("CAMPAIGN_COMMAND_QUEUE_INDEX_TABLES", Some(index_tables))?
         .set_record("CAMPAIGN_TRADE_MANAGER", Some(trade_manager))?
         .set_record("DIPLOMACY_MANAGER", Some(diplomacy::write_diplomacy_manager(layout, plan)?))?
-        .set_record("CAMPAIGN_MAP_DATA", Some(map_data::write_map_data(world, plan)?))?
+        .set_record("CAMPAIGN_CALENDAR", Some(header::write_calendar(layout, &calendar)?))?
+        .set_record("CAMPAIGN_MAP_DATA", Some(map_data::write_map_data(world, plan, inputs.map)?))?
         .set_record("DYNAMIC_RESOURCES_MANAGER", Some(dynamic_resources::write_dynamic_resources_manager(&dynamic_resources_inputs)?))?;
 
     let mut env = layout.builder(ENV_PATH)?;
     env.group()?
-        .set_record("CAMPAIGN_SETUP", Some(preopen::write_campaign_setup(layout, plan)?))?
+        .set_record("CAMPAIGN_SETUP", Some(preopen::write_campaign_setup(layout, plan, inputs.campaign)?))?
+        .set_record("CAMPAIGN_SETUP_LOCAL", Some(header::write_setup_local(layout, plan)?))?
         .set_record("CAMPAIGN_MODEL", Some(model.build()?))?;
 
     let forces = ForcePlan::new(world.tables, world.index, plan)?;
     let mut root = layout.builder(ROOT_PATH)?;
     root.group()?
-        .set_record("CAMPAIGN_PREOPEN_MAP_INFO", Some(preopen::write_preopen_map_info(world, plan, &forces, inputs.victory_objectives)?))?
+        .set_record("SAVE_GAME_HEADER", Some(header::write_save_game_header(inputs, plan, &forces, &calendar)?))?
+        .set_record("CAMPAIGN_PREOPEN_MAP_INFO", Some(preopen::write_preopen_map_info(inputs, plan, &forces, &calendar)?))?
         .set_record("CAMPAIGN_ENV", Some(env.build()?))?;
 
     let mut startpos = ESF::default();

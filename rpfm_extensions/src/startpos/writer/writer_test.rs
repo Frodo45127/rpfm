@@ -17,6 +17,7 @@ use rpfm_lib::files::trade_routes::TradeRoutes;
 
 use super::*;
 use crate::startpos::esf_nav::as_record;
+use crate::startpos::generator::tga_palette;
 use crate::startpos::layout::StartposLayout;
 use crate::startpos::missions::parse_victory_objectives;
 use crate::startpos::startpos_test::{compare, missing_records, test_data_esf, test_data_path, test_data_tables, test_startpos, Report, TEST_CAMPAIGN};
@@ -31,6 +32,23 @@ const KNOWN_EMPTY: [&str; 2] = [
     "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/CAI_INTERFACE/CAI_BDI_POOL/CAI_BDI_POOL_BELIEFS",
     "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/CAI_INTERFACE/CAI_BDI_POOL/CAI_BDI_POOL_DESIRES/CAI_BDI_COMPONENT/CAI_BDI_COMPONENT_BLOCK_OWNS",
 ];
+
+/// Campaign map of the test data.
+const TEST_MAP: &str = "main_attila_map";
+
+/// Name of the test data campaign's start season, in the language of the game that built its startpos.
+const TEST_SEASON_NAME: &str = "Primavera";
+
+/// Records naming and dating the campaign, under the root, which must match the game's exactly.
+const EXACT_RECORDS: [&str; 4] = [
+    "SAVE_GAME_HEADER",
+    "CAMPAIGN_PREOPEN_MAP_INFO/DATE",
+    "CAMPAIGN_ENV/CAMPAIGN_SETUP_LOCAL",
+    "CAMPAIGN_ENV/CAMPAIGN_MODEL/CAMPAIGN_CALENDAR",
+];
+
+/// Fields of [`EXACT_RECORDS`] the writer doesn't generate: the load screen's map thumbnail, empty.
+const UNGENERATED_FIELDS: [&str; 1] = ["CAMPAIGN_STARTPOS/SAVE_GAME_HEADER/MAPS:^+5"];
 
 /// Records compared elsewhere, with the ids they hold translated (`WORLD`, `CAI_INTERFACE`).
 const SKIPPED: [&str; 2] = ["WORLD", "CAI_INTERFACE"];
@@ -67,7 +85,19 @@ fn test_startpos_matches_the_game_startpos() {
     let victory_objectives = parse_victory_objectives(&String::from_utf8_lossy(&victory_text)).unwrap();
     let (map_data, hlp_data) = (test_data_esf("map_data.esf"), test_data_esf("hlp_data.esf"));
     let dynamic_resources = test_data_esf("dynamic_resources.esf");
-    let inputs = StartposInputs { world: &world, trade_network: &trade_network, victory_objectives: &victory_objectives, map_data: &map_data, hlp_data: &hlp_data, dynamic_resources: &dynamic_resources, campaign: TEST_CAMPAIGN };
+    let region_palette = tga_palette(&std::fs::read(test_data_path("main_attila_lookup.tga")).unwrap()).unwrap();
+    let inputs = StartposInputs {
+        world: &world,
+        trade_network: &trade_network,
+        victory_objectives: &victory_objectives,
+        map_data: &map_data,
+        hlp_data: &hlp_data,
+        dynamic_resources: &dynamic_resources,
+        campaign: TEST_CAMPAIGN,
+        map: TEST_MAP,
+        season_name: TEST_SEASON_NAME,
+        region_palette: &region_palette,
+    };
     let plan = game_plan(&index);
 
     let written = write_startpos(&inputs, &plan).unwrap();
@@ -81,4 +111,16 @@ fn test_startpos_matches_the_game_startpos() {
     assert!(missing.is_empty(), "records the writer leaves empty: {missing:#?}");
     assert_eq!(written.signature(), test_startpos().signature());
     assert!(ratio >= MIN_MATCH_RATIO, "{matches}/{total} ({ratio:.4}) fields match. Worst:\n{}", report.worst(80));
+    for path in EXACT_RECORDS {
+        let record = |root| find_record(root, path).unwrap_or_else(|| panic!("no {path}"));
+        let mut exact = Report::default();
+        compare(&layout, record(ours), record(theirs), &format!("{ROOT_PATH}/{path}"), &mut exact);
+        let mismatches = exact.mismatches_except(&UNGENERATED_FIELDS);
+        assert!(mismatches.is_empty(), "{path} differs: {mismatches:#?}");
+    }
+}
+
+/// Returns the record at a path under a root, its first instance at each level.
+fn find_record<'a>(root: &'a RecordNode, path: &str) -> Option<&'a RecordNode> {
+    path.split('/').try_fold(root, |record, name| record.children().iter().flatten().filter_map(as_record).find(|child| child.name() == name))
 }

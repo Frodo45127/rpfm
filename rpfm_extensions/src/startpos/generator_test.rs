@@ -46,6 +46,33 @@ fn test_later_fragments_replace_rows_with_the_same_key() {
     assert_eq!(rows, vec![("a".to_owned(), 1), ("b".to_owned(), 20), ("c".to_owned(), 3)]);
 }
 
+/// Returns a colour-mapped TGA header with an id of 1 byte and a palette of 24-bit entries.
+fn tga_header(palette_length: u16) -> Vec<u8> {
+    let mut bytes = vec![1, 1, TGA_COLOUR_MAPPED, 0, 0];
+    bytes.extend_from_slice(&palette_length.to_le_bytes());
+    bytes.push(24);
+    bytes.resize(TGA_HEADER_SIZE, 0);
+    bytes.push(0xFF);
+    bytes
+}
+
+#[test]
+fn test_tga_palette_is_read_as_rgb() {
+    let mut bytes = tga_header(2);
+    bytes.extend_from_slice(&[3, 2, 1, 30, 20, 10, 99]);
+
+    assert_eq!(tga_palette(&bytes).unwrap(), vec![[1, 2, 3], [10, 20, 30]]);
+}
+
+#[test]
+fn test_tga_palette_rejects_other_images() {
+    let mut true_colour = tga_header(0);
+    true_colour[2] = 2;
+
+    assert!(tga_palette(&true_colour).is_err());
+    assert!(tga_palette(&tga_header(2)).is_err());
+}
+
 #[test]
 #[ignore = "needs the game data, see startpos_test.rs"]
 fn test_layouts_are_extracted_once_and_picked_by_campaign() {

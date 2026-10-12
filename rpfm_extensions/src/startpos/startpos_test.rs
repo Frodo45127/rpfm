@@ -173,6 +173,14 @@ impl Report {
         self.fields.values().fold((0, 0), |(matches, total), (field_matches, field_total)| (matches + field_matches, total + field_total))
     }
 
+    /// Returns the fields with mismatches, leaving out the given ones.
+    pub(crate) fn mismatches_except(&self, ignored: &[&str]) -> Vec<&str> {
+        self.fields.iter()
+            .filter(|(field, (matches, total))| matches < total && !ignored.contains(&field.as_str()))
+            .map(|(field, _)| field.as_str())
+            .collect()
+    }
+
     /// Returns the fields with mismatches, worst first, as text.
     pub(crate) fn worst(&self, count: usize) -> String {
         let mut fields = self.fields.iter().filter(|(_, (matches, total))| matches < total).collect::<Vec<_>>();

@@ -12,7 +12,7 @@
 //!
 //! [`load_tables`] loads the tables (the game's, its Assembly Kit's and the pack's, merged as the game loads them),
 //! which [`validation`](super::validation) checks. [`StartposSources`] adds what else the build reads: the campaign
-//! map's files, the victory objectives and the characters with legacy override texts. [`GameLayouts`] gets the
+//! map's files, the victory objectives, the characters with legacy override texts and the start season's name. [`GameLayouts`] gets the
 //! record layouts from the game's startposes, cached in a layouts folder.
 //! [`generate_startpos`] writes the startpos.
 
@@ -41,6 +41,7 @@ use super::tables::StartposTables;
 use super::trade::TradeNetwork;
 use super::validation::referenced_tables;
 use super::world::CampaignIndex;
+use super::world::calendar::Calendar;
 use super::world::writer::{WorldInputs, WorldPlan};
 use super::writer::{write_startpos, StartposInputs};
 
@@ -51,14 +52,14 @@ pub const SUPPORTED_GAMES: [&str; 1] = [KEY_ATTILA];
 
 /// Tables the startpos build reads, without the `_tables` suffix.
 pub const STARTPOS_TABLES: &[&str] = &[
-    "agent_culture_details", "agent_to_agent_abilities", "agent_to_agent_attributes", "agents",
+    "agent_culture_details", "agent_to_agent_abilities", "agent_to_agent_attributes", "agent_uniforms", "agents",
     "armed_citizenry_units_to_unit_groups_junctions", "battlefield_engines", "building_chains", "building_level_armed_citizenry_junctions",
     "building_levels", "campaign_character_art_sets", "campaign_character_art_sets_group_junctions", "campaigns",
     "character_skill_node_sets", "character_skill_nodes", "character_trait_levels", "commander_unit_permissions", "commodities",
     "cultures_subcultures", "faction_political_parties_junctions", "faction_to_mercenary_set_junctions", "factions", "land_units",
     "main_units", "mercenary_pool_to_groups_junctions", "mercenary_unit_groups", "military_force_legacy_emblems",
     "military_force_legacy_names", "ministerial_positions", "ministerial_positions_culture_details", "naval_units",
-    "political_parties", "province_to_mercenary_set_junctions", "region_to_province_junctions", "religions", "resources",
+    "political_parties", "province_to_mercenary_set_junctions", "region_to_province_junctions", "regions", "religions", "resources",
     "start_pos_calendars", "start_pos_character_to_settlements", "start_pos_character_traits", "start_pos_characters",
     "start_pos_diplomacy", "start_pos_family_relationships", "start_pos_factions", "start_pos_horde_details", "start_pos_land_units",
     "start_pos_naval_units", "start_pos_past_events", "start_pos_region_religions", "start_pos_region_slot_templates",
@@ -72,6 +73,21 @@ const VICTORY_OBJECTIVES_PATH: &str = "db/victory_objectives.txt";
 /// Localisation key prefix of the `start_pos_characters.legacy_override` texts.
 const LEGACY_OVERRIDE_PREFIX: &str = "start_pos_characters_legacy_override_";
 
+/// Localisation key prefix of the season names.
+const SEASON_NAME_PREFIX: &str = "seasons_onscreen_";
+
+/// Suffix of the campaign map keys, which the region lookup image's name lacks.
+const MAP_KEY_SUFFIX: &str = "_map";
+
+/// Suffix of the region lookup image's name.
+const LOOKUP_IMAGE_SUFFIX: &str = "_lookup.tga";
+
+/// TGA image type of colour-mapped images.
+const TGA_COLOUR_MAPPED: u8 = 1;
+
+/// Size of a TGA header.
+const TGA_HEADER_SIZE: usize = 18;
+
 //---------------------------------------------------------------------------//
 //                              Types
 //---------------------------------------------------------------------------//
@@ -81,6 +97,15 @@ pub struct StartposSources {
 
     /// Campaign key.
     campaign: String,
+
+    /// Campaign map key.
+    map: String,
+
+    /// Localised name of the season the campaign starts in, empty if it has none.
+    season_name: String,
+
+    /// RGB colours of the campaign map's region lookup image, by palette index. Empty without the image.
+    region_palette: Vec<[u8; 3]>,
 
     /// Tables the build reads.
     tables: StartposTables,
@@ -139,15 +164,24 @@ impl StartposSources {
         let map_file = |name: &str| files.bytes(&format!("campaign_maps/{map}/{name}"));
         let esf = |name: &str| -> Result<ESF> { ESF::decode(&mut Cursor::new(map_file(name)?), &None) };
         let victory_text = files.bytes(VICTORY_OBJECTIVES_PATH)?;
+        let lookup_image = format!("{}{LOOKUP_IMAGE_SUFFIX}", map.strip_suffix(MAP_KEY_SUFFIX).unwrap_or(&map));
+        let region_palette = match map_file(&lookup_image) {
+            Ok(bytes) => tga_palette(&bytes)?,
+            Err(_) => vec![],
+        };
+        let season = Calendar::new(&tables, campaign)?.start_season().to_owned();
 
         Ok(Self {
             campaign: campaign.to_owned(),
+            season_name: loc_text(dependencies, pack, &format!("{SEASON_NAME_PREFIX}{season}")).unwrap_or_default(),
+            region_palette,
             map_data: esf("map_data.esf")?,
             hlp_data: esf("hlp_data.esf")?,
             dynamic_resources: esf("dynamic_resources.esf")?,
             trade_routes: TradeRoutes::decode(&mut Cursor::new(map_file("trade_routes.ptd")?), &None)?,
             victory_objectives: parse_victory_objectives(&String::from_utf8_lossy(&victory_text))?,
             legacy_overrides: legacy_overrides(dependencies, pack),
+            map,
             tables,
         })
     }
@@ -252,6 +286,9 @@ pub(crate) fn generate_startpos_with_plan(sources: &StartposSources, layout: &St
         hlp_data: &sources.hlp_data,
         dynamic_resources: &sources.dynamic_resources,
         campaign: &sources.campaign,
+        map: &sources.map,
+        season_name: &sources.season_name,
+        region_palette: &sources.region_palette,
     };
     write_startpos(&inputs, &plan(&index))
 }
@@ -405,6 +442,37 @@ fn legacy_overrides(dependencies: &Dependencies, pack: &Pack) -> HashSet<String>
         .filter(|(_, text)| !text.is_empty())
         .filter_map(|(key, _)| key.strip_prefix(LEGACY_OVERRIDE_PREFIX).map(str::to_owned))
         .collect()
+}
+
+/// Returns the text of a localisation key, from the pack if it has it, else from the game.
+fn loc_text(dependencies: &Dependencies, pack: &Pack, key: &str) -> Option<String> {
+    pack.files_by_type(&[FileType::Loc]).into_iter()
+        .flat_map(loc_texts)
+        .find_map(|(loc_key, text)| (loc_key == key).then_some(text))
+        .or_else(|| dependencies.localisation_data().get(key).cloned())
+}
+
+/// Returns the RGB colours of a colour-mapped TGA image's palette, by palette index.
+///
+/// # Errors
+///
+/// Returns an error if the image isn't colour-mapped, or is cut short.
+pub(crate) fn tga_palette(bytes: &[u8]) -> Result<Vec<[u8; 3]>> {
+    let invalid = || RLibError::CampaignMapDataError("the region lookup image isn't a colour-mapped TGA".to_owned());
+    let header = bytes.get(..TGA_HEADER_SIZE).ok_or_else(invalid)?;
+    if header[2] != TGA_COLOUR_MAPPED {
+        return Err(invalid());
+    }
+
+    // Header bytes: 0 id length, 3-4 first palette index, 5-6 palette length, 7 bits per palette entry (BGR order).
+    let start = TGA_HEADER_SIZE + usize::from(header[0]);
+    let length = usize::from(u16::from_le_bytes([header[5], header[6]]));
+    let entry_size = usize::from(header[7]) / 8;
+    let palette = bytes.get(start..start + length * entry_size).ok_or_else(invalid)?;
+    if entry_size < 3 {
+        return Err(invalid());
+    }
+    Ok(palette.chunks_exact(entry_size).map(|entry| [entry[2], entry[1], entry[0]]).collect())
 }
 
 /// Returns the (key, text) pairs of a localisation file, or none if it can't be decoded.

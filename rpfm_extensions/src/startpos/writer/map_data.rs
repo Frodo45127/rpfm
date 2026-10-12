@@ -8,7 +8,7 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-//! Writer of the campaign map data (`CAMPAIGN_MAP_DATA`): the map's paths, kept from the layout, and its provinces.
+//! Writer of the campaign map data (`CAMPAIGN_MAP_DATA`): the map's paths and its provinces.
 
 use rpfm_lib::error::Result;
 use rpfm_lib::files::esf::RecordNode;
@@ -23,17 +23,29 @@ const MAP_DATA_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/CAMPA
 /// Path of the provinces of the map data.
 const PROVINCE_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/CAMPAIGN_MAP_DATA/PROVINCES_DATA/PROVINCE_DATA_ARRAY/PROVINCE_DATA";
 
+/// Folder of the campaign maps.
+const MAPS_FOLDER: &str = "campaign_maps";
+
+/// Folder of a campaign map's display files.
+const DISPLAY_FOLDER: &str = "display";
+
 //---------------------------------------------------------------------------//
 //                              Implementations
 //---------------------------------------------------------------------------//
 
-/// Writes the map data of a campaign: one entry per province, with its regions and its main region (the one with a
-/// major settlement, else the first one).
+/// Writes the map data of a campaign: the map's folders and key, and one entry per province, with its regions and its
+/// main region (the one with a major settlement, else the first one).
+///
+/// # Arguments
+///
+/// * `inputs` - Tables, startpos rows, layouts and map data.
+/// * `plan` - Order and runtime ids of the world's objects.
+/// * `map` - Campaign map key.
 ///
 /// # Errors
 ///
 /// Returns an error if a table, column or layout is missing.
-pub fn write_map_data(inputs: &WorldInputs, plan: &WorldPlan) -> Result<RecordNode> {
+pub fn write_map_data(inputs: &WorldInputs, plan: &WorldPlan, map: &str) -> Result<RecordNode> {
     let layout = inputs.layout;
     let provinces_path = child_path(MAP_DATA_PATH, "PROVINCES_DATA");
     let mut provinces = layout.builder(&child_path(&provinces_path, "PROVINCE_DATA_ARRAY"))?;
@@ -60,6 +72,10 @@ pub fn write_map_data(inputs: &WorldInputs, plan: &WorldPlan) -> Result<RecordNo
     provinces_data.group()?.set_record("PROVINCE_DATA_ARRAY", Some(provinces.build()?))?;
 
     let mut map_data = layout.builder(MAP_DATA_PATH)?;
-    map_data.group()?.set_record("PROVINCES_DATA", Some(provinces_data.build()?))?;
+    map_data.group()?
+        .set_str("^+1", &format!("{MAPS_FOLDER}/{map}"))?
+        .set_str("^+2", &format!("{MAPS_FOLDER}/{map}/{DISPLAY_FOLDER}"))?
+        .set_str("^+3", map)?
+        .set_record("PROVINCES_DATA", Some(provinces_data.build()?))?;
     map_data.build()
 }

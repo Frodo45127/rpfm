@@ -16,12 +16,13 @@ use std::collections::HashMap;
 use rpfm_lib::error::Result;
 use rpfm_lib::files::esf::{Coordinates2DNode, NodeType, RecordNode};
 
+use super::header::write_date;
 use super::victory::write_victory_mission_options;
-use super::ENV_PATH;
+use super::{StartposInputs, ENV_PATH};
 use crate::startpos::coords::HexCell;
 use crate::startpos::layout::{child_path, StartposLayout};
-use crate::startpos::missions::VictoryObjectives;
 use crate::startpos::world::FactionEntry;
+use crate::startpos::world::calendar::Calendar;
 use crate::startpos::world::government::faction_leader;
 use crate::startpos::world::writer::characters::write_character_name;
 use crate::startpos::world::writer::forces::ForcePlan;
@@ -46,38 +47,44 @@ const DIFFICULTY_KEY_PREFIX: &str = "random_localisation_strings_string_";
 //                              Implementations
 //---------------------------------------------------------------------------//
 
-/// Writes the pre-open map info of a campaign: its players, victory missions, factions and region owners.
+/// Writes the pre-open map info of a campaign: its start date, key and map, players, victory missions, factions and
+/// region owners.
 ///
 /// # Arguments
 ///
 /// * `inputs` - Tables, startpos rows, layouts and map data.
 /// * `plan` - Order and runtime ids of the world's objects.
 /// * `forces` - Characters and forces of the world.
-/// * `victory_objectives` - Victory objectives of the campaign.
+/// * `calendar` - Calendar of the campaign.
 ///
 /// # Errors
 ///
 /// Returns an error if a table, column or layout is missing.
-pub fn write_preopen_map_info(inputs: &WorldInputs, plan: &WorldPlan, forces: &ForcePlan, victory_objectives: &[VictoryObjectives]) -> Result<RecordNode> {
-    let layout = inputs.layout;
+pub fn write_preopen_map_info(inputs: &StartposInputs, plan: &WorldPlan, forces: &ForcePlan, calendar: &Calendar) -> Result<RecordNode> {
+    let layout = inputs.world.layout;
     let mut record = layout.builder(PREOPEN_PATH)?;
     record.group()?
         .set_record("CAMPAIGN_PLAYERS_SETUP", Some(write_players_setup(layout, PREOPEN_PATH, plan)?))?
-        .set_record("VICTORY_MISSION_OPTIONS", Some(write_victory_mission_options(layout, victory_objectives)?))?
-        .set_record("FACTION_INFOS", Some(write_faction_infos(inputs, plan, forces)?))?
-        .set_record("REGION_OWNERSHIPS_BY_THEATRE", Some(write_region_ownerships(layout, plan)?))?;
+        .set_record("DATE", Some(write_date(layout, PREOPEN_PATH, calendar)?))?
+        .set_str("DATE+1", inputs.campaign)?
+        .set_str("DATE+2", inputs.map)?
+        .set_record("VICTORY_MISSION_OPTIONS", Some(write_victory_mission_options(layout, inputs.victory_objectives)?))?
+        .set_record("FACTION_INFOS", Some(write_faction_infos(inputs.world, plan, forces)?))?
+        .set_record("REGION_OWNERSHIPS_BY_THEATRE", Some(write_region_ownerships(layout, plan, inputs.map)?))?;
     record.build()
 }
 
-/// Writes the campaign setup (`CAMPAIGN_SETUP`): its players.
+/// Writes the campaign setup (`CAMPAIGN_SETUP`): its key and players.
 ///
 /// # Errors
 ///
 /// Returns an error if the layout lacks the records.
-pub fn write_campaign_setup(layout: &StartposLayout, plan: &WorldPlan) -> Result<RecordNode> {
+pub fn write_campaign_setup(layout: &StartposLayout, plan: &WorldPlan, campaign: &str) -> Result<RecordNode> {
     let path = child_path(ENV_PATH, "CAMPAIGN_SETUP");
     let mut record = layout.builder(&path)?;
-    record.group()?.set_record("CAMPAIGN_PLAYERS_SETUP", Some(write_players_setup(layout, &path, plan)?))?;
+    record.group()?
+        .set_str("^+1", campaign)?
+        .set_record("CAMPAIGN_PLAYERS_SETUP", Some(write_players_setup(layout, &path, plan)?))?;
     record.build()
 }
 
@@ -139,7 +146,7 @@ fn write_faction_infos(inputs: &WorldInputs, plan: &WorldPlan, forces: &ForcePla
 }
 
 /// Returns where the armies of a faction start, as a fraction of the map size, without repeating positions.
-fn army_positions(inputs: &WorldInputs, forces: &ForcePlan, faction: &FactionEntry) -> Vec<Coordinates2DNode> {
+pub(super) fn army_positions(inputs: &WorldInputs, forces: &ForcePlan, faction: &FactionEntry) -> Vec<Coordinates2DNode> {
     let (width, height) = inputs.region_map.world_size();
     let mut positions = vec![];
     for force in forces.forces_of(faction.key()) {
@@ -159,8 +166,9 @@ fn army_positions(inputs: &WorldInputs, forces: &ForcePlan, faction: &FactionEnt
     positions
 }
 
-/// Writes the owner of each region (`REGION_OWNERSHIPS_BY_THEATRE`), the rebels for regions without one.
-fn write_region_ownerships(layout: &StartposLayout, plan: &WorldPlan) -> Result<RecordNode> {
+/// Writes the owner of each region (`REGION_OWNERSHIPS_BY_THEATRE`) in the map's only theatre, the rebels for regions
+/// without one.
+fn write_region_ownerships(layout: &StartposLayout, plan: &WorldPlan, map: &str) -> Result<RecordNode> {
     let path = child_path(PREOPEN_PATH, "REGION_OWNERSHIPS_BY_THEATRE");
     let mut owners = layout.builder(&child_path(&path, "REGION_OWNERSHIPS"))?;
     for region in plan.regions() {
@@ -170,6 +178,8 @@ fn write_region_ownerships(layout: &StartposLayout, plan: &WorldPlan) -> Result<
     }
 
     let mut theatres = layout.builder(&path)?;
-    theatres.push_group()?.set_record("REGION_OWNERSHIPS", Some(owners.build()?))?;
+    theatres.push_group()?
+        .set_str("^+1", map)?
+        .set_record("REGION_OWNERSHIPS", Some(owners.build()?))?;
     theatres.build()
 }
