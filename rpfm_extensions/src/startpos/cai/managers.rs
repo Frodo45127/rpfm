@@ -85,6 +85,7 @@ const TASK_GENERATOR: u32 = 114;
 const CONSTRUCTION: u32 = 159;
 const FORCE_SKILLS: u32 = 171;
 const CHARACTER_SKILLS: u32 = 173;
+const FINANCE_SAVINGS: u32 = 84;
 
 /// Belief types.
 const FINANCIAL_ANALYSIS: u32 = 95;
@@ -164,6 +165,9 @@ pub struct ManagerInputs<'a> {
 
     /// Components of each faction's mobiles, by faction position.
     pub mobiles: &'a [Vec<u32>],
+
+    /// Year the campaign starts in.
+    pub start_year: u32,
 }
 
 /// Fields of a pool object's component that differ from its type's defaults.
@@ -419,6 +423,14 @@ impl ManagerContext<'_> {
             FINANCE_MANAGER => { group.set_record("CAI_FACTION_BDI_POOL_FINANCE_MANAGER_BASIC", Some(self.write_finance_manager(&variant)?))?; },
             RESEARCH => self.set_single(group, &variant, "CAI_BDI_DESIRE_RESEARCH_TECHNOLOGY", "^+1", self.faction)?,
             TAXATION => self.set_single(group, &variant, "CAI_BDI_DESIRE_TAXATION", "^+1", self.faction)?,
+            FINANCE_SAVINGS => {
+                let savings_path = child_path(&variant, "CAI_BDI_DESIRE_FINANCE_SAVINGS");
+                let mut date = layout.builder(&child_path(&savings_path, "DATE"))?;
+                date.group()?.set_u32("^+1", self.inputs.start_year)?;
+                let mut savings = layout.builder(&savings_path)?;
+                savings.group()?.set_record("DATE", Some(date.build()?))?;
+                group.set_record("CAI_BDI_DESIRE_FINANCE_SAVINGS", Some(savings.build()?))?;
+            },
             FINANCIAL_ANALYSER | STRATEGIC_ANALYSER => {
                 let mut analyser = layout.builder(&child_path(&variant, "CAI_ANALYSER"))?;
                 analyser.group()?

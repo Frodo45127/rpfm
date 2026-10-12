@@ -13,6 +13,7 @@ use crate::startpos::cai::cai_test::{game_cai_record, id_translation, test_input
 use crate::startpos::layout::GroupView;
 use crate::startpos::startpos_test::{compare, test_data_tables, Report, TEST_CAMPAIGN};
 use crate::startpos::world::CampaignIndex;
+use crate::startpos::world::calendar::Calendar;
 
 /// Share of the fields of the managers at the game's level the writer must match (0.970). The rest is state the game
 /// computes on the first update (we write the constructors' values: finance managers, beliefs, stance empire data,
@@ -53,7 +54,8 @@ fn test_managers_match_the_game_startpos() {
     let stances = StartingStances::new(test_data_tables(), &index, &keys).unwrap();
     let characters = inputs.plan.characters().iter().map(|characters| characters.iter().map(|character| character.character()).collect()).collect::<Vec<_>>();
     let mobiles = inputs.plan.characters().iter().map(|characters| characters.iter().filter_map(|character| character.mobile()).collect()).collect::<Vec<_>>();
-    let manager_inputs = ManagerInputs { layout: &inputs.layout, plan: &inputs.plan, stances: &stances, characters: &characters, mobiles: &mobiles };
+    let start_year = Calendar::new(test_data_tables(), TEST_CAMPAIGN).unwrap().start_year();
+    let manager_inputs = ManagerInputs { layout: &inputs.layout, plan: &inputs.plan, stances: &stances, characters: &characters, mobiles: &mobiles, start_year };
     let written = write_managers(&manager_inputs).unwrap();
 
     // Translate our ids to the game's: world objects by kind, pool objects by manager, type and target.

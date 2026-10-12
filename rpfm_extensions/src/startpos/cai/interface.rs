@@ -26,6 +26,7 @@ use super::CAI_PATH;
 use crate::startpos::esf_nav::{as_record, child_record};
 use crate::startpos::layout::{child_path, variant_path, StartposLayout};
 use crate::startpos::writer::{bool_node, i32_node, u32_node};
+use crate::startpos::world::calendar::Calendar;
 
 #[cfg(test)] #[path = "interface_test.rs"] mod interface_test;
 
@@ -79,7 +80,8 @@ impl CaiContext {
         let stances = StartingStances::new(inputs.tables, inputs.index, &keys)?;
         let characters = plan.characters().iter().map(|characters| characters.iter().map(|character| character.character()).collect()).collect::<Vec<_>>();
         let mobiles = plan.characters().iter().map(|characters| characters.iter().filter_map(|character| character.mobile()).collect()).collect::<Vec<_>>();
-        let managers = write_managers(&ManagerInputs { layout, plan, stances: &stances, characters: &characters, mobiles: &mobiles })?;
+        let start_year = Calendar::new(inputs.tables, inputs.campaign)?.start_year();
+        let managers = write_managers(&ManagerInputs { layout, plan, stances: &stances, characters: &characters, mobiles: &mobiles, start_year })?;
 
         let (world, influence) = self.with_mobiles(inputs, |mobile_inputs| {
             let world = self.write_world_with(inputs, mobile_inputs)?;
