@@ -98,6 +98,7 @@ mod default;
 mod rs_terrain;
 mod rope;
 mod rs_river;
+mod static_point_light;
 mod texture_combo;
 mod weighted_cloth;
 mod projected_decal;
@@ -576,6 +577,7 @@ impl Material {
             MaterialType::Rope if version <= 6 => Self::read_rope(data)?,
             MaterialType::TextureCombo |
             MaterialType::TextureComboVertexWind => Self::read_texture_combo(data)?,
+            MaterialType::StaticPointLight => Self::read_static_point_light(data)?,
             MaterialType::AlphaBlend => Self::read_alpha_blend(data)?,
             MaterialType::Cloth => Self::read_cloth(data)?,
             MaterialType::ProjectedDecalV4 |
@@ -630,6 +632,7 @@ impl Material {
             MaterialType::Rope if version <= 6 => self.write_rope(buffer)?,
             MaterialType::TextureCombo |
             MaterialType::TextureComboVertexWind => self.write_texture_combo(buffer)?,
+            MaterialType::StaticPointLight => self.write_static_point_light(buffer)?,
             MaterialType::AlphaBlend => self.write_alpha_blend(buffer)?,
             MaterialType::Cloth => self.write_cloth(buffer)?,
             MaterialType::ProjectedDecalV4 |

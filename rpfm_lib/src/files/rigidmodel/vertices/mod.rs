@@ -286,6 +286,8 @@ impl Vertex {
                 MaterialType::ProjectedDecalV3 => {
                     v.position = data.read_vector_4_f32()?;
                 },
+                // Static point lights store no vertex data: their indices point to the vertices of another mesh.
+                MaterialType::StaticPointLight => {},
                 MaterialType::TextureCombo |
                 MaterialType::TextureComboVertexWind => {
                     v.position = data.read_vector_4_f32_normal_from_vector_4_f16()?;
@@ -458,6 +460,7 @@ impl Vertex {
                 MaterialType::ProjectedDecalV3 => {
                     data.write_vector_4_f32(*self.position())?;
                 }
+                MaterialType::StaticPointLight => {}
                 MaterialType::TextureCombo |
                 MaterialType::TextureComboVertexWind => {
                     data.write_vector_4_f32_normal_as_vector_4_f16(self.position)?;
