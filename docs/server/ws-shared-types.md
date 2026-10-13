@@ -351,13 +351,14 @@ Compression format for Pack files. Serialized as a plain string:
 | `"Lzma1"`  | LZMA1 compression          |
 | `"Lz4"`    | LZ4 compression            |
 | `"Zstd"`   | Zstandard compression      |
+| `"Lz4Block"` | Raw LZ4 block compression (Shogun 2 Complete Edition PFH3 packs only) |
 
 <!-- langtabs-start -->
 ```typescript
-type CompressionFormat = "None" | "Lzma1" | "Lz4" | "Zstd";
+type CompressionFormat = "None" | "Lzma1" | "Lz4" | "Zstd" | "Lz4Block";
 ```
 ```csharp
-public enum CompressionFormat { None, Lzma1, Lz4, Zstd }
+public enum CompressionFormat { None, Lzma1, Lz4, Zstd, Lz4Block }
 ```
 <!-- langtabs-end -->
 

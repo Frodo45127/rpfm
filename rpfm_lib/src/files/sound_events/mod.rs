@@ -22,7 +22,7 @@ use serde_derive::{Serialize, Deserialize};
 use crate::binary::{ReadBytes, WriteBytes};
 use crate::error::{Result, RLibError};
 use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodeable};
-use crate::games::supported_games::{KEY_SHOGUN_2, KEY_EMPIRE};
+use crate::games::supported_games::{KEY_EMPIRE, KEY_SHOGUN_2, KEY_SHOGUN_2_COMPLETE_EDITION};
 use crate::utils::check_size_mismatch;
 
 /// Path to the sound events file within a pack.
@@ -341,6 +341,7 @@ impl Decodeable for SoundEvents {
         let mut sound_events = Self::default();
 
         match game_info.key() {
+            KEY_SHOGUN_2_COMPLETE_EDITION |
             KEY_SHOGUN_2 => sound_events.read_sho2(data)?,
             //KEY_NAPOLEON => {},
             KEY_EMPIRE => sound_events.read_emp(data)?,
@@ -361,6 +362,7 @@ impl Encodeable for SoundEvents {
         let game_info = extra_data.game_info.ok_or_else(|| RLibError::DecodingMissingExtraDataField("game_info".to_owned()))?;
 
         match game_info.key() {
+            KEY_SHOGUN_2_COMPLETE_EDITION |
             KEY_SHOGUN_2 => self.write_sho2(buffer),
             //KEY_NAPOLEON => {},
             KEY_EMPIRE => self.write_emp(buffer),

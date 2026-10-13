@@ -716,6 +716,7 @@ impl PackFileContentsSlots {
                                 CompressionFormat::Lzma1 => pack_file_contents_ui.context_menu_compression_lzma1.set_checked(true),
                                 CompressionFormat::Lz4 => pack_file_contents_ui.context_menu_compression_lz4.set_checked(true),
                                 CompressionFormat::Zstd => pack_file_contents_ui.context_menu_compression_zstd.set_checked(true),
+                                CompressionFormat::Lz4Block => pack_file_contents_ui.context_menu_compression_lz4block.set_checked(true),
                             }
                             pack_file_contents_ui.context_menu_compression_group.block_signals(false);
 
@@ -2077,6 +2078,7 @@ impl PackFileContentsSlots {
                     CompressionFormat::Lzma1 => pack_file_contents_ui.context_menu_compression_lzma1.set_checked(true),
                     CompressionFormat::Lz4 => pack_file_contents_ui.context_menu_compression_lz4.set_checked(true),
                     CompressionFormat::Zstd => pack_file_contents_ui.context_menu_compression_zstd.set_checked(true),
+                    CompressionFormat::Lz4Block => pack_file_contents_ui.context_menu_compression_lz4block.set_checked(true),
                 }
                 pack_file_contents_ui.context_menu_compression_group.block_signals(false);
                 UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);

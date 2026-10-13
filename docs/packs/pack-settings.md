@@ -16,7 +16,7 @@ The same submenu also exposes the header flags as checkable items: **Index Inclu
 
 ### Compression Format
 
-A submenu listing the supported compression formats: **None**, **Lzma1**, **Lz4**, **Zstd**. Which formats actually work depends on the active game. The selected format is applied the next time the Pack is saved.
+A submenu listing the supported compression formats: **None**, **Lzma1**, **Lz4**, **Zstd**, **Lz4Block**. Which formats actually work depends on the active game and the Pack version (`Lz4Block` is only for Shogun 2 Complete Edition PFH3 Packs, the rest only for PFH5 and newer Packs). The selected format is applied the next time the Pack is saved.
 
 ## Pack Settings tab
 

@@ -76,7 +76,7 @@ use crate::binary::{ReadBytes, WriteBytes};
 use crate::compression::{Compressible, CompressionFormat};
 use crate::error::{RLibError, Result};
 use crate::files::{Container, ContainerPath, Decodeable, DecodeableExtraData, Encodeable, EncodeableExtraData, FileType, Loc, RFile, RFileDecoded, table::DecodedData};
-use crate::games::{GameInfo, pfh_file_type::PFHFileType, pfh_version::PFHVersion};
+use crate::games::{GameInfo, pfh_file_type::PFHFileType, pfh_version::PFHVersion, supported_games::KEY_SHOGUN_2_COMPLETE_EDITION};
 use crate::notes::Note;
 use crate::utils::{current_time, last_modified_time_from_file};
 
@@ -143,7 +143,7 @@ bitflags! {
     ///
     /// Keep in mind that this lib supports decoding Packs with any of these flags enabled,
     /// but it only supports enconding for the `HAS_INDEX_WITH_TIMESTAMPS` flag, and for the
-    /// `HAS_ENCRYPTED_INDEX` and `HAS_ENCRYPTED_DATA` flags in PFH4 and newer Packs.
+    /// `HAS_ENCRYPTED_INDEX` and `HAS_ENCRYPTED_DATA` flags in PFH4 and newer Packs, and the `HAS_COMPRESSED_DATA` flag in PFH3 Packs.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
     pub struct PFHFlags: u32 {
 
@@ -158,6 +158,31 @@ bitflags! {
 
         /// Used to specify that the File Data is encrypted. Seen in `music.pack` Packs and in Arena.
         const HAS_ENCRYPTED_DATA        = 0b0000_0000_0001_0000;
+        const UK1        = 0b1000_0000_0000_0000;
+        const UK2        = 0b0100_0000_0000_0000;
+        const UK3        = 0b0010_0000_0000_0000;
+        const UK4        = 0b0001_0000_0000_0000;
+        const UK5        = 0b0000_1000_0000_0000;
+        const UK6        = 0b0000_0100_0000_0000;
+        const UK7        = 0b0000_0010_0000_0000;
+
+        /// Used to specify that the File Index contains the uncompressed size of each file, and the File Data may be compressed with
+        /// [`CompressionFormat::Lz4Block`]. Seen in Shogun 2 Complete Edition PFH3 Packs. When encoding, it's set or cleared based on the Pack's compression format.
+        const HAS_COMPRESSED_DATA       = 0b0000_0000_0010_0000;
+        const UK9        = 0b0000_0000_0000_1000;
+        const UK10        = 0b0000_0000_0000_0100;
+        const UK11        = 0b0000_0000_0000_0010;
+        const UK12        = 0b0000_0000_0000_0001;
+    }
+
+    /// This represents the flags a Pack can have applied to the last byte of its Preamble/Id (e.g. `PFHs` is `PFH3` + `HAS_ALIGNED_DATA`).
+    ///
+    /// Only supported in PFH3 Packs.
+    #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+    pub struct PFHVersionFlags: u8 {
+
+        /// Used to specify that the File Index contains the absolute offset of each file, and the File Data is aligned to 16 bytes. Seen in Shogun 2 Complete Edition PFH3 Packs.
+        const HAS_ALIGNED_DATA          = 0b0100_0000;
     }
 }
 
@@ -278,6 +303,9 @@ pub struct PackHeader {
     /// The version of the Pack.
     pfh_version: PFHVersion,
 
+    /// The flags applied to the last byte of the Preamble/Id of the Pack.
+    pfh_version_flags: PFHVersionFlags,
+
     /// The type of the Pack.
     pfh_file_type: PFHFileType,
 
@@ -308,7 +336,7 @@ pub struct PackHeader {
 ///
 /// # Built-in Settings
 ///
-/// - `compression_format`: The compression format to use (None, Lz4, Zlib)
+/// - `compression_format`: The compression format to use (None, Lzma1, Lz4, Zstd, Lz4Block)
 /// - `diagnostics_files_to_ignore`: Files/diagnostics to skip during validation
 /// - `import_files_to_ignore`: Files to skip during folder imports
 /// - `disable_autosaves`: Disable automatic saving
@@ -604,7 +632,11 @@ impl Pack {
             ..Default::default()
         };
 
-        pack.header.pfh_version = PFHVersion::version(&data.read_string_u8(4)?)?;
+        // The last byte of the signature may contain flags in its upper bits (e.g. `PFHs`), so we split them before getting the version.
+        let mut signature = data.read_slice(4, false)?;
+        pack.header.pfh_version_flags = PFHVersionFlags::from_bits_truncate(signature[3] & 0b1100_0000);
+        signature[3] &= 0b0011_1111;
+        pack.header.pfh_version = PFHVersion::version(&String::from_utf8_lossy(&signature))?;
 
         let pack_type = data.read_u32()?;
         pack.header.pfh_file_type = PFHFileType::try_from(pack_type & 15)?;
@@ -1063,9 +1095,15 @@ impl Pack {
     /// This function sets the compression format the pack should use.
     ///
     /// Returns the new compression format.
-    /// Support for each format varies depending on the game.
+    /// Support for each format varies depending on the game. Shogun 2 Complete Edition PFH3 Packs are always set to [`CompressionFormat::Lz4Block`].
     pub fn set_compression_format(&mut self, cf: CompressionFormat, game_info: &GameInfo) -> CompressionFormat {
-        if cf == CompressionFormat::None || !game_info.compression_formats_supported().contains(&cf) {
+        let cf = if game_info.key() == KEY_SHOGUN_2_COMPLETE_EDITION && self.supports_compression_format(CompressionFormat::Lz4Block) {
+            CompressionFormat::Lz4Block
+        } else {
+            cf
+        };
+
+        if cf == CompressionFormat::None || !game_info.compression_formats_supported().contains(&cf) || !self.supports_compression_format(cf) {
             self.compress = false;
             self.settings_mut().set_setting_string(SETTING_KEY_CF, CompressionFormat::None.to_string().as_str());
             CompressionFormat::None
@@ -1093,7 +1131,18 @@ impl Pack {
 
     /// This function returns if the Pack is compressible or not.
     pub fn is_compressible(&self) -> bool {
-        matches!(self.header.pfh_version, PFHVersion::PFH6 | PFHVersion::PFH5)
+        matches!(self.header.pfh_version, PFHVersion::PFH6 | PFHVersion::PFH5 | PFHVersion::PFH3)
+    }
+
+    /// This function returns if the Pack can be compressed with the provided compression format, based on its PFH version.
+    ///
+    /// PFH3 Packs only support [`CompressionFormat::Lz4Block`], while PFH5 and newer Packs support all the other formats.
+    pub fn supports_compression_format(&self, cf: CompressionFormat) -> bool {
+        match self.header.pfh_version {
+            PFHVersion::PFH6 | PFHVersion::PFH5 => cf != CompressionFormat::Lz4Block,
+            PFHVersion::PFH3 => cf == CompressionFormat::Lz4Block,
+            _ => false,
+        }
     }
 
     /// This function returns the paths (as Strings) of the files used for missing loc data generation for the loaded Pack.
@@ -1641,6 +1690,7 @@ impl Default for PackHeader {
     fn default() -> Self {
         Self {
             pfh_version: Default::default(),
+            pfh_version_flags: Default::default(),
             pfh_file_type: Default::default(),
             bitmask: Default::default(),
             internal_timestamp: Default::default(),

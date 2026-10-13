@@ -17,6 +17,7 @@
 //! # Supported Games
 //!
 //! RPFM currently supports these Total War games (newest to oldest):
+//! - Shogun 2 Complete Edition (2026)
 //! - Pharaoh Dynasties (2024)
 //! - Pharaoh (2023)
 //! - Warhammer 3 (2022)
@@ -69,6 +70,9 @@ use super::{GameInfo, InstallData, InstallType, pfh_file_type::PFHFileType, pfh_
 // These are user-facing strings used in UI elements, error messages, and logs.
 // They represent the official or commonly-used short names for each game.
 //---------------------------------------------------------------------------//
+
+/// Display name for Total War: Shogun 2 Complete Edition.
+pub const DISPLAY_NAME_SHOGUN_2_COMPLETE_EDITION: &str = "Shogun 2 Complete Edition";
 
 /// Display name for Total War: Pharaoh Dynasties.
 pub const DISPLAY_NAME_PHARAOH_DYNASTIES: &str = "Pharaoh Dynasties";
@@ -127,6 +131,9 @@ pub const DISPLAY_NAME_ARENA: &str = "Arena";
 // - "Startpos tables done": Campaign start position tables have been successfully decoded
 // - "Pending": Schema review and/or startpos decoding still needed
 //---------------------------------------------------------------------------//
+
+/// Unique key for Total War: Shogun 2 Complete Edition.
+pub const KEY_SHOGUN_2_COMPLETE_EDITION: &str = "shogun_2_complete_edition"; // Pending of schema review for incorrect AK fields. Pending decoding starpos tables.
 
 /// Unique key for Total War: Pharaoh Dynasties.
 pub const KEY_PHARAOH_DYNASTIES: &str = "pharaoh_dynasties";        // Filtered and revised incorrect AK fields. Startpos tables done.
@@ -224,6 +231,146 @@ pub struct SupportedGames {
 impl Default for SupportedGames {
     fn default() -> Self {
         let mut game_list = HashMap::new();
+
+        // Shogun 2 Complete Edition
+        game_list.insert(KEY_SHOGUN_2_COMPLETE_EDITION, GameInfo {
+            key: KEY_SHOGUN_2_COMPLETE_EDITION,
+            display_name: DISPLAY_NAME_SHOGUN_2_COMPLETE_EDITION,
+            pfh_versions: {
+                let mut data = HashMap::new();
+                data.insert(PFHFileType::Boot, PFHVersion::PFH3);
+                data.insert(PFHFileType::Release, PFHVersion::PFH3);
+                data.insert(PFHFileType::Patch, PFHVersion::PFH3);
+                data.insert(PFHFileType::Mod, PFHVersion::PFH3);
+                data.insert(PFHFileType::Movie, PFHVersion::PFH3);
+                data
+            },
+            schema_file_name: "schema_sho2_ce.ron".to_owned(),
+            dependencies_cache_file_name: "sho2ce.pak2".to_owned(),
+            raw_db_version: 1,
+            portrait_settings_version: None,
+            supports_editing: true,
+            db_tables_have_guid: true,
+            locale_file_name: Some("language.txt".to_owned()),
+            banned_packedfiles: vec![],
+            icon_small: "gs_sho2_ce.png".to_owned(),
+            icon_big: "gs_big_sho2_ce.png".to_owned(),
+            vanilla_db_table_name_logic: VanillaDBTableNameLogic::FolderName,
+            install_data: {
+                let mut data = HashMap::new();
+                data.insert(InstallType::WinSteam, InstallData {
+                    vanilla_packs: vec![],
+                    use_manifest: true,
+                    store_id: 3_846_830,
+                    store_id_ak: 202_930,
+                    executable: "shogun2_complete_edition.exe".to_owned(),
+                    data_path: "data".to_owned(),
+                    language_path: "data".to_owned(),
+                    local_mods_path: "data".to_owned(),
+                    downloaded_mods_path: "".to_owned(),
+                    config_folder: Some("Shogun2CompleteEdition".to_owned())
+                });
+
+                data
+            },
+            tool_vars: HashMap::new(),
+            lua_autogen_folder: None,
+            ak_lost_fields: vec![
+                "_kv_experience_bonuses/description".to_owned(),
+                "_kv_fatigue/description".to_owned(),
+                "_kv_key_buildings/description".to_owned(),
+                "_kv_morale/description".to_owned(),
+                "_kv_naval_morale/description".to_owned(),
+                "_kv_rules/description".to_owned(),
+                "_kv_special_ability_effects/description".to_owned(),
+                "agents/animation_set".to_owned(),
+                "agents/associated_unit".to_owned(),
+                "agents/in_encyclopedia".to_owned(),
+
+                // Possible loc incorrectly marked.
+                "ancillaries/effect_text".to_owned(),
+
+                "ancillary_info/author".to_owned(),
+                "ancillary_info/comment".to_owned(),
+                "ancillary_info/historical_example".to_owned(),
+
+                "avatar_dojos/codependency_key".to_owned(),
+                "avatar_gempei_dojos/codependency_key".to_owned(),
+                "avatar_ranks/avatar_naval_unit_cost".to_owned(),
+                "avatar_unit_group_ids/description".to_owned(),
+                "avatar_units/anti_spam_cost_increase".to_owned(),
+                "avatar_units/anti_spam_limit".to_owned(),
+                "battle_script_strings/game_area".to_owned(),
+                "battlefield_building_transformations/description".to_owned(),
+
+                // Special case. These exist, but due to the game having fragments of this table
+                // with old version that don't have these columns, they get reported as missing.
+                "battlefield_buildings/fortwall_penetration_chance".to_owned(),
+                "battlefield_buildings/radar_icon".to_owned(),
+                "battlefield_buildings/spawned_unit".to_owned(),
+                "battlefield_buildings/visible_in_public_ted".to_owned(),
+
+                "battles/objectives_team_1".to_owned(),
+                "battles/objectives_team_2".to_owned(),
+                "building_levels/building_category".to_owned(),
+                "campaign_ai_managers/description".to_owned(),
+                "campaign_ai_personalities/description".to_owned(),
+                "campaign_map_playable_areas/mapname".to_owned(),
+                "campaign_map_playable_areas/maxx".to_owned(),
+                "campaign_map_playable_areas/maxy".to_owned(),
+                "campaign_map_playable_areas/minx".to_owned(),
+                "campaign_map_playable_areas/miny".to_owned(),
+                "campaign_map_towns_and_ports/region".to_owned(),
+                "campaign_variables/description".to_owned(),
+                "campaigns/data_directory".to_owned(),
+                "character_trait_levels/effect_text".to_owned(),
+                "character_traits/author".to_owned(),
+                "character_traits/comment".to_owned(),
+                "event_log_descriptions/notes".to_owned(),
+                "experience_triggers/condition".to_owned(),
+                "experience_triggers/event".to_owned(),
+
+                // Possible loc, doesn't exist in the ak.
+                "incident_heading_texts/localised_heading_text".to_owned(),
+
+                "mount_variants/key".to_owned(),
+                "multiplayer_mininum_length_funds/description".to_owned(),
+                "projectiles/bounce_angle".to_owned(),
+                "projectiles/preflight_rules".to_owned(),
+                "projectiles_explosions/non_lethal_detonation".to_owned(),
+                "regions/in_encyclopedia".to_owned(),
+                "regions/palette_entry".to_owned(),
+                "slots_art/underlay_rotation".to_owned(),
+                "slots_art/underlay_scale".to_owned(),
+                "start_pos_diplomacy/relations_modifier".to_owned(),
+                "start_pos_forts/fort_name".to_owned(),
+                "start_pos_regions/encyclopedia_order".to_owned(),
+                "technologies/in_encyclopedia".to_owned(),
+                "trigger_events/from_ui".to_owned(),
+                "uniforms/IconScreenshotCameraPreset".to_owned(),
+                "uniforms/InfoScreenshotCameraPreset".to_owned(),
+                "uniforms/ManAnimation".to_owned(),
+                "uniforms/MountAnimation".to_owned(),
+                "unit_stats_land/desert_effect".to_owned(),
+                "unit_stats_land/snow_effect".to_owned(),
+                "unit_stats_land/tropics_effect".to_owned(),
+                "unit_stats_land/unit_class".to_owned(),
+                "unit_stats_naval/repair_cost_port".to_owned(),
+                "unit_stats_naval/repair_cost_sea".to_owned(),
+                "unit_stats_naval/ship_rating_icon".to_owned(),
+                "units/era".to_owned(),
+                "units/fitness".to_owned(),
+                "units/pdlc".to_owned(),
+                "warscape_underlay_textures/height".to_owned(),
+                "warscape_underlay_textures/orientation-angle".to_owned(),
+                "warscape_underlay_textures/width".to_owned(),
+            ],
+            install_type_cache: Arc::new(RwLock::new(HashMap::new())),
+            compression_formats_supported: vec![
+                CompressionFormat::Lz4Block
+            ],
+            max_cs2_parsed_version: 0
+        });
 
         // Pharaoh/Dynasties. This is really the same as pharaoh, but CA re-released as a separate game, so we treat it as a separate game too.
         game_list.insert(KEY_PHARAOH_DYNASTIES, GameInfo {
@@ -2715,7 +2862,6 @@ impl Default for SupportedGames {
         });
 
         // Shogun 2
-        // TODO: Ensure the PFHVersions of this one are correct.
         game_list.insert(KEY_SHOGUN_2, GameInfo {
             key: KEY_SHOGUN_2,
             display_name: DISPLAY_NAME_SHOGUN_2,
@@ -3733,6 +3879,7 @@ impl Default for SupportedGames {
         });
 
         let order_list = vec![
+            KEY_SHOGUN_2_COMPLETE_EDITION,
             KEY_PHARAOH_DYNASTIES,
             KEY_PHARAOH,
             KEY_WARHAMMER_3,

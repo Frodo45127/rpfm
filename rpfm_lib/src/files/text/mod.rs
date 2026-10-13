@@ -407,6 +407,13 @@ impl Text {
             }
 
             data.rewind()?;
+            let utf16_string = data.read_string_u16(len as usize);
+            if utf16_string.is_ok() {
+                data.rewind()?;
+                return Ok(Encoding::Utf16Le)
+            }
+
+            data.rewind()?;
             let iso_8859_1_string = data.read_string_u8_iso_8859_15(len as usize);
             if iso_8859_1_string.is_ok() {
                 data.rewind()?;

@@ -103,6 +103,7 @@ pub unsafe fn set_connections(ui: &PackFileContentsUI, slots: &PackFileContentsS
     ui.context_menu_compression_lzma1.triggered().connect(&slots.context_menu_change_compression_format);
     ui.context_menu_compression_lz4.triggered().connect(&slots.context_menu_change_compression_format);
     ui.context_menu_compression_zstd.triggered().connect(&slots.context_menu_change_compression_format);
+    ui.context_menu_compression_lz4block.triggered().connect(&slots.context_menu_change_compression_format);
     ui.context_menu_optimize_packfile.triggered().connect(&slots.context_menu_optimize_packfile);
     ui.context_menu_patch_siege_ai.triggered().connect(&slots.context_menu_patch_siege_ai);
     ui.context_menu_live_export.triggered().connect(&slots.context_menu_live_export);

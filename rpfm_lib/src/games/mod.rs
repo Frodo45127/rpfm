@@ -700,11 +700,18 @@ impl GameInfo {
     ///
     /// # Errors
     ///
-    /// Returns an error if the installation type cannot be detected or is not supported.
+    /// Returns an error if the installation type cannot be detected or is not supported, or if the game doesn't support downloaded mods.
     pub fn content_path(&self, game_path: &Path) -> Result<PathBuf> {
         let install_type = self.install_type(game_path)?;
         let install_data = self.install_data.get(&install_type).ok_or_else(|| RLibError::GameInstallTypeNotSupported(self.display_name.to_string(), install_type.to_string()))?;
-        Ok(game_path.join(install_data.downloaded_mods_path()))
+        let downloaded_mods_path = install_data.downloaded_mods_path();
+
+        // If the path is empty, it means this game does not support downloaded mods.
+        if downloaded_mods_path.is_empty() {
+            return Err(RLibError::GameDoesntSupportWorkshop(self.key().to_owned()));
+        }
+
+        Ok(game_path.join(downloaded_mods_path))
     }
 
     /// Returns the directory containing the game's language configuration file.

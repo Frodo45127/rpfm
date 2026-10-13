@@ -4,6 +4,7 @@ RPFM supports every Total War since *Empire*, with depth that varies depending o
 
 | Game                                | Game key             | Editing | Notes |
 |-------------------------------------|----------------------|---------|-------|
+| Total War: Shogun 2 Complete Edition| `shogun_2_complete_edition` | Full    | |
 | Total War: Pharaoh – Dynasties      | `pharaoh_dynasties`  | Full    | |
 | Total War: Pharaoh                  | `pharaoh`            | Full    | |
 | Total War: Warhammer 3              | `warhammer_3`        | Full    | First game with `twad_key_deletes` (patch 6.3+). |
@@ -23,7 +24,7 @@ RPFM supports every Total War since *Empire*, with depth that varies depending o
 
 A few rough edges worth knowing about:
 
-- **Compression of DB tables** is only safe on Warhammer 3 and newer; older games crash on compressed table data, so the compression code skips DB tables for them. Pharaoh / Pharaoh Dynasties / Three Kingdoms / Troy / Warhammer 2 still support `Lzma1` for non-table files. Warhammer 3 adds `Lz4` and `Zstd` on top of `Lzma1`. Anything older than Warhammer 1 supports no compression at all.
+- **Compression of DB tables** is only safe on Warhammer 3 and newer; older games crash on compressed table data, so the compression code skips DB tables for them. Pharaoh / Pharaoh Dynasties / Three Kingdoms / Troy / Warhammer 2 still support `Lzma1` for non-table files. Warhammer 3 adds `Lz4` and `Zstd` on top of `Lzma1`. Shogun 2 Complete Edition supports only `Lz4Block`, its own raw LZ4 variant for PFH3 Packs. Anything else older than Warhammer 1 supports no compression at all.
 - **`twad_key_deletes`** is Warhammer 3 (6.3+) only. See [Datacores](../tutorials/datacores.md).
 - **Animation ID lookups** for Three Kingdoms, Troy, Warhammer 2 and Warhammer 3 use the per-game `anim_ids_*.csv` shipped with the [schemas repo](./schemas.md).
 - **Group formations** were rebuilt for Warhammer 3 and adopt different on-disk formats per game; RPFM keeps each variant straight.

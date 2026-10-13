@@ -15,14 +15,15 @@
 //!
 //! # Supported Formats
 //!
-//! See [`CompressionFormat`] for details on the supported compression formats (LZMA1, Lz4, Zstd) and their file structure.
+//! See [`CompressionFormat`] for details on the supported compression formats (LZMA1, Lz4, Zstd, Lz4Block) and their file structure.
 //!
 //! # Important Notes
 //!
 //! * Due to an game bug, compressing tables tends to cause crashes when starting for some people. This bug seems to have been fixed in WH3, but all other games before WH3
 //!   may still suffer from it, so unless manually forced to, this lib will not compress tables in those games. Tables will only be compressed in WH3 and newer games.
 //!
-//! * Compressed files are **only supported on PFH5 Packs** (Since Total War: Warhammer 2).
+//! * Compressed files are **only supported on PFH5 and newer Packs** (Since Total War: Warhammer 2), and on **PFH3 Packs from Shogun 2 Complete Edition**
+//!   (only with [`CompressionFormat::Lz4Block`]).
 
 use lz4_flex::frame::{FrameDecoder, FrameEncoder};
 use lzma_rs::{lzma_compress, lzma_decompress};
@@ -87,6 +88,19 @@ pub trait Decompressible {
     ///
     /// A [`Vec<u8>`] containing the decompressed data, or an error if decompression failed.
     fn decompress(&self) -> Result<Vec<u8>>;
+
+    /// This function decompress the provided [`CompressionFormat::Lz4Block`] data, returning the decompressed data, or an error if the decompression failed.
+    ///
+    /// This format cannot be auto-detected, as it has neither magic number nor size header, so it needs its own function.
+    ///
+    /// # Arguments
+    ///
+    /// * `uncompressed_size` - The size of the data once decompressed. Decompression fails if the result doesn't match it.
+    ///
+    /// # Returns
+    ///
+    /// A [`Vec<u8>`] containing the decompressed data, or an error if decompression failed.
+    fn decompress_lz4_block(&self, uncompressed_size: usize) -> Result<Vec<u8>>;
 }
 
 /// Compression formats supported by TW Games.
@@ -141,6 +155,12 @@ pub enum CompressionFormat {
     ///
     /// By default the Zstd compression is done with the checksum and content size flags enabled.
     Zstd,
+
+    /// Format used by Shogun 2 Complete Edition PFH3 Packs.
+    ///
+    /// This is a raw Lz4 block, without frame, magic number nor size header. The uncompressed size is stored in the Pack's index instead,
+    /// which means this format cannot be auto-detected. Use [`Decompressible::decompress_lz4_block`] to decompress it.
+    Lz4Block,
 }
 
 //---------------------------------------------------------------------------//
@@ -192,6 +212,7 @@ impl Compressible for [u8] {
                 encoder.finish()?;
                 Ok(dst)
             },
+            CompressionFormat::Lz4Block => Ok(lz4_flex::block::compress(self)),
         }
     }
 }
@@ -274,7 +295,23 @@ impl Decompressible for &[u8] {
                 zstd::stream::copy_decode(src, &mut dst)?;
                 Ok(dst)
             },
+
+            // Not detectable by magic number, so this is never reached.
+            CompressionFormat::Lz4Block => Ok(self.to_vec()),
         }
+    }
+
+    fn decompress_lz4_block(&self, uncompressed_size: usize) -> Result<Vec<u8>> {
+        if uncompressed_size == 0 {
+            return Ok(vec![]);
+        }
+
+        let dst = lz4_flex::block::decompress(self, uncompressed_size)?;
+        if dst.len() != uncompressed_size {
+            return Err(RLibError::DataCannotBeDecompressed);
+        }
+
+        Ok(dst)
     }
 }
 
@@ -284,6 +321,7 @@ impl From<&str> for CompressionFormat {
             "Lzma1" => Self::Lzma1,
             "Lz4" => Self::Lz4,
             "Zstd" => Self::Zstd,
+            "Lz4Block" => Self::Lz4Block,
             _ => Self::None,
         }
     }
@@ -295,6 +333,7 @@ impl Display for CompressionFormat {
             Self::Lzma1 => write!(f, "Lzma1"),
             Self::Lz4 => write!(f, "Lz4"),
             Self::Zstd => write!(f, "Zstd"),
+            Self::Lz4Block => write!(f, "Lz4Block"),
             Self::None => write!(f, "None"),
         }
     }

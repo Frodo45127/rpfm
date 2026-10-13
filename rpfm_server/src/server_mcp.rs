@@ -869,7 +869,7 @@ format used by all modern Total War titles.
 
 ## Supported Games
 
-Valid game keys: `pharaoh_dynasties`, `pharaoh`, `warhammer_3`, `troy`, `three_kingdoms`, \
+Valid game keys: `shogun_2_complete_edition`, `pharaoh_dynasties`, `pharaoh`, `warhammer_3`, `troy`, `three_kingdoms`, \
 `warhammer_2`, `warhammer`, `thrones_of_britannia`, `attila`, `rome_2`, `shogun_2`, `napoleon`, \
 `empire`, `arena`.
 
@@ -886,7 +886,7 @@ Valid game keys: `pharaoh_dynasties`, `pharaoh`, `warhammer_3`, `troy`, `three_k
 
 ## Compression Formats
 
-`\"None\"` (default), `\"Lzma1\"` (legacy), `\"Lz4\"` (WH3 6.2+), `\"Zstd\"` (WH3 6.2+).
+`\"None\"` (default), `\"Lzma1\"` (legacy), `\"Lz4\"` (WH3 6.2+), `\"Zstd\"` (WH3 6.2+), `\"Lz4Block\"` (Shogun 2 Complete Edition PFH3 packs only).
 
 ## Creating New Files (NewFile)
 
@@ -921,7 +921,7 @@ All tool responses are JSON-serialized. On failure, an error message is returned
         let resources = vec![
             resource("rpfm://games", "games", "List of all supported Total War game keys.", "application/json"),
             resource("rpfm://enums/PFHFileType", "PFHFileType", "Valid PackFile type values (Boot, Release, Patch, Mod, Movie).", "application/json"),
-            resource("rpfm://enums/CompressionFormat", "CompressionFormat", "Valid compression format values (None, Lzma1, Lz4, Zstd).", "application/json"),
+            resource("rpfm://enums/CompressionFormat", "CompressionFormat", "Valid compression format values (None, Lzma1, Lz4, Zstd, Lz4Block).", "application/json"),
             resource("rpfm://enums/DataSource", "DataSource", "Valid data source values indicating where data comes from.", "application/json"),
             resource("rpfm://enums/ContainerPath", "ContainerPath", "ContainerPath enum variants with JSON examples.", "application/json"),
             resource("rpfm://enums/NewFile", "NewFile", "NewFile enum variants for creating files inside packs, with JSON examples.", "application/json"),
@@ -957,6 +957,7 @@ All tool responses are JSON-serialized. On failure, an error message is returned
         let content = match uri.as_str() {
             "rpfm://games" => serde_json::json!({
                 "supported_games": [
+                    {"key": "shogun_2_complete_edition", "display_name": "Total War: Shogun 2 Complete Edition"},
                     {"key": "pharaoh_dynasties", "display_name": "Total War: Pharaoh Dynasties"},
                     {"key": "pharaoh", "display_name": "Total War: Pharaoh"},
                     {"key": "warhammer_3", "display_name": "Total War: Warhammer III"},
@@ -994,7 +995,8 @@ All tool responses are JSON-serialized. On failure, an error message is returned
                     {"name": "None", "description": "No compression (default)."},
                     {"name": "Lzma1", "description": "Legacy LZMA compression (all PFH5 games)."},
                     {"name": "Lz4", "description": "LZ4 compression (Warhammer 3 v6.2+)."},
-                    {"name": "Zstd", "description": "Zstandard compression (Warhammer 3 v6.2+)."}
+                    {"name": "Zstd", "description": "Zstandard compression (Warhammer 3 v6.2+)."},
+                    {"name": "Lz4Block", "description": "Raw LZ4 block compression (Shogun 2 Complete Edition PFH3 packs only)."}
                 ],
                 "json_example": "\"None\""
             }).to_string(),
@@ -1166,7 +1168,7 @@ Before you can work with PackFiles, you must initialize the server session:
 Step 1: Set the game
     Call: set_game_selected(game_name: \"warhammer_3\", rebuild_dependencies: true)
     This loads the correct schemas and vanilla game data for the selected title.
-    Valid game keys: pharaoh_dynasties, pharaoh, warhammer_3, troy, three_kingdoms,
+    Valid game keys: shogun_2_complete_edition, pharaoh_dynasties, pharaoh, warhammer_3, troy, three_kingdoms,
     warhammer_2, warhammer, thrones_of_britannia, attila, rome_2, shogun_2,
     napoleon, empire, arena.
 
@@ -1253,7 +1255,7 @@ Maps:
         let candidates: Vec<String> = match argument_name.as_str() {
             "game_name" | "game_key" | "game" => {
                 let games = vec![
-                    "pharaoh_dynasties", "pharaoh", "warhammer_3", "troy",
+                    "shogun_2_complete_edition", "pharaoh_dynasties", "pharaoh", "warhammer_3", "troy",
                     "three_kingdoms", "warhammer_2", "warhammer",
                     "thrones_of_britannia", "attila", "rome_2", "shogun_2",
                     "napoleon", "empire", "arena",
@@ -1593,7 +1595,7 @@ impl McpServer {
         send_and_respond!(self, "get_game_selected", Command::GetGameSelected)
     }
 
-    #[tool(description = "Set the current game. Valid game keys: pharaoh_dynasties, pharaoh, warhammer_3, troy, three_kingdoms, warhammer_2, warhammer, thrones_of_britannia, attila, rome_2, shogun_2, napoleon, empire, arena. Set rebuild_dependencies to true on first call to load schemas and vanilla data.")]
+    #[tool(description = "Set the current game. Valid game keys: shogun_2_complete_edition, pharaoh_dynasties, pharaoh, warhammer_3, troy, three_kingdoms, warhammer_2, warhammer, thrones_of_britannia, attila, rome_2, shogun_2, napoleon, empire, arena. Set rebuild_dependencies to true on first call to load schemas and vanilla data.")]
     pub async fn set_game_selected(&self, params: Parameters<SetGameSelectedArgs>) -> Result<CallToolResult, McpError> {
         send_and_respond!(self, "set_game_selected", Command::SetGameSelected(params.0.game_name, params.0.rebuild_dependencies))
     }

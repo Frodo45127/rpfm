@@ -367,6 +367,12 @@ struct OnDisk {
     /// Is the data compressed?.
     is_compressed: bool,
 
+    /// If the data is compressed with [`CompressionFormat::Lz4Block`], its uncompressed size.
+    ///
+    /// That format cannot be auto-detected, so this is how we know the data uses it.
+    #[serde(default)]
+    lz4_block_uncompressed_size: Option<u64>,
+
     /// Is the data encrypted? And if so, with which format?.
     is_encrypted: Option<PFHVersion>,
 }
@@ -703,6 +709,7 @@ pub struct EncodeableExtraData<'a> {
     /// - [`CompressionFormat::Lz4`]: Fast compression
     /// - [`CompressionFormat::Zstd`]: Modern compression (best ratio)
     /// - [`CompressionFormat::Lzma1`]: Legacy compression (older games)
+    /// - [`CompressionFormat::Lz4Block`]: Raw Lz4 blocks (Shogun 2 Complete Edition PFH3 Packs only)
     ///
     /// The game info may override this based on what the target game supports.
     compression_format: CompressionFormat,
@@ -1985,6 +1992,7 @@ impl RFile {
             start: container.disk_file_offset() + data_pos,
             size,
             is_compressed,
+            lz4_block_uncompressed_size: None,
             is_encrypted,
         };
 
@@ -2017,6 +2025,7 @@ impl RFile {
             start: 0,
             size: file.len()?,
             is_compressed: false,
+            lz4_block_uncompressed_size: None,
             is_encrypted: None,
         };
 
@@ -2030,6 +2039,15 @@ impl RFile {
         };
 
         Ok(rfile)
+    }
+
+    /// This function sets the uncompressed size of a lazy-loaded RFile compressed with [`CompressionFormat::Lz4Block`].
+    ///
+    /// That format cannot be auto-detected, so this is required to decompress it. Does nothing if the RFile is not lazy-loaded.
+    pub(crate) fn set_lz4_block_uncompressed_size(&mut self, uncompressed_size: u64) {
+        if let RFileInnerData::OnDisk(ref mut on_disk) = self.data {
+            on_disk.lz4_block_uncompressed_size = Some(uncompressed_size);
+        }
     }
 
     /// This function creates a RFile from a path on disk.
@@ -2910,7 +2928,10 @@ impl OnDisk {
 
         // If the data is compressed. decompress it.
         if self.is_compressed {
-            data = data.as_slice().decompress()?;
+            data = match self.lz4_block_uncompressed_size {
+                Some(uncompressed_size) => data.as_slice().decompress_lz4_block(uncompressed_size as usize)?,
+                None => data.as_slice().decompress()?,
+            };
         }
 
         Ok(data)

@@ -267,6 +267,7 @@ impl WelcomePageUI {
             KEY_THRONES_OF_BRITANNIA => &GAME_SELECTED_ICONS.thrones_of_britannia,
             KEY_ATTILA => &GAME_SELECTED_ICONS.attila,
             KEY_ROME_2 => &GAME_SELECTED_ICONS.rome_2,
+            KEY_SHOGUN_2_COMPLETE_EDITION => &GAME_SELECTED_ICONS.shogun_2_complete_edition,
             KEY_SHOGUN_2 => &GAME_SELECTED_ICONS.shogun_2,
             KEY_NAPOLEON => &GAME_SELECTED_ICONS.napoleon,
             KEY_EMPIRE => &GAME_SELECTED_ICONS.empire,

@@ -240,6 +240,9 @@ tt_game_selected_open_game_data_folder = Tries to open the currently selected ga
 tt_game_selected_open_game_assembly_kit_folder = Tries to open the currently selected game's Assembly Kit folder (if exists) in the default file manager.
 tt_game_selected_open_config_folder = Tries to open RPFM's config folder, where the config/schemas/ctd reports are.
 
+tt_game_selected_shogun_2_complete_edition = Sets 'TW:Shogun 2 Complete Edition' as 'Game Selected'.
+tt_game_selected_pharaoh_dynasties = Sets 'TW:Pharaoh Dynasties' as 'Game Selected'.
+tt_game_selected_pharaoh = Sets 'TW:Pharaoh' as 'Game Selected'.
 tt_game_selected_warhammer_3 = Sets 'TW:Warhammer 3' as 'Game Selected'.
 tt_game_selected_troy = Sets 'TW:Troy' as 'Game Selected'.
 tt_game_selected_three_kingdoms = Sets 'TW:Three Kingdoms' as 'Game Selected'.
@@ -1995,6 +1998,7 @@ compression_format_none = None
 compression_format_lzma1 = Lzma1
 compression_format_lz4 = Lz4
 compression_format_zstd = Zstd
+compression_format_lz4block = Lz4Block
 
 behavior_title = Auto-translation behavior
 behavior_info = Behavior when you select a new line:

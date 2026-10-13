@@ -80,6 +80,7 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.game_selected_open_game_assembly_kit_folder.triggered().connect(&slots.game_selected_open_game_assembly_kit_folder);
     app_ui.game_selected_open_config_folder.triggered().connect(&slots.game_selected_open_config_folder);
 
+    app_ui.game_selected_shogun_2_complete_edition.triggered().connect(&slots.change_game_selected);
     app_ui.game_selected_pharaoh_dynasties.triggered().connect(&slots.change_game_selected);
     app_ui.game_selected_pharaoh.triggered().connect(&slots.change_game_selected);
     app_ui.game_selected_warhammer_3.triggered().connect(&slots.change_game_selected);

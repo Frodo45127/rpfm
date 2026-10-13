@@ -3171,6 +3171,7 @@ impl Dependencies {
         if game.key() != KEY_THRONES_OF_BRITANNIA &&
             game.key() != KEY_ATTILA &&
             game.key() != KEY_ROME_2 &&
+            game.key() != KEY_SHOGUN_2_COMPLETE_EDITION &&
             game.key() != KEY_SHOGUN_2 {
 
             let sub_start_pos_suffix = if sub_start_pos.is_empty() {
@@ -3279,6 +3280,7 @@ impl Dependencies {
                         }
 
                     }
+                    KEY_SHOGUN_2_COMPLETE_EDITION => return Err(RLibError::BuildStartposError("Unsupported... yet. If you want to test support for this game, let me know.".to_owned())),
                     KEY_SHOGUN_2 => return Err(RLibError::BuildStartposError("Unsupported... yet. If you want to test support for this game, let me know.".to_owned())),
                     KEY_NAPOLEON => return Err(RLibError::BuildStartposError("Unsupported... yet. If you want to test support for this game, let me know.".to_owned())),
                     KEY_EMPIRE => return Err(RLibError::BuildStartposError("Unsupported... yet. If you want to test support for this game, let me know.".to_owned())),
@@ -3289,6 +3291,7 @@ impl Dependencies {
                 if game.key() != KEY_THRONES_OF_BRITANNIA &&
                     game.key() != KEY_ATTILA &&
                     game.key() != KEY_ROME_2 &&
+                    game.key() != KEY_SHOGUN_2_COMPLETE_EDITION &&
                     game.key() != KEY_SHOGUN_2 &&
                     game.key() != KEY_NAPOLEON &&
                     game.key() != KEY_EMPIRE {
@@ -3478,6 +3481,7 @@ impl Dependencies {
 
             // Shogun 2 outputs to data, but unlike modern names, vanilla startpos are packed, so there's no rist of overwrite.
             // We still need to clean it up later though. Napoleon and Empire override vanilla files, so those are backed.
+            KEY_SHOGUN_2_COMPLETE_EDITION |
             KEY_SHOGUN_2 |
             KEY_NAPOLEON |
             KEY_EMPIRE => vec![game_data_path.join(format!("campaigns/{campaign_id}/startpos.esf"))],
@@ -3522,6 +3526,7 @@ impl Dependencies {
         if game.key() != KEY_THRONES_OF_BRITANNIA &&
             game.key() != KEY_ATTILA &&
             game.key() != KEY_ROME_2 &&
+            game.key() != KEY_SHOGUN_2_COMPLETE_EDITION &&
             game.key() != KEY_SHOGUN_2 {
 
             for starpos_path in &starpos_paths {
@@ -3539,7 +3544,7 @@ impl Dependencies {
         }
 
         // In Shogun 2, we need to cleanup the generated file as to not interfere with the packed one.
-        if game.key() == KEY_SHOGUN_2 {
+        if game.key() == KEY_SHOGUN_2 || game.key() == KEY_SHOGUN_2_COMPLETE_EDITION {
             for starpos_path in &starpos_paths {
                 if starpos_path.is_file() {
                     std::fs::remove_file(starpos_path)?;

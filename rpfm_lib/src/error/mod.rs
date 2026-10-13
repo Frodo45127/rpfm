@@ -811,6 +811,10 @@ pub enum RLibError {
     #[error(transparent)]
     Lz4Error(#[from] lz4_flex::frame::Error),
 
+    /// Wrapper for [`lz4_flex::block::DecompressError`] errors.
+    #[error(transparent)]
+    Lz4BlockError(#[from] lz4_flex::block::DecompressError),
+
     /// Wrapper for [`lzma_rs::error::Error`] errors.
     #[error(transparent)]
     LzmaError(#[from] lzma_rs::error::Error),
