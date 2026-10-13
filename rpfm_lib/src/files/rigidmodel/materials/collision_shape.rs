@@ -16,8 +16,8 @@ use super::*;
 
 /// Collision shape materials: the default material, followed by the sphere around the shape.
 impl Material {
-    pub fn read_collision_shape<R: ReadBytes>(data: &mut R) -> Result<Self> {
-        let mut material = Self::read_default(data)?;
+    pub fn read_collision_shape<R: ReadBytes>(data: &mut R, version: u32) -> Result<Self> {
+        let mut material = Self::read_default(data, version)?;
         material.uk_1 = data.read_u32()?;
         material.sphere_center = Vector3::new(data.read_f32()?, data.read_f32()?, data.read_f32()?);
         material.sphere_radius = data.read_f32()?;
@@ -25,8 +25,8 @@ impl Material {
         Ok(material)
     }
 
-    pub fn write_collision_shape<W: WriteBytes>(&self, data: &mut W) -> Result<()> {
-        self.write_default(data)?;
+    pub fn write_collision_shape<W: WriteBytes>(&self, data: &mut W, version: u32) -> Result<()> {
+        self.write_default(data, version)?;
         data.write_u32(self.uk_1)?;
         data.write_f32(self.sphere_center.x)?;
         data.write_f32(self.sphere_center.y)?;

@@ -15,15 +15,15 @@ use super::*;
 //---------------------------------------------------------------------------//
 
 impl Material {
-    pub fn read_alpha_blend<R: ReadBytes>(data: &mut R) -> Result<Self> {
+    pub fn read_alpha_blend<R: ReadBytes>(data: &mut R, version: u32) -> Result<Self> {
         Ok(Self {
-            name: data.read_string_u8_0padded(PADDED_SIZE_256)?,
+            name: read_padded_string(data, version, PADDED_SIZE_256)?,
             ..Default::default()
         })
     }
 
-    pub fn write_alpha_blend<W: WriteBytes>(&self, data: &mut W) -> Result<()> {
-        data.write_string_u8_0padded(self.name(), PADDED_SIZE_256, true)?;
+    pub fn write_alpha_blend<W: WriteBytes>(&self, data: &mut W, version: u32) -> Result<()> {
+        write_padded_string(data, version, self.name(), PADDED_SIZE_256)?;
 
         Ok(())
     }

@@ -15,14 +15,14 @@ use super::*;
 //---------------------------------------------------------------------------//
 
 impl Material {
-    pub fn read_default<R: ReadBytes>(data: &mut R) -> Result<Self> {
+    pub fn read_default<R: ReadBytes>(data: &mut R, version: u32) -> Result<Self> {
         let mut mat = Self::default();
 
         mat.vertex_format = VertexFormat::try_from(data.read_u16()?)?;
-        mat.name = data.read_string_u8_0padded(PADDED_SIZE_32)?;
+        mat.name = read_padded_string(data, version, PADDED_SIZE_32)?;
 
-        mat.texture_directory = data.read_string_u8_0padded(PADDED_SIZE_256)?;
-        mat.filters = data.read_string_u8_0padded(PADDED_SIZE_256)?;
+        mat.texture_directory = read_padded_string(data, version, PADDED_SIZE_256)?;
+        mat.filters = read_padded_string(data, version, PADDED_SIZE_256)?;
 
         mat.padding_byte0 = data.read_u8()?;
         mat.padding_byte1 = data.read_u8()?;
@@ -72,7 +72,7 @@ impl Material {
         for _ in 0..mat.attachment_points.capacity() {
             let mut entry = AttachmentPointEntry::default();
 
-            entry.name = data.read_string_u8_0padded(PADDED_SIZE_32)?;
+            entry.name = read_padded_string(data, version, PADDED_SIZE_32)?;
             entry.matrix = Matrix3x4::new(
                 data.read_f32()?, data.read_f32()?, data.read_f32()?, data.read_f32()?,
                 data.read_f32()?, data.read_f32()?, data.read_f32()?, data.read_f32()?,
@@ -89,7 +89,7 @@ impl Material {
             let mut entry = Texture::default();
 
             entry.tex_type = TextureType::try_from(data.read_i32()?)?;
-            entry.path = data.read_string_u8_0padded(PADDED_SIZE_256)?;
+            entry.path = read_padded_string(data, version, PADDED_SIZE_256)?;
 
             mat.textures.push(entry)
         }
@@ -113,12 +113,12 @@ impl Material {
 
         Ok(mat)
     }
-    pub fn write_default<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
+    pub fn write_default<W: WriteBytes>(&self, buffer: &mut W, version: u32) -> Result<()> {
         buffer.write_u16(u16::from(self.vertex_format))?;
-        buffer.write_string_u8_0padded(self.name(), PADDED_SIZE_32, true)?;
+        write_padded_string(buffer, version, self.name(), PADDED_SIZE_32)?;
 
-        buffer.write_string_u8_0padded(self.texture_directory(), PADDED_SIZE_256, true)?;
-        buffer.write_string_u8_0padded(self.filters(), PADDED_SIZE_256, true)?;
+        write_padded_string(buffer, version, self.texture_directory(), PADDED_SIZE_256)?;
+        write_padded_string(buffer, version, self.filters(), PADDED_SIZE_256)?;
 
         buffer.write_u8(self.padding_byte0)?;
         buffer.write_u8(self.padding_byte1)?;
@@ -179,7 +179,7 @@ impl Material {
         buffer.write_all(self.sz_padding())?;
 
         for att_point in self.attachment_points() {
-            buffer.write_string_u8_0padded(att_point.name(), PADDED_SIZE_32, true)?;
+            write_padded_string(buffer, version, att_point.name(), PADDED_SIZE_32)?;
 
             buffer.write_f32(att_point.matrix().m11)?;
             buffer.write_f32(att_point.matrix().m12)?;
@@ -199,7 +199,7 @@ impl Material {
 
         for texture in self.textures() {
             buffer.write_i32(i32::try_from(texture.tex_type)?)?;
-            buffer.write_string_u8_0padded(texture.path(), PADDED_SIZE_256, true)?;
+            write_padded_string(buffer, version, texture.path(), PADDED_SIZE_256)?;
         }
 
         for (key, param) in self.params_string() {

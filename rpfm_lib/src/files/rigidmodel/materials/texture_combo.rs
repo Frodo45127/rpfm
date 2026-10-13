@@ -16,16 +16,16 @@ use super::*;
 
 /// Texture combo materials: a name and a texture directory.
 impl Material {
-    pub fn read_texture_combo<R: ReadBytes>(data: &mut R) -> Result<Self> {
+    pub fn read_texture_combo<R: ReadBytes>(data: &mut R, version: u32) -> Result<Self> {
         Ok(Self {
-            name: data.read_string_u8_0padded(PADDED_SIZE_32)?,
-            texture_directory: data.read_string_u8_0padded(PADDED_SIZE_256)?,
+            name: read_padded_string(data, version, PADDED_SIZE_32)?,
+            texture_directory: read_padded_string(data, version, PADDED_SIZE_256)?,
             ..Default::default()
         })
     }
 
-    pub fn write_texture_combo<W: WriteBytes>(&self, data: &mut W) -> Result<()> {
-        data.write_string_u8_0padded(&self.name, PADDED_SIZE_32, true)?;
-        data.write_string_u8_0padded(&self.texture_directory, PADDED_SIZE_256, true)
+    pub fn write_texture_combo<W: WriteBytes>(&self, data: &mut W, version: u32) -> Result<()> {
+        write_padded_string(data, version, &self.name, PADDED_SIZE_32)?;
+        write_padded_string(data, version, &self.texture_directory, PADDED_SIZE_256)
     }
 }

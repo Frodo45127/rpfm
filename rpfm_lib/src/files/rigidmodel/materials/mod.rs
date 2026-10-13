@@ -477,6 +477,8 @@ pub enum TextureType {
     Normal = 1,
     /// Alpha/transparency mask.
     Mask = 3,
+    /// Material map of older games, like Rome II and Attila.
+    LegacyMaterialMap = 4,
     /// Baked ambient occlusion.
     AmbientOcclusion = 5,
     /// Tiling dirt texture (UV set 2).
@@ -562,24 +564,24 @@ impl Material {
     /// material type is not supported.
     pub fn read<R: ReadBytes>(data: &mut R, version: u32, mtype: MaterialType) -> Result<Self> {
         Ok(match mtype {
-            MaterialType::RsTerrain => Self::read_rs_terrain(data)?,
+            MaterialType::RsTerrain => Self::read_rs_terrain(data, version)?,
             MaterialType::BowWave |
             MaterialType::RiverOutfield |
-            MaterialType::RsRiver => Self::read_rs_river(data)?,
-            MaterialType::WeightedTextureBlend => Self::read_weighted_texture_blend(data)?,
-            MaterialType::ProjectedDecalV4 if version <= 6 => Self::read_projected_decal_v4(data)?,
+            MaterialType::RsRiver => Self::read_rs_river(data, version)?,
+            MaterialType::WeightedTextureBlend => Self::read_weighted_texture_blend(data, version)?,
+            MaterialType::ProjectedDecalV4 if version <= 6 => Self::read_projected_decal_v4(data, version)?,
             MaterialType::ProjectedDecal |
             MaterialType::ProjectedDecalV2 |
-            MaterialType::ProjectedDecalV3 => Self::read_projected_decal(data, mtype)?,
-            MaterialType::CustomTerrain => Self::read_custom_terrain(data)?,
-            MaterialType::CollisionShape => Self::read_collision_shape(data)?,
-            MaterialType::WeightedCloth if version <= 6 => Self::read_weighted_cloth(data)?,
-            MaterialType::Rope if version <= 6 => Self::read_rope(data)?,
+            MaterialType::ProjectedDecalV3 => Self::read_projected_decal(data, version, mtype)?,
+            MaterialType::CustomTerrain => Self::read_custom_terrain(data, version)?,
+            MaterialType::CollisionShape => Self::read_collision_shape(data, version)?,
+            MaterialType::WeightedCloth if version <= 6 => Self::read_weighted_cloth(data, version)?,
+            MaterialType::Rope if version <= 6 => Self::read_rope(data, version)?,
             MaterialType::TextureCombo |
-            MaterialType::TextureComboVertexWind => Self::read_texture_combo(data)?,
-            MaterialType::StaticPointLight => Self::read_static_point_light(data)?,
-            MaterialType::AlphaBlend => Self::read_alpha_blend(data)?,
-            MaterialType::Cloth => Self::read_cloth(data)?,
+            MaterialType::TextureComboVertexWind => Self::read_texture_combo(data, version)?,
+            MaterialType::StaticPointLight => Self::read_static_point_light(data, version)?,
+            MaterialType::AlphaBlend => Self::read_alpha_blend(data, version)?,
+            MaterialType::Cloth => Self::read_cloth(data, version)?,
             MaterialType::ProjectedDecalV4 |
             MaterialType::Water |
             MaterialType::TiledDirtmap |
@@ -601,7 +603,7 @@ impl Material {
             MaterialType::TreeBillboardMaterial |
             MaterialType::WaterDisplaceVolume |
             MaterialType::CampaignVegetation |
-            MaterialType::DefaultMaterial => Self::read_default(data)?,
+            MaterialType::DefaultMaterial => Self::read_default(data, version)?,
             _ => return Err(RLibError::DecodingRigidModelUnsupportedMaterialType(mtype.into()))
         })
     }
@@ -617,24 +619,24 @@ impl Material {
     /// material type is not supported.
     pub fn write<W: WriteBytes>(&self, buffer: &mut W, version: u32, mtype: MaterialType) -> Result<()> {
         match mtype {
-            MaterialType::RsTerrain => self.write_rs_terrain(buffer)?,
+            MaterialType::RsTerrain => self.write_rs_terrain(buffer, version)?,
             MaterialType::BowWave |
             MaterialType::RiverOutfield |
-            MaterialType::RsRiver => self.write_rs_river(buffer)?,
-            MaterialType::WeightedTextureBlend => self.write_weighted_texture_blend(buffer)?,
-            MaterialType::ProjectedDecalV4 if version <= 6 => self.write_projected_decal_v4(buffer)?,
+            MaterialType::RsRiver => self.write_rs_river(buffer, version)?,
+            MaterialType::WeightedTextureBlend => self.write_weighted_texture_blend(buffer, version)?,
+            MaterialType::ProjectedDecalV4 if version <= 6 => self.write_projected_decal_v4(buffer, version)?,
             MaterialType::ProjectedDecal |
             MaterialType::ProjectedDecalV2 |
-            MaterialType::ProjectedDecalV3 => self.write_projected_decal(buffer, mtype)?,
-            MaterialType::CustomTerrain => self.write_custom_terrain(buffer)?,
-            MaterialType::CollisionShape => self.write_collision_shape(buffer)?,
-            MaterialType::WeightedCloth if version <= 6 => self.write_weighted_cloth(buffer)?,
-            MaterialType::Rope if version <= 6 => self.write_rope(buffer)?,
+            MaterialType::ProjectedDecalV3 => self.write_projected_decal(buffer, version, mtype)?,
+            MaterialType::CustomTerrain => self.write_custom_terrain(buffer, version)?,
+            MaterialType::CollisionShape => self.write_collision_shape(buffer, version)?,
+            MaterialType::WeightedCloth if version <= 6 => self.write_weighted_cloth(buffer, version)?,
+            MaterialType::Rope if version <= 6 => self.write_rope(buffer, version)?,
             MaterialType::TextureCombo |
-            MaterialType::TextureComboVertexWind => self.write_texture_combo(buffer)?,
-            MaterialType::StaticPointLight => self.write_static_point_light(buffer)?,
-            MaterialType::AlphaBlend => self.write_alpha_blend(buffer)?,
-            MaterialType::Cloth => self.write_cloth(buffer)?,
+            MaterialType::TextureComboVertexWind => self.write_texture_combo(buffer, version)?,
+            MaterialType::StaticPointLight => self.write_static_point_light(buffer, version)?,
+            MaterialType::AlphaBlend => self.write_alpha_blend(buffer, version)?,
+            MaterialType::Cloth => self.write_cloth(buffer, version)?,
             MaterialType::ProjectedDecalV4 |
             MaterialType::Water |
             MaterialType::TiledDirtmap |
@@ -656,7 +658,7 @@ impl Material {
             MaterialType::TreeBillboardMaterial |
             MaterialType::WaterDisplaceVolume |
             MaterialType::CampaignVegetation |
-            MaterialType::DefaultMaterial => self.write_default(buffer)?,
+            MaterialType::DefaultMaterial => self.write_default(buffer, version)?,
             _ => return Err(RLibError::DecodingRigidModelUnsupportedMaterialType(mtype.into()))
         }
 
@@ -738,6 +740,7 @@ impl TryFrom<i32> for TextureType {
             _ if value == Self::Diffuse as i32 => Ok(Self::Diffuse),
             _ if value == Self::Normal as i32 => Ok(Self::Normal),
             _ if value == Self::Mask as i32 => Ok(Self::Mask),
+            _ if value == Self::LegacyMaterialMap as i32 => Ok(Self::LegacyMaterialMap),
             _ if value == Self::AmbientOcclusion as i32 => Ok(Self::AmbientOcclusion),
             _ if value == Self::TilingDirtUV2 as i32 => Ok(Self::TilingDirtUV2),
             _ if value == Self::DirtAlphaMask as i32 => Ok(Self::DirtAlphaMask),
@@ -786,4 +789,22 @@ fn write_string_u8_0padded_with_tail<W: WriteBytes>(data: &mut W, string: &str, 
     }
 
     data.write_all(&vec![0; size - used]).map_err(From::from)
+}
+
+/// Reads a 0-padded string of `size` characters: one byte each, or two in version 5 RigidModels, which use UTF-16.
+fn read_padded_string<R: ReadBytes>(data: &mut R, version: u32, size: usize) -> Result<String> {
+    if version <= 5 {
+        data.read_string_u16_0padded(size * 2)
+    } else {
+        data.read_string_u8_0padded(size)
+    }
+}
+
+/// Writes a 0-padded string of `size` characters: one byte each, or two in version 5 RigidModels, which use UTF-16.
+fn write_padded_string<W: WriteBytes>(data: &mut W, version: u32, string: &str, size: usize) -> Result<()> {
+    if version <= 5 {
+        data.write_string_u16_0padded(string, size * 2, true)
+    } else {
+        data.write_string_u8_0padded(string, size, true)
+    }
 }

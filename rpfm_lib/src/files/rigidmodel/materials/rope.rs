@@ -18,8 +18,8 @@ use super::*;
 ///
 /// There's one link fewer than nodes, and the file doesn't store their count.
 impl Material {
-    pub fn read_rope<R: ReadBytes>(data: &mut R) -> Result<Self> {
-        let mut material = Self::read_default(data)?;
+    pub fn read_rope<R: ReadBytes>(data: &mut R, version: u32) -> Result<Self> {
+        let mut material = Self::read_default(data, version)?;
 
         let node_count = data.read_u32()?;
         let rope = &mut material.rope;
@@ -49,13 +49,13 @@ impl Material {
         Ok(material)
     }
 
-    pub fn write_rope<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
+    pub fn write_rope<W: WriteBytes>(&self, buffer: &mut W, version: u32) -> Result<()> {
         let rope = &self.rope;
         if rope.links.len() != rope.nodes.len().saturating_sub(1) {
             return Err(RLibError::EncodingRigidModelRopeLinkCountMismatch(rope.nodes.len(), rope.links.len()));
         }
 
-        self.write_default(buffer)?;
+        self.write_default(buffer, version)?;
 
         buffer.write_u32(rope.nodes.len() as u32)?;
         for attachment in rope.attachments.iter() {

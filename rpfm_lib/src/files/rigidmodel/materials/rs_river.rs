@@ -15,10 +15,10 @@ use super::*;
 //---------------------------------------------------------------------------//
 
 impl Material {
-    pub fn read_rs_river<R: ReadBytes>(_data: &mut R) -> Result<Self> {
+    pub fn read_rs_river<R: ReadBytes>(_data: &mut R, _version: u32) -> Result<Self> {
         Ok(Self::default())
     }
-    pub fn write_rs_river<W: WriteBytes>(&self, _data: &mut W) -> Result<()> {
+    pub fn write_rs_river<W: WriteBytes>(&self, _data: &mut W, _version: u32) -> Result<()> {
         Ok(())
     }
 }

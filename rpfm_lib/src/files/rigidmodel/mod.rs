@@ -119,6 +119,9 @@ const PADDED_SIZE_256: usize = 256;     // Extra-large strings
 /// Base header size in bytes (signature + version + skeleton_id + lod count fields).
 const HEADER_LENGTH: u32 = 140;
 
+/// Header length of version 5 files, which store the skeleton name as UTF-16.
+const HEADER_LENGTH_V5: u32 = 268;
+
 pub mod materials;
 mod versions;
 pub mod vertices;
@@ -257,7 +260,7 @@ impl Decodeable for RigidModel {
         match rigid.version {
             8 => rigid.read_v8(data)?,
             7 => rigid.read_v7(data)?,
-            6 => rigid.read_v6(data)?,
+            5 | 6 => rigid.read_v6(data)?,
             _ => Err(RLibError::DecodingRigidModelUnsupportedVersion(rigid.version))?,
         }
 
@@ -277,7 +280,7 @@ impl Encodeable for RigidModel {
         match self.version {
             8 => self.write_v8(buffer)?,
             7 => self.write_v7(buffer)?,
-            6 => self.write_v6(buffer)?,
+            5 | 6 => self.write_v6(buffer)?,
             _ => Err(RLibError::DecodingRigidModelUnsupportedVersion(self.version))?,
         }
 

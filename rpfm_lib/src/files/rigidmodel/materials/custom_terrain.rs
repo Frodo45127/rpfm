@@ -16,7 +16,7 @@ use super::*;
 
 /// Custom terrain materials (cliffs and other hand-made terrain pieces): just the path of their texture.
 impl Material {
-    pub fn read_custom_terrain<R: ReadBytes>(data: &mut R) -> Result<Self> {
+    pub fn read_custom_terrain<R: ReadBytes>(data: &mut R, _version: u32) -> Result<Self> {
         let (name, name_padding) = read_string_u8_0padded_with_tail(data, PADDED_SIZE_256)?;
         Ok(Self {
             name,
@@ -25,7 +25,7 @@ impl Material {
         })
     }
 
-    pub fn write_custom_terrain<W: WriteBytes>(&self, data: &mut W) -> Result<()> {
+    pub fn write_custom_terrain<W: WriteBytes>(&self, data: &mut W, _version: u32) -> Result<()> {
         write_string_u8_0padded_with_tail(data, &self.name, &self.name_padding, PADDED_SIZE_256)
     }
 }

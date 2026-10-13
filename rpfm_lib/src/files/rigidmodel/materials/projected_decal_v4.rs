@@ -17,9 +17,9 @@ use super::*;
 //---------------------------------------------------------------------------//
 
 impl Material {
-    pub fn read_projected_decal_v4<R: ReadBytes>(data: &mut R) -> Result<Self> {
+    pub fn read_projected_decal_v4<R: ReadBytes>(data: &mut R, version: u32) -> Result<Self> {
         Ok(Self {
-            name: data.read_string_u8_0padded(PADDED_SIZE_64)?,
+            name: read_padded_string(data, version, PADDED_SIZE_64)?,
             uk_1: data.read_u32()?,
             uk_2: data.read_u32()?,
             uk_3: data.read_u32()?,
@@ -30,8 +30,8 @@ impl Material {
         })
     }
 
-    pub fn write_projected_decal_v4<W: WriteBytes>(&self, data: &mut W) -> Result<()> {
-        data.write_string_u8_0padded(self.name(), PADDED_SIZE_64, true)?;
+    pub fn write_projected_decal_v4<W: WriteBytes>(&self, data: &mut W, version: u32) -> Result<()> {
+        write_padded_string(data, version, self.name(), PADDED_SIZE_64)?;
         data.write_u32(*self.uk_1())?;
         data.write_u32(*self.uk_2())?;
         data.write_u32(*self.uk_3())?;

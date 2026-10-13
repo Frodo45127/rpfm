@@ -19,8 +19,8 @@ const CLOTH_BONE_NAME_SIZE: usize = 32;
 
 /// Weighted cloth materials of version 6 RigidModels: the default material, followed by the bones of the cloth simulation.
 impl Material {
-    pub fn read_weighted_cloth<R: ReadBytes>(data: &mut R) -> Result<Self> {
-        let mut material = Self::read_default(data)?;
+    pub fn read_weighted_cloth<R: ReadBytes>(data: &mut R, version: u32) -> Result<Self> {
+        let mut material = Self::read_default(data, version)?;
 
         let bone_count = data.read_u32()?;
         material.uk_1 = data.read_u32()?;
@@ -49,8 +49,8 @@ impl Material {
         Ok(material)
     }
 
-    pub fn write_weighted_cloth<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
-        self.write_default(buffer)?;
+    pub fn write_weighted_cloth<W: WriteBytes>(&self, buffer: &mut W, version: u32) -> Result<()> {
+        self.write_default(buffer, version)?;
 
         buffer.write_u32(self.cloth_bones.len() as u32)?;
         buffer.write_u32(self.uk_1)?;

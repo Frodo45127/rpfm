@@ -17,9 +17,9 @@ use super::*;
 /// Projected decal materials of version 6 RigidModels: the decal's texture path, a flag, and since `ProjectedDecalV2`,
 /// the box the decal is projected in.
 impl Material {
-    pub fn read_projected_decal<R: ReadBytes>(data: &mut R, mtype: MaterialType) -> Result<Self> {
+    pub fn read_projected_decal<R: ReadBytes>(data: &mut R, version: u32, mtype: MaterialType) -> Result<Self> {
         let mut material = Self {
-            name: data.read_string_u8_0padded(PADDED_SIZE_256)?,
+            name: read_padded_string(data, version, PADDED_SIZE_256)?,
             ..Default::default()
         };
 
@@ -42,8 +42,8 @@ impl Material {
         Ok(material)
     }
 
-    pub fn write_projected_decal<W: WriteBytes>(&self, data: &mut W, mtype: MaterialType) -> Result<()> {
-        data.write_string_u8_0padded(self.name(), PADDED_SIZE_256, true)?;
+    pub fn write_projected_decal<W: WriteBytes>(&self, data: &mut W, version: u32, mtype: MaterialType) -> Result<()> {
+        write_padded_string(data, version, self.name(), PADDED_SIZE_256)?;
 
         if mtype != MaterialType::ProjectedDecal {
             data.write_f32(self.decal_center.x)?;

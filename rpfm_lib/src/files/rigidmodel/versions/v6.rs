@@ -26,7 +26,11 @@ impl RigidModel {
     pub(crate) fn read_v6<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
         let lod_count = data.read_u16()?;
         self.uk_1 = data.read_u16()?;
-        self.skeleton_id = data.read_string_u8_0padded(PADDED_SIZE_128)?;
+        self.skeleton_id = if self.version <= 5 {
+            data.read_string_u16_0padded(PADDED_SIZE_256)?
+        } else {
+            data.read_string_u8_0padded(PADDED_SIZE_128)?
+        };
 
         // First pass to get the lods headers.
         self.lods = Vec::with_capacity(lod_count as usize);
@@ -68,7 +72,8 @@ impl RigidModel {
                 mesh.mesh.min_bb = Vector3::new(data.read_f32()?, data.read_f32()?, data.read_f32()?);
                 mesh.mesh.max_bb = Vector3::new(data.read_f32()?, data.read_f32()?, data.read_f32()?);
 
-                mesh.mesh.shader_params.data = data.read_slice(PADDED_SIZE_32, false)?;
+                let shader_params_size = if self.version <= 5 { PADDED_SIZE_64 } else { PADDED_SIZE_32 };
+                mesh.mesh.shader_params.data = data.read_slice(shader_params_size, false)?;
                 //mesh.mesh.shader_params.name = data.read_string_u8_0terminated()?;
                 //mesh.mesh.shader_params.uk_1 = data.read_slice(PADDED_SIZE_10, false)?;
                 //mesh.mesh.shader_params.uk_2 = data.read_slice(8, false)?;
@@ -102,7 +107,13 @@ impl RigidModel {
     pub(crate) fn write_v6<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
         buffer.write_u16(self.lods.len() as u16)?;
         buffer.write_u16(self.uk_1)?;
-        buffer.write_string_u8_0padded(self.skeleton_id(), PADDED_SIZE_128, true)?;
+        if self.version <= 5 {
+            buffer.write_string_u16_0padded(self.skeleton_id(), PADDED_SIZE_256, true)?;
+        } else {
+            buffer.write_string_u8_0padded(self.skeleton_id(), PADDED_SIZE_128, true)?;
+        }
+
+        let header_length = if self.version <= 5 { HEADER_LENGTH_V5 } else { HEADER_LENGTH };
 
         let mut lod_headers = vec![];
         let mut lod_data = vec![];
@@ -171,7 +182,7 @@ impl RigidModel {
 
             // Offset of the first mesh of this lod. We have to calculate it as such:
             // 5 items per lod header * 4 bytes per item * X num of lods + 134 (header lenght) + data until current lod.
-            lod_headers.write_u32((5 * 4 * self.lods().len() as u32) + HEADER_LENGTH + offset_current_lod)?;
+            lod_headers.write_u32((5 * 4 * self.lods().len() as u32) + header_length + offset_current_lod)?;
             offset_current_lod = lod_data.len() as u32;
 
             lod_headers.write_f32(lod.visibility_distance)?;
