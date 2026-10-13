@@ -1655,6 +1655,7 @@ compression_format_none = 无
 compression_format_lzma1 = Lzma1
 compression_format_lz4 = Lz4
 compression_format_zstd = Zstd
+compression_format_lz4block = Lz4Block
 
 behavior_title = 自动翻译行为
 behavior_info = 当您选择新行时的行为：

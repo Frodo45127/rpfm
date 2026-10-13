@@ -16,6 +16,7 @@
 //!
 //! # Supported Games
 //!
+//! - Total War: Shogun 2 Complete Edition
 //! - Total War: Pharaoh - Dynasties
 //! - Total War: Pharaoh
 //! - Total War: Warhammer 3

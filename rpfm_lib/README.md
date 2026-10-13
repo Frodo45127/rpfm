@@ -14,6 +14,7 @@ Core library for reading and writing Total War game files.
 
 `SupportedGames` is the canonical registry. Currently:
 
+- Total War: Shogun 2 Complete Edition
 - Total War: Pharaoh – Dynasties
 - Total War: Pharaoh
 - Total War: Warhammer 3

@@ -108,9 +108,9 @@ modules:
       # Main checkout. Only the main repo and the submodules needed for building are fetched.
       - type: git
         url: https://github.com/Frodo45127/rpfm.git
-        tag: v5.0.6
+        tag: v5.1.0
         disable-submodules: true
-        commit: c049cfad79c003b61c530da4c5e67fb4aeff74cf
+        commit: e8992600bf8ea86153e3e530985f8665ecfd301e
 
       - type: git
         url: https://github.com/Frodo45127/ritual.git

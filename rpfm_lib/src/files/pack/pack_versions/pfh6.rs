@@ -138,6 +138,9 @@ impl Pack {
             None => return Err(RLibError::GameInfoMissingFromEncodingFunction),
         };
 
+        // Only compress if the format is valid for this Pack's version.
+        let compress = self.compress && compression_format != CompressionFormat::None && self.supports_compression_format(compression_format);
+
         // We need our files sorted before trying to write them. But we don't want to duplicate
         // them on memory. And we also need to load them to memory on the pack. So...  we do this.
         let mut sorted_files = self.files.iter_mut().map(|(key, file)| (key.replace('/', "\\"), file)).collect::<Vec<(String, &mut RFile)>>();
@@ -157,7 +160,7 @@ impl Pack {
                 let mut data = file.encode(extra_data, false, false, true)?.unwrap();
 
                 let mut has_been_compressed = false;
-                if self.compress && file.is_compressible(game_info) && compression_format != CompressionFormat::None {
+                if compress && file.is_compressible(game_info) {
                     if let Ok(data_compressed) = data.compress(compression_format) {
                         data = data_compressed;
                         has_been_compressed = true;

@@ -6,7 +6,27 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
-## [Unreleased]
+## [5.2.0]
+### Changed
+- Implemented initial support for Shogun 2: Complete Edition.
+- Expanded lua test documentation.
+
+### Fixed
+- Fixed an issue where some text files may fail to be read without an error, resulting in weird symbols in the text.
+- Fixed an issue where games without steam workshop support may fail to recognize they don't have steam workshop support.
+
+## [5.1.1]
+### Changed
+- Toggled diagnostics are now remembered across sessions.
+
+### Fixed
+- Fixed missing clear button in the table filter bar.
+- Fixed missing line in optimizer dialog.
+- Fixed missing dependency in arch rpfm-git pkgbuild.
+- Fixed autosaves failing silently.
+- Fixed "Pack not found: " error message when trying to extract the contents from an animpack.
+
+## [5.1.0]
 ### Added
 - Implemented split view, to have two tab panes side by side.
 - Added a setting to configure if new table filters should work as an OR or AND filter by default.
@@ -2020,7 +2040,10 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v5.0.6...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v5.2.0...HEAD
+[5.2.0]: https://github.com/Frodo45127/rpfm/compare/v5.1.1...v5.2.0
+[5.1.1]: https://github.com/Frodo45127/rpfm/compare/v5.1.0...v5.1.1
+[5.1.0]: https://github.com/Frodo45127/rpfm/compare/v5.0.6...v5.1.0
 [5.0.6]: https://github.com/Frodo45127/rpfm/compare/v5.0.5...v5.0.6
 [5.0.5]: https://github.com/Frodo45127/rpfm/compare/v5.0.4...v5.0.5
 [5.0.4]: https://github.com/Frodo45127/rpfm/compare/v5.0.3...v5.0.4

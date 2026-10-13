@@ -375,7 +375,7 @@ format used by all modern Total War titles.
 
 ## Supported Games
 
-Valid game keys: `pharaoh_dynasties`, `pharaoh`, `warhammer_3`, `troy`, `three_kingdoms`, \
+Valid game keys: `shogun_2_complete_edition`, `pharaoh_dynasties`, `pharaoh`, `warhammer_3`, `troy`, `three_kingdoms`, \
 `warhammer_2`, `warhammer`, `thrones_of_britannia`, `attila`, `rome_2`, `shogun_2`, `napoleon`, \
 `empire`, `arena`.
 
@@ -392,7 +392,7 @@ Valid game keys: `pharaoh_dynasties`, `pharaoh`, `warhammer_3`, `troy`, `three_k
 
 ## Compression Formats
 
-`\"None\"` (default), `\"Lzma1\"` (legacy), `\"Lz4\"` (WH3 6.2+), `\"Zstd\"` (WH3 6.2+).
+`\"None\"` (default), `\"Lzma1\"` (legacy), `\"Lz4\"` (WH3 6.2+), `\"Zstd\"` (WH3 6.2+), `\"Lz4Block\"` (Shogun 2 Complete Edition PFH3 packs only).
 
 ## Resources
 
@@ -451,7 +451,7 @@ in `data`, the `kind` of error (like `pack_not_found` or `schema_not_loaded`).
         let resources = vec![
             resource("rpfm://games", "games", "List of all supported Total War game keys.", "application/json"),
             resource("rpfm://enums/PFHFileType", "PFHFileType", "Valid PackFile type values (Boot, Release, Patch, Mod, Movie).", "application/json"),
-            resource("rpfm://enums/CompressionFormat", "CompressionFormat", "Valid compression format values (None, Lzma1, Lz4, Zstd).", "application/json"),
+            resource("rpfm://enums/CompressionFormat", "CompressionFormat", "Valid compression format values (None, Lzma1, Lz4, Zstd, Lz4Block).", "application/json"),
             resource("rpfm://enums/SupportedFormats", "SupportedFormats", "Valid video format values (CaVp8, Ivf).", "application/json"),
             resource("rpfm://reference/initialization", "Initialization guide", "Step-by-step guide for initializing the RPFM MCP server session.", "text/plain"),
             resource("rpfm://reference/path_conventions", "Path conventions", "Common file path conventions inside Total War PackFiles.", "text/plain"),
@@ -480,6 +480,7 @@ in `data`, the `kind` of error (like `pack_not_found` or `schema_not_loaded`).
         let content = match uri.as_str() {
             "rpfm://games" => serde_json::json!({
                 "supported_games": [
+                    {"key": "shogun_2_complete_edition", "display_name": "Total War: Shogun 2 Complete Edition"},
                     {"key": "pharaoh_dynasties", "display_name": "Total War: Pharaoh Dynasties"},
                     {"key": "pharaoh", "display_name": "Total War: Pharaoh"},
                     {"key": "warhammer_3", "display_name": "Total War: Warhammer III"},
@@ -517,7 +518,8 @@ in `data`, the `kind` of error (like `pack_not_found` or `schema_not_loaded`).
                     {"name": "None", "description": "No compression (default)."},
                     {"name": "Lzma1", "description": "Legacy LZMA compression (all PFH5 games)."},
                     {"name": "Lz4", "description": "LZ4 compression (Warhammer 3 v6.2+)."},
-                    {"name": "Zstd", "description": "Zstandard compression (Warhammer 3 v6.2+)."}
+                    {"name": "Zstd", "description": "Zstandard compression (Warhammer 3 v6.2+)."},
+                    {"name": "Lz4Block", "description": "Raw LZ4 block compression (Shogun 2 Complete Edition PFH3 packs only)."}
                 ],
                 "json_example": "\"None\""
             }).to_string(),
@@ -541,7 +543,7 @@ Before you can work with PackFiles, you must initialize the server session:
 Step 1: Set the game
     Call: set_game(game: \"warhammer_3\")
     This loads the correct schemas and vanilla game data for the selected title.
-    Valid game keys: pharaoh_dynasties, pharaoh, warhammer_3, troy, three_kingdoms,
+    Valid game keys: shogun_2_complete_edition, pharaoh_dynasties, pharaoh, warhammer_3, troy, three_kingdoms,
     warhammer_2, warhammer, thrones_of_britannia, attila, rome_2, shogun_2,
     napoleon, empire, arena.
 

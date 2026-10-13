@@ -95,7 +95,8 @@ const VIEW_DEBUG: &str = "rpfm_ui/ui_templates/tool_translator_editor.ui";
 const VIEW_RELEASE: &str = "ui/tool_translator_editor.ui";
 
 /// List of games this tool supports.
-const TOOL_SUPPORTED_GAMES: [&str; 13] = [
+const TOOL_SUPPORTED_GAMES: [&str; 14] = [
+    KEY_SHOGUN_2_COMPLETE_EDITION,
     KEY_PHARAOH_DYNASTIES,
     KEY_PHARAOH,
     KEY_WARHAMMER_3,

@@ -263,6 +263,7 @@ pub struct AppUI {
     mymod_open_thrones_of_britannia: QPtr<QMenu>,
     mymod_open_attila: QPtr<QMenu>,
     mymod_open_rome_2: QPtr<QMenu>,
+    mymod_open_shogun_2_complete_edition: QPtr<QMenu>,
     mymod_open_shogun_2: QPtr<QMenu>,
     mymod_open_napoleon: QPtr<QMenu>,
     mymod_open_empire: QPtr<QMenu>,
@@ -295,6 +296,7 @@ pub struct AppUI {
     game_selected_thrones_of_britannia: QPtr<QAction>,
     game_selected_attila: QPtr<QAction>,
     game_selected_rome_2: QPtr<QAction>,
+    game_selected_shogun_2_complete_edition: QPtr<QAction>,
     game_selected_shogun_2: QPtr<QAction>,
     game_selected_napoleon: QPtr<QAction>,
     game_selected_empire: QPtr<QAction>,
@@ -546,6 +548,7 @@ impl AppUI {
         let mymod_open_thrones_of_britannia = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_THRONES_OF_BRITANNIA));
         let mymod_open_attila = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_ATTILA));
         let mymod_open_rome_2 = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_ROME_2));
+        let mymod_open_shogun_2_complete_edition = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_SHOGUN_2_COMPLETE_EDITION));
         let mymod_open_shogun_2 = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_SHOGUN_2));
         let mymod_open_napoleon = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_NAPOLEON));
         let mymod_open_empire = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(DISPLAY_NAME_EMPIRE));
@@ -566,6 +569,7 @@ impl AppUI {
         mymod_open_thrones_of_britannia.menu_action().set_visible(false);
         mymod_open_attila.menu_action().set_visible(false);
         mymod_open_rome_2.menu_action().set_visible(false);
+        mymod_open_shogun_2_complete_edition.menu_action().set_visible(false);
         mymod_open_shogun_2.menu_action().set_visible(false);
         mymod_open_napoleon.menu_action().set_visible(false);
         mymod_open_empire.menu_action().set_visible(false);
@@ -604,6 +608,7 @@ impl AppUI {
         let game_selected_thrones_of_britannia = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_THRONES_OF_BRITANNIA));
         let game_selected_attila = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_ATTILA));
         let game_selected_rome_2 = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_ROME_2));
+        let game_selected_shogun_2_complete_edition = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_SHOGUN_2_COMPLETE_EDITION));
         let game_selected_shogun_2 = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_SHOGUN_2));
         let game_selected_napoleon = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_NAPOLEON));
         let game_selected_empire = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(DISPLAY_NAME_EMPIRE));
@@ -619,6 +624,7 @@ impl AppUI {
         game_selected_thrones_of_britannia.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_THRONES_OF_BRITANNIA).unwrap().icon_small()))).as_ref());
         game_selected_attila.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_ATTILA).unwrap().icon_small()))).as_ref());
         game_selected_rome_2.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_ROME_2).unwrap().icon_small()))).as_ref());
+        game_selected_shogun_2_complete_edition.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_SHOGUN_2_COMPLETE_EDITION).unwrap().icon_small()))).as_ref());
         game_selected_shogun_2.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_SHOGUN_2).unwrap().icon_small()))).as_ref());
         game_selected_napoleon.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_NAPOLEON).unwrap().icon_small()))).as_ref());
         game_selected_empire.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/icons/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.game(KEY_EMPIRE).unwrap().icon_small()))).as_ref());
@@ -639,6 +645,7 @@ impl AppUI {
         game_selected_group.add_action_q_action(&game_selected_thrones_of_britannia);
         game_selected_group.add_action_q_action(&game_selected_attila);
         game_selected_group.add_action_q_action(&game_selected_rome_2);
+        game_selected_group.add_action_q_action(&game_selected_shogun_2_complete_edition);
         game_selected_group.add_action_q_action(&game_selected_shogun_2);
         game_selected_group.add_action_q_action(&game_selected_napoleon);
         game_selected_group.add_action_q_action(&game_selected_empire);
@@ -653,6 +660,7 @@ impl AppUI {
         game_selected_thrones_of_britannia.set_checkable(true);
         game_selected_attila.set_checkable(true);
         game_selected_rome_2.set_checkable(true);
+        game_selected_shogun_2_complete_edition.set_checkable(true);
         game_selected_shogun_2.set_checkable(true);
         game_selected_napoleon.set_checkable(true);
         game_selected_empire.set_checkable(true);
@@ -784,6 +792,7 @@ impl AppUI {
             mymod_open_thrones_of_britannia,
             mymod_open_attila,
             mymod_open_rome_2,
+            mymod_open_shogun_2_complete_edition,
             mymod_open_shogun_2,
             mymod_open_napoleon,
             mymod_open_empire,
@@ -816,6 +825,7 @@ impl AppUI {
             game_selected_thrones_of_britannia,
             game_selected_attila,
             game_selected_rome_2,
+            game_selected_shogun_2_complete_edition,
             game_selected_shogun_2,
             game_selected_napoleon,
             game_selected_empire,
@@ -1924,6 +1934,7 @@ impl AppUI {
         app_ui.mymod_open_thrones_of_britannia.menu_action().set_visible(false);
         app_ui.mymod_open_attila.menu_action().set_visible(false);
         app_ui.mymod_open_rome_2.menu_action().set_visible(false);
+        app_ui.mymod_open_shogun_2_complete_edition.menu_action().set_visible(false);
         app_ui.mymod_open_shogun_2.menu_action().set_visible(false);
         app_ui.mymod_open_napoleon.menu_action().set_visible(false);
         app_ui.mymod_open_empire.menu_action().set_visible(false);
@@ -1938,6 +1949,7 @@ impl AppUI {
         app_ui.mymod_open_thrones_of_britannia.clear();
         app_ui.mymod_open_attila.clear();
         app_ui.mymod_open_rome_2.clear();
+        app_ui.mymod_open_shogun_2_complete_edition.clear();
         app_ui.mymod_open_shogun_2.clear();
         app_ui.mymod_open_napoleon.clear();
         app_ui.mymod_open_empire.clear();
@@ -1963,6 +1975,7 @@ impl AppUI {
                             KEY_THRONES_OF_BRITANNIA => &app_ui.mymod_open_thrones_of_britannia,
                             KEY_ATTILA => &app_ui.mymod_open_attila,
                             KEY_ROME_2 => &app_ui.mymod_open_rome_2,
+                            KEY_SHOGUN_2_COMPLETE_EDITION => &app_ui.mymod_open_shogun_2_complete_edition,
                             KEY_SHOGUN_2 => &app_ui.mymod_open_shogun_2,
                             KEY_NAPOLEON => &app_ui.mymod_open_napoleon,
                             KEY_EMPIRE => &app_ui.mymod_open_empire,

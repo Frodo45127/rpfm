@@ -396,6 +396,7 @@ impl GroupFormationsFormat {
             KEY_THRONES_OF_BRITANNIA |
             KEY_ATTILA |
             KEY_ROME_2 => Ok(Self::Rome2),
+            KEY_SHOGUN_2_COMPLETE_EDITION |
             KEY_SHOGUN_2 => Ok(Self::Shogun2),
 
             // Warhammer, Warhammer 2, Napoleon and Empire formats are not yet researched.

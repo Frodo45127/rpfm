@@ -4751,7 +4751,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_extensions"
-version = "5.1.0"
+version = "5.2.0"
 dependencies = [
  "base64 0.22.1",
  "bitcode",
@@ -4777,7 +4777,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_ipc"
-version = "5.1.0"
+version = "5.2.0"
 dependencies = [
  "directories",
  "getset",
@@ -4797,7 +4797,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_lib"
-version = "5.1.0"
+version = "5.2.0"
 dependencies = [
  "base64 0.22.1",
  "bitcode",
@@ -4845,7 +4845,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_server"
-version = "5.1.0"
+version = "5.2.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -4880,7 +4880,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_telemetry"
-version = "5.1.0"
+version = "5.2.0"
 dependencies = [
  "backtrace",
  "log",
@@ -4898,7 +4898,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_ui"
-version = "5.1.0"
+version = "5.2.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -4940,7 +4940,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_ui_common"
-version = "5.1.0"
+version = "5.2.0"
 dependencies = [
  "anyhow",
  "cpp_core",

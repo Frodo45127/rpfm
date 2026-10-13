@@ -162,6 +162,7 @@ pub struct PackFileContentsUI {
     context_menu_compression_lzma1: QPtr<QAction>,
     context_menu_compression_lz4: QPtr<QAction>,
     context_menu_compression_zstd: QPtr<QAction>,
+    context_menu_compression_lz4block: QPtr<QAction>,
 
     context_menu_optimize_packfile: QPtr<QAction>,
     context_menu_rescue_packfile: QPtr<QAction>,
@@ -350,16 +351,19 @@ impl PackFileContentsUI {
         let context_menu_compression_lzma1 = menu_compression_format.add_action_q_string(&qtr("compression_format_lzma1"));
         let context_menu_compression_lz4 = menu_compression_format.add_action_q_string(&qtr("compression_format_lz4"));
         let context_menu_compression_zstd = menu_compression_format.add_action_q_string(&qtr("compression_format_zstd"));
+        let context_menu_compression_lz4block = menu_compression_format.add_action_q_string(&qtr("compression_format_lz4block"));
 
         let context_menu_compression_group = QActionGroup::new(menu_compression_format);
         context_menu_compression_group.add_action_q_action(&context_menu_compression_none);
         context_menu_compression_group.add_action_q_action(&context_menu_compression_lzma1);
         context_menu_compression_group.add_action_q_action(&context_menu_compression_lz4);
         context_menu_compression_group.add_action_q_action(&context_menu_compression_zstd);
+        context_menu_compression_group.add_action_q_action(&context_menu_compression_lz4block);
         context_menu_compression_none.set_checkable(true);
         context_menu_compression_lzma1.set_checkable(true);
         context_menu_compression_lz4.set_checkable(true);
         context_menu_compression_zstd.set_checkable(true);
+        context_menu_compression_lz4block.set_checkable(true);
 
         packfile_contents_tree_view_context_menu.add_separator();
 
@@ -505,6 +509,7 @@ impl PackFileContentsUI {
             context_menu_compression_lzma1,
             context_menu_compression_lz4,
             context_menu_compression_zstd,
+            context_menu_compression_lz4block,
 
             context_menu_optimize_packfile,
             context_menu_rescue_packfile,

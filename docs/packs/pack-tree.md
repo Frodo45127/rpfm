@@ -60,7 +60,7 @@ The actions are grouped under three submenus (**Add…**, **Create…**, **Open�
 
 ### Pack-root actions
 
-When you right-click the Pack root itself, additional Pack-level actions appear: **Save Pack**, **Save Pack As…**, **Save Pack For Release…**, **Close Pack**, **Install / Uninstall**, the **Change PackFile Type** submenu (Boot, Release, Patch, Mod, Movie, plus header flags), the **Compression Format** submenu (None, Lzma1, Lz4, Zstd), the Special Stuff actions for the active game (Optimize PackFile, Rescue PackFile, Build Starpos, Patch Siege AI, Live Export, Pack Map, Update Anim IDs), and MyMod actions when the Pack is a MyMod.
+When you right-click the Pack root itself, additional Pack-level actions appear: **Save Pack**, **Save Pack As…**, **Save Pack For Release…**, **Close Pack**, **Install / Uninstall**, the **Change PackFile Type** submenu (Boot, Release, Patch, Mod, Movie, plus header flags), the **Compression Format** submenu (None, Lzma1, Lz4, Zstd, Lz4Block), the Special Stuff actions for the active game (Optimize PackFile, Rescue PackFile, Build Starpos, Patch Siege AI, Live Export, Pack Map, Update Anim IDs), and MyMod actions when the Pack is a MyMod.
 
 ## Multi-pack operations
 

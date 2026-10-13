@@ -50,6 +50,7 @@ pub unsafe fn set_tips(app_ui: &Rc<AppUI>) {
     app_ui.game_selected_thrones_of_britannia.set_status_tip(&qtr("tt_game_selected_thrones_of_britannia"));
     app_ui.game_selected_attila.set_status_tip(&qtr("tt_game_selected_attila"));
     app_ui.game_selected_rome_2.set_status_tip(&qtr("tt_game_selected_rome_2"));
+    app_ui.game_selected_shogun_2_complete_edition.set_status_tip(&qtr("tt_game_selected_shogun_2_complete_edition"));
     app_ui.game_selected_shogun_2.set_status_tip(&qtr("tt_game_selected_shogun_2"));
     app_ui.game_selected_napoleon.set_status_tip(&qtr("tt_game_selected_napoleon"));
     app_ui.game_selected_empire.set_status_tip(&qtr("tt_game_selected_empire"));

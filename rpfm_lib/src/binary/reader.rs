@@ -605,7 +605,9 @@ pub trait ReadBytes: Read + Seek {
         let mut data = vec![0; size];
         self.read_exact(&mut data)?;
 
-        Ok(ISO_8859_15.decode(&data).0.to_string())
+        ISO_8859_15.decode_without_bom_handling_and_without_replacement(&data)
+            .ok_or(RLibError::DecodingString0TeminatedNo0Error)
+            .map(|s| s.to_string())
     }
 
     /// This function tries to read a 00-Padded UTF-8 String value of the provided `size` from `self`.
