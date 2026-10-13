@@ -29,7 +29,7 @@
 //! | Billboard | 7  | Tree billboards                  | No           |
 //! | Rope      | 11 | Ropes (meshes without vertices)  | No           |
 //! | Uk8       | 8  | Unknown (seen in water planes)   | Unknown      |
-//! | Uk12      | 12 | Unknown (seen in coral shrubs)   | Unknown      |
+//! | Uk12      | 12 | Unknown (coral shrubs; campaign vegetation in v6) | Unknown |
 //! | ClothSim  | 25 | Cloth physics simulation         | Yes          |
 //!
 //! # Compression Techniques
@@ -364,12 +364,16 @@ impl Vertex {
                 v.texture_coordinate = data.read_vector_2_f32_from_vector_2_f16()?;
                 v.texture_coordinate2 = data.read_vector_2_f32_from_vector_2_f16()?;
                 v.uk_2 = data.read_vector_2_f32_from_vector_2_f16()?;
-                v.uk_3 = Vector4::new(data.read_f16()?.to_f32(), data.read_f16()?.to_f32(), data.read_f16()?.to_f32(), data.read_f16()?.to_f32());
+                v.uk_3 = read_vector_4_f32_from_vector_4_f16(data)?;
             }
             VertexFormat::Billboard |
             VertexFormat::Uk8 => {
                 v.position = data.read_vector_4_f32_normal_from_vector_4_f16()?;
                 v.texture_coordinate = data.read_vector_2_f32_from_vector_2_f16()?;
+            }
+            VertexFormat::Uk12 if version <= 6 => {
+                v.position = read_vector_4_f32_from_vector_4_f16(data)?;
+                v.normal = read_vector_4_f32_from_vector_4_f16(data)?;
             }
             VertexFormat::Uk12 => {
                 v.position = data.read_vector_4_f32_normal_from_vector_4_f16()?;
@@ -518,14 +522,16 @@ impl Vertex {
                 data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate)?;
                 data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate2)?;
                 data.write_vector_2_f32_as_vector_2_f16(self.uk_2)?;
-                for value in self.uk_3.iter() {
-                    data.write_f16(f16::from_f32(*value))?;
-                }
+                write_vector_4_f32_as_vector_4_f16(data, self.uk_3)?;
             }
             VertexFormat::Billboard |
             VertexFormat::Uk8 => {
                 data.write_vector_4_f32_normal_as_vector_4_f16(*self.position())?;
                 data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate)?;
+            }
+            VertexFormat::Uk12 if version <= 6 => {
+                write_vector_4_f32_as_vector_4_f16(data, self.position)?;
+                write_vector_4_f32_as_vector_4_f16(data, self.normal)?;
             }
             VertexFormat::Uk12 => {
                 data.write_vector_4_f32_normal_as_vector_4_f16(*self.position())?;
@@ -539,6 +545,20 @@ impl Vertex {
         Ok(())
     }
 }
+/// Reads four f16 values as they are, without the w scaling of `read_vector_4_f32_normal_from_vector_4_f16`.
+fn read_vector_4_f32_from_vector_4_f16<R: ReadBytes>(data: &mut R) -> Result<Vector4<f32>> {
+    Ok(Vector4::new(data.read_f16()?.to_f32(), data.read_f16()?.to_f32(), data.read_f16()?.to_f32(), data.read_f16()?.to_f32()))
+}
+
+/// Writes four values as f16, without the w scaling of `write_vector_4_f32_normal_as_vector_4_f16`.
+fn write_vector_4_f32_as_vector_4_f16<W: WriteBytes>(data: &mut W, value: Vector4<f32>) -> Result<()> {
+    for component in value.iter() {
+        data.write_f16(f16::from_f32(*component))?;
+    }
+
+    Ok(())
+}
+
 /*
 /// Util to swap the x and z coordinates of a vector.
 fn swap_xz(input: &Vector4<f32>) -> Vector4<f32> {
