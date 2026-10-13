@@ -80,6 +80,8 @@
 //!
 //! See individual material variant modules for format-specific details.
 
+use std::io::Cursor;
+
 use getset::{Getters, MutGetters, Setters};
 use nalgebra::{Matrix3x4, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
@@ -429,6 +431,10 @@ pub struct ClothBone {
 
     /// Name of the bone.
     name: String,
+
+    /// Bytes found after the end of `name` in its padded field, usually leftovers of the program that wrote the file.
+    /// They're kept so the file is written back as it was.
+    name_padding: Vec<u8>,
 
     /// Unknown values. (100, 200, 400) in every Attila file.
     uk_1: Vector3<f32>,
@@ -780,25 +786,38 @@ impl TryFrom<TextureType> for i32 {
 }
 
 /// Reads a 0-padded string of `size` bytes, also returning the bytes after its NUL up to the last non-zero one.
-fn read_string_u8_0padded_with_tail<R: ReadBytes>(data: &mut R, size: usize) -> Result<(String, Vec<u8>)> {
+///
+/// The string is UTF-8, or UTF-16 if `utf16` is set.
+fn read_string_0padded_with_tail<R: ReadBytes>(data: &mut R, size: usize, utf16: bool) -> Result<(String, Vec<u8>)> {
     let bytes = data.read_slice(size, false)?;
-    let len = bytes.iter().position(|x| *x == 0).unwrap_or(size);
+    let char_size = if utf16 { 2 } else { 1 };
+    let len = bytes.chunks_exact(char_size).position(|char| char.iter().all(|x| *x == 0)).map_or(size, |chars| chars * char_size);
     let tail_end = bytes.iter().rposition(|x| *x != 0).map_or(0, |last| last + 1);
-    let tail = if tail_end > len + 1 { bytes[len + 1..tail_end].to_vec() } else { vec![] };
+    let tail = if tail_end > len + char_size { bytes[len + char_size..tail_end].to_vec() } else { vec![] };
 
-    Ok((String::from_utf8(bytes[..len].to_vec())?, tail))
+    let string = if utf16 { Cursor::new(&bytes[..len]).read_string_u16(len)? } else { String::from_utf8(bytes[..len].to_vec())? };
+    Ok((string, tail))
 }
 
 /// Writes a 0-padded string of `size` bytes, with `tail` right after its NUL.
-fn write_string_u8_0padded_with_tail<W: WriteBytes>(data: &mut W, string: &str, tail: &[u8], size: usize) -> Result<()> {
-    let used = string.len() + if tail.is_empty() { 0 } else { 1 + tail.len() };
+///
+/// The string is UTF-8, or UTF-16 if `utf16` is set.
+fn write_string_0padded_with_tail<W: WriteBytes>(data: &mut W, string: &str, tail: &[u8], size: usize, utf16: bool) -> Result<()> {
+    let char_size = if utf16 { 2 } else { 1 };
+    let string_size = if utf16 { string.encode_utf16().count() * 2 } else { string.len() };
+    let used = string_size + if tail.is_empty() { 0 } else { char_size + tail.len() };
     if used > size {
-        return Err(RLibError::EncodingPaddedStringError("UTF-8 0-Padded String".to_owned(), string.to_owned(), used, size));
+        return Err(RLibError::EncodingPaddedStringError("0-Padded String".to_owned(), string.to_owned(), used, size));
     }
 
-    data.write_string_u8(string)?;
+    if utf16 {
+        data.write_string_u16(string)?;
+    } else {
+        data.write_string_u8(string)?;
+    }
+
     if !tail.is_empty() {
-        data.write_u8(0)?;
+        data.write_all(&vec![0; char_size])?;
         data.write_all(tail)?;
     }
 

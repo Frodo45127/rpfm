@@ -27,8 +27,10 @@ impl Material {
         material.cloth_bones = Vec::with_capacity(bone_count as usize);
 
         for _ in 0..bone_count {
+            let (name, name_padding) = read_string_0padded_with_tail(data, CLOTH_BONE_NAME_SIZE, true)?;
             material.cloth_bones.push(ClothBone {
-                name: data.read_string_u16_0padded(CLOTH_BONE_NAME_SIZE)?,
+                name,
+                name_padding,
                 uk_1: Vector3::new(data.read_f32()?, data.read_f32()?, data.read_f32()?),
                 uk_2: data.read_u32()?,
                 uk_3: data.read_u32()?,
@@ -56,7 +58,7 @@ impl Material {
         buffer.write_u32(self.uk_1)?;
 
         for bone in &self.cloth_bones {
-            buffer.write_string_u16_0padded(&bone.name, CLOTH_BONE_NAME_SIZE, false)?;
+            write_string_0padded_with_tail(buffer, &bone.name, &bone.name_padding, CLOTH_BONE_NAME_SIZE, true)?;
             buffer.write_f32(bone.uk_1.x)?;
             buffer.write_f32(bone.uk_1.y)?;
             buffer.write_f32(bone.uk_1.z)?;
