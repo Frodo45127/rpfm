@@ -139,6 +139,8 @@ pub enum MaterialType {
     StaticPointLight = 45,
     /// Debug visualization geometry (wireframe, normals, etc.).
     DebugGeometry = 46,
+    /// Outfield meshes of river tiles, with no material data.
+    RiverOutfield = 48,
     /// Custom terrain material variant.
     CustomTerrain = 49,
     /// Cloth material with skeletal weights and physics.
@@ -461,6 +463,8 @@ impl Material {
     pub fn read<R: ReadBytes>(data: &mut R, version: u32, mtype: MaterialType) -> Result<Self> {
         Ok(match mtype {
             MaterialType::RsTerrain => Self::read_rs_terrain(data)?,
+            MaterialType::BowWave |
+            MaterialType::RiverOutfield |
             MaterialType::RsRiver => Self::read_rs_river(data)?,
             MaterialType::WeightedTextureBlend => Self::read_weighted_texture_blend(data)?,
             MaterialType::ProjectedDecalV4 if version <= 6 => Self::read_projected_decal_v4(data)?,
@@ -509,6 +513,8 @@ impl Material {
     pub fn write<W: WriteBytes>(&self, buffer: &mut W, version: u32, mtype: MaterialType) -> Result<()> {
         match mtype {
             MaterialType::RsTerrain => self.write_rs_terrain(buffer)?,
+            MaterialType::BowWave |
+            MaterialType::RiverOutfield |
             MaterialType::RsRiver => self.write_rs_river(buffer)?,
             MaterialType::WeightedTextureBlend => self.write_weighted_texture_blend(buffer)?,
             MaterialType::ProjectedDecalV4 if version <= 6 => self.write_projected_decal_v4(buffer)?,
@@ -562,6 +568,7 @@ impl TryFrom<u16> for MaterialType {
             _ if value == Self::PointLight as u16 => Ok(Self::PointLight),
             _ if value == Self::StaticPointLight as u16 => Ok(Self::StaticPointLight),
             _ if value == Self::DebugGeometry as u16 => Ok(Self::DebugGeometry),
+            _ if value == Self::RiverOutfield as u16 => Ok(Self::RiverOutfield),
             _ if value == Self::CustomTerrain as u16 => Ok(Self::CustomTerrain),
             _ if value == Self::WeightedCloth as u16 => Ok(Self::WeightedCloth),
             _ if value == Self::Cloth as u16 => Ok(Self::Cloth),

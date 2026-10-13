@@ -176,7 +176,8 @@ pub struct Vertex {
     /// Unknown field (version 8+ only, purpose undocumented).
     uk_1: Vector4<u8>,
 
-    /// Second position of the vertex (x, y, z, w). Seen in tree vertices, likely the pivot the vertex bends around with the wind.
+    /// Second position of the vertex (x, y, z, w). Seen in tree vertices, where it's likely the pivot the vertex bends around
+    /// with the wind, and in bow wave vertices.
     position2: Vector4<f32>,
 
     /// Unknown pair of values of tree vertices. Small integers stored as f16.
@@ -184,6 +185,9 @@ pub struct Vertex {
 
     /// Unknown values of tree vertices, between 0 and 2. Stored as f16.
     uk_3: Vector4<f32>,
+
+    /// Unknown value of bow wave vertices, 0 or 1.
+    uk_4: f32,
 }
 
 //---------------------------------------------------------------------------//
@@ -268,6 +272,7 @@ impl Vertex {
                 MaterialType::ProjectedDecalV4 => {
                     v.position = data.read_vector_4_f32_normal_from_vector_4_f16()?;
                 },
+                MaterialType::RiverOutfield |
                 MaterialType::RsRiver => {
                     v.position = data.read_vector_4_f32()?;
                     v.normal = data.read_vector_4_f32()?;
@@ -276,6 +281,12 @@ impl Vertex {
                 MaterialType::ProjectedDecalV2 |
                 MaterialType::ProjectedDecalV3 => {
                     v.position = data.read_vector_4_f32()?;
+                },
+                MaterialType::BowWave => {
+                    v.position = data.read_vector_4_f32_normal_from_vector_4_f16()?;
+                    v.position2 = data.read_vector_4_f32_normal_from_vector_4_f16()?;
+                    v.texture_coordinate = data.read_vector_2_f32_from_vector_2_f16()?;
+                    v.uk_4 = data.read_f32()?;
                 },
                 MaterialType::CustomTerrain => {
                     v.position = data.read_vector_4_f32()?;
@@ -420,6 +431,7 @@ impl Vertex {
                 MaterialType::ProjectedDecalV4 => {
                     data.write_vector_4_f32_normal_as_vector_4_f16(*self.position())?;
                 }
+                MaterialType::RiverOutfield |
                 MaterialType::RsRiver => {
                     data.write_vector_4_f32(*self.position())?;
                     data.write_vector_4_f32(*self.normal())?;
@@ -428,6 +440,12 @@ impl Vertex {
                 MaterialType::ProjectedDecalV2 |
                 MaterialType::ProjectedDecalV3 => {
                     data.write_vector_4_f32(*self.position())?;
+                }
+                MaterialType::BowWave => {
+                    data.write_vector_4_f32_normal_as_vector_4_f16(self.position)?;
+                    data.write_vector_4_f32_normal_as_vector_4_f16(self.position2)?;
+                    data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate)?;
+                    data.write_f32(self.uk_4)?;
                 }
                 MaterialType::CustomTerrain => {
                     data.write_vector_4_f32(self.position)?;

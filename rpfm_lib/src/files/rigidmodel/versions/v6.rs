@@ -36,9 +36,11 @@ impl RigidModel {
             let mesh_count = data.read_u32()?;
             lod.mesh_blocks = Vec::with_capacity(mesh_count as usize);
 
-            // Unused by the parser.
-            let _vertices_data_length = data.read_u32()?;
-            let _indices_data_length = data.read_u32()?;
+            // The parser only needs to know if these are set.
+            let vertices_data_length = data.read_u32()?;
+            let indices_data_length = data.read_u32()?;
+            lod.unset_data_sizes = vertices_data_length == 0 && indices_data_length == 0;
+
             let _start_offset = data.read_u32()?;
 
             lod.visibility_distance = data.read_f32()?;
@@ -153,8 +155,13 @@ impl RigidModel {
                 lod_data.append(&mut mesh_data);
             }
 
-            lod_headers.write_u32(total_vertices_size as u32)?;
-            lod_headers.write_u32(total_indices_size as u32)?;
+            if lod.unset_data_sizes {
+                lod_headers.write_u32(0)?;
+                lod_headers.write_u32(0)?;
+            } else {
+                lod_headers.write_u32(total_vertices_size as u32)?;
+                lod_headers.write_u32(total_indices_size as u32)?;
+            }
 
             // Offset of the first mesh of this lod. We have to calculate it as such:
             // 5 items per lod header * 4 bytes per item * X num of lods + 134 (header lenght) + data until current lod.

@@ -168,6 +168,10 @@ pub struct Lod {
     /// Quality level indicator (purpose not fully documented).
     quality_level: u32,
 
+    /// If the header of this LOD leaves the sizes of its vertex and index data at 0, as some version 6 files do.
+    /// Those sizes are written as 0 then, instead of the real ones.
+    unset_data_sizes: bool,
+
     /// Individual mesh blocks that make up this LOD.
     /// Each block has its own geometry and material.
     mesh_blocks: Vec<MeshBlock>,
