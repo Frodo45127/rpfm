@@ -21,6 +21,7 @@ use std::path::PathBuf;
 
 use rpfm_lib::files::{Decodeable, Encodeable, pack::Pack};
 use rpfm_lib::files::fxc::Fxc;
+use rpfm_lib::files::tile_database::TileDatabase;
 use rpfm_lib::games::supported_games::{KEY_ATTILA, SupportedGames};
 
 /// Amount of failures listed in the panic message.
@@ -63,4 +64,10 @@ fn round_trip<T: Decodeable + Encodeable>(matches: impl Fn(&str) -> bool) {
 #[ignore = "needs Attila, in RPFM_TEST_ATTILA_PATH"]
 fn fxc() {
     round_trip::<Fxc>(|path| path.ends_with(".fxc"));
+}
+
+#[test]
+#[ignore = "needs Attila, in RPFM_TEST_ATTILA_PATH"]
+fn tile_database() {
+    round_trip::<TileDatabase>(|path| path.ends_with("tile_database.bin"));
 }
