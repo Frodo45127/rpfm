@@ -580,6 +580,7 @@ impl Material {
         Ok(match mtype {
             MaterialType::RsTerrain => Self::read_rs_terrain(data, version)?,
             MaterialType::BowWave |
+            MaterialType::DebugGeometry |
             MaterialType::RiverOutfield |
             MaterialType::RsRiver => Self::read_rs_river(data, version)?,
             MaterialType::WeightedTextureBlend => Self::read_weighted_texture_blend(data, version)?,
@@ -637,6 +638,7 @@ impl Material {
         match mtype {
             MaterialType::RsTerrain => self.write_rs_terrain(buffer, version)?,
             MaterialType::BowWave |
+            MaterialType::DebugGeometry |
             MaterialType::RiverOutfield |
             MaterialType::RsRiver => self.write_rs_river(buffer, version)?,
             MaterialType::WeightedTextureBlend => self.write_weighted_texture_blend(buffer, version)?,
