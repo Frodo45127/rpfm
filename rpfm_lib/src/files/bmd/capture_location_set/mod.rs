@@ -17,6 +17,7 @@ use crate::files::{bmd::building_link::BuildingLink, Decodeable, EncodeableExtra
 
 use super::*;
 
+mod v1;
 mod v2;
 mod v7;
 mod v8;
@@ -74,6 +75,7 @@ impl Decodeable for CaptureLocationSet {
         decoded.serialise_version = data.read_u16()?;
 
         match decoded.serialise_version {
+            1 => decoded.read_v1(data, extra_data)?,
             2 => decoded.read_v2(data, extra_data)?,
             7 => decoded.read_v7(data, extra_data)?,
             8 => decoded.read_v8(data, extra_data)?,
@@ -92,6 +94,7 @@ impl Encodeable for CaptureLocationSet {
         buffer.write_u16(self.serialise_version)?;
 
         match self.serialise_version {
+            1 => self.write_v1(buffer, extra_data)?,
             2 => self.write_v2(buffer, extra_data)?,
             7 => self.write_v7(buffer, extra_data)?,
             8 => self.write_v8(buffer, extra_data)?,
