@@ -290,6 +290,16 @@ pub enum RLibError {
     #[error("Unsupported signature: {0:#X?}.")]
     DecodingFontUnsupportedSignature(Vec<u8>),
 
+    // Asset Variation DB Errors
+
+    /// Asset variation DB in XML form that can't be read.
+    #[error("Invalid asset variation DB XML: {0}")]
+    DecodingAssetVariationDbXml(String),
+
+    /// Edit of an asset variation DB that would leave it wrong for the game.
+    #[error("{0}")]
+    AssetVariationDbEditRefused(String),
+
     // Fxc Errors
 
     /// Fxc (compiled shader container) signature not supported.

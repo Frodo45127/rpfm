@@ -1,0 +1,299 @@
+<warscape_asset_variation_db serialise_version='1'>
+	<meta_data_entries>
+		<meta_data_entry serialise_version='1' name='map'>
+			<values value='default_map' value='bel_attila_map' value='cha_attila_map'/>
+		</meta_data_entry>
+		<meta_data_entry serialise_version='1' name='season'>
+			<values value='sp' value='su' value='au' value='wi'/>
+		</meta_data_entry>
+		<meta_data_entry serialise_version='1' name='precipitation'>
+			<values value='dry' value='rain' value='snow' value='fog' value='storm'/>
+		</meta_data_entry>
+		<meta_data_entry serialise_version='1' name='time_of_day'>
+			<values value='day' value='night'/>
+		</meta_data_entry>
+		<meta_data_entry serialise_version='1' name='climate_change_index'>
+			<values value='cc0' value='cc1' value='cc2' value='cc3' value='cc4'/>
+		</meta_data_entry>
+		<meta_data_entry serialise_version='1' name='snow_attrition'>
+			<values value='snow_attrition_on' value='snow_attrition_off'/>
+		</meta_data_entry>
+		<meta_data_entry serialise_version='1' name='battle_type'>
+			<values value='land' value='sea'/>
+		</meta_data_entry>
+		<meta_data_entry serialise_version='1' name='climate'>
+			<values value='default' value='ROME_Continental' value='ROME_Med' value='ROME_Atlantic' value='ROME_Desert' value='ROME_EasternDesert' value='ROME_Destruct' value='ROME_Destructdes'/>
+		</meta_data_entry>
+	</meta_data_entries>
+	<entries>
+		<entry key='environment'>
+			<value serialise_version='1'>
+				<variations>
+					<variation serialise_version='1' filename='weather\rome_desert\default\land\day\storm\default_sorm.environment' flags='1484773753'/>
+					<variation serialise_version='1' filename='weather\rome_desert\default\land\night\storm\default_night_storm.environment' flags='1484777849'/>
+					<variation serialise_version='1' filename='weather\rome_desert\default\Land\day\dry\desert_day.environment' flags='410505465'/>
+					<variation serialise_version='1' filename='weather\rome_desert\default\Land\day\dry\desert_evening.environment' flags='410505465'/>
+					<variation serialise_version='1' filename='weather\rome_desert\default\Land\day\dry\desert_eveningB.environment' flags='410505465'/>
+					<variation serialise_version='1' filename='weather\rome_desert\default\Land\day\dry\desert_morning.environment' flags='410505465'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\snow_ground.environment' flags='133157113'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\fog\snow_fog_ground.environment' flags='670028921'/>
+					<variation serialise_version='1' filename='weather\default\default\land\night\fog\snow_night_fog.environment' flags='133162105'/>
+					<variation serialise_version='1' filename='weather\default\default\land\night\dry\snow_dry_night.environment' flags='133161209'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\snow\snow.environment' flags='99603065'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\day_north_1.environment' flags='100126969'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\rain\morn_9.environment' flags='100127097'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\morn_north_2.environment' flags='100126969'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\morn_north_1.environment' flags='100126969'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\evening_north_1.environment' flags='100126969'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\rain\default_day_rain.environment' flags='100127097'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\evening_north_3.environment' flags='100126969'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\evening_north_2.environment' flags='100126969'/>
+					<variation serialise_version='1' filename='weather\default\default\land\night\snow\default_night_snow.environment' flags='99607161'/>
+					<variation serialise_version='1' filename='weather\default\default\land\night\rain\default_night_rain.environment' flags='133685625'/>
+					<variation serialise_version='1' filename='weather\default\default\land\night\dry\default_night.environment' flags='100131065'/>
+					<variation serialise_version='1' filename='weather\default\default\land\night\dry\night_north2.environment' flags='100131065'/>
+					<variation serialise_version='1' filename='weather\default\default\land\night\dry\night_north1.environment' flags='100131065'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\fog\default_day_fog.environment' flags='95933561'/>
+					<variation serialise_version='1' filename='weather\default\default\sea\day\fog\at_day_sea_fog.environment' flags='98555001'/>
+					<variation serialise_version='1' filename='weather\default\default\sea\night\fog\at_night_sea_fog.environment' flags='98559097'/>
+					<variation serialise_version='1' filename='weather\rome_med\default\Sea\day\fog\med_sea_fog_attila.environment' flags='442487929'/>
+					<variation serialise_version='1' filename='weather\default\default\land\night\fog\default_night_fog.environment' flags='536339577'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\morn_6.environment' flags='100126969'/>
+					<variation serialise_version='1' filename='weather\rome_med\default\land\day\fog\default_attila.environment' flags='439866489'/>
+					<variation serialise_version='1' filename='weather\rome_med\default\land\day\rain\default_attila.environment' flags='41406841'/>
+					<variation serialise_version='1' filename='weather\rome_med\default\land\day\snow\default_attila.environment' flags='40882809'/>
+					<variation serialise_version='1' filename='weather\rome_med\default\land\night\dry\night_med_3.environment' flags='1517805817'/>
+					<variation serialise_version='1' filename='weather\rome_med\default\land\night\dry\night_med_1.environment' flags='1517805817'/>
+					<variation serialise_version='1' filename='weather\rome_med\default\land\day\dry\day_med_1.environment' flags='444059897'/>
+					<variation serialise_version='1' filename='weather\rome_med\default\land\day\dry\day_med_2.environment' flags='444059897'/>
+					<variation serialise_version='1' filename='weather\rome_med\default\land\day\dry\day_med_3.environment' flags='444059897'/>
+					<variation serialise_version='1' filename='weather\rome_med\default\land\day\dry\day_med_clear.environment' flags='444059897'/>
+					<variation serialise_version='1' filename='weather\rome_med\default\land\day\dry\morn_med_1.environment' flags='444059897'/>
+					<variation serialise_version='1' filename='weather\rome_med\default\land\day\dry\morn_med_3.environment' flags='444059897'/>
+					<variation serialise_version='1' filename='weather\rome_med\default\land\day\dry\morn_med_2.environment' flags='444059897'/>
+					<variation serialise_version='1' filename='weather\rome_med\default\land\day\dry\evening_med_3.environment' flags='444059897'/>
+					<variation serialise_version='1' filename='weather\rome_med\default\land\day\dry\evening_med_2.environment' flags='444059897'/>
+					<variation serialise_version='1' filename='weather\rome_destruct\default\land\day\snow\snow.environment' flags='544199289'/>
+					<variation serialise_version='1' filename='weather\rome_destruct\default\land\day\dry\snow_morning.environment' flags='544198905'/>
+					<variation serialise_version='1' filename='Weather\rome_destruct\default\land\night\dry\snow_night_north1.environment' flags='544203001'/>
+					<variation serialise_version='1' filename='weather\rome_destruct\default\land\day\rain\morn_9.environment' flags='544723321'/>
+					<variation serialise_version='1' filename='weather\rome_destruct\default\land\night\snow\default_night_snow.environment' flags='544203385'/>
+					<variation serialise_version='1' filename='weather\rome_destruct\default\land\day\dry\demo_morning.environment' flags='1618465017'/>
+					<variation serialise_version='1' filename='weather\rome_Destruct\default\land\day\dry\day_dark_4.environment' flags='1618465017'/>
+					<variation serialise_version='1' filename='weather\rome_Destruct\default\land\day\dry\day_dark_4c.environment' flags='1618465017'/>
+					<variation serialise_version='1' filename='weather\rome_destruct\default\land\night\rain\default_night_rain.environment' flags='544727417'/>
+					<variation serialise_version='1' filename='weather\rome_destruct\default\land\day\fog\default_day_fog.environment' flags='544724089'/>
+					<variation serialise_version='1' filename='weather\rome_destruct\default\land\night\fog\default_night_fog.environment' flags='544728185'/>
+					<variation serialise_version='1' filename='weather\rome_destruct\default\land\day\rain\default_day_rain.environment' flags='544723321'/>
+					<variation serialise_version='1' filename='weather\rome_destruct\default\land\night\dry\night_north1.environment' flags='544727289'/>
+					<variation serialise_version='1' filename='weather\rome_destruct\default\land\night\dry\night_north2.environment' flags='544727289'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\CC4_day_dry_1.environment' flags='133566713'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\CC4_day_dark_1.environment' flags='133566713'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\CC3_day_dark_2_med.environment' flags='41292025'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\CC2_3_day_dark_3.environment' flags='133370105'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\CC4_day_dry_2.environment' flags='133566713'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\CC4_day_dry_3.environment' flags='133566713'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\CC1_2_day_dry_1.environment' flags='133271801'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\snow_dry_0_light.environment' flags='132698305'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\snow_dry_1_light.environment' flags='132698305'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\snow_dry_2_light.environment' flags='132845761'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\snow_dry_colour.environment' flags='133042369'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\spring_1_dry_snow.environment' flags='133157001'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\spring_2_dry_snow.environment' flags='133157001'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\snow\spring_snow_3.environment' flags='133157385'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\snow_01_light.environment' flags='132698689'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\snow\snow_3_heavy.environment' flags='133157441'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\snow\snow_4_heavy.environment' flags='133157441'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\snow\snow_5_heavy.environment' flags='133157441'/>
+					<variation serialise_version='1' filename='weather\rome_desert\default\land\day\storm\default_sorm.environment' flags='1484675450'/>
+					<variation serialise_version='1' filename='weather\rome_desert\default\land\night\storm\default_night_storm.environment' flags='1484745082'/>
+					<variation serialise_version='1' filename='weather\rome_desert\default\Land\day\dry\desert_day.environment' flags='410407162'/>
+					<variation serialise_version='1' filename='weather\rome_desert\default\Land\day\dry\desert_evening.environment' flags='410407162'/>
+					<variation serialise_version='1' filename='weather\rome_desert\default\Land\day\dry\desert_eveningB.environment' flags='410407162'/>
+					<variation serialise_version='1' filename='weather\rome_desert\default\Land\day\dry\desert_morning.environment' flags='410407162'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\snow_ground.environment' flags='133058810'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\fog\snow_fog_ground.environment' flags='669930618'/>
+					<variation serialise_version='1' filename='weather\default\default\land\night\fog\snow_night_fog.environment' flags='133129338'/>
+					<variation serialise_version='1' filename='weather\default\default\land\night\dry\snow_dry_night.environment' flags='133128442'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\snow\snow.environment' flags='99504762'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\day_north_1.environment' flags='100028666'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\rain\morn_9.environment' flags='100028794'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\morn_north_2.environment' flags='100028666'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\morn_north_1.environment' flags='100028666'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\evening_north_1.environment' flags='100028666'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\rain\default_day_rain.environment' flags='100028794'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\evening_north_3.environment' flags='100028666'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\evening_north_2.environment' flags='100028666'/>
+					<variation serialise_version='1' filename='weather\default\default\land\night\snow\default_night_snow.environment' flags='99574394'/>
+					<variation serialise_version='1' filename='weather\default\default\land\night\rain\default_night_rain.environment' flags='133652858'/>
+					<variation serialise_version='1' filename='weather\default\default\land\night\dry\default_night.environment' flags='100098298'/>
+					<variation serialise_version='1' filename='weather\default\default\land\night\dry\night_north2.environment' flags='100098298'/>
+					<variation serialise_version='1' filename='weather\default\default\land\night\dry\night_north1.environment' flags='100098298'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\fog\default_day_fog.environment' flags='95835258'/>
+					<variation serialise_version='1' filename='weather\default\default\sea\day\fog\at_day_sea_fog.environment' flags='98456698'/>
+					<variation serialise_version='1' filename='weather\default\default\sea\night\fog\at_night_sea_fog.environment' flags='98526330'/>
+					<variation serialise_version='1' filename='weather\rome_med\default\Sea\day\fog\med_sea_fog_attila.environment' flags='442389626'/>
+					<variation serialise_version='1' filename='weather\default\default\land\night\fog\default_night_fog.environment' flags='532112506'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\morn_6.environment' flags='100028666'/>
+					<variation serialise_version='1' filename='weather\rome_med\default\land\day\fog\default_attila.environment' flags='439768186'/>
+					<variation serialise_version='1' filename='weather\rome_med\default\land\day\rain\default_attila.environment' flags='41308538'/>
+					<variation serialise_version='1' filename='weather\rome_med\default\land\day\snow\default_attila.environment' flags='40784506'/>
+					<variation serialise_version='1' filename='weather\rome_med\default\land\night\dry\night_med_3.environment' flags='1517773050'/>
+					<variation serialise_version='1' filename='weather\rome_med\default\land\night\dry\night_med_1.environment' flags='1517773050'/>
+					<variation serialise_version='1' filename='weather\rome_med\default\land\day\dry\day_med_1.environment' flags='443961594'/>
+					<variation serialise_version='1' filename='weather\rome_med\default\land\day\dry\day_med_2.environment' flags='443961594'/>
+					<variation serialise_version='1' filename='weather\rome_med\default\land\day\dry\day_med_3.environment' flags='443961594'/>
+					<variation serialise_version='1' filename='weather\rome_med\default\land\day\dry\day_med_clear.environment' flags='443961594'/>
+					<variation serialise_version='1' filename='weather\rome_med\default\land\day\dry\morn_med_1.environment' flags='443961594'/>
+					<variation serialise_version='1' filename='weather\rome_med\default\land\day\dry\morn_med_3.environment' flags='443961594'/>
+					<variation serialise_version='1' filename='weather\rome_med\default\land\day\dry\morn_med_2.environment' flags='443961594'/>
+					<variation serialise_version='1' filename='weather\rome_med\default\land\day\dry\evening_med_3.environment' flags='443961594'/>
+					<variation serialise_version='1' filename='weather\rome_med\default\land\day\dry\evening_med_2.environment' flags='443961594'/>
+					<variation serialise_version='1' filename='weather\rome_destruct\default\land\day\snow\snow.environment' flags='544100986'/>
+					<variation serialise_version='1' filename='weather\rome_destruct\default\land\day\dry\snow_morning.environment' flags='544100602'/>
+					<variation serialise_version='1' filename='Weather\rome_destruct\default\land\night\dry\snow_night_north1.environment' flags='544170234'/>
+					<variation serialise_version='1' filename='weather\rome_destruct\default\land\day\rain\morn_9.environment' flags='544625018'/>
+					<variation serialise_version='1' filename='weather\rome_destruct\default\land\night\snow\default_night_snow.environment' flags='544170618'/>
+					<variation serialise_version='1' filename='weather\rome_destruct\default\land\day\dry\demo_morning.environment' flags='1618366714'/>
+					<variation serialise_version='1' filename='weather\rome_Destruct\default\land\day\dry\day_dark_4.environment' flags='1618366714'/>
+					<variation serialise_version='1' filename='weather\rome_Destruct\default\land\day\dry\day_dark_4c.environment' flags='1618366714'/>
+					<variation serialise_version='1' filename='weather\rome_destruct\default\land\night\rain\default_night_rain.environment' flags='544694650'/>
+					<variation serialise_version='1' filename='weather\rome_destruct\default\land\day\fog\default_day_fog.environment' flags='544625786'/>
+					<variation serialise_version='1' filename='weather\rome_destruct\default\land\night\fog\default_night_fog.environment' flags='544695418'/>
+					<variation serialise_version='1' filename='weather\rome_destruct\default\land\day\rain\default_day_rain.environment' flags='544625018'/>
+					<variation serialise_version='1' filename='weather\rome_destruct\default\land\night\dry\night_north1.environment' flags='544694522'/>
+					<variation serialise_version='1' filename='weather\rome_destruct\default\land\night\dry\night_north2.environment' flags='544694522'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\snow_dry_0_light.environment' flags='132665538'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\snow_dry_1_light.environment' flags='132665538'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\snow_dry_2_light.environment' flags='132780226'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\snow_dry_colour.environment' flags='133042370'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\spring_1_dry_snow.environment' flags='133058698'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\spring_2_dry_snow.environment' flags='133058698'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\snow\spring_snow_3.environment' flags='133059082'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\snow_01_light.environment' flags='132665922'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\snow\snow_3_heavy.environment' flags='133059138'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\snow\snow_4_heavy.environment' flags='133059138'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\snow\snow_5_heavy.environment' flags='133059138'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\att_bel_falling_ash_cc1.environment' flags='1878044922'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\att_bel_falling_ash_2_cc1.environment' flags='1878044922'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\att_bel_falling_ash_3_cc1.environment' flags='1878044922'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\att_bel_falling_rain_ash_cc1.environment' flags='1878045050'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\att_bel_falling_rain_ash_2_cc1.environment' flags='1878045050'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\att_bel_falling_rain_ash_3_cc1.environment' flags='1878045050'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\att_bel_falling_ash_cc1.environment' flags='1878045818'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\att_bel_falling_ash_2_cc1.environment' flags='1878045818'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\att_bel_falling_ash_3_cc1.environment' flags='1878045818'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\att_bel_falling_snow_ash_cc1.environment' flags='1877520962'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\att_bel_falling_snow_ash_2_cc1.environment' flags='1877520962'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\att_bel_falling_snow_ash_3_cc1.environment' flags='1877520962'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\att_bel_falling_ash_cc2.environment' flags='1878069498'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\att_bel_falling_ash_2_cc2.environment' flags='1878069498'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\att_bel_falling_ash_3_cc2.environment' flags='1878069498'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\att_bel_falling_rain_ash_cc2.environment' flags='1878069626'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\att_bel_falling_rain_ash_2_cc2.environment' flags='1878069626'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\att_bel_falling_rain_ash_3_cc2.environment' flags='1878069626'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\att_bel_falling_ash_cc2.environment' flags='1878070394'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\att_bel_falling_ash_2_cc2.environment' flags='1878070394'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\att_bel_falling_ash_3_cc2.environment' flags='1878070394'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\att_bel_falling_snow_ash_cc2.environment' flags='1877545538'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\att_bel_falling_snow_ash_2_cc2.environment' flags='1877545538'/>
+					<variation serialise_version='1' filename='weather\default\default\land\day\dry\att_bel_falling_snow_ash_3_cc2.environment' flags='1877545538'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_wi_land_night_snow.environment' flags='585687620'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_wi_land_night_fog.environment' flags='586212420'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_wi_land_night_rain.environment' flags='586211652'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_wi_land_night_dry.environment' flags='586211524'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_wi_land_day_snow.environment' flags='585683524'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_wi_land_day_rain.environment' flags='586207556'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_wi_land_day_fog.environment' flags='586208324'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_wi_land_day_dry.environment' flags='586207428'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_su_land_night_rain.environment' flags='586211604'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_su_land_night_snow.environment' flags='585687572'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_su_land_night_fog.environment' flags='586212372'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_su_land_night_dry.environment' flags='586211476'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_su_land_day_snow.environment' flags='585683476'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_su_land_day_rain.environment' flags='586207508'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_su_land_day_fog.environment' flags='586208276'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_su_land_day_dry.environment' flags='586207380'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_sp_land_night_rain.environment' flags='586211596'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_sp_land_night_snow.environment' flags='585687564'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_sp_land_night_fog.environment' flags='586212364'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_sp_land_night_dry.environment' flags='586211468'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_sp_land_day_snow.environment' flags='585683468'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_sp_land_day_rain.environment' flags='586207500'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_sp_land_day_fog.environment' flags='586208268'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_sp_land_day_dry.environment' flags='586207372'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_au_land_night_snow.environment' flags='585687588'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_au_land_night_fog.environment' flags='586212388'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_au_land_night_rain.environment' flags='586211620'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_au_land_night_dry.environment' flags='586211492'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_au_land_day_snow.environment' flags='585683492'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_au_land_day_rain.environment' flags='586207524'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_au_land_day_fog.environment' flags='586208292'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_au_land_day_dry_2.environment' flags='586207396'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_au_land_day_dry_1.environment' flags='586207396'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_wi_land_night_rain.environment' flags='619766084'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_wi_land_night_snow.environment' flags='619242052'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_wi_land_night_fog.environment' flags='619766852'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_wi_land_night_dry.environment' flags='619765956'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_wi_land_day_snow_5.environment' flags='619237956'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_wi_land_day_snow_6.environment' flags='619237956'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_wi_land_day_snow_4.environment' flags='619237956'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_wi_land_day_snow_3.environment' flags='619237956'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_wi_land_day_snow_2.environment' flags='619237956'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_wi_land_day_snow.environment' flags='619237956'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_wi_land_day_rain.environment' flags='619761988'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_wi_land_day_fog.environment' flags='619762756'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_wi_land_day_dry.environment' flags='619761860'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_su_land_night_snow.environment' flags='619242004'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_su_land_night_rain.environment' flags='619766036'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_su_land_night_fog.environment' flags='619766804'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_su_land_night_dry.environment' flags='619765908'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_su_land_day_snow_6.environment' flags='619237908'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_su_land_day_snow_5.environment' flags='619237908'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_su_land_day_snow_3.environment' flags='619237908'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_su_land_day_snow_4.environment' flags='619237908'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_su_land_day_snow_2.environment' flags='619237908'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_su_land_day_rain.environment' flags='619761940'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_su_land_day_snow_1.environment' flags='619237908'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_su_land_day_fog.environment' flags='619762708'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_su_land_day_dry.environment' flags='619761812'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_sp_land_night_snow.environment' flags='619241996'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_sp_land_night_rain.environment' flags='619766028'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_sp_land_night_fog.environment' flags='619766828'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_sp_land_night_dry.environment' flags='619765900'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_sp_land_day_snow_6.environment' flags='619237900'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_sp_land_day_snow_4.environment' flags='619237900'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_sp_land_day_snow_5.environment' flags='619237900'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_sp_land_day_snow_3.environment' flags='619237900'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_sp_land_day_snow_1.environment' flags='619237900'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_sp_land_day_snow_2.environment' flags='619237900'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_sp_land_day_rain.environment' flags='619761932'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_sp_land_day_fog.environment' flags='619762700'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_sp_land_day_dry.environment' flags='619761804'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_au_land_night_snow.environment' flags='619242020'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_au_land_night_rain.environment' flags='619766052'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_au_land_night_dry.environment' flags='619765924'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_au_land_day_snow_6.environment' flags='619237924'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_au_land_day_snow_5.environment' flags='619237924'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_au_land_day_snow_4.environment' flags='619237924'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_au_land_day_snow_2.environment' flags='619237924'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_au_land_day_snow_3.environment' flags='619237924'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_au_land_day_snow_1.environment' flags='619237924'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_au_land_day_fog.environment' flags='619762724'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_au_land_day_rain.environment' flags='619761956'/>
+					<variation serialise_version='1' filename='weather\charlemagne\at_au_land_day_dry.environment' flags='619761828'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_sp_land_day_dry_2.environment' flags='586207372'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_su_land_day_dry_2.environment' flags='586207380'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_au_land_day_dry_3.environment' flags='586207396'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_sp_land_day_fog_2.environment' flags='586208268'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_au_land_day_fog_2.environment' flags='586208292'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_wi_land_day_fog_2.environment' flags='586208324'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_sp_land_day_rain_2.environment' flags='586207500'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_au_land_day_rain_2.environment' flags='586207524'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_wi_land_day_rain_2.environment' flags='586207556'/>
+					<variation serialise_version='1' filename='weather\charlemagne\med_wi_land_day_snow_2.environment' flags='585683524'/>
+				</variations>
+			</value>
+		</entry>
+	</entries>
+</warscape_asset_variation_db>

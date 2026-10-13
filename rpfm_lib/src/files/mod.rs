@@ -52,6 +52,7 @@
 //! | File Type              | Decoding Supported | Encoding Supported |
 //! | ---------------------- | ------------------ | ------------------ |
 //! | [`Anim`]               | Limited            | Limited            |
+//! | [`AssetVariationDb`]   | Yes                | Yes                |
 //! | [`AnimFragmentBattle`] | Limited            | Limited            |
 //! | [`AnimPack`]           | Yes                | Yes                |
 //! | [`AnimsTable`]         | Yes                | Yes                |
@@ -120,6 +121,7 @@
 //! [`Dat`]: crate::files::dat::Dat
 //! [`DB`]: crate::files::db::DB
 //! [`ESF`]: crate::files::esf::ESF
+//! [`AssetVariationDb`]: crate::files::asset_variation_db::AssetVariationDb
 //! [`Font`]: crate::files::font::Font
 //! [`Fxc`]: crate::files::fxc::Fxc
 //! [`GroupFormations`]: crate::files::group_formations::GroupFormations
@@ -199,6 +201,7 @@ pub mod anim;
 pub mod anim_fragment_battle;
 pub mod animpack;
 pub mod anims_table;
+pub mod asset_variation_db;
 pub mod atlas;
 pub mod audio;
 #[allow(dead_code)]pub mod bmd;

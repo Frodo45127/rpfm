@@ -1,1 +1,2 @@
-
+# Kept byte for byte: tests compare them with what the code writes, line ends included.
+test_files/asset_variation_db/** -text
