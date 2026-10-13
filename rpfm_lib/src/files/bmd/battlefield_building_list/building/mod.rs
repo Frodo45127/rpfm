@@ -17,6 +17,7 @@ use crate::files::bmd::common::properties::Properties;
 
 use super::*;
 
+mod v3;
 mod v8;
 mod v11;
 
@@ -33,6 +34,16 @@ pub struct Building {
     building_key: String,
     position_type: String,
     transform: Transform3x4,
+
+    /// Position of the building, in version 3. Later versions use `transform`.
+    position: Point3d,
+
+    /// Orientation of the building, in version 3. Later versions use `transform`.
+    orientation: Quaternion,
+
+    /// Scale of the building, in version 3. Later versions use `transform`.
+    scale: Point3d,
+
     properties: Properties,
     height_mode: String,
     uid: u64,
@@ -50,6 +61,7 @@ impl Decodeable for Building {
         prop.serialise_version = data.read_u16()?;
 
         match prop.serialise_version {
+            3 => prop.read_v3(data, extra_data)?,
             8 => prop.read_v8(data, extra_data)?,
             11 => prop.read_v11(data, extra_data)?,
             _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("Building"), prop.serialise_version)),
@@ -65,6 +77,7 @@ impl Encodeable for Building {
         buffer.write_u16(self.serialise_version)?;
 
         match self.serialise_version {
+            3 => self.write_v3(buffer, extra_data)?,
             8 => self.write_v8(buffer, extra_data)?,
             11 => self.write_v11(buffer, extra_data)?,
             _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("Building"), self.serialise_version)),
