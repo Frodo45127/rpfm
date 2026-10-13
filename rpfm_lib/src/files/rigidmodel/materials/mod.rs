@@ -92,6 +92,7 @@ use super::{PADDED_SIZE_32, PADDED_SIZE_256};
 
 mod alpha_blend;
 mod cloth;
+mod custom_terrain;
 mod default;
 mod rs_terrain;
 mod rs_river;
@@ -249,6 +250,10 @@ pub struct Material {
     
     /// Material name (human-readable identifier).
     name: String,
+
+    /// Bytes found after the end of `name` in its padded field, usually leftovers of the program that wrote the file.
+    /// They're kept so the file is written back as it was.
+    name_padding: Vec<u8>,
 
     /// Unknown field 1 (only in RsTerrain and projected decal materials).
     uk_1: u32,
@@ -455,6 +460,7 @@ impl Material {
             MaterialType::ProjectedDecal |
             MaterialType::ProjectedDecalV2 |
             MaterialType::ProjectedDecalV3 => Self::read_projected_decal(data, mtype)?,
+            MaterialType::CustomTerrain => Self::read_custom_terrain(data)?,
             MaterialType::AlphaBlend => Self::read_alpha_blend(data)?,
             MaterialType::Cloth => Self::read_cloth(data)?,
             MaterialType::ProjectedDecalV4 |
@@ -501,6 +507,7 @@ impl Material {
             MaterialType::ProjectedDecal |
             MaterialType::ProjectedDecalV2 |
             MaterialType::ProjectedDecalV3 => self.write_projected_decal(buffer, mtype)?,
+            MaterialType::CustomTerrain => self.write_custom_terrain(buffer)?,
             MaterialType::AlphaBlend => self.write_alpha_blend(buffer)?,
             MaterialType::Cloth => self.write_cloth(buffer)?,
             MaterialType::ProjectedDecalV4 |
@@ -627,4 +634,30 @@ impl TryFrom<TextureType> for i32 {
     fn try_from(value: TextureType) -> Result<i32> {
         Ok(value as i32)
     }
+}
+
+/// Reads a 0-padded string of `size` bytes, also returning the bytes after its NUL up to the last non-zero one.
+fn read_string_u8_0padded_with_tail<R: ReadBytes>(data: &mut R, size: usize) -> Result<(String, Vec<u8>)> {
+    let bytes = data.read_slice(size, false)?;
+    let len = bytes.iter().position(|x| *x == 0).unwrap_or(size);
+    let tail_end = bytes.iter().rposition(|x| *x != 0).map_or(0, |last| last + 1);
+    let tail = if tail_end > len + 1 { bytes[len + 1..tail_end].to_vec() } else { vec![] };
+
+    Ok((String::from_utf8(bytes[..len].to_vec())?, tail))
+}
+
+/// Writes a 0-padded string of `size` bytes, with `tail` right after its NUL.
+fn write_string_u8_0padded_with_tail<W: WriteBytes>(data: &mut W, string: &str, tail: &[u8], size: usize) -> Result<()> {
+    let used = string.len() + if tail.is_empty() { 0 } else { 1 + tail.len() };
+    if used > size {
+        return Err(RLibError::EncodingPaddedStringError("UTF-8 0-Padded String".to_owned(), string.to_owned(), used, size));
+    }
+
+    data.write_string_u8(string)?;
+    if !tail.is_empty() {
+        data.write_u8(0)?;
+        data.write_all(tail)?;
+    }
+
+    data.write_all(&vec![0; size - used]).map_err(From::from)
 }
