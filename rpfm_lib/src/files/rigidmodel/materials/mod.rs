@@ -98,6 +98,7 @@ mod default;
 mod rs_terrain;
 mod rope;
 mod rs_river;
+mod texture_combo;
 mod weighted_cloth;
 mod projected_decal;
 mod projected_decal_v4;
@@ -573,6 +574,8 @@ impl Material {
             MaterialType::CollisionShape => Self::read_collision_shape(data)?,
             MaterialType::WeightedCloth if version <= 6 => Self::read_weighted_cloth(data)?,
             MaterialType::Rope if version <= 6 => Self::read_rope(data)?,
+            MaterialType::TextureCombo |
+            MaterialType::TextureComboVertexWind => Self::read_texture_combo(data)?,
             MaterialType::AlphaBlend => Self::read_alpha_blend(data)?,
             MaterialType::Cloth => Self::read_cloth(data)?,
             MaterialType::ProjectedDecalV4 |
@@ -625,6 +628,8 @@ impl Material {
             MaterialType::CollisionShape => self.write_collision_shape(buffer)?,
             MaterialType::WeightedCloth if version <= 6 => self.write_weighted_cloth(buffer)?,
             MaterialType::Rope if version <= 6 => self.write_rope(buffer)?,
+            MaterialType::TextureCombo |
+            MaterialType::TextureComboVertexWind => self.write_texture_combo(buffer)?,
             MaterialType::AlphaBlend => self.write_alpha_blend(buffer)?,
             MaterialType::Cloth => self.write_cloth(buffer)?,
             MaterialType::ProjectedDecalV4 |
