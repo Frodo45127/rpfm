@@ -102,6 +102,7 @@ mod rope;
 mod rs_river;
 mod static_point_light;
 mod texture_combo;
+mod uk_27;
 mod uk_54;
 mod weighted_cloth;
 mod projected_decal;
@@ -130,6 +131,8 @@ pub enum MaterialType {
     BowWave = 22,
     /// Non-rendered material (collision, occlusion, etc.).
     NonRenderable = 26,
+    /// Unknown material, seen in an old test skybox.
+    Uk27 = 27,
     /// Texture combo with vertex-based wind animation.
     TextureComboVertexWind = 29,
     /// Combined texture material.
@@ -597,6 +600,7 @@ impl Material {
             MaterialType::TextureCombo |
             MaterialType::TextureComboVertexWind => Self::read_texture_combo(data, version)?,
             MaterialType::StaticPointLight => Self::read_static_point_light(data, version)?,
+            MaterialType::Uk27 => Self::read_uk_27(data, version)?,
             MaterialType::Uk54 |
             MaterialType::Uk56 |
             MaterialType::Uk57 => Self::read_uk_54(data, version, mtype)?,
@@ -656,6 +660,7 @@ impl Material {
             MaterialType::TextureCombo |
             MaterialType::TextureComboVertexWind => self.write_texture_combo(buffer, version)?,
             MaterialType::StaticPointLight => self.write_static_point_light(buffer, version)?,
+            MaterialType::Uk27 => self.write_uk_27(buffer, version)?,
             MaterialType::Uk54 |
             MaterialType::Uk56 |
             MaterialType::Uk57 => self.write_uk_54(buffer, version, mtype)?,
@@ -696,6 +701,7 @@ impl TryFrom<u16> for MaterialType {
         match value {
             _ if value == Self::BowWave as u16 => Ok(Self::BowWave),
             _ if value == Self::NonRenderable as u16 => Ok(Self::NonRenderable),
+            _ if value == Self::Uk27 as u16 => Ok(Self::Uk27),
             _ if value == Self::TextureComboVertexWind as u16 => Ok(Self::TextureComboVertexWind),
             _ if value == Self::TextureCombo as u16 => Ok(Self::TextureCombo),
             _ if value == Self::DecalWaterfall as u16 => Ok(Self::DecalWaterfall),

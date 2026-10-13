@@ -300,6 +300,15 @@ impl Vertex {
                     v.bitangent = data.read_vector_4_f32_normal_from_vector_4_u8()?;
                     v.uk_1 = data.read_vector_4_u8()?;
                 },
+                MaterialType::Uk27 => {
+                    v.position = data.read_vector_4_f32_from_vec_3_f32()?;
+                    v.texture_coordinate = Vector2::new(data.read_f32()?, data.read_f32()?);
+                    v.texture_coordinate2 = Vector2::new(data.read_f32()?, data.read_f32()?);
+                    v.normal = data.read_vector_4_f32_normal_from_vector_4_u8()?;
+                    v.tangent = data.read_vector_4_f32_normal_from_vector_4_u8()?;
+                    v.bitangent = data.read_vector_4_f32_normal_from_vector_4_u8()?;
+                    v.uk_1 = data.read_vector_4_u8()?;
+                },
                 MaterialType::DebugGeometry => {
                     v.position = data.read_vector_4_f32_normal_from_vector_4_f16()?;
                     v.normal = data.read_vector_4_f32_normal_from_vector_4_f16()?;
@@ -476,6 +485,17 @@ impl Vertex {
                 MaterialType::TextureComboVertexWind => {
                     data.write_vector_4_f32_normal_as_vector_4_f16(self.position)?;
                     data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate)?;
+                    data.write_vector_4_f32_normal_as_vector_4_u8(self.normal)?;
+                    data.write_vector_4_f32_normal_as_vector_4_u8(self.tangent)?;
+                    data.write_vector_4_f32_normal_as_vector_4_u8(self.bitangent)?;
+                    data.write_vector_4_u8(self.uk_1)?;
+                }
+                MaterialType::Uk27 => {
+                    data.write_vector_4_f32_to_vector_3_f32(self.position)?;
+                    data.write_f32(self.texture_coordinate.x)?;
+                    data.write_f32(self.texture_coordinate.y)?;
+                    data.write_f32(self.texture_coordinate2.x)?;
+                    data.write_f32(self.texture_coordinate2.y)?;
                     data.write_vector_4_f32_normal_as_vector_4_u8(self.normal)?;
                     data.write_vector_4_f32_normal_as_vector_4_u8(self.tangent)?;
                     data.write_vector_4_f32_normal_as_vector_4_u8(self.bitangent)?;
