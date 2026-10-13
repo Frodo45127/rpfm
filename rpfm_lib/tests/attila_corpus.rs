@@ -20,6 +20,7 @@ use std::io::Cursor;
 use std::path::PathBuf;
 
 use rpfm_lib::files::{Decodeable, Encodeable, pack::Pack};
+use rpfm_lib::files::bmd::Bmd;
 use rpfm_lib::files::fastbin_lists::{CivilianDeploymentFile, CivilianShelterFile, GrassListFile, TreeListFile};
 use rpfm_lib::files::fxc::Fxc;
 use rpfm_lib::files::rigidmodel::RigidModel;
@@ -97,4 +98,10 @@ fn grass_list() {
 fn civilian_lists() {
     round_trip::<CivilianDeploymentFile>(|path| path.ends_with("/civilian_deployment.bin"));
     round_trip::<CivilianShelterFile>(|path| path.ends_with("/civilian_shelter.bin"));
+}
+
+#[test]
+#[ignore = "needs Attila, in RPFM_TEST_ATTILA_PATH"]
+fn bmd() {
+    round_trip::<Bmd>(|path| path.ends_with("_procedural_bmd_data.bin") || (path.contains("/bmd_data_escalation") && path.ends_with(".bin")));
 }

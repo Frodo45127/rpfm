@@ -207,3 +207,36 @@ fn test_mass_decode() {
     dbg!(heigh_modes);
 }
 */
+
+/// Decodes and encodes back a BMD of Attila, returning the decoded file.
+fn round_trip_attila(version: u16) -> Bmd {
+    let before = std::fs::read(format!("../test_files/fastbin/att_v{version}_bmd_data.bin")).unwrap();
+    let mut data = Bmd::decode(&mut std::io::Cursor::new(&before), &None).unwrap();
+    assert_eq!(*data.serialise_version(), version);
+
+    let mut after = vec![];
+    data.encode(&mut after, &None).unwrap();
+    assert!(before == after, "version {version} isn't written back as it was");
+
+    data
+}
+
+#[test]
+fn test_encode_bmd_attila() {
+    let v4 = round_trip_attila(4);
+    assert!(v4.prop_list().markers().iter().all(|marker| *marker.serialise_version() == 1));
+
+    round_trip_attila(5);
+
+    let v6 = round_trip_attila(6);
+    assert!(!v6.prop_list().markers().is_empty());
+    assert!(v6.prop_list().markers().iter().all(|marker| *marker.serialise_version() == 2));
+    assert!(!v6.particle_emitter_list().markers().is_empty());
+
+    let buildings = v6.battlefield_building_list().buildings();
+    assert!(!buildings.is_empty());
+    assert!(buildings.iter().all(|building| *building.serialise_version() == 3 && building.position_type() == "BBPT_LF_RELATIVE"));
+
+    let captures = v6.capture_location_set().capture_location_sets();
+    assert!(captures.iter().flat_map(|set| set.capture_locations()).any(|location| !location.building_links().is_empty()));
+}

@@ -332,6 +332,10 @@ pub enum RLibError {
     #[error("Unsupported version {1} for type {0}.")]
     EncodingFastBinUnsupportedVersion(String, u16),
 
+    /// FastBin section with data in a version where its layout is unknown.
+    #[error("The {0} section has data, but its layout in this version is unknown.")]
+    DecodingFastBinUnknownSection(String),
+
     // RigidModel Errors
 
     /// RigidModel signature not supported.

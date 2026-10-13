@@ -206,6 +206,7 @@ mod grass_list_reference_list;
 mod water_outlines;
 
 pub mod common;
+mod v6;
 mod v23;
 mod v24;
 mod v25;
@@ -460,6 +461,7 @@ impl Decodeable for Bmd {
         fastbin.serialise_version = data.read_u16()?;
 
         match fastbin.serialise_version {
+            4..=6 => fastbin.read_v4_to_v6(data, extra_data)?,
             23 => fastbin.read_v23(data, extra_data)?,
             24 => fastbin.read_v24(data, extra_data)?,
             25 => fastbin.read_v25(data, extra_data)?,
@@ -482,6 +484,7 @@ impl Encodeable for Bmd {
         buffer.write_u16(self.serialise_version)?;
 
         match self.serialise_version {
+            4..=6 => self.write_v4_to_v6(buffer, extra_data)?,
             23 => self.write_v23(buffer, extra_data)?,
             24 => self.write_v24(buffer, extra_data)?,
             25 => self.write_v25(buffer, extra_data)?,
