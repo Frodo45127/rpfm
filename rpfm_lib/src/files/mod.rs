@@ -65,6 +65,7 @@
 //! | [`Dat`]                | Limited            | Limited            |
 //! | [`DB`]                 | Yes                | Yes                |
 //! | [`ESF`]                | Limited            | Limited            |
+//! | [`FastBinLists`]       | Yes                | Yes                |
 //! | [`Font`]               | Limited            | Limited            |
 //! | [`Fxc`]                | Yes                | Yes                |
 //! | [`GroupFormations`]    | Limited            | Limited            |
@@ -122,6 +123,7 @@
 //! [`DB`]: crate::files::db::DB
 //! [`ESF`]: crate::files::esf::ESF
 //! [`AssetVariationDb`]: crate::files::asset_variation_db::AssetVariationDb
+//! [`FastBinLists`]: crate::files::fastbin_lists
 //! [`Font`]: crate::files::font::Font
 //! [`Fxc`]: crate::files::fxc::Fxc
 //! [`GroupFormations`]: crate::files::group_formations::GroupFormations
@@ -211,6 +213,7 @@ pub mod cs2_parsed;
 pub mod dat;
 pub mod db;
 #[allow(dead_code)]pub mod esf;
+pub mod fastbin_lists;
 pub mod font;
 pub mod fxc;
 pub mod group_formations;

@@ -92,8 +92,8 @@ pub const EXTENSIONS: [&str; 1] = [
 /// (bytes: `[0x46, 0x41, 0x53, 0x54, 0x42, 0x49, 0x4E, 0x30]`)
 pub const SIGNATURE: &[u8; 8] = &[0x46, 0x41, 0x53, 0x54, 0x42, 0x49, 0x4E, 0x30];
 
-mod grass_list;
-mod tree_list;
+pub mod grass_list;
+pub mod tree_list;
 mod v2;
 
 #[cfg(test)] mod bmd_vegetation_test;
