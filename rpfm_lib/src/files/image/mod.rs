@@ -196,3 +196,33 @@ impl Encodeable for Image {
         buffer.write_all(&self.data).map_err(From::from)
     }
 }
+
+/// Decodes a mipmap of a DDS texture to RGBA pixels.
+///
+/// # Arguments
+///
+/// * `data` - The DDS file.
+/// * `mipmap` - Level to decode, 0 being the largest. Levels past the last one decode the last one.
+///
+/// # Returns
+///
+/// The pixels of the mipmap.
+///
+/// # Errors
+///
+/// Returns an error if the data is not a DDS texture, or its format can't be decoded.
+pub fn decode_dds_rgba(data: &[u8], mipmap: u32) -> Result<RgbaImage> {
+    let mut decoder = Decoder::new(Cursor::new(data))?;
+    let mipmaps = decoder.layout().texture().map_or(1, |texture| u32::from(texture.mipmaps()));
+
+    for _ in 0..mipmap.min(mipmaps.saturating_sub(1)) {
+        decoder.skip_surface()?;
+    }
+
+    let size = decoder.surface_info().ok_or(RLibError::DecodingDDSColourFormatUnsupported)?.size();
+    let mut pixels = vec![0_u8; size.pixels() as usize * 4];
+    let view = ImageViewMut::new(&mut pixels, size, ColorFormat::RGBA_U8).ok_or(RLibError::DecodingDDSColourFormatUnsupported)?;
+    decoder.read_surface(view)?;
+
+    RgbaImage::from_raw(size.width, size.height, pixels).ok_or(RLibError::DecodingDDSColourFormatUnsupported)
+}
