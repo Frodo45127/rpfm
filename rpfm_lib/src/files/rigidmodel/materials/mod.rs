@@ -95,6 +95,7 @@ mod cloth;
 mod default;
 mod rs_terrain;
 mod rs_river;
+mod projected_decal;
 mod projected_decal_v4;
 mod weighted_texture_blend;
 
@@ -275,6 +276,12 @@ pub struct Material {
 
     /// Pivot point for transformations.
     v_pivot: Vector3<f32>,
+
+    /// Center of the box a projected decal is projected in.
+    decal_center: Vector3<f32>,
+
+    /// Size of the box a projected decal is projected in.
+    decal_size: Vector3<f32>,
     
     /// Transform matrix 1 (3x4, implicit 4th row: [0, 0, 0, 1]).
     matrix1: Matrix3x4<f32>,
@@ -445,6 +452,9 @@ impl Material {
             MaterialType::RsRiver => Self::read_rs_river(data)?,
             MaterialType::WeightedTextureBlend => Self::read_weighted_texture_blend(data)?,
             MaterialType::ProjectedDecalV4 if version <= 6 => Self::read_projected_decal_v4(data)?,
+            MaterialType::ProjectedDecal |
+            MaterialType::ProjectedDecalV2 |
+            MaterialType::ProjectedDecalV3 => Self::read_projected_decal(data, mtype)?,
             MaterialType::AlphaBlend => Self::read_alpha_blend(data)?,
             MaterialType::Cloth => Self::read_cloth(data)?,
             MaterialType::ProjectedDecalV4 |
@@ -488,6 +498,9 @@ impl Material {
             MaterialType::RsRiver => self.write_rs_river(buffer)?,
             MaterialType::WeightedTextureBlend => self.write_weighted_texture_blend(buffer)?,
             MaterialType::ProjectedDecalV4 if version <= 6 => self.write_projected_decal_v4(buffer)?,
+            MaterialType::ProjectedDecal |
+            MaterialType::ProjectedDecalV2 |
+            MaterialType::ProjectedDecalV3 => self.write_projected_decal(buffer, mtype)?,
             MaterialType::AlphaBlend => self.write_alpha_blend(buffer)?,
             MaterialType::Cloth => self.write_cloth(buffer)?,
             MaterialType::ProjectedDecalV4 |

@@ -254,6 +254,11 @@ impl Vertex {
                     v.position = data.read_vector_4_f32()?;
                     v.normal = data.read_vector_4_f32()?;
                 },
+                MaterialType::ProjectedDecal |
+                MaterialType::ProjectedDecalV2 |
+                MaterialType::ProjectedDecalV3 => {
+                    v.position = data.read_vector_4_f32()?;
+                },
                 MaterialType::TerrainBlend => {
                     v.position = data.read_vector_4_f32()?;
                     v.normal = data.read_vector_4_f32()?;
@@ -374,6 +379,11 @@ impl Vertex {
                 MaterialType::RsRiver => {
                     data.write_vector_4_f32(*self.position())?;
                     data.write_vector_4_f32(*self.normal())?;
+                }
+                MaterialType::ProjectedDecal |
+                MaterialType::ProjectedDecalV2 |
+                MaterialType::ProjectedDecalV3 => {
+                    data.write_vector_4_f32(*self.position())?;
                 }
                 MaterialType::TerrainBlend => {
                     data.write_vector_4_f32(*self.position())?;
