@@ -132,6 +132,7 @@ pub mod integrations;
 pub mod notes;
 pub mod schema;
 pub mod utils;
+mod xml;
 
 #[cfg(test)] mod utils_test;
 
