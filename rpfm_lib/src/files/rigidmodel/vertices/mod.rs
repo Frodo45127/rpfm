@@ -25,6 +25,8 @@
 //! | Weighted  | 3  | Skeletal animation (2 bones)     | Yes (2)      |
 //! | Cinematic | 4  | High-quality cutscenes (4 bones) | Yes (4)      |
 //! | Grass     | 5  | Vegetation/grass rendering       | No           |
+//! | Tree      | 6  | Tree rendering, with wind data   | No           |
+//! | Billboard | 7  | Tree billboards                  | No           |
 //! | Uk8       | 8  | Unknown (seen in water planes)   | Unknown      |
 //! | Uk12      | 12 | Unknown (seen in coral shrubs)   | Unknown      |
 //! | ClothSim  | 25 | Cloth physics simulation         | Yes          |
@@ -66,6 +68,7 @@
 //! - Cloth materials include additional physics data
 
 use getset::{Getters, MutGetters, Setters};
+use half::f16;
 use nalgebra::{Vector2, Vector4};
 use serde::{Deserialize, Serialize};
 
@@ -96,6 +99,10 @@ pub enum VertexFormat {
     Cinematic = 4,
     /// Grass/vegetation vertices with special rendering data.
     Grass = 5,
+    /// Tree vertices, with a second position and wind data.
+    Tree = 6,
+    /// Tree billboard vertices (position and UVs only).
+    Billboard = 7,
     /// Unknown format (observed in glb_water_planes models).
     Uk8 = 8,
     /// Unknown format (observed in sea_coral_shrubs_02 models).
@@ -168,6 +175,15 @@ pub struct Vertex {
 
     /// Unknown field (version 8+ only, purpose undocumented).
     uk_1: Vector4<u8>,
+
+    /// Second position of the vertex (x, y, z, w). Seen in tree vertices, likely the pivot the vertex bends around with the wind.
+    position2: Vector4<f32>,
+
+    /// Unknown pair of values of tree vertices. Small integers stored as f16.
+    uk_2: Vector2<f32>,
+
+    /// Unknown values of tree vertices, between 0 and 2. Stored as f16.
+    uk_3: Vector4<f32>,
 }
 
 //---------------------------------------------------------------------------//
@@ -183,6 +199,8 @@ impl TryFrom<u16> for VertexFormat {
             _ if value == Self::Weighted as u16 => Ok(Self::Weighted),
             _ if value == Self::Cinematic as u16 => Ok(Self::Cinematic),
             _ if value == Self::Grass as u16 => Ok(Self::Grass),
+            _ if value == Self::Tree as u16 => Ok(Self::Tree),
+            _ if value == Self::Billboard as u16 => Ok(Self::Billboard),
             _ if value == Self::Uk8 as u16 => Ok(Self::Uk8),
             _ if value == Self::Uk12 as u16 => Ok(Self::Uk12),
             _ if value == Self::ClothSim as u16 => Ok(Self::ClothSim),
@@ -308,6 +326,25 @@ impl Vertex {
                     v.uk_1 = data.read_vector_4_u8()?;
                 }
             }
+            VertexFormat::Grass => {
+                v.position = data.read_vector_4_f32_normal_from_vector_4_f16()?;
+                v.texture_coordinate = Vector2::new(data.read_f32()?, data.read_f32()?);
+                v.normal = data.read_vector_4_f32_normal_from_vector_4_u8()?;
+                v.tangent = data.read_vector_4_f32_normal_from_vector_4_u8()?;
+                v.uk_1 = data.read_vector_4_u8()?;
+            }
+            VertexFormat::Tree => {
+                v.position = data.read_vector_4_f32_normal_from_vector_4_f16()?;
+                v.position2 = data.read_vector_4_f32_normal_from_vector_4_f16()?;
+                v.normal = data.read_vector_4_f32_normal_from_vector_4_f16()?;
+                v.tangent = data.read_vector_4_f32_normal_from_vector_4_f16()?;
+                v.bitangent = data.read_vector_4_f32_normal_from_vector_4_f16()?;
+                v.texture_coordinate = data.read_vector_2_f32_from_vector_2_f16()?;
+                v.texture_coordinate2 = data.read_vector_2_f32_from_vector_2_f16()?;
+                v.uk_2 = data.read_vector_2_f32_from_vector_2_f16()?;
+                v.uk_3 = Vector4::new(data.read_f16()?.to_f32(), data.read_f16()?.to_f32(), data.read_f16()?.to_f32(), data.read_f16()?.to_f32());
+            }
+            VertexFormat::Billboard |
             VertexFormat::Uk8 => {
                 v.position = data.read_vector_4_f32_normal_from_vector_4_f16()?;
                 v.texture_coordinate = data.read_vector_2_f32_from_vector_2_f16()?;
@@ -427,6 +464,28 @@ impl Vertex {
                     data.write_vector_4_u8(self.uk_1)?;
                 }
             }
+            VertexFormat::Grass => {
+                data.write_vector_4_f32_normal_as_vector_4_f16(self.position)?;
+                data.write_f32(self.texture_coordinate.x)?;
+                data.write_f32(self.texture_coordinate.y)?;
+                data.write_vector_4_f32_normal_as_vector_4_u8(self.normal)?;
+                data.write_vector_4_f32_normal_as_vector_4_u8(self.tangent)?;
+                data.write_vector_4_u8(self.uk_1)?;
+            }
+            VertexFormat::Tree => {
+                data.write_vector_4_f32_normal_as_vector_4_f16(self.position)?;
+                data.write_vector_4_f32_normal_as_vector_4_f16(self.position2)?;
+                data.write_vector_4_f32_normal_as_vector_4_f16(self.normal)?;
+                data.write_vector_4_f32_normal_as_vector_4_f16(self.tangent)?;
+                data.write_vector_4_f32_normal_as_vector_4_f16(self.bitangent)?;
+                data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate)?;
+                data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate2)?;
+                data.write_vector_2_f32_as_vector_2_f16(self.uk_2)?;
+                for value in self.uk_3.iter() {
+                    data.write_f16(f16::from_f32(*value))?;
+                }
+            }
+            VertexFormat::Billboard |
             VertexFormat::Uk8 => {
                 data.write_vector_4_f32_normal_as_vector_4_f16(*self.position())?;
                 data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate)?;
