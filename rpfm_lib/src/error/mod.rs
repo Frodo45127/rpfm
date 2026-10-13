@@ -348,6 +348,10 @@ pub enum RLibError {
     #[error("Unsupported vertex format {0} for material {1}.")]
     DecodingRigidModelUnsupportedVertexFormatForMaterial(u16, u16),
 
+    /// RigidModel rope with a link count that doesn't match its nodes.
+    #[error("A rope with {0} nodes needs one link fewer, but it has {1}.")]
+    EncodingRigidModelRopeLinkCountMismatch(usize, usize),
+
     /// Group Formations unknown enum value.
     #[error("Unknown group formations {0} value: {1}.")]
     DecodingGroupFormationsUnknownEnumValue(String, u32),

@@ -96,7 +96,9 @@ mod collision_shape;
 mod custom_terrain;
 mod default;
 mod rs_terrain;
+mod rope;
 mod rs_river;
+mod weighted_cloth;
 mod projected_decal;
 mod projected_decal_v4;
 mod weighted_texture_blend;
@@ -296,6 +298,12 @@ pub struct Material {
 
     /// Radius of the sphere around a collision shape.
     sphere_radius: f32,
+
+    /// Bones of the cloth simulation of weighted cloth materials.
+    cloth_bones: Vec<ClothBone>,
+
+    /// Simulation data of rope materials.
+    rope: Rope,
     
     /// Transform matrix 1 (3x4, implicit 4th row: [0, 0, 0, 1]).
     matrix1: Matrix3x4<f32>,
@@ -353,6 +361,96 @@ pub struct AttachmentPointEntry {
 }
 
 /// Texture reference with type and file path.
+/// The simulation data of a rope material: a chain of nodes joined by links.
+#[derive(Clone, Debug, Default, PartialEq, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct Rope {
+
+    /// Unknown indices, or -1. Likely what the rope is attached to.
+    attachments: Vector4<i32>,
+
+    /// Unknown value, around 0.03.
+    uk_1: f32,
+
+    /// Unknown value, usually a power of two or 0. Likely flags.
+    uk_2: u32,
+
+    /// Nodes of the rope, from one end to the other.
+    nodes: Vec<RopeNode>,
+
+    /// Links between consecutive nodes. There's always one fewer than nodes.
+    links: Vec<RopeLink>,
+}
+
+/// A node of a rope.
+#[derive(Clone, Debug, Default, PartialEq, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct RopeNode {
+
+    /// Position of the node.
+    position: Vector3<f32>,
+
+    /// Weight of the node in the simulation: 0 for the pinned ends, 1 for the rest.
+    weight: f32,
+
+    /// Unknown value, decreasing along the rope.
+    uk_1: f32,
+}
+
+/// A link between two nodes of a rope.
+#[derive(Clone, Debug, Default, PartialEq, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct RopeLink {
+
+    /// Index of the first node.
+    node_a: u32,
+
+    /// Index of the second node.
+    node_b: u32,
+
+    /// Length of the link.
+    length: f32,
+}
+
+/// A bone of the cloth simulation of a weighted cloth material, attached to a vertex of its mesh.
+#[derive(Clone, Debug, Default, PartialEq, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct ClothBone {
+
+    /// Name of the bone.
+    name: String,
+
+    /// Unknown values. (100, 200, 400) in every Attila file.
+    uk_1: Vector3<f32>,
+
+    /// Unknown value. 12 in every Attila file.
+    uk_2: u32,
+
+    /// Unknown value. 64 in every Attila file.
+    uk_3: u32,
+
+    /// Unknown value, the same for all the bones of a mesh.
+    uk_4: u32,
+
+    /// Unknown value. 24 or 25.
+    uk_5: u32,
+
+    /// Unknown value. 24 or 25.
+    uk_6: u32,
+
+    /// Unknown value. 0 or 1.
+    uk_7: f32,
+
+    /// Transform of the bone.
+    matrix: Matrix3x4<f32>,
+
+    /// Index of the parent bone, or -1.
+    parent_index: i32,
+
+    /// Index of the vertex of the mesh the bone is attached to.
+    vertex_index: u32,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Texture {
@@ -473,6 +571,8 @@ impl Material {
             MaterialType::ProjectedDecalV3 => Self::read_projected_decal(data, mtype)?,
             MaterialType::CustomTerrain => Self::read_custom_terrain(data)?,
             MaterialType::CollisionShape => Self::read_collision_shape(data)?,
+            MaterialType::WeightedCloth if version <= 6 => Self::read_weighted_cloth(data)?,
+            MaterialType::Rope if version <= 6 => Self::read_rope(data)?,
             MaterialType::AlphaBlend => Self::read_alpha_blend(data)?,
             MaterialType::Cloth => Self::read_cloth(data)?,
             MaterialType::ProjectedDecalV4 |
@@ -523,6 +623,8 @@ impl Material {
             MaterialType::ProjectedDecalV3 => self.write_projected_decal(buffer, mtype)?,
             MaterialType::CustomTerrain => self.write_custom_terrain(buffer)?,
             MaterialType::CollisionShape => self.write_collision_shape(buffer)?,
+            MaterialType::WeightedCloth if version <= 6 => self.write_weighted_cloth(buffer)?,
+            MaterialType::Rope if version <= 6 => self.write_rope(buffer)?,
             MaterialType::AlphaBlend => self.write_alpha_blend(buffer)?,
             MaterialType::Cloth => self.write_cloth(buffer)?,
             MaterialType::ProjectedDecalV4 |

@@ -222,6 +222,10 @@ pub struct Mesh {
 
     /// Index buffer defining triangles (groups of 3 indices into `vertices`).
     indices: Vec<u16>,
+
+    /// Indices stored after the index buffer, not counted in the mesh header. Rope meshes of version 6 use them,
+    /// for triangles of other meshes of the same LOD.
+    extra_indices: Vec<u16>,
 }
 
 /// Raw shader parameter data (not fully decoded).

@@ -27,6 +27,7 @@
 //! | Grass     | 5  | Vegetation/grass rendering       | No           |
 //! | Tree      | 6  | Tree rendering, with wind data   | No           |
 //! | Billboard | 7  | Tree billboards                  | No           |
+//! | Rope      | 11 | Ropes (meshes without vertices)  | No           |
 //! | Uk8       | 8  | Unknown (seen in water planes)   | Unknown      |
 //! | Uk12      | 12 | Unknown (seen in coral shrubs)   | Unknown      |
 //! | ClothSim  | 25 | Cloth physics simulation         | Yes          |
@@ -103,6 +104,8 @@ pub enum VertexFormat {
     Tree = 6,
     /// Tree billboard vertices (position and UVs only).
     Billboard = 7,
+    /// Format of rope meshes, which have no vertices of their own.
+    Rope = 11,
     /// Unknown format (observed in glb_water_planes models).
     Uk8 = 8,
     /// Unknown format (observed in sea_coral_shrubs_02 models).
@@ -205,6 +208,7 @@ impl TryFrom<u16> for VertexFormat {
             _ if value == Self::Grass as u16 => Ok(Self::Grass),
             _ if value == Self::Tree as u16 => Ok(Self::Tree),
             _ if value == Self::Billboard as u16 => Ok(Self::Billboard),
+            _ if value == Self::Rope as u16 => Ok(Self::Rope),
             _ if value == Self::Uk8 as u16 => Ok(Self::Uk8),
             _ if value == Self::Uk12 as u16 => Ok(Self::Uk12),
             _ if value == Self::ClothSim as u16 => Ok(Self::ClothSim),

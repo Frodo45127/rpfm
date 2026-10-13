@@ -52,13 +52,14 @@ impl RigidModel {
         for lod in &mut self.lods {
             for _ in 0..lod.mesh_blocks.capacity() {
                 let mut mesh = MeshBlock::default();
+                let mesh_start = data.stream_position()?;
 
                 // Mesh data
                 mesh.mesh.material_type = MaterialType::try_from(data.read_u16()?)?;
 
                 // Possible mesh lenght.
                 let _render_flags = data.read_u16()?;
-                let _mesh_section_size = data.read_u32()?;
+                let mesh_section_size = data.read_u32()?;
                 let _vertex_offset = data.read_u32()?;
                 let vertex_count = data.read_u32()?;
                 let _index_offset = data.read_u32()?;
@@ -84,6 +85,11 @@ impl RigidModel {
 
                 for _ in 0..mesh.mesh.indices.capacity() {
                     mesh.mesh.indices.push(data.read_u16()?);
+                }
+
+                let mesh_end = mesh_start + mesh_section_size as u64;
+                while data.stream_position()? < mesh_end {
+                    mesh.mesh.extra_indices.push(data.read_u16()?);
                 }
 
                 lod.mesh_blocks.push(mesh);
@@ -134,7 +140,7 @@ impl RigidModel {
                 total_vertices_size += mesh_data.len() - offset_start_vertices;
 
                 let offset_start_indices = mesh_data.len();
-                for index in mesh.mesh.indices() {
+                for index in mesh.mesh.indices().iter().chain(mesh.mesh.extra_indices()) {
                     mesh_data.write_u16(*index)?;
                 }
 
