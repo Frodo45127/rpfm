@@ -14,7 +14,7 @@ use std::io::{BufReader, BufWriter, Write};
 use std::fs::File;
 
 use crate::binary::ReadBytes;
-//use crate::files::rigidmodel::MaterialType;
+use crate::files::rigidmodel::MaterialType;
 use crate::files::*;
 
 use super::RigidModel;
@@ -152,3 +152,79 @@ fn test_converter() {
     //json_writer.write_all(serde_json::to_string_pretty(&data).unwrap().as_bytes()).unwrap();
 }
 */
+
+/// Decodes and encodes back a model of Attila, returning the decoded model.
+fn round_trip_attila(name: &str) -> RigidModel {
+    let before = std::fs::read(format!("../test_files/rigidmodel_att/{name}.rigid_model_v2")).unwrap();
+    let mut data = RigidModel::decode(&mut std::io::Cursor::new(&before), &None).unwrap();
+
+    let mut after = vec![];
+    data.encode(&mut after, &None).unwrap();
+    assert!(before == after, "{name} isn't written back as it was");
+
+    data
+}
+
+#[test]
+fn test_encode_rigidmodel_attila() {
+    let mut names = std::fs::read_dir("../test_files/rigidmodel_att").unwrap()
+        .map(|entry| entry.unwrap().path().file_stem().unwrap().to_string_lossy().to_string())
+        .collect::<Vec<_>>();
+    names.sort();
+
+    assert_eq!(names.len(), 22);
+    for name in &names {
+        round_trip_attila(name);
+    }
+}
+
+#[test]
+fn test_decode_rigidmodel_attila_rope() {
+    let data = round_trip_attila("v6_rope");
+    let rope_meshes = data.lods()[0].mesh_blocks().iter()
+        .filter(|block| *block.mesh().material_type() == MaterialType::Rope)
+        .collect::<Vec<_>>();
+
+    assert!(!rope_meshes.is_empty());
+    for block in rope_meshes {
+        let rope = block.material().rope();
+        assert_eq!(rope.links().len() + 1, rope.nodes().len());
+        assert!(block.mesh().vertices().is_empty());
+        assert!(!block.mesh().extra_indices().is_empty());
+    }
+}
+
+#[test]
+fn test_decode_rigidmodel_attila_cloth_bone_padding() {
+    let data = round_trip_attila("v5_weighted_cloth_collision_shape");
+    let bones = data.lods()[0].mesh_blocks().iter()
+        .filter(|block| *block.mesh().material_type() == MaterialType::WeightedCloth)
+        .flat_map(|block| block.material().cloth_bones())
+        .collect::<Vec<_>>();
+
+    assert!(!bones.is_empty());
+    assert!(bones.iter().all(|bone| bone.name().starts_with("bn_") || bone.name().starts_with("bone_")));
+    assert!(bones.iter().any(|bone| !bone.name_padding().is_empty()));
+}
+
+#[test]
+fn test_decode_rigidmodel_attila_borrowed_vertices() {
+    let data = round_trip_attila("v6_static_point_light");
+    let light = data.lods()[0].mesh_blocks().iter()
+        .find(|block| *block.mesh().material_type() == MaterialType::StaticPointLight)
+        .unwrap();
+
+    assert!(!light.mesh().vertices().is_empty());
+    assert!(!light.mesh().indices().is_empty());
+}
+
+#[test]
+fn test_encode_rigidmodel_rope_link_count_mismatch() {
+    let mut data = round_trip_attila("v6_rope");
+    let block = data.lods_mut()[0].mesh_blocks_mut().iter_mut()
+        .find(|block| *block.mesh().material_type() == MaterialType::Rope)
+        .unwrap();
+    block.material_mut().rope_mut().links_mut().pop();
+
+    assert!(data.encode(&mut vec![], &None).is_err());
+}

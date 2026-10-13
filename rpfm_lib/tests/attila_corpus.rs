@@ -21,6 +21,7 @@ use std::path::PathBuf;
 
 use rpfm_lib::files::{Decodeable, Encodeable, pack::Pack};
 use rpfm_lib::files::fxc::Fxc;
+use rpfm_lib::files::rigidmodel::RigidModel;
 use rpfm_lib::files::tile_database::TileDatabase;
 use rpfm_lib::games::supported_games::{KEY_ATTILA, SupportedGames};
 
@@ -70,4 +71,10 @@ fn fxc() {
 #[ignore = "needs Attila, in RPFM_TEST_ATTILA_PATH"]
 fn tile_database() {
     round_trip::<TileDatabase>(|path| path.ends_with("tile_database.bin"));
+}
+
+#[test]
+#[ignore = "needs Attila, in RPFM_TEST_ATTILA_PATH"]
+fn rigid_model() {
+    round_trip::<RigidModel>(|path| path.ends_with(".rigid_model_v2"));
 }

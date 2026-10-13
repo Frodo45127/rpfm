@@ -109,6 +109,8 @@ mod projected_decal;
 mod projected_decal_v4;
 mod weighted_texture_blend;
 
+#[cfg(test)] mod materials_test;
+
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
