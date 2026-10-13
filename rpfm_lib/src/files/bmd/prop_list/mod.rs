@@ -16,8 +16,11 @@ use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
 use self::prop::Prop;
 
+pub use self::marker::PropMarker;
+
 use super::*;
 
+mod marker;
 mod prop;
 mod v2;
 
@@ -31,6 +34,31 @@ pub struct PropList {
     serialise_version: u16,
     keys: Vec<String>,
     props: Vec<Prop>,
+
+    /// Props as Attila stores them, with their keys. Later games use `keys` and `props` instead.
+    markers: Vec<PropMarker>,
+}
+
+impl PropList {
+
+    /// Reads the props of Attila: a count and that many markers.
+    pub(crate) fn read_markers<R: ReadBytes>(&mut self, data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<()> {
+        for _ in 0..data.read_u32()? {
+            self.markers.push(PropMarker::decode(data, extra_data)?);
+        }
+
+        Ok(())
+    }
+
+    /// Writes the props of Attila: a count and that many markers.
+    pub(crate) fn write_markers<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+        buffer.write_u32(self.markers.len() as u32)?;
+        for marker in &mut self.markers {
+            marker.encode(buffer, extra_data)?;
+        }
+
+        Ok(())
+    }
 }
 
 //---------------------------------------------------------------------------//

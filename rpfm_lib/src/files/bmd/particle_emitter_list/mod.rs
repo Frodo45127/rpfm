@@ -15,8 +15,11 @@ use crate::error::{Result, RLibError};
 use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
 use self::particle_emitter::ParticleEmitter;
+
+pub use self::marker::ParticleEmitterMarker;
 use super::*;
 
+mod marker;
 mod particle_emitter;
 mod v1;
 
@@ -29,6 +32,31 @@ mod v1;
 pub struct ParticleEmitterList {
     serialise_version: u16,
     particle_emitters: Vec<ParticleEmitter>,
+
+    /// Particle emitters as Attila stores them. Later games use `particle_emitters` instead.
+    markers: Vec<ParticleEmitterMarker>,
+}
+
+impl ParticleEmitterList {
+
+    /// Reads the particle emitters of Attila: a count and that many markers.
+    pub(crate) fn read_markers<R: ReadBytes>(&mut self, data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<()> {
+        for _ in 0..data.read_u32()? {
+            self.markers.push(ParticleEmitterMarker::decode(data, extra_data)?);
+        }
+
+        Ok(())
+    }
+
+    /// Writes the particle emitters of Attila: a count and that many markers.
+    pub(crate) fn write_markers<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
+        buffer.write_u32(self.markers.len() as u32)?;
+        for marker in &mut self.markers {
+            marker.encode(buffer, extra_data)?;
+        }
+
+        Ok(())
+    }
 }
 
 //---------------------------------------------------------------------------//
