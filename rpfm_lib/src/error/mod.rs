@@ -300,6 +300,12 @@ pub enum RLibError {
     #[error("{0}")]
     AssetVariationDbEditRefused(String),
 
+    // Tile Database Errors
+
+    /// Tile database source in the Assembly Kit that can't be read.
+    #[error("Invalid tile database XML: {0}")]
+    DecodingTileDatabaseXml(String),
+
     // Fxc Errors
 
     /// Fxc (compiled shader container) signature not supported.
