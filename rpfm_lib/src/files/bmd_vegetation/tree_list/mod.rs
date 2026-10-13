@@ -51,6 +51,7 @@ use crate::files::{Bmd, bmd::ToLayer, Decodeable, EncodeableExtraData, Encodeabl
 
 use super::DecodeableExtraData;
 
+mod v1;
 mod v4;
 
 //---------------------------------------------------------------------------//
@@ -64,7 +65,7 @@ mod v4;
 ///
 /// # Fields
 ///
-/// * `serialise_version` - File format version (currently 4)
+/// * `serialise_version` - File format version (1 to 3 in Attila, 4 in later games)
 /// * `tree_list` - Vector of tree groups, each containing instances of a specific tree model
 ///
 /// # Examples
@@ -163,6 +164,9 @@ pub struct BattleTreeItem {
 
     /// Behavior flags for this tree instance.
     flags: u8,
+
+    /// Unknown byte of version 2. Always 1 in Attila.
+    uk_1: u8,
 }
 
 //---------------------------------------------------------------------------//
@@ -176,6 +180,7 @@ impl Decodeable for TreeList {
         decoded.serialise_version = data.read_u16()?;
 
         match decoded.serialise_version {
+            1..=3 => decoded.read_v1_to_v3(data, extra_data)?,
             4 => decoded.read_v4(data, extra_data)?,
             _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("TreeList"), decoded.serialise_version)),
         }
@@ -190,6 +195,7 @@ impl Encodeable for TreeList {
         buffer.write_u16(self.serialise_version)?;
 
         match self.serialise_version {
+            1..=3 => self.write_v1_to_v3(buffer, extra_data)?,
             4 => self.write_v4(buffer, extra_data)?,
             _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("TreeList"), self.serialise_version)),
         }
@@ -208,6 +214,7 @@ impl Default for BattleTreeItem {
             rotation: u8::default(),
             scale: f32::default(),
             flags: u8::default(),
+            uk_1: u8::default(),
         }
     }
 }

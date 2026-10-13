@@ -48,37 +48,54 @@ use crate::files::{Decodeable, EncodeableExtraData, Encodeable};
 
 use super::DecodeableExtraData;
 
+mod v1;
 mod v4;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-/// Grass placement data for a battle map.
+/// Grass placement data for a battle map: groups of grass positions, by grass type.
 ///
-/// Contains compressed grass coverage information stored as a binary blob.
-/// The exact internal format is implementation-specific and represents
-/// grass density and distribution across the terrain.
+/// Only version 1, used by Attila, is decoded. Version 4 is only read when empty.
 ///
 /// # Fields
 ///
-/// * `serialise_version` - File format version (currently 4)
-/// * `grass_list` - Raw binary data containing grass coverage information
-///
-/// # Examples
-///
-/// ```rust,ignore
-/// let grass_list = GrassList::decode(&mut data, &extra_data)?;
-/// println!("Grass data: {} bytes", grass_list.grass_list().len());
-/// ```
+/// * `serialise_version` - File format version (1 in Attila, 4 in later games)
+/// * `grass_list` - Grass positions, by grass type
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct GrassList {
     /// File format version number.
     serialise_version: u16,
 
-    /// Raw binary data containing grass coverage information.
-    grass_list: Vec<u8>,
+    /// Grass positions, by grass type.
+    grass_list: Vec<GrassItemVector>,
+}
+
+/// The positions of one type of grass.
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct GrassItemVector {
+    /// Grass type, like `grass/0`.
+    key: String,
+
+    /// Positions of the grass of this type.
+    value: Vec<GrassItem>,
+}
+
+/// The position of a grass patch. Stored as f16.
+#[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
+#[getset(get = "pub", get_mut = "pub", set = "pub")]
+pub struct GrassItem {
+    /// X coordinate.
+    x: f32,
+
+    /// Y coordinate (height).
+    y: f32,
+
+    /// Z coordinate.
+    z: f32,
 }
 
 //---------------------------------------------------------------------------//
@@ -92,6 +109,7 @@ impl Decodeable for GrassList {
         decoded.serialise_version = data.read_u16()?;
 
         match decoded.serialise_version {
+            1 => decoded.read_v1(data, extra_data)?,
             4 => decoded.read_v4(data, extra_data)?,
             _ => return Err(RLibError::DecodingFastBinUnsupportedVersion(String::from("GrassList"), decoded.serialise_version)),
         }
@@ -106,6 +124,7 @@ impl Encodeable for GrassList {
         buffer.write_u16(self.serialise_version)?;
 
         match self.serialise_version {
+            1 => self.write_v1(buffer, extra_data)?,
             4 => self.write_v4(buffer, extra_data)?,
             _ => return Err(RLibError::EncodingFastBinUnsupportedVersion(String::from("GrassList"), self.serialise_version)),
         }
