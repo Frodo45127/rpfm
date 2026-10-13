@@ -432,19 +432,19 @@ impl Material {
 
     /// Reads a material from binary data based on the material type.
     ///
-    /// Different material types have different binary layouts. This function
-    /// dispatches to the appropriate type-specific reader.
+    /// Different material types have different binary layouts, which may change between
+    /// versions of the RigidModel format. This function dispatches to the appropriate reader.
     ///
     /// # Errors
     ///
     /// Returns [`RLibError::DecodingRigidModelUnsupportedMaterialType`] if the
     /// material type is not supported.
-    pub fn read<R: ReadBytes>(data: &mut R, mtype: MaterialType) -> Result<Self> {
+    pub fn read<R: ReadBytes>(data: &mut R, version: u32, mtype: MaterialType) -> Result<Self> {
         Ok(match mtype {
             MaterialType::RsTerrain => Self::read_rs_terrain(data)?,
             MaterialType::RsRiver => Self::read_rs_river(data)?,
             MaterialType::WeightedTextureBlend => Self::read_weighted_texture_blend(data)?,
-            //MaterialType::ProjectedDecalV4 => Self::read_projected_decal_v4(data)?,
+            MaterialType::ProjectedDecalV4 if version <= 6 => Self::read_projected_decal_v4(data)?,
             MaterialType::AlphaBlend => Self::read_alpha_blend(data)?,
             MaterialType::Cloth => Self::read_cloth(data)?,
             MaterialType::ProjectedDecalV4 |
@@ -453,6 +453,21 @@ impl Material {
             MaterialType::ShipAmbientmap |
             MaterialType::TerrainBlend |
             MaterialType::Weighted |
+            MaterialType::Grass |
+            MaterialType::WeightedSkin |
+            MaterialType::Decal |
+            MaterialType::DecalDirtmap |
+            MaterialType::Dirtmap |
+            MaterialType::Tree |
+            MaterialType::TreeLeaf |
+            MaterialType::WeightedDecal |
+            MaterialType::WeightedDecalDirtmap |
+            MaterialType::WeightedDirtmap |
+            MaterialType::WeightedSkinDirtmap |
+            MaterialType::Unlit |
+            MaterialType::TreeBillboardMaterial |
+            MaterialType::WaterDisplaceVolume |
+            MaterialType::CampaignVegetation |
             MaterialType::DefaultMaterial => Self::read_default(data)?,
             _ => return Err(RLibError::DecodingRigidModelUnsupportedMaterialType(mtype.into()))
         })
@@ -460,19 +475,19 @@ impl Material {
 
     /// Writes a material to binary data based on the material type.
     ///
-    /// Different material types have different binary layouts. This function
-    /// dispatches to the appropriate type-specific writer.
+    /// Different material types have different binary layouts, which may change between
+    /// versions of the RigidModel format. This function dispatches to the appropriate writer.
     ///
     /// # Errors
     ///
     /// Returns [`RLibError::DecodingRigidModelUnsupportedMaterialType`] if the
     /// material type is not supported.
-    pub fn write<W: WriteBytes>(&self, buffer: &mut W, mtype: MaterialType) -> Result<()> {
+    pub fn write<W: WriteBytes>(&self, buffer: &mut W, version: u32, mtype: MaterialType) -> Result<()> {
         match mtype {
             MaterialType::RsTerrain => self.write_rs_terrain(buffer)?,
             MaterialType::RsRiver => self.write_rs_river(buffer)?,
             MaterialType::WeightedTextureBlend => self.write_weighted_texture_blend(buffer)?,
-            //MaterialType::ProjectedDecalV4 => self.write_projected_decal_v4(buffer)?,
+            MaterialType::ProjectedDecalV4 if version <= 6 => self.write_projected_decal_v4(buffer)?,
             MaterialType::AlphaBlend => self.write_alpha_blend(buffer)?,
             MaterialType::Cloth => self.write_cloth(buffer)?,
             MaterialType::ProjectedDecalV4 |
@@ -481,6 +496,21 @@ impl Material {
             MaterialType::ShipAmbientmap |
             MaterialType::TerrainBlend |
             MaterialType::Weighted |
+            MaterialType::Grass |
+            MaterialType::WeightedSkin |
+            MaterialType::Decal |
+            MaterialType::DecalDirtmap |
+            MaterialType::Dirtmap |
+            MaterialType::Tree |
+            MaterialType::TreeLeaf |
+            MaterialType::WeightedDecal |
+            MaterialType::WeightedDecalDirtmap |
+            MaterialType::WeightedDirtmap |
+            MaterialType::WeightedSkinDirtmap |
+            MaterialType::Unlit |
+            MaterialType::TreeBillboardMaterial |
+            MaterialType::WaterDisplaceVolume |
+            MaterialType::CampaignVegetation |
             MaterialType::DefaultMaterial => self.write_default(buffer)?,
             _ => return Err(RLibError::DecodingRigidModelUnsupportedMaterialType(mtype.into()))
         }

@@ -75,7 +75,7 @@ impl RigidModel {
                 mesh.mesh.vertices = Vec::with_capacity(vertex_count as usize);
                 mesh.mesh.indices = Vec::with_capacity(index_count as usize);
 
-                mesh.material = Material::read(data, mesh.mesh.material_type)?;
+                mesh.material = Material::read(data, self.version, mesh.mesh.material_type)?;
 
                 if mesh.mesh.material_type != MaterialType::AlphaBlend {
                     for _ in 0..mesh.mesh.vertices().capacity() {
@@ -125,7 +125,7 @@ impl RigidModel {
                 //mesh_data.write_all(mesh.mesh.shader_params().uk_1())?;
                 //mesh_data.write_all(mesh.mesh.shader_params().uk_2())?;
 
-                mesh.material.write(&mut mesh_data, mesh.mesh.material_type)?;
+                mesh.material.write(&mut mesh_data, self.version, mesh.mesh.material_type)?;
 
                 let offset_start_vertices = mesh_data.len();
                 if mesh.mesh.material_type != MaterialType::AlphaBlend {
