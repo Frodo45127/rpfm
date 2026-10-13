@@ -290,6 +290,24 @@ pub enum RLibError {
     #[error("Unsupported signature: {0:#X?}.")]
     DecodingFontUnsupportedSignature(Vec<u8>),
 
+    // Fxc Errors
+
+    /// Fxc (compiled shader container) signature not supported.
+    #[error("Unsupported fxc signature: {0:#X}.")]
+    DecodingFxcUnsupportedSignature(u32),
+
+    /// Fxc version not supported for decoding.
+    #[error("Unsupported fxc version: {0}.")]
+    DecodingFxcUnsupportedVersion(u32),
+
+    /// Fxc version not supported for encoding.
+    #[error("Unsupported fxc version: {0}.")]
+    EncodingFxcUnsupportedVersion(u32),
+
+    /// Fxc shader is not a DXBC blob, or its size doesn't match the rest of the file.
+    #[error("The shader of this fxc file is not a valid DXBC blob.")]
+    DecodingFxcInvalidShader,
+
     // FastBin Errors
 
     /// FastBin signature not supported.

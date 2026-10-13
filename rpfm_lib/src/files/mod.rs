@@ -65,6 +65,7 @@
 //! | [`DB`]                 | Yes                | Yes                |
 //! | [`ESF`]                | Limited            | Limited            |
 //! | [`Font`]               | Limited            | Limited            |
+//! | [`Fxc`]                | Yes                | Yes                |
 //! | [`GroupFormations`]    | Limited            | Limited            |
 //! | [`HLSL_Compiled`]      | Limited            | Limited            |
 //! | [`Image`]              | Limited            | Limited            |
@@ -120,6 +121,7 @@
 //! [`DB`]: crate::files::db::DB
 //! [`ESF`]: crate::files::esf::ESF
 //! [`Font`]: crate::files::font::Font
+//! [`Fxc`]: crate::files::fxc::Fxc
 //! [`GroupFormations`]: crate::files::group_formations::GroupFormations
 //! [`HLSL_Compiled`]: crate::files::hlsl_compiled::HlslCompiled
 //! [`Image`]: crate::files::image::Image
@@ -207,6 +209,7 @@ pub mod dat;
 pub mod db;
 #[allow(dead_code)]pub mod esf;
 pub mod font;
+pub mod fxc;
 pub mod group_formations;
 pub mod hlsl_compiled;
 pub mod image;
