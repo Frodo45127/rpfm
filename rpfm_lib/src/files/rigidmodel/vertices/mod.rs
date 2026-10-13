@@ -256,6 +256,7 @@ impl Vertex {
                 MaterialType::Cloth |
                 MaterialType::Unlit |
                 MaterialType::WaterDisplaceVolume |
+                MaterialType::Uk54 |
                 MaterialType::DefaultMaterial => {
                     v.position = data.read_vector_4_f32_normal_from_vector_4_f16()?;
                     v.texture_coordinate = data.read_vector_2_f32_from_vector_2_f16()?;
@@ -286,8 +287,9 @@ impl Vertex {
                 MaterialType::ProjectedDecalV3 => {
                     v.position = data.read_vector_4_f32()?;
                 },
-                // Static point lights store no vertex data: their indices point to the vertices of another mesh.
-                MaterialType::StaticPointLight => {},
+                // These store no vertex data: their indices point to the vertices of another mesh.
+                MaterialType::StaticPointLight |
+                MaterialType::Uk57 => {},
                 MaterialType::TextureCombo |
                 MaterialType::TextureComboVertexWind => {
                     v.position = data.read_vector_4_f32_normal_from_vector_4_f16()?;
@@ -428,6 +430,7 @@ impl Vertex {
                 MaterialType::Cloth |
                 MaterialType::Unlit |
                 MaterialType::WaterDisplaceVolume |
+                MaterialType::Uk54 |
                 MaterialType::DefaultMaterial => {
                     data.write_vector_4_f32_normal_as_vector_4_f16(self.position)?;
                     data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate)?;
@@ -460,7 +463,8 @@ impl Vertex {
                 MaterialType::ProjectedDecalV3 => {
                     data.write_vector_4_f32(*self.position())?;
                 }
-                MaterialType::StaticPointLight => {}
+                MaterialType::StaticPointLight |
+                MaterialType::Uk57 => {}
                 MaterialType::TextureCombo |
                 MaterialType::TextureComboVertexWind => {
                     data.write_vector_4_f32_normal_as_vector_4_f16(self.position)?;
