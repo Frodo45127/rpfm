@@ -26,11 +26,14 @@ impl RigidModel {
     pub(crate) fn read_v6<R: ReadBytes>(&mut self, data: &mut R) -> Result<()> {
         let lod_count = data.read_u16()?;
         self.uk_1 = data.read_u16()?;
-        self.skeleton_id = if self.version <= 5 {
-            data.read_string_u16_0padded(PADDED_SIZE_256)?
-        } else {
-            data.read_string_u8_0padded(PADDED_SIZE_128)?
-        };
+        // Versions 1 and 3 have the skeleton after the LOD headers.
+        if self.version >= 5 {
+            self.skeleton_id = if self.version == 5 {
+                data.read_string_u16_0padded(PADDED_SIZE_256)?
+            } else {
+                data.read_string_u8_0padded(PADDED_SIZE_128)?
+            };
+        }
 
         // First pass to get the lods headers.
         self.lods = Vec::with_capacity(lod_count as usize);
@@ -50,6 +53,11 @@ impl RigidModel {
             lod.visibility_distance = data.read_f32()?;
 
             self.lods.push(lod);
+        }
+
+        if self.version <= 3 {
+            self.skeleton_id = data.read_string_u16_0padded(SKELETON_ID_SIZE_V3)?;
+            self.uk_2 = data.read_u32()?;
         }
 
         // Second pass is to populate the lods data.
@@ -72,7 +80,11 @@ impl RigidModel {
                 mesh.mesh.min_bb = Vector3::new(data.read_f32()?, data.read_f32()?, data.read_f32()?);
                 mesh.mesh.max_bb = Vector3::new(data.read_f32()?, data.read_f32()?, data.read_f32()?);
 
-                let shader_params_size = if self.version <= 5 { PADDED_SIZE_64 } else { PADDED_SIZE_32 };
+                let shader_params_size = match self.version {
+                    1 => 0,
+                    2..=5 => PADDED_SIZE_64,
+                    _ => PADDED_SIZE_32,
+                };
                 mesh.mesh.shader_params.data = data.read_slice(shader_params_size, false)?;
                 //mesh.mesh.shader_params.name = data.read_string_u8_0terminated()?;
                 //mesh.mesh.shader_params.uk_1 = data.read_slice(PADDED_SIZE_10, false)?;
@@ -107,13 +119,17 @@ impl RigidModel {
     pub(crate) fn write_v6<W: WriteBytes>(&self, buffer: &mut W) -> Result<()> {
         buffer.write_u16(self.lods.len() as u16)?;
         buffer.write_u16(self.uk_1)?;
-        if self.version <= 5 {
+        if self.version == 5 {
             buffer.write_string_u16_0padded(self.skeleton_id(), PADDED_SIZE_256, true)?;
-        } else {
+        } else if self.version >= 6 {
             buffer.write_string_u8_0padded(self.skeleton_id(), PADDED_SIZE_128, true)?;
         }
 
-        let header_length = if self.version <= 5 { HEADER_LENGTH_V5 } else { HEADER_LENGTH };
+        let header_length = match self.version {
+            0..=3 => HEADER_LENGTH_V3,
+            4 | 5 => HEADER_LENGTH_V5,
+            _ => HEADER_LENGTH,
+        };
 
         let mut lod_headers = vec![];
         let mut lod_data = vec![];
@@ -189,6 +205,12 @@ impl RigidModel {
         }
 
         buffer.write_all(&lod_headers)?;
+
+        if self.version <= 3 {
+            buffer.write_string_u16_0padded(self.skeleton_id(), SKELETON_ID_SIZE_V3, true)?;
+            buffer.write_u32(self.uk_2)?;
+        }
+
         buffer.write_all(&lod_data)?;
 
         Ok(())

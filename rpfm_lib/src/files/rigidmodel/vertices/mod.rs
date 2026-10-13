@@ -289,6 +289,7 @@ impl Vertex {
                 },
                 // These store no vertex data: their indices point to the vertices of another mesh.
                 MaterialType::StaticPointLight |
+                MaterialType::Uk56 |
                 MaterialType::Uk57 => {},
                 MaterialType::TextureCombo |
                 MaterialType::TextureComboVertexWind => {
@@ -469,6 +470,7 @@ impl Vertex {
                     data.write_vector_4_f32(*self.position())?;
                 }
                 MaterialType::StaticPointLight |
+                MaterialType::Uk56 |
                 MaterialType::Uk57 => {}
                 MaterialType::TextureCombo |
                 MaterialType::TextureComboVertexWind => {

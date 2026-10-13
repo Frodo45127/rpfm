@@ -150,7 +150,9 @@ pub enum MaterialType {
     RiverOutfield = 48,
     /// Unknown material, seen in some statues. Has no vertex format.
     Uk54 = 54,
-    /// Unknown material, seen in the rain variant of some statues. Has no vertex data, only indices into the vertices of another mesh.
+    /// Unknown material, seen in the burning variant of some buildings. Has no vertex data, only indices into the vertices of another mesh.
+    Uk56 = 56,
+    /// Unknown material, seen in the rain variant of some buildings. Has no vertex data, only indices into the vertices of another mesh.
     Uk57 = 57,
     /// Custom terrain material variant.
     CustomTerrain = 49,
@@ -265,7 +267,7 @@ pub struct Material {
     /// Material name (human-readable identifier).
     name: String,
 
-    /// Second name, only in materials of type 57: the name of the mesh followed by a suffix, like `rain`.
+    /// Second name, only in materials of types 56 and 57: the name of the mesh followed by a suffix, like `burning` or `rain`.
     name2: String,
 
     /// Bytes found after the end of `name` in its padded field, usually leftovers of the program that wrote the file.
@@ -596,6 +598,7 @@ impl Material {
             MaterialType::TextureComboVertexWind => Self::read_texture_combo(data, version)?,
             MaterialType::StaticPointLight => Self::read_static_point_light(data, version)?,
             MaterialType::Uk54 |
+            MaterialType::Uk56 |
             MaterialType::Uk57 => Self::read_uk_54(data, version, mtype)?,
             MaterialType::AlphaBlend => Self::read_alpha_blend(data, version)?,
             MaterialType::Cloth => Self::read_cloth(data, version)?,
@@ -654,6 +657,7 @@ impl Material {
             MaterialType::TextureComboVertexWind => self.write_texture_combo(buffer, version)?,
             MaterialType::StaticPointLight => self.write_static_point_light(buffer, version)?,
             MaterialType::Uk54 |
+            MaterialType::Uk56 |
             MaterialType::Uk57 => self.write_uk_54(buffer, version, mtype)?,
             MaterialType::AlphaBlend => self.write_alpha_blend(buffer, version)?,
             MaterialType::Cloth => self.write_cloth(buffer, version)?,
@@ -702,6 +706,7 @@ impl TryFrom<u16> for MaterialType {
             _ if value == Self::DebugGeometry as u16 => Ok(Self::DebugGeometry),
             _ if value == Self::RiverOutfield as u16 => Ok(Self::RiverOutfield),
             _ if value == Self::Uk54 as u16 => Ok(Self::Uk54),
+            _ if value == Self::Uk56 as u16 => Ok(Self::Uk56),
             _ if value == Self::Uk57 as u16 => Ok(Self::Uk57),
             _ if value == Self::CustomTerrain as u16 => Ok(Self::CustomTerrain),
             _ if value == Self::WeightedCloth as u16 => Ok(Self::WeightedCloth),

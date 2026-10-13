@@ -122,6 +122,12 @@ const HEADER_LENGTH: u32 = 140;
 /// Header length of version 5 files, which store the skeleton name as UTF-16.
 const HEADER_LENGTH_V5: u32 = 268;
 
+/// Header length of version 1 and 3 files, which store a longer skeleton name after the LOD headers.
+const HEADER_LENGTH_V3: u32 = 528;
+
+/// Size in bytes of the skeleton name of version 1 and 3 files.
+const SKELETON_ID_SIZE_V3: usize = 512;
+
 pub mod materials;
 mod versions;
 pub mod vertices;
@@ -144,6 +150,9 @@ pub struct RigidModel {
 
     /// Unknown field, purpose unclear.
     uk_1: u16,
+
+    /// Unknown field after the skeleton identifier of versions 1 and 3.
+    uk_2: u32,
 
     /// Skeleton identifier for skeletal animation (e.g., "humanoid01").
     /// Empty string for static models without animation.
@@ -260,7 +269,7 @@ impl Decodeable for RigidModel {
         match rigid.version {
             8 => rigid.read_v8(data)?,
             7 => rigid.read_v7(data)?,
-            5 | 6 => rigid.read_v6(data)?,
+            1 | 3 | 5 | 6 => rigid.read_v6(data)?,
             _ => Err(RLibError::DecodingRigidModelUnsupportedVersion(rigid.version))?,
         }
 
@@ -280,7 +289,7 @@ impl Encodeable for RigidModel {
         match self.version {
             8 => self.write_v8(buffer)?,
             7 => self.write_v7(buffer)?,
-            5 | 6 => self.write_v6(buffer)?,
+            1 | 3 | 5 | 6 => self.write_v6(buffer)?,
             _ => Err(RLibError::DecodingRigidModelUnsupportedVersion(self.version))?,
         }
 
