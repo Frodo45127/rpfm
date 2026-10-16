@@ -149,7 +149,7 @@ mod utils;
 
 pub use self::utils::hash_map_order;
 
-//#[cfg(test)] mod esf_test;
+#[cfg(test)] mod esf_test;
 
 //---------------------------------------------------------------------------//
 //                              Node Type Markers

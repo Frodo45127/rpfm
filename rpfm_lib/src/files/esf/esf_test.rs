@@ -27,11 +27,14 @@
 //! - `test_decode_esf_cbab.esf`: Sample CBAB-format file
 
 use std::io::{BufReader, BufWriter, Write};
+use std::io::Cursor;
 use std::fs::File;
 
+use crate::error::Result;
 use crate::files::*;
 
 use super::ESF;
+use super::{BoolNode, ESFSignature, F32Node, I32Node, NodeType, RecordNode, RecordNodeFlags, U32Node};
 
 /// Tests CAAB format round-trip encoding fidelity.
 ///
@@ -83,4 +86,78 @@ fn test_encode_esf_cbab() {
 
     // Compare decoded structures, not binary output, due to CAULEB128 padding variations.
     assert_eq!(data, data_2);
+}
+
+/// Zero padding after the string tables is accepted, anything else is not.
+#[test]
+fn trailing_padding_after_the_tables_is_accepted() {
+    let zero_padding = [0u8; 64];
+    let junk = [0xAB; 64];
+
+    for signature in [ESFSignature::CAAB, ESFSignature::CBAB] {
+        let bytes = encode(&sample_esf(signature));
+
+        // Real files can carry zero padding after the last section.
+        assert!(
+            decode_with_tail(&bytes, &zero_padding).is_ok(),
+            "{signature} with zero padding after the tables should decode"
+        );
+
+        // Anything else still means the last section parsed to the wrong place.
+        assert!(
+            decode_with_tail(&bytes, &junk).is_err(),
+            "{signature} with junk after the tables should fail"
+        );
+    }
+}
+
+/// Builds a record node out of its parts.
+fn record(name: &str, version: u8, children: Vec<Vec<NodeType>>) -> NodeType {
+    let mut node = RecordNode::default();
+    node.set_record_flags(RecordNodeFlags::IS_RECORD_NODE);
+    node.set_version(version);
+    node.set_name(name.to_owned());
+    node.set_children(children);
+
+    NodeType::Record(Box::new(node))
+}
+
+/// Builds a small ESF tree that fills all three string tables.
+fn sample_esf(signature: ESFSignature) -> ESF {
+    let mut esf = ESF::default();
+    esf.set_signature(signature);
+    esf.set_unknown_1(0);
+    esf.set_creation_date(1764961050);
+
+    esf.set_root_node(record("ROOT", 1, vec![vec![
+        NodeType::Ascii("hello".to_owned()),
+        NodeType::Utf16("unicode".to_owned()),
+        NodeType::U32(U32Node { value: 42, optimized: true }),
+        NodeType::Bool(BoolNode { value: true, optimized: true }),
+        NodeType::F32(F32Node { value: 1.5, optimized: false }),
+        NodeType::U8Array(vec![1, 2, 3, 4, 5]),
+        record("INNER", 2, vec![vec![
+            NodeType::I32(I32Node { value: -7, optimized: false }),
+            NodeType::Ascii("world".to_owned()),
+        ]]),
+    ]]));
+
+    esf
+}
+
+/// Encodes an ESF into its bytes, keeping its signature.
+fn encode(esf: &ESF) -> Vec<u8> {
+    let mut esf = esf.clone();
+    let mut bytes = vec![];
+    esf.encode(&mut bytes, &None).unwrap();
+
+    bytes
+}
+
+/// Decodes an ESF from `bytes`, with `tail` appended right after them.
+fn decode_with_tail(bytes: &[u8], tail: &[u8]) -> Result<ESF> {
+    let mut data = bytes.to_vec();
+    data.extend_from_slice(tail);
+
+    ESF::decode(&mut Cursor::new(data), &None)
 }

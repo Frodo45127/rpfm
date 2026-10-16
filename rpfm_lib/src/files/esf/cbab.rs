@@ -121,7 +121,7 @@ impl ESF {
         // If we're not at the end of the file, something failed.
         let data_len = data.len()?;
         let curr_pos = data.stream_position()?;
-        if curr_pos != data_len {
+        if curr_pos != data_len && !Self::only_padding_remains(data)? {
             return Err(RLibError::DecodingMismatchSizeError(data_len as usize, curr_pos as usize));
         }
 
