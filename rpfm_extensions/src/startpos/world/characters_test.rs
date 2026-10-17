@@ -133,3 +133,23 @@ fn test_characters_real_data() {
     assert!(linked >= 330, "{linked}");
     assert!(linked - matches <= 2, "{matches} of {linked}");
 }
+
+#[test]
+fn test_dead_and_widowed_characters_change_party() {
+    let parties = vec![
+        PoliticalParty::new("ruler", 60, true),
+        PoliticalParty::new("council", 40, false),
+    ];
+    let living = CharacterEntry::default();
+    let dead = CharacterEntry { death_type: "OLD_AGE".to_owned(), ..Default::default() };
+
+    assert_eq!(political_party(&living, false, false, "ruler", &parties), "ruler");
+    assert_eq!(political_party(&living, true, false, "", &parties), "");
+    assert_eq!(political_party(&dead, false, false, "ruler", &parties), "");
+    assert_eq!(political_party(&dead, true, false, "council", &parties), "council");
+    assert_eq!(political_party(&dead, true, false, "", &parties), "ruler");
+    assert_eq!(political_party(&dead, true, false, "", &[]), "");
+    assert_eq!(political_party(&living, false, true, "ruler", &parties), "");
+    assert_eq!(political_party(&living, true, true, "ruler", &parties), "council");
+    assert_eq!(political_party(&living, true, true, "council", &parties), "council");
+}

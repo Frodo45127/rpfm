@@ -61,6 +61,10 @@ pub struct PoliticalParty {
     /// Starting power.
     #[getset(get_copy = "pub")]
     power: u32,
+
+    /// Players can lead the party: it's the faction's ruling one.
+    #[getset(get_copy = "pub")]
+    playable: bool,
 }
 
 //---------------------------------------------------------------------------//
@@ -148,24 +152,25 @@ pub fn political_parties(tables: &StartposTables, faction: &str) -> Result<Vec<P
         }
     }
 
-    let mut initial_power = HashMap::new();
+    let mut party_rows = HashMap::new();
     for row in tables.table("political_parties")?.rows() {
-        initial_power.insert(row.str("key")?.into_owned(), row.int("initial_power")?);
+        party_rows.insert(row.str("key")?.into_owned(), (row.int("initial_power")?, row.bool("playable")?));
     }
 
     let mut parties = vec![];
     for row in tables.table("faction_political_parties_junctions")?.rows() {
         if row.str("faction_key")? == faction {
             let key = row.str("political_party_key")?.into_owned();
-            parties.push((initial_power.get(&key).copied().unwrap_or_default(), key));
+            let (power, playable) = party_rows.get(&key).copied().unwrap_or_default();
+            parties.push((power, playable, key));
         }
     }
 
-    let total_power = parties.iter().map(|(power, _)| power).sum::<i64>();
+    let total_power = parties.iter().map(|(power, ..)| power).sum::<i64>();
     let party_count = i64::try_from(parties.len()).unwrap_or(i64::MAX);
-    Ok(parties.into_iter().map(|(power, key)| {
+    Ok(parties.into_iter().map(|(power, playable, key)| {
         let share = if total_power == 0 { senator_total / party_count.max(1) } else { senator_total * power / total_power };
-        PoliticalParty { key, power: u32::try_from(share.max(0)).unwrap_or(u32::MAX) }
+        PoliticalParty { key, power: u32::try_from(share.max(0)).unwrap_or(u32::MAX), playable }
     }).collect())
 }
 

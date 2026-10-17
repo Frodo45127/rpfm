@@ -195,3 +195,17 @@ fn test_names_are_kept_without_a_names_table() {
 
     assert_eq!(index.characters()[0].names().join("/"), "100/200//");
 }
+
+#[test]
+fn test_living_spouses_of_the_dead_are_widowed() {
+    let mut tables = fixture_tables();
+    add_table(&mut tables, "start_pos_family_relationships", &["character", "related_to", "relationship"], &[
+        &["31", "32", "spouse"],
+        &["30", "33", "spouse"],
+    ]);
+
+    let index = fixture_index(&tables);
+
+    let widowed = index.characters().iter().filter(|character| character.widowed()).map(|character| character.id().as_str()).collect::<Vec<_>>();
+    assert_eq!(widowed, vec!["31"]);
+}

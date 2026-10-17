@@ -29,8 +29,8 @@ use crate::startpos::tables::Row;
 use crate::startpos::vision::Vision;
 use crate::startpos::world::agents::{agent_abilities, agent_attributes, skill_set, starting_skills, ABILITIES, ATTRIBUTES};
 use crate::startpos::world::bodyguards::{bodyguard, Bodyguard};
-use crate::startpos::world::characters::{birth_year, loyalty, placement, Placement};
-use crate::startpos::world::government::faction_leader;
+use crate::startpos::world::characters::{birth_year, loyalty, placement, political_party, Placement};
+use crate::startpos::world::government::{faction_leader, political_parties, PoliticalParty};
 use crate::startpos::world::{CampaignIndex, CharacterEntry, FactionEntry, NAME_COLUMNS};
 
 #[path = "family.rs"] pub(crate) mod family;
@@ -98,6 +98,9 @@ pub struct CharacterWriter<'a, 'b> {
 
     /// Default bodyguard of each faction's generals, by faction key.
     bodyguards: HashMap<String, Option<Bodyguard>>,
+
+    /// Political parties of each faction, by faction key.
+    parties: HashMap<String, Vec<PoliticalParty>>,
 
     /// Family member id of each planned character, by position in the plan.
     family_ids: Vec<u32>,
@@ -219,8 +222,10 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
         }
 
         let mut bodyguards = HashMap::new();
+        let mut parties = HashMap::new();
         for faction in plan.factions() {
             bodyguards.insert(faction.key().to_owned(), bodyguard(tables, faction, false)?);
+            parties.insert(faction.key().to_owned(), political_parties(tables, faction.key())?);
         }
 
         let (family_ids, entry_family_ids) = family_ids(inputs.index, plan, forces);
@@ -237,6 +242,7 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
             agents,
             art_sets,
             bodyguards,
+            parties,
         })
     }
 
@@ -390,7 +396,7 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
             let ambition = if subject.death.is_some() { 0 } else { u32::try_from(row.int("ambition")?).unwrap_or_default() };
             record.group()?
                 .set_u32("CAMPAIGN_EFFECT_BUNDLES+3", ambition)?
-                .set_str("CAMPAIGN_EFFECT_BUNDLES+4", &row.str("political_party")?)?
+                .set_str("CAMPAIGN_EFFECT_BUNDLES+4", political_party(entry, info.is_male, entry.widowed(), &row.str("political_party")?, self.parties.get(faction.key()).map(Vec::as_slice).unwrap_or_default()))?
                 .set_bool("GENERAL_BODYGUARD_DETAILS+2", row.bool("immortal")?)?
                 .set_i32("GENERAL_BODYGUARD_DETAILS+4", i32::try_from(loyalty(entry)).unwrap_or_default())?;
         }

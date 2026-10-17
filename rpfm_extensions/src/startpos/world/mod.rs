@@ -237,6 +237,10 @@ pub struct CharacterEntry {
     #[getset(get = "pub")]
     override_general_unit: String,
 
+    /// The character is alive and married to a dead character.
+    #[getset(get_copy = "pub")]
+    widowed: bool,
+
     /// Faction of the character's husband, for women married to a man of another faction. The game creates them in
     /// their own faction, then moves them and their armies to the end of their husband's.
     #[getset(get = "pub")]
@@ -370,12 +374,15 @@ impl CampaignIndex {
                 progenitor: row.bool("progenitor")?,
                 override_general_unit: row.str("override_general_unit")?.into_owned(),
                 husband_faction: None,
+                widowed: false,
             });
         }
 
         let husband_factions = husband_factions(tables, &characters, &women)?;
+        let widowed = widowed(tables, &characters)?;
         for character in &mut characters {
             character.husband_faction = husband_factions.get(&character.id).cloned();
+            character.widowed = widowed.contains(&character.id);
         }
 
         Ok(Self {
@@ -475,6 +482,27 @@ fn husband_factions(tables: &StartposTables, characters: &[CharacterEntry], wome
         }
     }
     Ok(moves)
+}
+
+/// Returns the ids of the living characters married to a dead one.
+fn widowed(tables: &StartposTables, characters: &[CharacterEntry]) -> Result<HashSet<String>> {
+    let Ok(relationships) = tables.table("start_pos_family_relationships") else { return Ok(HashSet::new()) };
+    let dead = characters.iter().filter(|character| !character.death_type.is_empty()).map(|character| character.id.as_str()).collect::<HashSet<_>>();
+    let living = characters.iter().filter(|character| character.death_type.is_empty()).map(|character| character.id.as_str()).collect::<HashSet<_>>();
+
+    let mut widowed = HashSet::new();
+    for row in relationships.rows() {
+        if row.str("relationship")? != SPOUSE_RELATIONSHIP {
+            continue;
+        }
+        let (character, related) = (row.str("character")?, row.str("related_to")?);
+        for (survivor, spouse) in [(&character, &related), (&related, &character)] {
+            if living.contains(survivor.as_ref()) && dead.contains(spouse.as_ref()) {
+                widowed.insert(survivor.to_string());
+            }
+        }
+    }
+    Ok(widowed)
 }
 
 /// Returns the kinds (`names.type`) of each name id, or `None` if there's no `names` table to check names with.
