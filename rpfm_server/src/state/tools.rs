@@ -33,7 +33,7 @@ use rpfm_extensions::translator::PackTranslation;
 
 use rpfm_ipc::settings_keys::ASSEMBLY_KIT_SUFFIX;
 
-use rpfm_lib::files::{Container, ContainerPath, RFile, RFileDecoded, rigidmodel::RigidModel};
+use rpfm_lib::files::{Container, ContainerPath, FileType, RFile, RFileDecoded, rigidmodel::RigidModel};
 use rpfm_lib::games::supported_games::KEY_THREE_KINGDOMS;
 use rpfm_lib::integrations::git::GitIntegration;
 
@@ -619,8 +619,8 @@ impl SessionState {
         Ok(FilesEdited { edited: vec![path] })
     }
 
-    /// Extracts the `start_pos_*` tables of a campaign from its startpos (the pack's, or the game's), and adds the ones
-    /// with rows to the pack.
+    /// Extracts the `start_pos_*` tables and the victory objectives of a campaign from its startpos (the pack's, or the
+    /// game's), and adds the tables with rows and the objectives to the pack.
     ///
     /// # Errors
     ///
@@ -636,6 +636,13 @@ impl SessionState {
             let path = format!("db/{}/{}{EXTRACTED_TABLES_SUFFIX}", db.table_name(), request.campaign);
             pack.insert(RFile::new_from_decoded(&RFileDecoded::DB(db), 0, &path))?;
             edited.push(path);
+        }
+
+        if !extracted.victory_objectives().is_empty() {
+            let mut file = RFile::new_from_vec(extracted.victory_objectives_script().as_bytes(), FileType::Text, 0, VICTORY_OBJECTIVES_FILE_NAME);
+            file.guess_file_type()?;
+            pack.insert(file)?;
+            edited.push(VICTORY_OBJECTIVES_FILE_NAME.to_owned());
         }
         Ok(FilesEdited { edited })
     }

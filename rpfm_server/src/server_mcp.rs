@@ -1233,7 +1233,7 @@ impl McpServer {
 
     #[tool(
         name = "extract_startpos_tables",
-        description = "Extract the start_pos tables of a campaign from its startpos (the pack's, or the game's) and add them to the pack. The inverse of generate_startpos. Experimental, Attila only.",
+        description = "Extract the start_pos tables and victory objectives of a campaign from its startpos (the pack's, or the game's) and add them to the pack. The inverse of generate_startpos. Experimental, Attila only.",
         annotations(read_only_hint = false, destructive_hint = false),
         output_schema = schema_for_output::<FilesEdited>(),
     )]

@@ -335,11 +335,13 @@ pub struct GenerateStartpos {
 }
 
 /// `startpos.extract_tables`: extracts the `start_pos_*` tables of a campaign from its startpos, the pack's or the
-/// game's if the pack has none, and adds them to the pack as `db/<table>/<campaign>_startpos`. The inverse of
+/// game's if the pack has none, and adds them to the pack as `db/<table>/<campaign>_startpos`, with the victory
+/// objectives the startpos has as `db/victory_objectives.txt` (replacing the pack's). The inverse of
 /// `startpos.generate`.
 ///
 /// The startpos doesn't keep everything: columns the build ignores keep their default value, values the build sums
-/// over a province go to one of its regions, and row ids other than the factions' and regions' are numbered from 1.
+/// over a province go to one of its regions, row ids other than the factions' and regions' are numbered from 1, and
+/// loot and raze objectives lose their settlements.
 ///
 /// Experimental, and only available for Attila. The record layouts are the ones of `startpos.generate`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]

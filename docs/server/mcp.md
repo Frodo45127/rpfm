@@ -277,7 +277,7 @@ The MCP interface exposes **94 tools**. The descriptions below are the first sen
 | `finish_startpos` | `startpos.finish` | Finish building a startpos after the game was closed: imports it into the pack, or cancels the build with `cancel: true`. |
 | `validate_startpos` | `startpos.validate` | Check the tables a campaign's startpos is built from: broken references and data that make the game's build fail, hang or drop rows. |
 | `generate_startpos` | `startpos.generate` | Generate the startpos of a campaign from the tables of an open pack and the game's files, without launching the game, and add it to the pack. |
-| `extract_startpos_tables` | `startpos.extract_tables` | Extract the start_pos tables of a campaign from its startpos (the pack's, or the game's) and add them to the pack. |
+| `extract_startpos_tables` | `startpos.extract_tables` | Extract the start_pos tables and victory objectives of a campaign from its startpos (the pack's, or the game's) and add them to the pack. |
 | `compare_startpos_tables` | `startpos.compare_tables` | Compare the tables extracted from a campaign's startpos with the tables it's built from, to find what the build loses or changes. |
 | `optimize_pack` | `tools.optimize` | Remove data of an open pack that's identical to vanilla or unneeded (duplicated rows, unchanged rows and files, empty tables, etc.). |
 
