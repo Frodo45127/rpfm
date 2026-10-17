@@ -26,6 +26,7 @@
 //! - [`validation`]: validation of the tables a startpos is built from.
 //! - [`trade`]: the trade network (`CAMPAIGN_TRADE_MANAGER` splines and routes), from `trade_routes.ptd`.
 //! - [`settlements`]: settlement layouts (slots and sprawl cells of each region).
+//! - [`split`]: splitting of the `start_pos_*` tables by campaign, as BOB does.
 //! - [`layout`]: record layouts used to write startposes.
 //! - [`missions`]: mission scripts and the victory objectives they define.
 //! - [`region_map`]: the region of each cell of the campaign map.
@@ -43,6 +44,7 @@ pub mod layout;
 pub mod missions;
 pub mod region_map;
 pub mod settlements;
+pub mod split;
 pub mod tables;
 pub mod trade;
 pub mod validation;
