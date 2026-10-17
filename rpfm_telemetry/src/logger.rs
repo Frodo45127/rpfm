@@ -529,6 +529,8 @@ pub fn is_crash_reports_enabled() -> bool {
 /// Returns `true` when the running build is a beta (patch number at or above
 /// [`BETA_PATCH_THRESHOLD`]). All workspace crates share the same version so
 /// this answer applies to the whole product regardless of which crate calls.
+// The patch number comes from the crate version, so on stable builds (patch 0) clippy sees an always-false comparison.
+#[allow(clippy::absurd_extreme_comparisons)]
 pub const fn is_beta() -> bool {
     VERSION_PATCH >= BETA_PATCH_THRESHOLD
 }
