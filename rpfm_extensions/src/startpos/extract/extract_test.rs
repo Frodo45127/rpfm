@@ -8,6 +8,7 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+use rpfm_lib::files::table::DecodedData;
 use rpfm_lib::schema::{Definition, Field, FieldType};
 
 use super::*;
@@ -18,6 +19,10 @@ use crate::startpos::writer::writer_test::write_test_startpos;
 /// Share of the original values each extracted table must get back. Raised as the extraction covers more. The lowest
 /// tables lose values the startpos doesn't keep: settlement links of dead characters, and clamped loyalties.
 const MIN_TABLE_MATCH_RATIO: f64 = 0.93;
+
+/// Tables of a generated startpos that differ from the game's, with the share of their values that must match. The
+/// others must match fully. The differences come from the game's RNG (the loyalty of the dead).
+const GENERATED_MATCH_RATIOS: [(&str, f64); 1] = [("start_pos_characters", 0.997)];
 
 /// Extracts the tables of a startpos and compares them with the test data's tables.
 fn extract_and_compare(startpos: &ESF, layout: &StartposLayout) -> Vec<TableComparison> {
@@ -96,5 +101,28 @@ fn test_tables_are_extracted_from_every_game_startpos() {
         for table in ["start_pos_factions", "start_pos_regions", "start_pos_settlements", "start_pos_characters"] {
             assert!(!extracted.table(table).unwrap().rows().is_empty(), "{table} of {} is empty", extracted.campaign());
         }
+    }
+}
+
+#[test]
+#[ignore = "needs the game data, see startpos_test.rs"]
+fn test_tables_of_a_generated_startpos_match_the_ones_of_the_game_startpos() {
+    let schema = Schema::load(&test_data_path("schema.ron"), None).unwrap();
+    let game_layout = StartposLayout::from_esf(test_startpos()).unwrap();
+    let mut game_tables = extract_tables(test_startpos(), &game_layout, test_data_tables()).unwrap().to_tables(&schema).unwrap();
+
+    // The province of each region, to compare the values the build sums by province.
+    let junctions = test_data_tables().table("region_to_province_junctions").unwrap();
+    let rows = junctions.rows().map(|row| ["region", "province"].iter().map(|column| DecodedData::StringU8(row.str(column).unwrap().into_owned())).collect()).collect::<Vec<_>>();
+    game_tables.add_rows("region_to_province_junctions", &["region", "province"], &rows).unwrap();
+
+    let (startpos, layout) = write_test_startpos();
+    let generated = extract_tables(&startpos, &layout, test_data_tables()).unwrap();
+    let comparisons = compare_tables(&game_tables, &generated, &schema).unwrap();
+
+    let report = comparisons.iter().map(ToString::to_string).collect::<String>();
+    for comparison in &comparisons {
+        let minimum = GENERATED_MATCH_RATIOS.iter().find(|(table, _)| table == comparison.table()).map_or(1.0, |(_, ratio)| *ratio);
+        assert!(comparison.match_ratio() >= minimum, "{} of the generated startpos differs from the game's:\n{report}", comparison.table());
     }
 }
