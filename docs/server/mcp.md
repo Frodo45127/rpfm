@@ -14,6 +14,13 @@ Each MCP connection gets its own RPFM session, just like WebSocket connections.
 MCP sessions are reaped by the server after 5 minutes of command inactivity,
 because the MCP transport gives no reliable disconnect signal.
 
+> **Protocol versions:** RPFM's MCP tools are stateful: the selected game, schema,
+> open packs and dependency cache live in the session. The server therefore
+> advertises only the legacy MCP revisions (`2024-11-05` through `2025-11-25`).
+> MCP `2026-07-28` is stateless and is intentionally not advertised until the
+> tool surface supports stateless operation, for example through explicit
+> session/pack handles.
+
 ## How It Differs from WebSocket
 
 | Aspect            | WebSocket (`/ws`)                             | MCP (`/mcp`)                                      |
