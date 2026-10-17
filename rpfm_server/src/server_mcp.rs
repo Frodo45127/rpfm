@@ -62,7 +62,7 @@ use rpfm_ipc::api::schema::{
 };
 use rpfm_ipc::api::translations::{GenerateVanillaTexts, ListTranslations, Translations, VanillaTextsAvailable};
 use rpfm_ipc::api::tools::{
-    AnimsBySkeleton, CompareStartposTables, ExportGltf, ExtractStartposTables, FilePaths, FilesChanged, FinishStartpos, GenerateMissingLocs, GenerateStartpos, StartposComparison, StartposValidation, ValidateStartpos, GetOptimizerOptions, GetStartposCampaigns, InitMyMod, LiveExport,
+    AnimsBySkeleton, CompareStartposTables, ExportGltf, ExtractStartposTables, FilePaths, FilesChanged, KeepStartposCampaign, FinishStartpos, GenerateMissingLocs, GenerateStartpos, StartposComparison, StartposValidation, ValidateStartpos, GetOptimizerOptions, GetStartposCampaigns, InitMyMod, LiveExport,
     MyModCreated, OptimizePack, OptimizerOptionValues, PackMap, PatchSiegeAi, RunLuaTests, SetVideoFormat, SiegeAiPatched, StartStartpos, StartposCampaigns,
     UpdateAnimIds,
 };
@@ -1239,6 +1239,16 @@ impl McpServer {
     )]
     pub async fn extract_startpos_tables(&self, params: Parameters<ExtractStartposTables>) -> Result<CallToolResult, McpError> {
         self.call_api("extract_startpos_tables", params.0).await
+    }
+
+    #[tool(
+        name = "keep_startpos_campaign",
+        description = "Remove the rows of an open pack's start_pos tables that don't belong to a campaign, as the Assembly Kit does before building a startpos, so tables holding several campaigns don't break the build. Tables left without rows are deleted.",
+        annotations(read_only_hint = false, destructive_hint = true),
+        output_schema = schema_for_output::<FilesChanged>(),
+    )]
+    pub async fn keep_startpos_campaign(&self, params: Parameters<KeepStartposCampaign>) -> Result<CallToolResult, McpError> {
+        self.call_api("keep_startpos_campaign", params.0).await
     }
 
     #[tool(

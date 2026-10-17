@@ -355,6 +355,24 @@ pub struct ExtractStartposTables {
     pub campaign: String,
 }
 
+/// `startpos.keep_campaign`: removes the rows of the pack's `start_pos_*` tables that don't belong to a campaign, as the
+/// Assembly Kit does before building a startpos, so tables holding several campaigns don't break the build. Tables left
+/// without rows are deleted.
+///
+/// Rows of tables with a `campaign` column belong to their campaign; other rows belong to it if one of their references
+/// to a `start_pos_*` table points to one of its rows (the game's and the pack's rows count). Matches the Assembly Kit
+/// on Attila's main campaign.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct KeepStartposCampaign {
+
+    /// Key of the pack with the startpos tables.
+    pub pack: String,
+
+    /// Campaign whose rows are kept.
+    pub campaign: String,
+}
+
 /// `startpos.compare_tables`: extracts the `start_pos_*` tables of a campaign from its startpos, like
 /// `startpos.extract_tables`, and compares them with the tables of the pack (and the game) the startpos is built from,
 /// to find what the build loses or changes. Rows are matched by what they describe, not by their ids.
@@ -544,6 +562,11 @@ impl Request for ExtractStartposTables {
     const METHOD: &'static str = "startpos.extract_tables";
     type Response = FilesEdited;
     const IS_JOB: bool = true;
+}
+
+impl Request for KeepStartposCampaign {
+    const METHOD: &'static str = "startpos.keep_campaign";
+    type Response = FilesChanged;
 }
 
 impl Request for CompareStartposTables {

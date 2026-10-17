@@ -354,6 +354,30 @@ Runs as a job: answers right away with a job ID, and sends its result when the j
 |------|------|----------|-------------|
 | `tables` | array of [`StartposTableComparison`](#type-startpostablecomparison) | yes | One comparison per extracted table. |
 
+## `startpos.keep_campaign`
+
+Removes the rows of the pack's `start_pos_*` tables that don't belong to a campaign, as the
+Assembly Kit does before building a startpos, so tables holding several campaigns don't break the build. Tables left
+without rows are deleted.
+
+Rows of tables with a `campaign` column belong to their campaign; other rows belong to it if one of their references
+to a `start_pos_*` table points to one of its rows (the game's and the pack's rows count). Matches the Assembly Kit
+on Attila's main campaign.
+
+**Params** (`KeepStartposCampaign`)
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `pack` | `string` | yes | Key of the pack with the startpos tables. |
+| `campaign` | `string` | yes | Campaign whose rows are kept. |
+
+**Result** (`FilesChanged`)
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `added` | array of `string` | yes | Paths of the added or edited files. |
+| `deleted` | array of `string` | yes | Paths of the deleted files. |
+
 ## `tools.plugin_scripts`
 
 Returns the plugin scripts in the scripts folder of the config.

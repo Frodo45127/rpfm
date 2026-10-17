@@ -27,13 +27,14 @@ use rpfm_extensions::startpos::extract::{extract_tables, ExtractedTables};
 use rpfm_extensions::startpos::extract::compare::compare_tables;
 use rpfm_extensions::startpos::generator::{generate_startpos, load_startpos, load_tables, GameLayouts, StartposSources, SUPPORTED_GAMES as GENERATOR_GAMES};
 use rpfm_extensions::startpos::layout::StartposLayout;
+use rpfm_extensions::startpos::split::CampaignRows;
 use rpfm_extensions::startpos::tables::StartposTables;
 use rpfm_extensions::startpos::validation::{validate, Severity};
 use rpfm_extensions::translator::PackTranslation;
 
 use rpfm_ipc::settings_keys::ASSEMBLY_KIT_SUFFIX;
 
-use rpfm_lib::files::{Container, ContainerPath, FileType, RFile, RFileDecoded, rigidmodel::RigidModel};
+use rpfm_lib::files::{Container, ContainerPath, DecodeableExtraData, FileType, RFile, RFileDecoded, rigidmodel::RigidModel};
 use rpfm_lib::games::supported_games::KEY_THREE_KINGDOMS;
 use rpfm_lib::integrations::git::GitIntegration;
 
@@ -47,7 +48,7 @@ use rpfm_ipc::api::diagnostics::DiagnosticLevel;
 use rpfm_ipc::api::files::FileRef;
 use rpfm_ipc::api::tables::FilesEdited;
 use rpfm_ipc::api::translations::{DEFAULT_TRANSLATIONS_LIMIT, ListTranslations, TranslationEntry, TranslationFilter, Translations};
-use rpfm_ipc::api::tools::{optimizer_option_values, CeoEntryData, CompareStartposTables, ExtractStartposTables, FilePaths, FilesChanged, GenerateStartpos, InitMyMod, StartposColumnComparison, StartposComparison,
+use rpfm_ipc::api::tools::{optimizer_option_values, CeoEntryData, CompareStartposTables, ExtractStartposTables, FilePaths, KeepStartposCampaign, FilesChanged, GenerateStartpos, InitMyMod, StartposColumnComparison, StartposComparison,
     StartposIssue, StartposTableComparison, StartposValidation, StartposValueDifference, ValidateStartpos, MyModCreated, PluginScriptRun, RunPluginScript, SiegeAiPatched, StartStartpos, StartposCampaigns};
 
 use super::{DecodedFile, ExtractOptions, SessionState, encode_extra_data, loaded_schema, pack, pack_mut};
@@ -63,6 +64,9 @@ const VANILLA_FIXES_NAME: &str = "vanilla_fixes_";
 
 /// Sub-startpos each Three Kingdoms campaign has.
 const THREE_KINGDOMS_SUB_STARTPOS: [&str; 2] = ["historical", "romance"];
+
+/// Start of the paths of the `start_pos_*` tables in a pack.
+const STARTPOS_TABLES_FOLDER_PREFIX: &str = "db/start_pos_";
 
 /// Suffix of the file name of the tables extracted from a startpos, after the campaign key.
 const EXTRACTED_TABLES_SUFFIX: &str = "_startpos";
@@ -645,6 +649,46 @@ impl SessionState {
             edited.push(VICTORY_OBJECTIVES_FILE_NAME.to_owned());
         }
         Ok(FilesEdited { edited })
+    }
+
+    /// Removes the rows of a pack's `start_pos_*` tables that don't belong to a campaign, deleting the tables left
+    /// without rows.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the schema isn't loaded, a table can't be decoded, or no faction of the tables is in the campaign.
+    pub fn keep_startpos_campaign(&mut self, request: &KeepStartposCampaign) -> Result<FilesChanged> {
+        let schema = loaded_schema(&self.schema)?;
+        let tables = load_tables(&self.dependencies, pack(&self.packs, &request.pack)?, schema)?;
+        let has_factions = tables.table("start_pos_factions").is_ok_and(|factions| factions.rows().any(|row| row.str("campaign").is_ok_and(|campaign| campaign == request.campaign)));
+        if !has_factions {
+            return Err(ApiError::InvalidParams(format!("No faction of the startpos tables is in the campaign {}.", request.campaign)).into());
+        }
+        let rows = CampaignRows::new(&tables, schema, &request.campaign)?;
+
+        let pack = pack_mut(&mut self.packs, &request.pack)?;
+        let mut paths = pack.files().keys().filter(|path| path.starts_with(STARTPOS_TABLES_FOLDER_PREFIX)).cloned().collect::<Vec<_>>();
+        paths.sort();
+
+        let mut extra_data = DecodeableExtraData::default();
+        extra_data.set_schema(Some(schema));
+        let extra_data = Some(extra_data);
+        let mut changed = FilesChanged { added: vec![], deleted: vec![] };
+        for path in paths {
+            let Some(file) = pack.file_mut(&path, false) else { continue };
+            file.decode(&extra_data, true, false)?;
+            let Ok(RFileDecoded::DB(db)) = file.decoded_mut() else { continue };
+            if rows.retain(db)? == 0 {
+                continue;
+            }
+            if db.is_empty() {
+                pack.remove(&ContainerPath::File(path.to_owned()));
+                changed.deleted.push(path);
+            } else {
+                changed.added.push(path);
+            }
+        }
+        Ok(changed)
     }
 
     /// Compares the tables extracted from a campaign's startpos with the tables it's built from.
