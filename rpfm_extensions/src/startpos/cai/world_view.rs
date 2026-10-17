@@ -237,25 +237,25 @@ impl WorldView {
     /// Returns an error if the world doesn't fit its layouts.
     pub fn new(layout: &StartposLayout, world: &RecordNode) -> Result<Self> {
         let reader = Reader { layout };
-        let world_group = reader.single(WORLD_PATH, world)?;
+        let world_group = layout.read_single(WORLD_PATH, world)?;
 
         let faction_array = child_path(WORLD_PATH, "FACTION_ARRAY");
-        let factions = reader.items(&faction_array, &world_group, "FACTION_ARRAY", "FACTION")?.into_iter()
+        let factions = layout.read_items(&faction_array, &world_group, "FACTION_ARRAY", "FACTION")?.into_iter()
             .map(|(_, faction)| reader.faction(&child_path(&faction_array, "FACTION"), &faction))
             .collect::<Result<Vec<_>>>()?;
 
         let manager_path = child_path(WORLD_PATH, "REGION_MANAGER");
-        let manager = reader.single(&manager_path, reader.record(&world_group, "REGION_MANAGER")?)?;
+        let manager = layout.read_single(&manager_path, reader.record(&world_group, "REGION_MANAGER")?)?;
         let region_array = child_path(&manager_path, "REGIONS_ARRAY");
-        let regions = reader.items(&region_array, &manager, "REGIONS_ARRAY", "REGION")?.into_iter()
+        let regions = layout.read_items(&region_array, &manager, "REGIONS_ARRAY", "REGION")?.into_iter()
             .map(|(_, region)| reader.region(&child_path(&region_array, "REGION"), &region))
             .collect::<Result<Vec<_>>>()?;
 
         let manager_path = child_path(WORLD_PATH, "PROVINCE_MANAGER");
-        let manager = reader.single(&manager_path, reader.record(&world_group, "PROVINCE_MANAGER")?)?;
+        let manager = layout.read_single(&manager_path, reader.record(&world_group, "PROVINCE_MANAGER")?)?;
         let province_array = child_path(&manager_path, "PROVINCE_ARRAY");
         let province_path = child_path(&province_array, "PROVINCE");
-        let provinces = reader.items(&province_array, &manager, "PROVINCE_ARRAY", "PROVINCE")?.into_iter()
+        let provinces = layout.read_items(&province_array, &manager, "PROVINCE_ARRAY", "PROVINCE")?.into_iter()
             .map(|(entry, province)| Ok(ProvinceView {
                 id: province.u32("^+1").unwrap_or_default(),
                 key: entry.str("^+1").unwrap_or_default().to_owned(),
@@ -265,10 +265,10 @@ impl WorldView {
             .collect::<Result<Vec<_>>>()?;
 
         let manager_path = child_path(WORLD_PATH, "SEA_REGION_MANAGER");
-        let manager = reader.single(&manager_path, reader.record(&world_group, "SEA_REGION_MANAGER")?)?;
+        let manager = layout.read_single(&manager_path, reader.record(&world_group, "SEA_REGION_MANAGER")?)?;
         let sea_block = child_path(&manager_path, "SEA_REGIONS_BLOCK");
         let sea_path = child_path(&sea_block, "SEA_REGION");
-        let seas = reader.items(&sea_block, &manager, "SEA_REGIONS_BLOCK", "SEA_REGION")?.into_iter()
+        let seas = layout.read_items(&sea_block, &manager, "SEA_REGIONS_BLOCK", "SEA_REGION")?.into_iter()
             .map(|(entry, sea)| Ok(SeaView {
                 id: sea.u32("^+1").unwrap_or_default(),
                 key: entry.str("^+1").unwrap_or_default().to_owned(),
@@ -295,8 +295,7 @@ impl WorldView {
 ///
 /// Returns an error if the record doesn't fit its layout.
 pub fn international_routes(layout: &StartposLayout, trade_manager: &RecordNode) -> Result<Vec<(u32, u32)>> {
-    let reader = Reader { layout };
-    let manager = reader.single(TRADE_MANAGER_PATH, trade_manager)?;
+    let manager = layout.read_single(TRADE_MANAGER_PATH, trade_manager)?;
     let Some(routes) = manager.record("INTERNATIONAL_TRADE_ROUTES") else { return Ok(vec![]) };
 
     let routes_path = child_path(TRADE_MANAGER_PATH, "INTERNATIONAL_TRADE_ROUTES");
@@ -304,7 +303,7 @@ pub fn international_routes(layout: &StartposLayout, trade_manager: &RecordNode)
     let mut list = vec![];
     for faction in layout.read(&routes_path, routes)? {
         let owner = faction.u32("^+1").unwrap_or_default();
-        for (_, route) in reader.items(&faction_routes_path, &faction, "FACTION_INTERNATIONAL_TRADE_ROUTES_ARRAY", "INTERNATIONAL_TRADE_ROUTE")? {
+        for (_, route) in layout.read_items(&faction_routes_path, &faction, "FACTION_INTERNATIONAL_TRADE_ROUTES_ARRAY", "INTERNATIONAL_TRADE_ROUTE")? {
             list.push((owner, route.u32("^+1").unwrap_or_default()));
         }
     }
@@ -318,37 +317,20 @@ struct Reader<'l> {
 
 impl<'l> Reader<'l> {
 
-    /// Reads the only group of a record.
-    fn single<'a>(&self, path: &str, record: &'a RecordNode) -> Result<GroupView<'a>> where 'l: 'a {
-        self.layout.read(path, record)?.into_iter().next().ok_or_else(|| world_error(&format!("{path} has no group")))
-    }
-
     /// Returns a child record of a group.
     fn record<'a>(&self, group: &GroupView<'a>, key: &str) -> Result<&'a RecordNode> {
         group.record(key).ok_or_else(|| world_error(&format!("missing {key}")))
-    }
-
-    /// Reads the items of an array record child of a group: each array group, with its item record's group.
-    fn items<'a>(&self, array_path: &str, parent: &GroupView<'a>, array_key: &str, item_key: &str) -> Result<Vec<(GroupView<'a>, GroupView<'a>)>> where 'l: 'a {
-        let Some(array) = parent.record(array_key) else { return Ok(vec![]) };
-        let item_path = child_path(array_path, item_key);
-        self.layout.read(array_path, array)?.into_iter()
-            .map(|entry| {
-                let item = self.record(&entry, item_key)?;
-                Ok((entry.clone(), self.single(&item_path, item)?))
-            })
-            .collect()
     }
 
     /// Reads a faction.
     fn faction(&self, path: &str, faction: &GroupView) -> Result<FactionView> {
         let character_array = child_path(path, "CHARACTER_ARRAY");
         let character_path = child_path(&character_array, "CHARACTER");
-        let characters = self.items(&character_array, faction, "CHARACTER_ARRAY", "CHARACTER")?.into_iter()
+        let characters = self.layout.read_items(&character_array, faction, "CHARACTER_ARRAY", "CHARACTER")?.into_iter()
             .map(|(_, character)| {
                 let cell = match character.record("LOCOMOTABLE") {
                     Some(record) => {
-                        let locomotable = self.single(&child_path(&character_path, "LOCOMOTABLE"), record)?;
+                        let locomotable = self.layout.read_single(&child_path(&character_path, "LOCOMOTABLE"), record)?;
                         (locomotable.u32("^+2").unwrap_or_default() as u16, locomotable.u32("^+3").unwrap_or_default() as u16)
                     },
                     None => (0, 0),
@@ -365,14 +347,14 @@ impl<'l> Reader<'l> {
 
         let army_array = child_path(path, "ARMY_ARRAY");
         let force_path = child_path(&army_array, "MILITARY_FORCE");
-        let forces = self.items(&army_array, faction, "ARMY_ARRAY", "MILITARY_FORCE")?.into_iter()
+        let forces = self.layout.read_items(&army_array, faction, "ARMY_ARRAY", "MILITARY_FORCE")?.into_iter()
             .map(|(_, force)| self.force(&force_path, &force))
             .collect::<Result<Vec<_>>>()?;
 
         let government_path = child_path(path, "GOVERNMENT");
         let mut posts = vec![];
         if let Some(government) = faction.record("GOVERNMENT") {
-            let government = self.single(&government_path, government)?;
+            let government = self.layout.read_single(&government_path, government)?;
             let posts_path = child_path(&government_path, "CHARACTER_POSTS");
             let post_path = child_path(&posts_path, "CHARACTER_POST");
             if let Some(array) = government.record("CHARACTER_POSTS") {
@@ -380,7 +362,7 @@ impl<'l> Reader<'l> {
                     for index in 1.. {
                         let key = if index == 1 { "CHARACTER_POST".to_owned() } else { format!("CHARACTER_POST@{index}") };
                         let Some(post) = entry.record(&key) else { break };
-                        let post = self.single(&post_path, post)?;
+                        let post = self.layout.read_single(&post_path, post)?;
                         posts.push((post.u32("^+1").unwrap_or_default(), post.u32("^+3").unwrap_or_default()));
                     }
                 }
@@ -402,8 +384,8 @@ impl<'l> Reader<'l> {
         let units_path = child_path(&container_path, "UNITS_ARRAY");
         let mut units = vec![];
         if let Some(container) = force.record("UNIT_CONTAINER") {
-            let container = self.single(&container_path, container)?;
-            for (_, unit) in self.items(&units_path, &container, "UNITS_ARRAY", "UNIT")? {
+            let container = self.layout.read_single(&container_path, container)?;
+            for (_, unit) in self.layout.read_items(&units_path, &container, "UNITS_ARRAY", "UNIT")? {
                 units.push(unit.u32("^+1").unwrap_or_default());
             }
         }
@@ -413,10 +395,10 @@ impl<'l> Reader<'l> {
         let slot_block_path = child_path(&slot_manager_path, "SLOT_BLOCK");
         let mut horde_slots = vec![];
         if let Some(horde) = force.record("MILITARY_FORCE_HORDE_DETAILS") {
-            let horde = self.single(&horde_path, horde)?;
+            let horde = self.layout.read_single(&horde_path, horde)?;
             if let Some(manager) = horde.record("MILITARY_FORCE_SLOT_MANAGER") {
-                let manager = self.single(&slot_manager_path, manager)?;
-                for (_, slot) in self.items(&slot_block_path, &manager, "SLOT_BLOCK", "MILITARY_FORCE_SLOT")? {
+                let manager = self.layout.read_single(&slot_manager_path, manager)?;
+                for (_, slot) in self.layout.read_items(&slot_block_path, &manager, "SLOT_BLOCK", "MILITARY_FORCE_SLOT")? {
                     horde_slots.push(slot.u32("^+1").unwrap_or_default());
                 }
             }
@@ -439,9 +421,9 @@ impl<'l> Reader<'l> {
         let settlement_path = child_path(path, "SETTLEMENT");
         let mut residence = 0;
         if let Some(settlement) = region.record("SETTLEMENT") {
-            let settlement = self.single(&settlement_path, settlement)?;
+            let settlement = self.layout.read_single(&settlement_path, settlement)?;
             if let Some(record) = settlement.record("GARRISON_RESIDENCE") {
-                residence = self.single(&child_path(&settlement_path, "GARRISON_RESIDENCE"), record)?.u32("^+1").unwrap_or_default();
+                residence = self.layout.read_single(&child_path(&settlement_path, "GARRISON_RESIDENCE"), record)?.u32("^+1").unwrap_or_default();
             }
         }
 
@@ -449,8 +431,8 @@ impl<'l> Reader<'l> {
         let slot_array_path = child_path(&slot_manager_path, "REGION_SLOT_ARRAY");
         let mut slots = vec![];
         if let Some(manager) = region.record("REGION_SLOT_MANAGER") {
-            let manager = self.single(&slot_manager_path, manager)?;
-            for (_, slot) in self.items(&slot_array_path, &manager, "REGION_SLOT_ARRAY", "REGION_SLOT")? {
+            let manager = self.layout.read_single(&slot_manager_path, manager)?;
+            for (_, slot) in self.layout.read_items(&slot_array_path, &manager, "REGION_SLOT_ARRAY", "REGION_SLOT")? {
                 slots.push(slot.u32("^+1").unwrap_or_default());
             }
         }
@@ -468,7 +450,7 @@ impl<'l> Reader<'l> {
     fn province_regions(&self, path: &str, province: &GroupView) -> Result<Vec<String>> {
         let fertility_path = child_path(path, "PROVINCE_FERTILITY");
         let Some(fertility) = province.record("PROVINCE_FERTILITY") else { return Ok(vec![]) };
-        let fertility = self.single(&fertility_path, fertility)?;
+        let fertility = self.layout.read_single(&fertility_path, fertility)?;
         let block_path = child_path(&fertility_path, "REGION_BLOCK");
         let Some(block) = fertility.record("REGION_BLOCK") else { return Ok(vec![]) };
         Ok(self.layout.read(&block_path, block)?.iter().map(|entry| entry.str("^+1").unwrap_or_default().to_owned()).collect())
@@ -477,7 +459,7 @@ impl<'l> Reader<'l> {
     /// Reads the faction parts of a province or sea.
     fn parts(&self, path: &str, parent: &GroupView, array_key: &str, item_key: &str) -> Result<Vec<FactionPartView>> {
         let array_path = child_path(path, array_key);
-        self.items(&array_path, parent, array_key, item_key)?.into_iter()
+        self.layout.read_items(&array_path, parent, array_key, item_key)?.into_iter()
             .map(|(_, part)| Ok(FactionPartView {
                 id: part.u32("^+1").unwrap_or_default(),
                 faction: part.u32("^+2").unwrap_or_default(),
