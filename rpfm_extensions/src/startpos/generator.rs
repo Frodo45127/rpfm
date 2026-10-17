@@ -32,7 +32,7 @@ use rpfm_lib::games::GameInfo;
 use rpfm_lib::games::supported_games::KEY_ATTILA;
 use rpfm_lib::schema::Schema;
 
-use crate::dependencies::Dependencies;
+use crate::dependencies::{Dependencies, VICTORY_OBJECTIVES_FILE_NAME};
 use crate::lua::LuaApi;
 use crate::lua::harness::{save_campaign, LuaSavedValue, LuaScripts, LuaTestOptions};
 use super::extract::EXTRACTION_TABLES;
@@ -70,9 +70,6 @@ pub const STARTPOS_TABLES: &[&str] = &[
     "start_pos_regions", "start_pos_settlements", "start_pos_technologies", "start_pos_victory_conditions",
     "technology_node_sets", "technology_nodes", "technology_unit_upgrades", "units_to_groupings_military_permissions",
 ];
-
-/// Path of the victory objectives script.
-const VICTORY_OBJECTIVES_PATH: &str = "db/victory_objectives.txt";
 
 /// Localisation key prefix of the `start_pos_characters.legacy_override` texts.
 const LEGACY_OVERRIDE_PREFIX: &str = "start_pos_characters_legacy_override_";
@@ -181,7 +178,7 @@ impl StartposSources {
         let files = FileSource { pack, dependencies };
         let map_file = |name: &str| files.bytes(&format!("campaign_maps/{map}/{name}"));
         let esf = |name: &str| -> Result<ESF> { ESF::decode(&mut Cursor::new(map_file(name)?), &None) };
-        let victory_text = files.bytes(VICTORY_OBJECTIVES_PATH)?;
+        let victory_text = files.bytes(VICTORY_OBJECTIVES_FILE_NAME)?;
         let lookup_image = format!("{}{LOOKUP_IMAGE_SUFFIX}", map.strip_suffix(MAP_KEY_SUFFIX).unwrap_or(&map));
         let region_palette = match map_file(&lookup_image) {
             Ok(bytes) => tga_palette(&bytes)?,

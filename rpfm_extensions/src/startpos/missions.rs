@@ -11,7 +11,8 @@
 //! Mission scripts of a campaign (`victory_objectives.txt`, `missions.txt`) and the victory objectives they define.
 //!
 //! A script is a list of statements: words ended by `;` (`total 80;`), or words followed by a block of statements
-//! (`objective { ... }`). `//` starts a comment that runs to the end of the line.
+//! (`objective { ... }`). `//` starts a comment that runs to the end of the line. [`write_victory_objectives`] writes
+//! victory objectives back as a script.
 
 use getset::{CopyGetters, Getters};
 
@@ -208,7 +209,40 @@ impl ScriptItem {
     }
 }
 
+impl VictoryObjectives {
+
+    /// Creates the victory objectives of a faction for a kind of campaign.
+    pub fn new(faction: String, campaign_type: CampaignType, missions: Vec<VictoryMission>) -> Self {
+        Self { faction, campaign_type, missions }
+    }
+}
+
+impl VictoryMission {
+
+    /// Creates a victory mission.
+    pub fn new(key: String, victory_type: String, issuer: String, objectives: Vec<MissionObjective>) -> Self {
+        Self { key, victory_type, issuer, objectives }
+    }
+}
+
 impl CampaignType {
+
+    /// Every campaign type.
+    const ALL: [Self; 3] = [Self::SinglePlayer, Self::MultiplayerVersus, Self::MultiplayerCoop];
+
+    /// Returns the campaign type with an id, as `VICTORY_MISSIONS_BY_TYPE_BLOCK` stores it.
+    pub fn from_id(id: u32) -> Option<Self> {
+        Self::ALL.into_iter().find(|campaign_type| campaign_type.id() == id)
+    }
+
+    /// Returns the script key of the campaign type.
+    pub fn key(&self) -> &'static str {
+        match self {
+            Self::SinglePlayer => "sp_normal",
+            Self::MultiplayerVersus => "mp_vs_normal",
+            Self::MultiplayerCoop => "mp_co_op_normal",
+        }
+    }
 
     /// Returns the id of the campaign type, as `VICTORY_MISSIONS_BY_TYPE_BLOCK` stores it.
     pub fn id(&self) -> u32 {
@@ -225,16 +259,99 @@ impl CampaignType {
     ///
     /// Returns an error for unknown keys.
     pub fn from_key(key: &str) -> Result<Self> {
-        match key {
-            "sp_normal" => Ok(Self::SinglePlayer),
-            "mp_vs_normal" => Ok(Self::MultiplayerVersus),
-            "mp_co_op_normal" => Ok(Self::MultiplayerCoop),
-            _ => Err(script_error(format!("unknown campaign type {key}"))),
-        }
+        Self::ALL.into_iter()
+            .find(|campaign_type| campaign_type.key() == key)
+            .ok_or_else(|| script_error(format!("unknown campaign type {key}")))
     }
 }
 
 impl MissionObjective {
+
+    /// Returns the statements of the objective's script block, as (key, value) pairs in the order
+    /// [`Self::from_item`] reads them.
+    pub fn statements(&self) -> Vec<(&'static str, String)> {
+        let mut statements = vec![("type", self.type_key().to_owned())];
+        let mut add = |key: &'static str, values: &[String]| statements.extend(values.iter().map(|value| (key, value.to_owned())));
+        match self {
+            Self::ReachSpecifiedDate { year, week } => {
+                add("year", &[year.to_string()]);
+                add("week_of_year", &[week.to_string()]);
+            },
+            Self::ControlNRegionsIncluding { total, regions } |
+            Self::LootOrSackNDifferentSettlementsIncluding { total, regions } |
+            Self::RazeOrSackNDifferentSettlementsIncluding { total, regions } |
+            Self::ReclaimNDifferentSettlementsIncluding { total, regions } => {
+                add("total", &[total.to_string()]);
+                add("region", regions);
+            },
+            Self::ControlNProvincesIncluding { total, provinces } => {
+                add("total", &[total.to_string()]);
+                add("province", provinces);
+            },
+            Self::ResearchNTechsOfTypeX { total, categories, text } => {
+                add("override_text", text.as_slice());
+                add("total", &[total.to_string()]);
+                add("technology_category", categories);
+            },
+            Self::EarnXAmountFromBuildingWealth { total } |
+            Self::EarnXAmountFromRaiding { total } |
+            Self::OwnNUnits { total, .. } |
+            Self::OwnNProvincesWithCulturalDominance { total } |
+            Self::SubjugateFactions { total } |
+            Self::MaintainNClientStates { total } |
+            Self::MaintainNAlliances { total } |
+            Self::ConfederateFactions { total } => add("total", &[total.to_string()]),
+            Self::ConstructNBuildingsIncluding { total, buildings, faction } => {
+                add("total", &[total.to_string()]);
+                add("building_level", buildings);
+                add("faction", std::slice::from_ref(faction));
+            },
+            Self::AtLeastXReligionInAllProvinces { total, religion } => {
+                add("total", &[total.to_string()]);
+                add("religion", std::slice::from_ref(religion));
+            },
+            Self::EnsureFactionsHaveNoMilitaryPresence { factions } => add("faction", factions),
+            Self::AtLeastXPublicOrderInProvinces { total, provinces } => {
+                add("total", &[total.to_string()]);
+                add("province", provinces);
+            },
+            Self::StayHorde => {},
+            Self::IncomeAtLeastX { income } => add("income", &[income.to_string()]),
+            Self::EliminateCharacterInBattle { faction } => add("faction", std::slice::from_ref(faction)),
+            Self::AttainFameLevel { level } => add("fame_level", &[level.to_string()]),
+        }
+        statements
+    }
+
+    /// Returns the script key of the objective's type.
+    pub fn type_key(&self) -> &'static str {
+        match self {
+            Self::ReachSpecifiedDate { .. } => "REACH_SPECIFIED_DATE",
+            Self::ControlNRegionsIncluding { .. } => "CONTROL_N_REGIONS_INCLUDING",
+            Self::ControlNProvincesIncluding { .. } => "CONTROL_N_PROVINCES_INCLUDING",
+            Self::ResearchNTechsOfTypeX { .. } => "RESEARCH_N_TECHS_OF_TYPE_X",
+            Self::EarnXAmountFromBuildingWealth { .. } => "EARN_X_AMOUNT_FROM_BUILDING_WEALTH",
+            Self::EarnXAmountFromRaiding { .. } => "EARN_X_AMOUNT_FROM_RAIDING",
+            Self::OwnNUnits { naval: false, .. } => "OWN_N_UNITS",
+            Self::OwnNUnits { naval: true, .. } => "OWN_N_NAVAL_UNITS",
+            Self::OwnNProvincesWithCulturalDominance { .. } => "OWN_N_PROVINCES_WITH_CULTURAL_DOMINANCE",
+            Self::ConstructNBuildingsIncluding { .. } => "CONSTRUCT_N_BUILDINGS_INCLUDING",
+            Self::SubjugateFactions { .. } => "SUBJUGATE_FACTIONS",
+            Self::MaintainNClientStates { .. } => "MAINTAIN_N_CLIENT_STATES",
+            Self::LootOrSackNDifferentSettlementsIncluding { .. } => "LOOT_OR_SACK_N_DIFFERENT_SETTLEMENTS_INCLUDING",
+            Self::RazeOrSackNDifferentSettlementsIncluding { .. } => "RAZE_OR_SACK_N_DIFFERENT_SETTLEMENTS_INCLUDING",
+            Self::AtLeastXReligionInAllProvinces { .. } => "AT_LEAST_X_RELIGION_IN_ALL_PROVINCES",
+            Self::ReclaimNDifferentSettlementsIncluding { .. } => "RECLAIM_N_DIFFERENT_SETTLEMENTS_INCLUDING",
+            Self::EnsureFactionsHaveNoMilitaryPresence { .. } => "ENSURE_FACTIONS_HAVE_NO_MILITARY_PRESENCE",
+            Self::AtLeastXPublicOrderInProvinces { .. } => "AT_LEAST_X_PUBLIC_ORDER_IN_PROVINCES",
+            Self::StayHorde => "STAY_HORDE",
+            Self::MaintainNAlliances { .. } => "MAINTAIN_N_ALLIANCES",
+            Self::IncomeAtLeastX { .. } => "INCOME_AT_LEAST_X",
+            Self::EliminateCharacterInBattle { .. } => "ELIMINATE_CHARACTER_IN_BATTLE",
+            Self::ConfederateFactions { .. } => "CONFEDERATE_FACTIONS",
+            Self::AttainFameLevel { .. } => "ATTAIN_FAME_LEVEL",
+        }
+    }
 
     /// Reads an objective from its script block.
     ///
@@ -359,6 +476,40 @@ fn parse_block(tokens: &mut impl Iterator<Item = String>, nested: bool) -> Resul
         return Err(script_error("a block isn't closed".to_owned()));
     }
     Ok(items)
+}
+
+/// Writes victory objectives as a `victory_objectives.txt` script, which [`parse_victory_objectives`] reads back.
+///
+/// # Arguments
+///
+/// * `objectives` - The victory objectives of each faction and kind of campaign.
+///
+/// # Returns
+///
+/// The script, with tabs for indentation.
+pub fn write_victory_objectives(objectives: &[VictoryObjectives]) -> String {
+    let mut script = String::from("victory_objectives\n{\n");
+    for faction_objectives in objectives {
+        script.push_str("\tvictory_objective\n\t{\n");
+        script.push_str(&format!("\t\tfaction {};\n\t\tcampaign_type {};\n", faction_objectives.faction, faction_objectives.campaign_type.key()));
+        for mission in &faction_objectives.missions {
+            script.push_str("\n\t\tmission\n\t\t{\n");
+            script.push_str(&format!("\t\t\tvictory_type {};\n\t\t\tkey {};\n\t\t\tissuer {};\n", mission.victory_type, mission.key, mission.issuer));
+            script.push_str("\t\t\tprimary_objectives_and_payload\n\t\t\t{\n");
+            for objective in &mission.objectives {
+                script.push_str("\t\t\t\tobjective\n\t\t\t\t{\n");
+                for (key, value) in objective.statements() {
+                    script.push_str(&format!("\t\t\t\t\t{key} {value};\n"));
+                }
+                script.push_str("\t\t\t\t}\n");
+            }
+            script.push_str("\t\t\t\tpayload\n\t\t\t\t{\n\t\t\t\t\tgame_victory;\n\t\t\t\t}\n");
+            script.push_str("\t\t\t}\n\t\t}\n");
+        }
+        script.push_str("\t}\n");
+    }
+    script.push_str("}\n");
+    script
 }
 
 /// Builds a script error.

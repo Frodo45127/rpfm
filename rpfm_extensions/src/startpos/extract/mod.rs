@@ -22,6 +22,9 @@
 //! - Faction and region ids are kept (the startpos has them in localisation keys). Other row ids are numbered from 1.
 //! - Lists the game stores in hash order (units, traits, technologies...) come out in startpos order.
 //!
+//! Besides the tables, the extraction gets back the victory objectives (`victory_objectives.txt`), which the build
+//! also reads. The settlements listed by loot and raze objectives aren't kept.
+//!
 //! # Submodules
 //!
 //! - [`compare`]: comparison of extracted tables with the tables a startpos was built from.
@@ -38,12 +41,14 @@ use rpfm_lib::schema::Schema;
 
 use super::cai::CAI_WORLD_PATH;
 use super::layout::{child_path, GroupView, StartposLayout};
+use super::missions::{write_victory_objectives, VictoryObjectives};
 use super::tables::StartposTables;
 use super::world::writer::WORLD_PATH;
 
 pub mod compare;
 mod characters;
 mod factions;
+mod missions;
 mod regions;
 
 #[cfg(test)] pub(crate) mod extract_test;
@@ -83,6 +88,10 @@ pub struct ExtractedTables {
 
     /// Rows of each table, by table name (without the `_tables` suffix).
     tables: BTreeMap<String, TableRows>,
+
+    /// Victory objectives of each faction and kind of campaign.
+    #[getset(get = "pub")]
+    victory_objectives: Vec<VictoryObjectives>,
 }
 
 /// Rows of a table, with their values as text.
@@ -105,6 +114,9 @@ struct Source<'a> {
 
     /// Campaign key.
     campaign: String,
+
+    /// The pre-campaign map info (`CAMPAIGN_PREOPEN_MAP_INFO`).
+    preopen: GroupView<'a>,
 
     /// The calendar (`CAMPAIGN_CALENDAR`).
     calendar: GroupView<'a>,
@@ -167,7 +179,7 @@ struct Ids {
 ///
 /// # Returns
 ///
-/// The rows of every table the startpos keeps something of.
+/// The rows of every table the startpos keeps something of, and the victory objectives.
 ///
 /// # Errors
 ///
@@ -175,7 +187,7 @@ struct Ids {
 pub fn extract_tables(startpos: &ESF, layout: &StartposLayout, tables: &StartposTables) -> Result<ExtractedTables> {
     let source = Source::read(startpos, layout)?;
     let mut ids = Ids::default();
-    let mut extracted = ExtractedTables { campaign: source.campaign.to_owned(), tables: BTreeMap::new() };
+    let mut extracted = ExtractedTables { campaign: source.campaign.to_owned(), tables: BTreeMap::new(), victory_objectives: missions::extract(&source)? };
 
     extracted.insert("start_pos_calendars", factions::calendar(&source, tables)?);
     extracted.insert("start_pos_factions", factions::factions(&source)?);
@@ -201,6 +213,11 @@ impl ExtractedTables {
     /// Returns the tables, by name (without the `_tables` suffix).
     pub fn tables(&self) -> impl Iterator<Item = (&str, &TableRows)> {
         self.tables.iter().map(|(name, rows)| (name.as_str(), rows))
+    }
+
+    /// Returns the victory objectives as a `victory_objectives.txt` script.
+    pub fn victory_objectives_script(&self) -> String {
+        write_victory_objectives(&self.victory_objectives)
     }
 
     /// Builds a DB file per table, with the newest definition of the schema. Columns the extraction doesn't fill keep
@@ -339,6 +356,7 @@ impl<'a> Source<'a> {
         Ok(Self {
             layout,
             campaign: preopen.str("DATE+1").unwrap_or_default().to_owned(),
+            preopen,
             calendar,
             start_date,
             factions,

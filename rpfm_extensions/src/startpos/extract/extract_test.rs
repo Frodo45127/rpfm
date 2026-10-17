@@ -54,7 +54,7 @@ fn test_rows_become_dbs_with_defaults_for_the_other_columns() {
 
     let mut rows = TableRows::new(&["key", "flag", "unknown"]);
     rows.push(vec!["a".to_owned(), "true".to_owned(), "ignored".to_owned()]);
-    let mut extracted = ExtractedTables { campaign: TEST_CAMPAIGN.to_owned(), tables: BTreeMap::new() };
+    let mut extracted = ExtractedTables { campaign: TEST_CAMPAIGN.to_owned(), ..Default::default() };
     extracted.insert("start_pos_test", rows);
 
     let dbs = extracted.to_dbs(&schema).unwrap();
@@ -66,7 +66,7 @@ fn test_rows_become_dbs_with_defaults_for_the_other_columns() {
 
 #[test]
 fn test_tables_without_definition_are_an_error() {
-    let mut extracted = ExtractedTables { campaign: TEST_CAMPAIGN.to_owned(), tables: BTreeMap::new() };
+    let mut extracted = ExtractedTables { campaign: TEST_CAMPAIGN.to_owned(), ..Default::default() };
     extracted.insert("start_pos_test", TableRows::new(&["key"]));
 
     assert!(extracted.to_dbs(&Schema::default()).is_err());

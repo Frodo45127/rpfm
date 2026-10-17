@@ -35,7 +35,7 @@ mod map_data;
 mod preopen;
 mod script_variables;
 mod trade;
-mod victory;
+pub(crate) mod victory;
 
 #[cfg(test)] pub(crate) mod writer_test;
 

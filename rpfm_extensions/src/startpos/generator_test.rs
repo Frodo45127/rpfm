@@ -157,7 +157,7 @@ fn game_startpos_path(campaign: &str) -> std::path::PathBuf {
 /// Returns a pack with a campaign's victory objectives, from the test data game's Assembly Kit.
 fn victory_objectives_pack(campaign: &str) -> Pack {
     let path = test_data_path("game").join("assembly_kit/raw_data/EmpireDesignData/campaigns").join(campaign).join("victory_objectives.txt");
-    let mut file = RFile::new_from_vec(&std::fs::read(path).unwrap(), FileType::Text, 0, VICTORY_OBJECTIVES_PATH);
+    let mut file = RFile::new_from_vec(&std::fs::read(path).unwrap(), FileType::Text, 0, VICTORY_OBJECTIVES_FILE_NAME);
     file.guess_file_type().unwrap();
     let mut pack = Pack::default();
     pack.insert(file).unwrap();

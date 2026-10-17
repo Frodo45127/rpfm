@@ -783,6 +783,11 @@ impl GroupBuilder<'_> {
 
 impl<'a> GroupView<'a> {
 
+    /// Returns the slot ids of the children the group has.
+    pub fn ids(&self) -> impl Iterator<Item = &'a str> + '_ {
+        self.fields.keys().copied()
+    }
+
     /// Returns a child by slot id, if the group has it.
     pub fn get(&self, id: &str) -> Option<&'a NodeType> {
         self.fields.get(id).copied()
