@@ -62,6 +62,10 @@ pub mod writer;
 /// Relationship of married characters in `start_pos_family_relationships`.
 const SPOUSE_RELATIONSHIP: &str = "spouse";
 
+/// `start_pos_characters` name columns, by the kind the startpos stores with each name. A name's kind must be its
+/// `names.type`.
+pub const NAME_COLUMNS: [&str; 4] = ["Name", "Surname", "clan_name", "other_name"];
+
 /// Building instance (`building_levels.building_instance_key`) of the primary buildings of major settlements.
 const MAJOR_SETTLEMENT_INSTANCE: &str = "att_city_major";
 
@@ -199,6 +203,11 @@ pub struct CharacterEntry {
     /// Age, in years.
     #[getset(get_copy = "pub")]
     age: i64,
+
+    /// Names, in [`NAME_COLUMNS`] order. Names whose `names.type` isn't their column's kind are empty: the game drops
+    /// them.
+    #[getset(get = "pub")]
+    names: Vec<String>,
 
     /// Starting cell column (`startx`), 0 if not set.
     #[getset(get_copy = "pub")]
@@ -339,6 +348,7 @@ impl CampaignIndex {
             });
         }
 
+        let name_kinds = name_kinds(tables)?;
         let mut characters = vec![];
         let mut women = HashSet::new();
         for row in tables.table("start_pos_characters")?.rows() {
@@ -351,6 +361,7 @@ impl CampaignIndex {
                 faction: faction.to_owned(),
                 agent: row.str("Type")?.into_owned(),
                 age: row.int("Age")?,
+                names: character_names(&row, name_kinds.as_ref())?,
                 start_x: cell_coordinate(&row, "startx")?,
                 start_y: cell_coordinate(&row, "starty")?,
                 ministerial_position: row.str("ministerial_position")?.into_owned(),
@@ -464,6 +475,25 @@ fn husband_factions(tables: &StartposTables, characters: &[CharacterEntry], wome
         }
     }
     Ok(moves)
+}
+
+/// Returns the kinds (`names.type`) of each name id, or `None` if there's no `names` table to check names with.
+fn name_kinds(tables: &StartposTables) -> Result<Option<HashMap<String, HashSet<i64>>>> {
+    let Ok(names) = tables.table("names") else { return Ok(None) };
+    let mut kinds = HashMap::<String, HashSet<i64>>::new();
+    for row in names.rows() {
+        kinds.entry(row.str("id")?.into_owned()).or_default().insert(row.int("type")?);
+    }
+    Ok(Some(kinds))
+}
+
+/// Reads the names of a character, in [`NAME_COLUMNS`] order, leaving out the ones whose kind doesn't fit their column.
+fn character_names(row: &Row, kinds: Option<&HashMap<String, HashSet<i64>>>) -> Result<Vec<String>> {
+    NAME_COLUMNS.iter().zip(0..).map(|(column, kind)| {
+        let name = row.str(column)?;
+        let fits = kinds.is_none_or(|kinds| kinds.get(name.as_ref()).is_some_and(|name_kinds| name_kinds.contains(&kind)));
+        Ok(if fits { name.into_owned() } else { String::new() })
+    }).collect()
 }
 
 /// Reads a starting cell coordinate, stored as a float in `start_pos_characters`.

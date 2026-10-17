@@ -359,7 +359,7 @@ impl<'a, 'b> ArmyWriter<'a, 'b> {
         date.group()?.set_u32("^+1", self.start_year)?;
         record.group()?
             .set_record("DATE", Some(date.build()?))?
-            .set_record("CHARACTER_NAME", Some(self.characters.write_name(HISTORY_PATH, self.characters.row(commander))?))?
+            .set_record("CHARACTER_NAME", Some(self.characters.write_name(HISTORY_PATH, commander.entry())?))?
             .set_record("CAMPAIGN_LOCALISATION", Some(localisation.build()?))?
             .set_str("CAMPAIGN_LOCALISATION+1", self.provinces.get(region.key()).map(String::as_str).unwrap_or_default())?;
         record.build()

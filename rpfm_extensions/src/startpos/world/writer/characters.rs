@@ -31,7 +31,7 @@ use crate::startpos::world::agents::{agent_abilities, agent_attributes, skill_se
 use crate::startpos::world::bodyguards::{bodyguard, Bodyguard};
 use crate::startpos::world::characters::{birth_year, loyalty, placement, Placement};
 use crate::startpos::world::government::faction_leader;
-use crate::startpos::world::{CampaignIndex, CharacterEntry, FactionEntry};
+use crate::startpos::world::{CampaignIndex, CharacterEntry, FactionEntry, NAME_COLUMNS};
 
 #[path = "family.rs"] pub(crate) mod family;
 
@@ -58,9 +58,6 @@ const COLONEL_AGE: u32 = 30;
 
 /// Localisation key prefix of the character names.
 pub(crate) const NAME_KEY_PREFIX: &str = "names_name_";
-
-/// `start_pos_characters` name columns, by the kind the startpos stores with each name.
-pub(crate) const NAME_COLUMNS: [&str; 4] = ["Name", "Surname", "clan_name", "other_name"];
 
 /// Suffix the startpos adds to the art set of a character (`CHARACTER_DETAILS` #34).
 const ART_SET_SUFFIX: &str = "0";
@@ -374,7 +371,7 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
             group.set_record("DATE@2", Some(death.build()?))?.set_i32("DATE@2+1", code)?;
         }
         group.set_record("TRAITS", Some(traits_record.build()?))?
-            .set_record("CHARACTER_NAME", Some(self.write_name(path, row)?))?
+            .set_record("CHARACTER_NAME", Some(self.write_name(path, subject.entry)?))?
             .set_record("DATE", Some(birth.build()?))?
             .set_str("DATE@2+2", faction.key())?
             .set_u32("DATE@2+3", subject.character_id)?
@@ -401,8 +398,8 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
     }
 
     /// Writes the names of a character (`CHARACTER_NAME`) under a parent record. See [`write_character_name`].
-    pub(super) fn write_name(&self, parent: &str, row: Option<&Row>) -> Result<RecordNode> {
-        write_character_name(self.inputs.layout, parent, row)
+    pub(super) fn write_name(&self, parent: &str, character: Option<&CharacterEntry>) -> Result<RecordNode> {
+        write_character_name(self.inputs.layout, parent, character)
     }
 
     /// Writes the bodyguard of a character: the faction's default one for generals without a force, empty otherwise
@@ -468,11 +465,6 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
     pub fn leader_id(&self, faction: &FactionEntry) -> Option<u32> {
         let leader = faction_leader(self.inputs.index, faction.key())?;
         self.forces.characters_of(faction.key()).find(|character| character.entry() == Some(leader)).map(|character| character.id())
-    }
-
-    /// Returns the `start_pos_characters` row of a character, `None` for colonels.
-    pub(super) fn row(&self, character: &PlannedCharacter) -> Option<&Row<'a>> {
-        character.entry().and_then(|entry| self.rows.get(entry.id()))
     }
 
     /// Returns the agent type, gender, birth year and table row of a character.
@@ -576,16 +568,16 @@ fn family_ids(index: &CampaignIndex, plan: &WorldPlan, forces: &ForcePlan) -> (V
 ///
 /// * `layout` - Record layouts of the game.
 /// * `parent` - Path of the record holding the names.
-/// * `row` - The character's `start_pos_characters` row, or `None` for a nameless character.
+/// * `character` - The character, or `None` for a nameless one.
 ///
 /// # Errors
 ///
-/// Returns an error if the layout lacks the records or the row a name column.
-pub(crate) fn write_character_name(layout: &StartposLayout, parent: &str, row: Option<&Row>) -> Result<RecordNode> {
+/// Returns an error if the layout lacks the records.
+pub(crate) fn write_character_name(layout: &StartposLayout, parent: &str, character: Option<&CharacterEntry>) -> Result<RecordNode> {
     let names_path = format!("{parent}/CHARACTER_NAME/NAMES_BLOCK");
     let mut blocks = child(layout, &format!("{parent}/CHARACTER_NAME"), "NAMES_BLOCK")?;
-    for (kind, column) in NAME_COLUMNS.iter().enumerate() {
-        let name = row.map(|row| row.str(column)).transpose()?.unwrap_or_default();
+    for kind in 0..NAME_COLUMNS.len() {
+        let name = character.and_then(|character| character.names().get(kind)).map(String::as_str).unwrap_or_default();
         let mut localisation = child(layout, &names_path, "CAMPAIGN_LOCALISATION")?;
         if name.is_empty() {
             localisation.group()?.set_str("^+1", "")?;
@@ -594,7 +586,7 @@ pub(crate) fn write_character_name(layout: &StartposLayout, parent: &str, row: O
         }
         blocks.push_group()?
             .set_record("CAMPAIGN_LOCALISATION", Some(localisation.build()?))?
-            .set_i32("CAMPAIGN_LOCALISATION+1", if row.is_some() { i32::try_from(kind).unwrap_or_default() } else { 0 })?;
+            .set_i32("CAMPAIGN_LOCALISATION+1", if character.is_some() { i32::try_from(kind).unwrap_or_default() } else { 0 })?;
     }
 
     let mut record = child(layout, parent, "CHARACTER_NAME")?;

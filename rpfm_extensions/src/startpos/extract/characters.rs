@@ -23,7 +23,8 @@ use crate::startpos::esf_nav::{as_record, as_str, as_u32};
 use crate::startpos::layout::{child_path, GroupView};
 use crate::startpos::tables::StartposTables;
 use crate::startpos::world::writer::characters::family::DEATH_TYPE_CODES;
-use crate::startpos::world::writer::characters::{COLONEL_AGENT, NAME_COLUMNS, NAME_KEY_PREFIX};
+use crate::startpos::world::NAME_COLUMNS;
+use crate::startpos::world::writer::characters::{COLONEL_AGENT, NAME_KEY_PREFIX};
 use crate::startpos::world::writer::HORDE_BUILDING_COLUMNS;
 
 #[cfg(test)] #[path = "characters_test.rs"] mod characters_test;

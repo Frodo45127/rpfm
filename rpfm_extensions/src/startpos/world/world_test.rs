@@ -77,12 +77,12 @@ pub(crate) fn fixture_tables() -> StartposTables {
         &["bld_port_1", "", "chain_port"],
         &["bld_farm_1", "", "chain_farm"],
     ]);
-    add_table(&mut tables, "start_pos_characters", &["ID", "faction", "Type", "Age", "startx", "starty", "ministerial_position", "loyalty", "death_type", "progenitor", "override_general_unit"], &[
-        &["30", "1", "general", "40", "0.0", "0.0", "", "0", "", "true", ""],
-        &["31", "1", "general", "20", "5.0", "7.0", "faction_leader", "16", "", "false", ""],
-        &["32", "1", "general", "60", "0.0", "0.0", "", "5", "EXECUTED", "false", ""],
-        &["33", "2", "general", "30", "0.0", "0.0", "", "5", "", "false", ""],
-        &["34", "3", "general", "30", "0.0", "0.0", "", "5", "", "false", ""],
+    add_table(&mut tables, "start_pos_characters", &["ID", "faction", "Name", "Surname", "clan_name", "other_name", "Type", "Age", "startx", "starty", "ministerial_position", "loyalty", "death_type", "progenitor", "override_general_unit"], &[
+        &["30", "1", "100", "200", "", "", "general", "40", "0.0", "0.0", "", "0", "", "true", ""],
+        &["31", "1", "101", "", "", "", "general", "20", "5.0", "7.0", "faction_leader", "16", "", "false", ""],
+        &["32", "1", "102", "", "", "", "general", "60", "0.0", "0.0", "", "5", "EXECUTED", "false", ""],
+        &["33", "2", "103", "", "", "", "general", "30", "0.0", "0.0", "", "5", "", "false", ""],
+        &["34", "3", "104", "", "", "", "general", "30", "0.0", "0.0", "", "5", "", "false", ""],
     ]);
     tables
 }
@@ -153,11 +153,11 @@ fn test_wives_married_into_another_faction_know_their_husbands_faction() {
     add_table(&mut tables, "start_pos_regions", &["id", "region", "campaign", "owning_faction", "faction_capital"], &[]);
     add_table(&mut tables, "start_pos_settlements", &["id", "region", "primary_building", "port_building", "building1", "building2", "building3", "building4", "building5", "startpos_slave_points"], &[]);
     add_table(&mut tables, "building_levels", &["level_name", "building_instance_key", "chain"], &[]);
-    add_table(&mut tables, "start_pos_characters", &["ID", "faction", "Type", "Age", "startx", "starty", "ministerial_position", "loyalty", "death_type", "progenitor", "override_general_unit", "is_male"], &[
-        &["30", "1", "general", "40", "0.0", "0.0", "faction_leader", "5", "", "false", "", "true"],
-        &["31", "2", "general", "30", "0.0", "0.0", "", "5", "", "false", "", "false"],
-        &["32", "2", "general", "30", "0.0", "0.0", "faction_leader", "5", "", "false", "", "true"],
-        &["33", "1", "general", "30", "0.0", "0.0", "", "5", "", "false", "", "false"],
+    add_table(&mut tables, "start_pos_characters", &["ID", "faction", "Name", "Surname", "clan_name", "other_name", "Type", "Age", "startx", "starty", "ministerial_position", "loyalty", "death_type", "progenitor", "override_general_unit", "is_male"], &[
+        &["30", "1", "100", "", "", "", "general", "40", "0.0", "0.0", "faction_leader", "5", "", "false", "", "true"],
+        &["31", "2", "101", "", "", "", "general", "30", "0.0", "0.0", "", "5", "", "false", "", "false"],
+        &["32", "2", "102", "", "", "", "general", "30", "0.0", "0.0", "faction_leader", "5", "", "false", "", "true"],
+        &["33", "1", "103", "", "", "", "general", "30", "0.0", "0.0", "", "5", "", "false", "", "false"],
     ]);
     add_table(&mut tables, "start_pos_family_relationships", &["character", "related_to", "relationship"], &[
         &["30", "31", "spouse"],
@@ -168,4 +168,30 @@ fn test_wives_married_into_another_faction_know_their_husbands_faction() {
 
     let husbands = index.characters().iter().map(|character| (character.id().as_str(), character.husband_faction().as_deref())).collect::<Vec<_>>();
     assert_eq!(husbands, vec![("30", None), ("31", Some("fact_a")), ("32", None), ("33", Some("fact_b"))]);
+}
+
+#[test]
+fn test_names_of_the_wrong_kind_are_dropped() {
+    let mut tables = fixture_tables();
+    add_table(&mut tables, "names", &["id", "type"], &[
+        &["100", "0"],
+        &["200", "0"],
+        &["101", "0"],
+        &["102", "0"],
+        &["103", "0"],
+        &["104", "0"],
+    ]);
+
+    let index = fixture_index(&tables);
+
+    let names = index.characters().iter().map(|character| character.names().join("/")).collect::<Vec<_>>();
+    assert_eq!(names[0], "100///");
+    assert_eq!(index.characters()[1].names()[0], "101");
+}
+
+#[test]
+fn test_names_are_kept_without_a_names_table() {
+    let index = fixture_index(&fixture_tables());
+
+    assert_eq!(index.characters()[0].names().join("/"), "100/200//");
 }
