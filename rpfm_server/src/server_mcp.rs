@@ -40,7 +40,7 @@ use rmcp::handler::server::{router::prompt::PromptRouter, tool::ToolRouter, wrap
 use rmcp::model::{
     CallToolResult, CompletionInfo, CompleteRequestParams, CompleteResult,
     ContentBlock, ErrorCode, ListResourcesResult, ListResourceTemplatesResult,
-    PaginatedRequestParams, PromptMessage,
+    PaginatedRequestParams, PromptMessage, ProtocolVersion,
     ReadResourceRequestParams, ReadResourceResult, ReadResourceResponse,
     Resource, ResourceContents, Role, ServerCapabilities, ServerInfo,
 };
@@ -49,6 +49,7 @@ use rmcp::{prompt, prompt_handler, prompt_router, tool, tool_handler, tool_route
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 use std::path::PathBuf;
@@ -835,6 +836,22 @@ fn default_src_lang() -> String {
 #[tool_handler(router = self.tool_router)]
 #[prompt_handler(router = self.prompt_router)]
 impl rmcp::ServerHandler for McpServer {
+    /// RPFM's MCP tools keep the selected game, schema, open packs and
+    /// dependency cache in a per-connection `Session`. The `2026-07-28`
+    /// revision is stateless (SEP-2567 removes `initialize` and
+    /// `Mcp-Session-Id`), so rmcp creates a fresh session for every request
+    /// and those tools lose their state between calls. Only advertise the
+    /// legacy revisions until the tool surface can work statelessly (for
+    /// example through explicit session/pack handles).
+    fn supported_protocol_versions(&self) -> Cow<'static, [ProtocolVersion]> {
+        Cow::Borrowed(&[
+            ProtocolVersion::V_2024_11_05,
+            ProtocolVersion::V_2025_03_26,
+            ProtocolVersion::V_2025_06_18,
+            ProtocolVersion::V_2025_11_25,
+        ])
+    }
+
     fn get_info(&self) -> ServerInfo {
         let capabilities = ServerCapabilities::builder()
             .enable_tools()
