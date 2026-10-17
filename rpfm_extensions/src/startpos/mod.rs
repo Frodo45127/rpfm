@@ -21,6 +21,7 @@
 //! # Submodules
 //!
 //! - [`coords`]: coordinate systems of the campaign map (world, raw map units, hex cells).
+//! - [`extract`]: extraction of the `start_pos_*` tables from a startpos, the inverse of the build.
 //! - [`generator`]: generation of a campaign's startpos from a pack and the game's files.
 //! - [`validation`]: validation of the tables a startpos is built from.
 //! - [`trade`]: the trade network (`CAMPAIGN_TRADE_MANAGER` splines and routes), from `trade_routes.ptd`.
@@ -36,6 +37,7 @@
 pub mod cai;
 pub mod coords;
 mod esf_nav;
+pub mod extract;
 pub mod generator;
 pub mod layout;
 pub mod missions;

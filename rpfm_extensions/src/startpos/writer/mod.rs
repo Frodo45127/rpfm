@@ -37,7 +37,7 @@ mod script_variables;
 mod trade;
 mod victory;
 
-#[cfg(test)] mod writer_test;
+#[cfg(test)] pub(crate) mod writer_test;
 
 /// Path of the root record.
 pub const ROOT_PATH: &str = "CAMPAIGN_STARTPOS";

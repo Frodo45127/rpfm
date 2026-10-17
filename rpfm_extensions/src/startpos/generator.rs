@@ -35,6 +35,7 @@ use rpfm_lib::schema::Schema;
 use crate::dependencies::Dependencies;
 use crate::lua::LuaApi;
 use crate::lua::harness::{save_campaign, LuaSavedValue, LuaScripts, LuaTestOptions};
+use super::extract::EXTRACTION_TABLES;
 use super::layout::{layout_file_name, StartposLayout};
 use super::missions::{parse_victory_objectives, VictoryObjectives};
 use super::region_map::RegionMap;
@@ -76,9 +77,13 @@ const VICTORY_OBJECTIVES_PATH: &str = "db/victory_objectives.txt";
 /// Localisation key prefix of the `start_pos_characters.legacy_override` texts.
 const LEGACY_OVERRIDE_PREFIX: &str = "start_pos_characters_legacy_override_";
 
-/// Folder with the scripts of each campaign, and the script the game runs first from a campaign's folder.
-const CAMPAIGN_SCRIPTS_FOLDER: &str = "campaigns";
+/// Folder with the files of each campaign (scripts, startpos), and the script the game runs first from a campaign's
+/// folder.
+const CAMPAIGNS_FOLDER: &str = "campaigns";
 const CAMPAIGN_SCRIPT: &str = "scripting.lua";
+
+/// Name of the startpos file in a campaign's folder.
+const STARTPOS_FILE: &str = "startpos.esf";
 
 /// Events the game triggers while building a startpos, before saving it.
 const STARTPOS_BUILD_EVENTS: [&str; 2] = ["NewSession", "WorldCreated"];
@@ -201,8 +206,8 @@ impl StartposSources {
     }
 }
 
-/// Loads the tables of a startpos build: the ones the build reads, and every `start_pos_*` table of the schema with
-/// the tables it references, for validation.
+/// Loads the tables of a startpos build: the ones the build reads, every `start_pos_*` table of the schema with the
+/// tables it references, for validation, and the ones the extraction of tables from a startpos reads.
 ///
 /// Each table merges the game's fragments and then the pack's, in load order: a row replaces an earlier row with the
 /// same key. Tables neither has come from the game's Assembly Kit.
@@ -221,7 +226,7 @@ pub fn load_tables(dependencies: &Dependencies, pack: &Pack, schema: &Schema) ->
     extra.set_schema(Some(schema));
     let extra = Some(extra);
 
-    let mut names = STARTPOS_TABLES.iter().map(|name| name.to_string()).collect::<BTreeSet<_>>();
+    let mut names = STARTPOS_TABLES.iter().chain(&EXTRACTION_TABLES).map(|name| name.to_string()).collect::<BTreeSet<_>>();
     names.extend(referenced_tables(schema));
     names.extend(schema.definitions().keys().filter(|name| name.starts_with("start_pos_")).map(|name| name.trim_end_matches("_tables").to_owned()));
 
@@ -247,6 +252,24 @@ pub fn load_tables(dependencies: &Dependencies, pack: &Pack, schema: &Schema) ->
         add_merged(&mut tables, table, &fragments)?;
     }
     Ok(tables)
+}
+
+/// Loads the startpos of a campaign (`campaigns/<campaign>/startpos.esf`), from the pack if it has it, otherwise from
+/// the game's files.
+///
+/// # Arguments
+///
+/// * `dependencies` - The game's files.
+/// * `pack` - Pack that may have the startpos.
+/// * `campaign` - Campaign key.
+///
+/// # Errors
+///
+/// Returns an error if neither has the startpos, or it can't be decoded.
+pub fn load_startpos(dependencies: &Dependencies, pack: &Pack, campaign: &str) -> Result<ESF> {
+    let files = FileSource { pack, dependencies };
+    let bytes = files.bytes(&format!("{CAMPAIGNS_FOLDER}/{campaign}/{STARTPOS_FILE}"))?;
+    ESF::decode(&mut Cursor::new(bytes), &None)
 }
 
 impl FileSource<'_> {
@@ -336,7 +359,7 @@ impl GameLayouts {
     pub fn load_or_extract(layouts_folder: &Path, game: &GameInfo, game_data_path: &Path) -> Result<Self> {
         let startposes = game_startposes(game_data_path);
         if startposes.is_empty() {
-            return Err(RLibError::StartposLayoutError(format!("the game has no startpos in {} to take the record layouts from", game_data_path.join("campaigns").display())));
+            return Err(RLibError::StartposLayoutError(format!("the game has no startpos in {} to take the record layouts from", game_data_path.join(CAMPAIGNS_FOLDER).display())));
         }
 
         let merged_path = layouts_folder.join(layout_file_name(game.key(), None));
@@ -397,9 +420,9 @@ impl GameLayouts {
 
 /// Returns the paths of the game's startposes, by campaign key.
 fn game_startposes(game_data_path: &Path) -> BTreeMap<String, PathBuf> {
-    std::fs::read_dir(game_data_path.join("campaigns"))
+    std::fs::read_dir(game_data_path.join(CAMPAIGNS_FOLDER))
         .map(|entries| entries.flatten()
-            .filter_map(|entry| Some((entry.file_name().into_string().ok()?, entry.path().join("startpos.esf"))))
+            .filter_map(|entry| Some((entry.file_name().into_string().ok()?, entry.path().join(STARTPOS_FILE))))
             .filter(|(_, path)| path.is_file())
             .collect())
         .unwrap_or_default()
@@ -463,7 +486,7 @@ fn legacy_overrides(dependencies: &Dependencies, pack: &Pack) -> HashSet<String>
 /// the pack, or `None` if they can't run or the campaign's scripts aren't there.
 fn script_variables(dependencies: &Dependencies, pack: &Pack, campaign: &str) -> Option<Vec<(String, LuaSavedValue)>> {
     let scripts = LuaScripts::from_game_and_packs(dependencies, [pack]);
-    let campaign_script = format!("{CAMPAIGN_SCRIPTS_FOLDER}/{campaign}/{CAMPAIGN_SCRIPT}");
+    let campaign_script = format!("{CAMPAIGNS_FOLDER}/{campaign}/{CAMPAIGN_SCRIPT}");
     if !scripts.contains(&campaign_script) {
         log::warn!("{campaign_script} isn't in the pack nor the game's files, so the startpos keeps the script variables of its layout");
         return None;

@@ -33,7 +33,7 @@ use crate::startpos::world::characters::{birth_year, loyalty, placement, Placeme
 use crate::startpos::world::government::faction_leader;
 use crate::startpos::world::{CampaignIndex, CharacterEntry, FactionEntry};
 
-#[path = "family.rs"] mod family;
+#[path = "family.rs"] pub(crate) mod family;
 
 #[cfg(test)] #[path = "characters_test.rs"] mod characters_test;
 
@@ -48,19 +48,19 @@ const DETAILS_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/WORLD/
 
 
 /// Agent type of the generated garrison commanders.
-const COLONEL_AGENT: &str = "colonel";
+pub(crate) const COLONEL_AGENT: &str = "colonel";
 
 /// Agent type of the generals.
-const GENERAL_AGENT: &str = "general";
+pub(crate) const GENERAL_AGENT: &str = "general";
 
 /// Age of the generated colonels (the game draws it from its RNG).
 const COLONEL_AGE: u32 = 30;
 
 /// Localisation key prefix of the character names.
-const NAME_KEY_PREFIX: &str = "names_name_";
+pub(crate) const NAME_KEY_PREFIX: &str = "names_name_";
 
 /// `start_pos_characters` name columns, by the kind the startpos stores with each name.
-const NAME_COLUMNS: [&str; 4] = ["Name", "Surname", "clan_name", "other_name"];
+pub(crate) const NAME_COLUMNS: [&str; 4] = ["Name", "Surname", "clan_name", "other_name"];
 
 /// Suffix the startpos adds to the art set of a character (`CHARACTER_DETAILS` #34).
 const ART_SET_SUFFIX: &str = "0";

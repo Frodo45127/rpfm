@@ -279,6 +279,10 @@ pub enum RLibError {
     #[error("Invalid value in column {1} of table {0}, needed to build the startpos: {2}")]
     StartposInvalidValue(String, String, String),
 
+    /// A startpos lacks something needed to extract its tables.
+    #[error("The tables of the startpos can't be extracted: {0}")]
+    StartposExtractionError(String),
+
     /// A mission script needed to build a startpos (like `victory_objectives.txt`) is malformed or uses something
     /// unsupported.
     #[error("Invalid mission script: {0}")]

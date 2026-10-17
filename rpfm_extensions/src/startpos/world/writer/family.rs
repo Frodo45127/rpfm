@@ -36,7 +36,7 @@ const FAMILY_TREE_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/WO
 const ADULT_AGE: i64 = 16;
 
 /// Death type codes of the dead (`CHARACTER_DETAILS` `DATE@2+1`), by `start_pos_characters.death_type`.
-const DEATH_TYPE_CODES: [(&str, i32); 4] = [("KILLED_IN_ACTION", 1), ("OLD_AGE", 3), ("EXECUTED", 5), ("DISEASE", 17)];
+pub(crate) const DEATH_TYPE_CODES: [(&str, i32); 4] = [("KILLED_IN_ACTION", 1), ("OLD_AGE", 3), ("EXECUTED", 5), ("DISEASE", 17)];
 
 //---------------------------------------------------------------------------//
 //                              Types

@@ -73,9 +73,8 @@ fn compare_sections(layout: &StartposLayout, ours: &RecordNode, theirs: &RecordN
     }
 }
 
-#[test]
-#[ignore = "needs the game data, see startpos_test.rs"]
-fn test_startpos_matches_the_game_startpos() {
+/// Writes the startpos of the test data with the game's orders and ids, returning it with the layout it's written with.
+pub(crate) fn write_test_startpos() -> (ESF, StartposLayout) {
     let tables = test_data_tables();
     let (index, layout, settlements, region_map, legacy_overrides) = world_test_data();
     let world = WorldInputs { tables, index: &index, layout: &layout, settlements: &settlements, region_map: &region_map, legacy_overrides: &legacy_overrides };
@@ -100,8 +99,14 @@ fn test_startpos_matches_the_game_startpos() {
         script_variables: None,
     };
     let plan = game_plan(&index);
-
     let written = write_startpos(&inputs, &plan).unwrap();
+    (written, layout)
+}
+
+#[test]
+#[ignore = "needs the game data, see startpos_test.rs"]
+fn test_startpos_matches_the_game_startpos() {
+    let (written, layout) = write_test_startpos();
     let (NodeType::Record(ours), NodeType::Record(theirs)) = (written.root_node(), test_startpos().root_node()) else { panic!("the roots aren't records") };
     let mut report = Report::default();
     compare_sections(&layout, ours, theirs, ROOT_PATH, &mut report);

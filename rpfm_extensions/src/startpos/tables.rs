@@ -137,6 +137,11 @@ impl Table {
         self.rows.is_empty()
     }
 
+    /// Returns the names of the columns, in no particular order.
+    pub fn column_names(&self) -> impl Iterator<Item = &str> {
+        self.columns.keys().map(String::as_str)
+    }
+
     /// Returns the position of a column.
     ///
     /// # Errors
