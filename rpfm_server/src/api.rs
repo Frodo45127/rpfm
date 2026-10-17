@@ -37,7 +37,7 @@ use rpfm_ipc::api::references::{FindDefinition, FindLoc, FindUsages, GetLocSourc
 use rpfm_ipc::api::tables::{AddKeyDeletes, EditTable, ExportTsv, GetColumnValues, GetTableDefinition, GetTableInfo, GetTableRows, GetUnusedNumbers, ImportTsv, MergeTables, RenameKey, UpgradeTable};
 use rpfm_ipc::api::updates::{ApplyUpdate, CheckUpdate};
 use rpfm_ipc::api::tools::{
-    AddCeoEntries, AnimsBySkeleton, BuildCeo, ExportGltf, FinishStartpos, GenerateMissingLocs, GenerateStartpos, ValidateStartpos, GetLuaHovers, GetOptimizerOptions, GetStartposCampaigns,
+    AddCeoEntries, AnimsBySkeleton, BuildCeo, CompareStartposTables, ExportGltf, ExtractStartposTables, FinishStartpos, GenerateMissingLocs, GenerateStartpos, ValidateStartpos, GetLuaHovers, GetOptimizerOptions, GetStartposCampaigns,
     ImportCeo, InitMyMod, ListPluginScripts, ListTraitCeos, LiveExport, LuaHover, LuaHovers, LuaTestResults, OptimizePack, OptimizerOptionValues, PackMap,
     optimizer_option_values, PatchSiegeAi, PluginScripts, RunLuaTests, RunPluginScript, SetVideoFormat, StartStartpos, TraitCeos, UpdateAnimIds,
 };
@@ -51,9 +51,11 @@ use crate::translation_hub::{self, SubmitOutcome};
 use crate::updater::{apply_component, check_component, git_update_repo};
 
 /// Methods that run as jobs.
-const JOB_METHODS: [&str; 11] = [
+const JOB_METHODS: [&str; 13] = [
     GenerateStartpos::METHOD,
     ValidateStartpos::METHOD,
+    ExtractStartposTables::METHOD,
+    CompareStartposTables::METHOD,
     OptimizePack::METHOD,
     RunLuaTests::METHOD,
     SetGame::METHOD,
@@ -66,7 +68,7 @@ const JOB_METHODS: [&str; 11] = [
 ];
 
 /// Methods that change the contents of packs, so they need autosaving. They change their `pack` param's pack, or any open pack if they have none.
-const PACK_CHANGING_METHODS: [&str; 37] = [
+const PACK_CHANGING_METHODS: [&str; 38] = [
     AddCeoEntries::METHOD,
     AddFilesFromDisk::METHOD,
     AddKeyDeletes::METHOD,
@@ -81,6 +83,7 @@ const PACK_CHANGING_METHODS: [&str; 37] = [
     DuplicateFiles::METHOD,
     EditTable::METHOD,
     ExtractFromAnimPack::METHOD,
+    ExtractStartposTables::METHOD,
     FinishStartpos::METHOD,
     GenerateMissingLocs::METHOD,
     GenerateStartpos::METHOD,
@@ -362,6 +365,14 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         GenerateStartpos::METHOD => call(params, |request: GenerateStartpos| {
             context.report_stage("Generating the startpos");
             state.generate_startpos(&request, settings)
+        }),
+        ExtractStartposTables::METHOD => call(params, |request: ExtractStartposTables| {
+            context.report_stage("Extracting the startpos tables");
+            state.extract_startpos_tables(&request, settings)
+        }),
+        CompareStartposTables::METHOD => call(params, |request: CompareStartposTables| {
+            context.report_stage("Comparing the startpos with its tables");
+            state.compare_startpos_tables(&request, settings)
         }),
 
         GetRawDefinitions::METHOD => call(params, |request: GetRawDefinitions| state.raw_definitions(&request.table_name, request.version)),

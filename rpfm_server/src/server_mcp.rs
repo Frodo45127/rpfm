@@ -62,7 +62,7 @@ use rpfm_ipc::api::schema::{
 };
 use rpfm_ipc::api::translations::{GenerateVanillaTexts, ListTranslations, Translations, VanillaTextsAvailable};
 use rpfm_ipc::api::tools::{
-    AnimsBySkeleton, ExportGltf, FilePaths, FilesChanged, FinishStartpos, GenerateMissingLocs, GenerateStartpos, StartposValidation, ValidateStartpos, GetOptimizerOptions, GetStartposCampaigns, InitMyMod, LiveExport,
+    AnimsBySkeleton, CompareStartposTables, ExportGltf, ExtractStartposTables, FilePaths, FilesChanged, FinishStartpos, GenerateMissingLocs, GenerateStartpos, StartposComparison, StartposValidation, ValidateStartpos, GetOptimizerOptions, GetStartposCampaigns, InitMyMod, LiveExport,
     MyModCreated, OptimizePack, OptimizerOptionValues, PackMap, PatchSiegeAi, RunLuaTests, SetVideoFormat, SiegeAiPatched, StartStartpos, StartposCampaigns,
     UpdateAnimIds,
 };
@@ -1229,6 +1229,26 @@ impl McpServer {
     )]
     pub async fn generate_startpos(&self, params: Parameters<GenerateStartpos>) -> Result<CallToolResult, McpError> {
         self.call_api("generate_startpos", params.0).await
+    }
+
+    #[tool(
+        name = "extract_startpos_tables",
+        description = "Extract the start_pos tables of a campaign from its startpos (the pack's, or the game's) and add them to the pack. The inverse of generate_startpos. Experimental, Attila only.",
+        annotations(read_only_hint = false, destructive_hint = false),
+        output_schema = schema_for_output::<FilesEdited>(),
+    )]
+    pub async fn extract_startpos_tables(&self, params: Parameters<ExtractStartposTables>) -> Result<CallToolResult, McpError> {
+        self.call_api("extract_startpos_tables", params.0).await
+    }
+
+    #[tool(
+        name = "compare_startpos_tables",
+        description = "Compare the tables extracted from a campaign's startpos with the tables it's built from, to find what the build loses or changes. Experimental, Attila only.",
+        annotations(read_only_hint = true),
+        output_schema = schema_for_output::<StartposComparison>(),
+    )]
+    pub async fn compare_startpos_tables(&self, params: Parameters<CompareStartposTables>) -> Result<CallToolResult, McpError> {
+        self.call_api("compare_startpos_tables", params.0).await
     }
 
     #[tool(
