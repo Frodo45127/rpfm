@@ -23,16 +23,16 @@ use crate::startpos::layout::{child_path, StartposLayout};
 use crate::startpos::missions::{MissionObjective, VictoryMission, VictoryObjectives};
 
 /// Path of the victory missions of each faction.
-const OPTIONS_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_PREOPEN_MAP_INFO/VICTORY_MISSION_OPTIONS";
+pub(crate) const OPTIONS_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_PREOPEN_MAP_INFO/VICTORY_MISSION_OPTIONS";
 
 /// Path of a victory mission.
-const DEFINITION_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_PREOPEN_MAP_INFO/VICTORY_MISSION_OPTIONS/VICTORY_MISSIONS_BY_TYPE_BLOCK/VICTORY_MISSIONS_BLOCK/CAMPAIGN_MISSION_DEFINITION";
+pub(crate) const DEFINITION_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_PREOPEN_MAP_INFO/VICTORY_MISSION_OPTIONS/VICTORY_MISSIONS_BY_TYPE_BLOCK/VICTORY_MISSIONS_BLOCK/CAMPAIGN_MISSION_DEFINITION";
 
 /// Path of the objectives and payload of a victory mission.
-const OBJECTIVES_AND_PAYLOAD_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_PREOPEN_MAP_INFO/VICTORY_MISSION_OPTIONS/VICTORY_MISSIONS_BY_TYPE_BLOCK/VICTORY_MISSIONS_BLOCK/CAMPAIGN_MISSION_DEFINITION/CAMPAIGN_MISSION_OBJECTIVES_AND_PAYLOAD";
+pub(crate) const OBJECTIVES_AND_PAYLOAD_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_PREOPEN_MAP_INFO/VICTORY_MISSION_OPTIONS/VICTORY_MISSIONS_BY_TYPE_BLOCK/VICTORY_MISSIONS_BLOCK/CAMPAIGN_MISSION_DEFINITION/CAMPAIGN_MISSION_OBJECTIVES_AND_PAYLOAD";
 
 /// Path of an objective of a victory mission.
-const OBJECTIVE_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_PREOPEN_MAP_INFO/VICTORY_MISSION_OPTIONS/VICTORY_MISSIONS_BY_TYPE_BLOCK/VICTORY_MISSIONS_BLOCK/CAMPAIGN_MISSION_DEFINITION/CAMPAIGN_MISSION_OBJECTIVES_AND_PAYLOAD/OBJECTIVES/CAMPAIGN_MISSION_OBJECTIVE";
+pub(crate) const OBJECTIVE_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_PREOPEN_MAP_INFO/VICTORY_MISSION_OPTIONS/VICTORY_MISSIONS_BY_TYPE_BLOCK/VICTORY_MISSIONS_BLOCK/CAMPAIGN_MISSION_DEFINITION/CAMPAIGN_MISSION_OBJECTIVES_AND_PAYLOAD/OBJECTIVES/CAMPAIGN_MISSION_OBJECTIVE";
 
 /// Prefix of the localisation key of a mission's title.
 const TITLE_KEY_PREFIX: &str = "missions_localised_title_";
@@ -41,7 +41,7 @@ const TITLE_KEY_PREFIX: &str = "missions_localised_title_";
 const DESCRIPTION_KEY_PREFIX: &str = "missions_localised_description_";
 
 /// Prefix of the record holding an objective's values.
-const IMPL_PREFIX: &str = "CAMPAIGN_MISSION_OBJECTIVE_IMPL_";
+pub(crate) const IMPL_PREFIX: &str = "CAMPAIGN_MISSION_OBJECTIVE_IMPL_";
 
 //---------------------------------------------------------------------------//
 //                              Implementations
@@ -117,7 +117,7 @@ fn write_mission(layout: &StartposLayout, mission: &VictoryMission) -> Result<Re
 
 /// Writes an objective (`CAMPAIGN_MISSION_OBJECTIVE`): its type id and the record with its values.
 fn write_objective(layout: &StartposLayout, objective: &MissionObjective) -> Result<RecordNode> {
-    let (id, name) = objective_type(objective);
+    let (id, name) = (objective_id(objective), objective_record_name(objective));
     let impl_key = format!("{IMPL_PREFIX}{name}");
     let impl_path = child_path(OBJECTIVE_PATH, &impl_key);
 
@@ -218,32 +218,40 @@ fn write_objective_values(layout: &StartposLayout, path: &str, objective: &Missi
     record.build()
 }
 
-/// Returns the type id of an objective and the name of the record with its values. Naval unit objectives are unit
-/// objectives with their naval flag set.
-fn objective_type(objective: &MissionObjective) -> (u32, &'static str) {
+/// Returns the type id of an objective.
+pub(crate) fn objective_id(objective: &MissionObjective) -> u32 {
     match objective {
-        MissionObjective::ConstructNBuildingsIncluding { .. } => (4, "CONSTRUCT_N_BUILDINGS_INCLUDING"),
-        MissionObjective::ControlNRegionsIncluding { .. } => (29, "CONTROL_N_REGIONS_INCLUDING"),
-        MissionObjective::ControlNProvincesIncluding { .. } => (30, "CONTROL_N_PROVINCES_INCLUDING"),
-        MissionObjective::OwnNUnits { .. } => (31, "OWN_N_UNITS"),
-        MissionObjective::ResearchNTechsOfTypeX { .. } => (32, "RESEARCH_N_TECHS_OF_TYPE_X"),
-        MissionObjective::OwnNProvincesWithCulturalDominance { .. } => (33, "OWN_N_PROVINCES_WITH_CULTURAL_DOMINANCE"),
-        MissionObjective::MaintainNClientStates { .. } => (49, "MAINTAIN_N_CLIENT_STATES"),
-        MissionObjective::SubjugateFactions { .. } => (53, "SUBJUGATE_FACTIONS"),
-        MissionObjective::RazeOrSackNDifferentSettlementsIncluding { .. } => (54, "RAZE_OR_SACK_N_DIFFERENT_SETTLEMENTS_INCLUDING"),
-        MissionObjective::EarnXAmountFromRaiding { .. } => (67, "EARN_X_AMOUNT_FROM_RAIDING"),
-        MissionObjective::EarnXAmountFromBuildingWealth { .. } => (68, "EARN_X_AMOUNT_FROM_BUILDING_WEALTH"),
-        MissionObjective::AtLeastXReligionInAllProvinces { .. } => (69, "AT_LEAST_X_RELIGION_IN_ALL_PROVINCES"),
-        MissionObjective::ReachSpecifiedDate { .. } => (77, "REACH_SPECIFIED_DATE"),
-        MissionObjective::LootOrSackNDifferentSettlementsIncluding { .. } => (81, "LOOT_OR_SACK_N_DIFFERENT_SETTLEMENTS_INCLUDING"),
-        MissionObjective::EnsureFactionsHaveNoMilitaryPresence { .. } => (7, "ENSURE_FACTIONS_HAVE_NO_MILITARY_PRESENCE"),
-        MissionObjective::EliminateCharacterInBattle { .. } => (14, "ELIMINATE_CHARACTER_IN_BATTLE"),
-        MissionObjective::IncomeAtLeastX { .. } => (36, "INCOME_AT_LEAST_X"),
-        MissionObjective::MaintainNAlliances { .. } => (51, "MAINTAIN_N_ALLIANCES"),
-        MissionObjective::ConfederateFactions { .. } => (52, "CONFEDERATE_FACTIONS"),
-        MissionObjective::StayHorde => (65, "STAY_HORDE"),
-        MissionObjective::AtLeastXPublicOrderInProvinces { .. } => (76, "AT_LEAST_X_PUBLIC_ORDER_IN_PROVINCES"),
-        MissionObjective::ReclaimNDifferentSettlementsIncluding { .. } => (86, "RECLAIM_N_DIFFERENT_SETTLEMENTS_INCLUDING"),
-        MissionObjective::AttainFameLevel { .. } => (89, "ATTAIN_FAME_LEVEL"),
+        MissionObjective::ConstructNBuildingsIncluding { .. } => 4,
+        MissionObjective::ControlNRegionsIncluding { .. } => 29,
+        MissionObjective::ControlNProvincesIncluding { .. } => 30,
+        MissionObjective::OwnNUnits { .. } => 31,
+        MissionObjective::ResearchNTechsOfTypeX { .. } => 32,
+        MissionObjective::OwnNProvincesWithCulturalDominance { .. } => 33,
+        MissionObjective::MaintainNClientStates { .. } => 49,
+        MissionObjective::SubjugateFactions { .. } => 53,
+        MissionObjective::RazeOrSackNDifferentSettlementsIncluding { .. } => 54,
+        MissionObjective::EarnXAmountFromRaiding { .. } => 67,
+        MissionObjective::EarnXAmountFromBuildingWealth { .. } => 68,
+        MissionObjective::AtLeastXReligionInAllProvinces { .. } => 69,
+        MissionObjective::ReachSpecifiedDate { .. } => 77,
+        MissionObjective::LootOrSackNDifferentSettlementsIncluding { .. } => 81,
+        MissionObjective::EnsureFactionsHaveNoMilitaryPresence { .. } => 7,
+        MissionObjective::EliminateCharacterInBattle { .. } => 14,
+        MissionObjective::IncomeAtLeastX { .. } => 36,
+        MissionObjective::MaintainNAlliances { .. } => 51,
+        MissionObjective::ConfederateFactions { .. } => 52,
+        MissionObjective::StayHorde => 65,
+        MissionObjective::AtLeastXPublicOrderInProvinces { .. } => 76,
+        MissionObjective::ReclaimNDifferentSettlementsIncluding { .. } => 86,
+        MissionObjective::AttainFameLevel { .. } => 89,
+    }
+}
+
+/// Returns the name of the record with an objective's values: its type key, except for naval unit objectives, which
+/// are unit objectives with their naval flag set.
+pub(crate) fn objective_record_name(objective: &MissionObjective) -> &'static str {
+    match objective {
+        MissionObjective::OwnNUnits { .. } => "OWN_N_UNITS",
+        _ => objective.type_key(),
     }
 }

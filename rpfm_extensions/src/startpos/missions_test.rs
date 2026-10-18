@@ -105,3 +105,12 @@ fn test_parse_objectives_of_other_campaigns() {
         assert_eq!(MissionObjective::from_item(&script(text)).unwrap(), expected, "{text}");
     }
 }
+
+#[test]
+fn test_written_victory_objectives_parse_back() {
+    let objectives = parse_victory_objectives(VICTORY_SCRIPT).unwrap();
+
+    let script = write_victory_objectives(&objectives);
+
+    assert_eq!(parse_victory_objectives(&script).unwrap(), objectives);
+}

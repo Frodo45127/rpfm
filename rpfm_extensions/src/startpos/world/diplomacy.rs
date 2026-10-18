@@ -12,9 +12,10 @@
 //!
 //! Each `start_pos_diplomacy` row gives both factions a relationship: its stance (vassal and client state rows give
 //! the overlord the `master` and `protector` stances), trade agreement, non-aggression pact and military access.
-//! Vassals join their master's wars. Factions know each other if they have a row, an inherited war, neighbouring
-//! regions or a `start_pos_past_events` row. Verified on Attila's main campaign: stances, flags and known factions
-//! match for every pair of factions.
+//! Vassals join their master's wars, and lose the non-aggression pacts and military access of their rows with other
+//! factions (they keep trade agreements; client states keep everything). Factions know each other if they have a row,
+//! an inherited war, neighbouring regions or a `start_pos_past_events` row. Verified on Attila's main campaign:
+//! stances, flags and known factions match for every pair of factions (the vassal rule has a single case there).
 
 use getset::{CopyGetters, Getters};
 
@@ -122,8 +123,10 @@ impl Diplomacy {
             rows.push((first.key().to_owned(), second.key().to_owned(), row.str("stance")?.into_owned(), row.bool("grants_trade_agreement")?, row.bool("non_aggression_pact")?, row.bool("grants_military_access")?));
         }
 
+        let vassals = rows.iter().filter(|row| row.2 == "vassal").map(|row| row.0.to_owned()).collect::<HashSet<_>>();
         let mut diplomacy = Self::default();
         for (first, second, stance, trade, non_aggression, military_access) in &rows {
+            let of_vassal = stance != "vassal" && (vassals.contains(first) || vassals.contains(second));
             let (first_stance, second_stance) = match stance.as_str() {
                 "vassal" => ("vassal", "master"),
                 "client_state" => ("client_state", "protector"),
@@ -134,8 +137,8 @@ impl Diplomacy {
                 let relationship = diplomacy.entry(faction, other);
                 relationship.stance = stance.to_owned();
                 relationship.trade = *trade;
-                relationship.non_aggression = *non_aggression;
-                relationship.military_access = *military_access;
+                relationship.non_aggression = *non_aggression && !of_vassal;
+                relationship.military_access = *military_access && !of_vassal;
                 relationship.known = true;
             }
             if vassal {

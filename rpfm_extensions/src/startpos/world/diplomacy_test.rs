@@ -86,3 +86,20 @@ fn test_past_events_make_factions_known() {
     assert_eq!(diplomacy.relationship("fact_a", "fact_b"), Relationship { known: true, ..Default::default() });
     assert!(diplomacy.relationship("fact_b", "fact_a").known());
 }
+
+#[test]
+fn test_vassals_lose_their_pacts_but_keep_their_trade() {
+    let mut tables = diplomacy_tables();
+    add_table(&mut tables, "start_pos_diplomacy", &["key", "faction1", "faction2", "stance", "grants_military_access", "grants_trade_agreement", "non_aggression_pact"], &[
+        &["3", "2", "4", "neutral", "true", "true", "true"],
+    ]);
+    let index = fixture_index(&tables);
+    let map = RegionMap::from_cells(vec![], 0, 0, vec![]);
+
+    let diplomacy = Diplomacy::new(&tables, &index, &map).unwrap();
+
+    let relationship = diplomacy.relationship("fact_b", "fact_c");
+    assert_eq!(relationship.stance(), "neutral");
+    assert!(relationship.trade() && relationship.known());
+    assert!(!relationship.non_aggression() && !relationship.military_access());
+}

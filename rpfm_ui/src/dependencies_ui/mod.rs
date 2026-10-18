@@ -49,7 +49,7 @@ use rpfm_lib::files::ContainerPath;
 use rpfm_ui_common::utils::{find_widget, load_template};
 
 use crate::app_ui::AppUI;
-use crate::communications::{call_api, call_api_async};
+use crate::communications::{call_api, call_api_async, not_added_error};
 use crate::ffi::*;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
@@ -223,17 +223,18 @@ impl DependenciesUI {
         app_ui.toggle_main_window(false);
 
         let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-        let imported = paths_by_source.into_iter().try_fold((vec![], vec![]), |(mut added, mut not_added), (data_source, paths)| {
+        let imported = paths_by_source.into_iter().try_fold((vec![], vec![], None), |(mut added, mut not_added, mut last_error), (data_source, paths)| {
             let source = data_source.file_source(&pack_key).ok_or_else(|| anyhow!("External files can't be imported."))?;
             let request = CopyFiles { source, paths: paths.iter().map(|path| path.path_raw().to_owned()).collect(), pack: pack_key.clone() };
             let result = call_api(&request)?;
             added.extend(file_paths(result.added));
             not_added.extend(result.not_added);
-            Ok::<_, anyhow::Error>((added, not_added))
+            last_error = result.error.or(last_error);
+            Ok::<_, anyhow::Error>((added, not_added, last_error))
         });
 
         match imported {
-            Ok((paths, not_added_paths)) => {
+            Ok((paths, not_added_paths, last_error)) => {
                 if !paths.is_empty() {
                     pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(paths.to_vec()), DataSource::PackFile, &pack_key);
 
@@ -255,8 +256,8 @@ impl DependenciesUI {
                     }
                 }
 
-                if !not_added_paths.is_empty() {
-                    show_dialog(app_ui.main_window(), anyhow!("<p>There was an error importing the following files:</p> <ul>{}</ul>", not_added_paths.iter().map(|x| "<li>".to_owned() + x + "</li>").collect::<String>()), false);
+                if let Some(error) = not_added_error(&not_added_paths, last_error.as_deref()) {
+                    show_dialog(app_ui.main_window(), error, false);
                 }
             }
 

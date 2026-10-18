@@ -84,7 +84,7 @@ impl PackFileExtraViewSlots {
                     let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
                     let source = FileSource::Pack(pack_file_view.pack_file_path.read().unwrap().to_string_lossy().to_string());
                     match copy_files(source, &item_types, &pack_key) {
-                        Ok(paths_ok) => {
+                        Ok((paths_ok, not_added_error)) => {
 
                             // If any of the PackedFiles was already open (and we overwrote them) remove his view.
                             for path in &paths_ok {
@@ -102,6 +102,10 @@ impl PackFileExtraViewSlots {
                             pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(paths_ok.to_vec()), DataSource::PackFile, &pack_key);
                             pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_ok.to_vec()), DataSource::PackFile, &pack_key);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+
+                            if let Some(error) = not_added_error {
+                                show_dialog(app_ui.main_window(), error, false);
+                            }
                         },
                         Err(error) => show_dialog(app_ui.main_window(), error, false),
                     }

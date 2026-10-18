@@ -23,13 +23,18 @@ use std::path::{Component, Path, PathBuf};
 use rpfm_extensions::dependencies::{GAMES_NEEDING_VICTORY_OBJECTIVES, VICTORY_OBJECTIVES_FILE_NAME};
 use rpfm_extensions::gltf::{gltf_from_rigid, save_gltf_to_disk};
 use rpfm_extensions::optimizer::{OptimizableContainer, OptimizerOptions};
-use rpfm_extensions::startpos::generator::{generate_startpos, load_tables, GameLayouts, StartposSources, SUPPORTED_GAMES as GENERATOR_GAMES};
+use rpfm_extensions::startpos::extract::{extract_tables, ExtractedTables};
+use rpfm_extensions::startpos::extract::compare::compare_tables;
+use rpfm_extensions::startpos::generator::{generate_startpos, load_startpos, load_tables, GameLayouts, StartposSources, SUPPORTED_GAMES as GENERATOR_GAMES};
+use rpfm_extensions::startpos::layout::StartposLayout;
+use rpfm_extensions::startpos::split::CampaignRows;
+use rpfm_extensions::startpos::tables::StartposTables;
 use rpfm_extensions::startpos::validation::{validate, Severity};
 use rpfm_extensions::translator::PackTranslation;
 
 use rpfm_ipc::settings_keys::ASSEMBLY_KIT_SUFFIX;
 
-use rpfm_lib::files::{Container, ContainerPath, RFile, RFileDecoded, rigidmodel::RigidModel};
+use rpfm_lib::files::{Container, ContainerPath, DecodeableExtraData, FileType, RFile, RFileDecoded, rigidmodel::RigidModel};
 use rpfm_lib::games::supported_games::KEY_THREE_KINGDOMS;
 use rpfm_lib::integrations::git::GitIntegration;
 
@@ -43,7 +48,8 @@ use rpfm_ipc::api::diagnostics::DiagnosticLevel;
 use rpfm_ipc::api::files::FileRef;
 use rpfm_ipc::api::tables::FilesEdited;
 use rpfm_ipc::api::translations::{DEFAULT_TRANSLATIONS_LIMIT, ListTranslations, TranslationEntry, TranslationFilter, Translations};
-use rpfm_ipc::api::tools::{optimizer_option_values, CeoEntryData, FilePaths, FilesChanged, GenerateStartpos, InitMyMod, StartposIssue, StartposValidation, ValidateStartpos, MyModCreated, PluginScriptRun, RunPluginScript, SiegeAiPatched, StartStartpos, StartposCampaigns};
+use rpfm_ipc::api::tools::{optimizer_option_values, CeoEntryData, CompareStartposTables, ExtractStartposTables, FilePaths, KeepStartposCampaign, FilesChanged, GenerateStartpos, InitMyMod, StartposColumnComparison, StartposComparison,
+    StartposIssue, StartposTableComparison, StartposValidation, StartposValueDifference, ValidateStartpos, MyModCreated, PluginScriptRun, RunPluginScript, SiegeAiPatched, StartStartpos, StartposCampaigns};
 
 use super::{DecodedFile, ExtractOptions, SessionState, encode_extra_data, loaded_schema, pack, pack_mut};
 use super::files::{container_path, pack_key_and_data_source, raw_paths};
@@ -58,6 +64,12 @@ const VANILLA_FIXES_NAME: &str = "vanilla_fixes_";
 
 /// Sub-startpos each Three Kingdoms campaign has.
 const THREE_KINGDOMS_SUB_STARTPOS: [&str; 2] = ["historical", "romance"];
+
+/// Start of the paths of the `start_pos_*` tables in a pack.
+const STARTPOS_TABLES_FOLDER_PREFIX: &str = "db/start_pos_";
+
+/// Suffix of the file name of the tables extracted from a startpos, after the campaign key.
+const EXTRACTED_TABLES_SUFFIX: &str = "_startpos";
 
 /// Pack setting with the campaign the last startpos of a pack was built for.
 const STARTPOS_LAST_CAMPAIGN_SETTING: &str = "starpos_last_campaign";
@@ -588,13 +600,7 @@ impl SessionState {
     /// Fails if the game isn't supported, the dependencies aren't loaded, the tables have errors, or the pack or game
     /// lack data the build needs.
     pub fn generate_startpos(&mut self, request: &GenerateStartpos, settings: &Settings) -> Result<FilesEdited> {
-        if !GENERATOR_GAMES.contains(&self.game.key()) {
-            return Err(ApiError::InvalidParams(format!("Startpos generation isn't supported for {} yet.", self.game.display_name())).into());
-        }
-        if !self.dependencies.is_vanilla_data_loaded(false) {
-            return Err(anyhow!("The dependencies cache isn't loaded. Generate it, then try again."));
-        }
-
+        self.check_startpos_generator_support()?;
         let schema = loaded_schema(&self.schema)?;
         let pack_to_build = pack(&self.packs, &request.pack)?;
         let tables = load_tables(&self.dependencies, pack_to_build, schema)?;
@@ -606,8 +612,7 @@ impl SessionState {
             return Err(anyhow!("The startpos tables have errors that would break the build:\n{}", errors.join("\n")));
         }
 
-        let game_data_path = self.game.data_path(&settings.path_buf(self.game.key()))?;
-        let layout = GameLayouts::load_or_extract(&startpos_layouts_path()?, &self.game, &game_data_path)?.for_campaign(&tables, &request.campaign);
+        let layout = self.startpos_layout(&tables, &request.campaign, settings)?;
         let sources = StartposSources::from_tables(tables, &self.dependencies, pack_to_build, &request.campaign)?;
         let startpos = generate_startpos(&sources, &layout)?;
 
@@ -616,6 +621,131 @@ impl SessionState {
         pack.insert(RFile::new_from_decoded(&RFileDecoded::ESF(startpos), 0, &path))?;
         pack.settings_mut().settings_text_mut().insert(STARTPOS_LAST_CAMPAIGN_SETTING.to_owned(), request.campaign.clone());
         Ok(FilesEdited { edited: vec![path] })
+    }
+
+    /// Extracts the `start_pos_*` tables and the victory objectives of a campaign from its startpos (the pack's, or the
+    /// game's), and adds the tables with rows and the objectives to the pack.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the game isn't supported, the dependencies aren't loaded, or the startpos is missing or doesn't fit the
+    /// record layouts.
+    pub fn extract_startpos_tables(&mut self, request: &ExtractStartposTables, settings: &Settings) -> Result<FilesEdited> {
+        let (extracted, _) = self.startpos_extraction(&request.pack, &request.campaign, settings)?;
+        let dbs = extracted.to_dbs(loaded_schema(&self.schema)?)?;
+
+        let pack = pack_mut(&mut self.packs, &request.pack)?;
+        let mut edited = vec![];
+        for db in dbs.into_iter().filter(|db| !db.is_empty()) {
+            let path = format!("db/{}/{}{EXTRACTED_TABLES_SUFFIX}", db.table_name(), request.campaign);
+            pack.insert(RFile::new_from_decoded(&RFileDecoded::DB(db), 0, &path))?;
+            edited.push(path);
+        }
+
+        if !extracted.victory_objectives().is_empty() {
+            let mut file = RFile::new_from_vec(extracted.victory_objectives_script().as_bytes(), FileType::Text, 0, VICTORY_OBJECTIVES_FILE_NAME);
+            file.guess_file_type()?;
+            pack.insert(file)?;
+            edited.push(VICTORY_OBJECTIVES_FILE_NAME.to_owned());
+        }
+        Ok(FilesEdited { edited })
+    }
+
+    /// Removes the rows of a pack's `start_pos_*` tables that don't belong to a campaign, deleting the tables left
+    /// without rows.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the schema isn't loaded, a table can't be decoded, or no faction of the tables is in the campaign.
+    pub fn keep_startpos_campaign(&mut self, request: &KeepStartposCampaign) -> Result<FilesChanged> {
+        let schema = loaded_schema(&self.schema)?;
+        let tables = load_tables(&self.dependencies, pack(&self.packs, &request.pack)?, schema)?;
+        let has_factions = tables.table("start_pos_factions").is_ok_and(|factions| factions.rows().any(|row| row.str("campaign").is_ok_and(|campaign| campaign == request.campaign)));
+        if !has_factions {
+            return Err(ApiError::InvalidParams(format!("No faction of the startpos tables is in the campaign {}.", request.campaign)).into());
+        }
+        let rows = CampaignRows::new(&tables, schema, &request.campaign)?;
+
+        let pack = pack_mut(&mut self.packs, &request.pack)?;
+        let mut paths = pack.files().keys().filter(|path| path.starts_with(STARTPOS_TABLES_FOLDER_PREFIX)).cloned().collect::<Vec<_>>();
+        paths.sort();
+
+        let mut extra_data = DecodeableExtraData::default();
+        extra_data.set_schema(Some(schema));
+        let extra_data = Some(extra_data);
+        let mut changed = FilesChanged { added: vec![], deleted: vec![] };
+        for path in paths {
+            let Some(file) = pack.file_mut(&path, false) else { continue };
+            file.decode(&extra_data, true, false)?;
+            let Ok(RFileDecoded::DB(db)) = file.decoded_mut() else { continue };
+            if rows.retain(db)? == 0 {
+                continue;
+            }
+            if db.is_empty() {
+                pack.remove(&ContainerPath::File(path.to_owned()));
+                changed.deleted.push(path);
+            } else {
+                changed.added.push(path);
+            }
+        }
+        Ok(changed)
+    }
+
+    /// Compares the tables extracted from a campaign's startpos with the tables it's built from.
+    ///
+    /// # Errors
+    ///
+    /// Fails like [`Self::extract_startpos_tables`], or if the extracted values don't fit the schema.
+    pub fn compare_startpos_tables(&self, request: &CompareStartposTables, settings: &Settings) -> Result<StartposComparison> {
+        let (extracted, tables) = self.startpos_extraction(&request.pack, &request.campaign, settings)?;
+        let tables = compare_tables(&tables, &extracted, loaded_schema(&self.schema)?)?.into_iter()
+            .map(|comparison| StartposTableComparison {
+                table: comparison.table().to_owned(),
+                match_ratio: comparison.match_ratio(),
+                matched_rows: *comparison.matched_rows(),
+                missing_rows: comparison.missing_rows().to_vec(),
+                extra_rows: comparison.extra_rows().to_vec(),
+                columns: comparison.columns().iter()
+                    .filter(|column| *column.different() > 0)
+                    .map(|column| StartposColumnComparison {
+                        column: column.column().to_owned(),
+                        equal: *column.equal(),
+                        different: *column.different(),
+                        examples: column.examples().iter()
+                            .map(|(row, original, extracted)| StartposValueDifference { row: row.to_owned(), original: original.to_owned(), extracted: extracted.to_owned() })
+                            .collect(),
+                    })
+                    .collect(),
+            })
+            .collect();
+        Ok(StartposComparison { tables })
+    }
+
+    /// Extracts the tables of a campaign's startpos, returning them with the tables the startpos is built from.
+    fn startpos_extraction(&self, pack_key: &str, campaign: &str, settings: &Settings) -> Result<(ExtractedTables, StartposTables)> {
+        self.check_startpos_generator_support()?;
+        let pack = pack(&self.packs, pack_key)?;
+        let tables = load_tables(&self.dependencies, pack, loaded_schema(&self.schema)?)?;
+        let layout = self.startpos_layout(&tables, campaign, settings)?;
+        let startpos = load_startpos(&self.dependencies, pack, campaign)?;
+        Ok((extract_tables(&startpos, &layout, &tables)?, tables))
+    }
+
+    /// Checks that the startpos generator supports the game and has its files loaded.
+    fn check_startpos_generator_support(&self) -> Result<()> {
+        if !GENERATOR_GAMES.contains(&self.game.key()) {
+            return Err(ApiError::InvalidParams(format!("Startpos generation isn't supported for {} yet.", self.game.display_name())).into());
+        }
+        if !self.dependencies.is_vanilla_data_loaded(false) {
+            return Err(anyhow!("The dependencies cache isn't loaded. Generate it, then try again."));
+        }
+        Ok(())
+    }
+
+    /// Returns the record layouts to write or read a campaign's startpos with.
+    fn startpos_layout(&self, tables: &StartposTables, campaign: &str, settings: &Settings) -> Result<StartposLayout> {
+        let game_data_path = self.game.data_path(&settings.path_buf(self.game.key()))?;
+        Ok(GameLayouts::load_or_extract(&startpos_layouts_path()?, &self.game, &game_data_path)?.for_campaign(tables, campaign))
     }
 
     /// Finishes building a startpos: imports it into its pack, or cancels the build, and cleans up the build files.

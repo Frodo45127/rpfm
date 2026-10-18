@@ -659,6 +659,14 @@ pub struct FilesPasted {
 
     /// Paths of the files removed from each source pack, by pack key, if they were cut.
     pub deleted: BTreeMap<String, Vec<String>>,
+
+    /// Paths of the files that couldn't be pasted. Cut files that couldn't be pasted are kept in their packs.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub not_pasted: Vec<String>,
+
+    /// Last error found while pasting the files, if any.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
 }
 
 impl Request for PasteFiles {

@@ -117,15 +117,11 @@ fn write_faction_infos(inputs: &WorldInputs, plan: &WorldPlan, forces: &ForcePla
     for row in tables.table("factions")?.rows() {
         flags.insert(row.str("key")?.into_owned(), row.str("flags_path")?.into_owned());
     }
-    let mut characters = HashMap::new();
-    for row in tables.table("start_pos_characters")?.rows() {
-        characters.insert(row.str("ID")?.into_owned(), row);
-    }
 
     let mut infos = inputs.layout.builder(FACTION_INFOS_PATH)?;
     for faction in plan.factions() {
         let row = start_pos_faction_row(tables, faction)?;
-        let leader = faction_leader(inputs.index, faction.key()).and_then(|leader| characters.get(leader.id()));
+        let leader = faction_leader(inputs.index, faction.key());
         let region_count = plan.regions().iter().filter(|region| region.owner().as_deref() == Some(faction.key().as_str())).count();
         let army_positions = if region_count == 0 { army_positions(inputs, forces, faction) } else { vec![] };
 

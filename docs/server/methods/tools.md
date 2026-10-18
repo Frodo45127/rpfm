@@ -303,6 +303,81 @@ Runs as a job: answers right away with a job ID, and sends its result when the j
 |------|------|----------|-------------|
 | `edited` | array of `string` | yes | Paths of the edited files. |
 
+## `startpos.extract_tables`
+
+Extracts the `start_pos_*` tables of a campaign from its startpos, the pack's or the
+game's if the pack has none, and adds them to the pack as `db/<table>/<campaign>_startpos`, with the victory
+objectives the startpos has as `db/victory_objectives.txt` (replacing the pack's). The inverse of
+`startpos.generate`.
+
+The startpos doesn't keep everything: columns the build ignores keep their default value, values the build sums
+over a province go to one of its regions, row ids other than the factions' and regions' are numbered from 1, and
+loot and raze objectives lose their settlements.
+
+Experimental, and only available for Attila. The record layouts are the ones of `startpos.generate`.
+
+Runs as a job: answers right away with a job ID, and sends its result when the job ends (see [Jobs](../ws-protocol.md#jobs)).
+
+**Params** (`ExtractStartposTables`)
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `pack` | `string` | yes | Key of the pack to add the tables to. |
+| `campaign` | `string` | yes | Campaign whose startpos the tables are extracted from. |
+
+**Result** (`FilesEdited`)
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `edited` | array of `string` | yes | Paths of the edited files. |
+
+## `startpos.compare_tables`
+
+Extracts the `start_pos_*` tables of a campaign from its startpos, like
+`startpos.extract_tables`, and compares them with the tables of the pack (and the game) the startpos is built from,
+to find what the build loses or changes. Rows are matched by what they describe, not by their ids.
+
+Experimental, and only available for Attila.
+
+Runs as a job: answers right away with a job ID, and sends its result when the job ends (see [Jobs](../ws-protocol.md#jobs)).
+
+**Params** (`CompareStartposTables`)
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `pack` | `string` | yes | Key of the pack with the startpos tables. |
+| `campaign` | `string` | yes | Campaign whose startpos is compared. |
+
+**Result** (`StartposComparison`)
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `tables` | array of [`StartposTableComparison`](#type-startpostablecomparison) | yes | One comparison per extracted table. |
+
+## `startpos.keep_campaign`
+
+Removes the rows of the pack's `start_pos_*` tables that don't belong to a campaign, as the
+Assembly Kit does before building a startpos, so tables holding several campaigns don't break the build. Tables left
+without rows are deleted.
+
+Rows of tables with a `campaign` column belong to their campaign; other rows belong to it if one of their references
+to a `start_pos_*` table points to one of its rows (the game's and the pack's rows count). Matches the Assembly Kit
+on Attila's main campaign.
+
+**Params** (`KeepStartposCampaign`)
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `pack` | `string` | yes | Key of the pack with the startpos tables. |
+| `campaign` | `string` | yes | Campaign whose rows are kept. |
+
+**Result** (`FilesChanged`)
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `added` | array of `string` | yes | Paths of the added or edited files. |
+| `deleted` | array of `string` | yes | Paths of the deleted files. |
+
 ## `tools.plugin_scripts`
 
 Returns the plugin scripts in the scripts folder of the config.
@@ -494,3 +569,37 @@ One of:
 - `"info"`: A suggestion, or information about the mod.
 - `"warning"`: Something that may be a mistake, or cause problems in some situations.
 - `"error"`: Something that will likely cause problems, like invalid references or malformed data.
+
+### Type `StartposTableComparison`
+
+How the rows of one table extracted from a startpos compare with the original ones.
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `table` | `string` | yes | Table, without the `_tables` suffix. |
+| `match_ratio` | `number` | yes | Share of the original values the startpos keeps, from 0 to 1. |
+| `matched_rows` | `integer` | yes | Rows found in both. |
+| `missing_rows` | array of `string` | yes | Keys of the original rows the startpos doesn't keep. |
+| `extra_rows` | array of `string` | yes | Keys of the extracted rows the original tables lack. |
+| `columns` | array of [`StartposColumnComparison`](#type-startposcolumncomparison) | yes | The compared columns with different values. |
+
+### Type `StartposColumnComparison`
+
+How the values of one column of the matched rows compare.
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `column` | `string` | yes | Column name. |
+| `equal` | `integer` | yes | Matched rows with the same value. |
+| `different` | `integer` | yes | Matched rows with a different value. |
+| `examples` | array of [`StartposValueDifference`](#type-startposvaluedifference) | yes | Some of the differences. |
+
+### Type `StartposValueDifference`
+
+A value the startpos keeps differently from its table.
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `row` | `string` | yes | Key of the row. |
+| `original` | `string` | yes | Value in the original table. |
+| `extracted` | `string` | yes | Value extracted from the startpos. |

@@ -74,3 +74,47 @@ fn test_game_data_has_no_errors() {
     let errors = issues.iter().filter(|issue| issue.severity == Severity::Error).map(ToString::to_string).collect::<Vec<_>>();
     assert!(errors.is_empty(), "{errors:#?}");
 }
+
+#[test]
+fn test_data_the_game_drops_is_reported() {
+    let mut tables = StartposTables::new();
+    tables.add_rows("names", &["id", "type"], &[vec![text("10"), DecodedData::I32(0)], vec![text("11"), DecodedData::I32(1)]]).unwrap();
+    tables.add_rows("start_pos_characters", &["ID", "Name", "Surname", "clan_name", "other_name"], &[
+        vec![text("100"), text("10"), text("11"), text(""), text("")],
+        vec![text("101"), text("10"), text("10"), text(""), text("")],
+    ]).unwrap();
+    let flag = DecodedData::Boolean;
+    tables.add_rows("start_pos_diplomacy", &["key", "faction1", "faction2", "stance", "non_aggression_pact", "grants_military_access"], &[
+        vec![text("1"), text("2"), text("1"), text("vassal"), flag(false), flag(false)],
+        vec![text("2"), text("2"), text("3"), text("neutral"), flag(true), flag(false)],
+        vec![text("3"), text("1"), text("3"), text("neutral"), flag(true), flag(true)],
+    ]).unwrap();
+
+    let mut issues = vec![];
+    validate_name_kinds(&tables, &mut issues);
+    validate_vassal_pacts(&tables, &mut issues);
+    let summary = issues.iter().map(|issue| (issue.table.as_str(), issue.row.as_str(), issue.column.as_deref())).collect::<Vec<_>>();
+
+    assert_eq!(summary, vec![
+        ("start_pos_characters", "101", Some("Surname")),
+        ("start_pos_diplomacy", "2", Some("non_aggression_pact")),
+    ]);
+}
+
+#[test]
+#[ignore = "needs the game data, see startpos_test.rs"]
+fn test_game_data_drops_are_reported() {
+    let games = SupportedGames::default();
+    let game = games.game(KEY_ATTILA).unwrap();
+    let schema = test_schema();
+    let pack = Pack::read_and_merge(&["data.pack", "main_attila.pack"].map(test_data_path), game, true, false, false).unwrap();
+    let tables = load_tables(&Dependencies::default(), &pack, &schema).unwrap();
+
+    let issues = validate(&tables, &schema, TEST_CAMPAIGN);
+    let count = |table: &str| issues.iter().filter(|issue| issue.table == table && issue.severity == Severity::Warning).count();
+
+    // The names, technologies and pacts the game drops from Attila's main campaign.
+    assert_eq!(count("start_pos_technologies"), 2);
+    assert_eq!(count("start_pos_diplomacy"), 2);
+    assert_eq!(issues.iter().filter(|issue| issue.table == "start_pos_characters" && issue.message.contains("isn't of type")).count(), 5);
+}

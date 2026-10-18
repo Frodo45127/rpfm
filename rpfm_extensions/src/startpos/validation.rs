@@ -20,6 +20,8 @@
 //! - Characters in the generals pool can't also be placed on the map with an army.
 //! - Progenitors can't adopt children under [`ADULT_AGE`]: the game gives the adopted child the progenitor's family
 //!   name through the child's character, which children don't have yet while the families are linked, and crashes.
+//! - Data the game drops: names whose `names.type` isn't their column's kind, technologies outside the faction's
+//!   technology tree, and the non-aggression pacts and military access of vassals with other factions.
 //!
 //! The outcomes of broken references were measured on Attila, one broken reference at a time.
 
@@ -28,7 +30,9 @@ use std::fmt;
 
 use rpfm_lib::schema::{Definition, Schema};
 
+use super::cai::technologies::faction_technologies;
 use super::tables::{Row, StartposTables};
+use super::world::{CampaignIndex, NAME_COLUMNS};
 
 #[cfg(test)] #[path = "validation_test.rs"] mod validation_test;
 
@@ -61,6 +65,9 @@ pub const FATAL_REFERENCES: [(&str, &str); 22] = [
 
 /// Age from which characters have a character while the game links their families.
 pub const ADULT_AGE: f64 = 16.0;
+
+/// Stance of the `start_pos_diplomacy` rows that make `faction1` a vassal of `faction2`.
+const VASSAL_STANCE: &str = "vassal";
 
 /// Prefix of the tables whose references are checked.
 const STARTPOS_TABLE_PREFIX: &str = "start_pos_";
@@ -145,6 +152,9 @@ pub fn validate(tables: &StartposTables, schema: &Schema, campaign: &str) -> Vec
     validate_references(tables, schema, &mut issues);
     validate_generals_pool(tables, &mut issues);
     validate_adoptions(tables, &mut issues);
+    validate_name_kinds(tables, &mut issues);
+    validate_technologies(tables, campaign, &mut issues);
+    validate_vassal_pacts(tables, &mut issues);
     issues.sort_by_key(|issue| issue.severity);
     issues
 }
@@ -254,6 +264,80 @@ fn validate_adoptions(tables: &StartposTables, issues: &mut Vec<StartposIssue>) 
                 column: Some("adopted".to_owned()),
                 message: format!("the progenitor {parent} adopts {child}, who is {age} years old. The game crashes when a progenitor adopts a child under {ADULT_AGE}."),
             });
+        }
+    }
+}
+
+/// Checks the names of the characters have their column's kind (`names.type`). Missing names are broken references.
+fn validate_name_kinds(tables: &StartposTables, issues: &mut Vec<StartposIssue>) {
+    let (Ok(names), Ok(characters)) = (tables.table("names"), tables.table("start_pos_characters")) else { return };
+    let mut kinds = HashMap::<String, HashSet<i64>>::new();
+    for row in names.rows() {
+        if let (Ok(id), Ok(kind)) = (row.str("id"), row.int("type")) {
+            kinds.entry(id.into_owned()).or_default().insert(kind);
+        }
+    }
+
+    for (position, row) in characters.rows().enumerate() {
+        for (column, kind) in NAME_COLUMNS.iter().zip(0..) {
+            let Ok(name) = row.str(column) else { continue };
+            let Some(name_kinds) = kinds.get(name.as_ref()) else { continue };
+            if !name_kinds.contains(&kind) {
+                issues.push(StartposIssue {
+                    severity: Severity::Warning,
+                    table: "start_pos_characters".to_owned(),
+                    row: row_name(&row, &["ID".to_owned()], position),
+                    column: Some(column.to_string()),
+                    message: format!("the name {name} isn't of type {kind} in names, so the game drops it."),
+                });
+            }
+        }
+    }
+}
+
+/// Checks the technologies factions start with are in their technology tree.
+fn validate_technologies(tables: &StartposTables, campaign: &str, issues: &mut Vec<StartposIssue>) {
+    let (Ok(technologies), Ok(index)) = (tables.table("start_pos_technologies"), CampaignIndex::new(tables, campaign)) else { return };
+    let mut trees = HashMap::new();
+    for (position, row) in technologies.rows().enumerate() {
+        let (Ok(faction_id), Ok(technology)) = (row.str("faction"), row.str("technology")) else { continue };
+        let Some(faction) = index.faction_by_id(&faction_id) else { continue };
+        let tree = trees.entry(faction.key().to_owned()).or_insert_with(|| faction_technologies(tables, campaign, faction).unwrap_or_default());
+        if !tree.iter().any(|known| *known == technology) {
+            issues.push(StartposIssue {
+                severity: Severity::Warning,
+                table: "start_pos_technologies".to_owned(),
+                row: row_name(&row, &["faction".to_owned(), "technology".to_owned()], position),
+                column: Some("technology".to_owned()),
+                message: format!("{technology} isn't in the technology tree of {}, so the game drops it.", faction.key()),
+            });
+        }
+    }
+}
+
+/// Checks vassals don't have non-aggression pacts or military access with other factions.
+fn validate_vassal_pacts(tables: &StartposTables, issues: &mut Vec<StartposIssue>) {
+    let Ok(diplomacy) = tables.table("start_pos_diplomacy") else { return };
+    let vassals = diplomacy.rows()
+        .filter(|row| row.str("stance").is_ok_and(|stance| stance == VASSAL_STANCE))
+        .filter_map(|row| row.str("faction1").ok().map(|faction| faction.into_owned()))
+        .collect::<HashSet<_>>();
+
+    for (position, row) in diplomacy.rows().enumerate() {
+        let (Ok(first), Ok(second), Ok(stance)) = (row.str("faction1"), row.str("faction2"), row.str("stance")) else { continue };
+        if stance == VASSAL_STANCE || !(vassals.contains(first.as_ref()) || vassals.contains(second.as_ref())) {
+            continue;
+        }
+        for column in ["non_aggression_pact", "grants_military_access"] {
+            if row.bool(column).unwrap_or_default() {
+                issues.push(StartposIssue {
+                    severity: Severity::Warning,
+                    table: "start_pos_diplomacy".to_owned(),
+                    row: row_name(&row, &["key".to_owned()], position),
+                    column: Some(column.to_owned()),
+                    message: "one of the factions is a vassal, and vassals can't have non-aggression pacts or military access with other factions, so the game drops it.".to_owned(),
+                });
+            }
         }
     }
 }

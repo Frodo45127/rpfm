@@ -566,6 +566,9 @@ fn pages() -> Vec<Page> {
     page.method::<tools::FinishStartpos>();
     page.method::<tools::ValidateStartpos>();
     page.method::<tools::GenerateStartpos>();
+    page.method::<tools::ExtractStartposTables>();
+    page.method::<tools::CompareStartposTables>();
+    page.method::<tools::KeepStartposCampaign>();
     page.method::<tools::ListPluginScripts>();
     page.method::<tools::RunPluginScript>();
     page.method::<tools::GetLuaHovers>();

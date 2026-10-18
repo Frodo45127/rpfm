@@ -110,6 +110,10 @@ pub unsafe fn set_connections(ui: &PackFileContentsUI, slots: &PackFileContentsS
     ui.context_menu_pack_map.triggered().connect(&slots.context_menu_pack_map);
     ui.context_menu_rescue_packfile.triggered().connect(&slots.context_menu_rescue_packfile);
     ui.context_menu_build_starpos.triggered().connect(&slots.context_menu_build_starpos);
+    ui.context_menu_extract_startpos.about_to_show().connect(&slots.context_menu_extract_startpos_about_to_show);
+    ui.context_menu_extract_startpos.triggered().connect(&slots.context_menu_extract_startpos);
+    ui.context_menu_keep_startpos_campaign.about_to_show().connect(&slots.context_menu_keep_startpos_campaign_about_to_show);
+    ui.context_menu_keep_startpos_campaign.triggered().connect(&slots.context_menu_keep_startpos_campaign);
     ui.context_menu_build_ceo.triggered().connect(&slots.context_menu_build_ceo);   
     ui.context_menu_update_anim_ids.triggered().connect(&slots.context_menu_update_anim_ids);
 

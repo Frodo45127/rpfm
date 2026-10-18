@@ -20,6 +20,7 @@ use std::ops::RangeInclusive;
 use rpfm_lib::error::Result;
 
 use super::{CampaignIndex, CharacterEntry};
+use super::government::PoliticalParty;
 use crate::startpos::coords::HexCell;
 use crate::startpos::tables::StartposTables;
 
@@ -61,6 +62,29 @@ pub fn birth_year(start_year: i64, character: &CharacterEntry) -> i64 {
 /// Returns the loyalty the startpos stores: the table value clamped to [`LOYALTY_RANGE`].
 pub fn loyalty(character: &CharacterEntry) -> i64 {
     character.loyalty().clamp(*LOYALTY_RANGE.start(), *LOYALTY_RANGE.end())
+}
+
+/// Returns the political party of a character: its table party, except for the dead and the widowed, which the game
+/// changes. Dead women and widows have no party. Dead men without a party join their faction's ruling party, and
+/// widowers in it move to the faction's other party. Seen on Attila's main campaign, with one widow and one widower.
+///
+/// # Arguments
+///
+/// * `character` - The character.
+/// * `is_male` - The character is a man.
+/// * `widowed` - The character is alive and married to a dead character.
+/// * `party` - The character's `start_pos_characters.political_party`.
+/// * `parties` - The political parties of the character's faction.
+pub fn political_party<'a>(character: &CharacterEntry, is_male: bool, widowed: bool, party: &'a str, parties: &'a [PoliticalParty]) -> &'a str {
+    let ruling = parties.iter().find(|candidate| candidate.playable()).map(|ruling| ruling.key().as_str());
+    let other = parties.iter().find(|candidate| !candidate.playable()).map(|other| other.key().as_str());
+    let dead = !character.death_type().is_empty();
+    match (dead, widowed, is_male) {
+        (true, _, false) | (false, true, false) => "",
+        (true, _, true) if party.is_empty() => ruling.unwrap_or_default(),
+        (false, true, true) if Some(party) == ruling => other.unwrap_or(party),
+        _ => party,
+    }
 }
 
 /// Returns where a character starts on the campaign map. An army stands where its general starts.

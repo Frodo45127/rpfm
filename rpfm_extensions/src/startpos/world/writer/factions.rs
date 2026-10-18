@@ -21,6 +21,7 @@ use super::government::{write_character_posts, PostPlan};
 use super::provinces::write_mercenary_pool;
 use super::sight::{write_shroud, SightPlan};
 use super::{child, next_id, start_pos_faction_row, WorldInputs, WorldPlan, WORLD_PATH};
+use crate::startpos::cai::technologies::faction_technologies;
 use crate::startpos::layout::{child_path, StartposLayout};
 use crate::startpos::vision::Vision;
 use crate::startpos::world::agents::recruitment_pool_agents;
@@ -262,14 +263,17 @@ fn faction_vision(inputs: &WorldInputs, context: &FactionContext, faction: &Fact
 }
 
 /// Writes the technologies a faction starts with (`start_pos_technologies`), in table order (the game uses a hash
-/// order).
+/// order). The game drops the ones its technology tree lacks, like generic technologies whose slot holds one of the
+/// faction's own.
 fn write_technologies(inputs: &WorldInputs, faction: &FactionEntry) -> Result<RecordNode> {
     let path = format!("{FACTION_PATH}/FACTION_TECHNOLOGY_MANAGER");
+    let tree = faction_technologies(inputs.tables, inputs.index.campaign(), faction)?;
     let mut researched = child(inputs.layout, &path, "RESEARCHED_TECHS")?;
     for row in inputs.tables.table("start_pos_technologies")?.rows() {
-        if row.str("faction")? == *faction.id() {
+        let technology = row.str("technology")?;
+        if row.str("faction")? == *faction.id() && tree.iter().any(|known| *known == technology) {
             researched.push_group()?
-                .set_str("^+1", &row.str("technology")?)?
+                .set_str("^+1", &technology)?
                 .set_bool("^+2", true)?;
         }
     }

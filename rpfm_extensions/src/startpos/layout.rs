@@ -375,6 +375,47 @@ impl StartposLayout {
         }).collect()
     }
 
+    /// Reads the only group of a record through the layout of its path.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path of the record.
+    /// * `record` - The record to read.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the record doesn't fit its layout or has no group.
+    pub fn read_single<'a>(&'a self, path: &str, record: &'a RecordNode) -> Result<GroupView<'a>> {
+        self.read(path, record)?.into_iter().next().ok_or_else(|| missing(&format!("group in {path}")))
+    }
+
+    /// Reads the items of an array record child of a group: each array group, with its item record's only group.
+    ///
+    /// # Arguments
+    ///
+    /// * `array_path` - Path of the array record.
+    /// * `parent` - The group holding the array.
+    /// * `array_key` - Key of the array record in the parent.
+    /// * `item_key` - Key of the item record in each array group.
+    ///
+    /// # Returns
+    ///
+    /// The array group and the item's group of each item. None if the parent lacks the array.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if a record doesn't fit its layout, or an array group lacks its item.
+    pub fn read_items<'a>(&'a self, array_path: &str, parent: &GroupView<'a>, array_key: &str, item_key: &str) -> Result<Vec<(GroupView<'a>, GroupView<'a>)>> {
+        let Some(array) = parent.record(array_key) else { return Ok(vec![]) };
+        let item_path = child_path(array_path, item_key);
+        self.read(array_path, array)?.into_iter()
+            .map(|entry| {
+                let item = entry.record(item_key).ok_or_else(|| missing(&item_path))?;
+                Ok((entry.clone(), self.read_single(&item_path, item)?))
+            })
+            .collect()
+    }
+
     /// Builds a record with the given children as its only group, as they are. For records whose shape varies too
     /// much for slots, like lists of buildings.
     ///
@@ -742,6 +783,11 @@ impl GroupBuilder<'_> {
 
 impl<'a> GroupView<'a> {
 
+    /// Returns the slot ids of the children the group has.
+    pub fn ids(&self) -> impl Iterator<Item = &'a str> + '_ {
+        self.fields.keys().copied()
+    }
+
     /// Returns a child by slot id, if the group has it.
     pub fn get(&self, id: &str) -> Option<&'a NodeType> {
         self.fields.get(id).copied()
@@ -779,6 +825,22 @@ impl<'a> GroupView<'a> {
     pub fn str(&self, name: &str) -> Option<&'a str> {
         match self.get(name)? {
             NodeType::Ascii(value) | NodeType::Utf16(value) => Some(value),
+            _ => None,
+        }
+    }
+
+    /// Returns a float leaf.
+    pub fn f32(&self, name: &str) -> Option<f32> {
+        match self.get(name)? {
+            NodeType::F32(node) => Some(*node.value()),
+            _ => None,
+        }
+    }
+
+    /// Returns a string array leaf (ASCII or UTF-16).
+    pub fn strs(&self, name: &str) -> Option<&'a [String]> {
+        match self.get(name)? {
+            NodeType::AsciiArray(values) | NodeType::Utf16Array(values) => Some(values),
             _ => None,
         }
     }

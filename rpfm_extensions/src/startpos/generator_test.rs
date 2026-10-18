@@ -20,6 +20,9 @@ use rpfm_lib::schema::{Definition, Field, FieldType};
 
 use super::*;
 use crate::startpos::esf_nav::{as_record, child_record};
+use crate::startpos::extract::extract_tables;
+use crate::startpos::extract::compare::compare_tables;
+use crate::startpos::extract::extract_test::assert_matches;
 use crate::startpos::startpos_test::{compare, test_data_path, test_startpos, Report, TEST_CAMPAIGN};
 use crate::startpos::world::writer::writer_test::plan_from_startpos;
 use crate::startpos::tables::tables_test::text;
@@ -124,6 +127,25 @@ fn test_startpos_generates_from_a_pack() {
     assert_eq!(campaign_overrides, overrides_from_pack());
 }
 
+#[test]
+#[ignore = "needs the game data, see startpos_test.rs"]
+fn test_startpos_tables_extract_from_a_pack() {
+    let games = SupportedGames::default();
+    let game = games.game(KEY_ATTILA).unwrap();
+    let schema = Schema::load(&test_data_path("schema.ron"), None).unwrap();
+    let packs = ["data.pack", "local.pack", "main_attila.pack"].map(test_data_path);
+    let mut pack = Pack::read_and_merge(&packs, game, true, false, false).unwrap();
+    let startpos_path = format!("{CAMPAIGNS_FOLDER}/{TEST_CAMPAIGN}/{STARTPOS_FILE}");
+    pack.insert(RFile::new_from_decoded(&RFileDecoded::ESF(test_startpos().clone()), 0, &startpos_path)).unwrap();
+
+    let dependencies = Dependencies::default();
+    let tables = load_tables(&dependencies, &pack, &schema).unwrap();
+    let startpos = load_startpos(&dependencies, &pack, TEST_CAMPAIGN).unwrap();
+    let extracted = extract_tables(&startpos, &StartposLayout::from_esf(test_startpos()).unwrap(), &tables).unwrap();
+
+    assert_matches(&compare_tables(&tables, &extracted, &schema).unwrap());
+}
+
 /// Campaigns with a game-built startpos, and the share of their fields a startpos generated without it must match.
 const CAMPAIGNS: [(&str, f64); 4] = [("main_attila", 0.899), ("pro_attila", 0.906), ("bel_attila", 0.906), ("cha_attila", 0.899)];
 
@@ -135,7 +157,7 @@ fn game_startpos_path(campaign: &str) -> std::path::PathBuf {
 /// Returns a pack with a campaign's victory objectives, from the test data game's Assembly Kit.
 fn victory_objectives_pack(campaign: &str) -> Pack {
     let path = test_data_path("game").join("assembly_kit/raw_data/EmpireDesignData/campaigns").join(campaign).join("victory_objectives.txt");
-    let mut file = RFile::new_from_vec(&std::fs::read(path).unwrap(), FileType::Text, 0, VICTORY_OBJECTIVES_PATH);
+    let mut file = RFile::new_from_vec(&std::fs::read(path).unwrap(), FileType::Text, 0, VICTORY_OBJECTIVES_FILE_NAME);
     file.guess_file_type().unwrap();
     let mut pack = Pack::default();
     pack.insert(file).unwrap();

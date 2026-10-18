@@ -27,6 +27,7 @@ use rpfm_lib::files::pack::Pack;
 use rpfm_lib::games::supported_games::{SupportedGames, KEY_ATTILA};
 use rpfm_lib::schema::Schema;
 
+use super::extract::EXTRACTION_TABLES;
 use super::generator::STARTPOS_TABLES;
 use super::esf_nav::{as_record, as_u32, child_record};
 use super::layout::{child_path, StartposLayout};
@@ -74,7 +75,7 @@ pub(crate) fn test_data_tables() -> &'static StartposTables {
         for pack_name in ["data.pack", "main_attila.pack"] {
             let mut pack = Pack::read_and_merge(&[test_data_path(pack_name)], game, true, false, false).unwrap();
             let paths = pack.files().keys()
-                .filter(|path| STARTPOS_TABLES.iter().any(|table| path.starts_with(&format!("db/{table}_tables/"))))
+                .filter(|path| STARTPOS_TABLES.iter().chain(&EXTRACTION_TABLES).any(|table| path.starts_with(&format!("db/{table}_tables/"))))
                 .cloned()
                 .collect::<Vec<_>>();
             for path in paths {

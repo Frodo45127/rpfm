@@ -254,14 +254,14 @@ impl SessionState {
     ///
     /// # Returns
     ///
-    /// The paths added to the target pack.
-    pub fn add_files_from_pack(&mut self, target_key: &str, source_key: &str, paths: &[ContainerPath]) -> Result<Vec<ContainerPath>> {
-        let files = loaded_files_by_paths(pack(&self.packs, source_key).map_err(|_| anyhow!("Source pack not found: {}", source_key))?, paths);
+    /// The paths added to the target pack, the paths of the files that couldn't be read, and the last error reading them.
+    pub fn add_files_from_pack(&mut self, target_key: &str, source_key: &str, paths: &[ContainerPath]) -> Result<(Vec<ContainerPath>, Vec<String>, Option<String>)> {
+        let (files, not_loaded, error) = loaded_files_by_paths(pack(&self.packs, source_key).map_err(|_| anyhow!("Source pack not found: {}", source_key))?, paths);
         let target_pack = pack_mut(&mut self.packs, target_key).map_err(|_| anyhow!("Target pack not found: {}", target_key))?;
 
         let added_paths = insert_files(target_pack, files);
         decode_tables(&mut target_pack.files_by_paths_mut(&added_paths, false), &self.schema);
-        Ok(added_paths)
+        Ok((added_paths, not_loaded, error))
     }
 
     /// Copies files from an open pack into an AnimPack of another (or the same) open pack.
@@ -275,17 +275,19 @@ impl SessionState {
     ///
     /// # Returns
     ///
-    /// The paths added to the AnimPack.
-    pub fn add_files_to_animpack(&mut self, source_pack_key: &str, anim_pack_key: &str, anim_pack_path: &str, paths: &[ContainerPath]) -> Result<Vec<ContainerPath>> {
-        let files = loaded_files_by_paths(pack(&self.packs, source_pack_key)?, paths);
+    /// The paths added to the AnimPack, the paths of the files that couldn't be read, and the last error reading them.
+    pub fn add_files_to_animpack(&mut self, source_pack_key: &str, anim_pack_key: &str, anim_pack_path: &str, paths: &[ContainerPath]) -> Result<(Vec<ContainerPath>, Vec<String>, Option<String>)> {
+        let (files, not_loaded, error) = loaded_files_by_paths(pack(&self.packs, source_pack_key)?, paths);
         let anim_pack_file = pack_mut(&mut self.packs, anim_pack_key)?.files_mut()
             .get_mut(anim_pack_path)
             .ok_or_else(|| anyhow!("File not found in the Pack: {}.", anim_pack_path))?;
 
         let anim_pack = decoded_anim_pack(anim_pack_file, anim_pack_path)?;
-        Ok(files.into_iter()
+        let added_paths = files.into_iter()
             .filter_map(|file| anim_pack.insert(file).ok().flatten())
-            .collect())
+            .collect();
+
+        Ok((added_paths, not_loaded, error))
     }
 
     /// Copies files from an AnimPack into an open pack.
@@ -479,12 +481,20 @@ impl SessionState {
         // Clone the files first, so we don't hold borrows of their packs while mutating them.
         let destination_path = request.folder.trim_end_matches('/');
         let mut files_to_insert = Vec::with_capacity(entries.len());
+        let mut pasted_entries = Vec::with_capacity(entries.len());
+        let mut not_pasted = vec![];
+        let mut last_error = None;
         for entry in &entries {
             let Some(source_pack) = self.packs.get(&entry.source_pack_key) else { continue };
             let Some(file) = source_pack.files_by_paths(&[ContainerPath::File(entry.file_path.clone())], false).first().copied() else { continue };
 
+            // Unloaded copies would keep reading from the source pack, and fail once it changes on disk.
             let mut new_file = file.clone();
-            let _ = new_file.load();
+            if let Err(error) = new_file.load() {
+                last_error = Some(format!("{}: {error}", entry.file_path));
+                not_pasted.push(entry.file_path.clone());
+                continue;
+            }
 
             let relative_path = if !entry.base_path.is_empty() && entry.file_path.starts_with(&entry.base_path) {
                 entry.file_path[entry.base_path.len()..].trim_start_matches('/')
@@ -500,11 +510,12 @@ impl SessionState {
 
             new_file.set_path_in_container_raw(&new_path);
             files_to_insert.push(new_file);
+            pasted_entries.push(entry);
         }
 
         let mut deleted: BTreeMap<String, Vec<String>> = BTreeMap::new();
         if request.cut {
-            for entry in &entries {
+            for entry in pasted_entries {
                 if let Some(source_pack) = self.packs.get_mut(&entry.source_pack_key) {
                     let removed = source_pack.remove(&ContainerPath::File(entry.file_path.clone()));
                     deleted.entry(entry.source_pack_key.clone()).or_default().extend(raw_paths(&removed));
@@ -516,7 +527,7 @@ impl SessionState {
         let added_paths = insert_files(target_pack, files_to_insert);
         decode_tables(&mut target_pack.files_by_paths_mut(&added_paths, false), &self.schema);
 
-        Ok(FilesPasted { added: raw_paths(&added_paths), deleted })
+        Ok(FilesPasted { added: raw_paths(&added_paths), deleted, not_pasted, error: last_error })
     }
 
     /// Duplicates files in the same pack, adding a numeric suffix to their names.
@@ -774,11 +785,12 @@ impl SessionState {
     ///
     /// # Returns
     ///
-    /// The paths added, and the paths that couldn't be added.
-    pub fn import_dependencies(&mut self, pack_key: &str, paths_by_source: &BTreeMap<DataSource, Vec<ContainerPath>>) -> Result<(Vec<ContainerPath>, Vec<String>)> {
+    /// The paths added, the paths that couldn't be added, and the last error found reading them.
+    pub fn import_dependencies(&mut self, pack_key: &str, paths_by_source: &BTreeMap<DataSource, Vec<ContainerPath>>) -> Result<(Vec<ContainerPath>, Vec<String>, Option<String>)> {
         let pack = pack_mut(&mut self.packs, pack_key)?;
         let mut added_paths = vec![];
         let mut not_added_paths = vec![];
+        let mut last_error = None;
 
         for (data_source, paths) in paths_by_source {
             let files = match data_source {
@@ -791,8 +803,16 @@ impl SessionState {
 
             for file in files.into_values() {
                 let mut file = file.clone();
-                let _ = file.guess_file_type();
                 let file_path = file.path_in_container_raw().to_owned();
+
+                // Unloaded copies would keep reading from the dependency's pack, and fail once it changes on disk.
+                if let Err(error) = file.load() {
+                    last_error = Some(format!("{file_path}: {error}"));
+                    not_added_paths.push(file_path);
+                    continue;
+                }
+
+                let _ = file.guess_file_type();
                 match pack.insert(file) {
                     Ok(Some(path)) => added_paths.push(path),
                     _ => not_added_paths.push(file_path),
@@ -847,7 +867,7 @@ impl SessionState {
             added_paths.append(&mut insert_files(pack, files));
         }
 
-        Ok((added_paths, not_added_paths))
+        Ok((added_paths, not_added_paths, last_error))
     }
 }
 
@@ -929,8 +949,9 @@ impl SessionState {
                 let source = pack(&self.packs, source_key)?;
                 let (paths, not_found) = split_found(&request.paths, |path| container_path(|path| source.has_file(path), path), |path| !source.files_by_path(path, false).is_empty());
 
-                let added = self.add_files_from_pack(&request.pack, source_key, &paths)?;
-                Ok(FilesAdded { added: raw_paths(&added), not_added: not_found, error: None })
+                let (added, mut not_added, error) = self.add_files_from_pack(&request.pack, source_key, &paths)?;
+                not_added.extend(not_found);
+                Ok(FilesAdded { added: raw_paths(&added), not_added, error })
             }
             FileSource::GameFiles | FileSource::ParentFiles => {
                 let data_source = DataSource::from(&request.source);
@@ -941,9 +962,9 @@ impl SessionState {
                     |path| !self.dependencies.files_by_path(from_ref(path), include_vanilla, include_parent, false).is_empty(),
                 );
 
-                let (added, mut not_added) = self.import_dependencies(&request.pack, &BTreeMap::from([(data_source, paths)]))?;
+                let (added, mut not_added, error) = self.import_dependencies(&request.pack, &BTreeMap::from([(data_source, paths)]))?;
                 not_added.append(&mut not_found);
-                Ok(FilesAdded { added: raw_paths(&added), not_added, error: None })
+                Ok(FilesAdded { added: raw_paths(&added), not_added, error })
             }
             FileSource::AssemblyKit => {
 
@@ -952,8 +973,8 @@ impl SessionState {
                     .map(|path| ContainerPath::Folder(path.strip_suffix(ASSEMBLY_KIT_TABLE_FILE_NAME).unwrap_or(path).trim_end_matches('/').to_owned()))
                     .collect();
 
-                let (added, not_added) = self.import_dependencies(&request.pack, &BTreeMap::from([(DataSource::AssKitFiles, paths)]))?;
-                Ok(FilesAdded { added: raw_paths(&added), not_added, error: None })
+                let (added, not_added, error) = self.import_dependencies(&request.pack, &BTreeMap::from([(DataSource::AssKitFiles, paths)]))?;
+                Ok(FilesAdded { added: raw_paths(&added), not_added, error })
             }
         }
     }
@@ -1136,8 +1157,8 @@ impl SessionState {
     /// Copies files of an open pack into an AnimPack of an open pack.
     pub fn add_to_animpack(&mut self, request: &AddToAnimPack) -> Result<FilesAdded> {
         let paths = self.pack_container_paths(&request.source_pack, &request.paths)?;
-        let added = self.add_files_to_animpack(&request.source_pack, &request.pack, &request.animpack, &paths)?;
-        Ok(FilesAdded { added: raw_paths(&added), ..FilesAdded::default() })
+        let (added, not_added, error) = self.add_files_to_animpack(&request.source_pack, &request.pack, &request.animpack, &paths)?;
+        Ok(FilesAdded { added: raw_paths(&added), not_added, error })
     }
 
     /// Copies files of an AnimPack of any source into an open pack.
@@ -1300,15 +1321,25 @@ fn decoded_anim_pack<'a>(file: &'a mut RFile, anim_pack_path: &str) -> Result<&'
 }
 
 /// Returns copies of the files of a pack at the provided paths, with their data loaded in memory.
-fn loaded_files_by_paths(pack: &Pack, paths: &[ContainerPath]) -> Vec<RFile> {
-    pack.files_by_paths(paths, false)
-        .into_iter()
-        .map(|file| {
-            let mut file = file.clone();
-            let _ = file.load();
-            file
-        })
-        .collect()
+///
+/// Files that fail to load are not copied, as unloaded copies would fail once the source pack changes on disk.
+/// Their paths are returned after the copies, with the last error found loading them.
+fn loaded_files_by_paths(pack: &Pack, paths: &[ContainerPath]) -> (Vec<RFile>, Vec<String>, Option<String>) {
+    let mut files = vec![];
+    let mut not_loaded = vec![];
+    let mut last_error = None;
+    for file in pack.files_by_paths(paths, false) {
+        let mut file = file.clone();
+        match file.load() {
+            Ok(()) => files.push(file),
+            Err(error) => {
+                last_error = Some(format!("{}: {error}", file.path_in_container_raw()));
+                not_loaded.push(file.path_in_container_raw().to_owned());
+            }
+        }
+    }
+
+    (files, not_loaded, last_error)
 }
 
 /// Inserts files into a pack, returning the paths of the ones inserted.
@@ -1371,3 +1402,11 @@ fn import_asskit_table(dependencies: &Dependencies, schema: &Schema, table_name:
 
     Some(RFile::new_from_decoded(&RFileDecoded::DB(table), 0, &path))
 }
+
+//-------------------------------------------------------------------------------//
+//                                   Tests
+//-------------------------------------------------------------------------------//
+
+#[cfg(test)]
+#[path = "files_test.rs"]
+mod files_test;

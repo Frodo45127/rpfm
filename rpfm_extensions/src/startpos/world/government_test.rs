@@ -31,11 +31,11 @@ fn government_tables() -> StartposTables {
         &["", "fact_a", "", "general", "103", "other"],
         &["cult_a", "", "sub_b", "general", "104", ""],
     ]);
-    add_table(&mut tables, "political_parties", &["key", "initial_power"], &[
-        &["party_ruler", "60"],
-        &["party_council", "40"],
-        &["party_zero_1", "0"],
-        &["party_zero_2", "0"],
+    add_table(&mut tables, "political_parties", &["key", "initial_power", "playable"], &[
+        &["party_ruler", "60", "true"],
+        &["party_council", "40", "false"],
+        &["party_zero_1", "0", "false"],
+        &["party_zero_2", "0", "false"],
     ]);
     add_table(&mut tables, "faction_political_parties_junctions", &["faction_key", "political_party_key"], &[
         &["fact_a", "party_ruler"],
@@ -44,6 +44,14 @@ fn government_tables() -> StartposTables {
         &["fact_b", "party_zero_2"],
     ]);
     tables
+}
+
+impl PoliticalParty {
+
+    /// Creates a party.
+    pub(crate) fn new(key: &str, power: u32, playable: bool) -> Self {
+        Self { key: key.to_owned(), power, playable }
+    }
 }
 
 #[test]

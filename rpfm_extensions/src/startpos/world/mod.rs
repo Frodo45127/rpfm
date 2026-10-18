@@ -62,6 +62,10 @@ pub mod writer;
 /// Relationship of married characters in `start_pos_family_relationships`.
 const SPOUSE_RELATIONSHIP: &str = "spouse";
 
+/// `start_pos_characters` name columns, by the kind the startpos stores with each name. A name's kind must be its
+/// `names.type`.
+pub const NAME_COLUMNS: [&str; 4] = ["Name", "Surname", "clan_name", "other_name"];
+
 /// Building instance (`building_levels.building_instance_key`) of the primary buildings of major settlements.
 const MAJOR_SETTLEMENT_INSTANCE: &str = "att_city_major";
 
@@ -200,6 +204,11 @@ pub struct CharacterEntry {
     #[getset(get_copy = "pub")]
     age: i64,
 
+    /// Names, in [`NAME_COLUMNS`] order. Names whose `names.type` isn't their column's kind are empty: the game drops
+    /// them.
+    #[getset(get = "pub")]
+    names: Vec<String>,
+
     /// Starting cell column (`startx`), 0 if not set.
     #[getset(get_copy = "pub")]
     start_x: u16,
@@ -227,6 +236,10 @@ pub struct CharacterEntry {
     /// Unit of the character's bodyguard, overriding the faction's default. Empty for the default.
     #[getset(get = "pub")]
     override_general_unit: String,
+
+    /// The character is alive and married to a dead character.
+    #[getset(get_copy = "pub")]
+    widowed: bool,
 
     /// Faction of the character's husband, for women married to a man of another faction. The game creates them in
     /// their own faction, then moves them and their armies to the end of their husband's.
@@ -339,6 +352,7 @@ impl CampaignIndex {
             });
         }
 
+        let name_kinds = name_kinds(tables)?;
         let mut characters = vec![];
         let mut women = HashSet::new();
         for row in tables.table("start_pos_characters")?.rows() {
@@ -351,6 +365,7 @@ impl CampaignIndex {
                 faction: faction.to_owned(),
                 agent: row.str("Type")?.into_owned(),
                 age: row.int("Age")?,
+                names: character_names(&row, name_kinds.as_ref())?,
                 start_x: cell_coordinate(&row, "startx")?,
                 start_y: cell_coordinate(&row, "starty")?,
                 ministerial_position: row.str("ministerial_position")?.into_owned(),
@@ -359,12 +374,15 @@ impl CampaignIndex {
                 progenitor: row.bool("progenitor")?,
                 override_general_unit: row.str("override_general_unit")?.into_owned(),
                 husband_faction: None,
+                widowed: false,
             });
         }
 
         let husband_factions = husband_factions(tables, &characters, &women)?;
+        let widowed = widowed(tables, &characters)?;
         for character in &mut characters {
             character.husband_faction = husband_factions.get(&character.id).cloned();
+            character.widowed = widowed.contains(&character.id);
         }
 
         Ok(Self {
@@ -464,6 +482,46 @@ fn husband_factions(tables: &StartposTables, characters: &[CharacterEntry], wome
         }
     }
     Ok(moves)
+}
+
+/// Returns the ids of the living characters married to a dead one.
+fn widowed(tables: &StartposTables, characters: &[CharacterEntry]) -> Result<HashSet<String>> {
+    let Ok(relationships) = tables.table("start_pos_family_relationships") else { return Ok(HashSet::new()) };
+    let dead = characters.iter().filter(|character| !character.death_type.is_empty()).map(|character| character.id.as_str()).collect::<HashSet<_>>();
+    let living = characters.iter().filter(|character| character.death_type.is_empty()).map(|character| character.id.as_str()).collect::<HashSet<_>>();
+
+    let mut widowed = HashSet::new();
+    for row in relationships.rows() {
+        if row.str("relationship")? != SPOUSE_RELATIONSHIP {
+            continue;
+        }
+        let (character, related) = (row.str("character")?, row.str("related_to")?);
+        for (survivor, spouse) in [(&character, &related), (&related, &character)] {
+            if living.contains(survivor.as_ref()) && dead.contains(spouse.as_ref()) {
+                widowed.insert(survivor.to_string());
+            }
+        }
+    }
+    Ok(widowed)
+}
+
+/// Returns the kinds (`names.type`) of each name id, or `None` if there's no `names` table to check names with.
+fn name_kinds(tables: &StartposTables) -> Result<Option<HashMap<String, HashSet<i64>>>> {
+    let Ok(names) = tables.table("names") else { return Ok(None) };
+    let mut kinds = HashMap::<String, HashSet<i64>>::new();
+    for row in names.rows() {
+        kinds.entry(row.str("id")?.into_owned()).or_default().insert(row.int("type")?);
+    }
+    Ok(Some(kinds))
+}
+
+/// Reads the names of a character, in [`NAME_COLUMNS`] order, leaving out the ones whose kind doesn't fit their column.
+fn character_names(row: &Row, kinds: Option<&HashMap<String, HashSet<i64>>>) -> Result<Vec<String>> {
+    NAME_COLUMNS.iter().zip(0..).map(|(column, kind)| {
+        let name = row.str(column)?;
+        let fits = kinds.is_none_or(|kinds| kinds.get(name.as_ref()).is_some_and(|name_kinds| name_kinds.contains(&kind)));
+        Ok(if fits { name.into_owned() } else { String::new() })
+    }).collect()
 }
 
 /// Reads a starting cell coordinate, stored as a float in `start_pos_characters`.
