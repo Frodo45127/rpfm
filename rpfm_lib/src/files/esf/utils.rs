@@ -1143,6 +1143,22 @@ impl ESF {
             _ => {}
         }
     }
+
+    /// Returns whether the rest of the stream is only zero padding.
+    ///
+    /// Real files can carry zero padding after the string tables, and the reference implementation
+    /// simply ignores whatever follows them. Treating zeros as padding keeps those files readable,
+    /// while still catching a table parse that ends in the middle of real data.
+    pub(crate) fn only_padding_remains<R: ReadBytes>(data: &mut R) -> Result<bool> {
+        let remaining = data.len()? - data.stream_position()?;
+        if remaining == 0 {
+            return Ok(true);
+        }
+
+        // Rewind after reading, so this stays a check and does not move the reader.
+        let bytes = data.read_slice(remaining as usize, true)?;
+        Ok(bytes.iter().all(|byte| *byte == 0))
+    }
 }
 
 //---------------------------------------------------------------------------//
