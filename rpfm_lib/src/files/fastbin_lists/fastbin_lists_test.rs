@@ -31,14 +31,15 @@ fn round_trip<T: Decodeable + Encodeable>(name: &str) -> T {
 
 #[test]
 fn test_encode_tree_list_files() {
-    for (name, version, has_uk_1) in [("tree_list_v1", 1, false), ("tree_list_v2", 2, true), ("tree_list_v3", 3, false)] {
+    for (name, version, has_is_burnable) in [("tree_list_v1", 1, false), ("tree_list_v2", 2, true), ("tree_list_v3", 3, false)] {
         let file: TreeListFile = round_trip(name);
         assert_eq!(*file.tree_list().serialise_version(), version);
 
         let trees = file.tree_list().tree_list();
         assert!(!trees.is_empty());
         assert!(trees.iter().all(|trees| trees.key().ends_with(".rigid_model_v2")));
-        assert_eq!(trees.iter().flat_map(|trees| trees.value()).any(|tree| *tree.uk_1() != 0), has_uk_1);
+        assert_eq!(trees.iter().flat_map(|trees| trees.value()).any(|tree| *tree.is_burnable() != 0), has_is_burnable);
+        assert!(trees.iter().flat_map(|trees| trees.value()).all(|tree| *tree.scale() > 0.0 && *tree.rotation() == 0));
     }
 }
 

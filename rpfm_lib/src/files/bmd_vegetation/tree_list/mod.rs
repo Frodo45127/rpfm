@@ -22,6 +22,7 @@
 //!
 //! # Supported Versions
 //!
+//! - **Versions 1 to 3**: Total War: Attila (scale as a byte, no rotation, version 2 adds `is_burnable`)
 //! - **Version 4**: Current format used in Total War: Warhammer III
 //!
 //! # Examples
@@ -154,19 +155,20 @@ pub struct BattleTreeItem {
     /// Z coordinate in world space.
     z: f32,
 
-    /// Y-axis rotation (0-255 maps to 0-360 degrees).
+    /// Y-axis rotation (0-255 maps to 0-360 degrees). Version 4 only.
     ///
     /// To convert to degrees: `rotation as f32 * 1.40625`
     rotation: u8,
 
-    /// Uniform scale factor.
+    /// Uniform scale factor. In versions 1 to 3 it is stored as a byte, 127 being 1.0.
     scale: f32,
 
-    /// Behavior flags for this tree instance.
+    /// Behavior flags for this tree instance. In versions 1 to 3 the byte is the tree's `is_freeform`: 1 keeps the stored height, 0 puts
+    /// the tree on the terrain.
     flags: u8,
 
-    /// Unknown byte of version 2. Always 1 in Attila.
-    uk_1: u8,
+    /// Version 2 only: whether the tree can burn. Always 1 in Attila.
+    is_burnable: u8,
 }
 
 //---------------------------------------------------------------------------//
@@ -214,7 +216,7 @@ impl Default for BattleTreeItem {
             rotation: u8::default(),
             scale: f32::default(),
             flags: u8::default(),
-            uk_1: u8::default(),
+            is_burnable: u8::default(),
         }
     }
 }

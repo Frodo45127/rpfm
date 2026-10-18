@@ -13,11 +13,15 @@ use crate::error::Result;
 
 use super::*;
 
+/// What a scale byte of 1.0 is in versions 1 to 3.
+const ATTILA_SCALE_UNIT: f32 = 127.0;
+
 //---------------------------------------------------------------------------//
 //                           Implementation of TreeList
 //---------------------------------------------------------------------------//
 
-/// Versions 1 to 3, used by Attila: no scale, and version 2 has an extra byte per tree.
+/// Versions 1 to 3, used by Attila: the scale is a byte (127 is 1.0), there is no rotation (the game picks one at random per tree), and
+/// version 2 has an extra byte per tree, the tree's `is_burnable`.
 impl TreeList {
 
     pub(crate) fn read_v1_to_v3<R: ReadBytes>(&mut self, data: &mut R, _extra_data: &Option<DecodeableExtraData>) -> Result<()> {
@@ -32,13 +36,13 @@ impl TreeList {
                     x: data.read_f32()?,
                     y: data.read_f32()?,
                     z: data.read_f32()?,
-                    rotation: data.read_u8()?,
+                    scale: f32::from(data.read_u8()?) / ATTILA_SCALE_UNIT,
                     flags: data.read_u8()?,
                     ..Default::default()
                 };
 
                 if self.serialise_version == 2 {
-                    item.uk_1 = data.read_u8()?;
+                    item.is_burnable = data.read_u8()?;
                 }
 
                 vector.value.push(item);
@@ -60,11 +64,11 @@ impl TreeList {
                 buffer.write_f32(item.x)?;
                 buffer.write_f32(item.y)?;
                 buffer.write_f32(item.z)?;
-                buffer.write_u8(item.rotation)?;
+                buffer.write_u8((item.scale * ATTILA_SCALE_UNIT).round().clamp(0.0, 255.0) as u8)?;
                 buffer.write_u8(item.flags)?;
 
                 if self.serialise_version == 2 {
-                    buffer.write_u8(item.uk_1)?;
+                    buffer.write_u8(item.is_burnable)?;
                 }
             }
         }
