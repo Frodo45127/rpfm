@@ -150,6 +150,9 @@ pub struct Vertex {
 
     /// Secondary texture UV coordinates (u, v) for multi-texturing.
     /// Often stored as f16 in file, expanded to f32 in memory.
+    ///
+    /// In tree vertices these are not uvs but the LOD blend weights: the game's tree vertex shaders (rigidbranchcommon_v3,
+    /// rigidleafcommon_v3) draw `x * position + y * position2`. Full detail vertices have (0, 1).
     texture_coordinate2: Vector2<f32>,
 
     /// Vertex normal vector for lighting calculations (x, y, z, w).
@@ -179,15 +182,16 @@ pub struct Vertex {
     /// Unknown field (version 8+ only, purpose undocumented).
     uk_1: Vector4<u8>,
 
-    /// Second position of the vertex (x, y, z, w). Seen in tree vertices, where it's likely the pivot the vertex bends around
-    /// with the wind, and in bow wave vertices.
+    /// Second position of the vertex (x, y, z, w). Seen in bow wave vertices and in tree vertices, where it's the LOD position:
+    /// the position the vertex is drawn at, blended with `position` by the weights in `texture_coordinate2` (full detail vertices
+    /// keep `position` at the origin and are drawn entirely at this one).
     position2: Vector4<f32>,
 
-    /// Unknown pair of values of tree vertices. Small integers stored as f16.
+    /// Unknown pair of values of tree vertices. Small integers stored as f16. The game's tree shaders don't read it.
     uk_2: Vector2<f32>,
 
-    /// Unknown values of tree vertices, between 0 and 2. Stored as f16.
-    uk_3: Vector4<f32>,
+    /// Tree vertices: the vertex colour (r, g, b, values up to 2) and the wind weight (a: how much the vertex sways). Stored as f16.
+    tree_colour_wind: Vector4<f32>,
 
     /// Unknown value of bow wave vertices, 0 or 1.
     uk_4: f32,
@@ -392,7 +396,7 @@ impl Vertex {
                 v.texture_coordinate = data.read_vector_2_f32_from_vector_2_f16()?;
                 v.texture_coordinate2 = data.read_vector_2_f32_from_vector_2_f16()?;
                 v.uk_2 = data.read_vector_2_f32_from_vector_2_f16()?;
-                v.uk_3 = read_vector_4_f32_from_vector_4_f16(data)?;
+                v.tree_colour_wind = read_vector_4_f32_from_vector_4_f16(data)?;
             }
             VertexFormat::Billboard |
             VertexFormat::Uk8 => {
@@ -579,7 +583,7 @@ impl Vertex {
                 data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate)?;
                 data.write_vector_2_f32_as_vector_2_f16(self.texture_coordinate2)?;
                 data.write_vector_2_f32_as_vector_2_f16(self.uk_2)?;
-                write_vector_4_f32_as_vector_4_f16(data, self.uk_3)?;
+                write_vector_4_f32_as_vector_4_f16(data, self.tree_colour_wind)?;
             }
             VertexFormat::Billboard |
             VertexFormat::Uk8 => {
