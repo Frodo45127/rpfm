@@ -54,7 +54,7 @@ use rpfm_ui_common::clone;
 use crate::app_ui::AppUI;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
-use crate::communications::{call_api, call_api_async, pack_details, pack_operational_mode, open_packs, save_pack, folder_exists, copy_files};
+use crate::communications::{call_api, call_api_async, pack_details, pack_operational_mode, open_packs, save_pack, folder_exists, copy_files, not_added_error};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::lua_tests_ui;
 use crate::pack_tree::{PackTree, TreeViewOperation};
@@ -1116,7 +1116,7 @@ impl PackFileContentsSlots {
 
                 app_ui.toggle_main_window(false);
                 match copy_files(FileSource::Pack(source_key), &selected_items, &target_key) {
-                    Ok(paths_ok) => {
+                    Ok((paths_ok, not_added_error)) => {
 
                         // If any of the files were already open in the target pack, reload their views.
                         for path in &paths_ok {
@@ -1134,6 +1134,10 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(paths_ok.to_vec()), DataSource::PackFile, &target_key);
                         pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_ok.to_vec()), DataSource::PackFile, &target_key);
                         UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+
+                        if let Some(error) = not_added_error {
+                            show_dialog(app_ui.main_window(), error, false);
+                        }
                     },
                     Err(error) => show_dialog(app_ui.main_window(), error, false),
                 }
@@ -1449,6 +1453,7 @@ impl PackFileContentsSlots {
 
                         let added_paths = file_paths(pasted.added);
                         let deleted_by_pack = pasted.deleted.into_iter().map(|(pack_key, paths)| (pack_key, file_paths(paths))).collect::<BTreeMap<_, _>>();
+                        let not_pasted_error = not_added_error(&pasted.not_pasted, pasted.error.as_deref());
                         if !added_paths.is_empty() {
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(added_paths.to_vec()), DataSource::PackFile, &pack_key);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
@@ -1480,6 +1485,10 @@ impl PackFileContentsSlots {
                                     }
                                 }
                             }
+                        }
+
+                        if let Some(error) = not_pasted_error {
+                            show_dialog(app_ui.main_window(), error, false);
                         }
                     },
                     Err(error) => show_dialog(app_ui.main_window(), error, false),

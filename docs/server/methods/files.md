@@ -338,6 +338,8 @@ Meant for clients with a clipboard. Others should use `files.copy` and `files.re
 |------|------|----------|-------------|
 | `added` | array of `string` | yes | Paths of the files added to the target pack. |
 | `deleted` | map of array of `string` | yes | Paths of the files removed from each source pack, by pack key, if they were cut. |
+| `not_pasted` | array of `string` | no | Paths of the files that couldn't be pasted. Cut files that couldn't be pasted are kept in their packs. |
+| `error` | `string` or `null` | no | Last error found while pasting the files, if any. |
 
 ## `files.from_all_sources`
 

@@ -108,8 +108,9 @@ impl PackedFileAnimPackViewSlots {
                         paths: item_types.iter().map(|path| path.path_raw().to_owned()).collect(),
                     };
 
-                    match call_api(&request).map(|added| file_paths(added.added)) {
-                        Ok(paths_ok) => {
+                    match call_api(&request) {
+                        Ok(added) => {
+                            let paths_ok = file_paths(added.added);
 
                             // Add to the AnimPack tree using the source key, so the new items keep the
                             // file info (icon/tooltip) of the originals still present in the source Pack.
@@ -119,6 +120,10 @@ impl PackedFileAnimPackViewSlots {
                             // Mark the AnimPack file as modified in its own Pack, not the source one.
                             view.pack_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![ContainerPath::File(view.path().read().unwrap().to_owned()); 1]), DataSource::PackFile, &anim_pack_key);
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
+
+                            if let Some(error) = not_added_error(&added.not_added, added.error.as_deref()) {
+                                show_dialog(app_ui.main_window(), error, false);
+                            }
                         },
                         Err(error) => show_dialog(app_ui.main_window(), error, false),
                     }

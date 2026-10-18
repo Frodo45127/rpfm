@@ -310,10 +310,23 @@ pub fn file_paths_in_all_sources(folder: &str) -> Vec<String> {
 ///
 /// # Returns
 ///
-/// The paths of the files added to the pack.
-pub fn copy_files(source: FileSource, paths: &[ContainerPath], pack: &str) -> Result<Vec<ContainerPath>> {
+/// The paths of the files added to the pack, and an error listing the ones that couldn't be added, if any.
+pub fn copy_files(source: FileSource, paths: &[ContainerPath], pack: &str) -> Result<(Vec<ContainerPath>, Option<anyhow::Error>)> {
     let request = CopyFiles { source, paths: paths.iter().map(|path| path.path_raw().to_owned()).collect(), pack: pack.to_owned() };
-    Ok(file_paths(call_api(&request)?.added))
+    let result = call_api(&request)?;
+    let error = not_added_error(&result.not_added, result.error.as_deref());
+    Ok((file_paths(result.added), error))
+}
+
+/// Returns an error listing the files an operation couldn't add, with the last error found adding them, or `None` if all were added.
+pub fn not_added_error(not_added: &[String], last_error: Option<&str>) -> Option<anyhow::Error> {
+    if not_added.is_empty() {
+        return None;
+    }
+
+    let paths = not_added.iter().map(|path| format!("<li>{path}</li>")).collect::<String>();
+    let last_error = last_error.map(|error| format!("<p>Last error: {error}</p>")).unwrap_or_default();
+    Some(anyhow!("<p>There was an error importing the following files:</p> <ul>{paths}</ul>{last_error}"))
 }
 
 /// Returns the files and folders found in the open packs, the parent packs and the game files, by source and path.
