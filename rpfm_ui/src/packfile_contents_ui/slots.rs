@@ -36,11 +36,13 @@ use std::rc::Rc;
 use std::sync::{LazyLock, RwLock};
 
 
-use rpfm_ipc::api::files::{DeleteFiles, DuplicateFiles, FileRename, FileSource, PasteFiles, RenameFiles};
+use rpfm_ipc::api::files::{DeleteFiles, DuplicateFiles, FileRename, FileSource, ListFiles, PasteFiles, RenameFiles};
 use rpfm_ipc::api::packs::{ClosePack, PackDetails, UpdatePack};
-use rpfm_ipc::api::tables::{MergeTables, TableUpgraded, TablesMerged, UpgradeTable};
+use rpfm_ipc::api::tables::{GetColumnValues, MergeTables, TableUpgraded, TablesMerged, UpgradeTable};
 use rpfm_ipc::api::tools::{GenerateMissingLocs, ListPluginScripts, LiveExport, MapTile, PackMap, PatchSiegeAi};
 use rpfm_ipc::helpers::DataSource;
+
+use rpfm_extensions::startpos::generator::SUPPORTED_GAMES as STARTPOS_GENERATOR_GAMES;
 use rpfm_ipc::settings_keys::*;
 
 use rpfm_lib::compression::CompressionFormat;
@@ -69,6 +71,13 @@ use crate::pack_tree::{BuildData, new_pack_file_tooltip};
 use crate::utils::{check_regex, file_paths, log_to_status_bar, qtr, show_dialog, show_message_info, tr, tre};
 
 /// Files copied or cut from the pack tree, waiting to be pasted.
+/// Folder of the campaigns' files, and the end of the path of a campaign's startpos in it.
+const STARTPOS_FOLDER: &str = "campaigns/";
+const STARTPOS_FILE_SUFFIX: &str = "/startpos.esf";
+
+/// Table whose `campaign` column lists the campaigns of the startpos tables.
+const STARTPOS_FACTIONS_TABLE: &str = "start_pos_factions_tables";
+
 static CLIPBOARD: LazyLock<RwLock<Clipboard>> = LazyLock::new(|| RwLock::new(Clipboard::default()));
 
 //-------------------------------------------------------------------------------//
@@ -145,6 +154,10 @@ pub struct PackFileContentsSlots {
     pub context_menu_pack_map: QBox<SlotOfBool>,
     pub context_menu_rescue_packfile: QBox<SlotOfBool>,
     pub context_menu_build_starpos: QBox<SlotOfBool>,
+    pub context_menu_extract_startpos_about_to_show: QBox<SlotNoArgs>,
+    pub context_menu_extract_startpos: QBox<SlotOfQAction>,
+    pub context_menu_keep_startpos_campaign_about_to_show: QBox<SlotNoArgs>,
+    pub context_menu_keep_startpos_campaign: QBox<SlotOfQAction>,
     pub context_menu_build_ceo: QBox<SlotOfBool>,
     pub context_menu_update_anim_ids: QBox<SlotOfBool>,
 
@@ -682,6 +695,8 @@ impl PackFileContentsSlots {
                     pack_file_contents_ui.context_menu_optimize_packfile.set_visible(true);
                     pack_file_contents_ui.context_menu_rescue_packfile.set_visible(true);
                     pack_file_contents_ui.context_menu_build_starpos.set_visible(true);
+                    pack_file_contents_ui.context_menu_extract_startpos.menu_action().set_visible(STARTPOS_GENERATOR_GAMES.contains(&GAME_SELECTED.read().unwrap().key()));
+                    pack_file_contents_ui.context_menu_keep_startpos_campaign.menu_action().set_visible(true);
                     pack_file_contents_ui.context_menu_build_ceo.set_visible(true);
 
                     // Game-specific actions.
@@ -749,6 +764,8 @@ impl PackFileContentsSlots {
                     pack_file_contents_ui.context_menu_optimize_packfile.set_visible(false);
                     pack_file_contents_ui.context_menu_rescue_packfile.set_visible(false);
                     pack_file_contents_ui.context_menu_build_starpos.set_visible(false);
+                    pack_file_contents_ui.context_menu_extract_startpos.menu_action().set_visible(false);
+                    pack_file_contents_ui.context_menu_keep_startpos_campaign.menu_action().set_visible(false);
                     pack_file_contents_ui.context_menu_build_ceo.set_visible(false);
                     pack_file_contents_ui.context_menu_patch_siege_ai.set_visible(false);
                     pack_file_contents_ui.context_menu_live_export.set_visible(false);
@@ -2308,6 +2325,87 @@ impl PackFileContentsSlots {
             }
         ));
 
+        // Lists the startposes of the pack (`campaigns/<campaign>/startpos.esf`), by campaign.
+        let context_menu_extract_startpos_about_to_show = SlotNoArgs::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            pack_file_contents_ui => move || {
+                let menu = &pack_file_contents_ui.context_menu_extract_startpos;
+                menu.clear();
+
+                let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                let request = ListFiles { source: FileSource::Pack(pack_key), path_prefix: STARTPOS_FOLDER.to_owned(), recursive: true, file_types: None, offset: 0, limit: Some(usize::MAX) };
+                let files = call_api(&request).map(|list| list.files).unwrap_or_default();
+                for file in files {
+                    let campaign = file.path.strip_prefix(STARTPOS_FOLDER).and_then(|path| path.strip_suffix(STARTPOS_FILE_SUFFIX)).filter(|campaign| !campaign.contains('/'));
+                    if let Some(campaign) = campaign {
+                        let action = menu.add_action_q_string(&QString::from_std_str(campaign));
+                        action.set_data(&qt_core::QVariant::from_q_string(&QString::from_std_str(campaign)));
+                    }
+                }
+
+                if menu.is_empty() {
+                    menu.add_action_q_string(&qtr("special_stuff_extract_startpos_none")).set_enabled(false);
+                }
+            }
+        ));
+
+        let context_menu_extract_startpos = SlotOfQAction::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |action| {
+                let campaign = action.data().to_string().to_std_string();
+                if campaign.is_empty() {
+                    return;
+                }
+
+                app_ui.toggle_main_window(false);
+                if let Err(error) = AppUI::extract_startpos_tables(&app_ui, &pack_file_contents_ui, &campaign) {
+                    show_dialog(app_ui.main_window(), error, false);
+                }
+                app_ui.toggle_main_window(true);
+            }
+        ));
+
+        // Lists the campaigns of the startpos factions of the open packs.
+        let context_menu_keep_startpos_campaign_about_to_show = SlotNoArgs::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            pack_file_contents_ui => move || {
+                let menu = &pack_file_contents_ui.context_menu_keep_startpos_campaign;
+                menu.clear();
+
+                let request = GetColumnValues {
+                    table_name: STARTPOS_FACTIONS_TABLE.to_owned(),
+                    column: "campaign".to_owned(),
+                    include_packs: true,
+                    include_dependencies: false,
+                    prefix: String::new(),
+                    offset: 0,
+                    limit: Some(usize::MAX),
+                };
+                for campaign in call_api(&request).map(|values| values.values).unwrap_or_default().into_iter().filter(|campaign| !campaign.is_empty()) {
+                    let action = menu.add_action_q_string(&QString::from_std_str(&campaign));
+                    action.set_data(&qt_core::QVariant::from_q_string(&QString::from_std_str(&campaign)));
+                }
+
+                if menu.is_empty() {
+                    menu.add_action_q_string(&qtr("special_stuff_keep_startpos_campaign_none")).set_enabled(false);
+                }
+            }
+        ));
+
+        let context_menu_keep_startpos_campaign = SlotOfQAction::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |action| {
+                let campaign = action.data().to_string().to_std_string();
+                if campaign.is_empty() {
+                    return;
+                }
+
+                app_ui.toggle_main_window(false);
+                if let Err(error) = AppUI::keep_startpos_campaign(&app_ui, &pack_file_contents_ui, &campaign) {
+                    show_dialog(app_ui.main_window(), error, false);
+                }
+                app_ui.toggle_main_window(true);
+            }
+        ));
+
         let context_menu_build_ceo = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
@@ -2505,6 +2603,10 @@ impl PackFileContentsSlots {
             context_menu_pack_map,
             context_menu_rescue_packfile,
             context_menu_build_starpos,
+            context_menu_extract_startpos_about_to_show,
+            context_menu_extract_startpos,
+            context_menu_keep_startpos_campaign_about_to_show,
+            context_menu_keep_startpos_campaign,
             context_menu_build_ceo,
             context_menu_update_anim_ids,
 

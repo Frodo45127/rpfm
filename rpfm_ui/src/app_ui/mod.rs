@@ -91,7 +91,7 @@ use rpfm_ipc::api::schema::GetMissingDefinitions;
 use rpfm_ipc::api::session::{GetDependenciesInfo, ListDependencyTables, RebuildDependencies, SetGame};
 use rpfm_ipc::api::tables::GetColumnValues;
 use rpfm_ipc::api::diagnostics::DiagnosticLevel;
-use rpfm_ipc::api::tools::{FinishStartpos, GenerateStartpos, GetStartposCampaigns, OptimizePack, StartStartpos, StartposIssue, UpdateAnimIds, ValidateStartpos, optimizer_option_values};
+use rpfm_ipc::api::tools::{ExtractStartposTables, FinishStartpos, GenerateStartpos, GetStartposCampaigns, KeepStartposCampaign, OptimizePack, StartStartpos, StartposIssue, UpdateAnimIds, ValidateStartpos, optimizer_option_values};
 use rpfm_ipc::settings_keys::*;
 use rpfm_ipc::helpers::{ContainerInfo, DataSource, NewFile};
 
@@ -4519,6 +4519,44 @@ impl AppUI {
         } else {
             Ok(())
         }
+    }
+
+    /// Extracts the startpos tables and victory objectives of a campaign from its startpos in the selected pack, and
+    /// adds them to the pack.
+    pub unsafe fn extract_startpos_tables(app_ui: &Rc<Self>, pack_file_contents_ui: &Rc<PackFileContentsUI>, campaign: &str) -> Result<()> {
+        AppUI::purge_the_local_ones(app_ui, pack_file_contents_ui, true)?;
+        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+
+        // A range of 0 to 0 shows a busy bar, as the server doesn't report how far along it is. A null cancel text hides the cancel button.
+        let wait_dialog = QProgressDialog::new_5a(&qtr("extract_startpos_in_progress_message"), &QString::new(), 0, 0, app_ui.main_window());
+        wait_dialog.set_window_title(&qtr("rpfm_title"));
+        wait_dialog.set_window_modality(WindowModality::WindowModal);
+        wait_dialog.set_minimum_duration(0);
+        wait_dialog.show();
+
+        let result = run_job(&ExtractStartposTables { pack: pack_key.clone(), campaign: campaign.to_owned() });
+        wait_dialog.close();
+        let added = file_paths(result?.edited);
+        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Add(added.to_vec()), DataSource::PackFile, &pack_key);
+        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::MarkAlwaysModified(added), DataSource::PackFile, &pack_key);
+        UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
+        Ok(())
+    }
+
+    /// Removes the rows of the selected pack's startpos tables that don't belong to a campaign, after asking.
+    pub unsafe fn keep_startpos_campaign(app_ui: &Rc<Self>, pack_file_contents_ui: &Rc<PackFileContentsUI>, campaign: &str) -> Result<()> {
+        if !AppUI::are_you_sure_edition(app_ui, "are_you_sure_keep_startpos_campaign") {
+            return Ok(());
+        }
+        AppUI::purge_the_local_ones(app_ui, pack_file_contents_ui, true)?;
+
+        let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+        let changed = call_api_async(&KeepStartposCampaign { pack: pack_key.clone(), campaign: campaign.to_owned() })?;
+        let (edited, deleted) = (file_paths(changed.added), file_paths(changed.deleted));
+        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Modify(edited), DataSource::PackFile, &pack_key);
+        pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(deleted, true), DataSource::PackFile, &pack_key);
+        UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
+        Ok(())
     }
 
     /// This function is used to mass-update anim ids after an update.

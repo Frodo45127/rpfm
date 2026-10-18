@@ -167,6 +167,8 @@ pub struct PackFileContentsUI {
     context_menu_optimize_packfile: QPtr<QAction>,
     context_menu_rescue_packfile: QPtr<QAction>,
     context_menu_build_starpos: QPtr<QAction>,
+    context_menu_extract_startpos: QPtr<QMenu>,
+    context_menu_keep_startpos_campaign: QPtr<QMenu>,
     context_menu_build_ceo: QPtr<QAction>,
     context_menu_patch_siege_ai: QPtr<QAction>,
     context_menu_live_export: QPtr<QAction>,
@@ -371,6 +373,8 @@ impl PackFileContentsUI {
         let context_menu_optimize_packfile = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
         let context_menu_rescue_packfile = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("special_stuff_rescue_packfile"));
         let context_menu_build_starpos = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("special_stuff_build_starpos"));
+        let context_menu_extract_startpos = packfile_contents_tree_view_context_menu.add_menu_q_string(&qtr("special_stuff_extract_startpos"));
+        let context_menu_keep_startpos_campaign = packfile_contents_tree_view_context_menu.add_menu_q_string(&qtr("special_stuff_keep_startpos_campaign"));
         let context_menu_build_ceo = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("special_stuff_build_ceo"));
         let context_menu_patch_siege_ai = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("special_stuff_patch_siege_ai"));
         let context_menu_live_export = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("special_stuff_live_export"));
@@ -514,6 +518,8 @@ impl PackFileContentsUI {
             context_menu_optimize_packfile,
             context_menu_rescue_packfile,
             context_menu_build_starpos,
+            context_menu_extract_startpos,
+            context_menu_keep_startpos_campaign,
             context_menu_build_ceo,
             context_menu_patch_siege_ai,
             context_menu_live_export,
