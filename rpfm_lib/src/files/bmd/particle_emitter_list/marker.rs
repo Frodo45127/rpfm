@@ -31,11 +31,11 @@ pub struct ParticleEmitterMarker {
     /// Key of the particle effect.
     key: String,
 
+    /// Transform of the emitter (stored before the emission rate).
+    transform: Transform4x4,
+
     /// Particles emitted per second.
     emission_rate: f32,
-
-    /// Transform of the emitter.
-    transform: Transform4x4,
 
     /// Name of this instance of the emitter.
     instance_name: String,
@@ -77,8 +77,8 @@ impl Decodeable for ParticleEmitterMarker {
 
         Ok(Self {
             key,
-            emission_rate: data.read_f32()?,
             transform: Transform4x4::decode(data, extra_data)?,
+            emission_rate: data.read_f32()?,
             instance_name: data.read_sized_string_u8()?,
             autoplay: data.read_bool()?,
             scale: data.read_f32()?,
@@ -96,8 +96,8 @@ impl Encodeable for ParticleEmitterMarker {
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
         buffer.write_sized_string_u8(&self.key)?;
         buffer.write_u16(MARKER_VERSION)?;
-        buffer.write_f32(self.emission_rate)?;
         self.transform.encode(buffer, extra_data)?;
+        buffer.write_f32(self.emission_rate)?;
         buffer.write_sized_string_u8(&self.instance_name)?;
         buffer.write_bool(self.autoplay)?;
         buffer.write_f32(self.scale)?;

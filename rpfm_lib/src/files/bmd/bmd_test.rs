@@ -17,6 +17,7 @@ use crate::binary::ReadBytes;
 use crate::files::*;
 
 use super::Bmd;
+use super::common::Matrix;
 
 #[test]
 fn test_encode_bmd_prefab() {
@@ -232,6 +233,12 @@ fn test_encode_bmd_attila() {
     assert!(!v6.prop_list().markers().is_empty());
     assert!(v6.prop_list().markers().iter().all(|marker| *marker.serialise_version() == 2));
     assert!(!v6.particle_emitter_list().markers().is_empty());
+
+    // The marker's transform comes before its emission rate: read the other way round, the position lands in m23.
+    assert!(v6.particle_emitter_list().markers().iter().all(|marker| {
+        let t = marker.transform();
+        t.m03() == 0.0 && t.m13() == 0.0 && t.m23() == 0.0 && t.m33() == 1.0
+    }));
 
     let buildings = v6.battlefield_building_list().buildings();
     assert!(!buildings.is_empty());
