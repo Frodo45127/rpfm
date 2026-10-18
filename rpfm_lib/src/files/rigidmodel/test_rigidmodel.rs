@@ -172,7 +172,7 @@ fn test_encode_rigidmodel_attila() {
         .collect::<Vec<_>>();
     names.sort();
 
-    assert_eq!(names.len(), 22);
+    assert_eq!(names.len(), 23);
     for name in &names {
         round_trip_attila(name);
     }
@@ -227,4 +227,25 @@ fn test_encode_rigidmodel_rope_link_count_mismatch() {
     block.material_mut().rope_mut().links_mut().pop();
 
     assert!(data.encode(&mut vec![], &None).is_err());
+}
+
+
+#[test]
+fn test_decode_rigidmodel_attila_terrain_blend() {
+    let data = round_trip_attila("v6_terrain_blend");
+    let blocks = data.lods()[0].mesh_blocks().iter()
+        .filter(|block| *block.mesh().material_type() == MaterialType::TerrainBlend)
+        .collect::<Vec<_>>();
+
+    // The default layout: positions within the wall (a few metres), w = 1 and uvs. As two f32 vectors, x reached hundreds and y was ~0.0078.
+    assert!(!blocks.is_empty());
+    for block in blocks {
+        for vertex in block.mesh().vertices() {
+            let p = vertex.position();
+            assert!(p.x.abs() < 50.0 && p.y.abs() < 50.0 && p.z.abs() < 50.0, "position {p:?}");
+            assert_eq!(p.w, 1.0);
+        }
+
+        assert!(block.mesh().vertices().iter().any(|vertex| vertex.texture_coordinate().x != 0.0 || vertex.texture_coordinate().y != 0.0));
+    }
 }

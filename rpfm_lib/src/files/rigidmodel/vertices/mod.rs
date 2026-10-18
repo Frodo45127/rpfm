@@ -247,7 +247,7 @@ impl Vertex {
     pub fn read<R: ReadBytes>(data: &mut R, version: u32, vtype: VertexFormat, mtype: MaterialType) -> Result<Self> {
         let mut v = Self::default();
         match vtype {
-            VertexFormat::Static => match mtype {
+            VertexFormat::Static => match static_layout(version, mtype) {
                 MaterialType::TiledDirtmap |
                 MaterialType::ShipAmbientmap |
                 MaterialType::Decal |
@@ -436,7 +436,7 @@ impl Vertex {
     ///   ([`RLibError::DecodingRigidModelUnsupportedVertexFormatForMaterial`])
     pub fn write<W: WriteBytes>(&self, data: &mut W, version: u32, vtype: VertexFormat, mtype: MaterialType) -> Result<()> {
         match vtype {
-            VertexFormat::Static => match mtype {
+            VertexFormat::Static => match static_layout(version, mtype) {
                 MaterialType::TiledDirtmap |
                 MaterialType::ShipAmbientmap |
                 MaterialType::Decal |
@@ -602,6 +602,18 @@ impl Vertex {
         Ok(())
     }
 }
+/// The material whose static vertex layout a material uses.
+///
+/// Up to version 6 (Attila), TerrainBlend vertices are laid out like DefaultMaterial ones (f16 position, two f16 uvs, u8 normal, tangent,
+/// bitangent and colour): read as two f32 vectors instead, the position's w (f16 1.0) shows up in the high half of y, and x reaches
+/// thousands. Later versions keep the f32 layout.
+fn static_layout(version: u32, mtype: MaterialType) -> MaterialType {
+    match mtype {
+        MaterialType::TerrainBlend if version <= 6 => MaterialType::DefaultMaterial,
+        _ => mtype,
+    }
+}
+
 /// Reads four f16 values as they are, without the w scaling of `read_vector_4_f32_normal_from_vector_4_f16`.
 fn read_vector_4_f32_from_vector_4_f16<R: ReadBytes>(data: &mut R) -> Result<Vector4<f32>> {
     Ok(Vector4::new(data.read_f16()?.to_f32(), data.read_f16()?.to_f32(), data.read_f16()?.to_f32(), data.read_f16()?.to_f32()))
