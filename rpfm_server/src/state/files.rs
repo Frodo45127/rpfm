@@ -479,12 +479,16 @@ impl SessionState {
         // Clone the files first, so we don't hold borrows of their packs while mutating them.
         let destination_path = request.folder.trim_end_matches('/');
         let mut files_to_insert = Vec::with_capacity(entries.len());
+        let mut pasted_entries = Vec::with_capacity(entries.len());
         for entry in &entries {
             let Some(source_pack) = self.packs.get(&entry.source_pack_key) else { continue };
             let Some(file) = source_pack.files_by_paths(&[ContainerPath::File(entry.file_path.clone())], false).first().copied() else { continue };
 
+            // Unloaded copies would keep reading from the source pack, and fail once it changes on disk.
             let mut new_file = file.clone();
-            let _ = new_file.load();
+            if new_file.load().is_err() {
+                continue;
+            }
 
             let relative_path = if !entry.base_path.is_empty() && entry.file_path.starts_with(&entry.base_path) {
                 entry.file_path[entry.base_path.len()..].trim_start_matches('/')
@@ -500,11 +504,12 @@ impl SessionState {
 
             new_file.set_path_in_container_raw(&new_path);
             files_to_insert.push(new_file);
+            pasted_entries.push(entry);
         }
 
         let mut deleted: BTreeMap<String, Vec<String>> = BTreeMap::new();
         if request.cut {
-            for entry in &entries {
+            for entry in pasted_entries {
                 if let Some(source_pack) = self.packs.get_mut(&entry.source_pack_key) {
                     let removed = source_pack.remove(&ContainerPath::File(entry.file_path.clone()));
                     deleted.entry(entry.source_pack_key.clone()).or_default().extend(raw_paths(&removed));
@@ -791,8 +796,15 @@ impl SessionState {
 
             for file in files.into_values() {
                 let mut file = file.clone();
-                let _ = file.guess_file_type();
                 let file_path = file.path_in_container_raw().to_owned();
+
+                // Unloaded copies would keep reading from the dependency's pack, and fail once it changes on disk.
+                if file.load().is_err() {
+                    not_added_paths.push(file_path);
+                    continue;
+                }
+
+                let _ = file.guess_file_type();
                 match pack.insert(file) {
                     Ok(Some(path)) => added_paths.push(path),
                     _ => not_added_paths.push(file_path),
@@ -1300,13 +1312,15 @@ fn decoded_anim_pack<'a>(file: &'a mut RFile, anim_pack_path: &str) -> Result<&'
 }
 
 /// Returns copies of the files of a pack at the provided paths, with their data loaded in memory.
+///
+/// Files that fail to load are skipped, as unloaded copies would fail once the source pack changes on disk.
 fn loaded_files_by_paths(pack: &Pack, paths: &[ContainerPath]) -> Vec<RFile> {
     pack.files_by_paths(paths, false)
         .into_iter()
-        .map(|file| {
+        .filter_map(|file| {
             let mut file = file.clone();
-            let _ = file.load();
-            file
+            file.load().ok()?;
+            Some(file)
         })
         .collect()
 }
@@ -1371,3 +1385,11 @@ fn import_asskit_table(dependencies: &Dependencies, schema: &Schema, table_name:
 
     Some(RFile::new_from_decoded(&RFileDecoded::DB(table), 0, &path))
 }
+
+//-------------------------------------------------------------------------------//
+//                                   Tests
+//-------------------------------------------------------------------------------//
+
+#[cfg(test)]
+#[path = "files_test.rs"]
+mod files_test;

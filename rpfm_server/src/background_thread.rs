@@ -84,4 +84,7 @@ pub fn background_loop(mut receiver: UnboundedReceiver<SessionMessage>, session:
             SessionMessage::Exit => break,
         }
     }
+
+    // Let a running autosave finish, so it doesn't leave a half-written backup behind.
+    state.wait_for_autosave();
 }

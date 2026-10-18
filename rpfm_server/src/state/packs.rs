@@ -186,6 +186,7 @@ impl SessionState {
     ///
     /// Fails if the pack is of a CA type and editing them is not allowed, if it has no path on disk yet, if the new path is not absolute, or if saving fails.
     pub fn save_pack(&mut self, pack_key: &str, path: Option<&Path>, options: SaveOptions) -> Result<ContainerInfo> {
+        self.wait_for_autosave();
         let pack = pack_mut(&mut self.packs, pack_key)?;
 
         let pack_type = *pack.header().pfh_file_type();
@@ -430,9 +431,18 @@ impl SessionState {
     ///
     /// * `settings` - Settings, for the game's install folder, the amount of autosaves to keep, and how to encode tables.
     pub fn autosave(&mut self, settings: &Settings) {
-        let Ok(autosave_path) = backup_autosave_path() else {
+        if let Ok(autosave_path) = backup_autosave_path() {
+            self.autosave_to(settings, autosave_path);
+        }
+    }
+
+    /// Same as [`Self::autosave`], but saving the backups in `autosave_path`.
+    ///
+    /// If the previous autosave is still running, this does nothing, and the changed packs are left for the next one.
+    fn autosave_to(&mut self, settings: &Settings, autosave_path: PathBuf) {
+        if self.autosave_thread.as_ref().is_some_and(|thread| !thread.is_finished()) {
             return;
-        };
+        }
 
         let ca_paths = self.game.ca_packs_paths(&settings.path_buf(self.game.key()))
             .unwrap_or_default()
@@ -458,7 +468,7 @@ impl SessionState {
         let game = self.game.clone();
         let disable_uuid_regeneration = settings.bool(DISABLE_UUID_REGENERATION_ON_DB_TABLES);
         let autosave_amount = settings.i32(AUTOSAVE_AMOUNT).max(0) as usize;
-        std::thread::spawn(move || {
+        self.autosave_thread = Some(std::thread::spawn(move || {
             for mut pack in packs {
                 let folder = autosave_path.join(pack.disk_file_name());
                 if let Err(error) = save_autosave(&mut pack, &folder, &game, disable_uuid_regeneration, autosave_amount) {
@@ -474,7 +484,16 @@ impl SessionState {
             if size > AUTOSAVE_FOLDER_SIZE_WARNING {
                 warn!("The autosave folder is using {} GB. Consider lowering the amount of autosaves to keep, or deleting the ones you don't need.", size / 1024 / 1024 / 1024);
             }
-        });
+        }));
+    }
+
+    /// Waits until the running autosave, if any, finishes.
+    ///
+    /// Autosaves read lazy-loaded files from the packs on disk, so this must be called before replacing any of them.
+    pub fn wait_for_autosave(&mut self) {
+        if let Some(thread) = self.autosave_thread.take() {
+            let _ = thread.join();
+        }
     }
 
     /// Returns the tables of a pack with rows that can't be decoded with the schema, sorted by path.

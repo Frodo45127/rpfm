@@ -21,6 +21,7 @@ use rayon::prelude::*;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::thread::JoinHandle;
 
 use rpfm_extensions::dependencies::Dependencies;
 use rpfm_extensions::lua::{ASSEMBLY_KIT_SCRIPT_DOCS_PATH, LuaApi};
@@ -97,6 +98,9 @@ pub struct SessionState {
 
     /// Keys of the packs changed since their last autosave.
     changed_packs: BTreeSet<String>,
+
+    /// Thread writing the last autosave, if it may still be running. Saves wait for it, so they don't replace packs it's reading.
+    autosave_thread: Option<JoinHandle<()>>,
 
     /// The last search, with its matches, if any.
     search: Option<GlobalSearch>,
@@ -181,6 +185,7 @@ impl SessionState {
             dependencies: Dependencies::default(),
             dependencies_error: None,
             changed_packs: BTreeSet::new(),
+            autosave_thread: None,
             search: None,
             pending_startpos: None,
             diagnostics: None,
