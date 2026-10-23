@@ -221,28 +221,25 @@ test("moving the whole cluster saves its stars unpinned and the new spiral centr
     assert.deepEqual(reloaded.clusterCentre, { x: Math.round(moved.x * 10) / 10, y: Math.round(moved.y * 10) / 10 });
 });
 
-test("a saved layout from before the spiral is updated, moving unpinned isolated tables onto a spiral", async () => {
-    const items = installStorage();
-    const layout = await layoutFor("file:test.ron", sampleGraph());
-    const old = { ...layout, positions: { ...layout.positions, lonely_1: { x: 5000, y: 5000 } } };
-    delete old.clusterCentre;
-    delete old.status;
-    items.set("rpfm-schema-explorer-layout-v3:file:test.ron", JSON.stringify(old));
-
-    const updated = await layoutFor("file:test.ron", sampleGraph());
-
-    assert.equal(updated.status, "updated");
-    assert.ok(updated.clusterCentre);
-    assert.ok(distance(updated.positions.lonely_1, updated.clusterCentre) < 200);
-});
-
 test("clearLegacyCaches removes layouts saved by older versions only", () => {
     const items = installStorage();
     items.set("rpfm-schema-explorer-layout:abc123", "{}");
     items.set("rpfm-schema-explorer-layout-v3:file:test.ron", "{}");
+    items.set("rpfm-schema-explorer-layout-v4:file:test.ron", "{}");
     items.set("rpfm-schema-explorer-settings", "{}");
 
     clearLegacyCaches();
 
-    assert.deepEqual([...items.keys()].sort(), ["rpfm-schema-explorer-layout-v3:file:test.ron", "rpfm-schema-explorer-settings"]);
+    assert.deepEqual([...items.keys()].sort(), ["rpfm-schema-explorer-layout-v4:file:test.ron", "rpfm-schema-explorer-settings"]);
+});
+
+test("loading a schema clears older saved layouts and computes a new one", async () => {
+    const items = installStorage();
+    items.set("rpfm-schema-explorer-layout-v3:file:test.ron", JSON.stringify({ positions: {}, isolated: [], pinned: [], scale: 1, signature: "old" }));
+
+    const layout = await layoutFor("file:test.ron", sampleGraph());
+
+    assert.equal(layout.status, "new");
+    assert.equal(items.has("rpfm-schema-explorer-layout-v3:file:test.ron"), false);
+    assert.ok(items.has("rpfm-schema-explorer-layout-v4:file:test.ron"));
 });

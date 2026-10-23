@@ -18,8 +18,8 @@
 })(typeof self !== "undefined" ? self : this, (graphology, library) => {
     "use strict";
 
-    const CACHE_PREFIX = "rpfm-schema-explorer-layout-v3:";
-    const LEGACY_CACHE_PREFIXES = ["rpfm-schema-explorer-layout:"];
+    const CACHE_PREFIX = "rpfm-schema-explorer-layout-v4:";
+    const LEGACY_CACHE_PREFIXES = ["rpfm-schema-explorer-layout:", "rpfm-schema-explorer-layout-v3:"];
 
     // Convergence: stop once stars move less than this fraction of a typical edge per iteration,
     // or once movement stops improving (Barnes-Hut leaves a small jitter that never goes away).
@@ -456,8 +456,7 @@
     async function layoutFor(sourceKey, graph, onProgress) {
         clearLegacyCaches();
         const cached = readCache(sourceKey);
-        // Layouts saved before the spiral cluster have no `clusterCentre`; update them so their isolated tables move onto one.
-        if (cached && cached.signature === graphSignature(graph) && cached.clusterCentre !== undefined) {
+        if (cached && cached.signature === graphSignature(graph)) {
             return { ...cached, status: "cached" };
         }
 
