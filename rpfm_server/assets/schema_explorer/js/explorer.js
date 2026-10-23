@@ -1,7 +1,8 @@
 // Schema explorer UI: wires the data source, the graph view (Cytoscape.js) and the details panel together.
 //
-// The whole schema is drawn at once on a precomputed ForceAtlas2 layout (see layout.js). Selecting a
-// table highlights it and its neighbourhood instead of redrawing, so the map never moves around.
+// The whole schema is drawn at once on a saved ForceAtlas2 layout (see layout.js). Selecting a table
+// recolours it and its neighbours instead of redrawing, so the map never moves around. Dragged stars
+// are saved into the layout.
 // Everything shown comes from the schema (definitions and references). No table data is ever read.
 // All schema strings go into the DOM through `textContent`, never `innerHTML`, as they can contain anything.
 
@@ -10,15 +11,15 @@
 
     const { ApiSource, FileSource } = window.RpfmDataSource;
     const { GraphIndex, pairKey } = window.RpfmGraphIndex;
-    const { layoutFor, clearCachedLayout } = window.RpfmLayout;
+    const { layoutFor, saveMovedStars } = window.RpfmLayout;
 
     const SETTINGS_KEY = "rpfm-schema-explorer-settings";
     const SEARCH_LIMIT = 30;
     const CLUSTER_ID = "__tables_without_references__";
+    const HUB_THRESHOLD = 40;
     const MAX_FOCUS_ZOOM = 1.6;
     const EDGE_CURVATURE = 0.12;
     const MAX_EDGE_CURVE = 90;
-    const DEFAULT_SETTINGS = { depth: 1, direction: "both", hideHubs: false, hubThreshold: 40, game: null };
 
     // Graph colours are fixed (the graph always sits on the space background), unlike the page theme.
     const COLOURS = {
@@ -42,12 +43,7 @@
         sourceLabel: document.getElementById("source-label"),
         search: document.getElementById("search"),
         searchResults: document.getElementById("search-results"),
-        depth: document.getElementById("depth"),
-        direction: document.getElementById("direction"),
-        hideHubs: document.getElementById("hide-hubs"),
-        hubThreshold: document.getElementById("hub-threshold"),
         overview: document.getElementById("overview"),
-        relayout: document.getElementById("relayout"),
         graph: document.getElementById("graph"),
         emptyState: document.getElementById("empty-state"),
         status: document.getElementById("graph-status"),
@@ -58,13 +54,14 @@
 
     const state = {
         source: null,
+        sourceKey: null,
         game: null,
         graph: null,
         index: null,
         selected: null,
         path: null,
         detailsCache: new Map(),
-        settings: loadSettings(),
+        lastGame: loadLastGame(),
         searchMatches: [],
         searchActive: -1,
     };
@@ -78,41 +75,24 @@
     });
 
     //-------------------------------------------------------------------//
-    // Settings
+    // Remembered game (API mode)
     //-------------------------------------------------------------------//
 
-    // localStorage can be missing or throw (private windows, file:// in some browsers), so settings are best-effort.
-    function loadSettings() {
+    // localStorage can be missing or throw (private windows, file:// in some browsers), so this is best-effort.
+    function loadLastGame() {
         try {
-            const stored = JSON.parse(window.localStorage.getItem(SETTINGS_KEY) || "{}");
-            return { ...DEFAULT_SETTINGS, ...stored };
+            return JSON.parse(window.localStorage.getItem(SETTINGS_KEY) || "{}").game || null;
         } catch (error) {
-            return { ...DEFAULT_SETTINGS };
+            return null;
         }
     }
 
-    function saveSettings() {
+    function saveLastGame(game) {
         try {
-            window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(state.settings));
+            window.localStorage.setItem(SETTINGS_KEY, JSON.stringify({ game }));
         } catch (error) {
-            console.debug("Couldn't save settings:", error.message);
+            console.debug("Couldn't save the selected game:", error.message);
         }
-    }
-
-    function applySettingsToControls() {
-        elements.depth.value = String(state.settings.depth);
-        elements.direction.value = state.settings.direction;
-        elements.hideHubs.checked = state.settings.hideHubs;
-        elements.hubThreshold.value = String(state.settings.hubThreshold);
-    }
-
-    function readControls() {
-        const threshold = Number.parseInt(elements.hubThreshold.value, 10);
-        state.settings.depth = Number.parseInt(elements.depth.value, 10);
-        state.settings.direction = elements.direction.value;
-        state.settings.hideHubs = elements.hideHubs.checked;
-        state.settings.hubThreshold = Number.isFinite(threshold) && threshold >= 2 ? threshold : DEFAULT_SETTINGS.hubThreshold;
-        saveSettings();
     }
 
     //-------------------------------------------------------------------//
@@ -122,10 +102,6 @@
     function setStatus(message, isError = false) {
         elements.status.textContent = message;
         elements.status.classList.toggle("error", isError);
-    }
-
-    function glow(colour, opacity, padding) {
-        return { "background-color": colour, "underlay-color": colour, "underlay-opacity": opacity, "underlay-padding": padding };
     }
 
     function edgeColour(colour) {
@@ -143,10 +119,11 @@
                     "underlay-opacity": 0.16,
                     "underlay-padding": 3,
                     "underlay-shape": "ellipse",
+                    "overlay-opacity": 0,
                     "label": "data(id)",
                     "color": COLOURS.label,
                     "font-size": 9,
-                    "min-zoomed-font-size": 9,
+                    "min-zoomed-font-size": 14,
                     "text-valign": "bottom",
                     "text-margin-y": 2,
                     "text-outline-color": COLOURS.labelOutline,
@@ -186,6 +163,7 @@
                     "width": 1,
                     ...edgeColour(COLOURS.edge),
                     "opacity": 0.3,
+                    "overlay-opacity": 0,
                     "target-arrow-shape": "triangle",
                     "arrow-scale": 0.6,
                     "font-size": 10,
@@ -199,21 +177,20 @@
             { selector: "edge.bidirectional", style: { "source-arrow-shape": "triangle" } },
             { selector: "edge.loop", style: { "curve-style": "bezier", "loop-direction": "-45deg", "loop-sweep": "-60deg" } },
 
-            // Highlighting. Order matters: later rules win.
+            // Highlighting only recolours stars (no halo). Order matters: later rules win.
             { selector: "node.dim", style: { "opacity": 0.18, "text-opacity": 0, "underlay-opacity": 0 } },
             { selector: "edge.dim", style: { "opacity": 0.03 } },
-            { selector: "node.ring", style: { "opacity": 0.9 } },
-            { selector: "edge.ring", style: { "opacity": 0.45, "width": 1 } },
-            { selector: "node.in", style: glow(COLOURS.incoming, 0.45, 6) },
-            { selector: "node.out", style: glow(COLOURS.outgoing, 0.45, 6) },
-            { selector: "node.both", style: glow(COLOURS.both, 0.45, 6) },
-            { selector: "node.path", style: glow(COLOURS.path, 0.45, 6) },
-            { selector: "node.selected", style: { ...glow(COLOURS.selected, 0.6, 10), "font-weight": "bold" } },
+            { selector: "node.in", style: { "background-color": COLOURS.incoming } },
+            { selector: "node.out", style: { "background-color": COLOURS.outgoing } },
+            { selector: "node.both", style: { "background-color": COLOURS.both } },
+            { selector: "node.path", style: { "background-color": COLOURS.path } },
+            { selector: "node.selected", style: { "background-color": COLOURS.selected } },
+            { selector: "node.selected, node.in, node.out, node.both, node.path", style: { "underlay-opacity": 0 } },
             { selector: "edge.in", style: { ...edgeColour(COLOURS.incoming), "opacity": 0.95, "width": 2, "arrow-scale": 1 } },
             { selector: "edge.out", style: { ...edgeColour(COLOURS.outgoing), "opacity": 0.95, "width": 2, "arrow-scale": 1 } },
             { selector: "edge.both", style: { ...edgeColour(COLOURS.both), "opacity": 0.95, "width": 2, "arrow-scale": 1 } },
             { selector: "edge.path", style: { ...edgeColour(COLOURS.path), "opacity": 1, "width": 2.5, "arrow-scale": 1 } },
-            { selector: "node.labelled, node.hover", style: { "min-zoomed-font-size": 0, "text-opacity": 1, "font-size": 11 } },
+            { selector: "node.labelled, node.hover", style: { "min-zoomed-font-size": 0, "text-opacity": 1 } },
             { selector: "edge.hover", style: { "opacity": 0.85, "width": 1.5 } },
             { selector: "edge:selected", style: { "label": "data(label)", "opacity": 1 } },
         ];
@@ -246,7 +223,7 @@
         const hashGame = readHash().game;
         const available = games.filter((game) => game.schema_available);
         const preferred = available.find((game) => game.key === hashGame)
-            || available.find((game) => game.key === state.settings.game)
+            || available.find((game) => game.key === state.lastGame)
             || available[0];
         if (!preferred) {
             setStatus("No game has a schema available.", true);
@@ -258,18 +235,22 @@
 
     async function loadGame(game) {
         setStatus("Loading schema graph...");
+        hideDetails();
         let layout;
         try {
             const graph = await state.source.graph(game);
             state.game = game;
+            state.sourceKey = state.source.kind === "api" ? `api:${game}` : `file:${game}`;
             state.graph = graph;
             state.index = new GraphIndex(graph);
             state.detailsCache.clear();
             if (state.source.kind === "api") {
-                state.settings.game = game;
-                saveSettings();
+                state.lastGame = game;
+                saveLastGame(game);
             }
-            layout = await layoutFor(graph, (progress) => setStatus(`Laying out the schema: ${Math.round(progress * 100)}%`));
+            layout = await layoutFor(state.sourceKey, graph, ({ iterations, movement }) => {
+                setStatus(`Laying out the schema until it settles: ${iterations} iterations, movement ${movement.toFixed(4)}...`);
+            });
         } catch (error) {
             setStatus(`Couldn't load the schema graph: ${error.message}`, true);
             return;
@@ -278,7 +259,6 @@
         elements.emptyState.hidden = true;
         elements.search.disabled = false;
         elements.overview.disabled = false;
-        elements.relayout.disabled = false;
         elements.tableNames.replaceChildren(...[...state.index.nodes.keys()].map((id) => {
             const option = document.createElement("option");
             option.value = id;
@@ -287,14 +267,16 @@
 
         renderOverview(layout);
         const tableCount = state.graph.nodes.filter((node) => !node.missing).length;
-        const layoutNote = layout.fromCache ? " (cached layout)" : "";
-        setStatus(`${tableCount} tables, ${state.graph.edges.length} references, ${layout.isolated.length} without references${layoutNote}. Search or click a star.`);
+        const layoutNote = {
+            cached: "saved layout",
+            updated: `layout updated for schema changes in ${layout.iterations} iterations`,
+            new: `new layout, settled in ${layout.iterations} iterations`,
+        }[layout.status];
+        setStatus(`${tableCount} tables, ${state.graph.edges.length} references, ${layout.isolated.length} without references (${layoutNote}). Search or click a star.`);
 
         const hashTable = readHash().table;
         if (hashTable && state.index.nodes.has(hashTable)) {
             selectTable(hashTable, { zoom: true });
-        } else {
-            showPlaceholderDetails();
         }
     }
 
@@ -313,26 +295,12 @@
         }
     }
 
-    async function recomputeLayout() {
-        if (!state.graph) {
-            return;
-        }
-        clearCachedLayout(state.graph);
-        const selected = state.selected;
-        await loadGame(state.game);
-        if (selected) {
-            selectTable(selected, { zoom: true });
-        }
-    }
-
     //-------------------------------------------------------------------//
     // Graph view
     //-------------------------------------------------------------------//
 
     // Curve every edge by a fraction of its length, so long edges arc as much as short ones.
-    function edgeCurve(positions, source, target) {
-        const a = positions[source];
-        const b = positions[target];
+    function edgeCurve(a, b) {
         return Math.min(Math.hypot(a.x - b.x, a.y - b.y) * EDGE_CURVATURE, MAX_EDGE_CURVE);
     }
 
@@ -352,7 +320,7 @@
             if (node.missing) {
                 classes.push("missing");
             }
-            if (state.index.degree(node.id) > state.settings.hubThreshold) {
+            if (state.index.degree(node.id) > HUB_THRESHOLD) {
                 classes.push("hub");
             }
             items.push({
@@ -381,8 +349,7 @@
                     source,
                     target,
                     label: pairLabel(pair),
-                    curve: pair.a === pair.b ? 0 : edgeCurve(layout.positions, source, target),
-                    bidirectional: hasForward && hasBackward,
+                    curve: pair.a === pair.b ? 0 : edgeCurve(layout.positions[source], layout.positions[target]),
                 },
                 classes: classes.join(" "),
             });
@@ -398,7 +365,7 @@
     }
 
     function clearHighlight() {
-        cy.batch(() => cy.elements().removeClass("dim ring in out both path selected labelled"));
+        cy.batch(() => cy.elements().removeClass("dim in out both path selected labelled"));
     }
 
     function showOverview() {
@@ -406,8 +373,8 @@
         state.path = null;
         clearHighlight();
         cy.$(":selected").unselect();
+        hideDetails();
         fitTo(cy.nodes(), { maxZoom: Infinity, animate: true });
-        showPlaceholderDetails();
         writeHash();
         setStatus("Showing the whole schema.");
     }
@@ -451,45 +418,23 @@
         return out ? "out" : "in";
     }
 
-    function highlightNeighbourhood(id) {
-        const { direction, depth, hubThreshold, hideHubs } = state.settings;
-        const { ids } = state.index.neighbourhood(id, { depth, direction, hubThreshold, hideHubs, maxNodes: Infinity });
-        const direct = new Set(state.index.neighbours(id, direction).filter((neighbour) => ids.has(neighbour)));
-
+    function highlightNeighbours(id) {
+        const neighbours = state.index.neighbours(id, "both").filter((neighbour) => neighbour !== id);
+        const counts = { in: 0, out: 0, both: 0 };
         cy.batch(() => {
             clearHighlight();
             cy.elements().addClass("dim");
-            for (const neighbourId of ids) {
-                const node = cy.getElementById(neighbourId);
-                node.removeClass("dim");
-                if (neighbourId === id) {
-                    node.addClass("selected labelled");
-                } else if (direct.has(neighbourId)) {
-                    node.addClass(`${relation(id, neighbourId)} labelled`);
-                } else {
-                    node.addClass("ring");
-                }
-            }
             cy.getElementById(CLUSTER_ID).removeClass("dim");
-
-            for (const edge of cy.edges()) {
-                const source = edge.source().id();
-                const target = edge.target().id();
-                if (!ids.has(source) || !ids.has(target)) {
-                    continue;
-                }
-                edge.removeClass("dim");
-                if (source === id && target === id) {
-                    edge.addClass("out");
-                } else if (source === id || target === id) {
-                    const other = source === id ? target : source;
-                    edge.addClass(direct.has(other) ? relation(id, other) : "ring");
-                } else {
-                    edge.addClass("ring");
-                }
+            cy.getElementById(id).removeClass("dim").addClass("selected labelled");
+            for (const neighbour of neighbours) {
+                const kind = relation(id, neighbour);
+                counts[kind]++;
+                cy.getElementById(neighbour).removeClass("dim").addClass(`${kind} labelled`);
+                cy.getElementById(pairKey(id, neighbour)).removeClass("dim").addClass(kind);
             }
+            cy.getElementById(pairKey(id, id)).removeClass("dim").addClass("out");
         });
-        return ids;
+        return { ids: new Set([id, ...neighbours]), counts };
     }
 
     function highlightPath(path) {
@@ -503,7 +448,7 @@
             for (let i = 0; i + 1 < path.length; i++) {
                 cy.getElementById(pairKey(path[i], path[i + 1])).removeClass("dim").addClass("path");
             }
-            cy.getElementById(path[0]).addClass("selected");
+            cy.getElementById(path[0]).removeClass("path").addClass("selected");
             cy.getElementById(CLUSTER_ID).removeClass("dim");
         });
         zoomTo(cy.nodes().filter((node) => onPath.has(node.id())));
@@ -513,24 +458,35 @@
         if (!state.index?.nodes.has(id)) {
             return;
         }
-        readControls();
         state.selected = id;
         state.path = null;
-        const ids = highlightNeighbourhood(id);
+        const { ids, counts } = highlightNeighbours(id);
         cy.$(":selected").unselect();
+        showDetails(id);
         if (options.zoom) {
             zoomTo(cy.nodes().filter((node) => ids.has(node.id())));
         }
         writeHash();
-        showDetails(id);
+        setStatus(`${id}: references ${counts.out + counts.both} tables, referenced by ${counts.in + counts.both}.`);
+    }
 
-        const counts = { in: 0, out: 0, both: 0 };
-        for (const neighbour of state.index.neighbours(id, state.settings.direction)) {
-            if (neighbour !== id && ids.has(neighbour)) {
-                counts[relation(id, neighbour)]++;
-            }
+    // Save dragged stars into the layout, and re-curve their edges for the new distances.
+    function saveDrag(node) {
+        const moved = node.id() === CLUSTER_ID ? node.children() : node;
+        const moves = {};
+        for (const star of moved) {
+            moves[star.id()] = { ...star.position() };
         }
-        setStatus(`${id}: references ${counts.out + counts.both} tables, referenced by ${counts.in + counts.both}${ids.size > counts.in + counts.out + counts.both + 1 ? `, ${ids.size} within depth ${state.settings.depth}` : ""}.`);
+        cy.batch(() => {
+            for (const edge of moved.connectedEdges()) {
+                if (!edge.isLoop()) {
+                    edge.data("curve", edgeCurve(edge.source().position(), edge.target().position()));
+                }
+            }
+        });
+        if (!saveMovedStars(state.sourceKey, moves)) {
+            setStatus("Couldn't save the new position: this browser doesn't keep data for this page.", true);
+        }
     }
 
     cy.on("tap", "node", (event) => {
@@ -551,6 +507,7 @@
     cy.on("tap", "edge", (event) => {
         setStatus(event.target.data("label").replace(/\n/g, "; "));
     });
+    cy.on("dragfree", "node", (event) => saveDrag(event.target));
     cy.on("mouseover", "node", (event) => {
         if (event.target.id() !== CLUSTER_ID) {
             cy.batch(() => event.target.addClass("hover").connectedEdges().addClass("hover"));
@@ -561,7 +518,7 @@
     });
 
     //-------------------------------------------------------------------//
-    // Details panel
+    // Details panel (only shown while a table is selected)
     //-------------------------------------------------------------------//
 
     function element(tag, options = {}, children = []) {
@@ -597,14 +554,22 @@
         return button;
     }
 
-    function showPlaceholderDetails() {
-        elements.details.replaceChildren(element("p", {
-            className: "muted",
-            text: "Click a star to see its table's fields and references. Double-click to zoom to it, click empty space to go back to the whole schema.",
-        }));
+    // The graph area changes size with the panel, so Cytoscape has to be told.
+    function setDetailsVisible(visible) {
+        if (elements.details.hidden === !visible) {
+            return;
+        }
+        elements.details.hidden = !visible;
+        cy.resize();
+    }
+
+    function hideDetails() {
+        setDetailsVisible(false);
+        elements.details.replaceChildren();
     }
 
     async function showDetails(id) {
+        setDetailsVisible(true);
         let details = state.detailsCache.get(id);
         if (!details) {
             elements.details.replaceChildren(element("p", { className: "muted", text: `Loading ${id}...` }));
@@ -628,6 +593,11 @@
         const degree = state.index.degree(id);
         const newest = details.definitions[0];
 
+        const header = element("div", { className: "details-header" }, [
+            element("h2", { text: details.table }),
+            actionButton("Close", showOverview, "Deselect and go back to the whole schema"),
+        ]);
+
         const badges = element("div", { className: "badges" }, [
             details.missing ? element("span", { className: "badge badge-warning", text: "Not in schema" }) : null,
             newest ? element("span", { className: "badge", text: `v${newest.version}` }) : null,
@@ -635,15 +605,14 @@
             newest ? element("span", { className: "badge", text: `${newest.fields.length} fields` }) : null,
             node?.localised ? element("span", { className: "badge", text: "Localised" }) : null,
             element("span", { className: "badge", text: `${degree} linked tables` }),
-            degree > state.settings.hubThreshold ? element("span", { className: "badge", text: "Hub" }) : null,
         ]);
 
         const actions = element("div", { className: "actions" }, [
-            actionButton("Zoom to", () => selectTable(id, { zoom: true }), "Zoom to this table and its neighbourhood"),
+            actionButton("Zoom to", () => selectTable(id, { zoom: true }), "Zoom to this table and its neighbours"),
             actionButton("Copy name", () => copyText(details.table), "Copy the full table name"),
         ]);
 
-        const sections = [element("h2", { text: details.table }), badges, actions];
+        const sections = [header, badges, actions];
 
         if (details.missing) {
             sections.push(element("p", {
@@ -773,12 +742,9 @@
         const result = element("div");
         const find = () => {
             const toId = input.value.trim().replace(/_tables$/, "");
-            const path = state.index.shortestPath(fromId, toId, {
-                direction: state.settings.direction,
-                avoidHubsOver: state.settings.hideHubs ? state.settings.hubThreshold : null,
-            });
+            const path = state.index.shortestPath(fromId, toId);
             if (!path) {
-                result.replaceChildren(element("p", { className: "muted", text: `No path from ${fromId} to ${toId} with the current direction and hub settings.` }));
+                result.replaceChildren(element("p", { className: "muted", text: `No path from ${fromId} to ${toId}.` }));
                 return;
             }
             state.path = path;
@@ -914,19 +880,7 @@
     // Controls, file picking and drag and drop
     //-------------------------------------------------------------------//
 
-    function refreshSelection() {
-        readControls();
-        if (state.selected) {
-            selectTable(state.selected);
-        }
-    }
-
-    elements.depth.addEventListener("change", refreshSelection);
-    elements.direction.addEventListener("change", refreshSelection);
-    elements.hideHubs.addEventListener("change", refreshSelection);
-    elements.hubThreshold.addEventListener("change", refreshSelection);
     elements.overview.addEventListener("click", showOverview);
-    elements.relayout.addEventListener("click", recomputeLayout);
     elements.gameSelect.addEventListener("change", () => loadGame(elements.gameSelect.value));
     elements.fileInput.addEventListener("change", () => {
         const file = elements.fileInput.files?.[0];
@@ -965,7 +919,6 @@
     // Startup
     //-------------------------------------------------------------------//
 
-    applySettingsToControls();
     ApiSource.detect().then((source) => {
         if (source) {
             useSource(source).catch((error) => setStatus(`Couldn't load games: ${error.message}`, true));

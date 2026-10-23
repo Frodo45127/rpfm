@@ -331,10 +331,17 @@ input[type="checkbox"] {
     border-left: 1px solid var(--border);
 }
 
+.details-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+}
+
 .details h2 {
     margin: 0 0 4px;
     font-size: 17px;
-    word-break: break-all;
+    overflow-wrap: anywhere;
 }
 
 .details h3 {

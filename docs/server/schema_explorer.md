@@ -107,13 +107,13 @@ All routes sit under `/schema-explorer` and accept only `GET` (and `HEAD`). Resp
 
 ## Frontend
 
-- **Libraries:** [Cytoscape.js](https://js.cytoscape.org/) draws the graph. [graphology](https://graphology.github.io/)'s ForceAtlas2 computes a layout of the **whole** schema once per schema. It's deterministic and cached in the browser. The page opens on the full star map and selecting a table only highlights, so the map never moves. Both libraries are single files with no build step.
+- **Libraries:** [Cytoscape.js](https://js.cytoscape.org/) draws the graph. [graphology](https://graphology.github.io/)'s ForceAtlas2 lays out the **whole** schema, run until it converges, and the layout is saved in the browser per schema source. Dragged stars are saved and pinned. When the schema changes, the saved layout is the starting point: new tables start next to their neighbours and ForceAtlas2 continues from there. The page opens on the full star map, and selecting a table only recolours stars, so the map never moves. Both libraries are single files with no build step.
 - **Vendoring:** check pinned, minified copies into `rpfm_server/assets/schema_explorer/` and embed them with `include_bytes!`/`include_str!`. No CDN: the page must work offline and must not load third-party code.
 - **Code:** implemented in `rpfm_server/assets/schema_explorer/` (see its `README.md`). It uses plain scripts with no bundler or npm build step, not ES modules, because browsers refuse modules on `file://` pages:
   - `index.html`, `css/explorer.css`: the page shell and styles.
   - `js/explorer.js`: the UI.
   - `js/graph_index.js`: neighbourhood, path, table-pair and search queries.
-  - `js/layout.js`: the ForceAtlas2 layout, star overlap removal, the cluster of tables without references, and the layout cache.
+  - `js/layout.js`: the ForceAtlas2 layout run to convergence, incremental updates, pinned stars, star overlap removal, the cluster of tables without references, and saved layouts.
   - `js/data_source.js`: API mode or file mode.
   - `js/schema_model.js` and `js/ron.js`: build this API's JSON in the browser from a schema file, so the page works before the server side exists.
   - `vendor/`: the vendored libraries.
@@ -123,13 +123,14 @@ All routes sit under `/schema-explorer` and accept only `GET` (and `HEAD`). Resp
   - Game picker. Remember the last game in `localStorage`.
   - Table search with fuzzy matching on table name.
   - The whole schema shown on load as a star map, one curved arrow per table pair (arrowheads at both ends when two tables reference each other).
-  - Selecting a table highlights it in purple, the tables referencing it in red and the tables it references in yellow, to depth 1–3, following references, "referenced by" or both.
+  - Selecting a table opens its details panel and recolours it purple, the tables referencing it red and the tables it references yellow. The panel is only shown while a table is selected.
+  - Drag stars to rearrange the map. Positions are saved.
   - Click a node to open a side panel with versions, key fields, field types, descriptions, the target of each reference, and "referenced by".
   - Collapse or hide hub tables above a degree threshold (e.g. `factions`).
   - Shortest path between two tables (BFS on the client).
   - Deep links via the URL fragment (`#game=warhammer_3&table=battles`), so a view can be bookmarked or shared.
 
-**Layout on the server (optional):** the layout takes about 2 seconds of browser time for Warhammer 3 on first load. The server could compute it once per schema and add `x`/`y` to each node of the `graph` response. The frontend would then skip the layout step.
+**Layout on the server (optional):** converging the layout takes 10–20 seconds of browser time for Warhammer 3 the first time a schema is opened. The server could compute it once per schema and add `x`/`y` to each node of the `graph` response, as the starting layout. User edits would still be saved in the browser.
 
 ## Server changes
 

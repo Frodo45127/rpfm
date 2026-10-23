@@ -8,7 +8,24 @@ globalThis.DOMParser ??= class {};
 globalThis.XMLSerializer ??= class {};
 globalThis.Document ??= class {};
 
-const { computeLayout, splitGraph, cacheKey, separateStars, starRadius } = require("../js/layout.js");
+const { computeLayout, layoutFor, saveMovedStars, clearLegacyCaches, splitGraph, graphSignature, separateStars, starRadius } = require("../js/layout.js");
+
+// A Map-backed stand-in for window.localStorage.
+function installStorage() {
+    const items = new Map();
+    globalThis.window = {
+        localStorage: {
+            get length() {
+                return items.size;
+            },
+            key: (index) => [...items.keys()][index] ?? null,
+            getItem: (key) => (items.has(key) ? items.get(key) : null),
+            setItem: (key, value) => items.set(key, String(value)),
+            removeItem: (key) => items.delete(key),
+        },
+    };
+    return items;
+}
 
 function edge(from, to) {
     return { from, from_column: "key", to, to_column: "key", lookup: false };
@@ -21,6 +38,17 @@ function sampleGraph() {
         nodes: ids.map((id) => ({ id })),
         edges: [edge("a", "b"), edge("b", "c"), edge("c", "a"), edge("b", "a"), edge("c", "d"), edge("d", "e"), edge("e", "f"), edge("f", "d"), edge("a", "a")],
     };
+}
+
+function withNewTable(graph) {
+    return {
+        nodes: [...graph.nodes, { id: "g" }, { id: "lonely_3" }],
+        edges: [...graph.edges, edge("g", "e"), edge("g", "f")],
+    };
+}
+
+function distance(p, q) {
+    return Math.hypot(p.x - q.x, p.y - q.y);
 }
 
 test("splitGraph separates isolated tables and keeps one link per pair", () => {
@@ -38,7 +66,7 @@ test("a table that only references itself counts as isolated", () => {
     assert.deepEqual(split.links, []);
 });
 
-test("computeLayout positions every table and is deterministic", async () => {
+test("computeLayout positions every table, converges, and is deterministic", async () => {
     const first = await computeLayout(sampleGraph());
     const second = await computeLayout(sampleGraph());
 
@@ -46,6 +74,9 @@ test("computeLayout positions every table and is deterministic", async () => {
     for (const { x, y } of Object.values(first.positions)) {
         assert.ok(Number.isFinite(x) && Number.isFinite(y));
     }
+    assert.ok(first.iterations > 0 && first.iterations <= 5000);
+    assert.ok(first.scale > 0);
+    assert.equal(first.signature, graphSignature(sampleGraph()));
     assert.deepEqual(first.positions, second.positions);
 });
 
@@ -59,19 +90,37 @@ test("isolated tables are clustered to the right of the graph", async () => {
     }
 });
 
-test("progress is reported up to 1", async () => {
+test("progress reports growing iteration counts and a movement value", async () => {
     const seen = [];
 
-    await computeLayout(sampleGraph(), (progress) => seen.push(progress));
+    await computeLayout(sampleGraph(), { onProgress: (progress) => seen.push(progress) });
 
-    assert.ok(seen.length > 1);
-    assert.equal(seen[seen.length - 1], 1);
-    assert.ok(seen.every((value, index) => index === 0 || value >= seen[index - 1]));
+    assert.ok(seen.length > 0);
+    assert.ok(seen.every((progress, index) => Number.isFinite(progress.movement) && (index === 0 || progress.iterations > seen[index - 1].iterations)));
 });
 
-test("separateStars pushes overlapping stars apart, including ones on the same spot", () => {
+test("an updated schema continues from the previous layout, keeping pinned stars and the cluster in place", async () => {
+    const previous = await computeLayout(sampleGraph());
+    previous.positions.a = { x: previous.positions.a.x + 123.4, y: previous.positions.a.y - 56.7 };
+    previous.pinned = ["a"];
+
+    const updated = await computeLayout(withNewTable(sampleGraph()), { previous });
+
+    assert.deepEqual(updated.positions.a, previous.positions.a);
+    assert.deepEqual(updated.pinned, ["a"]);
+    assert.equal(updated.scale, previous.scale);
+    assert.deepEqual(updated.positions.lonely_1, previous.positions.lonely_1);
+    assert.deepEqual(updated.positions.lonely_2, previous.positions.lonely_2);
+    assert.ok(updated.positions.lonely_3.y > previous.positions.lonely_1.y, "new isolated tables go below the cluster");
+
+    // The new table starts between its neighbours e and f, so it ends up nearer them than the far triangle.
+    const p = updated.positions;
+    assert.ok(distance(p.g, p.e) < distance(p.g, p.b));
+});
+
+test("separateStars pushes overlapping stars apart, including ones on the same spot, and never moves fixed ones", () => {
     const stars = [
-        { x: 0, y: 0, radius: 5 },
+        { x: 0, y: 0, radius: 5, fixed: true },
         { x: 2, y: 0, radius: 5 },
         { x: 2, y: 0, radius: 5 },
         { x: 100, y: 100, radius: 5 },
@@ -82,10 +131,10 @@ test("separateStars pushes overlapping stars apart, including ones on the same s
     assert.equal(left, 0);
     for (let i = 0; i < stars.length; i++) {
         for (let j = i + 1; j < stars.length; j++) {
-            const distance = Math.hypot(stars[i].x - stars[j].x, stars[i].y - stars[j].y);
-            assert.ok(distance >= stars[i].radius + stars[j].radius, `stars ${i} and ${j} still overlap`);
+            assert.ok(distance(stars[i], stars[j]) >= stars[i].radius + stars[j].radius, `stars ${i} and ${j} still overlap`);
         }
     }
+    assert.deepEqual(stars[0], { x: 0, y: 0, radius: 5, fixed: true });
     assert.deepEqual(stars[3], { x: 100, y: 100, radius: 5 });
 });
 
@@ -94,10 +143,47 @@ test("starRadius grows with the number of linked tables and caps", () => {
     assert.equal(starRadius(120), starRadius(500));
 });
 
-test("the cache key changes when the graph changes", () => {
-    const graph = sampleGraph();
-    const changed = { ...graph, edges: [...graph.edges, edge("lonely_1", "a")] };
+test("the graph signature changes when the graph changes", () => {
+    assert.equal(graphSignature(sampleGraph()), graphSignature(sampleGraph()));
+    assert.notEqual(graphSignature(sampleGraph()), graphSignature(withNewTable(sampleGraph())));
+});
 
-    assert.equal(cacheKey(graph), cacheKey(sampleGraph()));
-    assert.notEqual(cacheKey(graph), cacheKey(changed));
+test("layoutFor computes, then reuses, then updates the saved layout", async () => {
+    installStorage();
+
+    const fresh = await layoutFor("file:test.ron", sampleGraph());
+    const again = await layoutFor("file:test.ron", sampleGraph());
+    const updated = await layoutFor("file:test.ron", withNewTable(sampleGraph()));
+
+    assert.equal(fresh.status, "new");
+    assert.equal(again.status, "cached");
+    assert.deepEqual(again.positions, fresh.positions);
+    assert.equal(updated.status, "updated");
+    assert.ok(updated.positions.g);
+});
+
+test("saveMovedStars stores and pins moved stars in the saved layout", async () => {
+    installStorage();
+    await layoutFor("file:test.ron", sampleGraph());
+
+    const saved = saveMovedStars("file:test.ron", { b: { x: 1000.04, y: -500 }, unknown: { x: 0, y: 0 } });
+    const reloaded = await layoutFor("file:test.ron", sampleGraph());
+
+    assert.equal(saved, true);
+    assert.equal(reloaded.status, "cached");
+    assert.deepEqual(reloaded.positions.b, { x: 1000, y: -500 });
+    assert.deepEqual(reloaded.pinned, ["b"]);
+    assert.equal(reloaded.positions.unknown, undefined);
+    assert.equal(saveMovedStars("file:never-loaded.ron", { b: { x: 0, y: 0 } }), false);
+});
+
+test("clearLegacyCaches removes layouts saved by older versions only", () => {
+    const items = installStorage();
+    items.set("rpfm-schema-explorer-layout:abc123", "{}");
+    items.set("rpfm-schema-explorer-layout-v3:file:test.ron", "{}");
+    items.set("rpfm-schema-explorer-settings", "{}");
+
+    clearLegacyCaches();
+
+    assert.deepEqual([...items.keys()].sort(), ["rpfm-schema-explorer-layout-v3:file:test.ron", "rpfm-schema-explorer-settings"]);
 });

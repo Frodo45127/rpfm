@@ -1,8 +1,10 @@
-// Precomputed ForceAtlas2 layout of the whole schema graph.
+// ForceAtlas2 layout of the whole schema graph, run until it converges and kept in localStorage.
 //
-// The layout runs once per schema (deterministic: same schema, same picture) and the positions are
-// cached in localStorage, so reopening a schema shows the full map straight away. Tables without
-// any reference are left out of the force layout and packed into a grid cluster beside the graph.
+// One layout is kept per schema source (a game, or a schema file name). When the schema changes, the
+// saved layout is the starting point: known tables keep their place, new ones start next to their
+// neighbours, and ForceAtlas2 runs again from there. Stars the user dragged are pinned and never moved
+// by the layout. Tables without any reference are left out of the force layout and packed into a
+// grid cluster beside the graph.
 
 (function (root, factory) {
     const graphology = root.graphology || (typeof require === "function" ? require("../vendor/graphology.umd.min.js") : null);
@@ -16,17 +18,25 @@
 })(typeof self !== "undefined" ? self : this, (graphology, library) => {
     "use strict";
 
-    const CACHE_PREFIX = "rpfm-schema-explorer-layout:";
-    const LAYOUT_VERSION = 2;
-    const TOTAL_ITERATIONS = 300;
-    const ITERATIONS_PER_CHUNK = 25;
+    const CACHE_PREFIX = "rpfm-schema-explorer-layout-v3:";
+    const LEGACY_CACHE_PREFIXES = ["rpfm-schema-explorer-layout:"];
+
+    // Convergence: stop once stars move less than this fraction of a typical edge per iteration,
+    // or once movement stops improving (Barnes-Hut leaves a small jitter that never goes away).
+    const ITERATIONS_PER_CHUNK = 50;
+    const MAX_ITERATIONS = 5000;
+    const CONVERGED_MOVEMENT = 0.0015;
+    const PLATEAU_CHUNKS = 8;
+    const PLATEAU_MIN_GAIN = 0.05;
+
+    const TARGET_EDGE_LENGTH = 70;
     const MAX_SEPARATION_PASSES = 50;
     const STAR_MARGIN = 3;
-    const TARGET_EDGE_LENGTH = 70;
+    const DISTANCE_TOLERANCE = 1e-6;
     const CLUSTER_SPACING = 45;
     const CLUSTER_GAP = 250;
 
-    // FNV-1a, enough to tell schemas (and layout settings) apart in the cache key.
+    // FNV-1a, enough to tell two versions of a schema graph apart.
     function hashString(text) {
         let hash = 0x811c9dc5;
         for (let i = 0; i < text.length; i++) {
@@ -75,15 +85,14 @@
     }
 
     /**
-     * Build the cache key of a graph's layout.
+     * Get a signature of a graph's tables and links, to tell whether a saved layout still matches it.
      *
      * @param {{nodes: Object[], edges: Object[]}} graph The schema graph.
-     * @returns {string} The key.
+     * @returns {string} The signature.
      */
-    function cacheKey(graph) {
+    function graphSignature(graph) {
         const { connected, isolated, links } = splitGraph(graph);
-        const signature = [LAYOUT_VERSION, connected.join(","), isolated.join(","), links.map((link) => link.join(">")).sort().join(",")].join("|");
-        return CACHE_PREFIX + hashString(signature);
+        return hashString([[...connected].sort().join(","), isolated.join(","), links.map((link) => link.join(">")).sort().join(",")].join("|"));
     }
 
     /**
@@ -96,15 +105,26 @@
         return (7 + (Math.min(degree, 120) / 120) * 27) / 2;
     }
 
+    function median(values) {
+        if (values.length === 0) {
+            return 0;
+        }
+        const sorted = [...values].sort((a, b) => a - b);
+        return sorted[Math.floor(sorted.length / 2)];
+    }
+
     /**
-     * Push overlapping stars apart until none overlap (or a pass limit is hit).
+     * Push overlapping stars apart until none overlap (or a pass limit is hit). Fixed stars never move.
      *
      * Stars are bucketed in a grid whose cells fit the biggest star, so each pass only compares neighbouring cells.
      *
-     * @param {Array<{x: number, y: number, radius: number}>} stars The stars, moved in place.
+     * @param {Array<{x: number, y: number, radius: number, fixed?: boolean}>} stars The stars, moved in place.
      * @returns {number} The number of overlapping pairs left.
      */
     function separateStars(stars) {
+        if (stars.length === 0) {
+            return 0;
+        }
         const cellSize = 2 * Math.max(...stars.map((star) => star.radius)) + STAR_MARGIN;
         let overlapping = 0;
         for (let pass = 0; pass < MAX_SEPARATION_PASSES; pass++) {
@@ -132,7 +152,7 @@
                             let offsetX = other.x - star.x;
                             let offsetY = other.y - star.y;
                             let distance = Math.hypot(offsetX, offsetY);
-                            if (distance >= minDistance) {
+                            if (distance >= minDistance - DISTANCE_TOLERANCE || (star.fixed && other.fixed)) {
                                 continue;
                             }
 
@@ -140,11 +160,14 @@
                             if (distance === 0) {
                                 [offsetX, offsetY, distance] = [1, 0, 1];
                             }
-                            const push = (minDistance - distance) / 2 / distance;
-                            star.x -= offsetX * push;
-                            star.y -= offsetY * push;
-                            other.x += offsetX * push;
-                            other.y += offsetY * push;
+
+                            // Split the push between both stars, or give all of it to the one that can move.
+                            const overlap = (minDistance - distance) / distance;
+                            const starShare = star.fixed ? 0 : other.fixed ? 1 : 0.5;
+                            star.x -= offsetX * overlap * starShare;
+                            star.y -= offsetY * overlap * starShare;
+                            other.x += offsetX * overlap * (1 - starShare);
+                            other.y += offsetY * overlap * (1 - starShare);
                             overlapping++;
                         }
                     }
@@ -157,32 +180,12 @@
         return overlapping;
     }
 
-    function median(values) {
-        if (values.length === 0) {
-            return 0;
-        }
-        const sorted = [...values].sort((a, b) => a - b);
-        return sorted[Math.floor(sorted.length / 2)];
-    }
-
-    // Place isolated tables on a grid to the right of the main graph, vertically centred on it.
-    function placeCluster(ids, positions, bounds) {
-        const columns = Math.max(1, Math.ceil(Math.sqrt(ids.length)));
-        const rows = Math.ceil(ids.length / columns);
-        const left = bounds ? bounds.maxX + CLUSTER_GAP : 0;
-        const top = bounds ? (bounds.minY + bounds.maxY) / 2 - ((rows - 1) * CLUSTER_SPACING) / 2 : 0;
-        ids.forEach((id, index) => {
-            positions[id] = { x: left + (index % columns) * CLUSTER_SPACING, y: top + Math.floor(index / columns) * CLUSTER_SPACING };
-        });
-    }
-
-    function boundsOf(positions, ids) {
-        if (ids.length === 0) {
+    function boundsOf(points) {
+        if (points.length === 0) {
             return null;
         }
         const bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
-        for (const id of ids) {
-            const { x, y } = positions[id];
+        for (const { x, y } of points) {
             bounds.minX = Math.min(bounds.minX, x);
             bounds.minY = Math.min(bounds.minY, y);
             bounds.maxX = Math.max(bounds.maxX, x);
@@ -191,107 +194,277 @@
         return bounds;
     }
 
-    /**
-     * Compute the layout of a schema graph with ForceAtlas2.
-     *
-     * Yields to the event loop between chunks of iterations, so a page stays responsive.
-     *
-     * @param {{nodes: Object[], edges: Object[]}} graph The schema graph.
-     * @param {(progress: number) => void} [onProgress] Called with a 0..1 progress value.
-     * @returns {Promise<{positions: Object<string, {x: number, y: number}>, isolated: string[]}>} The positions of every table, and the isolated ones.
-     */
-    async function computeLayout(graph, onProgress = () => {}) {
-        const { connected, isolated, links } = splitGraph(graph);
-        const forceGraph = new graphology.UndirectedGraph();
-        const random = seededRandom(connected.length * 31 + links.length);
-        const spread = Math.sqrt(connected.length) * 10;
-        for (const id of connected) {
-            forceGraph.addNode(id, { x: (random() - 0.5) * spread, y: (random() - 0.5) * spread, size: 1 });
+    // Isolated tables keep their old spot. New ones fill grid rows below the existing cluster, or start a
+    // new cluster to the right of the graph.
+    function placeIsolated(isolated, positions, previous, graphBounds) {
+        const kept = isolated.filter((id) => previous?.isolated.includes(id) && previous.positions[id]);
+        const added = isolated.filter((id) => !kept.includes(id));
+        for (const id of kept) {
+            positions[id] = { ...previous.positions[id] };
         }
-        for (const [a, b] of links) {
-            forceGraph.addEdge(a, b);
+        if (added.length === 0) {
+            return;
         }
 
-        // Dissuading hubs keeps very linked tables like `factions` from swallowing their neighbours.
-        const forceAtlas2 = library.layoutForceAtlas2;
-        const settings = {
-            ...forceAtlas2.inferSettings(forceGraph),
-            barnesHutOptimize: connected.length > 500,
-            barnesHutTheta: 1,
-            outboundAttractionDistribution: true,
-            strongGravityMode: false,
-            gravity: 1,
-            scalingRatio: 10,
-        };
-        for (let done = 0; done < TOTAL_ITERATIONS; done += ITERATIONS_PER_CHUNK) {
-            forceAtlas2.assign(forceGraph, { iterations: ITERATIONS_PER_CHUNK, settings });
-            onProgress(Math.min((done + ITERATIONS_PER_CHUNK) / TOTAL_ITERATIONS, 1) * 0.95);
-            await new Promise((resolve) => setTimeout(resolve, 0));
+        const columns = Math.max(1, Math.ceil(Math.sqrt(isolated.length)));
+        const clusterBounds = boundsOf(kept.map((id) => positions[id]));
+        let left;
+        let top;
+        if (clusterBounds) {
+            left = clusterBounds.minX;
+            top = clusterBounds.maxY + CLUSTER_SPACING;
+        } else {
+            const rows = Math.ceil(added.length / columns);
+            left = graphBounds ? graphBounds.maxX + CLUSTER_GAP : 0;
+            top = graphBounds ? (graphBounds.minY + graphBounds.maxY) / 2 - ((rows - 1) * CLUSTER_SPACING) / 2 : 0;
         }
+        added.forEach((id, index) => {
+            positions[id] = { x: left + (index % columns) * CLUSTER_SPACING, y: top + Math.floor(index / columns) * CLUSTER_SPACING };
+        });
+    }
 
-        // Scale so a typical link has the same on-screen length whatever the schema size, then nudge overlapping stars apart.
-        const lengths = links.map(([a, b]) => {
+    // Give tables without a saved position a start next to their already placed neighbours.
+    // Repeated so chains of new tables get placed too; anything left starts near the middle.
+    function seedNewNodes(forceGraph, newIds, random) {
+        const placed = new Set(forceGraph.filterNodes((id) => !newIds.has(id)));
+        const middle = boundsOf(forceGraph.filterNodes((id) => placed.has(id)).map((id) => forceGraph.getNodeAttributes(id)));
+        const centre = middle ? { x: (middle.minX + middle.maxX) / 2, y: (middle.minY + middle.maxY) / 2 } : { x: 0, y: 0 };
+        let pending = [...newIds];
+        while (pending.length > 0) {
+            const stillPending = [];
+            for (const id of pending) {
+                const anchors = forceGraph.neighbors(id).filter((neighbour) => placed.has(neighbour)).map((neighbour) => forceGraph.getNodeAttributes(neighbour));
+                if (anchors.length === 0) {
+                    stillPending.push(id);
+                    continue;
+                }
+                const x = anchors.reduce((sum, anchor) => sum + anchor.x, 0) / anchors.length;
+                const y = anchors.reduce((sum, anchor) => sum + anchor.y, 0) / anchors.length;
+                forceGraph.mergeNodeAttributes(id, { x: x + (random() - 0.5), y: y + (random() - 0.5) });
+                placed.add(id);
+            }
+            if (stillPending.length === pending.length) {
+                for (const id of stillPending) {
+                    forceGraph.mergeNodeAttributes(id, { x: centre.x + (random() - 0.5) * 10, y: centre.y + (random() - 0.5) * 10 });
+                }
+                break;
+            }
+            pending = stillPending;
+        }
+    }
+
+    function linkLengths(forceGraph, links) {
+        return links.map(([a, b]) => {
             const pa = forceGraph.getNodeAttributes(a);
             const pb = forceGraph.getNodeAttributes(b);
             return Math.hypot(pa.x - pb.x, pa.y - pb.y);
         });
-        const scale = TARGET_EDGE_LENGTH / (median(lengths) || 1);
+    }
+
+    // Run ForceAtlas2 in chunks until stars barely move, or stop improving. Yields between chunks to keep pages responsive.
+    async function runUntilConverged(forceGraph, links, onProgress) {
+        const forceAtlas2 = library.layoutForceAtlas2;
+
+        // Dissuading hubs keeps very linked tables like `factions` from swallowing their neighbours.
+        // Strong gravity keeps small disconnected groups near the rest instead of drifting far away.
+        const settings = {
+            ...forceAtlas2.inferSettings(forceGraph),
+            barnesHutOptimize: forceGraph.order > 500,
+            barnesHutTheta: 1,
+            outboundAttractionDistribution: true,
+            strongGravityMode: true,
+            gravity: 0.05,
+            scalingRatio: 10,
+        };
+        const movable = forceGraph.filterNodes((_id, attributes) => !attributes.fixed);
+        const history = [];
+        let iterations = 0;
+        while (iterations < MAX_ITERATIONS && movable.length > 0) {
+            const before = movable.map((id) => forceGraph.getNodeAttributes(id)).map(({ x, y }) => [x, y]);
+            forceAtlas2.assign(forceGraph, { iterations: ITERATIONS_PER_CHUNK, settings });
+            iterations += ITERATIONS_PER_CHUNK;
+
+            const moved = movable.reduce((sum, id, index) => {
+                const { x, y } = forceGraph.getNodeAttributes(id);
+                return sum + Math.hypot(x - before[index][0], y - before[index][1]);
+            }, 0);
+            const movement = moved / movable.length / ITERATIONS_PER_CHUNK / (median(linkLengths(forceGraph, links)) || 1);
+            history.push(movement);
+            onProgress({ iterations, movement });
+            await new Promise((resolve) => setTimeout(resolve, 0));
+
+            const plateaued = history.length > PLATEAU_CHUNKS && movement > history[history.length - 1 - PLATEAU_CHUNKS] * (1 - PLATEAU_MIN_GAIN);
+            if (movement < CONVERGED_MOVEMENT || plateaued) {
+                break;
+            }
+        }
+        return iterations;
+    }
+
+    /**
+     * Compute the layout of a schema graph, from scratch or continuing from a previous layout.
+     *
+     * @param {{nodes: Object[], edges: Object[]}} graph The schema graph.
+     * @param {{previous?: Object|null, onProgress?: (progress: {iterations: number, movement: number}) => void}} [options]
+     *   `previous` is an earlier result of this function, possibly for an older version of the schema.
+     * @returns {Promise<{positions: Object, isolated: string[], pinned: string[], scale: number, signature: string, iterations: number}>} The layout.
+     */
+    async function computeLayout(graph, { previous = null, onProgress = () => {} } = {}) {
+        const { connected, isolated, links } = splitGraph(graph);
+        const pinned = new Set((previous?.pinned || []).filter((id) => graph.nodes.some((node) => node.id === id)));
+        const previousIsolated = new Set(previous?.isolated || []);
+        const isKnown = (id) => Boolean(previous?.positions[id]) && !previousIsolated.has(id);
+        const scale = previous?.scale > 0 && connected.some(isKnown) ? previous.scale : null;
+        const random = seededRandom(connected.length * 31 + links.length);
+
+        // Saved positions are in drawing units; ForceAtlas2 works in its own units, `scale` times smaller.
+        const forceGraph = new graphology.UndirectedGraph();
+        const newIds = new Set();
+        const spread = Math.sqrt(connected.length) * 10;
+        for (const id of connected) {
+            if (scale && isKnown(id)) {
+                const saved = previous.positions[id];
+                forceGraph.addNode(id, { x: saved.x / scale, y: saved.y / scale, fixed: pinned.has(id) });
+            } else {
+                forceGraph.addNode(id, { x: (random() - 0.5) * spread, y: (random() - 0.5) * spread, fixed: false });
+                newIds.add(id);
+            }
+        }
+        for (const [a, b] of links) {
+            forceGraph.addEdge(a, b);
+        }
+        if (newIds.size < connected.length) {
+            seedNewNodes(forceGraph, newIds, random);
+        }
+
+        const iterations = await runUntilConverged(forceGraph, links, onProgress);
+
+        // A fresh layout is scaled so a typical link has the same length whatever the schema size. Updates keep the old scale, so the map doesn't jump.
+        const drawScale = scale || TARGET_EDGE_LENGTH / (median(linkLengths(forceGraph, links)) || 1);
         const stars = forceGraph.mapNodes((id, attributes) => ({
             id,
-            x: attributes.x * scale,
-            y: attributes.y * scale,
+            x: attributes.x * drawScale,
+            y: attributes.y * drawScale,
             radius: starRadius(forceGraph.degree(id)),
+            fixed: attributes.fixed,
         }));
         separateStars(stars);
 
+        // Pinned stars take their saved position as is: going through ForceAtlas2's float32 buffers isn't exact.
         const positions = {};
         for (const star of stars) {
-            positions[star.id] = { x: Math.round(star.x * 10) / 10, y: Math.round(star.y * 10) / 10 };
+            positions[star.id] = star.fixed
+                ? { ...previous.positions[star.id] }
+                : { x: Math.round(star.x * 10) / 10, y: Math.round(star.y * 10) / 10 };
         }
-        placeCluster(isolated, positions, boundsOf(positions, connected));
-        onProgress(1);
-        return { positions, isolated };
+        placeIsolated(isolated, positions, previous, boundsOf(stars));
+        return {
+            positions,
+            isolated,
+            pinned: [...pinned],
+            scale: drawScale,
+            signature: graphSignature(graph),
+            iterations,
+        };
+    }
+
+    //-------------------------------------------------------------------//
+    // localStorage cache
+    //-------------------------------------------------------------------//
+
+    // localStorage can be missing or throw (private windows, file:// in some browsers), so the cache is best-effort.
+    function storage() {
+        try {
+            return typeof window !== "undefined" ? window.localStorage : null;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function readCache(sourceKey) {
+        try {
+            const cached = JSON.parse(storage()?.getItem(CACHE_PREFIX + sourceKey) || "null");
+            const valid = cached && typeof cached.positions === "object" && Array.isArray(cached.isolated)
+                && Array.isArray(cached.pinned) && cached.scale > 0 && typeof cached.signature === "string";
+            return valid ? cached : null;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function writeCache(sourceKey, layout) {
+        try {
+            storage()?.setItem(CACHE_PREFIX + sourceKey, JSON.stringify(layout));
+        } catch (error) {
+            console.debug("Couldn't save the layout:", error.message);
+        }
     }
 
     /**
-     * Get a graph's layout from the cache, or compute and cache it.
-     *
-     * @param {{nodes: Object[], edges: Object[]}} graph The schema graph.
-     * @param {(progress: number) => void} [onProgress] Called with a 0..1 progress value while computing.
-     * @returns {Promise<{positions: Object, isolated: string[], fromCache: boolean}>} The layout.
+     * Delete layouts saved by older versions of the explorer.
      */
-    async function layoutFor(graph, onProgress) {
-        const key = cacheKey(graph);
+    function clearLegacyCaches() {
+        const store = storage();
+        if (!store) {
+            return;
+        }
         try {
-            const cached = JSON.parse(window.localStorage.getItem(key) || "null");
-            if (cached && cached.positions && Array.isArray(cached.isolated)) {
-                return { ...cached, fromCache: true };
+            const keys = Array.from({ length: store.length }, (_, index) => store.key(index));
+            for (const key of keys) {
+                if (key && LEGACY_CACHE_PREFIXES.some((prefix) => key.startsWith(prefix))) {
+                    store.removeItem(key);
+                }
             }
         } catch (error) {
-            console.debug("Layout cache unavailable:", error.message);
+            console.debug("Couldn't clear old layouts:", error.message);
         }
-
-        const layout = await computeLayout(graph, onProgress);
-        try {
-            window.localStorage.setItem(key, JSON.stringify(layout));
-        } catch (error) {
-            console.debug("Couldn't cache the layout:", error.message);
-        }
-        return { ...layout, fromCache: false };
     }
 
     /**
-     * Forget a graph's cached layout, so the next `layoutFor` computes it again.
+     * Get the layout of a schema source: the saved one if it matches the graph, otherwise computed and saved.
      *
+     * If a saved layout exists for an older version of the schema, the new layout continues from it.
+     *
+     * @param {string} sourceKey What the schema is, e.g. `api:warhammer_3` or `file:schema_wh3.ron`.
      * @param {{nodes: Object[], edges: Object[]}} graph The schema graph.
+     * @param {(progress: {iterations: number, movement: number}) => void} [onProgress] Called while computing.
+     * @returns {Promise<Object>} The layout, plus `status`: `cached`, `updated` (continued from an older layout) or `new`.
      */
-    function clearCachedLayout(graph) {
-        try {
-            window.localStorage.removeItem(cacheKey(graph));
-        } catch (error) {
-            console.debug("Couldn't clear the layout cache:", error.message);
+    async function layoutFor(sourceKey, graph, onProgress) {
+        clearLegacyCaches();
+        const cached = readCache(sourceKey);
+        if (cached && cached.signature === graphSignature(graph)) {
+            return { ...cached, status: "cached" };
         }
+
+        const layout = await computeLayout(graph, { previous: cached, onProgress });
+        writeCache(sourceKey, layout);
+        return { ...layout, status: cached ? "updated" : "new" };
     }
 
-    return { computeLayout, layoutFor, clearCachedLayout, splitGraph, cacheKey, starRadius, separateStars };
+    /**
+     * Save stars the user moved into a source's saved layout, and pin them so later layouts leave them in place.
+     *
+     * @param {string} sourceKey The schema source, as given to `layoutFor`.
+     * @param {Object<string, {x: number, y: number}>} moves The new positions of the moved tables.
+     * @returns {boolean} Whether the layout was saved.
+     */
+    function saveMovedStars(sourceKey, moves) {
+        const cached = readCache(sourceKey);
+        if (!cached) {
+            return false;
+        }
+        const pinned = new Set(cached.pinned);
+        for (const [id, { x, y }] of Object.entries(moves)) {
+            if (cached.positions[id]) {
+                cached.positions[id] = { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 };
+                pinned.add(id);
+            }
+        }
+        cached.pinned = [...pinned];
+        writeCache(sourceKey, cached);
+        return true;
+    }
+
+    return { computeLayout, layoutFor, saveMovedStars, clearLegacyCaches, splitGraph, graphSignature, starRadius, separateStars };
 });

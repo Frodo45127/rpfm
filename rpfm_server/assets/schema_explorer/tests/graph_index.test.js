@@ -15,8 +15,6 @@ function sampleGraph() {
     };
 }
 
-const DEFAULTS = { depth: 1, direction: "both", hubThreshold: 3, hideHubs: false, maxNodes: 100 };
-
 test("degree counts distinct neighbouring tables", () => {
     const index = new GraphIndex(sampleGraph());
 
@@ -34,48 +32,14 @@ test("neighbours follow the requested direction", () => {
     assert.throws(() => index.neighbours("b", "sideways"));
 });
 
-test("neighbourhood doesn't expand through hubs", () => {
+test("shortestPath follows references either way", () => {
     const index = new GraphIndex(sampleGraph());
 
-    const { ids } = index.neighbourhood("a", { ...DEFAULTS, depth: 2 });
-
-    assert.deepEqual([...ids].sort(), ["a", "b", "c", "hub"]);
-});
-
-test("a focused hub is expanded", () => {
-    const index = new GraphIndex(sampleGraph());
-
-    const { ids } = index.neighbourhood("hub", DEFAULTS);
-
-    assert.deepEqual([...ids].sort(), ["a", "b", "c", "d", "hub"]);
-});
-
-test("hideHubs leaves hubs out of the neighbourhood", () => {
-    const index = new GraphIndex(sampleGraph());
-
-    const { ids } = index.neighbourhood("a", { ...DEFAULTS, hideHubs: true });
-
-    assert.deepEqual([...ids].sort(), ["a", "b"]);
-});
-
-test("maxNodes truncates the neighbourhood", () => {
-    const index = new GraphIndex(sampleGraph());
-
-    const result = index.neighbourhood("hub", { ...DEFAULTS, maxNodes: 3 });
-
-    assert.equal(result.ids.size, 3);
-    assert.equal(result.truncated, true);
-});
-
-test("shortestPath respects direction and can avoid hubs", () => {
-    const index = new GraphIndex(sampleGraph());
-
-    assert.deepEqual(index.shortestPath("a", "d", { direction: "both", avoidHubsOver: null }), ["a", "hub", "d"]);
-    assert.equal(index.shortestPath("a", "d", { direction: "both", avoidHubsOver: 3 }), null);
-    assert.deepEqual(index.shortestPath("a", "c", { direction: "out", avoidHubsOver: 3 }), ["a", "b", "c"]);
-    assert.equal(index.shortestPath("c", "a", { direction: "out", avoidHubsOver: null }), null);
-    assert.equal(index.shortestPath("a", "e", { direction: "both", avoidHubsOver: null }), null);
-    assert.deepEqual(index.shortestPath("a", "a", { direction: "both", avoidHubsOver: null }), ["a"]);
+    assert.deepEqual(index.shortestPath("a", "d"), ["a", "hub", "d"]);
+    assert.deepEqual(index.shortestPath("d", "b"), ["d", "hub", "b"]);
+    assert.equal(index.shortestPath("a", "e"), null);
+    assert.equal(index.shortestPath("a", "nowhere"), null);
+    assert.deepEqual(index.shortestPath("a", "a"), ["a"]);
 });
 
 test("edgesBetween returns every column in both directions", () => {

@@ -24,26 +24,7 @@
         </div>
 
         <div class="toolbar-group">
-            <label>Depth
-                <select id="depth">
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                </select>
-            </label>
-            <label>Direction
-                <select id="direction">
-                    <option value="both">Both</option>
-                    <option value="out">References</option>
-                    <option value="in">Referenced by</option>
-                </select>
-            </label>
-            <label title="Highlighting and paths never go through tables with more neighbours than this. Ticked, they're left out entirely.">
-                <input type="checkbox" id="hide-hubs"> Hide hubs over
-                <input type="number" id="hub-threshold" min="2" max="500" step="1">
-            </label>
             <button type="button" id="overview" disabled title="Clear the selection and show the whole schema">Overview</button>
-            <button type="button" id="relayout" disabled title="Forget the cached layout and compute it again">Recompute layout</button>
         </div>
     </header>
 
@@ -68,9 +49,7 @@
             </div>
         </section>
 
-        <aside id="details" class="details" aria-label="Table details">
-            <p class="muted">Click a star to see its table's fields and references.</p>
-        </aside>
+        <aside id="details" class="details" aria-label="Table details" hidden></aside>
     </main>
 
     <div id="drop-overlay" class="drop-overlay" hidden>Drop the schema file to load it</div>

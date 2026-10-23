@@ -1,4 +1,4 @@
-// Graph queries for the explorer: neighbourhoods, shortest paths and table search.
+// Graph queries for the explorer: neighbours, table pairs, shortest paths and table search.
 //
 // Works on the `graph` JSON (nodes + edges) and has no DOM dependencies, so it's tested under Node.
 
@@ -79,55 +79,13 @@
         }
 
         /**
-         * Get the tables around a focused one, breadth-first.
-         *
-         * Hubs (degree above `hubThreshold`) other than the focus are never expanded through.
-         * With `hideHubs`, they're left out entirely.
-         *
-         * @param {string} focus The focused table id.
-         * @param {{depth: number, direction: string, hubThreshold: number, hideHubs: boolean, maxNodes: number}} options Traversal options.
-         * @returns {{ids: Set<string>, truncated: boolean}} The visible ids, and whether `maxNodes` cut the result short.
-         */
-        neighbourhood(focus, options) {
-            const { depth, direction, hubThreshold, hideHubs, maxNodes } = options;
-            const ids = new Set([focus]);
-            let frontier = [focus];
-            let truncated = false;
-            for (let level = 0; level < depth && frontier.length > 0 && !truncated; level++) {
-                const next = [];
-                for (const id of frontier) {
-                    if (id !== focus && this.degree(id) > hubThreshold) {
-                        continue;
-                    }
-                    for (const neighbour of this.neighbours(id, direction)) {
-                        if (ids.has(neighbour) || (hideHubs && this.degree(neighbour) > hubThreshold)) {
-                            continue;
-                        }
-                        if (ids.size >= maxNodes) {
-                            truncated = true;
-                            break;
-                        }
-                        ids.add(neighbour);
-                        next.push(neighbour);
-                    }
-                    if (truncated) {
-                        break;
-                    }
-                }
-                frontier = next;
-            }
-            return { ids, truncated };
-        }
-
-        /**
-         * Find a shortest path between two tables.
+         * Find a shortest path between two tables, following references either way.
          *
          * @param {string} from The start table id.
          * @param {string} to The end table id.
-         * @param {{direction: string, avoidHubsOver: number|null}} options `avoidHubsOver` skips hubs as intermediate steps.
          * @returns {string[]|null} The ids along the path (including both ends), or null if there's none.
          */
-        shortestPath(from, to, options) {
+        shortestPath(from, to) {
             if (!this.nodes.has(from) || !this.nodes.has(to)) {
                 return null;
             }
@@ -136,12 +94,8 @@
             while (frontier.length > 0 && !previous.has(to)) {
                 const next = [];
                 for (const id of frontier) {
-                    for (const neighbour of this.neighbours(id, options.direction)) {
+                    for (const neighbour of this.neighbours(id, "both")) {
                         if (previous.has(neighbour)) {
-                            continue;
-                        }
-                        const isBlockedHub = options.avoidHubsOver !== null && neighbour !== to && this.degree(neighbour) > options.avoidHubsOver;
-                        if (isBlockedHub) {
                             continue;
                         }
                         previous.set(neighbour, id);
