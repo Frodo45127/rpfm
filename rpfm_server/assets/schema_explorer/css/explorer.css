@@ -279,8 +279,14 @@ select.bubble option {
     border-radius: 14px;
 }
 
-/* Long status text and path steps wrap to the legend's width instead of widening the stack. */
-.overlay-bottom .graph-status,
+/* The status fits its text: short, it's narrower than the rows below; long, it widens the whole stack
+   so every row stays the same width (wrapping only past the screen width). */
+.overlay-bottom .graph-status {
+    align-self: flex-start;
+    max-width: 100%;
+}
+
+/* Long path steps wrap to the stack's width instead of widening it. */
 .overlay-bottom .path-result {
     width: 0;
     min-width: 100%;
@@ -296,7 +302,7 @@ select.bubble option {
 }
 
 /* Status, path finder and legend, stacked at the bottom left of the map. The stack is as wide as
-   its widest item (the one-line legend) and stretches the others to match. */
+   its widest item (the one-line legend, or a long status) and stretches the others to match. */
 .overlay-bottom {
     position: absolute;
     z-index: 5;
