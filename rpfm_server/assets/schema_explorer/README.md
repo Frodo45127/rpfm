@@ -34,13 +34,13 @@ The first time a schema is loaded, the layout runs until it settles (on Warhamme
 
   Double-click a star, or pick a search result, to also zoom to it. Click empty space or **Close** in the panel to deselect. The panel is only shown while a table is selected.
 - **Search:** ranks exact names, then prefixes, word prefixes, substrings and loose matches. Arrow keys and Enter pick a result. The listed results light up blue on the map and stay lit until the search box is emptied (Escape clears it); the current selection is left as it is.
-- **Controls:** the title, the schema button (it shows the loaded schema's name; click it to open another), the search bar and the status float over the top of the map.
+- **Controls:** the title, the schema button (it shows the loaded schema's name; click it to open another), and the search bar float over the top of the map.
 - **Tooltips:** hover a star or a table link for a summary of the table (the schema has no table-level comments). Hover a field row for the schema's comment on it; fields that have one are underlined with dots.
 - **Details panel** (a floating card on the right, while a table is selected; Fields, Localised fields and Referenced by fold away and stay folded for the next table):
   - Every definition version, with key fields in gold, types, references (click to select the target), lookups, defaults and patch notes.
   - Localised fields.
   - "Referenced by", across all versions of all tables, like RPFM's references.
-- **Path finder** (bottom left, above the legend): pick a table to start from (the selected one by default) and one to reach. The shortest path is drawn in green and listed step by step; **Clear** goes back to the selection.
+- **Path finder** (bottom left, between the status and the legend, as wide as the legend): pick a table to start from (the selected one by default) and one to reach. The shortest path is drawn in green and listed step by step; **Clear** goes back to the selection.
 - **Links:** the selected table is kept in the URL fragment (`#table=battles`), so a view can be bookmarked.
 
 ## Data sources
