@@ -10,27 +10,34 @@ Browser page that shows an RPFM DB schema as an interactive graph: one node per 
 2. Click **Open schema file**, or drop a file on the page:
    - `schema_<game>.ron` from RPFM's `schemas` folder (on Linux, `~/.config/rpfm/schemas/schema_wh3.ron`), or
    - a schema saved as JSON, including the reply of the MCP `get_schema` tool.
-3. Search for a table (e.g. `battles`) and press Enter.
+3. The whole schema appears as a star map. Click a star, or search for a table (e.g. `battles`) and press Enter.
 
-Parsing the 11 MB Warhammer 3 schema takes well under a second.
+On Warhammer 3 (1,744 tables), the first load takes about 4 seconds: parsing, the layout and drawing. After that, the layout comes from the browser's cache and loading takes about 2 seconds.
 
 ## Using it
 
+- **Star map:** every table is a white star, sized by how many tables it's linked to.
+  - The positions come from a ForceAtlas2 layout of the whole schema (`js/layout.js`). It's computed once per schema, deterministic, and cached in the browser.
+  - Tables with no references at all are grouped in the "Tables without references" cluster on the right.
+  - Tables that are referenced but have no definition are grey stars.
+- **Edges:** one curved arrow per pair of tables, pointing from the referencing table to the referenced one. When the two tables reference each other, the arrow has heads at both ends. Click an edge to see the columns behind it.
+- **Selecting:** click a star (or a table link in the panel) and everything else dims:
+  - **Purple:** the selected table.
+  - **Red (in):** tables that reference it.
+  - **Yellow (out):** tables it references.
+  - **Orange:** both.
+
+  Double-click a star, or pick a search result, to also zoom to it. Click empty space or **Overview** to go back to the whole map.
+- **Depth / Direction:** how far around the selection to highlight (depth 2 and 3 add a dimmer ring), and whether to follow references, "referenced by", or both.
+- **Hide hubs over N:** tables with more than N linked tables (e.g. `factions`) are never highlighted through. With the box ticked, they're left out entirely. Path finding then avoids them too.
 - **Search:** ranks exact names, then prefixes, word prefixes, substrings and loose matches. Arrow keys and Enter pick a result.
-- **Graph:** shows the tables around the focused one.
-  - Click a table to see its details, and double-click it to focus on it.
-  - Hover a table to highlight its links. Click an edge to see the columns behind it.
-  - Edges point from the referencing table to the referenced one.
-- **Depth / Direction:** how far to expand, and whether to follow references, "referenced by", or both.
-- **Hide hubs over N:** tables with more than N linked tables (e.g. `factions`) are never expanded through. With the box ticked, they're hidden. Path finding then avoids them too.
 - **Details panel:**
-  - Every definition version, with keys, types, references (click to add the target to the graph), lookups, defaults, descriptions and patch notes.
+  - Every definition version, with keys, types, references (click to select the target), lookups, defaults, descriptions and patch notes.
   - Localised fields.
   - "Referenced by", across all versions of all tables, like RPFM's references.
-  - A path finder.
-- **Show all:** draws every table. It's dense and slow to lay out, so prefer search.
-- **Links:** the focused table is kept in the URL fragment (`#table=battles`), so a view can be bookmarked.
-- **Not-in-schema tables:** dashed nodes are tables other tables reference that have no definition in the schema.
+  - A path finder, which draws the path in green.
+- **Recompute layout:** forgets the cached positions and runs the layout again.
+- **Links:** the selected table is kept in the URL fragment (`#table=battles`), so a view can be bookmarked.
 
 ## Data sources
 
@@ -53,11 +60,12 @@ Differences in file mode:
 | `index.html`, `css/explorer.css` | Page and styles. No inline scripts or styles, so a strict CSP works. |
 | `js/ron.js` | RON parser that produces serde_json-shaped values. |
 | `js/schema_model.js` | Graph and table details from a schema, with `rpfm_lib`'s patch rules. |
-| `js/graph_index.js` | Neighbourhoods, shortest paths and search over the graph. |
+| `js/graph_index.js` | Neighbourhoods, shortest paths, table pairs and search over the graph. |
+| `js/layout.js` | ForceAtlas2 layout of the whole graph, star overlap removal, isolated-table cluster, layout cache. |
 | `js/data_source.js` | API mode and file mode. |
-| `js/explorer.js` | UI: Cytoscape.js graph, details panel, search, URL fragment. |
-| `vendor/` | Pinned Cytoscape.js and fcose layout builds, see `vendor/README.md`. |
-| `tests/` | Unit tests for the parser, model and graph queries. |
+| `js/explorer.js` | UI: Cytoscape.js star map, highlighting, details panel, search, URL fragment. |
+| `vendor/` | Pinned Cytoscape.js and graphology (with ForceAtlas2) builds, see `vendor/README.md`. |
+| `tests/` | Unit tests for the parser, model, graph queries and layout. |
 
 Scripts are plain (non-module) scripts loaded in order, because browsers refuse ES modules from `file://` pages.
 

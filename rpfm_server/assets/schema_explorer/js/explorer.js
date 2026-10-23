@@ -1,5 +1,7 @@
 // Schema explorer UI: wires the data source, the graph view (Cytoscape.js) and the details panel together.
 //
+// The whole schema is drawn at once on a precomputed ForceAtlas2 layout (see layout.js). Selecting a
+// table highlights it and its neighbourhood instead of redrawing, so the map never moves around.
 // Everything shown comes from the schema (definitions and references). No table data is ever read.
 // All schema strings go into the DOM through `textContent`, never `innerHTML`, as they can contain anything.
 
@@ -7,13 +9,32 @@
     "use strict";
 
     const { ApiSource, FileSource } = window.RpfmDataSource;
-    const { GraphIndex } = window.RpfmGraphIndex;
+    const { GraphIndex, pairKey } = window.RpfmGraphIndex;
+    const { layoutFor, clearCachedLayout } = window.RpfmLayout;
 
     const SETTINGS_KEY = "rpfm-schema-explorer-settings";
-    const MAX_VISIBLE_NODES = 300;
     const SEARCH_LIMIT = 30;
-    const MAX_FIT_ZOOM = 1.2;
+    const CLUSTER_ID = "__tables_without_references__";
+    const MAX_FOCUS_ZOOM = 1.6;
+    const EDGE_CURVATURE = 0.12;
+    const MAX_EDGE_CURVE = 90;
     const DEFAULT_SETTINGS = { depth: 1, direction: "both", hideHubs: false, hubThreshold: 40, game: null };
+
+    // Graph colours are fixed (the graph always sits on the space background), unlike the page theme.
+    const COLOURS = {
+        star: "#ffffff",
+        starGlow: "#bcd4ff",
+        missing: "#7d8597",
+        edge: "#8fa8ff",
+        label: "#dfe8ff",
+        labelOutline: "#04050d",
+        selected: "#b46cff",
+        incoming: "#ff4d5e",
+        outgoing: "#ffd23f",
+        both: "#ff9f43",
+        path: "#4dffb8",
+        cluster: "#6b7bb5",
+    };
 
     const elements = {
         gameSelect: document.getElementById("game-select"),
@@ -25,8 +46,8 @@
         direction: document.getElementById("direction"),
         hideHubs: document.getElementById("hide-hubs"),
         hubThreshold: document.getElementById("hub-threshold"),
+        overview: document.getElementById("overview"),
         relayout: document.getElementById("relayout"),
-        showAll: document.getElementById("show-all"),
         graph: document.getElementById("graph"),
         emptyState: document.getElementById("empty-state"),
         status: document.getElementById("graph-status"),
@@ -38,10 +59,9 @@
     const state = {
         source: null,
         game: null,
+        graph: null,
         index: null,
-        focus: null,
         selected: null,
-        visible: new Set(),
         path: null,
         detailsCache: new Map(),
         settings: loadSettings(),
@@ -49,12 +69,12 @@
         searchActive: -1,
     };
 
-    window.cytoscape.use(window.cytoscapeFcose);
     const cy = window.cytoscape({
         container: elements.graph,
         style: graphStyle(),
-        minZoom: 0.05,
-        maxZoom: 4,
+        minZoom: 0.02,
+        maxZoom: 5,
+        boxSelectionEnabled: false,
     });
 
     //-------------------------------------------------------------------//
@@ -96,7 +116,7 @@
     }
 
     //-------------------------------------------------------------------//
-    // Status and theme
+    // Status and graph style
     //-------------------------------------------------------------------//
 
     function setStatus(message, isError = false) {
@@ -104,8 +124,12 @@
         elements.status.classList.toggle("error", isError);
     }
 
-    function cssVar(name) {
-        return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    function glow(colour, opacity, padding) {
+        return { "background-color": colour, "underlay-color": colour, "underlay-opacity": opacity, "underlay-padding": padding };
+    }
+
+    function edgeColour(colour) {
+        return { "line-color": colour, "target-arrow-color": colour, "source-arrow-color": colour };
     }
 
     function graphStyle() {
@@ -113,61 +137,87 @@
             {
                 selector: "node",
                 style: {
-                    "background-color": cssVar("--node"),
+                    "shape": "star",
+                    "background-color": COLOURS.star,
+                    "underlay-color": COLOURS.starGlow,
+                    "underlay-opacity": 0.16,
+                    "underlay-padding": 3,
+                    "underlay-shape": "ellipse",
                     "label": "data(id)",
-                    "color": cssVar("--node-text"),
-                    "font-size": 11,
+                    "color": COLOURS.label,
+                    "font-size": 9,
+                    "min-zoomed-font-size": 9,
                     "text-valign": "bottom",
-                    "text-margin-y": 3,
-                    "text-background-color": cssVar("--bg"),
-                    "text-background-opacity": 0.7,
-                    "text-background-padding": 1,
-                    "min-zoomed-font-size": 7,
-                    "width": "mapData(degree, 0, 120, 14, 46)",
-                    "height": "mapData(degree, 0, 120, 14, 46)",
+                    "text-margin-y": 2,
+                    "text-outline-color": COLOURS.labelOutline,
+                    "text-outline-width": 2,
+                    "text-opacity": 0.85,
                 },
             },
-            { selector: "node.hub", style: { "background-color": cssVar("--node-hub") } },
+            { selector: "node[degree]", style: { "width": "mapData(degree, 0, 120, 7, 34)", "height": "mapData(degree, 0, 120, 7, 34)" } },
+            { selector: "node.hub", style: { "underlay-opacity": 0.26, "underlay-padding": 4 } },
+            { selector: "node.missing", style: { "background-color": COLOURS.missing, "underlay-opacity": 0.05 } },
             {
-                selector: "node.missing",
+                selector: `node#${CLUSTER_ID}`,
                 style: {
-                    "background-opacity": 0,
-                    "border-width": 2,
+                    "shape": "round-rectangle",
+                    "background-color": COLOURS.cluster,
+                    "background-opacity": 0.08,
+                    "border-color": COLOURS.cluster,
                     "border-style": "dashed",
-                    "border-color": cssVar("--node-missing"),
+                    "border-width": 1,
+                    "underlay-opacity": 0,
+                    "padding": 30,
+                    "label": "data(label)",
+                    "text-valign": "top",
+                    "text-halign": "center",
+                    "text-margin-y": -6,
+                    "font-size": 16,
+                    "min-zoomed-font-size": 0,
+                    "color": COLOURS.label,
                 },
             },
-            { selector: "node.path", style: { "background-color": cssVar("--node-path") } },
-            { selector: "node.focus", style: { "background-color": cssVar("--node-focus"), "font-weight": "bold" } },
-            { selector: "node:selected", style: { "border-width": 3, "border-color": cssVar("--edge-highlight"), "border-style": "solid" } },
             {
                 selector: "edge",
                 style: {
-                    "width": "mapData(count, 1, 6, 1, 4)",
-                    "line-color": cssVar("--edge"),
-                    "target-arrow-color": cssVar("--edge"),
+                    "curve-style": "unbundled-bezier",
+                    "control-point-distances": "data(curve)",
+                    "control-point-weights": 0.5,
+                    "width": 1,
+                    ...edgeColour(COLOURS.edge),
+                    "opacity": 0.3,
                     "target-arrow-shape": "triangle",
-                    "arrow-scale": 0.8,
-                    "curve-style": "bezier",
+                    "arrow-scale": 0.6,
                     "font-size": 10,
-                    "color": cssVar("--text"),
-                    "text-background-color": cssVar("--bg"),
-                    "text-background-opacity": 0.85,
-                    "text-background-padding": 2,
-                    "text-rotation": "autorotate",
+                    "color": COLOURS.label,
+                    "text-outline-color": COLOURS.labelOutline,
+                    "text-outline-width": 2,
                     "text-wrap": "wrap",
+                    "text-rotation": "autorotate",
                 },
             },
-            { selector: "edge.path", style: { "line-color": cssVar("--node-path"), "target-arrow-color": cssVar("--node-path"), "width": 3 } },
-            {
-                selector: "edge.highlight, edge:selected",
-                style: { "line-color": cssVar("--edge-highlight"), "target-arrow-color": cssVar("--edge-highlight"), "label": "data(label)", "z-index": 10 },
-            },
-            { selector: ".faded", style: { "opacity": 0.15 } },
+            { selector: "edge.bidirectional", style: { "source-arrow-shape": "triangle" } },
+            { selector: "edge.loop", style: { "curve-style": "bezier", "loop-direction": "-45deg", "loop-sweep": "-60deg" } },
+
+            // Highlighting. Order matters: later rules win.
+            { selector: "node.dim", style: { "opacity": 0.18, "text-opacity": 0, "underlay-opacity": 0 } },
+            { selector: "edge.dim", style: { "opacity": 0.03 } },
+            { selector: "node.ring", style: { "opacity": 0.9 } },
+            { selector: "edge.ring", style: { "opacity": 0.45, "width": 1 } },
+            { selector: "node.in", style: glow(COLOURS.incoming, 0.45, 6) },
+            { selector: "node.out", style: glow(COLOURS.outgoing, 0.45, 6) },
+            { selector: "node.both", style: glow(COLOURS.both, 0.45, 6) },
+            { selector: "node.path", style: glow(COLOURS.path, 0.45, 6) },
+            { selector: "node.selected", style: { ...glow(COLOURS.selected, 0.6, 10), "font-weight": "bold" } },
+            { selector: "edge.in", style: { ...edgeColour(COLOURS.incoming), "opacity": 0.95, "width": 2, "arrow-scale": 1 } },
+            { selector: "edge.out", style: { ...edgeColour(COLOURS.outgoing), "opacity": 0.95, "width": 2, "arrow-scale": 1 } },
+            { selector: "edge.both", style: { ...edgeColour(COLOURS.both), "opacity": 0.95, "width": 2, "arrow-scale": 1 } },
+            { selector: "edge.path", style: { ...edgeColour(COLOURS.path), "opacity": 1, "width": 2.5, "arrow-scale": 1 } },
+            { selector: "node.labelled, node.hover", style: { "min-zoomed-font-size": 0, "text-opacity": 1, "font-size": 11 } },
+            { selector: "edge.hover", style: { "opacity": 0.85, "width": 1.5 } },
+            { selector: "edge:selected", style: { "label": "data(label)", "opacity": 1 } },
         ];
     }
-
-    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => cy.style(graphStyle()));
 
     //-------------------------------------------------------------------//
     // Loading data
@@ -208,15 +258,18 @@
 
     async function loadGame(game) {
         setStatus("Loading schema graph...");
+        let layout;
         try {
             const graph = await state.source.graph(game);
             state.game = game;
+            state.graph = graph;
             state.index = new GraphIndex(graph);
             state.detailsCache.clear();
             if (state.source.kind === "api") {
                 state.settings.game = game;
                 saveSettings();
             }
+            layout = await layoutFor(graph, (progress) => setStatus(`Laying out the schema: ${Math.round(progress * 100)}%`));
         } catch (error) {
             setStatus(`Couldn't load the schema graph: ${error.message}`, true);
             return;
@@ -224,25 +277,24 @@
 
         elements.emptyState.hidden = true;
         elements.search.disabled = false;
+        elements.overview.disabled = false;
         elements.relayout.disabled = false;
-        elements.showAll.disabled = false;
         elements.tableNames.replaceChildren(...[...state.index.nodes.keys()].map((id) => {
             const option = document.createElement("option");
             option.value = id;
             return option;
         }));
 
-        const nodeCount = [...state.index.nodes.values()].filter((node) => !node.missing).length;
-        const edgeCount = [...state.index.outgoing.values()].reduce((sum, targets) => sum + [...targets.values()].reduce((s, e) => s + e.length, 0), 0);
-        setStatus(`${nodeCount} tables, ${edgeCount} references. Search for a table to start.`);
+        renderOverview(layout);
+        const tableCount = state.graph.nodes.filter((node) => !node.missing).length;
+        const layoutNote = layout.fromCache ? " (cached layout)" : "";
+        setStatus(`${tableCount} tables, ${state.graph.edges.length} references, ${layout.isolated.length} without references${layoutNote}. Search or click a star.`);
 
         const hashTable = readHash().table;
         if (hashTable && state.index.nodes.has(hashTable)) {
-            focusTable(hashTable);
+            selectTable(hashTable, { zoom: true });
         } else {
-            cy.elements().remove();
             showPlaceholderDetails();
-            elements.search.focus();
         }
     }
 
@@ -261,154 +313,251 @@
         }
     }
 
+    async function recomputeLayout() {
+        if (!state.graph) {
+            return;
+        }
+        clearCachedLayout(state.graph);
+        const selected = state.selected;
+        await loadGame(state.game);
+        if (selected) {
+            selectTable(selected, { zoom: true });
+        }
+    }
+
     //-------------------------------------------------------------------//
     // Graph view
     //-------------------------------------------------------------------//
 
-    function focusTable(id) {
-        if (!state.index.nodes.has(id)) {
-            return;
-        }
-        readControls();
-        const { ids, truncated } = state.index.neighbourhood(id, {
-            depth: state.settings.depth,
-            direction: state.settings.direction,
-            hubThreshold: state.settings.hubThreshold,
-            hideHubs: state.settings.hideHubs,
-            maxNodes: MAX_VISIBLE_NODES,
-        });
-        state.focus = id;
-        state.path = null;
-        state.visible = ids;
-        renderGraph();
-        selectTable(id);
-        writeHash();
-
-        const hidden = truncated ? ` Showing the first ${MAX_VISIBLE_NODES}; lower the depth or hide hubs to see the rest.` : "";
-        setStatus(`${ids.size} tables around ${id}.${hidden}`);
+    // Curve every edge by a fraction of its length, so long edges arc as much as short ones.
+    function edgeCurve(positions, source, target) {
+        const a = positions[source];
+        const b = positions[target];
+        return Math.min(Math.hypot(a.x - b.x, a.y - b.y) * EDGE_CURVATURE, MAX_EDGE_CURVE);
     }
 
-    // Adds a table (and, optionally, its neighbours) to the current view without changing the focus.
-    function addToView(ids) {
-        const before = state.visible.size;
-        for (const id of ids) {
-            if (state.visible.size >= MAX_VISIBLE_NODES) {
-                break;
-            }
-            state.visible.add(id);
-        }
-        if (state.visible.size !== before) {
-            renderGraph();
-        }
+    function pairLabel(pair) {
+        return [...pair.forward, ...pair.backward].map((edge) => `${edge.from}.${edge.from_column} -> ${edge.to}.${edge.to_column}`).join("\n");
     }
 
-    function showAll() {
-        readControls();
-        const ids = [...state.index.nodes.keys()].filter((id) => !(state.settings.hideHubs && state.index.degree(id) > state.settings.hubThreshold));
-        if (ids.length > 600 && !window.confirm(`Draw all ${ids.length} tables? The layout can take a while and the graph will be dense.`)) {
-            return;
+    function renderOverview(layout) {
+        const isolated = new Set(layout.isolated);
+        const items = [];
+        if (isolated.size > 0) {
+            items.push({ group: "nodes", data: { id: CLUSTER_ID, label: `Tables without references (${isolated.size})` } });
         }
-        state.focus = null;
-        state.path = null;
-        state.visible = new Set(ids);
-        renderGraph({ quality: "draft" });
-        setStatus(`Showing all ${ids.length} tables.`);
-    }
 
-    function renderGraph(options = {}) {
-        const pathEdges = new Set();
-        if (state.path) {
-            for (let i = 0; i + 1 < state.path.length; i++) {
-                pathEdges.add(`${state.path[i]}|${state.path[i + 1]}`);
-                pathEdges.add(`${state.path[i + 1]}|${state.path[i]}`);
-            }
-        }
-        const pathNodes = new Set(state.path || []);
-
-        const elementsToAdd = [];
-        for (const id of state.visible) {
-            const node = state.index.nodes.get(id);
+        for (const node of state.graph.nodes) {
             const classes = [];
             if (node.missing) {
                 classes.push("missing");
             }
-            if (state.index.degree(id) > state.settings.hubThreshold) {
+            if (state.index.degree(node.id) > state.settings.hubThreshold) {
                 classes.push("hub");
             }
-            if (pathNodes.has(id)) {
-                classes.push("path");
-            }
-            if (id === state.focus) {
-                classes.push("focus");
-            }
-            elementsToAdd.push({ group: "nodes", data: { id, degree: state.index.degree(id) }, classes: classes.join(" ") });
+            items.push({
+                group: "nodes",
+                data: { id: node.id, degree: state.index.degree(node.id), parent: isolated.has(node.id) ? CLUSTER_ID : undefined },
+                position: { ...layout.positions[node.id] },
+                classes: classes.join(" "),
+            });
         }
 
-        // One drawn edge per pair of tables and direction, labelled with all the columns behind it.
-        for (const from of state.visible) {
-            for (const [to, edges] of state.index.outgoing.get(from) || []) {
-                if (!state.visible.has(to)) {
-                    continue;
-                }
-                const label = edges.map((edge) => `${edge.from_column} -> ${edge.to_column}`).join("\n");
-                elementsToAdd.push({
-                    group: "edges",
-                    data: { id: `${from}|${to}`, source: from, target: to, label, count: edges.length },
-                    classes: pathEdges.has(`${from}|${to}`) ? "path" : "",
-                });
+        // One edge per pair of tables: pointing the way the references go, or both ways when they go both ways.
+        for (const pair of state.index.linkedPairs()) {
+            const hasForward = pair.forward.length > 0;
+            const hasBackward = pair.backward.length > 0;
+            const [source, target] = hasForward ? [pair.a, pair.b] : [pair.b, pair.a];
+            const classes = [];
+            if (pair.a === pair.b) {
+                classes.push("loop");
+            } else if (hasForward && hasBackward) {
+                classes.push("bidirectional");
             }
+            items.push({
+                group: "edges",
+                data: {
+                    id: pair.key,
+                    source,
+                    target,
+                    label: pairLabel(pair),
+                    curve: pair.a === pair.b ? 0 : edgeCurve(layout.positions, source, target),
+                    bidirectional: hasForward && hasBackward,
+                },
+                classes: classes.join(" "),
+            });
         }
 
+        state.selected = null;
+        state.path = null;
         cy.batch(() => {
             cy.elements().remove();
-            cy.add(elementsToAdd);
+            cy.add(items);
         });
-        runLayout(options.quality || "default");
+        fitTo(cy.nodes(), { maxZoom: Infinity, animate: false });
     }
 
-    function runLayout(quality) {
-        if (cy.nodes().length === 0) {
+    function clearHighlight() {
+        cy.batch(() => cy.elements().removeClass("dim ring in out both path selected labelled"));
+    }
+
+    function showOverview() {
+        state.selected = null;
+        state.path = null;
+        clearHighlight();
+        cy.$(":selected").unselect();
+        fitTo(cy.nodes(), { maxZoom: Infinity, animate: true });
+        showPlaceholderDetails();
+        writeHash();
+        setStatus("Showing the whole schema.");
+    }
+
+    // Fit the view to some nodes from their positions alone. Cytoscape's own fit measures every label,
+    // which takes seconds on a whole schema.
+    function fitTo(nodes, { maxZoom, animate }) {
+        if (nodes.length === 0) {
             return;
         }
-        const layout = cy.layout({
-            name: "fcose",
-            quality,
-            randomize: true,
-            animate: cy.nodes().length < 150,
-            animationDuration: 400,
-            nodeRepulsion: 9000,
-            idealEdgeLength: 90,
-            nodeSeparation: 80,
-            packComponents: true,
-            fit: true,
-            padding: 30,
-        });
-
-        // Fitting a handful of nodes zooms far in, which makes labels huge, so cap it.
-        layout.one("layoutstop", () => {
-            if (cy.zoom() > MAX_FIT_ZOOM) {
-                cy.zoom(MAX_FIT_ZOOM);
-                cy.center();
-            }
-        });
-        layout.run();
+        const extent = nodes.boundingBox({ includeLabels: false, includeOverlays: false, includeUnderlays: false });
+        const padding = 50;
+        const zoom = Math.min(
+            maxZoom,
+            cy.maxZoom(),
+            (cy.width() - 2 * padding) / Math.max(extent.w, 1),
+            (cy.height() - 2 * padding) / Math.max(extent.h, 1),
+        );
+        const pan = { x: cy.width() / 2 - zoom * (extent.x1 + extent.w / 2), y: cy.height() / 2 - zoom * (extent.y1 + extent.h / 2) };
+        cy.stop();
+        if (animate) {
+            cy.animate({ zoom, pan }, { duration: 450 });
+        } else {
+            cy.viewport({ zoom, pan });
+        }
     }
 
-    cy.on("tap", "node", (event) => selectTable(event.target.id()));
-    cy.on("dbltap", "node", (event) => focusTable(event.target.id()));
+    // Zoom to some tables without zooming in so far that one table fills the screen.
+    function zoomTo(nodes) {
+        fitTo(nodes, { maxZoom: MAX_FOCUS_ZOOM, animate: true });
+    }
+
+    // Classify a neighbour of the selected table: `in` references it, `out` is referenced by it, `both` is both.
+    function relation(selected, neighbour) {
+        const references = state.index.edgesBetween(selected, neighbour);
+        const out = references.some((edge) => edge.from === selected && edge.to === neighbour);
+        const incoming = references.some((edge) => edge.from === neighbour && edge.to === selected);
+        if (out && incoming) {
+            return "both";
+        }
+        return out ? "out" : "in";
+    }
+
+    function highlightNeighbourhood(id) {
+        const { direction, depth, hubThreshold, hideHubs } = state.settings;
+        const { ids } = state.index.neighbourhood(id, { depth, direction, hubThreshold, hideHubs, maxNodes: Infinity });
+        const direct = new Set(state.index.neighbours(id, direction).filter((neighbour) => ids.has(neighbour)));
+
+        cy.batch(() => {
+            clearHighlight();
+            cy.elements().addClass("dim");
+            for (const neighbourId of ids) {
+                const node = cy.getElementById(neighbourId);
+                node.removeClass("dim");
+                if (neighbourId === id) {
+                    node.addClass("selected labelled");
+                } else if (direct.has(neighbourId)) {
+                    node.addClass(`${relation(id, neighbourId)} labelled`);
+                } else {
+                    node.addClass("ring");
+                }
+            }
+            cy.getElementById(CLUSTER_ID).removeClass("dim");
+
+            for (const edge of cy.edges()) {
+                const source = edge.source().id();
+                const target = edge.target().id();
+                if (!ids.has(source) || !ids.has(target)) {
+                    continue;
+                }
+                edge.removeClass("dim");
+                if (source === id && target === id) {
+                    edge.addClass("out");
+                } else if (source === id || target === id) {
+                    const other = source === id ? target : source;
+                    edge.addClass(direct.has(other) ? relation(id, other) : "ring");
+                } else {
+                    edge.addClass("ring");
+                }
+            }
+        });
+        return ids;
+    }
+
+    function highlightPath(path) {
+        const onPath = new Set(path);
+        cy.batch(() => {
+            clearHighlight();
+            cy.elements().addClass("dim");
+            for (const id of path) {
+                cy.getElementById(id).removeClass("dim").addClass("path labelled");
+            }
+            for (let i = 0; i + 1 < path.length; i++) {
+                cy.getElementById(pairKey(path[i], path[i + 1])).removeClass("dim").addClass("path");
+            }
+            cy.getElementById(path[0]).addClass("selected");
+            cy.getElementById(CLUSTER_ID).removeClass("dim");
+        });
+        zoomTo(cy.nodes().filter((node) => onPath.has(node.id())));
+    }
+
+    function selectTable(id, options = {}) {
+        if (!state.index?.nodes.has(id)) {
+            return;
+        }
+        readControls();
+        state.selected = id;
+        state.path = null;
+        const ids = highlightNeighbourhood(id);
+        cy.$(":selected").unselect();
+        if (options.zoom) {
+            zoomTo(cy.nodes().filter((node) => ids.has(node.id())));
+        }
+        writeHash();
+        showDetails(id);
+
+        const counts = { in: 0, out: 0, both: 0 };
+        for (const neighbour of state.index.neighbours(id, state.settings.direction)) {
+            if (neighbour !== id && ids.has(neighbour)) {
+                counts[relation(id, neighbour)]++;
+            }
+        }
+        setStatus(`${id}: references ${counts.out + counts.both} tables, referenced by ${counts.in + counts.both}${ids.size > counts.in + counts.out + counts.both + 1 ? `, ${ids.size} within depth ${state.settings.depth}` : ""}.`);
+    }
+
+    cy.on("tap", "node", (event) => {
+        if (event.target.id() !== CLUSTER_ID) {
+            selectTable(event.target.id());
+        }
+    });
+    cy.on("dbltap", "node", (event) => {
+        if (event.target.id() !== CLUSTER_ID) {
+            selectTable(event.target.id(), { zoom: true });
+        }
+    });
+    cy.on("tap", (event) => {
+        if (event.target === cy && state.selected) {
+            showOverview();
+        }
+    });
     cy.on("tap", "edge", (event) => {
-        const edge = event.target;
-        setStatus(`${edge.source().id()} references ${edge.target().id()}: ${edge.data("label").replace(/\n/g, ", ")}`);
+        setStatus(event.target.data("label").replace(/\n/g, "; "));
     });
     cy.on("mouseover", "node", (event) => {
-        const neighbourhood = event.target.closedNeighborhood();
-        cy.batch(() => {
-            cy.elements().not(neighbourhood).addClass("faded");
-            neighbourhood.edges().addClass("highlight");
-        });
+        if (event.target.id() !== CLUSTER_ID) {
+            cy.batch(() => event.target.addClass("hover").connectedEdges().addClass("hover"));
+        }
     });
-    cy.on("mouseout", "node", () => {
-        cy.batch(() => cy.elements().removeClass("faded highlight"));
+    cy.on("mouseout", "node", (event) => {
+        cy.batch(() => event.target.removeClass("hover").connectedEdges().removeClass("hover"));
     });
 
     //-------------------------------------------------------------------//
@@ -435,12 +584,9 @@
     }
 
     function tableLink(id, text = id) {
-        const button = element("button", { text, className: "link", title: "Show this table (double-click a node to focus on it)" });
+        const button = element("button", { text, className: "link", title: "Select this table" });
         button.type = "button";
-        button.addEventListener("click", () => {
-            addToView([id]);
-            selectTable(id);
-        });
+        button.addEventListener("click", () => selectTable(id, { zoom: true }));
         return button;
     }
 
@@ -454,15 +600,11 @@
     function showPlaceholderDetails() {
         elements.details.replaceChildren(element("p", {
             className: "muted",
-            text: "Select a table to see its fields and references. Double-click a table to focus on it.",
+            text: "Click a star to see its table's fields and references. Double-click to zoom to it, click empty space to go back to the whole schema.",
         }));
     }
 
-    async function selectTable(id) {
-        state.selected = id;
-        cy.$(":selected").unselect();
-        cy.getElementById(id).select();
-
+    async function showDetails(id) {
         let details = state.detailsCache.get(id);
         if (!details) {
             elements.details.replaceChildren(element("p", { className: "muted", text: `Loading ${id}...` }));
@@ -476,7 +618,7 @@
         }
 
         // The user may have clicked another table while this one was loading.
-        if (state.selected === id) {
+        if (state.selected === id || (state.path && state.path[0] === id)) {
             renderDetails(id, details);
         }
     }
@@ -497,11 +639,7 @@
         ]);
 
         const actions = element("div", { className: "actions" }, [
-            actionButton("Focus here", () => focusTable(id), "Show the tables around this one"),
-            actionButton("Expand", () => {
-                addToView(state.index.neighbours(id, state.settings.direction));
-                selectTable(id);
-            }, "Add this table's neighbours to the view"),
+            actionButton("Zoom to", () => selectTable(id, { zoom: true }), "Zoom to this table and its neighbourhood"),
             actionButton("Copy name", () => copyText(details.table), "Copy the full table name"),
         ]);
 
@@ -513,7 +651,7 @@
                 text: "Other tables reference this table, but the schema has no definition for it.",
             }));
         } else {
-            sections.push(definitionSection(id, details));
+            sections.push(definitionSection(details));
         }
 
         sections.push(referencedBySection(details));
@@ -521,7 +659,7 @@
         elements.details.replaceChildren(...sections);
     }
 
-    function definitionSection(id, details) {
+    function definitionSection(details) {
         const container = element("div");
         const heading = element("h3", { text: "Fields" });
         const body = element("div");
@@ -643,8 +781,10 @@
                 result.replaceChildren(element("p", { className: "muted", text: `No path from ${fromId} to ${toId} with the current direction and hub settings.` }));
                 return;
             }
-            showPath(path);
+            state.path = path;
+            highlightPath(path);
             result.replaceChildren(pathSteps(path));
+            setStatus(`Path of ${path.length - 1} steps from ${path[0]} to ${path[path.length - 1]}.`);
         };
         const button = actionButton("Find path", find);
         input.addEventListener("keydown", (event) => {
@@ -667,14 +807,6 @@
             return item;
         });
         return element("ol", { className: "path-steps" }, items);
-    }
-
-    function showPath(path) {
-        state.focus = path[0];
-        state.path = path;
-        state.visible = new Set(path);
-        renderGraph();
-        setStatus(`Path of ${path.length - 1} steps from ${path[0]} to ${path[path.length - 1]}.`);
     }
 
     async function copyText(text) {
@@ -719,7 +851,7 @@
         }
         elements.search.value = node.id;
         elements.searchResults.hidden = true;
-        focusTable(node.id);
+        selectTable(node.id, { zoom: true });
     }
 
     elements.search.addEventListener("input", updateSearch);
@@ -759,12 +891,12 @@
         if (state.source?.kind === "api" && state.game) {
             params.set("game", state.game);
         }
-        if (state.focus) {
-            params.set("table", state.focus);
+        if (state.selected) {
+            params.set("table", state.selected);
         }
-        const hash = `#${params.toString()}`;
-        if (window.location.hash !== hash) {
-            window.history.replaceState(null, "", hash);
+        const hash = params.toString();
+        if (window.location.hash.slice(1) !== hash) {
+            window.history.replaceState(null, "", hash ? `#${hash}` : window.location.pathname + window.location.search);
         }
     }
 
@@ -773,8 +905,8 @@
         if (game && state.source?.kind === "api" && game !== state.game) {
             elements.gameSelect.value = game;
             loadGame(game);
-        } else if (table && state.index?.nodes.has(table) && table !== state.focus) {
-            focusTable(table);
+        } else if (table && state.index?.nodes.has(table) && table !== state.selected) {
+            selectTable(table, { zoom: true });
         }
     });
 
@@ -782,19 +914,19 @@
     // Controls, file picking and drag and drop
     //-------------------------------------------------------------------//
 
-    function refocus() {
+    function refreshSelection() {
         readControls();
-        if (state.focus && !state.path) {
-            focusTable(state.focus);
+        if (state.selected) {
+            selectTable(state.selected);
         }
     }
 
-    elements.depth.addEventListener("change", refocus);
-    elements.direction.addEventListener("change", refocus);
-    elements.hideHubs.addEventListener("change", refocus);
-    elements.hubThreshold.addEventListener("change", refocus);
-    elements.relayout.addEventListener("click", () => runLayout("default"));
-    elements.showAll.addEventListener("click", showAll);
+    elements.depth.addEventListener("change", refreshSelection);
+    elements.direction.addEventListener("change", refreshSelection);
+    elements.hideHubs.addEventListener("change", refreshSelection);
+    elements.hubThreshold.addEventListener("change", refreshSelection);
+    elements.overview.addEventListener("click", showOverview);
+    elements.relayout.addEventListener("click", recomputeLayout);
     elements.gameSelect.addEventListener("change", () => loadGame(elements.gameSelect.value));
     elements.fileInput.addEventListener("change", () => {
         const file = elements.fileInput.files?.[0];

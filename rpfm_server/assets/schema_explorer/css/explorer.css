@@ -1,4 +1,4 @@
-/* Colours are CSS variables so the graph (which reads them from JS) follows the same light/dark theme. */
+/* Page colours follow the light/dark theme. The graph pane is always "space": dark, whatever the theme. */
 :root {
     color-scheme: light dark;
     --bg: #f6f7f9;
@@ -9,14 +9,18 @@
     --accent: #2f6fd6;
     --accent-text: #ffffff;
     --danger: #b3261e;
-    --node: #5b7fa8;
-    --node-text: #1d232b;
-    --node-focus: #e07a1f;
-    --node-hub: #8a5cb8;
-    --node-missing: #a0a7b1;
-    --node-path: #2e9e5b;
-    --edge: #9aa5b3;
-    --edge-highlight: #2f6fd6;
+    --space: #04050d;
+    --space-panel: rgb(12 16 34 / 82%);
+    --space-border: #2a3358;
+    --space-text: #dfe6ff;
+    --space-muted: #8f9bc2;
+    --star: #ffffff;
+    --selected: #b46cff;
+    --incoming: #ff4d5e;
+    --outgoing: #ffd23f;
+    --both: #ff9f43;
+    --path: #4dffb8;
+    --missing: #7d8597;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -29,14 +33,6 @@
         --accent: #5b94ee;
         --accent-text: #0e1114;
         --danger: #f2827a;
-        --node: #6f95c2;
-        --node-text: #e3e7ec;
-        --node-focus: #f09a4a;
-        --node-hub: #a983d4;
-        --node-missing: #5f6873;
-        --node-path: #4cc283;
-        --edge: #56606d;
-        --edge-highlight: #79a9f2;
     }
 }
 
@@ -195,10 +191,26 @@ input[type="checkbox"] {
     min-height: 0;
 }
 
+/* A few repeating dot layers with different tile sizes read as a random starfield, over two faint nebulae. */
 .graph-pane {
     position: relative;
     flex: 1;
     min-width: 0;
+    color: var(--space-text);
+    background-color: var(--space);
+    background-image:
+        radial-gradient(1px 1px at 25px 35px, rgb(255 255 255 / 75%), transparent),
+        radial-gradient(1px 1px at 140px 95px, rgb(255 255 255 / 55%), transparent),
+        radial-gradient(1.5px 1.5px at 80px 165px, rgb(200 220 255 / 70%), transparent),
+        radial-gradient(1px 1px at 195px 20px, rgb(255 240 220 / 50%), transparent),
+        radial-gradient(1px 1px at 60px 240px, rgb(255 255 255 / 40%), transparent),
+        radial-gradient(ellipse at 18% 12%, rgb(98 54 180 / 26%), transparent 55%),
+        radial-gradient(ellipse at 85% 85%, rgb(30 90 180 / 24%), transparent 55%);
+    background-size: 210px 210px, 230px 230px, 260px 260px, 290px 290px, 330px 330px, 100% 100%, 100% 100%;
+}
+
+.graph-pane .muted {
+    color: var(--space-muted);
 }
 
 .graph {
@@ -234,8 +246,8 @@ input[type="checkbox"] {
     max-width: calc(100% - 16px);
     padding: 4px 8px;
     border-radius: 4px;
-    background: var(--panel);
-    border: 1px solid var(--border);
+    background: var(--space-panel);
+    border: 1px solid var(--space-border);
     pointer-events: none;
 }
 
@@ -244,8 +256,8 @@ input[type="checkbox"] {
 }
 
 .graph-status.error {
-    color: var(--danger);
-    border-color: var(--danger);
+    color: #ff8a80;
+    border-color: #ff8a80;
 }
 
 .legend {
@@ -257,9 +269,13 @@ input[type="checkbox"] {
     gap: 4px 12px;
     padding: 4px 8px;
     border-radius: 4px;
-    background: var(--panel);
-    border: 1px solid var(--border);
+    background: var(--space-panel);
+    border: 1px solid var(--space-border);
     font-size: 12px;
+}
+
+.legend-note {
+    color: var(--space-muted);
 }
 
 .legend span {
@@ -275,21 +291,33 @@ input[type="checkbox"] {
     border-radius: 50%;
 }
 
-.swatch-focus {
-    background: var(--node-focus);
-}
-
 .swatch-table {
-    background: var(--node);
+    background: var(--star);
+    box-shadow: 0 0 4px var(--star);
 }
 
-.swatch-hub {
-    background: var(--node-hub);
+.swatch-selected {
+    background: var(--selected);
+}
+
+.swatch-in {
+    background: var(--incoming);
+}
+
+.swatch-out {
+    background: var(--outgoing);
+}
+
+.swatch-both {
+    background: var(--both);
+}
+
+.swatch-path {
+    background: var(--path);
 }
 
 .swatch-missing {
-    background: transparent;
-    border: 2px dashed var(--node-missing);
+    background: var(--missing);
 }
 
 /* Details panel */

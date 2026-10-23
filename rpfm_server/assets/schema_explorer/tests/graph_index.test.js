@@ -3,7 +3,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { GraphIndex } = require("../js/graph_index.js");
+const { GraphIndex, pairKey } = require("../js/graph_index.js");
 
 // a -> hub, b -> hub, c -> hub, d -> hub, a -> b, b -> c, e is isolated.
 function sampleGraph() {
@@ -84,6 +84,32 @@ test("edgesBetween returns every column in both directions", () => {
     const columns = index.edgesBetween("b", "a").map((edge) => `${edge.from}.${edge.from_column}`);
 
     assert.deepEqual(columns, ["a.key", "a.other"]);
+});
+
+test("linkedPairs gives one entry per table pair with the references each way", () => {
+    const index = new GraphIndex({
+        nodes: ["a", "b", "c"].map((id) => ({ id })),
+        edges: [
+            { from: "a", from_column: "x", to: "b", to_column: "key" },
+            { from: "b", from_column: "y", to: "a", to_column: "key" },
+            { from: "c", from_column: "z", to: "a", to_column: "key" },
+            { from: "c", from_column: "parent", to: "c", to_column: "key" },
+        ],
+    });
+
+    const pairs = new Map(index.linkedPairs().map((pair) => [pair.key, pair]));
+
+    assert.deepEqual([...pairs.keys()].sort(), ["a|b", "a|c", "c|c"]);
+    assert.deepEqual(pairs.get("a|b").forward.map((edge) => edge.from_column), ["x"]);
+    assert.deepEqual(pairs.get("a|b").backward.map((edge) => edge.from_column), ["y"]);
+    assert.deepEqual(pairs.get("a|c").forward, []);
+    assert.deepEqual(pairs.get("a|c").backward.map((edge) => edge.from_column), ["z"]);
+    assert.equal(pairs.get("c|c").a, "c");
+});
+
+test("pairKey is the same whichever way round the tables are given", () => {
+    assert.equal(pairKey("units", "factions"), pairKey("factions", "units"));
+    assert.equal(pairKey("factions", "units"), "factions|units");
 });
 
 test("search ranks exact, prefix, word prefix, substring, then subsequence matches", () => {

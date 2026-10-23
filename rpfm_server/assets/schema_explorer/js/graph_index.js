@@ -174,6 +174,30 @@
         }
 
         /**
+         * Get one entry per pair of linked tables, so each pair can be drawn as a single edge.
+         *
+         * `forward` holds the `a -> b` references and `backward` the `b -> a` ones, with `a <= b`.
+         * A table referencing itself gives an entry with `a === b` and an empty `backward`.
+         *
+         * @returns {Array<{key: string, a: string, b: string, forward: Object[], backward: Object[]}>} The pairs.
+         */
+        linkedPairs() {
+            const pairs = new Map();
+            for (const [from, targets] of this.outgoing) {
+                for (const [to, edges] of targets) {
+                    const [a, b] = from <= to ? [from, to] : [to, from];
+                    const key = pairKey(a, b);
+                    if (!pairs.has(key)) {
+                        pairs.set(key, { key, a, b, forward: [], backward: [] });
+                    }
+                    const pair = pairs.get(key);
+                    (from === a ? pair.forward : pair.backward).push(...edges);
+                }
+            }
+            return [...pairs.values()];
+        }
+
+        /**
          * Search tables by name. Exact matches rank first, then prefixes, word prefixes, substrings and subsequences.
          *
          * @param {string} query The search text.
@@ -195,6 +219,17 @@
             scored.sort((a, b) => a.score - b.score || a.node.id.length - b.node.id.length || a.node.id.localeCompare(b.node.id));
             return scored.slice(0, limit).map((entry) => entry.node);
         }
+    }
+
+    /**
+     * Get the id of the edge drawn between two tables, the same whichever way round they're given.
+     *
+     * @param {string} a A table id.
+     * @param {string} b Another table id.
+     * @returns {string} The pair key.
+     */
+    function pairKey(a, b) {
+        return a <= b ? `${a}|${b}` : `${b}|${a}`;
     }
 
     function matchScore(id, needle) {
@@ -219,5 +254,5 @@
         return 4;
     }
 
-    return { GraphIndex };
+    return { GraphIndex, pairKey };
 });

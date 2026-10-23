@@ -38,12 +38,12 @@
                     <option value="in">Referenced by</option>
                 </select>
             </label>
-            <label title="Tables with more neighbours than this are shown but not expanded through">
+            <label title="Highlighting and paths never go through tables with more neighbours than this. Ticked, they're left out entirely.">
                 <input type="checkbox" id="hide-hubs"> Hide hubs over
                 <input type="number" id="hub-threshold" min="2" max="500" step="1">
             </label>
-            <button type="button" id="relayout" disabled>Re-layout</button>
-            <button type="button" id="show-all" disabled>Show all</button>
+            <button type="button" id="overview" disabled title="Clear the selection and show the whole schema">Overview</button>
+            <button type="button" id="relayout" disabled title="Forget the cached layout and compute it again">Recompute layout</button>
         </div>
     </header>
 
@@ -57,16 +57,19 @@
             </div>
             <div id="graph-status" class="graph-status" role="status"></div>
             <div class="legend" aria-label="Legend">
-                <span><i class="swatch swatch-focus"></i>Focused</span>
                 <span><i class="swatch swatch-table"></i>Table</span>
-                <span><i class="swatch swatch-hub"></i>Hub</span>
+                <span><i class="swatch swatch-selected"></i>Selected</span>
+                <span><i class="swatch swatch-in"></i>In: references it</span>
+                <span><i class="swatch swatch-out"></i>Out: referenced by it</span>
+                <span><i class="swatch swatch-both"></i>Both ways</span>
+                <span><i class="swatch swatch-path"></i>Path</span>
                 <span><i class="swatch swatch-missing"></i>Not in schema</span>
-                <span class="muted">A &rarr; B: A references B</span>
+                <span class="legend-note">A &rarr; B: A references B</span>
             </div>
         </section>
 
         <aside id="details" class="details" aria-label="Table details">
-            <p class="muted">Select a table to see its fields and references. Double-click a table to focus on it.</p>
+            <p class="muted">Click a star to see its table's fields and references.</p>
         </aside>
     </main>
 
@@ -74,12 +77,12 @@
     <datalist id="table-names"></datalist>
 
     <script src="vendor/cytoscape.min.js"></script>
-    <script src="vendor/layout-base.js"></script>
-    <script src="vendor/cose-base.js"></script>
-    <script src="vendor/cytoscape-fcose.js"></script>
+    <script src="vendor/graphology.umd.min.js"></script>
+    <script src="vendor/graphology-library.min.js"></script>
     <script src="js/ron.js"></script>
     <script src="js/schema_model.js"></script>
     <script src="js/graph_index.js"></script>
+    <script src="js/layout.js"></script>
     <script src="js/data_source.js"></script>
     <script src="js/explorer.js"></script>
 </body>
