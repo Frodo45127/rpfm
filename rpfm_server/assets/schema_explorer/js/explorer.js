@@ -20,6 +20,7 @@
     const MAX_FOCUS_ZOOM = 1.6;
     const EDGE_CURVATURE = 0.12;
     const MAX_EDGE_CURVE = 90;
+    const CLUSTER_MARGIN = 30;
 
     // Graph colours are fixed (the graph always sits on the space background), unlike the page theme.
     const COLOURS = {
@@ -33,6 +34,9 @@
         incoming: "#ff4d5e",
         outgoing: "#ffd23f",
         both: "#ff9f43",
+        incomingDark: "#a62b3b",
+        outgoingDark: "#a8860f",
+        bothDark: "#a85d17",
         path: "#4dffb8",
         cluster: "#6b7bb5",
     };
@@ -61,6 +65,8 @@
         selected: null,
         path: null,
         detailsCache: new Map(),
+        isolated: new Set(),
+        clusterCentre: null,
         lastGame: loadLastGame(),
         searchMatches: [],
         searchActive: -1,
@@ -108,6 +114,21 @@
         return { "line-color": colour, "target-arrow-color": colour, "source-arrow-color": colour };
     }
 
+    // Styles for a highlighted table and its neighbours, for classes named `<prefix>selected`, `<prefix>in`, `<prefix>out` and `<prefix>both`.
+    function highlightRules(prefix, opacity) {
+        const nodes = ["selected", "in", "out", "both"].map((kind) => `node.${prefix}${kind}`).join(", ");
+        return [
+            { selector: `node.${prefix}selected`, style: { "background-color": COLOURS.selected } },
+            { selector: `node.${prefix}in`, style: { "background-color": COLOURS.incoming } },
+            { selector: `node.${prefix}out`, style: { "background-color": COLOURS.outgoing } },
+            { selector: `node.${prefix}both`, style: { "background-color": COLOURS.both } },
+            { selector: nodes, style: { "opacity": opacity, "underlay-opacity": 0, "min-zoomed-font-size": 0, "text-opacity": 1 } },
+            { selector: `edge.${prefix}in`, style: { ...edgeColour(COLOURS.incomingDark), "opacity": opacity, "width": 2, "arrow-scale": 1 } },
+            { selector: `edge.${prefix}out`, style: { ...edgeColour(COLOURS.outgoingDark), "opacity": opacity, "width": 2, "arrow-scale": 1 } },
+            { selector: `edge.${prefix}both`, style: { ...edgeColour(COLOURS.bothDark), "opacity": opacity, "width": 2, "arrow-scale": 1 } },
+        ];
+    }
+
     function graphStyle() {
         return [
             {
@@ -120,6 +141,7 @@
                     "underlay-padding": 3,
                     "underlay-shape": "ellipse",
                     "overlay-opacity": 0,
+                    "z-index": 10,
                     "label": "data(id)",
                     "color": COLOURS.label,
                     "font-size": 9,
@@ -137,14 +159,16 @@
             {
                 selector: `node#${CLUSTER_ID}`,
                 style: {
-                    "shape": "round-rectangle",
+                    "shape": "ellipse",
+                    "width": "data(diameter)",
+                    "height": "data(diameter)",
+                    "z-index": 0,
                     "background-color": COLOURS.cluster,
                     "background-opacity": 0.08,
                     "border-color": COLOURS.cluster,
                     "border-style": "dashed",
                     "border-width": 1,
                     "underlay-opacity": 0,
-                    "padding": 30,
                     "label": "data(label)",
                     "text-valign": "top",
                     "text-halign": "center",
@@ -177,21 +201,15 @@
             { selector: "edge.bidirectional", style: { "source-arrow-shape": "triangle" } },
             { selector: "edge.loop", style: { "curve-style": "bezier", "loop-direction": "-45deg", "loop-sweep": "-60deg" } },
 
-            // Highlighting only recolours stars (no halo). Order matters: later rules win.
+            // Highlighting only recolours stars (no halo), and each edge takes a darker shade of its neighbour's colour.
+            // Hovering previews the same colours at half opacity. Later rules win, so a selection overrides a preview.
             { selector: "node.dim", style: { "opacity": 0.18, "text-opacity": 0, "underlay-opacity": 0 } },
             { selector: "edge.dim", style: { "opacity": 0.03 } },
-            { selector: "node.in", style: { "background-color": COLOURS.incoming } },
-            { selector: "node.out", style: { "background-color": COLOURS.outgoing } },
-            { selector: "node.both", style: { "background-color": COLOURS.both } },
-            { selector: "node.path", style: { "background-color": COLOURS.path } },
-            { selector: "node.selected", style: { "background-color": COLOURS.selected } },
-            { selector: "node.selected, node.in, node.out, node.both, node.path", style: { "underlay-opacity": 0 } },
-            { selector: "edge.in", style: { ...edgeColour(COLOURS.incoming), "opacity": 0.95, "width": 2, "arrow-scale": 1 } },
-            { selector: "edge.out", style: { ...edgeColour(COLOURS.outgoing), "opacity": 0.95, "width": 2, "arrow-scale": 1 } },
-            { selector: "edge.both", style: { ...edgeColour(COLOURS.both), "opacity": 0.95, "width": 2, "arrow-scale": 1 } },
+            ...highlightRules("hover-", 0.5),
+            ...highlightRules("", 1),
+            { selector: "node.path", style: { "background-color": COLOURS.path, "opacity": 1, "underlay-opacity": 0 } },
             { selector: "edge.path", style: { ...edgeColour(COLOURS.path), "opacity": 1, "width": 2.5, "arrow-scale": 1 } },
-            { selector: "node.labelled, node.hover", style: { "min-zoomed-font-size": 0, "text-opacity": 1 } },
-            { selector: "edge.hover", style: { "opacity": 0.85, "width": 1.5 } },
+            { selector: "node.labelled", style: { "min-zoomed-font-size": 0, "text-opacity": 1 } },
             { selector: "edge:selected", style: { "label": "data(label)", "opacity": 1 } },
         ];
     }
@@ -308,11 +326,42 @@
         return [...pair.forward, ...pair.backward].map((edge) => `${edge.from}.${edge.from_column} -> ${edge.to}.${edge.to_column}`).join("\n");
     }
 
+    // Circle around some points: centred on their bounds, reaching the farthest one plus a margin.
+    function boundingCircle(points, margin) {
+        const xs = points.map((point) => point.x);
+        const ys = points.map((point) => point.y);
+        const centre = { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (Math.min(...ys) + Math.max(...ys)) / 2 };
+        const radius = Math.max(...points.map((point) => Math.hypot(point.x - centre.x, point.y - centre.y))) + margin;
+        return { centre, radius };
+    }
+
+    function isolatedNodes() {
+        return cy.nodes().filter((node) => state.isolated.has(node.id()));
+    }
+
+    // Fit the cluster circle around the tables without references, after one of them moved.
+    function updateClusterCircle() {
+        const stars = isolatedNodes();
+        if (stars.length === 0) {
+            return;
+        }
+        const { centre, radius } = boundingCircle(stars.map((star) => star.position()), CLUSTER_MARGIN);
+        cy.getElementById(CLUSTER_ID).position(centre).data("diameter", radius * 2);
+    }
+
     function renderOverview(layout) {
         const isolated = new Set(layout.isolated);
+        state.isolated = isolated;
+        state.clusterCentre = layout.clusterCentre ? { ...layout.clusterCentre } : null;
         const items = [];
         if (isolated.size > 0) {
-            items.push({ group: "nodes", data: { id: CLUSTER_ID, label: `Tables without references (${isolated.size})` } });
+            const { centre, radius } = boundingCircle(layout.isolated.map((id) => layout.positions[id]), CLUSTER_MARGIN);
+            items.push({
+                group: "nodes",
+                data: { id: CLUSTER_ID, label: `Tables without references (${isolated.size})`, diameter: radius * 2 },
+                position: centre,
+                selectable: false,
+            });
         }
 
         for (const node of state.graph.nodes) {
@@ -325,7 +374,7 @@
             }
             items.push({
                 group: "nodes",
-                data: { id: node.id, degree: state.index.degree(node.id), parent: isolated.has(node.id) ? CLUSTER_ID : undefined },
+                data: { id: node.id, degree: state.index.degree(node.id) },
                 position: { ...layout.positions[node.id] },
                 classes: classes.join(" "),
             });
@@ -361,6 +410,7 @@
             cy.elements().remove();
             cy.add(items);
         });
+        updateMinZoom();
         fitTo(cy.nodes(), { maxZoom: Infinity, animate: false });
     }
 
@@ -387,12 +437,13 @@
         }
         const extent = nodes.boundingBox({ includeLabels: false, includeOverlays: false, includeUnderlays: false });
         const padding = 50;
-        const zoom = Math.min(
+        const fitZoom = Math.min(
             maxZoom,
             cy.maxZoom(),
             (cy.width() - 2 * padding) / Math.max(extent.w, 1),
             (cy.height() - 2 * padding) / Math.max(extent.h, 1),
         );
+        const zoom = Math.max(fitZoom, cy.minZoom());
         const pan = { x: cy.width() / 2 - zoom * (extent.x1 + extent.w / 2), y: cy.height() / 2 - zoom * (extent.y1 + extent.h / 2) };
         cy.stop();
         if (animate) {
@@ -407,6 +458,20 @@
         fitTo(nodes, { maxZoom: MAX_FOCUS_ZOOM, animate: true });
     }
 
+    // Never zoom out past the point where the view spans the diameter of the circle around all stars.
+    function updateMinZoom() {
+        const stars = cy.nodes().not(`#${CLUSTER_ID}`);
+        if (stars.length === 0) {
+            return;
+        }
+        const { radius } = boundingCircle(stars.map((star) => star.position()), 0);
+        const minZoom = Math.min(cy.width(), cy.height()) / Math.max(radius * 2, 1);
+        cy.minZoom(Math.min(minZoom, cy.maxZoom()));
+        if (cy.zoom() < cy.minZoom()) {
+            cy.zoom({ level: cy.minZoom(), renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } });
+        }
+    }
+
     // Classify a neighbour of the selected table: `in` references it, `out` is referenced by it, `both` is both.
     function relation(selected, neighbour) {
         const references = state.index.edgesBetween(selected, neighbour);
@@ -418,23 +483,46 @@
         return out ? "out" : "in";
     }
 
+    // Give a table, its neighbours and the edges between them their highlight classes, e.g. `selected`, `in`, `out`, `both`.
+    function colourNeighbours(id, prefix) {
+        const kinds = state.index.neighbours(id, "both").filter((neighbour) => neighbour !== id).map((neighbour) => [neighbour, relation(id, neighbour)]);
+        cy.getElementById(id).addClass(`${prefix}selected`);
+        for (const [neighbour, kind] of kinds) {
+            cy.getElementById(neighbour).addClass(`${prefix}${kind}`);
+            cy.getElementById(pairKey(id, neighbour)).addClass(`${prefix}${kind}`);
+        }
+        cy.getElementById(pairKey(id, id)).addClass(`${prefix}out`);
+        return kinds;
+    }
+
     function highlightNeighbours(id) {
-        const neighbours = state.index.neighbours(id, "both").filter((neighbour) => neighbour !== id);
         const counts = { in: 0, out: 0, both: 0 };
+        let kinds = [];
         cy.batch(() => {
             clearHighlight();
-            cy.elements().addClass("dim");
-            cy.getElementById(CLUSTER_ID).removeClass("dim");
-            cy.getElementById(id).removeClass("dim").addClass("selected labelled");
-            for (const neighbour of neighbours) {
-                const kind = relation(id, neighbour);
-                counts[kind]++;
-                cy.getElementById(neighbour).removeClass("dim").addClass(`${kind} labelled`);
-                cy.getElementById(pairKey(id, neighbour)).removeClass("dim").addClass(kind);
-            }
-            cy.getElementById(pairKey(id, id)).removeClass("dim").addClass("out");
+            kinds = colourNeighbours(id, "");
+            const lit = cy.collection([id, ...kinds.map(([neighbour]) => neighbour)].map((litId) => cy.getElementById(litId)));
+            const kept = lit.union(cy.getElementById(id).connectedEdges()).union(cy.getElementById(CLUSTER_ID));
+            cy.elements().difference(kept).addClass("dim");
+            lit.addClass("labelled");
         });
-        return { ids: new Set([id, ...neighbours]), counts };
+        for (const [, kind] of kinds) {
+            counts[kind]++;
+        }
+        return { ids: new Set([id, ...kinds.map(([neighbour]) => neighbour)]), counts };
+    }
+
+    const PREVIEW_CLASSES = "hover-selected hover-in hover-out hover-both";
+
+    function clearPreview() {
+        cy.batch(() => cy.$(".hover-selected, .hover-in, .hover-out, .hover-both").removeClass(PREVIEW_CLASSES));
+    }
+
+    function previewNeighbours(id) {
+        cy.batch(() => {
+            cy.$(".hover-selected, .hover-in, .hover-out, .hover-both").removeClass(PREVIEW_CLASSES);
+            colourNeighbours(id, "hover-");
+        });
     }
 
     function highlightPath(path) {
@@ -471,8 +559,10 @@
     }
 
     // Save dragged stars into the layout, and re-curve their edges for the new distances.
+    // Moving the whole cluster moves the spiral (its stars aren't pinned); moving one star pins it.
     function saveDrag(node) {
-        const moved = node.id() === CLUSTER_ID ? node.children() : node;
+        const isCluster = node.id() === CLUSTER_ID;
+        const moved = isCluster ? isolatedNodes() : node;
         const moves = {};
         for (const star of moved) {
             moves[star.id()] = { ...star.position() };
@@ -484,14 +574,35 @@
                 }
             }
         });
-        if (!saveMovedStars(state.sourceKey, moves)) {
+        if (state.isolated.has(node.id())) {
+            updateClusterCircle();
+        }
+        const options = isCluster ? { pin: false, clusterCentre: state.clusterCentre } : {};
+        if (!saveMovedStars(state.sourceKey, moves, options)) {
             setStatus("Couldn't save the new position: this browser doesn't keep data for this page.", true);
         }
     }
 
+    // Dragging the cluster circle carries its stars (and the spiral centre) along.
+    let clusterDragFrom = null;
+    cy.on("grab", `#${CLUSTER_ID}`, (event) => {
+        clusterDragFrom = { ...event.target.position() };
+    });
+    cy.on("drag", `#${CLUSTER_ID}`, (event) => {
+        const position = event.target.position();
+        const delta = { x: position.x - clusterDragFrom.x, y: position.y - clusterDragFrom.y };
+        isolatedNodes().shift(delta);
+        if (state.clusterCentre) {
+            state.clusterCentre = { x: state.clusterCentre.x + delta.x, y: state.clusterCentre.y + delta.y };
+        }
+        clusterDragFrom = { ...position };
+    });
+
     cy.on("tap", "node", (event) => {
         if (event.target.id() !== CLUSTER_ID) {
             selectTable(event.target.id());
+        } else if (state.selected) {
+            showOverview();
         }
     });
     cy.on("dbltap", "node", (event) => {
@@ -507,15 +618,17 @@
     cy.on("tap", "edge", (event) => {
         setStatus(event.target.data("label").replace(/\n/g, "; "));
     });
-    cy.on("dragfree", "node", (event) => saveDrag(event.target));
+    cy.on("dragfree", "node", (event) => {
+        saveDrag(event.target);
+        updateMinZoom();
+    });
+    cy.on("resize", updateMinZoom);
     cy.on("mouseover", "node", (event) => {
         if (event.target.id() !== CLUSTER_ID) {
-            cy.batch(() => event.target.addClass("hover").connectedEdges().addClass("hover"));
+            previewNeighbours(event.target.id());
         }
     });
-    cy.on("mouseout", "node", (event) => {
-        cy.batch(() => event.target.removeClass("hover").connectedEdges().removeClass("hover"));
-    });
+    cy.on("mouseout", "node", clearPreview);
 
     //-------------------------------------------------------------------//
     // Details panel (only shown while a table is selected)

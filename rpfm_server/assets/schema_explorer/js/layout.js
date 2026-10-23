@@ -3,8 +3,8 @@
 // One layout is kept per schema source (a game, or a schema file name). When the schema changes, the
 // saved layout is the starting point: known tables keep their place, new ones start next to their
 // neighbours, and ForceAtlas2 runs again from there. Stars the user dragged are pinned and never moved
-// by the layout. Tables without any reference are left out of the force layout and packed into a
-// grid cluster beside the graph.
+// by the layout. Tables without any reference are left out of the force layout and placed on a
+// sunflower spiral beside the graph.
 
 (function (root, factory) {
     const graphology = root.graphology || (typeof require === "function" ? require("../vendor/graphology.umd.min.js") : null);
@@ -33,7 +33,8 @@
     const MAX_SEPARATION_PASSES = 50;
     const STAR_MARGIN = 3;
     const DISTANCE_TOLERANCE = 1e-6;
-    const CLUSTER_SPACING = 45;
+    const SPIRAL_STEP = 24;
+    const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
     const CLUSTER_GAP = 250;
 
     // FNV-1a, enough to tell two versions of a schema graph apart.
@@ -194,33 +195,54 @@
         return bounds;
     }
 
-    // Isolated tables keep their old spot. New ones fill grid rows below the existing cluster, or start a
-    // new cluster to the right of the graph.
-    function placeIsolated(isolated, positions, previous, graphBounds) {
-        const kept = isolated.filter((id) => previous?.isolated.includes(id) && previous.positions[id]);
-        const added = isolated.filter((id) => !kept.includes(id));
+    /**
+     * Get a slot of the sunflower spiral holding the tables without references.
+     *
+     * @param {{x: number, y: number}} centre The spiral centre.
+     * @param {number} slot The slot index, 0 being the innermost.
+     * @returns {{x: number, y: number}} The slot position.
+     */
+    function spiralSlot(centre, slot) {
+        const radius = SPIRAL_STEP * Math.sqrt(slot + 0.5);
+        const angle = slot * GOLDEN_ANGLE;
+        return { x: Math.round((centre.x + radius * Math.cos(angle)) * 10) / 10, y: Math.round((centre.y + radius * Math.sin(angle)) * 10) / 10 };
+    }
+
+    /**
+     * Place tables without references on a sunflower spiral beside the graph.
+     *
+     * Tables already on the previous spiral (and pinned ones) keep their spot. New ones take the next free slots outward.
+     *
+     * @param {string[]} isolated The tables without references.
+     * @param {Object<string, {x: number, y: number}>} positions The positions, filled in place.
+     * @param {Object|null} previous The previous layout, if any.
+     * @param {Object|null} graphBounds The bounds of the connected tables, to put a new spiral beside them.
+     * @param {Set<string>} pinned The tables the user moved.
+     * @returns {{x: number, y: number}|null} The spiral centre, or null if there are no tables without references.
+     */
+    function placeIsolated(isolated, positions, previous, graphBounds, pinned) {
+        if (isolated.length === 0) {
+            return null;
+        }
+        const hasSpiral = Boolean(previous?.clusterCentre);
+        const kept = isolated.filter((id) => previous?.isolated.includes(id) && previous.positions[id] && (hasSpiral || pinned.has(id)));
         for (const id of kept) {
             positions[id] = { ...previous.positions[id] };
         }
-        if (added.length === 0) {
-            return;
+
+        let centre = previous?.clusterCentre;
+        if (!centre) {
+            const radius = SPIRAL_STEP * Math.sqrt(isolated.length);
+            centre = graphBounds ? { x: graphBounds.maxX + CLUSTER_GAP + radius, y: (graphBounds.minY + graphBounds.maxY) / 2 } : { x: 0, y: 0 };
         }
 
-        const columns = Math.max(1, Math.ceil(Math.sqrt(isolated.length)));
-        const clusterBounds = boundsOf(kept.map((id) => positions[id]));
-        let left;
-        let top;
-        if (clusterBounds) {
-            left = clusterBounds.minX;
-            top = clusterBounds.maxY + CLUSTER_SPACING;
-        } else {
-            const rows = Math.ceil(added.length / columns);
-            left = graphBounds ? graphBounds.maxX + CLUSTER_GAP : 0;
-            top = graphBounds ? (graphBounds.minY + graphBounds.maxY) / 2 - ((rows - 1) * CLUSTER_SPACING) / 2 : 0;
-        }
-        added.forEach((id, index) => {
-            positions[id] = { x: left + (index % columns) * CLUSTER_SPACING, y: top + Math.floor(index / columns) * CLUSTER_SPACING };
+        // Continue past the outermost slot still in use, so new tables never land on old ones.
+        const usedSlots = kept.filter((id) => !pinned.has(id)).map((id) => (Math.hypot(positions[id].x - centre.x, positions[id].y - centre.y) / SPIRAL_STEP) ** 2 - 0.5);
+        const firstFree = usedSlots.length > 0 ? Math.ceil(Math.max(...usedSlots)) + 1 : 0;
+        isolated.filter((id) => !kept.includes(id)).forEach((id, index) => {
+            positions[id] = spiralSlot(centre, firstFree + index);
         });
+        return { ...centre };
     }
 
     // Give tables without a saved position a start next to their already placed neighbours.
@@ -307,7 +329,7 @@
      * @param {{nodes: Object[], edges: Object[]}} graph The schema graph.
      * @param {{previous?: Object|null, onProgress?: (progress: {iterations: number, movement: number}) => void}} [options]
      *   `previous` is an earlier result of this function, possibly for an older version of the schema.
-     * @returns {Promise<{positions: Object, isolated: string[], pinned: string[], scale: number, signature: string, iterations: number}>} The layout.
+     * @returns {Promise<{positions: Object, isolated: string[], clusterCentre: Object|null, pinned: string[], scale: number, signature: string, iterations: number}>} The layout.
      */
     async function computeLayout(graph, { previous = null, onProgress = () => {} } = {}) {
         const { connected, isolated, links } = splitGraph(graph);
@@ -357,10 +379,11 @@
                 ? { ...previous.positions[star.id] }
                 : { x: Math.round(star.x * 10) / 10, y: Math.round(star.y * 10) / 10 };
         }
-        placeIsolated(isolated, positions, previous, boundsOf(stars));
+        const clusterCentre = placeIsolated(isolated, positions, previous, boundsOf(stars), pinned);
         return {
             positions,
             isolated,
+            clusterCentre,
             pinned: [...pinned],
             scale: drawScale,
             signature: graphSignature(graph),
@@ -433,7 +456,8 @@
     async function layoutFor(sourceKey, graph, onProgress) {
         clearLegacyCaches();
         const cached = readCache(sourceKey);
-        if (cached && cached.signature === graphSignature(graph)) {
+        // Layouts saved before the spiral cluster have no `clusterCentre`; update them so their isolated tables move onto one.
+        if (cached && cached.signature === graphSignature(graph) && cached.clusterCentre !== undefined) {
             return { ...cached, status: "cached" };
         }
 
@@ -443,13 +467,15 @@
     }
 
     /**
-     * Save stars the user moved into a source's saved layout, and pin them so later layouts leave them in place.
+     * Save stars the user moved into a source's saved layout.
      *
      * @param {string} sourceKey The schema source, as given to `layoutFor`.
      * @param {Object<string, {x: number, y: number}>} moves The new positions of the moved tables.
+     * @param {{pin?: boolean, clusterCentre?: {x: number, y: number}}} [options] `pin` (default true) pins the moved stars so
+     *   later layouts leave them in place. `clusterCentre` saves the new centre of the spiral when the whole cluster moved.
      * @returns {boolean} Whether the layout was saved.
      */
-    function saveMovedStars(sourceKey, moves) {
+    function saveMovedStars(sourceKey, moves, { pin = true, clusterCentre = null } = {}) {
         const cached = readCache(sourceKey);
         if (!cached) {
             return false;
@@ -458,13 +484,18 @@
         for (const [id, { x, y }] of Object.entries(moves)) {
             if (cached.positions[id]) {
                 cached.positions[id] = { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 };
-                pinned.add(id);
+                if (pin) {
+                    pinned.add(id);
+                }
             }
+        }
+        if (clusterCentre) {
+            cached.clusterCentre = { x: Math.round(clusterCentre.x * 10) / 10, y: Math.round(clusterCentre.y * 10) / 10 };
         }
         cached.pinned = [...pinned];
         writeCache(sourceKey, cached);
         return true;
     }
 
-    return { computeLayout, layoutFor, saveMovedStars, clearLegacyCaches, splitGraph, graphSignature, starRadius, separateStars };
+    return { computeLayout, layoutFor, saveMovedStars, clearLegacyCaches, splitGraph, graphSignature, starRadius, separateStars, spiralSlot };
 });

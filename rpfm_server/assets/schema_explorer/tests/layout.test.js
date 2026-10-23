@@ -8,7 +8,7 @@ globalThis.DOMParser ??= class {};
 globalThis.XMLSerializer ??= class {};
 globalThis.Document ??= class {};
 
-const { computeLayout, layoutFor, saveMovedStars, clearLegacyCaches, splitGraph, graphSignature, separateStars, starRadius } = require("../js/layout.js");
+const { computeLayout, layoutFor, saveMovedStars, clearLegacyCaches, splitGraph, graphSignature, separateStars, starRadius, spiralSlot } = require("../js/layout.js");
 
 // A Map-backed stand-in for window.localStorage.
 function installStorage() {
@@ -111,11 +111,42 @@ test("an updated schema continues from the previous layout, keeping pinned stars
     assert.equal(updated.scale, previous.scale);
     assert.deepEqual(updated.positions.lonely_1, previous.positions.lonely_1);
     assert.deepEqual(updated.positions.lonely_2, previous.positions.lonely_2);
-    assert.ok(updated.positions.lonely_3.y > previous.positions.lonely_1.y, "new isolated tables go below the cluster");
+    assert.deepEqual(updated.clusterCentre, previous.clusterCentre);
+    const fromCentre = (id, layout) => distance(layout.positions[id], layout.clusterCentre);
+    assert.ok(fromCentre("lonely_3", updated) > Math.max(fromCentre("lonely_1", previous), fromCentre("lonely_2", previous)), "new isolated tables continue the spiral outward");
 
     // The new table starts between its neighbours e and f, so it ends up nearer them than the far triangle.
     const p = updated.positions;
     assert.ok(distance(p.g, p.e) < distance(p.g, p.b));
+});
+
+test("tables without references sit on a spiral around the cluster centre, without overlapping", async () => {
+    const graph = sampleGraph();
+    for (let i = 3; i <= 40; i++) {
+        graph.nodes.push({ id: `lonely_${i}` });
+    }
+
+    const { positions, isolated, clusterCentre } = await computeLayout(graph);
+
+    assert.equal(isolated.length, 40);
+    const spiral = isolated.map((id) => positions[id]);
+    for (let i = 0; i < spiral.length; i++) {
+        for (let j = i + 1; j < spiral.length; j++) {
+            assert.ok(distance(spiral[i], spiral[j]) > 2 * starRadius(0), `isolated tables ${i} and ${j} overlap`);
+        }
+    }
+    const radii = isolated.map((id) => distance(positions[id], clusterCentre));
+    assert.ok(radii.every((radius, index) => index === 0 || radius > radii[index - 1]), "each slot is farther out than the previous one");
+});
+
+test("spiralSlot spirals outward from the centre", () => {
+    const centre = { x: 100, y: -50 };
+
+    const inner = spiralSlot(centre, 0);
+    const outer = spiralSlot(centre, 50);
+
+    assert.ok(distance(inner, centre) < distance(outer, centre));
+    assert.deepEqual(spiralSlot(centre, 7), spiralSlot(centre, 7));
 });
 
 test("separateStars pushes overlapping stars apart, including ones on the same spot, and never moves fixed ones", () => {
@@ -175,6 +206,34 @@ test("saveMovedStars stores and pins moved stars in the saved layout", async () 
     assert.deepEqual(reloaded.pinned, ["b"]);
     assert.equal(reloaded.positions.unknown, undefined);
     assert.equal(saveMovedStars("file:never-loaded.ron", { b: { x: 0, y: 0 } }), false);
+});
+
+test("moving the whole cluster saves its stars unpinned and the new spiral centre", async () => {
+    installStorage();
+    const layout = await layoutFor("file:test.ron", sampleGraph());
+    const moved = { x: layout.clusterCentre.x + 100, y: layout.clusterCentre.y };
+
+    saveMovedStars("file:test.ron", { lonely_1: { x: 1, y: 2 } }, { pin: false, clusterCentre: moved });
+    const reloaded = await layoutFor("file:test.ron", sampleGraph());
+
+    assert.deepEqual(reloaded.positions.lonely_1, { x: 1, y: 2 });
+    assert.deepEqual(reloaded.pinned, []);
+    assert.deepEqual(reloaded.clusterCentre, { x: Math.round(moved.x * 10) / 10, y: Math.round(moved.y * 10) / 10 });
+});
+
+test("a saved layout from before the spiral is updated, moving unpinned isolated tables onto a spiral", async () => {
+    const items = installStorage();
+    const layout = await layoutFor("file:test.ron", sampleGraph());
+    const old = { ...layout, positions: { ...layout.positions, lonely_1: { x: 5000, y: 5000 } } };
+    delete old.clusterCentre;
+    delete old.status;
+    items.set("rpfm-schema-explorer-layout-v3:file:test.ron", JSON.stringify(old));
+
+    const updated = await layoutFor("file:test.ron", sampleGraph());
+
+    assert.equal(updated.status, "updated");
+    assert.ok(updated.clusterCentre);
+    assert.ok(distance(updated.positions.lonely_1, updated.clusterCentre) < 200);
 });
 
 test("clearLegacyCaches removes layouts saved by older versions only", () => {

@@ -18,9 +18,10 @@ The first time a schema is loaded, the layout runs until it settles (on Warhamme
 
 - **Star map:** every table is a white star, sized by how many tables it's linked to.
   - The positions come from a ForceAtlas2 layout of the whole schema (`js/layout.js`), run until the stars stop moving, then saved in the browser (one layout per game or schema file name).
-  - Tables with no references at all are grouped in the "Tables without references" cluster on the right.
+  - Tables with no references at all sit on a spiral inside the "Tables without references" circle on the right. New ones continue the spiral outward.
   - Tables that are referenced but have no definition are grey stars.
-- **Moving stars:** drag a star (or the whole cluster) to rearrange the map. The new position is saved and the star is pinned, so later layout runs leave it where you put it.
+- **Moving stars:** drag a star to rearrange the map. The new position is saved and the star is pinned, so later layout runs leave it where you put it. Drag the circle to move the whole cluster.
+- **Zooming:** you can't zoom out further than the circle around all stars filling the view.
 - **Schema updates:** when a schema with the same name changes (new or removed tables or references), the saved layout is kept. New tables start next to the tables they're linked to, and ForceAtlas2 continues from the existing map instead of starting over.
 - **Edges:** one curved arrow per pair of tables, pointing from the referencing table to the referenced one. When the two tables reference each other, the arrow has heads at both ends. Click an edge to see the columns behind it.
 - **Selecting:** click a star (or a table link in the panel). Its details panel opens and everything else dims. Only the colour of the stars changes:
@@ -28,6 +29,8 @@ The first time a schema is loaded, the layout runs until it settles (on Warhamme
   - **Red (in):** tables that reference it.
   - **Yellow (out):** tables it references.
   - **Orange:** both.
+
+  Each of the selected table's arrows takes a darker shade of its neighbour's colour. Hovering a star previews the same colouring at half opacity, on top of any selection.
 
   Double-click a star, or pick a search result, to also zoom to it. Click empty space, **Close** in the panel, or **Overview** to go back to the whole map. The panel is only shown while a table is selected.
 - **Search:** ranks exact names, then prefixes, word prefixes, substrings and loose matches. Arrow keys and Enter pick a result.
