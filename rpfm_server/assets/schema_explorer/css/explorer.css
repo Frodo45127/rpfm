@@ -486,8 +486,24 @@ select.bubble option {
     margin-top: 6px;
 }
 
-.version-picker {
-    margin-bottom: 6px;
+/* The version badge doubles as the version picker when a table has several versions. */
+select.version-badge {
+    font: inherit;
+    font-size: 12px;
+    color: var(--bubble-text);
+    cursor: pointer;
+}
+
+select.version-badge:hover,
+select.version-badge:focus-visible {
+    outline: none;
+    border-color: var(--selected);
+    background: var(--bubble-bg-hover);
+}
+
+select.version-badge option {
+    color: var(--bubble-text);
+    background: #2a1a55;
 }
 
 .fields {

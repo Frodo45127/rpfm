@@ -733,11 +733,13 @@
             actionButton("Close", clearSelection, "Deselect this table"),
         ]);
 
+        const fieldsBadge = newest ? element("span", { className: "badge", text: `${newest.fields.length} fields` }) : null;
+        const definitions = details.missing ? null : definitionSections(details, fieldsBadge);
         const badges = element("div", { className: "badges" }, [
             details.missing ? element("span", { className: "badge badge-warning", text: "Not in schema" }) : null,
-            newest ? element("span", { className: "badge", text: `v${newest.version}` }) : null,
+            newest ? versionBadge(details.definitions, definitions.showVersion) : null,
             details.definitions.length > 1 ? element("span", { className: "badge", text: `${details.definitions.length} versions` }) : null,
-            newest ? element("span", { className: "badge", text: `${newest.fields.length} fields` }) : null,
+            fieldsBadge,
             node?.localised ? element("span", { className: "badge", text: "Localised" }) : null,
             element("span", { className: "badge", text: `${degree} linked tables` }),
         ]);
@@ -755,7 +757,7 @@
                 text: "Other tables reference this table, but the schema has no definition for it.",
             }));
         } else {
-            sections.push(...definitionSections(details));
+            sections.push(...definitions.sections);
         }
 
         sections.push(referencedBySection(details));
@@ -772,35 +774,44 @@
         return section;
     }
 
-    // The Fields section, plus a Localised fields section if any version has some. Both follow the version picker.
-    function definitionSections(details) {
+    // The version badge. With several versions it's a picker that switches the Fields and Localised fields sections.
+    function versionBadge(definitions, showVersion) {
+        if (definitions.length === 1) {
+            return element("span", { className: "badge", text: `v${definitions[0].version}` });
+        }
+        const select = element("select", { className: "badge version-badge", title: "Definition version: pick one to see its fields" });
+        for (const definition of definitions) {
+            const option = element("option", { text: `v${definition.version}` });
+            option.value = String(definition.version);
+            select.append(option);
+        }
+        select.addEventListener("change", () => showVersion(definitions.find((definition) => String(definition.version) === select.value)));
+        return select;
+    }
+
+    /**
+     * Build the Fields section, plus a Localised fields section if any version has some.
+     *
+     * @param {Object} details The table details.
+     * @param {HTMLElement} fieldsBadge The badge showing the field count, kept in step with the shown version.
+     * @returns {{sections: HTMLElement[], showVersion: Function}} The sections, and a function showing another version in them.
+     */
+    function definitionSections(details, fieldsBadge) {
         const fieldsBody = element("div");
         const localisedBody = element("div");
-        const fieldsChildren = [];
-        const fields = collapsibleSection("fields", "", fieldsChildren);
+        const fields = collapsibleSection("fields", "", [fieldsBody]);
         const localised = collapsibleSection("localised", "", [localisedBody]);
         const showVersion = (definition) => {
             fields.querySelector("summary").textContent = `Fields (${definition.fields.length})`;
             fieldsBody.replaceChildren(fieldsTable(definition));
             localised.querySelector("summary").textContent = `Localised fields (${definition.localised_fields.length})`;
             localisedBody.replaceChildren(localisedList(definition));
+            fieldsBadge.textContent = `${definition.fields.length} fields`;
         };
-
-        if (details.definitions.length > 1) {
-            const select = element("select", { title: "Definition version", className: "bubble version-picker" });
-            for (const definition of details.definitions) {
-                const option = element("option", { text: `Version ${definition.version}` });
-                option.value = String(definition.version);
-                select.append(option);
-            }
-            select.addEventListener("change", () => showVersion(details.definitions.find((d) => String(d.version) === select.value)));
-            fields.querySelector(".section-body").append(select);
-        }
-        fields.querySelector(".section-body").append(fieldsBody);
         showVersion(details.definitions[0]);
 
         const hasLocalised = details.definitions.some((definition) => definition.localised_fields.length > 0);
-        return hasLocalised ? [fields, localised] : [fields];
+        return { sections: hasLocalised ? [fields, localised] : [fields], showVersion };
     }
 
     function fieldsTable(definition) {
