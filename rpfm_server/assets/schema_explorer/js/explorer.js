@@ -809,7 +809,7 @@
     /**
      * Add a shown table's neighbours to the exploration: tables it references to its right, tables referencing it to its left.
      *
-     * Tables already shown keep their place; only the edge to them is added. New tables linked to the centre table get that edge too.
+     * Tables already shown keep their place; only the edge to them is added. Each new table also gets its edges to every table shown.
      *
      * @param {Object} exploration The exploration to grow.
      * @param {string} id The table to explore.
@@ -835,9 +835,11 @@
         placeInColumn(exploration, left, columnIndex - 1, parentY);
 
         const added = [...right, ...left];
-        for (const neighbour of added) {
-            if (state.index.edgesBetween(neighbour, exploration.centre).length > 0) {
-                exploration.edges.add(pairKey(neighbour, exploration.centre));
+        for (const newId of added) {
+            for (const linked of state.index.neighbours(newId, "both")) {
+                if (linked !== newId && exploration.column.has(linked)) {
+                    exploration.edges.add(pairKey(newId, linked));
+                }
             }
         }
         return added;
