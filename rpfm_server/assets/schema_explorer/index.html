@@ -32,8 +32,14 @@
             <div class="overlay-bottom">
                 <form id="path-box" class="path-box bubble" hidden>
                     <div class="path-form">
-                        <input id="path-from" class="bubble" list="table-names" placeholder="Path from..." aria-label="Path from table" autocomplete="off" spellcheck="false">
-                        <input id="path-to" class="bubble" list="table-names" placeholder="to..." aria-label="Path to table" autocomplete="off" spellcheck="false">
+                        <div class="suggest">
+                            <input id="path-from" class="bubble" placeholder="Path from..." aria-label="Path from table" autocomplete="off" spellcheck="false">
+                            <ul id="path-from-suggestions" class="search-results suggestions-up bubble" role="listbox" hidden></ul>
+                        </div>
+                        <div class="suggest">
+                            <input id="path-to" class="bubble" placeholder="to..." aria-label="Path to table" autocomplete="off" spellcheck="false">
+                            <ul id="path-to-suggestions" class="search-results suggestions-up bubble" role="listbox" hidden></ul>
+                        </div>
                         <button type="submit" class="bubble">Find path</button>
                         <button type="button" id="path-clear" class="bubble" hidden>Clear</button>
                     </div>
@@ -56,7 +62,6 @@
     </main>
 
     <div id="drop-overlay" class="drop-overlay" hidden>Drop the schema file to load it</div>
-    <datalist id="table-names"></datalist>
 
     <script src="vendor/cytoscape.min.js"></script>
     <script src="vendor/graphology.umd.min.js"></script>

@@ -295,7 +295,11 @@ select.bubble option {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
-    max-width: min(560px, calc(100% - 24px));
+    max-width: calc(100% - 24px);
+}
+
+.overlay-bottom .path-box {
+    max-width: 560px;
 }
 
 .path-box.bubble {
@@ -325,8 +329,11 @@ select.bubble option {
 
 .legend {
     display: flex;
-    flex-wrap: wrap;
-    gap: 4px 12px;
+    flex-wrap: nowrap;
+    gap: 12px;
+    max-width: 100%;
+    overflow-x: auto;
+    white-space: nowrap;
     font-size: 12px;
 }
 
@@ -562,9 +569,22 @@ select.bubble option {
     gap: 6px;
 }
 
-.path-form input {
+.suggest {
+    position: relative;
     flex: 1;
-    min-width: 120px;
+    min-width: 140px;
+}
+
+.suggest input {
+    width: 100%;
+}
+
+/* The path box sits at the bottom of the map, so its suggestions open upwards. */
+.search-results.suggestions-up {
+    top: auto;
+    bottom: 100%;
+    margin: 0 0 4px;
+    max-height: 40vh;
 }
 
 .path-steps {

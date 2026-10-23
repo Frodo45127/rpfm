@@ -54,10 +54,11 @@
         status: document.getElementById("graph-status"),
         details: document.getElementById("details"),
         dropOverlay: document.getElementById("drop-overlay"),
-        tableNames: document.getElementById("table-names"),
         pathBox: document.getElementById("path-box"),
         pathFrom: document.getElementById("path-from"),
+        pathFromSuggestions: document.getElementById("path-from-suggestions"),
         pathTo: document.getElementById("path-to"),
+        pathToSuggestions: document.getElementById("path-to-suggestions"),
         pathClear: document.getElementById("path-clear"),
         pathResult: document.getElementById("path-result"),
     };
@@ -76,8 +77,6 @@
         lastGame: loadLastGame(),
         summary: "",
         openSections: { fields: true, localised: true, referencedBy: true },
-        searchMatches: [],
-        searchActive: -1,
     };
 
     const cy = window.cytoscape({
@@ -285,11 +284,6 @@
         elements.emptyState.hidden = true;
         elements.search.disabled = false;
         elements.pathBox.hidden = false;
-        elements.tableNames.replaceChildren(...[...state.index.nodes.keys()].map((id) => {
-            const option = document.createElement("option");
-            option.value = id;
-            return option;
-        }));
 
         renderOverview(layout);
         highlightSearchMatches(state.index.search(elements.search.value, SEARCH_LIMIT));
@@ -831,9 +825,6 @@
         const comment = [field.description, explanation].filter(Boolean).join("\n");
         const name = element("td", { className: field.is_key ? "key" : "" });
         name.append(element("span", { text: field.name, className: comment ? "field-name has-comment" : "field-name" }));
-        if (field.is_key) {
-            name.append(element("span", { className: "note", text: "key" }));
-        }
 
         const details = element("td");
         if (field.is_reference) {
@@ -977,66 +968,86 @@
     // Blue search highlights stay until the search box is emptied (or cleared with Escape).
     function clearSearch() {
         elements.search.value = "";
-        elements.searchResults.hidden = true;
         highlightSearchMatches([]);
     }
 
-    function hideSearchResults() {
-        elements.searchResults.hidden = true;
-    }
+    /**
+     * Show a purple list of matching tables under (or above) a text box, picked with the mouse or arrow keys and Enter.
+     *
+     * @param {HTMLInputElement} input The text box.
+     * @param {HTMLElement} list The list element to fill with suggestions.
+     * @param {{onMatches?: Function, onChoose: Function, onEscape?: Function}} handlers Called with the matches as they
+     *   change, with the picked table, and when Escape is pressed.
+     */
+    function attachTableSuggestions(input, list, { onMatches = () => {}, onChoose, onEscape = () => {} }) {
+        let matches = [];
+        let active = -1;
 
-    function updateSearch() {
-        state.searchMatches = state.index ? state.index.search(elements.search.value, SEARCH_LIMIT) : [];
-        state.searchActive = state.searchMatches.length > 0 ? 0 : -1;
-        renderSearchResults();
-        highlightSearchMatches(state.searchMatches);
-    }
-
-    function renderSearchResults() {
-        const items = state.searchMatches.map((node, index) => {
-            const hint = node.missing ? "not in schema" : `${state.index.degree(node.id)} linked`;
-            const item = element("li", {}, [element("span", { text: node.id }), element("span", { className: "hint", text: hint })]);
-            item.setAttribute("role", "option");
-            item.setAttribute("aria-selected", String(index === state.searchActive));
-            item.addEventListener("mousedown", (event) => {
-                event.preventDefault();
-                chooseSearchResult(index);
+        const render = () => {
+            const items = matches.map((node, index) => {
+                const hint = node.missing ? "not in schema" : `${state.index.degree(node.id)} linked`;
+                const item = element("li", {}, [element("span", { text: node.id }), element("span", { className: "hint", text: hint })]);
+                item.setAttribute("role", "option");
+                item.setAttribute("aria-selected", String(index === active));
+                item.addEventListener("mousedown", (event) => {
+                    event.preventDefault();
+                    choose(index);
+                });
+                return item;
             });
-            return item;
-        });
-        elements.searchResults.replaceChildren(...items);
-        elements.searchResults.hidden = items.length === 0;
-    }
-
-    function chooseSearchResult(index) {
-        const node = state.searchMatches[index];
-        if (!node) {
-            return;
-        }
-        hideSearchResults();
-        selectTable(node.id, { zoom: true });
-    }
-
-    elements.search.addEventListener("input", updateSearch);
-    elements.search.addEventListener("focus", updateSearch);
-    elements.search.addEventListener("blur", hideSearchResults);
-    elements.search.addEventListener("keydown", (event) => {
-        if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-            event.preventDefault();
-            const step = event.key === "ArrowDown" ? 1 : -1;
-            const count = state.searchMatches.length;
-            if (count > 0) {
-                state.searchActive = (state.searchActive + step + count) % count;
-                renderSearchResults();
-                elements.searchResults.children[state.searchActive]?.scrollIntoView({ block: "nearest" });
+            list.replaceChildren(...items);
+            list.hidden = items.length === 0;
+        };
+        const update = () => {
+            matches = state.index ? state.index.search(input.value, SEARCH_LIMIT) : [];
+            active = matches.length > 0 ? 0 : -1;
+            render();
+            onMatches(matches);
+        };
+        const choose = (index) => {
+            const node = matches[index];
+            if (node) {
+                list.hidden = true;
+                onChoose(node);
             }
-        } else if (event.key === "Enter") {
-            event.preventDefault();
-            chooseSearchResult(Math.max(state.searchActive, 0));
-        } else if (event.key === "Escape") {
-            event.preventDefault();
-            clearSearch();
-        }
+        };
+
+        input.addEventListener("input", update);
+        input.addEventListener("focus", update);
+        input.addEventListener("blur", () => {
+            list.hidden = true;
+        });
+        input.addEventListener("keydown", (event) => {
+            if ((event.key === "ArrowDown" || event.key === "ArrowUp") && matches.length > 0) {
+                event.preventDefault();
+                active = (active + (event.key === "ArrowDown" ? 1 : -1) + matches.length) % matches.length;
+                render();
+                list.children[active]?.scrollIntoView({ block: "nearest" });
+            } else if (event.key === "Enter" && !list.hidden) {
+                event.preventDefault();
+                choose(Math.max(active, 0));
+            } else if (event.key === "Escape") {
+                event.preventDefault();
+                list.hidden = true;
+                onEscape();
+            }
+        });
+    }
+
+    attachTableSuggestions(elements.search, elements.searchResults, {
+        onMatches: highlightSearchMatches,
+        onChoose: (node) => selectTable(node.id, { zoom: true }),
+        onEscape: clearSearch,
+    });
+    attachTableSuggestions(elements.pathFrom, elements.pathFromSuggestions, {
+        onChoose: (node) => {
+            elements.pathFrom.value = node.id;
+        },
+    });
+    attachTableSuggestions(elements.pathTo, elements.pathToSuggestions, {
+        onChoose: (node) => {
+            elements.pathTo.value = node.id;
+        },
     });
 
     //-------------------------------------------------------------------//
