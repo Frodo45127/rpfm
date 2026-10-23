@@ -26,19 +26,30 @@
                         <input id="search" class="bubble" type="search" placeholder="Search tables (e.g. battles)" autocomplete="off" spellcheck="false" aria-label="Search tables" disabled>
                         <ul id="search-results" class="search-results bubble" role="listbox" hidden></ul>
                     </div>
+                    <div id="graph-status" class="graph-status bubble" role="status"></div>
                 </div>
-                <div id="graph-status" class="graph-status bubble" role="status"></div>
             </div>
-            <div class="legend bubble" aria-label="Legend">
-                <span><i class="swatch swatch-table"></i>Table</span>
-                <span><i class="swatch swatch-selected"></i>Selected</span>
-                <span><i class="swatch swatch-in"></i>In: references it</span>
-                <span><i class="swatch swatch-out"></i>Out: referenced by it</span>
-                <span><i class="swatch swatch-both"></i>Both ways</span>
-                <span><i class="swatch swatch-path"></i>Path</span>
-                <span><i class="swatch swatch-search"></i>Search match</span>
-                <span><i class="swatch swatch-missing"></i>Not in schema</span>
-                <span class="legend-note">A &rarr; B: A references B</span>
+            <div class="overlay-bottom">
+                <form id="path-box" class="path-box bubble" hidden>
+                    <div class="path-form">
+                        <input id="path-from" class="bubble" list="table-names" placeholder="Path from..." aria-label="Path from table" autocomplete="off" spellcheck="false">
+                        <input id="path-to" class="bubble" list="table-names" placeholder="to..." aria-label="Path to table" autocomplete="off" spellcheck="false">
+                        <button type="submit" class="bubble">Find path</button>
+                        <button type="button" id="path-clear" class="bubble" hidden>Clear</button>
+                    </div>
+                    <div id="path-result" class="path-result"></div>
+                </form>
+                <div class="legend bubble" aria-label="Legend">
+                    <span><i class="swatch swatch-table"></i>Table</span>
+                    <span><i class="swatch swatch-selected"></i>Selected</span>
+                    <span><i class="swatch swatch-in"></i>In: references it</span>
+                    <span><i class="swatch swatch-out"></i>Out: referenced by it</span>
+                    <span><i class="swatch swatch-both"></i>Both ways</span>
+                    <span><i class="swatch swatch-path"></i>Path</span>
+                    <span><i class="swatch swatch-search"></i>Search match</span>
+                    <span><i class="swatch swatch-missing"></i>Not in schema</span>
+                    <span class="legend-note">A &rarr; B: A references B</span>
+                </div>
             </div>
             <aside id="details" class="details" aria-label="Table details" hidden></aside>
         </section>

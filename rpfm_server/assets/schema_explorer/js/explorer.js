@@ -55,6 +55,11 @@
         details: document.getElementById("details"),
         dropOverlay: document.getElementById("drop-overlay"),
         tableNames: document.getElementById("table-names"),
+        pathBox: document.getElementById("path-box"),
+        pathFrom: document.getElementById("path-from"),
+        pathTo: document.getElementById("path-to"),
+        pathClear: document.getElementById("path-clear"),
+        pathResult: document.getElementById("path-result"),
     };
 
     const state = {
@@ -70,7 +75,7 @@
         clusterCentre: null,
         lastGame: loadLastGame(),
         summary: "",
-        openSections: { fields: true, referencedBy: true },
+        openSections: { fields: true, localised: true, referencedBy: true },
         searchMatches: [],
         searchActive: -1,
     };
@@ -279,6 +284,7 @@
 
         elements.emptyState.hidden = true;
         elements.search.disabled = false;
+        elements.pathBox.hidden = false;
         elements.tableNames.replaceChildren(...[...state.index.nodes.keys()].map((id) => {
             const option = document.createElement("option");
             option.value = id;
@@ -425,6 +431,7 @@
     function clearSelection() {
         state.selected = null;
         state.path = null;
+        resetPathResult();
         clearHighlight();
         cy.$(":selected").unselect();
         hideDetails();
@@ -553,6 +560,9 @@
         }
         state.selected = id;
         state.path = null;
+        if (document.activeElement !== elements.pathFrom) {
+            elements.pathFrom.value = id;
+        }
         const { ids, counts } = highlightNeighbours(id);
         cy.$(":selected").unselect();
         showDetails(id);
@@ -751,11 +761,10 @@
                 text: "Other tables reference this table, but the schema has no definition for it.",
             }));
         } else {
-            sections.push(definitionSection(details));
+            sections.push(...definitionSections(details));
         }
 
         sections.push(referencedBySection(details));
-        sections.push(pathSection(id));
         elements.details.replaceChildren(...sections);
     }
 
@@ -769,9 +778,20 @@
         return section;
     }
 
-    function definitionSection(details) {
-        const body = element("div");
-        const children = [];
+    // The Fields section, plus a Localised fields section if any version has some. Both follow the version picker.
+    function definitionSections(details) {
+        const fieldsBody = element("div");
+        const localisedBody = element("div");
+        const fieldsChildren = [];
+        const fields = collapsibleSection("fields", "", fieldsChildren);
+        const localised = collapsibleSection("localised", "", [localisedBody]);
+        const showVersion = (definition) => {
+            fields.querySelector("summary").textContent = `Fields (${definition.fields.length})`;
+            fieldsBody.replaceChildren(fieldsTable(definition));
+            localised.querySelector("summary").textContent = `Localised fields (${definition.localised_fields.length})`;
+            localisedBody.replaceChildren(localisedList(definition));
+        };
+
         if (details.definitions.length > 1) {
             const select = element("select", { title: "Definition version", className: "bubble version-picker" });
             for (const definition of details.definitions) {
@@ -779,41 +799,38 @@
                 option.value = String(definition.version);
                 select.append(option);
             }
-            select.addEventListener("change", () => {
-                const definition = details.definitions.find((d) => String(d.version) === select.value);
-                body.replaceChildren(fieldsTable(definition));
-            });
-            children.push(select);
+            select.addEventListener("change", () => showVersion(details.definitions.find((d) => String(d.version) === select.value)));
+            fields.querySelector(".section-body").append(select);
         }
+        fields.querySelector(".section-body").append(fieldsBody);
+        showVersion(details.definitions[0]);
 
-        body.append(fieldsTable(details.definitions[0]));
-        children.push(body);
-        return collapsibleSection("fields", `Fields (${details.definitions[0].fields.length})`, children);
+        const hasLocalised = details.definitions.some((definition) => definition.localised_fields.length > 0);
+        return hasLocalised ? [fields, localised] : [fields];
     }
 
     function fieldsTable(definition) {
-        const container = element("div");
         const header = element("tr", {}, [
             element("th", { text: "Name", className: "col-name" }),
             element("th", { text: "Type", className: "col-type" }),
             element("th", { text: "Details" }),
         ]);
         const rows = definition.fields.map((field) => fieldRow(field));
-        container.append(element("table", { className: "fields" }, [element("thead", {}, [header]), element("tbody", {}, rows)]));
+        return element("table", { className: "fields" }, [element("thead", {}, [header]), element("tbody", {}, rows)]);
+    }
 
-        if (definition.localised_fields.length > 0) {
-            container.append(element("h3", { text: "Localised fields" }));
-            const list = element("ul", { className: "reference-list" }, definition.localised_fields.map((field) => element("li", { text: field.name })));
-            container.append(list);
+    function localisedList(definition) {
+        if (definition.localised_fields.length === 0) {
+            return element("p", { className: "muted", text: "None in this version." });
         }
-        return container;
+        return element("ul", { className: "reference-list" }, definition.localised_fields.map((field) => element("li", { text: field.name })));
     }
 
     function fieldRow(field) {
         const { explanation, ...otherNotes } = field.patch_notes || {};
         const comment = [field.description, explanation].filter(Boolean).join("\n");
         const name = element("td", { className: field.is_key ? "key" : "" });
-        name.append(element("span", { text: field.name, className: comment ? "has-comment" : "" }));
+        name.append(element("span", { text: field.name, className: comment ? "field-name has-comment" : "field-name" }));
         if (field.is_key) {
             name.append(element("span", { className: "note", text: "key" }));
         }
@@ -874,32 +891,53 @@
         return collapsibleSection("referencedBy", `Referenced by (${tableCount})`, children);
     }
 
-    function pathSection(fromId) {
-        const input = element("input", { title: "Target table", className: "bubble" });
-        input.setAttribute("list", "table-names");
-        input.placeholder = "Path to table...";
-        const result = element("div");
-        const find = () => {
-            const toId = input.value.trim().replace(/_tables$/, "");
-            const path = state.index.shortestPath(fromId, toId);
-            if (!path) {
-                result.replaceChildren(element("p", { className: "muted", text: `No path from ${fromId} to ${toId}.` }));
-                return;
-            }
-            state.path = path;
-            highlightPath(path);
-            result.replaceChildren(pathSteps(path));
-            setStatus(`Path of ${path.length - 1} steps from ${path[0]} to ${path[path.length - 1]}.`);
-        };
-        const button = actionButton("Find path", find);
-        input.addEventListener("keydown", (event) => {
-            if (event.key === "Enter") {
-                find();
-            }
-        });
+    //-------------------------------------------------------------------//
+    // Path finder (floating at the bottom left)
+    //-------------------------------------------------------------------//
 
-        return element("div", {}, [element("h3", { text: "Path" }), element("div", { className: "path-form" }, [input, button]), result]);
+    function resetPathResult() {
+        elements.pathResult.replaceChildren();
+        elements.pathClear.hidden = true;
     }
+
+    function findPath() {
+        const fromId = elements.pathFrom.value.trim().replace(/_tables$/, "");
+        const toId = elements.pathTo.value.trim().replace(/_tables$/, "");
+        const unknown = [fromId, toId].find((id) => !state.index.nodes.has(id));
+        if (unknown !== undefined) {
+            elements.pathResult.replaceChildren(element("p", { className: "note", text: unknown ? `Unknown table: ${unknown}` : "Pick a table to start from and one to reach." }));
+            return;
+        }
+        const path = state.index.shortestPath(fromId, toId);
+        if (!path) {
+            elements.pathResult.replaceChildren(element("p", { className: "note", text: `No path from ${fromId} to ${toId}.` }));
+            return;
+        }
+
+        state.selected = path[0];
+        state.path = path;
+        highlightPath(path);
+        showDetails(path[0]);
+        writeHash();
+        elements.pathResult.replaceChildren(pathSteps(path));
+        elements.pathClear.hidden = false;
+        setStatus(`Path of ${path.length - 1} steps from ${path[0]} to ${path[path.length - 1]}.`);
+    }
+
+    function clearPath() {
+        resetPathResult();
+        if (state.selected) {
+            selectTable(state.selected);
+        } else {
+            clearSelection();
+        }
+    }
+
+    elements.pathBox.addEventListener("submit", (event) => {
+        event.preventDefault();
+        findPath();
+    });
+    elements.pathClear.addEventListener("click", clearPath);
 
     function pathSteps(path) {
         const items = path.map((id, index) => {

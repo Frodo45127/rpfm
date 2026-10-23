@@ -272,7 +272,7 @@ select.bubble option {
 }
 
 .graph-status {
-    max-width: 100%;
+    max-width: 560px;
     pointer-events: none;
 }
 
@@ -285,10 +285,45 @@ select.bubble option {
     border-color: #ff8a80;
 }
 
-.legend {
+/* Path finder and legend, stacked at the bottom left of the map. */
+.overlay-bottom {
     position: absolute;
-    bottom: 8px;
-    left: 8px;
+    z-index: 5;
+    bottom: 12px;
+    left: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    max-width: min(560px, calc(100% - 24px));
+}
+
+.path-box.bubble {
+    border-radius: 14px;
+    padding: 8px 10px;
+    max-width: 100%;
+}
+
+.path-box .bubble {
+    padding: 2px 10px;
+}
+
+.path-result {
+    max-height: 30vh;
+    overflow-y: auto;
+}
+
+.path-result:empty {
+    display: none;
+}
+
+.path-result .note {
+    display: block;
+    color: var(--bubble-muted);
+    font-size: 12px;
+}
+
+.legend {
     display: flex;
     flex-wrap: wrap;
     gap: 4px 12px;
@@ -481,6 +516,10 @@ select.bubble option {
     font-weight: 600;
 }
 
+.fields .key .field-name {
+    color: #f5c542;
+}
+
 /* Fields with a schema comment: hover the row to read it. */
 .fields .has-comment {
     text-decoration: underline dotted;
@@ -525,7 +564,7 @@ select.bubble option {
 
 .path-form input {
     flex: 1;
-    min-width: 0;
+    min-width: 120px;
 }
 
 .path-steps {
