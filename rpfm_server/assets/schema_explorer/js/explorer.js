@@ -14,6 +14,7 @@
     const { layoutFor, saveMovedStars } = window.RpfmLayout;
 
     const SETTINGS_KEY = "rpfm-schema-explorer-settings";
+    const SPREAD_PREFIX = "rpfm-schema-explorer-spread:";
     const SEARCH_LIMIT = 30;
     const CLUSTER_ID = "__tables_without_references__";
     const HUB_THRESHOLD = 40;
@@ -61,6 +62,9 @@
         pathToSuggestions: document.getElementById("path-to-suggestions"),
         pathClear: document.getElementById("path-clear"),
         pathResult: document.getElementById("path-result"),
+        spreadControl: document.getElementById("spread-control"),
+        spread: document.getElementById("spread"),
+        spreadValue: document.getElementById("spread-value"),
     };
 
     const state = {
@@ -73,6 +77,8 @@
         path: null,
         detailsCache: new Map(),
         isolated: new Set(),
+        spread: 1,
+        spreadCentre: { x: 0, y: 0 },
         clusterCentre: null,
         lastGame: loadLastGame(),
         summary: "",
@@ -97,6 +103,23 @@
             return JSON.parse(window.localStorage.getItem(SETTINGS_KEY) || "{}").game || null;
         } catch (error) {
             return null;
+        }
+    }
+
+    function loadSpread(sourceKey) {
+        try {
+            const spread = Number.parseFloat(window.localStorage.getItem(SPREAD_PREFIX + sourceKey));
+            return Number.isFinite(spread) && spread > 0 ? spread : 1;
+        } catch (error) {
+            return 1;
+        }
+    }
+
+    function saveSpread(sourceKey, spread) {
+        try {
+            window.localStorage.setItem(SPREAD_PREFIX + sourceKey, String(spread));
+        } catch (error) {
+            console.debug("Couldn't save the spread:", error.message);
         }
     }
 
@@ -285,7 +308,10 @@
         elements.search.disabled = false;
         elements.pathBox.hidden = false;
 
+        state.spread = loadSpread(state.sourceKey);
+        showSpread();
         renderOverview(layout);
+        elements.spreadControl.hidden = false;
         highlightSearchMatches(state.index.search(elements.search.value, SEARCH_LIMIT));
         const tableCount = state.graph.nodes.filter((node) => !node.missing).length;
         const layoutNote = {
@@ -357,9 +383,14 @@
         const isolated = new Set(layout.isolated);
         state.isolated = isolated;
         state.clusterCentre = layout.clusterCentre ? { ...layout.clusterCentre } : null;
+        state.spreadCentre = boundingCircle(Object.values(layout.positions), 0).centre;
+        const positions = {};
+        for (const [id, position] of Object.entries(layout.positions)) {
+            positions[id] = toDisplay(position);
+        }
         const items = [];
         if (isolated.size > 0) {
-            const { centre, radius } = boundingCircle(layout.isolated.map((id) => layout.positions[id]), CLUSTER_MARGIN);
+            const { centre, radius } = boundingCircle(layout.isolated.map((id) => positions[id]), CLUSTER_MARGIN);
             items.push({
                 group: "nodes",
                 data: { id: CLUSTER_ID, label: `Tables without references (${isolated.size})`, diameter: radius * 2 },
@@ -379,7 +410,7 @@
             items.push({
                 group: "nodes",
                 data: { id: node.id, degree: state.index.degree(node.id) },
-                position: { ...layout.positions[node.id] },
+                position: positions[node.id],
                 classes: classes.join(" "),
             });
         }
@@ -402,7 +433,7 @@
                     source,
                     target,
                     label: pairLabel(pair),
-                    curve: pair.a === pair.b ? 0 : edgeCurve(layout.positions[source], layout.positions[target]),
+                    curve: pair.a === pair.b ? 0 : edgeCurve(positions[source], positions[target]),
                 },
                 classes: classes.join(" "),
             });
@@ -574,7 +605,7 @@
         const moved = isCluster ? isolatedNodes() : node;
         const moves = {};
         for (const star of moved) {
-            moves[star.id()] = { ...star.position() };
+            moves[star.id()] = toLayout(star.position());
         }
         cy.batch(() => {
             for (const edge of moved.connectedEdges()) {
@@ -592,6 +623,60 @@
         }
     }
 
+    //-------------------------------------------------------------------//
+    // Spread: the drawn layout is the saved one scaled around its centre.
+    //-------------------------------------------------------------------//
+
+    function toDisplay(position) {
+        const centre = state.spreadCentre;
+        return { x: centre.x + (position.x - centre.x) * state.spread, y: centre.y + (position.y - centre.y) * state.spread };
+    }
+
+    function toLayout(position) {
+        const centre = state.spreadCentre;
+        return { x: centre.x + (position.x - centre.x) / state.spread, y: centre.y + (position.y - centre.y) / state.spread };
+    }
+
+    function showSpread() {
+        elements.spread.value = String(state.spread);
+        elements.spreadValue.textContent = `${state.spread.toFixed(2)}\u00d7`;
+    }
+
+    // Move every star by the ratio between the new and the current spread, keeping dragged stars in place relative to the rest.
+    function applySpread(spread) {
+        const ratio = spread / state.spread;
+        const centre = state.spreadCentre;
+        state.spread = spread;
+        showSpread();
+        cy.batch(() => {
+            for (const star of cy.nodes().not(`#${CLUSTER_ID}`)) {
+                const position = star.position();
+                star.position({ x: centre.x + (position.x - centre.x) * ratio, y: centre.y + (position.y - centre.y) * ratio });
+            }
+            for (const edge of cy.edges()) {
+                if (!edge.isLoop()) {
+                    edge.data("curve", edgeCurve(edge.source().position(), edge.target().position()));
+                }
+            }
+        });
+        updateClusterCircle();
+        updateMinZoom();
+    }
+
+    // Apply slider moves at most once per frame, and remember the value once the user lets go.
+    let pendingSpread = null;
+    elements.spread.addEventListener("input", () => {
+        const scheduled = pendingSpread !== null;
+        pendingSpread = Number.parseFloat(elements.spread.value);
+        if (!scheduled) {
+            requestAnimationFrame(() => {
+                applySpread(pendingSpread);
+                pendingSpread = null;
+            });
+        }
+    });
+    elements.spread.addEventListener("change", () => saveSpread(state.sourceKey, state.spread));
+
     // Dragging the cluster circle carries its stars (and the spiral centre) along.
     let clusterDragFrom = null;
     cy.on("grab", `#${CLUSTER_ID}`, (event) => {
@@ -602,7 +687,7 @@
         const delta = { x: position.x - clusterDragFrom.x, y: position.y - clusterDragFrom.y };
         isolatedNodes().shift(delta);
         if (state.clusterCentre) {
-            state.clusterCentre = { x: state.clusterCentre.x + delta.x, y: state.clusterCentre.y + delta.y };
+            state.clusterCentre = { x: state.clusterCentre.x + delta.x / state.spread, y: state.clusterCentre.y + delta.y / state.spread };
         }
         clusterDragFrom = { ...position };
     });

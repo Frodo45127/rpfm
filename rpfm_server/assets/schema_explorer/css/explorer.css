@@ -167,6 +167,27 @@ select.bubble option {
     background: #2a1a55;
 }
 
+/* Spread slider */
+
+.spread {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.spread input[type="range"] {
+    width: 140px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    accent-color: var(--selected);
+}
+
+.spread output {
+    min-width: 3.5em;
+    font-variant-numeric: tabular-nums;
+}
+
 /* Search */
 
 .search {

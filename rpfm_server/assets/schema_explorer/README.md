@@ -22,6 +22,7 @@ The first time a schema is loaded, the layout runs until it settles (on Warhamme
   - Tables that are referenced but have no definition are grey stars.
 - **Moving stars:** drag a star to rearrange the map. The new position is saved and the star is pinned, so later layout runs leave it where you put it. Drag the circle to move the whole cluster.
 - **Zooming:** you can't zoom out further than the circle around all stars filling the view.
+- **Spread:** the slider next to the search bar (shown once a layout has loaded) spreads the stars apart or pulls them together, from 0.3x to 3x. It's remembered per schema and doesn't change the saved layout.
 - **Schema updates:** when a schema with the same name changes (new or removed tables or references), the saved layout is kept. New tables start next to the tables they're linked to, and ForceAtlas2 continues from the existing map instead of starting over.
 - **Edges:** one curved arrow per pair of tables, pointing from the referencing table to the referenced one. When the two tables reference each other, the arrow has heads at both ends. Click an edge to see the columns behind it.
 - **Selecting:** click a star (or a table link in the panel). Its details panel opens and everything else dims. Only the colour of the stars changes:
