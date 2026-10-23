@@ -1,6 +1,6 @@
 # Schema explorer (proposal)
 
-> **Status:** proposal, not implemented.
+> **Status:** the frontend is implemented in `rpfm_server/assets/schema_explorer/` and works from a schema file. The server endpoints and Part 2 aren't implemented.
 
 A browser-based, interactive graph of a game's DB schema, served by `rpfm_server`. Every table is a node and every reference (`Field::is_reference`) is an edge. Users can search for a table, expand the tables around it, follow references in both directions and read field definitions.
 
@@ -109,11 +109,15 @@ All routes sit under `/schema-explorer` and accept only `GET` (and `HEAD`). Resp
 
 - **Library:** [Cytoscape.js](https://js.cytoscape.org/) with the `cytoscape-fcose` layout. It's built for interactive network exploration, handles graphs this size on canvas, and works as a single file with no build step.
 - **Vendoring:** check pinned, minified copies into `rpfm_server/assets/schema_explorer/` and embed them with `include_bytes!`/`include_str!`. No CDN: the page must work offline and must not load third-party code.
-- **Code:** plain ES modules with no bundler or npm build step, to match a Rust-first repo. A rough layout:
-  - `index.html`: the page shell.
-  - `explorer.js`: fetching data, building the graph, interactions.
-  - `explorer.css`: styles.
+- **Code:** implemented in `rpfm_server/assets/schema_explorer/` (see its `README.md`). It uses plain scripts with no bundler or npm build step, not ES modules, because browsers refuse modules on `file://` pages:
+  - `index.html`, `css/explorer.css`: the page shell and styles.
+  - `js/explorer.js`: the UI.
+  - `js/graph_index.js`: neighbourhood, path and search queries.
+  - `js/data_source.js`: API mode or file mode.
+  - `js/schema_model.js` and `js/ron.js`: build this API's JSON in the browser from a schema file, so the page works before the server side exists.
   - `vendor/`: the vendored libraries.
+  - `tests/`: Node unit tests.
+- **File mode:** until the endpoints exist, the page loads a `schema_*.ron` or JSON schema the user picks. Once the server serves the page, it switches to the API automatically.
 - **Interactions:**
   - Game picker. Remember the last game in `localStorage`.
   - Table search with fuzzy matching on table name.
@@ -121,7 +125,7 @@ All routes sit under `/schema-explorer` and accept only `GET` (and `HEAD`). Resp
   - Click a node to open a side panel with versions, key fields, field types, descriptions, the target of each reference, and "referenced by".
   - Collapse or hide hub tables above a degree threshold (e.g. `factions`).
   - Shortest path between two tables (BFS on the client).
-  - Deep links via the URL fragment (`#warhammer_3/battles_tables`), so a view can be bookmarked or shared.
+  - Deep links via the URL fragment (`#game=warhammer_3&table=battles`), so a view can be bookmarked or shared.
 
 ## Server changes
 
