@@ -18,6 +18,9 @@ serde_derive.workspace = true
 # Multithreaded iterator support.
 rayon.workspace = true
 
+# Logging support.
+log.workspace = true
+
 # Basic get/set support.
 getset.workspace = true
 

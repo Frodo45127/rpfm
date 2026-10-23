@@ -27,6 +27,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 pub use rpfm_ipc::messages::{Command, Response, Message as IpcMessage};
 
+use rpfm_ipc::address::server_address;
 use rpfm_telemetry::*;
 
 use crate::CENTRAL_COMMAND;
@@ -285,7 +286,7 @@ pub fn wait_for_reconnect(timeout_ms: u64) -> bool {
 
 /// This function is the one that actually handles the WebSocket communication with the server.
 pub async fn websocket_loop(mut receiver: UnboundedReceiver<(IpcMessage<Command>, Sender<Response>)>) {
-    let base_url = "ws://localhost:45127/ws";
+    let base_url = format!("ws://{}/ws", server_address());
     let mut current_session_id: Option<u64> = None;
 
     let mut response_channels = HashMap::new();
@@ -309,7 +310,7 @@ pub async fn websocket_loop(mut receiver: UnboundedReceiver<(IpcMessage<Command>
         // Build the URL with optional session ID parameter.
         let url = match current_session_id {
             Some(id) => format!("{}?session_id={}", base_url, id),
-            None => base_url.to_string(),
+            None => base_url.clone(),
         };
         info!("Connecting to WebSocket server at {}...", url);
 

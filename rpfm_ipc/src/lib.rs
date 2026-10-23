@@ -32,6 +32,7 @@
 //!   and the [`messages::Message`] wrapper.
 //! - [`helpers`]: Data structures for marshalling complex data between UI and server, including
 //!   [`helpers::ContainerInfo`], [`helpers::RFileInfo`], and [`helpers::DataSource`].
+//! - [`address`]: The address the server listens on and clients connect to ([`address::server_address`]).
 //!
 //! ## Usage
 //!
@@ -56,6 +57,7 @@
 //! };
 //! ```
 
+pub mod address;
 pub mod helpers;
 pub mod messages;
 pub mod settings_keys;

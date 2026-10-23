@@ -48,6 +48,7 @@ use std::rc::Rc;
 use std::sync::atomic::Ordering;
 use std::time::Instant;
 
+use rpfm_ipc::address::server_address;
 use rpfm_ipc::settings_keys::*;
 use rpfm_ipc::helpers::{ContainerInfo, DataSource};
 
@@ -161,6 +162,7 @@ pub struct AppUISlots {
     pub tools_unit_editor: QBox<SlotNoArgs>,
     pub tools_translator: QBox<SlotNoArgs>,
     pub tools_ceo_builder: QBox<SlotNoArgs>,
+    pub tools_schema_explorer: QBox<SlotNoArgs>,
 
     //-----------------------------------------------//
     // `About` menu slots.
@@ -1620,6 +1622,15 @@ impl AppUISlots {
             }
         }));
 
+        // What happens when we trigger the "Schema Explorer" action: rpfm_server serves the explorer,
+        // so open it in the browser on the selected game.
+        let tools_schema_explorer = SlotNoArgs::new(&app_ui.main_window, || {
+            rpfm_telemetry::track_action("Open Schema Explorer");
+            let game_key = GAME_SELECTED.read().unwrap().key().to_owned();
+            let url = format!("http://{}/schema-explorer/#game={game_key}", server_address());
+            QDesktopServices::open_url(&QUrl::new_1a(&QString::from_std_str(url)));
+        });
+
         // Connection-check slot.
         let connection_check = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui,
@@ -2038,6 +2049,7 @@ impl AppUISlots {
             tools_unit_editor,
             tools_translator,
             tools_ceo_builder,
+            tools_schema_explorer,
 
     		//-----------------------------------------------//
 	        // `About` menu slots.

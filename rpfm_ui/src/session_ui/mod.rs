@@ -31,6 +31,7 @@ use getset::Getters;
 
 use std::rc::Rc;
 
+use rpfm_ipc::address::server_address;
 use rpfm_ipc::helpers::SessionInfo;
 
 use rpfm_telemetry::*;
@@ -185,10 +186,10 @@ impl SessionUI {
 
     /// Fetches active sessions from the server's REST endpoint.
     fn fetch_sessions() -> Result<Vec<SessionInfo>> {
-        let url = "http://127.0.0.1:45127/sessions";
+        let url = format!("http://{}/sessions", server_address());
 
         // Use a blocking HTTP client since we're in a Qt event context
-        let response = reqwest::blocking::get(url)?;
+        let response = reqwest::blocking::get(&url)?;
 
         if !response.status().is_success() {
             anyhow::bail!("Server returned status: {}", response.status());

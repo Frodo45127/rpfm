@@ -108,6 +108,7 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.tools_unit_editor.triggered().connect(&slots.tools_unit_editor);
     app_ui.tools_translator.triggered().connect(&slots.tools_translator);
     app_ui.tools_ceo_builder.triggered().connect(&slots.tools_ceo_builder);
+    app_ui.tools_schema_explorer.triggered().connect(&slots.tools_schema_explorer);
 
     //-----------------------------------------------//
     // `About` menu connections.

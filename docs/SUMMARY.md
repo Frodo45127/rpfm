@@ -67,6 +67,7 @@
     - [Commands](./server/ws-commands.md)
     - [Responses](./server/ws-responses.md)
 - [MCP interface](./server/mcp.md)
+- [Schema explorer (proposal)](./server/schema_explorer.md)
 - [Client example](./server/client-example.md)
 
 # Reference

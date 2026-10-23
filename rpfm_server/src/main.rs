@@ -21,14 +21,16 @@
 //! ## Architecture
 //!
 //! The server is built on [`axum`] (HTTP + WebSocket) and [`tokio`]. It binds
-//! to `127.0.0.1:45127` by default and exposes three endpoints:
+//! to [`server_address`] (`127.0.0.1:45127`, or `RPFM_SERVER_IP` in debug builds)
+//! and exposes these endpoints:
 //!
-//! | Endpoint    | Method | Purpose                                                                          |
-//! |-------------|--------|----------------------------------------------------------------------------------|
-//! | `/ws`       | GET    | WebSocket upgrade. Carries the [`rpfm_ipc`] command/response protocol.           |
-//! | `/version`  | GET    | REST: report the server build version + pid.    |
-//! | `/sessions` | GET    | REST: list every active session (used by the UI session picker).                 |
-//! | `/mcp`      | *      | MCP `StreamableHttpService` exposing the same surface to AI / MCP clients.       |
+//! | Endpoint             | Method | Purpose                                                                          |
+//! |----------------------|--------|----------------------------------------------------------------------------------|
+//! | `/ws`                | GET    | WebSocket upgrade. Carries the [`rpfm_ipc`] command/response protocol. Requires a `Host` naming the server, and rejects other websites' `Origin`. |
+//! | `/version`           | GET    | REST: report the server build version + pid.                                     |
+//! | `/sessions`          | GET    | REST: list every active session (used by the UI session picker).                 |
+//! | `/mcp`               | *      | MCP `StreamableHttpService` exposing the same surface to AI / MCP clients.       |
+//! | `/schema-explorer/`  | GET    | Browser page exploring the schema as a graph (see [`schema_explorer`]).          |
 //!
 //! Every client connection is wrapped in a [`session::Session`] managed by a
 //! [`session::SessionManager`]. Each session owns a dedicated background
@@ -43,6 +45,7 @@
 //!   to the background thread.
 //! - [`server_websocket`] — `/ws` upgrade handler and message multiplexer.
 //! - [`server_mcp`] — `/mcp` endpoint: tools, prompts, resources for MCP clients.
+//! - [`schema_explorer`] — `/schema-explorer` page, and the Host/Origin checks for it and `/ws`.
 //! - [`session`] — `SessionManager`, `Session`, lifecycle and timeout handling.
 //! - [`settings`] — JSON-backed settings store with batch-write optimisation.
 //! - [`updater`] — self-update checks against GitHub releases.
@@ -56,15 +59,15 @@
 // Under windows, hide the server window by default.
 #![windows_subsystem = "windows"]
 
-use axum::{extract::State, routing::get, Json, Router};
-use rmcp::transport::streamable_http_server::{session::local::LocalSessionManager, StreamableHttpService};
+use axum::{extract::State, middleware, routing::get, Json, Router};
+use rmcp::transport::streamable_http_server::{session::local::LocalSessionManager, StreamableHttpServerConfig, StreamableHttpService};
 use tokio::net::TcpListener;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Layer};
 
-use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use rpfm_ipc::address::server_address;
 use rpfm_ipc::helpers::SessionInfo;
 use rpfm_ipc::messages::{Command, Response};
 use rpfm_ipc::settings_keys::{ANONYMOUS_TELEMETRY_ID, ENABLE_CRASH_REPORTS, ENABLE_USAGE_TELEMETRY};
@@ -79,9 +82,13 @@ use crate::server_websocket::ws_handler;
 pub mod background_thread;
 pub mod ceo_builder;
 pub mod comms;
+pub mod schema_explorer;
+#[cfg(test)] mod schema_explorer_test;
 pub mod server_mcp;
+#[cfg(test)] mod server_mcp_test;
 pub mod server_websocket;
 pub mod session;
+#[cfg(test)] mod session_test;
 pub mod settings;
 #[cfg(test)] mod settings_test;
 pub mod translation_hub;
@@ -115,12 +122,6 @@ pub const GITHUB_OAUTH_CLIENT_ID: &str = match option_env!("RPFM_SERVER_GITHUB_O
     None => "",
 };
 
-/// Default IP address the HTTP server binds to (`127.0.0.1` / loopback).
-const DEFAULT_ADDRESS: [u8; 4] = [127, 0, 0, 1];
-
-/// Default TCP port the HTTP server listens on.
-const DEFAULT_PORT: u16 = 45127;
-
 /// Organisation domain used to derive the OS-specific config directory
 /// (mirrors `QCoreApplication::organizationDomain` on the UI side).
 const ORG_DOMAIN: &str = "com";
@@ -140,7 +141,7 @@ const APP_NAME: &str = "rpfm";
 /// Initialises the Sentry/telemetry guard, primes the telemetry toggles from
 /// persisted settings, builds the [`session::SessionManager`], wires the
 /// `axum` router (`/ws`, `/sessions`, `/mcp`) and starts the listener on
-/// [`DEFAULT_ADDRESS`]:[`DEFAULT_PORT`].
+/// [`server_address`].
 ///
 /// Returns when the listener stops accepting (typically after every session
 /// has been cleaned up — the cleanup task in [`session::SessionManager`]
@@ -195,26 +196,24 @@ async fn main() {
     let session_manager: Arc<SessionManager> = Arc::new(SessionManager::default());
     SessionManager::start_cleanup_task(session_manager.clone());
 
-    // Create an MCP service with its own session for MCP clients.
+    // Create an MCP service. Clients create sessions explicitly through the `create_session` tool.
     let sm = session_manager.clone();
     let http_service = StreamableHttpService::new(
-        move || {
-            let session = sm.create_mcp_session();
-            Ok(McpServer::new(session))
-        },
+        move || Ok(McpServer::new(sm.clone())),
         LocalSessionManager::default().into(),
-        Default::default(),
+        StreamableHttpServerConfig::default().with_allowed_hosts(schema_explorer::ALLOWED_HOSTS.iter().cloned()),
     );
 
     // Setup the endpoints for the server.
     let app = Router::new()
-        .route("/ws", get(ws_handler))
+        .route("/ws", get(ws_handler).route_layer(middleware::from_fn(schema_explorer::require_local_client)))
         .route("/version", get(version_handler))
         .route("/sessions", get(sessions_handler))
         .nest_service("/mcp", http_service)
+        .merge(schema_explorer::router())
         .with_state(session_manager);
 
-    let addr = SocketAddr::from((DEFAULT_ADDRESS, DEFAULT_PORT));
+    let addr = server_address();
     match TcpListener::bind(addr).await {
         Ok(listener) => {
             info!("Listening on {}", addr);

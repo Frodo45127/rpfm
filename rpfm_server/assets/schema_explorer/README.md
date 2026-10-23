@@ -1,0 +1,75 @@
+# Schema explorer (frontend)
+
+Browser page that shows an RPFM DB schema as an interactive graph: one node per table, one edge per reference. It only reads schema information (definitions, fields, references, patches), never table data. The design is in [`docs/server/schema_explorer.md`](../../../docs/server/schema_explorer.md).
+
+## Try it
+
+**From RPFM:** **Tools > Schema Explorer** opens your browser at `http://127.0.0.1:45127/schema-explorer/#game=<selected game>`. `rpfm_server` serves the page (its files are embedded in the server binary, see `rpfm_server/src/schema_explorer.rs`) and the page fetches the game's schema over the server's `/ws` WebSocket.
+
+In debug builds, the `RPFM_SERVER_IP` environment variable replaces `127.0.0.1` for both RPFM and the server (RPFM starts the server, which inherits it), and the page follows. The server only accepts requests whose `Host` (and, on `/ws`, `Origin`) names its own address, plus `localhost` when that address is loopback. Release builds ignore the variable.
+
+The page only works when served by `rpfm_server`: it can't open schema files from disk. The whole schema appears as a star map. Click a star, or search for a table (e.g. `battles`) and press Enter.
+
+The first time a schema is loaded, the layout runs until it settles (on Warhammer 3, about 1,300 iterations and 10–20 seconds, with progress shown). After that, the saved layout is used and loading takes a couple of seconds.
+
+## Using it
+
+- **Star map:** every table is a white star, sized by how many tables it's linked to. Names only show on highlighted stars (selected, hovered, on a path or matching the search).
+  - The positions come from a ForceAtlas2 layout of the whole schema (`js/layout.js`), run until the stars stop moving, then saved in the browser (one layout per game).
+  - Tables with no references at all sit on a spiral inside the "Tables without references" circle on the right. New ones continue the spiral outward.
+  - Tables that are referenced but have no definition are grey stars.
+- **Moving stars:** drag a star to rearrange the map. The new position is saved and the star is pinned, so later layout runs leave it where you put it. Drag the circle to move the whole cluster.
+- **Zooming:** you can't zoom out further than the circle around all stars filling the view.
+- **Spread:** the slider next to the search bar (shown once a layout has loaded) spreads the stars apart or pulls them together, from 0.1x to 10x (on a logarithmic scale, so 1x sits in the middle). It's remembered per game and doesn't change the saved layout.
+- **Schema updates:** when a game's schema changes (new or removed tables or references), the saved layout is kept. New tables start next to the tables they're linked to, and ForceAtlas2 continues from the existing map instead of starting over.
+- **Edges:** one curved arrow per pair of tables, pointing from the referencing table to the referenced one. When the two tables reference each other, the arrow has heads at both ends. Click an edge to see the columns behind it.
+- **Selecting:** click a star (or a table link in the panel). Its details panel opens and everything else dims. Only the colour of the stars changes:
+  - **Purple:** the selected table.
+  - **Red (in):** tables that reference it.
+  - **Yellow (out):** tables it references.
+  - **Orange:** both.
+
+  Each of the selected table's arrows takes a darker shade of its neighbour's colour. Hovering a star previews the same colouring at half opacity, on top of any selection.
+
+  Double-click a star, or pick a search result, to also zoom to it. Click empty space or **Close** in the panel to deselect. The panel is only shown while a table is selected.
+- **Galaxy and Explorer:** the whole-schema star map is **Galaxy**. Right-click a star and pick **Explore** to open **Explorer**, with that table in the middle, the tables referencing it in a column to its left and the tables it references in a column to its right (tables linked both ways go right); everything else is hidden. Right-click any table there and pick **Explore** to add its neighbours the same way, one column further out; tables already shown aren't repeated, only linked, and every new table is connected to all the shown tables it's linked to. The title button shows the current view's name (**Galaxy** or **Explorer**); click it to switch between them.
+- **Search:** ranks exact names, then prefixes, word prefixes, substrings and loose matches. Arrow keys and Enter pick a result. The listed results light up blue on the map and stay lit until the search box is emptied (Escape clears it); the current selection is left as it is.
+- **Controls:** the title, the game the schema came from (`RPFM: <game>`), and the search bar float over the top of the map.
+- **Tooltips:** hover a star or a table link for a summary of the table (the schema has no table-level comments). Hover a field row for the schema's comment on it; fields that have one are underlined with dots.
+- **Details panel** (a floating card on the right, while a table is selected; Fields, Localised fields and Referenced by fold away and stay folded for the next table):
+  - Every definition version, with key fields in gold, types, references (click to select the target), lookups, defaults and patch notes.
+  - Localised fields.
+  - "Referenced by", across all versions of all tables, like RPFM's references.
+- **Path finder** (bottom left, between the status and the legend, as wide as the legend): pick a table to start from (the selected one by default) and one to reach. The shortest path is drawn in green and listed step by step; **Clear** goes back to the selection.
+- **Links:** the selected table is kept in the URL fragment (`#table=battles`), so a view can be bookmarked.
+
+## Data sources
+
+`js/data_source.js` (`WsSource`) gets the schema from RPFM, and `js/schema_model.js` builds the graph and table details in the browser.
+
+- **Protocol:** opens `ws://<host>/ws`, waits for the server's `SessionConnected`, then sends `{"SetGameSelected": [<game from #game=>, false]}` (no dependencies are loaded) and `"Schema"`, and closes the socket. It runs in a session of its own, which the server reaps after a few minutes. It never sends `ClientDisconnecting`, which would end the session at once (and the server, if it was the last one). Without `#game=`, it uses the `default_game` setting.
+- Only the patches inside the schema itself are applied. Your local schema patches (RPFM's `table_patches` folder) aren't included, as the server doesn't send them with the schema.
+- Fields are listed as stored in the schema (colour columns not merged, bitwise fields not expanded).
+
+## Files
+
+| Path | What it is |
+|---|---|
+| `index.html`, `css/explorer.css` | Page and styles. No inline scripts or styles, so a strict CSP works. |
+| `js/schema_model.js` | Graph and table details from a schema, with `rpfm_lib`'s patch rules. |
+| `js/graph_index.js` | Neighbourhoods, shortest paths, table pairs and search over the graph. |
+| `js/layout.js` | ForceAtlas2 layout run to convergence, incremental updates for schema changes, pinned (dragged) stars, star overlap removal, isolated-table cluster, saved layouts. |
+| `js/data_source.js` | Schema from RPFM over `/ws`. |
+| `js/explorer.js` | UI: Cytoscape.js star map, highlighting, details panel, search, URL fragment. |
+| `vendor/` | Pinned Cytoscape.js and graphology (with ForceAtlas2) builds, see `vendor/README.md`. |
+| `tests/` | Unit tests for the parser, model, graph queries and layout. |
+
+Scripts are plain (non-module) scripts loaded in order, with no build step.
+
+## Tests
+
+```sh
+node --test "rpfm_server/assets/schema_explorer/tests/*.test.js"
+```
+
+They need Node 18 or newer and no packages. CI doesn't run them yet, and the UI itself is checked by hand.

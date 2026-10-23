@@ -38,18 +38,21 @@
 //!
 //! ## MCP sessions
 //!
-//! MCP clients have no disconnect signal the server can rely on: the MCP
-//! transport keeps a session registered until the client sends an HTTP
-//! DELETE, which many clients never send. Sessions created for MCP clients
-//! ([`SessionManager::create_mcp_session`]) are therefore never counted as
-//! connected; instead, the periodic cleanup task reaps them once no command
-//! has been sent through them for [`DEFAULT_SESSION_TIMEOUT_SECS`].
+//! MCP clients create sessions explicitly through the `create_session` tool
+//! ([`SessionManager::create_mcp_session`]) and name them by ID on every
+//! tool call ([`SessionManager::get_mcp_session`]). MCP clients have no
+//! disconnect signal the server can rely on, so these sessions are never
+//! counted as connected; instead, the periodic cleanup task reaps them once
+//! no command has been sent through them for [`DEFAULT_SESSION_TIMEOUT_SECS`].
+//!
+//! MCP tools that touch only global state (settings, paths, updates) take no
+//! session ID and run on [`SessionManager::mcp_global_session`] instead.
 
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::time::{Duration, Instant};
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, RwLock, atomic::{AtomicBool, AtomicU32, Ordering}};
+use std::sync::{Arc, Mutex, OnceLock, RwLock, atomic::{AtomicBool, AtomicU32, Ordering}};
 
 use rpfm_ipc::helpers::SessionInfo;
 use rpfm_ipc::messages::{Command, Response};
@@ -84,6 +87,11 @@ pub struct SessionManager {
 
     /// Session timeout duration.
     timeout: Duration,
+
+    /// Session running MCP tools that touch only global state. Created on first use.
+    ///
+    /// It's kept out of `sessions`, so it's never listed, reaped, or counted towards process exit.
+    mcp_global_session: OnceLock<Arc<Session>>,
 }
 
 /// Internal state for a managed session.
@@ -261,6 +269,7 @@ impl Default for SessionManager {
             sessions: Mutex::new(HashMap::new()),
             next_id: Mutex::new(1),
             timeout: Duration::from_secs(DEFAULT_SESSION_TIMEOUT_SECS),
+            mcp_global_session: OnceLock::new(),
         }
     }
 }
@@ -282,14 +291,28 @@ impl SessionManager {
         self.create_session_internal(true)
     }
 
-    fn create_session_internal(&self, is_mcp: bool) -> Arc<Session> {
-        let id = {
-            let mut next_id = self.next_id.lock().unwrap();
-            let id = *next_id;
-            *next_id += 1;
-            id
-        };
+    /// Get the session running MCP tools that touch only global state, like settings and paths.
+    ///
+    /// # Returns
+    ///
+    /// The global MCP session, created on the first call.
+    pub fn mcp_global_session(&self) -> Arc<Session> {
+        self.mcp_global_session.get_or_init(|| {
+            let session = Session::new(self.next_session_id(), true);
+            info!("Created global MCP session with ID: {}", session.id());
+            session
+        }).clone()
+    }
 
+    fn next_session_id(&self) -> SessionId {
+        let mut next_id = self.next_id.lock().unwrap();
+        let id = *next_id;
+        *next_id += 1;
+        id
+    }
+
+    fn create_session_internal(&self, is_mcp: bool) -> Arc<Session> {
+        let id = self.next_session_id();
         let session = Session::new(id, is_mcp);
 
         // MCP sessions start disconnected: their lifetime is governed by
@@ -331,6 +354,24 @@ impl SessionManager {
         // Either no session_id provided, or session not found/invalid.
         // Create a new session.
         (self.create_session(), true)
+    }
+
+    /// Get an MCP session by ID, if it exists and hasn't been shut down.
+    ///
+    /// WebSocket sessions are never returned, so MCP clients can't drive them.
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - The ID of the session to get.
+    ///
+    /// # Returns
+    ///
+    /// The session, or `None` if no live MCP session has that ID.
+    pub fn get_mcp_session(&self, id: SessionId) -> Option<Arc<Session>> {
+        let sessions = self.sessions.lock().unwrap();
+        sessions.get(&id)
+            .map(|managed| managed.session.clone())
+            .filter(|session| session.is_mcp() && !session.is_shutdown_requested())
     }
 
     /// Get a session by ID without incrementing the connection count.

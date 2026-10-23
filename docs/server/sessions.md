@@ -1,12 +1,12 @@
 # Sessions & connection lifecycle
 
-Each WebSocket and each MCP connection lives inside a **session**. A session owns a dedicated background thread that processes commands serially against its in-memory state (open Packs, dependency cache, settings cache).
+Each WebSocket connection, and each MCP client that calls `create_session`, works inside a **session**. A session owns a dedicated background thread that processes commands serially against its in-memory state (open Packs, dependency cache, settings cache).
 
 Sessions are isolated: open packs in one session aren't visible in another. This is what makes "many UI clients (or MCP clients) talking to one server" safe.
 
 ## Lifecycle
 
-1. **Connect.** A client opens `/ws` (or connects to `/mcp`) without a session ID. The server allocates a new `SessionId`, spins up a background thread, and immediately sends an unsolicited `SessionConnected` response so the client can stash the ID for later reconnection.
+1. **Connect.** A client opens `/ws` without a session ID. The server allocates a new `SessionId`, spins up a background thread, and immediately sends an unsolicited `SessionConnected` response so the client can stash the ID for later reconnection.
 
    ```json
    { "id": 0, "data": { "SessionConnected": 12345 } }
@@ -23,6 +23,16 @@ Sessions are isolated: open packs in one session aren't visible in another. This
    ```
 
 5. **Empty manager → process exit.** When the last session goes away the `rpfm_server` process exits, so no orphaned server lingers in the background.
+
+MCP clients follow a different lifecycle, described in [MCP sessions](#mcp-sessions).
+
+## MCP sessions
+
+The MCP transport keeps no per-client state, so MCP sessions are explicit:
+
+1. **Create.** Call the `create_session` tool. It returns `{"SessionConnected": <session_id>}`.
+2. **Use.** Pass that `session_id` to every tool that works on per-session state. Tools that only touch global state (settings, paths, updates) take no `session_id`.
+3. **Close.** Call `close_session` to free the session right away. Otherwise it's reaped after **5 minutes** without commands, since MCP gives no reliable disconnect signal. Calling a tool with a reaped session returns an error telling the client to create a new one.
 
 ## Reconnection example
 

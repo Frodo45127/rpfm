@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="referrer" content="no-referrer">
+    <title>RPFM Schema Explorer</title>
+    <link rel="stylesheet" href="css/explorer.css">
+</head>
+<body>
+    <main class="layout">
+        <section class="graph-pane" aria-label="Table graph">
+            <div id="graph" class="graph"></div>
+            <div id="explore-graph" class="graph" hidden></div>
+            <div id="context-menu" class="context-menu bubble" role="menu" hidden>
+                <button type="button" id="context-explore" role="menuitem">Explore</button>
+            </div>
+            <div id="empty-state" class="empty-state">
+                <h2>Schema Explorer</h2>
+                <p>The schema comes from RPFM. Open the explorer from <strong>Tools &gt; Schema Explorer</strong>.</p>
+            </div>
+            <div class="overlay-top">
+                <div class="overlay-row">
+                    <h1 id="title" class="title bubble" title="Switch between Galaxy (the whole schema) and Explorer">Galaxy</h1>
+                    <span id="schema-label" class="schema-label bubble" title="Schema loaded from RPFM" hidden></span>
+                    <div class="search">
+                        <input id="search" class="bubble" type="search" placeholder="Search tables (e.g. battles)" autocomplete="off" spellcheck="false" aria-label="Search tables" disabled>
+                        <ul id="search-results" class="search-results bubble" role="listbox" hidden></ul>
+                    </div>
+                    <label id="spread-control" class="spread bubble" title="Spread the stars apart or pull them together (doesn't change the saved layout)" hidden>
+                        Spread
+                        <input id="spread" type="range" min="-1" max="1" step="0.01" value="0" aria-label="Spread (0.1x to 10x)">
+                        <output id="spread-value" for="spread">1.00&times;</output>
+                    </label>
+                </div>
+            </div>
+            <div class="overlay-bottom">
+                <div id="graph-status" class="graph-status bubble" role="status"></div>
+                <form id="path-box" class="path-box bubble" hidden>
+                    <div class="path-form">
+                        <div class="suggest">
+                            <input id="path-from" class="bubble" placeholder="Path from..." aria-label="Path from table" autocomplete="off" spellcheck="false">
+                            <ul id="path-from-suggestions" class="search-results suggestions-up bubble" role="listbox" hidden></ul>
+                        </div>
+                        <div class="suggest">
+                            <input id="path-to" class="bubble" placeholder="to..." aria-label="Path to table" autocomplete="off" spellcheck="false">
+                            <ul id="path-to-suggestions" class="search-results suggestions-up bubble" role="listbox" hidden></ul>
+                        </div>
+                        <button type="submit" class="bubble">Find path</button>
+                        <button type="button" id="path-clear" class="bubble" hidden>Clear</button>
+                    </div>
+                    <div id="path-result" class="path-result"></div>
+                </form>
+                <div class="legend bubble" aria-label="Legend">
+                    <span><i class="swatch swatch-table"></i>Table</span>
+                    <span><i class="swatch swatch-selected"></i>Selected</span>
+                    <span><i class="swatch swatch-in"></i>In: references it</span>
+                    <span><i class="swatch swatch-out"></i>Out: referenced by it</span>
+                    <span><i class="swatch swatch-both"></i>Both ways</span>
+                    <span><i class="swatch swatch-path"></i>Path</span>
+                    <span><i class="swatch swatch-search"></i>Search match</span>
+                    <span><i class="swatch swatch-missing"></i>Not in schema</span>
+                    <span class="legend-note">A &rarr; B: A references B</span>
+                </div>
+            </div>
+            <aside id="details" class="details" aria-label="Table details" hidden></aside>
+        </section>
+    </main>
+
+    <script src="vendor/cytoscape.min.js"></script>
+    <script src="vendor/graphology.umd.min.js"></script>
+    <script src="vendor/graphology-library.min.js"></script>
+    <script src="js/schema_model.js"></script>
+    <script src="js/graph_index.js"></script>
+    <script src="js/layout.js"></script>
+    <script src="js/data_source.js"></script>
+    <script src="js/explorer.js"></script>
+</body>
+</html>
