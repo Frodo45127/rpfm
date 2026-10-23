@@ -62,8 +62,9 @@ use std::path::PathBuf;
 use rpfm_extensions::merge::MergeOptions;
 use rpfm_extensions::translator::DEFAULT_SRC_LANG;
 
-use rpfm_ipc::helpers::DataSource;
+use rpfm_ipc::helpers::{DataSource, DependenciesInfo};
 use rpfm_ipc::messages::{Command, Response};
+use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::files::{ContainerPath, RFile, RFileDecoded};
 use rpfm_telemetry::sentry;
 
@@ -107,6 +108,56 @@ macro_rules! send_and_respond {
     }};
 }
 
+/// File counts of a [`DependenciesInfo`], sent to MCP clients instead of the full file lists.
+///
+/// The full lists hold every vanilla file (over 100 MB of JSON on recent games), which is too big for MCP clients.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+struct DependenciesInfoSummary {
+    asskit_tables_count: usize,
+    vanilla_packed_files_count: usize,
+    parent_packed_files_count: usize,
+}
+
+impl From<&DependenciesInfo> for DependenciesInfoSummary {
+    fn from(info: &DependenciesInfo) -> Self {
+        Self {
+            asskit_tables_count: info.asskit_tables.len(),
+            vanilla_packed_files_count: info.vanilla_packed_files.len(),
+            parent_packed_files_count: info.parent_packed_files.len(),
+        }
+    }
+}
+
+/// MCP replacements for the [`Response`] variants carrying a [`DependenciesInfo`]. Variant names match the originals.
+#[derive(Debug, Serialize)]
+enum SummarizedResponse<'a> {
+    CompressionFormatDependenciesInfo(&'a CompressionFormat, Option<DependenciesInfoSummary>),
+    DependenciesInfo(DependenciesInfoSummary),
+}
+
+/// Serialize a [`Response`] for MCP clients, replacing any [`DependenciesInfo`] with its [`DependenciesInfoSummary`].
+///
+/// # Arguments
+///
+/// * `response` - The response to serialize.
+///
+/// # Returns
+///
+/// The JSON string of the response.
+///
+/// # Errors
+///
+/// Returns a [`serde_json::Error`] if the response cannot be serialized.
+pub(crate) fn response_to_json(response: &Response) -> serde_json::Result<String> {
+    match response {
+        Response::CompressionFormatDependenciesInfo(compression_format, info) => {
+            serde_json::to_string(&SummarizedResponse::CompressionFormatDependenciesInfo(compression_format, info.as_ref().map(DependenciesInfoSummary::from)))
+        }
+        Response::DependenciesInfo(info) => serde_json::to_string(&SummarizedResponse::DependenciesInfo(info.into())),
+        _ => serde_json::to_string(response),
+    }
+}
+
 /// Wrap a [`Response`] into a [`CallToolResult`], flagging it as an error if it is a [`Response::Error`].
 ///
 /// # Arguments
@@ -121,7 +172,7 @@ macro_rules! send_and_respond {
 ///
 /// Returns an [`McpError`] if the response cannot be serialized.
 fn to_call_tool_result(response: &Response) -> Result<CallToolResult, McpError> {
-    let json = serde_json::to_string(response).map_err(|e| McpError {
+    let json = response_to_json(response).map_err(|e| McpError {
         code: ErrorCode::INTERNAL_ERROR,
         message: format!("Failed to serialize response: {e}").into(),
         data: None,
@@ -1846,7 +1897,7 @@ impl McpServer {
         send_and_respond!(self.session(params.0.session_id), "get_game_selected", Command::GetGameSelected)
     }
 
-    #[tool(description = "Set the current game. Valid game keys: shogun_2_complete_edition, pharaoh_dynasties, pharaoh, warhammer_3, troy, three_kingdoms, warhammer_2, warhammer, thrones_of_britannia, attila, rome_2, shogun_2, napoleon, empire, arena. Set rebuild_dependencies to true on first call to load schemas and vanilla data.")]
+    #[tool(description = "Set the current game. Valid game keys: shogun_2_complete_edition, pharaoh_dynasties, pharaoh, warhammer_3, troy, three_kingdoms, warhammer_2, warhammer, thrones_of_britannia, attila, rome_2, shogun_2, napoleon, empire, arena. Set rebuild_dependencies to true on first call to load schemas and vanilla data. When rebuilding, returns the compression format and the number of files loaded from each dependency source.")]
     pub async fn set_game_selected(&self, params: Parameters<SetGameSelectedArgs>) -> Result<CallToolResult, McpError> {
         send_and_respond!(self.session(params.0.session_id), "set_game_selected", Command::SetGameSelected(params.0.game_name, params.0.rebuild_dependencies))
     }
@@ -1855,12 +1906,12 @@ impl McpServer {
     // Dependencies
     //-----------------------------------------------------------------------//
 
-    #[tool(description = "Generate the dependencies cache for the selected game. This can take a long time (more than 30 seconds), depending on your CPU and disk read speed. If the client is not careful, it can take enough time that the client may trigger a timeout.")]
+    #[tool(description = "Generate the dependencies cache for the selected game. This can take a long time (more than 30 seconds), depending on your CPU and disk read speed. If the client is not careful, it can take enough time that the client may trigger a timeout. Returns the number of files loaded from each dependency source.")]
     pub async fn generate_dependencies_cache(&self, params: Parameters<SessionArg>) -> Result<CallToolResult, McpError> {
         send_and_respond!(self.session(params.0.session_id), "generate_dependencies_cache", Command::GenerateDependenciesCache)
     }
 
-    #[tool(description = "Rebuild dependencies. Pass true for full rebuild, false for mod-specific only.")]
+    #[tool(description = "Rebuild dependencies. Pass true for full rebuild, false for mod-specific only. Returns the number of files loaded from each dependency source.")]
     pub async fn rebuild_dependencies(&self, params: Parameters<BoolArg>) -> Result<CallToolResult, McpError> {
         send_and_respond!(self.session(params.0.session_id), "rebuild_dependencies", Command::RebuildDependencies(params.0.value))
     }

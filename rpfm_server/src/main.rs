@@ -80,6 +80,7 @@ pub mod background_thread;
 pub mod ceo_builder;
 pub mod comms;
 pub mod server_mcp;
+#[cfg(test)] mod server_mcp_test;
 pub mod server_websocket;
 pub mod session;
 #[cfg(test)] mod session_test;
