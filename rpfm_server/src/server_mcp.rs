@@ -14,17 +14,23 @@
 //! understands as an MCP **tool**, plus a handful of MCP **resources**
 //! (game lists, enum dumps, examples, reference docs) and **prompts** for
 //! common workflows ("open and inspect a pack", "edit a DB table",
-//! "manage dependencies", …). Each MCP client gets its own dedicated
-//! [`Session`] and [`McpServer`] — same isolation guarantees as the
-//! WebSocket clients.
+//! "manage dependencies", …).
+//!
+//! The MCP transport keeps no per-client state on recent protocol versions,
+//! so sessions are explicit: a client calls the `create_session` tool and
+//! passes the returned `session_id` to every tool that works on per-session
+//! state. Each session is an isolated [`Session`], same as the WebSocket
+//! clients get. Tools that only touch global state (settings, paths, updates)
+//! take no `session_id` and run on [`SessionManager::mcp_global_session`].
 //!
 //! Each tool call:
 //!
-//! 1. Translates its `*Args` payload into a [`Command`] and ships it
+//! 1. Resolves its [`Session`]: the one named by its `session_id`, or the global one.
+//! 2. Translates its `*Args` payload into a [`Command`] and ships it
 //!    through the session's
 //!    [`background_loop`](crate::background_thread::background_loop) via
 //!    the `send_and_respond!` helper.
-//! 2. Wraps the resulting [`Response`] back into a [`CallToolResult`].
+//! 3. Wraps the resulting [`Response`] back into a [`CallToolResult`].
 //!
 //! The `*Args` structs are the canonical schema for every tool. Their
 //! `JsonSchema` derive is what `rmcp` ships to clients to advertise tool
@@ -56,23 +62,27 @@ use std::path::PathBuf;
 use rpfm_extensions::merge::MergeOptions;
 use rpfm_extensions::translator::DEFAULT_SRC_LANG;
 
-use rpfm_ipc::helpers::DataSource;
+use rpfm_ipc::helpers::{DataSource, DependenciesInfo};
 use rpfm_ipc::messages::{Command, Response};
+use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::files::{ContainerPath, RFile, RFileDecoded};
 use rpfm_telemetry::sentry;
 
-use crate::session::{Session, recv_response};
+use crate::session::{DEFAULT_SESSION_TIMEOUT_SECS, Session, SessionId, SessionManager, recv_response};
 
 //-------------------------------------------------------------------------------//
 //                              Helper macro
 //-------------------------------------------------------------------------------//
 
-/// Helper to send a command and return the JSON response.
+/// Helper to send a command to a session and return the JSON response.
+///
+/// `$session` is a `Result<Arc<Session>, Response>`, as returned by [`McpServer::session`]
+/// or [`McpServer::global_session`]. On `Err`, the response is returned as is.
 ///
 /// Each tool call starts an independent Sentry transaction following the MCP tracing spec,
 /// so it gets reported regardless of the long-lived rmcp service span.
 macro_rules! send_and_respond {
-    ($self:expr, $tool_name:expr, $cmd:expr) => {{
+    ($session:expr, $tool_name:expr, $cmd:expr) => {{
         let tx_ctx = sentry::TransactionContext::new(
             &format!("tools/call {}", $tool_name),
             "mcp.server",
@@ -84,25 +94,112 @@ macro_rules! send_and_respond {
 
         sentry::configure_scope(|scope| scope.set_span(Some(tx.clone().into())));
 
-        let mut receiver = $self.session.send($cmd);
-        let response = recv_response(&mut receiver).await;
+        let response = match $session {
+            Ok(session) => {
+                let mut receiver = session.send($cmd);
+                recv_response(&mut receiver).await
+            }
+            Err(response) => response,
+        };
 
         tx.finish();
 
-        let is_error = matches!(&response, Response::Error(_));
-
-        let json = serde_json::to_string(&response).map_err(|e| McpError {
-            code: ErrorCode::INTERNAL_ERROR,
-            message: format!("Failed to serialize response: {e}").into(),
-            data: None,
-        })?;
-
-        if is_error {
-            Ok(CallToolResult::error(vec![ContentBlock::text(json)]))
-        } else {
-            Ok(CallToolResult::success(vec![ContentBlock::text(json)]))
-        }
+        to_call_tool_result(&response)
     }};
+}
+
+/// File counts of a [`DependenciesInfo`], sent to MCP clients instead of the full file lists.
+///
+/// The full lists hold every vanilla file (over 100 MB of JSON on recent games), which is too big for MCP clients.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+struct DependenciesInfoSummary {
+    asskit_tables_count: usize,
+    vanilla_packed_files_count: usize,
+    parent_packed_files_count: usize,
+}
+
+impl From<&DependenciesInfo> for DependenciesInfoSummary {
+    fn from(info: &DependenciesInfo) -> Self {
+        Self {
+            asskit_tables_count: info.asskit_tables.len(),
+            vanilla_packed_files_count: info.vanilla_packed_files.len(),
+            parent_packed_files_count: info.parent_packed_files.len(),
+        }
+    }
+}
+
+/// MCP replacements for the [`Response`] variants carrying a [`DependenciesInfo`]. Variant names match the originals.
+#[derive(Debug, Serialize)]
+enum SummarizedResponse<'a> {
+    CompressionFormatDependenciesInfo(&'a CompressionFormat, Option<DependenciesInfoSummary>),
+    DependenciesInfo(DependenciesInfoSummary),
+}
+
+/// Serialize a [`Response`] for MCP clients, replacing any [`DependenciesInfo`] with its [`DependenciesInfoSummary`].
+///
+/// # Arguments
+///
+/// * `response` - The response to serialize.
+///
+/// # Returns
+///
+/// The JSON string of the response.
+///
+/// # Errors
+///
+/// Returns a [`serde_json::Error`] if the response cannot be serialized.
+pub(crate) fn response_to_json(response: &Response) -> serde_json::Result<String> {
+    match response {
+        Response::CompressionFormatDependenciesInfo(compression_format, info) => {
+            serde_json::to_string(&SummarizedResponse::CompressionFormatDependenciesInfo(compression_format, info.as_ref().map(DependenciesInfoSummary::from)))
+        }
+        Response::DependenciesInfo(info) => serde_json::to_string(&SummarizedResponse::DependenciesInfo(info.into())),
+        _ => serde_json::to_string(response),
+    }
+}
+
+/// Wrap a [`Response`] into a [`CallToolResult`], flagging it as an error if it is a [`Response::Error`].
+///
+/// # Arguments
+///
+/// * `response` - The response to serialize as the tool result.
+///
+/// # Returns
+///
+/// The serialized tool result.
+///
+/// # Errors
+///
+/// Returns an [`McpError`] if the response cannot be serialized.
+fn to_call_tool_result(response: &Response) -> Result<CallToolResult, McpError> {
+    let json = response_to_json(response).map_err(|e| McpError {
+        code: ErrorCode::INTERNAL_ERROR,
+        message: format!("Failed to serialize response: {e}").into(),
+        data: None,
+    })?;
+
+    if matches!(response, Response::Error(_)) {
+        Ok(CallToolResult::error(vec![ContentBlock::text(json)]))
+    } else {
+        Ok(CallToolResult::success(vec![ContentBlock::text(json)]))
+    }
+}
+
+/// Build the error returned when a tool names a session that doesn't exist or was reaped.
+///
+/// # Arguments
+///
+/// * `session_id` - The session ID the tool was called with.
+///
+/// # Returns
+///
+/// A [`Response::Error`] telling the client to create a new session.
+fn session_not_found(session_id: SessionId) -> Response {
+    Response::Error(format!(
+        "Session {session_id} not found. Sessions are closed after {} minutes without commands, \
+        losing their open packs and game selected. Call `create_session` to start a new one.",
+        DEFAULT_SESSION_TIMEOUT_SECS / 60
+    ))
 }
 
 /// Build a `Resource` with common fields set.
@@ -130,10 +227,10 @@ macro_rules! parse_json {
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
-/// MCP server bound to a single [`Session`].
+/// MCP server routing each tool call to the session named by its `session_id`.
 ///
-/// One instance is constructed per MCP client connection by the
-/// `StreamableHttpService` factory wired in `main.rs`. The
+/// Instances are constructed by the `StreamableHttpService` factory wired in
+/// `main.rs`, which may build one per request, so they hold no session state. The
 /// `tool_router` and `prompt_router` fields are built once at construction
 /// time from the `#[tool_router]` / `#[prompt_router]` attribute macros
 /// applied further down in this module.
@@ -141,12 +238,20 @@ macro_rules! parse_json {
 /// Cheap to clone — only `Arc` and small router structs.
 #[derive(Clone)]
 pub struct McpServer {
-    /// The session this MCP client is bound to.
-    session: Arc<Session>,
+    /// The manager owning every session, used to resolve each tool call's `session_id`.
+    session_manager: Arc<SessionManager>,
     /// The router auto-generated from `#[tool_router]` annotations.
     tool_router: ToolRouter<Self>,
     /// The router auto-generated from `#[prompt_router]` annotations.
     prompt_router: PromptRouter<Self>,
+}
+
+// -- Session Args --
+
+#[derive(Debug, Deserialize, JsonSchema, Serialize)]
+pub struct SessionArg {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
 }
 
 // -- Generic / Existing Args --
@@ -154,18 +259,24 @@ pub struct McpServer {
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 #[schemars(description = "Call any IPC command directly.")]
 pub struct CallCommandArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The JSON representation of the Command enum.
     pub command: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct OpenPackfilesArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The paths of the PackFiles to open.
     pub paths: Vec<PathBuf>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct SetGameSelectedArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The name of the game to select.
     pub game_name: String,
     /// Whether to rebuild dependencies.
@@ -174,6 +285,8 @@ pub struct SetGameSelectedArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct TsvExportArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The path of the TSV file to export to.
@@ -184,6 +297,8 @@ pub struct TsvExportArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct TsvImportArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The path of the TSV file to import from.
@@ -194,6 +309,8 @@ pub struct TsvImportArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct DecodePackedFileArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The path of the file inside the data source.
@@ -212,6 +329,8 @@ pub struct PathArg {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct TableColumnArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// Name of the DB table, like `factions_tables`.
     pub table_name: String,
     /// Name of the column.
@@ -222,12 +341,16 @@ pub struct TableColumnArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct PackKeyArg {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack. Use `list_open_packs` to get available keys.
     pub pack_key: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct PackKeyBoolArg {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// A boolean value.
@@ -236,6 +359,8 @@ pub struct PackKeyBoolArg {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct PackKeyStringArg {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// A string value.
@@ -244,6 +369,8 @@ pub struct PackKeyStringArg {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct PackKeyStringsArg {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// A list of string values.
@@ -252,6 +379,8 @@ pub struct PackKeyStringsArg {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct PackKeyPathArg {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The file path.
@@ -262,6 +391,8 @@ pub struct PackKeyPathArg {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct SetPackFileTypeArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The JSON representation of the PFHFileType enum.
@@ -270,6 +401,8 @@ pub struct SetPackFileTypeArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct ChangeCompressionFormatArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The JSON representation of the CompressionFormat enum.
@@ -278,12 +411,16 @@ pub struct ChangeCompressionFormatArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct BoolArg {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// A boolean value.
     pub value: bool,
 }
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct SetPackSettingsArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The JSON representation of the PackSettings struct.
@@ -292,6 +429,8 @@ pub struct SetPackSettingsArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct SetDependencyPackFilesListArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The JSON representation of Vec<(bool, String)> for the dependency list.
@@ -302,6 +441,8 @@ pub struct SetDependencyPackFilesListArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct NewPackedFileArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The path for the new file inside the pack.
@@ -312,6 +453,8 @@ pub struct NewPackedFileArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct AddPackedFilesArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The source filesystem paths.
@@ -324,6 +467,8 @@ pub struct AddPackedFilesArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct AddPackedFilesFromPackFileArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The key of the source PackFile.
@@ -334,6 +479,8 @@ pub struct AddPackedFilesFromPackFileArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct AddPackedFilesFromPackFileToAnimpackArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the source pack the files are copied from.
     pub source_pack_key: String,
     /// The key of the pack that owns the target AnimPack (may differ from the source).
@@ -346,6 +493,8 @@ pub struct AddPackedFilesFromPackFileToAnimpackArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct AddPackedFilesFromAnimpackArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the pack that owns the AnimPack (only used when `source` is a PackFile).
     pub anim_pack_key: String,
     /// The key of the destination pack the files are copied into (may differ from the AnimPack's).
@@ -360,6 +509,8 @@ pub struct AddPackedFilesFromAnimpackArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct ContainerPathsArg {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The JSON representation of Vec<ContainerPath>.
@@ -368,6 +519,8 @@ pub struct ContainerPathsArg {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct DeleteFromAnimpackArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The animpack path.
@@ -378,6 +531,8 @@ pub struct DeleteFromAnimpackArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct ExtractPackedFilesArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The JSON representation of BTreeMap<DataSource, Vec<ContainerPath>>.
@@ -390,6 +545,8 @@ pub struct ExtractPackedFilesArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct RenamePackedFilesArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The JSON representation of Vec<(ContainerPath, ContainerPath)>.
@@ -398,12 +555,16 @@ pub struct RenamePackedFilesArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct CopyOrCutPackedFilesArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// A JSON object mapping pack key to ContainerPath arrays, e.g. {"my_pack.pack": [{"File": "db/table/file"}]}.
     pub paths_by_pack: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct PastePackedFilesArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack to paste into.
     pub pack_key: String,
     /// The destination folder path inside the pack (use empty string for root).
@@ -412,6 +573,8 @@ pub struct PastePackedFilesArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct DuplicatePackedFilesArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The JSON representation of Vec<ContainerPath> for files to duplicate.
@@ -420,6 +583,8 @@ pub struct DuplicatePackedFilesArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct SavePackedFileFromViewArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The path of the file inside the pack.
@@ -430,6 +595,8 @@ pub struct SavePackedFileFromViewArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct SavePackedFileFromExternalViewArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The internal path of the file in the pack.
@@ -440,6 +607,8 @@ pub struct SavePackedFileFromExternalViewArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct SavePackedFilesToPackFileAndCleanArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The JSON representation of Vec<RFile>.
@@ -450,12 +619,22 @@ pub struct SavePackedFilesToPackFileAndCleanArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct StringArg {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// A string value.
     pub value: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
+pub struct SettingKeyArg {
+    /// The setting key.
+    pub value: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct OpenPackedFileInExternalProgramArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The data source of the file.
@@ -474,6 +653,8 @@ pub struct StringsArg {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct ImportDependenciesArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The JSON representation of BTreeMap<DataSource, Vec<ContainerPath>>.
@@ -482,6 +663,8 @@ pub struct ImportDependenciesArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct GetRFilesFromAllSourcesArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The JSON representation of Vec<ContainerPath>.
     pub paths: String,
     /// Whether to lowercase paths.
@@ -490,6 +673,8 @@ pub struct GetRFilesFromAllSourcesArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct ContainerPathArg {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The JSON representation of the ContainerPath.
     pub path: String,
 }
@@ -498,6 +683,8 @@ pub struct ContainerPathArg {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct GlobalSearchArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The JSON representation of the GlobalSearch struct.
@@ -506,6 +693,8 @@ pub struct GlobalSearchArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct GlobalSearchReplaceMatchesArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The JSON representation of the GlobalSearch struct.
@@ -516,6 +705,8 @@ pub struct GlobalSearchReplaceMatchesArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct SearchReferencesArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The JSON representation of HashMap<String, Vec<String>>.
@@ -526,6 +717,8 @@ pub struct SearchReferencesArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct GetReferenceDataFromDefinitionArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The table name.
@@ -538,6 +731,8 @@ pub struct GetReferenceDataFromDefinitionArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct GoToDefinitionArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The table name.
@@ -552,12 +747,16 @@ pub struct GoToDefinitionArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct SaveSchemaArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The JSON representation of the Schema struct.
     pub schema: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct StringI32Args {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// A string value (e.g., table name).
     pub name: String,
     /// An integer value (e.g., version).
@@ -566,6 +765,8 @@ pub struct StringI32Args {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct ReferencingColumnsForDefinitionArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The table name.
     pub table_name: String,
     /// The JSON representation of the Definition struct.
@@ -580,6 +781,8 @@ pub struct DefinitionArg {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct SchemaPatchArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The JSON representation of HashMap<String, DefinitionPatch>.
     pub patches: String,
 }
@@ -587,7 +790,19 @@ pub struct SchemaPatchArgs {
 // -- Table Ops Args --
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
+pub struct TableFieldArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
+    /// The table name.
+    pub key: String,
+    /// The field name.
+    pub value: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct MergeFilesArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The JSON representation of Vec<ContainerPath> for files to merge.
@@ -605,6 +820,8 @@ pub struct MergeFilesArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct CascadeEditionArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The table name.
@@ -617,6 +834,8 @@ pub struct CascadeEditionArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct AddKeysToKeyDeletesArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The table file name.
@@ -631,6 +850,8 @@ pub struct AddKeysToKeyDeletesArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct DiagnosticsCheckArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The list of ignored diagnostics.
     pub ignored: Vec<String>,
     /// Whether to check AK-only references.
@@ -639,6 +860,8 @@ pub struct DiagnosticsCheckArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct LuaRunTestsArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// Code of the Lua test file.
     pub test_source: String,
     /// Campaign whose vanilla scripts to load, like "main_warhammer". Omit it to load only the script libraries and the mods.
@@ -647,6 +870,8 @@ pub struct LuaRunTestsArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct DiagnosticsUpdateArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The JSON representation of the Diagnostics struct.
     pub diagnostics: String,
     /// The JSON representation of Vec<ContainerPath> for paths to check.
@@ -659,6 +884,8 @@ pub struct DiagnosticsUpdateArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct AddNoteArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The JSON representation of the Note struct.
@@ -667,6 +894,8 @@ pub struct AddNoteArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct DeleteNoteArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The path the note belongs to.
@@ -679,6 +908,8 @@ pub struct DeleteNoteArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct OptimizePackFileArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The JSON representation of the OptimizerOptions struct.
@@ -747,6 +978,8 @@ pub struct SettingsSetVecRawArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct InitializeMyModFolderArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The mod name.
     pub name: String,
     /// The game key.
@@ -761,6 +994,8 @@ pub struct InitializeMyModFolderArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct PackMapArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The tile map paths.
@@ -771,6 +1006,8 @@ pub struct PackMapArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct BuildStarposArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The campaign ID.
@@ -781,6 +1018,8 @@ pub struct BuildStarposArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct UpdateAnimIdsArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The starting animation ID.
@@ -791,6 +1030,8 @@ pub struct UpdateAnimIdsArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct ExportRigidToGltfArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The JSON representation of the RigidModel struct.
     pub rigid_model: String,
     /// The output path.
@@ -799,6 +1040,8 @@ pub struct ExportRigidToGltfArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct SetVideoFormatArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The path of the video file in the pack.
@@ -809,6 +1052,8 @@ pub struct SetVideoFormatArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct GetPackTranslationArgs {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The key of the target pack.
     pub pack_key: String,
     /// The source language code these translations are based on (e.g. "EN").
@@ -820,6 +1065,8 @@ pub struct GetPackTranslationArgs {
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
 pub struct SrcLangArg {
+    /// The session to run this tool in, as returned by `create_session`.
+    pub session_id: SessionId,
     /// The source language code (e.g. "SP").
     pub src_lang: String,
 }
@@ -851,6 +1098,10 @@ format used by all modern Total War titles.
 
 ## Key Concepts
 
+- **session_id**: Tools working on packs, the game selected, schemas or dependencies require a `session_id` \
+  from `create_session`. Tools that only touch global settings, paths or updates don't. A session holds its \
+  own game selected, open packs and dependencies, isolated from other sessions. Sessions are closed after 5 minutes \
+  without commands; if a tool reports the session was not found, create a new one and initialize it again.
 - **PackFile**: An archive containing game data files (DB tables, localisation, textures, models, etc.). \
   Mods are distributed as PackFiles.
 - **pack_key**: When you open one or more PackFiles, each gets a unique key string. Use `list_open_packs` \
@@ -862,6 +1113,7 @@ format used by all modern Total War titles.
 
 ## Required Initialization Sequence
 
+0. **Create a session** — Call `create_session` and pass the returned ID as `session_id` to every tool that takes one.
 1. **Set the game** — Call `set_game_selected` with the game key (e.g. `\"warhammer_3\"`) and \
    `rebuild_dependencies: true`. This loads schemas and vanilla data.
 2. **Open a pack** — Call `open_packfiles` with filesystem path(s). Note the returned pack key(s).
@@ -1163,7 +1415,12 @@ All tool responses are JSON-serialized. On failure, an error message is returned
 RPFM MCP Server Initialization Guide
 =====================================
 
-Before you can work with PackFiles, you must initialize the server session:
+Before you can work with PackFiles, you must initialize a server session:
+
+Step 0: Create a session
+    Call: create_session()
+    The response contains the session ID. Pass it as session_id to every
+    tool that takes one, including the ones below.
 
 Step 1: Set the game
     Call: set_game_selected(game_name: \"warhammer_3\", rebuild_dependencies: true)
@@ -1316,12 +1573,57 @@ Maps:
 #[tool_router]
 impl McpServer {
 
-    pub fn new(session: Arc<Session>) -> Self {
+    pub fn new(session_manager: Arc<SessionManager>) -> Self {
         Self {
-            session,
+            session_manager,
             tool_router: McpServer::tool_router(),
             prompt_router: McpServer::prompt_router(),
         }
+    }
+
+    /// Get the MCP session with the provided ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `session_id` - The ID returned by `create_session`.
+    ///
+    /// # Returns
+    ///
+    /// The session, or a [`Response::Error`] if it doesn't exist or was reaped.
+    fn session(&self, session_id: SessionId) -> Result<Arc<Session>, Response> {
+        self.session_manager.get_mcp_session(session_id).ok_or_else(|| session_not_found(session_id))
+    }
+
+    /// Get the session that runs tools touching only global state, like settings and paths.
+    ///
+    /// # Returns
+    ///
+    /// The global session. Never an error: the `Result` matches [`McpServer::session`] for `send_and_respond!`.
+    fn global_session(&self) -> Result<Arc<Session>, Response> {
+        Ok(self.session_manager.mcp_global_session())
+    }
+
+    //-----------------------------------------------------------------------//
+    // Sessions
+    //-----------------------------------------------------------------------//
+
+    #[tool(description = "Create a new isolated RPFM session. Returns `{\"SessionConnected\": <session_id>}`. Tools working on packs, the game selected, schemas or dependencies require this `session_id`. A session keeps its own game selected, open packs and dependencies, and is closed after 5 minutes without commands.")]
+    pub async fn create_session(&self) -> Result<CallToolResult, McpError> {
+        let session = self.session_manager.create_mcp_session();
+        to_call_tool_result(&Response::SessionConnected(session.id()))
+    }
+
+    #[tool(description = "Close the session identified by `session_id`, freeing its open packs and dependencies. Unsaved changes will be lost.")]
+    pub async fn close_session(&self, params: Parameters<SessionArg>) -> Result<CallToolResult, McpError> {
+        let response = match self.session(params.0.session_id) {
+            Ok(session) => {
+                self.session_manager.remove_session(session.id());
+                Response::Success
+            }
+            Err(response) => response,
+        };
+
+        to_call_tool_result(&response)
     }
 
     //-----------------------------------------------------------------------//
@@ -1331,7 +1633,7 @@ impl McpServer {
     #[tool(name = "call_command", description = "Call any IPC command directly. Use this for commands not yet wrapped as named tools.")]
     pub async fn call_command(&self, params: Parameters<CallCommandArgs>) -> Result<CallToolResult, McpError> {
         let command: Command = parse_json!(&params.0.command);
-        send_and_respond!(self, "call_command", command)
+        send_and_respond!(self.session(params.0.session_id), "call_command", command)
     }
 
     //-----------------------------------------------------------------------//
@@ -1339,43 +1641,43 @@ impl McpServer {
     //-----------------------------------------------------------------------//
 
     #[tool(description = "Create a new empty PackFile.")]
-    pub async fn new_pack(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "new_pack", Command::NewPack)
+    pub async fn new_pack(&self, params: Parameters<SessionArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self.session(params.0.session_id), "new_pack", Command::NewPack)
     }
 
     #[tool(description = "Open one or more PackFiles. Returns the info about the open pack.")]
     pub async fn open_packfiles(&self, params: Parameters<OpenPackfilesArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "open_packfiles", Command::OpenPackFiles(params.0.paths))
+        send_and_respond!(self.session(params.0.session_id), "open_packfiles", Command::OpenPackFiles(params.0.paths))
     }
 
     #[tool(description = "Save the pack identified by `pack_key`.")]
     pub async fn save_packfile(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "save_packfile", Command::SavePack(params.0.pack_key))
+        send_and_respond!(self.session(params.0.session_id), "save_packfile", Command::SavePack(params.0.pack_key))
     }
 
     #[tool(description = "Close the pack identified by `pack_key` without saving. Any unsaved changes will be lost.")]
     pub async fn close_pack(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "close_pack", Command::ClosePack(params.0.pack_key))
+        send_and_respond!(self.session(params.0.session_id), "close_pack", Command::ClosePack(params.0.pack_key))
     }
 
     #[tool(description = "Save the pack identified by `pack_key` to a new path.")]
     pub async fn save_pack_as(&self, params: Parameters<PackKeyPathArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "save_pack_as", Command::SavePackAs(params.0.pack_key, params.0.path))
+        send_and_respond!(self.session(params.0.session_id), "save_pack_as", Command::SavePackAs(params.0.pack_key, params.0.path))
     }
 
     #[tool(description = "Clean the pack identified by `pack_key` from corrupted files and save to a path. Use if normal save fails.")]
     pub async fn clean_and_save_pack_as(&self, params: Parameters<PackKeyPathArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "clean_and_save_pack_as", Command::CleanAndSavePackAs(params.0.pack_key, params.0.path))
+        send_and_respond!(self.session(params.0.session_id), "clean_and_save_pack_as", Command::CleanAndSavePackAs(params.0.pack_key, params.0.path))
     }
 
     #[tool(description = "Trigger a backup autosave for the pack identified by `pack_key`.")]
     pub async fn trigger_backup_autosave(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "trigger_backup_autosave", Command::TriggerBackupAutosave(params.0.pack_key))
+        send_and_respond!(self.session(params.0.session_id), "trigger_backup_autosave", Command::TriggerBackupAutosave(params.0.pack_key))
     }
 
     #[tool(description = "Open all CA (vanilla) PackFiles for the selected game as one merged PackFile.")]
-    pub async fn load_all_ca_pack_files(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "load_all_ca_pack_files", Command::LoadAllCAPackFiles)
+    pub async fn load_all_ca_pack_files(&self, params: Parameters<SessionArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self.session(params.0.session_id), "load_all_ca_pack_files", Command::LoadAllCAPackFiles)
     }
 
     //-----------------------------------------------------------------------//
@@ -1385,60 +1687,60 @@ impl McpServer {
     #[tool(description = "Set the type of the pack identified by `pack_key`. Valid PFHFileType values: \"Boot\", \"Release\", \"Patch\", \"Mod\", \"Movie\". Example: pack_file_type = \"\\\"Mod\\\"\"")]
     pub async fn set_pack_file_type(&self, params: Parameters<SetPackFileTypeArgs>) -> Result<CallToolResult, McpError> {
         let pfh_type = parse_json!(&params.0.pack_file_type);
-        send_and_respond!(self, "set_pack_file_type", Command::SetPackFileType(params.0.pack_key, pfh_type))
+        send_and_respond!(self.session(params.0.session_id), "set_pack_file_type", Command::SetPackFileType(params.0.pack_key, pfh_type))
     }
 
     #[tool(description = "Change the compression format of the pack identified by `pack_key`. Valid formats: \"None\", \"Lzma1\" (legacy), \"Lz4\" (WH3 6.2+), \"Zstd\" (WH3 6.2+). Example: format = \"\\\"None\\\"\"")]
     pub async fn change_compression_format(&self, params: Parameters<ChangeCompressionFormatArgs>) -> Result<CallToolResult, McpError> {
         let format = parse_json!(&params.0.format);
-        send_and_respond!(self, "change_compression_format", Command::ChangeCompressionFormat(params.0.pack_key, format))
+        send_and_respond!(self.session(params.0.session_id), "change_compression_format", Command::ChangeCompressionFormat(params.0.pack_key, format))
     }
 
     #[tool(description = "Change whether the pack index includes timestamps for the pack identified by `pack_key`.")]
     pub async fn change_index_includes_timestamp(&self, params: Parameters<PackKeyBoolArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "change_index_includes_timestamp", Command::ChangeIndexIncludesTimestamp(params.0.pack_key, params.0.value))
+        send_and_respond!(self.session(params.0.session_id), "change_index_includes_timestamp", Command::ChangeIndexIncludesTimestamp(params.0.pack_key, params.0.value))
     }
 
     #[tool(description = "Change whether the pack index (file paths, sizes and timestamps) is encrypted for the pack identified by `pack_key`. Only PFH4 and newer packs support enabling it.")]
     pub async fn change_index_is_encrypted(&self, params: Parameters<PackKeyBoolArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "change_index_is_encrypted", Command::ChangeIndexIsEncrypted(params.0.pack_key, params.0.value))
+        send_and_respond!(self.session(params.0.session_id), "change_index_is_encrypted", Command::ChangeIndexIsEncrypted(params.0.pack_key, params.0.value))
     }
 
     #[tool(description = "Change whether the file data is encrypted for the pack identified by `pack_key`. Only PFH4 and newer packs support enabling it.")]
     pub async fn change_data_is_encrypted(&self, params: Parameters<PackKeyBoolArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "change_data_is_encrypted", Command::ChangeDataIsEncrypted(params.0.pack_key, params.0.value))
+        send_and_respond!(self.session(params.0.session_id), "change_data_is_encrypted", Command::ChangeDataIsEncrypted(params.0.pack_key, params.0.value))
     }
 
     #[tool(description = "Get the file path of the pack identified by `pack_key`.")]
     pub async fn get_pack_file_path(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_pack_file_path", Command::GetPackFilePath(params.0.pack_key))
+        send_and_respond!(self.session(params.0.session_id), "get_pack_file_path", Command::GetPackFilePath(params.0.pack_key))
     }
 
     #[tool(description = "Get the file name of the pack identified by `pack_key`.")]
     pub async fn get_pack_file_name(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_pack_file_name", Command::GetPackFileName(params.0.pack_key))
+        send_and_respond!(self.session(params.0.session_id), "get_pack_file_name", Command::GetPackFileName(params.0.pack_key))
     }
 
     #[tool(description = "Get the settings of the pack identified by `pack_key`.")]
     pub async fn get_pack_settings(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_pack_settings", Command::GetPackSettings(params.0.pack_key))
+        send_and_respond!(self.session(params.0.session_id), "get_pack_settings", Command::GetPackSettings(params.0.pack_key))
     }
 
     #[tool(description = "Set the settings of the pack identified by `pack_key`. The `settings` is a PackSettings JSON object containing pack-level configuration.")]
     pub async fn set_pack_settings(&self, params: Parameters<SetPackSettingsArgs>) -> Result<CallToolResult, McpError> {
         let settings = parse_json!(&params.0.settings);
-        send_and_respond!(self, "set_pack_settings", Command::SetPackSettings(params.0.pack_key, settings))
+        send_and_respond!(self.session(params.0.session_id), "set_pack_settings", Command::SetPackSettings(params.0.pack_key, settings))
     }
 
     #[tool(description = "Get the list of PackFiles marked as dependencies of the pack identified by `pack_key`.")]
     pub async fn get_dependency_pack_files_list(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_dependency_pack_files_list", Command::GetDependencyPackFilesList(params.0.pack_key))
+        send_and_respond!(self.session(params.0.session_id), "get_dependency_pack_files_list", Command::GetDependencyPackFilesList(params.0.pack_key))
     }
 
     #[tool(description = "Set the list of PackFiles marked as dependencies for the pack identified by `pack_key`. The `list` is a JSON array of [enabled, pack_name] pairs, e.g. [[true, \"other_mod.pack\"], [false, \"disabled_mod.pack\"]].")]
     pub async fn set_dependency_pack_files_list(&self, params: Parameters<SetDependencyPackFilesListArgs>) -> Result<CallToolResult, McpError> {
         let list = parse_json!(&params.0.list);
-        send_and_respond!(self, "set_dependency_pack_files_list", Command::SetDependencyPackFilesList(params.0.pack_key, list))
+        send_and_respond!(self.session(params.0.session_id), "set_dependency_pack_files_list", Command::SetDependencyPackFilesList(params.0.pack_key, list))
     }
 
     //-----------------------------------------------------------------------//
@@ -1447,143 +1749,143 @@ impl McpServer {
 
     #[tool(description = "Decode a file from the pack identified by `pack_key`. The `path` is the internal file path (e.g. \"db/land_units_tables/my_mod\"). The `source` is the data source: \"PackFile\" (user mod), \"GameFiles\" (vanilla), \"ParentFiles\" (dependency mods), \"AssKitFiles\", or \"ExternalFile\". Returns the decoded file content as JSON (RFileDecoded).")]
     pub async fn decode_packed_file(&self, params: Parameters<DecodePackedFileArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "decode_packed_file", Command::DecodePackedFile(params.0.pack_key, params.0.path, params.0.source))
+        send_and_respond!(self.session(params.0.session_id), "decode_packed_file", Command::DecodePackedFile(params.0.pack_key, params.0.path, params.0.source))
     }
 
     #[tool(description = "Create a new file inside the pack identified by `pack_key`. The `path` is the destination path (e.g. \"db/land_units_tables/my_mod\"). NewFile types: {\"DB\": [\"file_name\", \"table_name\", version]}, {\"Loc\": \"name\"}, {\"Text\": [\"name\", \"Plain\"]}, {\"AnimPack\": \"name\"}, {\"VMD\": \"name\"}, {\"WSModel\": \"name\"}, {\"PortraitSettings\": [\"name\", version, []]}.")]
     pub async fn new_packed_file(&self, params: Parameters<NewPackedFileArgs>) -> Result<CallToolResult, McpError> {
         let new_file = parse_json!(&params.0.new_file);
-        send_and_respond!(self, "new_packed_file", Command::NewPackedFile(params.0.pack_key, params.0.path, new_file))
+        send_and_respond!(self.session(params.0.session_id), "new_packed_file", Command::NewPackedFile(params.0.pack_key, params.0.path, new_file))
     }
 
     #[tool(description = "Add files from disk to the pack identified by `pack_key`. The `source_paths` are filesystem paths. The `destination_paths` is a JSON array of ContainerPath: [{\"File\": \"db/table/file\"}, {\"Folder\": \"ui/images\"}]. Optionally set `ignore_paths` to skip certain files.")]
     pub async fn add_packed_files(&self, params: Parameters<AddPackedFilesArgs>) -> Result<CallToolResult, McpError> {
         let dest: Vec<ContainerPath> = parse_json!(&params.0.destination_paths);
-        send_and_respond!(self, "add_packed_files", Command::AddPackedFiles(params.0.pack_key, params.0.source_paths, dest, params.0.ignore_paths))
+        send_and_respond!(self.session(params.0.session_id), "add_packed_files", Command::AddPackedFiles(params.0.pack_key, params.0.source_paths, dest, params.0.ignore_paths))
     }
 
     #[tool(description = "Add files from another PackFile to the pack identified by `pack_key`. The `source_pack_path` is the pack path. The `container_paths` is a JSON array of ContainerPath: [{\"File\": \"path\"}].")]
     pub async fn add_packed_files_from_pack_file(&self, params: Parameters<AddPackedFilesFromPackFileArgs>) -> Result<CallToolResult, McpError> {
         let paths: Vec<ContainerPath> = parse_json!(&params.0.container_paths);
-        send_and_respond!(self, "add_packed_files_from_pack_file", Command::AddPackedFilesFromPackFile(params.0.pack_key, params.0.source_pack_path, paths))
+        send_and_respond!(self.session(params.0.session_id), "add_packed_files_from_pack_file", Command::AddPackedFilesFromPackFile(params.0.pack_key, params.0.source_pack_path, paths))
     }
 
     #[tool(description = "Copy files from the pack identified by `source_pack_key` into an AnimPack owned by `pack_key` (the two may differ). The `container_paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"animations/anim.anim\"}]. The `animpack_path` is the AnimPack's internal path.")]
     pub async fn add_packed_files_from_pack_file_to_animpack(&self, params: Parameters<AddPackedFilesFromPackFileToAnimpackArgs>) -> Result<CallToolResult, McpError> {
         let paths: Vec<ContainerPath> = parse_json!(&params.0.container_paths);
-        send_and_respond!(self, "add_packed_files_from_pack_file_to_animpack", Command::AddPackedFilesFromPackFileToAnimpack(params.0.source_pack_key, params.0.pack_key, params.0.animpack_path, paths))
+        send_and_respond!(self.session(params.0.session_id), "add_packed_files_from_pack_file_to_animpack", Command::AddPackedFilesFromPackFileToAnimpack(params.0.source_pack_key, params.0.pack_key, params.0.animpack_path, paths))
     }
 
     #[tool(description = "Copy files from an AnimPack owned by `anim_pack_key` into the destination pack `pack_key` (the two may differ). The `source` is the DataSource (\"PackFile\", \"GameFiles\", etc.); `anim_pack_key` is only used when it is \"PackFile\". The `animpack_path` is the AnimPack's internal path. The `container_paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"animations/anim.anim\"}].")]
     pub async fn add_packed_files_from_animpack(&self, params: Parameters<AddPackedFilesFromAnimpackArgs>) -> Result<CallToolResult, McpError> {
         let paths: Vec<ContainerPath> = parse_json!(&params.0.container_paths);
-        send_and_respond!(self, "add_packed_files_from_animpack", Command::AddPackedFilesFromAnimpack(params.0.anim_pack_key, params.0.pack_key, params.0.source, params.0.animpack_path, paths))
+        send_and_respond!(self.session(params.0.session_id), "add_packed_files_from_animpack", Command::AddPackedFilesFromAnimpack(params.0.anim_pack_key, params.0.pack_key, params.0.source, params.0.animpack_path, paths))
     }
 
     #[tool(description = "Delete files from the pack identified by `pack_key`. The `paths` is a JSON array of ContainerPath: [{\"File\": \"path/to/file\"}, {\"Folder\": \"path/to/folder\"}].")]
     pub async fn delete_packed_files(&self, params: Parameters<ContainerPathsArg>) -> Result<CallToolResult, McpError> {
         let paths: Vec<ContainerPath> = parse_json!(&params.0.paths);
-        send_and_respond!(self, "delete_packed_files", Command::DeletePackedFiles(params.0.pack_key, paths))
+        send_and_respond!(self.session(params.0.session_id), "delete_packed_files", Command::DeletePackedFiles(params.0.pack_key, paths))
     }
 
     #[tool(description = "Delete files from an AnimPack in the pack identified by `pack_key`. The `animpack_path` is the AnimPack's internal path. The `container_paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"animations/anim.anim\"}].")]
     pub async fn delete_from_animpack(&self, params: Parameters<DeleteFromAnimpackArgs>) -> Result<CallToolResult, McpError> {
         let paths: Vec<ContainerPath> = parse_json!(&params.0.container_paths);
-        send_and_respond!(self, "delete_from_animpack", Command::DeleteFromAnimpack(params.0.pack_key, params.0.animpack_path, paths))
+        send_and_respond!(self.session(params.0.session_id), "delete_from_animpack", Command::DeleteFromAnimpack(params.0.pack_key, params.0.animpack_path, paths))
     }
 
     #[tool(description = "Extract files from the pack identified by `pack_key` to disk. The `source_paths` is a JSON object mapping DataSource to ContainerPath arrays, e.g. {\"PackFile\": [{\"File\": \"db/table/file\"}]}. Set `export_as_tsv: true` to export tables as TSV files.")]
     pub async fn extract_packed_files(&self, params: Parameters<ExtractPackedFilesArgs>) -> Result<CallToolResult, McpError> {
         let source: BTreeMap<DataSource, Vec<ContainerPath>> = parse_json!(&params.0.source_paths);
-        send_and_respond!(self, "extract_packed_files", Command::ExtractPackedFiles(params.0.pack_key, source, params.0.destination_path, params.0.export_as_tsv))
+        send_and_respond!(self.session(params.0.session_id), "extract_packed_files", Command::ExtractPackedFiles(params.0.pack_key, source, params.0.destination_path, params.0.export_as_tsv))
     }
 
     #[tool(description = "Rename files in the pack identified by `pack_key`. The `renames` is a JSON array of [old, new] ContainerPath pairs, e.g. [[{\"File\": \"old/path\"}, {\"File\": \"new/path\"}]].")]
     pub async fn rename_packed_files(&self, params: Parameters<RenamePackedFilesArgs>) -> Result<CallToolResult, McpError> {
         let renames: Vec<(ContainerPath, ContainerPath)> = parse_json!(&params.0.renames);
-        send_and_respond!(self, "rename_packed_files", Command::RenamePackedFiles(params.0.pack_key, renames))
+        send_and_respond!(self.session(params.0.session_id), "rename_packed_files", Command::RenamePackedFiles(params.0.pack_key, renames))
     }
 
     #[tool(description = "Copy files to the internal clipboard. The `paths_by_pack` is a JSON object mapping pack key to ContainerPath arrays, e.g. {\"my_pack.pack\": [{\"File\": \"db/table/file\"}]}. Use `paste_packed_files` to paste afterwards.")]
     pub async fn copy_packed_files(&self, params: Parameters<CopyOrCutPackedFilesArgs>) -> Result<CallToolResult, McpError> {
         let paths_by_pack: BTreeMap<String, Vec<ContainerPath>> = parse_json!(&params.0.paths_by_pack);
-        send_and_respond!(self, "copy_packed_files", Command::CopyPackedFiles(paths_by_pack))
+        send_and_respond!(self.session(params.0.session_id), "copy_packed_files", Command::CopyPackedFiles(paths_by_pack))
     }
 
     #[tool(description = "Cut files to the internal clipboard. Same as copy, but files will be removed from the source pack on paste. The `paths_by_pack` is a JSON object mapping pack key to ContainerPath arrays. Use `paste_packed_files` to paste afterwards.")]
     pub async fn cut_packed_files(&self, params: Parameters<CopyOrCutPackedFilesArgs>) -> Result<CallToolResult, McpError> {
         let paths_by_pack: BTreeMap<String, Vec<ContainerPath>> = parse_json!(&params.0.paths_by_pack);
-        send_and_respond!(self, "cut_packed_files", Command::CutPackedFiles(paths_by_pack))
+        send_and_respond!(self.session(params.0.session_id), "cut_packed_files", Command::CutPackedFiles(paths_by_pack))
     }
 
     #[tool(description = "Paste files from the internal clipboard into the pack identified by `pack_key`. The `destination_path` is the folder path to paste into (empty string for root). Returns the added paths, any cut-deleted paths, and the source pack key.")]
     pub async fn paste_packed_files(&self, params: Parameters<PastePackedFilesArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "paste_packed_files", Command::PastePackedFiles(params.0.pack_key, params.0.destination_path))
+        send_and_respond!(self.session(params.0.session_id), "paste_packed_files", Command::PastePackedFiles(params.0.pack_key, params.0.destination_path))
     }
 
     #[tool(description = "Duplicate files in-place within the same pack. Files are cloned with a numeric suffix to avoid name collisions. The `paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"db/table/file\"}].")]
     pub async fn duplicate_packed_files(&self, params: Parameters<DuplicatePackedFilesArgs>) -> Result<CallToolResult, McpError> {
         let paths: Vec<ContainerPath> = parse_json!(&params.0.paths);
-        send_and_respond!(self, "duplicate_packed_files", Command::DuplicatePackedFiles(params.0.pack_key, paths))
+        send_and_respond!(self.session(params.0.session_id), "duplicate_packed_files", Command::DuplicatePackedFiles(params.0.pack_key, paths))
     }
 
     #[tool(description = "Save an edited decoded file back to the pack identified by `pack_key`. The `path` is the internal path (e.g. \"db/land_units_tables/my_mod\"). The `data` is the modified RFileDecoded JSON (same structure returned by `decode_packed_file`).")]
     pub async fn save_packed_file_from_view(&self, params: Parameters<SavePackedFileFromViewArgs>) -> Result<CallToolResult, McpError> {
         let data: RFileDecoded = parse_json!(&params.0.data);
-        send_and_respond!(self, "save_packed_file_from_view", Command::SavePackedFileFromView(params.0.pack_key, params.0.path, data))
+        send_and_respond!(self.session(params.0.session_id), "save_packed_file_from_view", Command::SavePackedFileFromView(params.0.pack_key, params.0.path, data))
     }
 
     #[tool(description = "Save a file from an external program back to the pack identified by `pack_key`.")]
     pub async fn save_packed_file_from_external_view(&self, params: Parameters<SavePackedFileFromExternalViewArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "save_packed_file_from_external_view", Command::SavePackedFileFromExternalView(params.0.pack_key, params.0.internal_path, params.0.external_path))
+        send_and_respond!(self.session(params.0.session_id), "save_packed_file_from_external_view", Command::SavePackedFileFromExternalView(params.0.pack_key, params.0.internal_path, params.0.external_path))
     }
 
     #[tool(description = "Save files to the pack identified by `pack_key` and optionally optimize afterward. The `files` is a JSON array of RFile objects (as returned by decode/get operations). Set `optimize` to true to remove unchanged data after saving.")]
     pub async fn save_packed_files_to_pack_file_and_clean(&self, params: Parameters<SavePackedFilesToPackFileAndCleanArgs>) -> Result<CallToolResult, McpError> {
         let files: Vec<RFile> = parse_json!(&params.0.files);
-        send_and_respond!(self, "save_packed_files_to_pack_file_and_clean", Command::SavePackedFilesToPackFileAndClean(params.0.pack_key, files, params.0.optimize))
+        send_and_respond!(self.session(params.0.session_id), "save_packed_files_to_pack_file_and_clean", Command::SavePackedFilesToPackFileAndClean(params.0.pack_key, files, params.0.optimize))
     }
 
     #[tool(description = "Get the raw binary data of a file in the pack identified by `pack_key`.")]
     pub async fn get_packed_file_raw_data(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_packed_file_raw_data", Command::GetPackedFileRawData(params.0.pack_key, params.0.value))
+        send_and_respond!(self.session(params.0.session_id), "get_packed_file_raw_data", Command::GetPackedFileRawData(params.0.pack_key, params.0.value))
     }
 
     #[tool(description = "Open a file in the system's default program from the pack identified by `pack_key`. The `source` is the DataSource (\"PackFile\", \"GameFiles\", etc.). The `container_path` is a ContainerPath JSON, e.g. {\"File\": \"db/table/file\"}.")]
     pub async fn open_packed_file_in_external_program(&self, params: Parameters<OpenPackedFileInExternalProgramArgs>) -> Result<CallToolResult, McpError> {
         let cp: ContainerPath = parse_json!(&params.0.container_path);
-        send_and_respond!(self, "open_packed_file_in_external_program", Command::OpenPackedFileInExternalProgram(params.0.pack_key, params.0.source, cp))
+        send_and_respond!(self.session(params.0.session_id), "open_packed_file_in_external_program", Command::OpenPackedFileInExternalProgram(params.0.pack_key, params.0.source, cp))
     }
 
     #[tool(description = "Open the folder containing the pack identified by `pack_key` in the file manager.")]
     pub async fn open_containing_folder(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "open_containing_folder", Command::OpenContainingFolder(params.0.pack_key))
+        send_and_respond!(self.session(params.0.session_id), "open_containing_folder", Command::OpenContainingFolder(params.0.pack_key))
     }
 
     #[tool(description = "Clean the decode cache for the provided paths in the pack identified by `pack_key`. The `paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"db/land_units_tables/my_mod\"}, {\"Folder\": \"db\"}].")]
     pub async fn clean_cache(&self, params: Parameters<ContainerPathsArg>) -> Result<CallToolResult, McpError> {
         let paths: Vec<ContainerPath> = parse_json!(&params.0.paths);
-        send_and_respond!(self, "clean_cache", Command::CleanCache(params.0.pack_key, paths))
+        send_and_respond!(self.session(params.0.session_id), "clean_cache", Command::CleanCache(params.0.pack_key, paths))
     }
 
     #[tool(description = "Check if a folder exists in the pack identified by `pack_key`.")]
     pub async fn folder_exists(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "folder_exists", Command::FolderExists(params.0.pack_key, params.0.value))
+        send_and_respond!(self.session(params.0.session_id), "folder_exists", Command::FolderExists(params.0.pack_key, params.0.value))
     }
 
     #[tool(description = "Check if a file exists in the pack identified by `pack_key`.")]
     pub async fn packed_file_exists(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "packed_file_exists", Command::PackedFileExists(params.0.pack_key, params.0.value))
+        send_and_respond!(self.session(params.0.session_id), "packed_file_exists", Command::PackedFileExists(params.0.pack_key, params.0.value))
     }
 
     #[tool(description = "Get the info of one or more files in the pack identified by `pack_key`.")]
     pub async fn get_packed_files_info(&self, params: Parameters<PackKeyStringsArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_packed_files_info", Command::GetPackedFilesInfo(params.0.pack_key, params.0.values))
+        send_and_respond!(self.session(params.0.session_id), "get_packed_files_info", Command::GetPackedFilesInfo(params.0.pack_key, params.0.values))
     }
 
     #[tool(description = "Get the info of a single file in the pack identified by `pack_key`.")]
     pub async fn get_rfile_info(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_rfile_info", Command::GetRFileInfo(params.0.pack_key, params.0.value))
+        send_and_respond!(self.session(params.0.session_id), "get_rfile_info", Command::GetRFileInfo(params.0.pack_key, params.0.value))
     }
 
     //-----------------------------------------------------------------------//
@@ -1591,90 +1893,90 @@ impl McpServer {
     //-----------------------------------------------------------------------//
 
     #[tool(description = "Get the currently selected game key.")]
-    pub async fn get_game_selected(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_game_selected", Command::GetGameSelected)
+    pub async fn get_game_selected(&self, params: Parameters<SessionArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self.session(params.0.session_id), "get_game_selected", Command::GetGameSelected)
     }
 
-    #[tool(description = "Set the current game. Valid game keys: shogun_2_complete_edition, pharaoh_dynasties, pharaoh, warhammer_3, troy, three_kingdoms, warhammer_2, warhammer, thrones_of_britannia, attila, rome_2, shogun_2, napoleon, empire, arena. Set rebuild_dependencies to true on first call to load schemas and vanilla data.")]
+    #[tool(description = "Set the current game. Valid game keys: shogun_2_complete_edition, pharaoh_dynasties, pharaoh, warhammer_3, troy, three_kingdoms, warhammer_2, warhammer, thrones_of_britannia, attila, rome_2, shogun_2, napoleon, empire, arena. Set rebuild_dependencies to true on first call to load schemas and vanilla data. When rebuilding, returns the compression format and the number of files loaded from each dependency source.")]
     pub async fn set_game_selected(&self, params: Parameters<SetGameSelectedArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "set_game_selected", Command::SetGameSelected(params.0.game_name, params.0.rebuild_dependencies))
+        send_and_respond!(self.session(params.0.session_id), "set_game_selected", Command::SetGameSelected(params.0.game_name, params.0.rebuild_dependencies))
     }
 
     //-----------------------------------------------------------------------//
     // Dependencies
     //-----------------------------------------------------------------------//
 
-    #[tool(description = "Generate the dependencies cache for the selected game. This can take a long time (more than 30 seconds), depending on your CPU and disk read speed. If the client is not careful, it can take enough time that the client may trigger a timeout.")]
-    pub async fn generate_dependencies_cache(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "generate_dependencies_cache", Command::GenerateDependenciesCache)
+    #[tool(description = "Generate the dependencies cache for the selected game. This can take a long time (more than 30 seconds), depending on your CPU and disk read speed. If the client is not careful, it can take enough time that the client may trigger a timeout. Returns the number of files loaded from each dependency source.")]
+    pub async fn generate_dependencies_cache(&self, params: Parameters<SessionArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self.session(params.0.session_id), "generate_dependencies_cache", Command::GenerateDependenciesCache)
     }
 
-    #[tool(description = "Rebuild dependencies. Pass true for full rebuild, false for mod-specific only.")]
+    #[tool(description = "Rebuild dependencies. Pass true for full rebuild, false for mod-specific only. Returns the number of files loaded from each dependency source.")]
     pub async fn rebuild_dependencies(&self, params: Parameters<BoolArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "rebuild_dependencies", Command::RebuildDependencies(params.0.value))
+        send_and_respond!(self.session(params.0.session_id), "rebuild_dependencies", Command::RebuildDependencies(params.0.value))
     }
 
     #[tool(description = "Check if there is a dependency database loaded. Pass true to ensure AssKit data is included.")]
     pub async fn is_there_a_dependency_database(&self, params: Parameters<BoolArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "is_there_a_dependency_database", Command::IsThereADependencyDatabase(params.0.value))
+        send_and_respond!(self.session(params.0.session_id), "is_there_a_dependency_database", Command::IsThereADependencyDatabase(params.0.value))
     }
 
     #[tool(description = "Get the table names of all DB files in dependency PackFiles.")]
-    pub async fn get_table_list_from_dependency_pack_file(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_table_list_from_dependency_pack_file", Command::GetTableListFromDependencyPackFile)
+    pub async fn get_table_list_from_dependency_pack_file(&self, params: Parameters<SessionArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self.session(params.0.session_id), "get_table_list_from_dependency_pack_file", Command::GetTableListFromDependencyPackFile)
     }
 
     #[tool(description = "Get custom table names (start_pos_, twad_ prefixes) from the schema.")]
-    pub async fn get_custom_table_list(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_custom_table_list", Command::GetCustomTableList)
+    pub async fn get_custom_table_list(&self, params: Parameters<SessionArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self.session(params.0.session_id), "get_custom_table_list", Command::GetCustomTableList)
     }
 
     #[tool(description = "Get the version of a table from the dependency database.")]
     pub async fn get_table_version_from_dependency_pack_file(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_table_version_from_dependency_pack_file", Command::GetTableVersionFromDependencyPackFile(params.0.value))
+        send_and_respond!(self.session(params.0.session_id), "get_table_version_from_dependency_pack_file", Command::GetTableVersionFromDependencyPackFile(params.0.value))
     }
 
     #[tool(description = "Get the definition of a table from the dependency database. NOTE: the returned `fields` list is the raw on-disk field layout, not what row data looks like (e.g. colour columns are split into separate r/g/b fields here). Pass the definition to `fields_processed` to get the field list/count that rows must actually match.")]
     pub async fn get_table_definition_from_dependency_pack_file(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_table_definition_from_dependency_pack_file", Command::GetTableDefinitionFromDependencyPackFile(params.0.value))
+        send_and_respond!(self.session(params.0.session_id), "get_table_definition_from_dependency_pack_file", Command::GetTableDefinitionFromDependencyPackFile(params.0.value))
     }
 
     #[tool(description = "Get table data from dependencies by table name. NOTE: each returned file's decoded `data` rows are shaped per the PROCESSED fields (colour groups merged, bitwise/enum expanded), but the `definition.fields` bundled in the same file is the RAW on-disk layout and will have a different length/order — do not zip row cells against `definition.fields`. Call `fields_processed` on that definition to get the field list that actually lines up with `data`.")]
     pub async fn get_tables_from_dependencies(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_tables_from_dependencies", Command::GetTablesFromDependencies(params.0.value))
+        send_and_respond!(self.session(params.0.session_id), "get_tables_from_dependencies", Command::GetTablesFromDependencies(params.0.value))
     }
 
     #[tool(description = "Import files from dependencies into the pack identified by `pack_key`. The `paths` is a JSON object mapping DataSource to ContainerPath arrays, e.g. {\"GameFiles\": [{\"File\": \"db/table/file\"}]}.")]
     pub async fn import_dependencies_to_open_pack_file(&self, params: Parameters<ImportDependenciesArgs>) -> Result<CallToolResult, McpError> {
         let paths: BTreeMap<DataSource, Vec<ContainerPath>> = parse_json!(&params.0.paths);
-        send_and_respond!(self, "import_dependencies_to_open_pack_file", Command::ImportDependenciesToOpenPackFile(params.0.pack_key, paths))
+        send_and_respond!(self.session(params.0.session_id), "import_dependencies_to_open_pack_file", Command::ImportDependenciesToOpenPackFile(params.0.pack_key, paths))
     }
 
     #[tool(description = "Get files from all known sources (PackFile, GameFiles, ParentFiles). The `paths` is a JSON array of ContainerPath, e.g. [{\"File\": \"db/land_units_tables/some_file\"}]. Set `lowercase` to true to normalize path casing.")]
     pub async fn get_rfiles_from_all_sources(&self, params: Parameters<GetRFilesFromAllSourcesArgs>) -> Result<CallToolResult, McpError> {
         let paths: Vec<ContainerPath> = parse_json!(&params.0.paths);
-        send_and_respond!(self, "get_rfiles_from_all_sources", Command::GetRFilesFromAllSources(paths, params.0.lowercase))
+        send_and_respond!(self.session(params.0.session_id), "get_rfiles_from_all_sources", Command::GetRFilesFromAllSources(paths, params.0.lowercase))
     }
 
     #[tool(description = "Get all file names under a path prefix across all data sources (PackFile, GameFiles, ParentFiles). The `path` is a ContainerPath JSON, e.g. {\"Folder\": \"db/land_units_tables\"} to list all files under that folder.")]
     pub async fn get_packed_files_names_starting_with_path_from_all_sources(&self, params: Parameters<ContainerPathArg>) -> Result<CallToolResult, McpError> {
         let path: ContainerPath = parse_json!(&params.0.path);
-        send_and_respond!(self, "get_packed_files_names_starting_with_path_from_all_sources", Command::GetPackedFilesNamesStartingWitPathFromAllSources(path))
+        send_and_respond!(self.session(params.0.session_id), "get_packed_files_names_starting_with_path_from_all_sources", Command::GetPackedFilesNamesStartingWitPathFromAllSources(path))
     }
 
     #[tool(description = "Get local art set IDs from campaign_character_arts_tables in the pack identified by `pack_key`.")]
     pub async fn local_art_set_ids(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "local_art_set_ids", Command::LocalArtSetIds(params.0.pack_key))
+        send_and_respond!(self.session(params.0.session_id), "local_art_set_ids", Command::LocalArtSetIds(params.0.pack_key))
     }
 
     #[tool(description = "Get art set IDs from dependencies' campaign_character_arts_tables.")]
-    pub async fn dependencies_art_set_ids(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "dependencies_art_set_ids", Command::DependenciesArtSetIds)
+    pub async fn dependencies_art_set_ids(&self, params: Parameters<SessionArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self.session(params.0.session_id), "dependencies_art_set_ids", Command::DependenciesArtSetIds)
     }
 
     #[tool(description = "Get the distinct values of the column `column_name` of the DB table `table_name` (like `factions_tables`), from the open packs, their parent packs and vanilla.")]
     pub async fn dependencies_column_values(&self, params: Parameters<TableColumnArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "dependencies_column_values", Command::DependenciesColumnValues(params.0.table_name, params.0.column_name))
+        send_and_respond!(self.session(params.0.session_id), "dependencies_column_values", Command::DependenciesColumnValues(params.0.table_name, params.0.column_name))
     }
 
     //-----------------------------------------------------------------------//
@@ -1684,47 +1986,47 @@ impl McpServer {
     #[tool(description = "Run a global search across the pack identified by `pack_key`. The `search` is a GlobalSearch JSON with fields: pattern (string), replace_text (string), case_sensitive (bool), use_regex (bool), search_on ({db: bool, loc: bool, text: bool, ...}), sources ([{\"Pack\": \"key\"}]), game_key (string). See the `rpfm://examples/global_search` resource for a full example.")]
     pub async fn global_search(&self, params: Parameters<GlobalSearchArgs>) -> Result<CallToolResult, McpError> {
         let search = parse_json!(&params.0.search);
-        send_and_respond!(self, "global_search", Command::GlobalSearch(params.0.pack_key, search))
+        send_and_respond!(self.session(params.0.session_id), "global_search", Command::GlobalSearch(params.0.pack_key, search))
     }
 
     #[tool(description = "Replace specific matches in a global search for the pack identified by `pack_key`. The `search` is the same GlobalSearch JSON used in `global_search` (see `rpfm://examples/global_search` resource). The `matches` is a JSON array of MatchHolder objects from the search results — include only the matches you want to replace.")]
     pub async fn global_search_replace_matches(&self, params: Parameters<GlobalSearchReplaceMatchesArgs>) -> Result<CallToolResult, McpError> {
         let search = parse_json!(&params.0.search);
         let matches = parse_json!(&params.0.matches);
-        send_and_respond!(self, "global_search_replace_matches", Command::GlobalSearchReplaceMatches(params.0.pack_key, search, matches))
+        send_and_respond!(self.session(params.0.session_id), "global_search_replace_matches", Command::GlobalSearchReplaceMatches(params.0.pack_key, search, matches))
     }
 
     #[tool(description = "Replace all matches in a global search for the pack identified by `pack_key`. The `search` is a GlobalSearch JSON with the `replace_text` field set to the replacement string. See `rpfm://examples/global_search` resource for the full structure.")]
     pub async fn global_search_replace_all(&self, params: Parameters<GlobalSearchArgs>) -> Result<CallToolResult, McpError> {
         let search = parse_json!(&params.0.search);
-        send_and_respond!(self, "global_search_replace_all", Command::GlobalSearchReplaceAll(params.0.pack_key, search))
+        send_and_respond!(self.session(params.0.session_id), "global_search_replace_all", Command::GlobalSearchReplaceAll(params.0.pack_key, search))
     }
 
     #[tool(description = "Find all references to a value in the pack identified by `pack_key`. The `reference_map` is a JSON object mapping table names to column name arrays, e.g. {\"land_units_tables\": [\"key\", \"unit\"]}. The `value` is the string to search for across those columns.")]
     pub async fn search_references(&self, params: Parameters<SearchReferencesArgs>) -> Result<CallToolResult, McpError> {
         let map: HashMap<String, Vec<String>> = parse_json!(&params.0.reference_map);
-        send_and_respond!(self, "search_references", Command::SearchReferences(params.0.pack_key, map, params.0.value))
+        send_and_respond!(self.session(params.0.session_id), "search_references", Command::SearchReferences(params.0.pack_key, map, params.0.value))
     }
 
     #[tool(description = "Get valid reference values for columns in a table definition for the pack identified by `pack_key`. The `definition` is a Definition JSON (as returned by `get_table_definition_from_dependency_pack_file`). Set `force` to true to regenerate cached reference data.")]
     pub async fn get_reference_data_from_definition(&self, params: Parameters<GetReferenceDataFromDefinitionArgs>) -> Result<CallToolResult, McpError> {
         let def = parse_json!(&params.0.definition);
-        send_and_respond!(self, "get_reference_data_from_definition", Command::GetReferenceDataFromDefinition(params.0.pack_key, params.0.table_name, def, params.0.force))
+        send_and_respond!(self.session(params.0.session_id), "get_reference_data_from_definition", Command::GetReferenceDataFromDefinition(params.0.pack_key, params.0.table_name, def, params.0.force))
     }
 
     #[tool(description = "Go to the definition of a reference in the pack identified by `pack_key`. Provide table name, column name, and values to search.")]
     pub async fn go_to_definition(&self, params: Parameters<GoToDefinitionArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "go_to_definition", Command::GoToDefinition(params.0.pack_key, params.0.table_name, params.0.column_name, params.0.values))
+        send_and_respond!(self.session(params.0.session_id), "go_to_definition", Command::GoToDefinition(params.0.pack_key, params.0.table_name, params.0.column_name, params.0.values))
     }
 
     #[tool(description = "Go to a loc key's location in the pack identified by `pack_key`.")]
     pub async fn go_to_loc(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "go_to_loc", Command::GoToLoc(params.0.pack_key, params.0.value))
+        send_and_respond!(self.session(params.0.session_id), "go_to_loc", Command::GoToLoc(params.0.pack_key, params.0.value))
     }
 
     #[tool(description = "Get the source data of a loc key in the pack identified by `pack_key`.")]
     pub async fn get_source_data_from_loc_key(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_source_data_from_loc_key", Command::GetSourceDataFromLocKey(params.0.pack_key, params.0.value))
+        send_and_respond!(self.session(params.0.session_id), "get_source_data_from_loc_key", Command::GetSourceDataFromLocKey(params.0.pack_key, params.0.value))
     }
 
     //-----------------------------------------------------------------------//
@@ -1734,76 +2036,76 @@ impl McpServer {
     #[tool(description = "Save the provided schema to disk. The `schema` is the full Schema JSON object (as returned by `get_schema`). Use this after modifying definitions or applying patches.")]
     pub async fn save_schema(&self, params: Parameters<SaveSchemaArgs>) -> Result<CallToolResult, McpError> {
         let schema = parse_json!(&params.0.schema);
-        send_and_respond!(self, "save_schema", Command::SaveSchema(schema))
+        send_and_respond!(self.session(params.0.session_id), "save_schema", Command::SaveSchema(schema))
     }
 
     #[tool(description = "Update the currently loaded schema with data from the game's Assembly Kit.")]
-    pub async fn update_current_schema_from_asskit(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "update_current_schema_from_asskit", Command::UpdateCurrentSchemaFromAssKit)
+    pub async fn update_current_schema_from_asskit(&self, params: Parameters<SessionArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self.session(params.0.session_id), "update_current_schema_from_asskit", Command::UpdateCurrentSchemaFromAssKit)
     }
 
     #[tool(description = "Update schemas from the remote repository.")]
-    pub async fn update_schemas(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "update_schemas", Command::UpdateSchemas)
+    pub async fn update_schemas(&self, params: Parameters<SessionArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self.session(params.0.session_id), "update_schemas", Command::UpdateSchemas)
     }
 
     #[tool(description = "Check if a schema is currently loaded.")]
-    pub async fn is_schema_loaded(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "is_schema_loaded", Command::IsSchemaLoaded)
+    pub async fn is_schema_loaded(&self, params: Parameters<SessionArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self.session(params.0.session_id), "is_schema_loaded", Command::IsSchemaLoaded)
     }
 
     #[tool(description = "Get the current schema.")]
-    pub async fn get_schema(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_schema", Command::Schema)
+    pub async fn get_schema(&self, params: Parameters<SessionArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self.session(params.0.session_id), "get_schema", Command::Schema)
     }
 
     #[tool(description = "Get all definitions for a table name. NOTE: the returned `fields` list is the raw on-disk field layout, not what row data looks like (e.g. colour columns are split into separate r/g/b fields here). Pass the definition to `fields_processed` to get the field list/count that rows must actually match.")]
     pub async fn definitions_by_table_name(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "definitions_by_table_name", Command::DefinitionsByTableName(params.0.value))
+        send_and_respond!(self.session(params.0.session_id), "definitions_by_table_name", Command::DefinitionsByTableName(params.0.value))
     }
 
     #[tool(description = "Get a specific definition by table name and version. NOTE: the returned `fields` list is the raw on-disk field layout, not what row data looks like (e.g. colour columns are split into separate r/g/b fields here). Do not use `fields.len()` to size a row for saving — pass this definition to `fields_processed` first to get the field list/count and types that rows must actually match.")]
     pub async fn definition_by_table_name_and_version(&self, params: Parameters<StringI32Args>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "definition_by_table_name_and_version", Command::DefinitionByTableNameAndVersion(params.0.name, params.0.version))
+        send_and_respond!(self.session(params.0.session_id), "definition_by_table_name_and_version", Command::DefinitionByTableNameAndVersion(params.0.name, params.0.version))
     }
 
     #[tool(description = "Delete a definition by table name and version.")]
     pub async fn delete_definition(&self, params: Parameters<StringI32Args>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "delete_definition", Command::DeleteDefinition(params.0.name, params.0.version))
+        send_and_respond!(self.session(params.0.session_id), "delete_definition", Command::DeleteDefinition(params.0.name, params.0.version))
     }
 
     #[tool(description = "Get columns from other tables that reference the given table's definition. The `definition` is a Definition JSON (as returned by `get_table_definition_from_dependency_pack_file` or `definitions_by_table_name`).")]
     pub async fn referencing_columns_for_definition(&self, params: Parameters<ReferencingColumnsForDefinitionArgs>) -> Result<CallToolResult, McpError> {
         let def = parse_json!(&params.0.definition);
-        send_and_respond!(self, "referencing_columns_for_definition", Command::ReferencingColumnsForDefinition(params.0.table_name, def))
+        send_and_respond!(self.session(params.0.session_id), "referencing_columns_for_definition", Command::ReferencingColumnsForDefinition(params.0.table_name, def))
     }
 
     #[tool(description = "Get the processed fields from a definition, with bitwise expansion, enum conversions, and colour-group merging applied. Call this before building or validating row data: table rows must have exactly as many entries as `fields_processed` returns, NOT as many as the raw `fields` list on the Definition (e.g. `definition_by_table_name_and_version`/`definitions_by_table_name` return raw fields, where a colour split into r/g/b counts as 3 fields instead of the 1 merged field rows actually use). Saving a row built against the raw field count/types will fail. The `definition` is a Definition JSON (as returned by `get_table_definition_from_dependency_pack_file`).")]
     pub async fn fields_processed(&self, params: Parameters<DefinitionArg>) -> Result<CallToolResult, McpError> {
         let def = parse_json!(&params.0.definition);
-        send_and_respond!(self, "fields_processed", Command::FieldsProcessed(def))
+        send_and_respond!(self.global_session(), "fields_processed", Command::FieldsProcessed(def))
     }
 
     #[tool(description = "Save local schema patches to customize column metadata without modifying the upstream schema. The `patches` is a JSON object mapping table names to DefinitionPatch objects, e.g. {\"land_units_tables\": {\"field_patches\": {...}}}.")]
     pub async fn save_local_schema_patch(&self, params: Parameters<SchemaPatchArgs>) -> Result<CallToolResult, McpError> {
         let patches = parse_json!(&params.0.patches);
-        send_and_respond!(self, "save_local_schema_patch", Command::SaveLocalSchemaPatch(patches))
+        send_and_respond!(self.session(params.0.session_id), "save_local_schema_patch", Command::SaveLocalSchemaPatch(patches))
     }
 
     #[tool(description = "Remove local schema patches for a table.")]
     pub async fn remove_local_schema_patches_for_table(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "remove_local_schema_patches_for_table", Command::RemoveLocalSchemaPatchesForTable(params.0.value))
+        send_and_respond!(self.session(params.0.session_id), "remove_local_schema_patches_for_table", Command::RemoveLocalSchemaPatchesForTable(params.0.value))
     }
 
     #[tool(description = "Remove local schema patches for a specific field in a table.")]
-    pub async fn remove_local_schema_patches_for_table_and_field(&self, params: Parameters<SettingsSetStringArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "remove_local_schema_patches_for_table_and_field", Command::RemoveLocalSchemaPatchesForTableAndField(params.0.key, params.0.value))
+    pub async fn remove_local_schema_patches_for_table_and_field(&self, params: Parameters<TableFieldArgs>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self.session(params.0.session_id), "remove_local_schema_patches_for_table_and_field", Command::RemoveLocalSchemaPatchesForTableAndField(params.0.key, params.0.value))
     }
 
     #[tool(description = "Import a schema patch from an external source. The `patches` is a JSON object mapping table names to DefinitionPatch objects (same format as `save_local_schema_patch`).")]
     pub async fn import_schema_patch(&self, params: Parameters<SchemaPatchArgs>) -> Result<CallToolResult, McpError> {
         let patches = parse_json!(&params.0.patches);
-        send_and_respond!(self, "import_schema_patch", Command::ImportSchemaPatch(patches))
+        send_and_respond!(self.session(params.0.session_id), "import_schema_patch", Command::ImportSchemaPatch(patches))
     }
 
     //-----------------------------------------------------------------------//
@@ -1815,40 +2117,40 @@ impl McpServer {
         let paths: Vec<ContainerPath> = parse_json!(&params.0.paths);
         let mut options = MergeOptions::default();
         options.set_delta_merge(params.0.delta_merge);
-        send_and_respond!(self, "merge_files", Command::MergeFiles(params.0.pack_key, paths, params.0.merged_path, params.0.delete_source, options))
+        send_and_respond!(self.session(params.0.session_id), "merge_files", Command::MergeFiles(params.0.pack_key, paths, params.0.merged_path, params.0.delete_source, options))
     }
 
     #[tool(description = "Update a table to the latest schema version in the pack identified by `pack_key`. The `value` is a ContainerPath JSON, e.g. {\"File\": \"db/land_units_tables/my_mod\"}.")]
     pub async fn update_table(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
         let path: ContainerPath = parse_json!(&params.0.value);
-        send_and_respond!(self, "update_table", Command::UpdateTable(params.0.pack_key, path))
+        send_and_respond!(self.session(params.0.session_id), "update_table", Command::UpdateTable(params.0.pack_key, path))
     }
 
     #[tool(description = "Trigger a cascade edition on all referenced data in the pack identified by `pack_key`. When a key value changes, this propagates the change to all referencing tables. The `definition` is a Definition JSON for the source table. The `changes` is a JSON array of [field, old_value, new_value] tuples, e.g. [[field_json, \"old_key\", \"new_key\"]].")]
     pub async fn cascade_edition(&self, params: Parameters<CascadeEditionArgs>) -> Result<CallToolResult, McpError> {
         let def = parse_json!(&params.0.definition);
         let changes = parse_json!(&params.0.changes);
-        send_and_respond!(self, "cascade_edition", Command::CascadeEdition(params.0.pack_key, params.0.table_name, def, changes))
+        send_and_respond!(self.session(params.0.session_id), "cascade_edition", Command::CascadeEdition(params.0.pack_key, params.0.table_name, def, changes))
     }
 
     #[tool(description = "Get table paths by table name from the pack identified by `pack_key`.")]
     pub async fn get_tables_by_table_name(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_tables_by_table_name", Command::GetTablesByTableName(params.0.pack_key, params.0.value))
+        send_and_respond!(self.session(params.0.session_id), "get_tables_by_table_name", Command::GetTablesByTableName(params.0.pack_key, params.0.value))
     }
 
     #[tool(description = "Add keys to the key_deletes table in the pack identified by `pack_key`.")]
     pub async fn add_keys_to_key_deletes(&self, params: Parameters<AddKeysToKeyDeletesArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "add_keys_to_key_deletes", Command::AddKeysToKeyDeletes(params.0.pack_key, params.0.table_file_name, params.0.key_table_name, params.0.keys))
+        send_and_respond!(self.session(params.0.session_id), "add_keys_to_key_deletes", Command::AddKeysToKeyDeletes(params.0.pack_key, params.0.table_file_name, params.0.key_table_name, params.0.keys))
     }
 
     #[tool(description = "Export a table from the pack identified by `pack_key` to a TSV file.")]
     pub async fn export_tsv(&self, params: Parameters<TsvExportArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "export_tsv", Command::ExportTSV(params.0.pack_key, params.0.table_path, params.0.tsv_path, DataSource::PackFile))
+        send_and_respond!(self.session(params.0.session_id), "export_tsv", Command::ExportTSV(params.0.pack_key, params.0.table_path, params.0.tsv_path, DataSource::PackFile))
     }
 
     #[tool(description = "Import a TSV file to a table in the pack identified by `pack_key`.")]
     pub async fn import_tsv(&self, params: Parameters<TsvImportArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "import_tsv", Command::ImportTSV(params.0.pack_key, params.0.table_path, params.0.tsv_path))
+        send_and_respond!(self.session(params.0.session_id), "import_tsv", Command::ImportTSV(params.0.pack_key, params.0.table_path, params.0.tsv_path))
     }
 
     //-----------------------------------------------------------------------//
@@ -1857,7 +2159,7 @@ impl McpServer {
 
     #[tool(description = "Run a full diagnostics check over all open packs.")]
     pub async fn diagnostics_check(&self, params: Parameters<DiagnosticsCheckArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "diagnostics_check", Command::DiagnosticsCheck(params.0.ignored, params.0.check_ak_only_refs))
+        send_and_respond!(self.session(params.0.session_id), "diagnostics_check", Command::DiagnosticsCheck(params.0.ignored, params.0.check_ak_only_refs))
     }
 
     #[tool(description = "Run Lua tests against the scripts of all open packs, outside of the game. Scripts run in Lua 5.1 with the game's real script libraries; the game's engine is emulated with objects typed after the Assembly Kit's scripting docs, which record every call made on them. Needs the game's Assembly Kit.
@@ -1872,24 +2174,24 @@ Test file API (a global `rpfm` table):
 
 The report lists each test with its errors (including errors of the pack's scripts, and in listeners), the undocumented methods it called (whose results are placeholders), and the scripts' output.")]
     pub async fn lua_run_tests(&self, params: Parameters<LuaRunTestsArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "lua_run_tests", Command::LuaRunTests(params.0.test_source, params.0.campaign))
+        send_and_respond!(self.session(params.0.session_id), "lua_run_tests", Command::LuaRunTests(params.0.test_source, params.0.campaign))
     }
 
     #[tool(description = "Update diagnostics incrementally for changed files across all open packs. The `diagnostics` is the Diagnostics JSON from a previous `diagnostics_check` call. The `paths` is a JSON array of ContainerPath for the files that changed, e.g. [{\"File\": \"db/land_units_tables/my_mod\"}].")]
     pub async fn diagnostics_update(&self, params: Parameters<DiagnosticsUpdateArgs>) -> Result<CallToolResult, McpError> {
         let diag = parse_json!(&params.0.diagnostics);
         let paths: Vec<ContainerPath> = parse_json!(&params.0.paths);
-        send_and_respond!(self, "diagnostics_update", Command::DiagnosticsUpdate(diag, paths, params.0.check_ak_only_refs))
+        send_and_respond!(self.session(params.0.session_id), "diagnostics_update", Command::DiagnosticsUpdate(diag, paths, params.0.check_ak_only_refs))
     }
 
     #[tool(description = "Add a line to the ignored diagnostics list for the pack identified by `pack_key`.")]
     pub async fn add_line_to_pack_ignored_diagnostics(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "add_line_to_pack_ignored_diagnostics", Command::AddLineToPackIgnoredDiagnostics(params.0.pack_key, params.0.value))
+        send_and_respond!(self.session(params.0.session_id), "add_line_to_pack_ignored_diagnostics", Command::AddLineToPackIgnoredDiagnostics(params.0.pack_key, params.0.value))
     }
 
     #[tool(description = "Export missing table definitions for the pack identified by `pack_key` to a file (for debugging).")]
     pub async fn get_missing_definitions(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_missing_definitions", Command::GetMissingDefinitions(params.0.pack_key))
+        send_and_respond!(self.session(params.0.session_id), "get_missing_definitions", Command::GetMissingDefinitions(params.0.pack_key))
     }
 
     //-----------------------------------------------------------------------//
@@ -1898,18 +2200,18 @@ The report lists each test with its errors (including errors of the pack's scrip
 
     #[tool(description = "Get all notes under a path in the pack identified by `pack_key`.")]
     pub async fn notes_for_path(&self, params: Parameters<PackKeyStringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "notes_for_path", Command::NotesForPath(params.0.pack_key, params.0.value))
+        send_and_respond!(self.session(params.0.session_id), "notes_for_path", Command::NotesForPath(params.0.pack_key, params.0.value))
     }
 
     #[tool(description = "Add a note to the pack identified by `pack_key`. The `note` is a Note JSON object with fields: path (string — the file or folder path to attach the note to), id (u64), text (string — the note content).")]
     pub async fn add_note(&self, params: Parameters<AddNoteArgs>) -> Result<CallToolResult, McpError> {
         let note = parse_json!(&params.0.note);
-        send_and_respond!(self, "add_note", Command::AddNote(params.0.pack_key, note))
+        send_and_respond!(self.session(params.0.session_id), "add_note", Command::AddNote(params.0.pack_key, note))
     }
 
     #[tool(description = "Delete a note by path and ID in the pack identified by `pack_key`.")]
     pub async fn delete_note(&self, params: Parameters<DeleteNoteArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "delete_note", Command::DeleteNote(params.0.pack_key, params.0.path, params.0.id))
+        send_and_respond!(self.session(params.0.session_id), "delete_note", Command::DeleteNote(params.0.pack_key, params.0.path, params.0.id))
     }
 
     //-----------------------------------------------------------------------//
@@ -1919,12 +2221,12 @@ The report lists each test with its errors (including errors of the pack's scrip
     #[tool(description = "Optimize the pack identified by `pack_key` by removing unchanged/duplicate data. The `options` is an OptimizerOptions JSON with boolean fields: pack_remove_itm_files, table_remove_duplicated_entries, table_remove_itm_entries, table_remove_itnr_entries, table_remove_empty_file, db_optimize_datacored_tables, etc. See the `rpfm://examples/optimizer_options` resource for all fields.")]
     pub async fn optimize_pack_file(&self, params: Parameters<OptimizePackFileArgs>) -> Result<CallToolResult, McpError> {
         let options = parse_json!(&params.0.options);
-        send_and_respond!(self, "optimize_pack_file", Command::OptimizePackFile(params.0.pack_key, options))
+        send_and_respond!(self.session(params.0.session_id), "optimize_pack_file", Command::OptimizePackFile(params.0.pack_key, options))
     }
 
     #[tool(description = "Get the default optimizer options.")]
     pub async fn get_optimizer_options(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_optimizer_options", Command::OptimizerOptions)
+        send_and_respond!(self.global_session(), "get_optimizer_options", Command::OptimizerOptions)
     }
 
     //-----------------------------------------------------------------------//
@@ -1933,47 +2235,47 @@ The report lists each test with its errors (including errors of the pack's scrip
 
     #[tool(description = "Check if there is an RPFM update available.")]
     pub async fn check_updates(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "check_updates", Command::CheckUpdates)
+        send_and_respond!(self.global_session(), "check_updates", Command::CheckUpdates)
     }
 
     #[tool(description = "Check if there is a schema update available.")]
     pub async fn check_schema_updates(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "check_schema_updates", Command::CheckSchemaUpdates)
+        send_and_respond!(self.global_session(), "check_schema_updates", Command::CheckSchemaUpdates)
     }
 
     #[tool(description = "Check for Lua autogen updates.")]
     pub async fn check_lua_autogen_updates(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "check_lua_autogen_updates", Command::CheckLuaAutogenUpdates)
+        send_and_respond!(self.global_session(), "check_lua_autogen_updates", Command::CheckLuaAutogenUpdates)
     }
 
     #[tool(description = "Check for Empire/Napoleon Assembly Kit updates.")]
     pub async fn check_empire_and_napoleon_ak_updates(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "check_empire_and_napoleon_ak_updates", Command::CheckEmpireAndNapoleonAKUpdates)
+        send_and_respond!(self.global_session(), "check_empire_and_napoleon_ak_updates", Command::CheckEmpireAndNapoleonAKUpdates)
     }
 
     #[tool(description = "Check for translation updates.")]
     pub async fn check_translations_updates(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "check_translations_updates", Command::CheckTranslationsUpdates)
+        send_and_respond!(self.global_session(), "check_translations_updates", Command::CheckTranslationsUpdates)
     }
 
     #[tool(description = "Update the Lua autogen repository.")]
     pub async fn update_lua_autogen(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "update_lua_autogen", Command::UpdateLuaAutogen)
+        send_and_respond!(self.global_session(), "update_lua_autogen", Command::UpdateLuaAutogen)
     }
 
     #[tool(description = "Update the program to the latest version.")]
     pub async fn update_main_program(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "update_main_program", Command::UpdateMainProgram)
+        send_and_respond!(self.global_session(), "update_main_program", Command::UpdateMainProgram)
     }
 
     #[tool(description = "Update the Empire/Napoleon Assembly Kit files.")]
     pub async fn update_empire_and_napoleon_ak(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "update_empire_and_napoleon_ak", Command::UpdateEmpireAndNapoleonAK)
+        send_and_respond!(self.global_session(), "update_empire_and_napoleon_ak", Command::UpdateEmpireAndNapoleonAK)
     }
 
     #[tool(description = "Update the translations repository.")]
     pub async fn update_translations(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "update_translations", Command::UpdateTranslations)
+        send_and_respond!(self.global_session(), "update_translations", Command::UpdateTranslations)
     }
 
     //-----------------------------------------------------------------------//
@@ -1981,43 +2283,43 @@ The report lists each test with its errors (including errors of the pack's scrip
     //-----------------------------------------------------------------------//
 
     #[tool(description = "Get a boolean setting value by key.")]
-    pub async fn settings_get_bool(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "settings_get_bool", Command::SettingsGetBool(params.0.value))
+    pub async fn settings_get_bool(&self, params: Parameters<SettingKeyArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self.global_session(), "settings_get_bool", Command::SettingsGetBool(params.0.value))
     }
 
     #[tool(description = "Get an i32 setting value by key.")]
-    pub async fn settings_get_i32(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "settings_get_i32", Command::SettingsGetI32(params.0.value))
+    pub async fn settings_get_i32(&self, params: Parameters<SettingKeyArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self.global_session(), "settings_get_i32", Command::SettingsGetI32(params.0.value))
     }
 
     #[tool(description = "Get an f32 setting value by key.")]
-    pub async fn settings_get_f32(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "settings_get_f32", Command::SettingsGetF32(params.0.value))
+    pub async fn settings_get_f32(&self, params: Parameters<SettingKeyArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self.global_session(), "settings_get_f32", Command::SettingsGetF32(params.0.value))
     }
 
     #[tool(description = "Get a string setting value by key.")]
-    pub async fn settings_get_string(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "settings_get_string", Command::SettingsGetString(params.0.value))
+    pub async fn settings_get_string(&self, params: Parameters<SettingKeyArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self.global_session(), "settings_get_string", Command::SettingsGetString(params.0.value))
     }
 
     #[tool(description = "Get a PathBuf setting value by key.")]
-    pub async fn settings_get_path_buf(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "settings_get_path_buf", Command::SettingsGetPathBuf(params.0.value))
+    pub async fn settings_get_path_buf(&self, params: Parameters<SettingKeyArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self.global_session(), "settings_get_path_buf", Command::SettingsGetPathBuf(params.0.value))
     }
 
     #[tool(description = "Get a Vec<String> setting value by key.")]
-    pub async fn settings_get_vec_string(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "settings_get_vec_string", Command::SettingsGetVecString(params.0.value))
+    pub async fn settings_get_vec_string(&self, params: Parameters<SettingKeyArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self.global_session(), "settings_get_vec_string", Command::SettingsGetVecString(params.0.value))
     }
 
     #[tool(description = "Get a raw bytes setting value by key.")]
-    pub async fn settings_get_vec_raw(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "settings_get_vec_raw", Command::SettingsGetVecRaw(params.0.value))
+    pub async fn settings_get_vec_raw(&self, params: Parameters<SettingKeyArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self.global_session(), "settings_get_vec_raw", Command::SettingsGetVecRaw(params.0.value))
     }
 
     #[tool(description = "Get all settings at once (bool, i32, f32, string, raw_data, and vec_string maps).")]
     pub async fn settings_get_all(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "settings_get_all", Command::SettingsGetAll)
+        send_and_respond!(self.global_session(), "settings_get_all", Command::SettingsGetAll)
     }
 
     //-----------------------------------------------------------------------//
@@ -2026,52 +2328,52 @@ The report lists each test with its errors (including errors of the pack's scrip
 
     #[tool(description = "Set a boolean setting value.")]
     pub async fn settings_set_bool(&self, params: Parameters<SettingsSetBoolArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "settings_set_bool", Command::SettingsSetBool(params.0.key, params.0.value))
+        send_and_respond!(self.global_session(), "settings_set_bool", Command::SettingsSetBool(params.0.key, params.0.value))
     }
 
     #[tool(description = "Set an i32 setting value.")]
     pub async fn settings_set_i32(&self, params: Parameters<SettingsSetI32Args>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "settings_set_i32", Command::SettingsSetI32(params.0.key, params.0.value))
+        send_and_respond!(self.global_session(), "settings_set_i32", Command::SettingsSetI32(params.0.key, params.0.value))
     }
 
     #[tool(description = "Set an f32 setting value.")]
     pub async fn settings_set_f32(&self, params: Parameters<SettingsSetF32Args>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "settings_set_f32", Command::SettingsSetF32(params.0.key, params.0.value))
+        send_and_respond!(self.global_session(), "settings_set_f32", Command::SettingsSetF32(params.0.key, params.0.value))
     }
 
     #[tool(description = "Set a string setting value.")]
     pub async fn settings_set_string(&self, params: Parameters<SettingsSetStringArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "settings_set_string", Command::SettingsSetString(params.0.key, params.0.value))
+        send_and_respond!(self.global_session(), "settings_set_string", Command::SettingsSetString(params.0.key, params.0.value))
     }
 
     #[tool(description = "Set a PathBuf setting value.")]
     pub async fn settings_set_path_buf(&self, params: Parameters<SettingsSetPathBufArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "settings_set_path_buf", Command::SettingsSetPathBuf(params.0.key, params.0.value))
+        send_and_respond!(self.global_session(), "settings_set_path_buf", Command::SettingsSetPathBuf(params.0.key, params.0.value))
     }
 
     #[tool(description = "Set a Vec<String> setting value.")]
     pub async fn settings_set_vec_string(&self, params: Parameters<SettingsSetVecStringArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "settings_set_vec_string", Command::SettingsSetVecString(params.0.key, params.0.value))
+        send_and_respond!(self.global_session(), "settings_set_vec_string", Command::SettingsSetVecString(params.0.key, params.0.value))
     }
 
     #[tool(description = "Set a raw bytes setting value.")]
     pub async fn settings_set_vec_raw(&self, params: Parameters<SettingsSetVecRawArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "settings_set_vec_raw", Command::SettingsSetVecRaw(params.0.key, params.0.value))
+        send_and_respond!(self.global_session(), "settings_set_vec_raw", Command::SettingsSetVecRaw(params.0.key, params.0.value))
     }
 
     #[tool(description = "Backup the current settings to memory.")]
-    pub async fn backup_settings(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "backup_settings", Command::BackupSettings)
+    pub async fn backup_settings(&self, params: Parameters<SessionArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self.session(params.0.session_id), "backup_settings", Command::BackupSettings)
     }
 
     #[tool(description = "Clear all settings and reset to defaults.")]
     pub async fn clear_settings(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "clear_settings", Command::ClearSettings)
+        send_and_respond!(self.global_session(), "clear_settings", Command::ClearSettings)
     }
 
     #[tool(description = "Restore settings from the backup.")]
-    pub async fn restore_backup_settings(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "restore_backup_settings", Command::RestoreBackupSettings)
+    pub async fn restore_backup_settings(&self, params: Parameters<SessionArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self.session(params.0.session_id), "restore_backup_settings", Command::RestoreBackupSettings)
     }
 
     //-----------------------------------------------------------------------//
@@ -2080,47 +2382,47 @@ The report lists each test with its errors (including errors of the pack's scrip
 
     #[tool(description = "Get the config path.")]
     pub async fn config_path(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "config_path", Command::ConfigPath)
+        send_and_respond!(self.global_session(), "config_path", Command::ConfigPath)
     }
 
     #[tool(description = "Get the Assembly Kit path for the current game.")]
-    pub async fn assembly_kit_path(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "assembly_kit_path", Command::AssemblyKitPath)
+    pub async fn assembly_kit_path(&self, params: Parameters<SessionArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self.session(params.0.session_id), "assembly_kit_path", Command::AssemblyKitPath)
     }
 
     #[tool(description = "Get the backup autosave path.")]
     pub async fn backup_autosave_path(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "backup_autosave_path", Command::BackupAutosavePath)
+        send_and_respond!(self.global_session(), "backup_autosave_path", Command::BackupAutosavePath)
     }
 
     #[tool(description = "Get the old Assembly Kit data path.")]
     pub async fn old_ak_data_path(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "old_ak_data_path", Command::OldAkDataPath)
+        send_and_respond!(self.global_session(), "old_ak_data_path", Command::OldAkDataPath)
     }
 
     #[tool(description = "Get the schemas path.")]
     pub async fn schemas_path(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "schemas_path", Command::SchemasPath)
+        send_and_respond!(self.global_session(), "schemas_path", Command::SchemasPath)
     }
 
     #[tool(description = "Get the table profiles path.")]
     pub async fn table_profiles_path(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "table_profiles_path", Command::TableProfilesPath)
+        send_and_respond!(self.global_session(), "table_profiles_path", Command::TableProfilesPath)
     }
 
     #[tool(description = "Get the translations local path.")]
     pub async fn translations_local_path(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "translations_local_path", Command::TranslationsLocalPath)
+        send_and_respond!(self.global_session(), "translations_local_path", Command::TranslationsLocalPath)
     }
 
     #[tool(description = "Get the dependencies cache path.")]
     pub async fn dependencies_cache_path(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "dependencies_cache_path", Command::DependenciesCachePath)
+        send_and_respond!(self.global_session(), "dependencies_cache_path", Command::DependenciesCachePath)
     }
 
     #[tool(description = "Clear a config path.")]
     pub async fn settings_clear_path(&self, params: Parameters<PathArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "settings_clear_path", Command::SettingsClearPath(params.0.path))
+        send_and_respond!(self.global_session(), "settings_clear_path", Command::SettingsClearPath(params.0.path))
     }
 
     //-----------------------------------------------------------------------//
@@ -2129,90 +2431,90 @@ The report lists each test with its errors (including errors of the pack's scrip
 
     #[tool(description = "Get the info about the pack identified by `pack_key` and the list of files it contains.")]
     pub async fn open_pack_info(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "open_pack_info", Command::GetPackFileDataForTreeView(params.0.pack_key))
+        send_and_respond!(self.session(params.0.session_id), "open_pack_info", Command::GetPackFileDataForTreeView(params.0.pack_key))
     }
 
     #[tool(description = "Initialize a MyMod folder for mod development.")]
     pub async fn initialize_my_mod_folder(&self, params: Parameters<InitializeMyModFolderArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "initialize_my_mod_folder", Command::InitializeMyModFolder(params.0.name, params.0.game, params.0.sublime, params.0.vscode, params.0.gitignore))
+        send_and_respond!(self.session(params.0.session_id), "initialize_my_mod_folder", Command::InitializeMyModFolder(params.0.name, params.0.game, params.0.sublime, params.0.vscode, params.0.gitignore))
     }
 
     #[tool(description = "Live export the pack identified by `pack_key` to the game folder for testing.")]
     pub async fn live_export(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "live_export", Command::LiveExport(params.0.pack_key))
+        send_and_respond!(self.session(params.0.session_id), "live_export", Command::LiveExport(params.0.pack_key))
     }
 
     #[tool(description = "Patch the SiegeAI of a Siege Map in the pack identified by `pack_key` for Warhammer games.")]
     pub async fn patch_siege_ai(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "patch_siege_ai", Command::PatchSiegeAI(params.0.pack_key))
+        send_and_respond!(self.session(params.0.session_id), "patch_siege_ai", Command::PatchSiegeAI(params.0.pack_key))
     }
 
     #[tool(description = "Pack map tiles into the pack identified by `pack_key`. The `tile_maps` is a list of tile map file paths on disk. The `tiles` is a JSON array of [path, name] pairs, e.g. [[\"/path/to/tile\", \"tile_name\"]].")]
     pub async fn pack_map(&self, params: Parameters<PackMapArgs>) -> Result<CallToolResult, McpError> {
         let tiles: Vec<(PathBuf, String)> = parse_json!(&params.0.tiles);
-        send_and_respond!(self, "pack_map", Command::PackMap(params.0.pack_key, params.0.tile_maps, tiles))
+        send_and_respond!(self.session(params.0.session_id), "pack_map", Command::PackMap(params.0.pack_key, params.0.tile_maps, tiles))
     }
 
     #[tool(description = "Generate all missing loc entries for the pack identified by `pack_key`.")]
     pub async fn generate_missing_loc_data(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "generate_missing_loc_data", Command::GenerateMissingLocData(params.0.pack_key))
+        send_and_respond!(self.session(params.0.session_id), "generate_missing_loc_data", Command::GenerateMissingLocData(params.0.pack_key))
     }
 
     #[tool(description = "Get pack translation data for a language from the pack identified by `pack_key`.")]
     pub async fn get_pack_translation(&self, params: Parameters<GetPackTranslationArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_pack_translation", Command::GetPackTranslation(params.0.pack_key, params.0.src_lang, params.0.language))
+        send_and_respond!(self.session(params.0.session_id), "get_pack_translation", Command::GetPackTranslation(params.0.pack_key, params.0.src_lang, params.0.language))
     }
 
     #[tool(description = "Generate the vanilla texts of a source language from the game's locale packs. Returns whether vanilla texts for that language are available.")]
     pub async fn generate_vanilla_translation_source(&self, params: Parameters<SrcLangArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "generate_vanilla_translation_source", Command::GenerateVanillaTranslationSource(params.0.src_lang))
+        send_and_respond!(self.session(params.0.session_id), "generate_vanilla_translation_source", Command::GenerateVanillaTranslationSource(params.0.src_lang))
     }
 
     #[tool(description = "Get campaign IDs for starpos building in the pack identified by `pack_key`.")]
     pub async fn build_starpos_get_campaign_ids(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "build_starpos_get_campaign_ids", Command::BuildStarposGetCampaingIds(params.0.pack_key))
+        send_and_respond!(self.session(params.0.session_id), "build_starpos_get_campaign_ids", Command::BuildStarposGetCampaingIds(params.0.pack_key))
     }
 
     #[tool(description = "Check if victory conditions file exists for starpos building in the pack identified by `pack_key`.")]
     pub async fn build_starpos_check_victory_conditions(&self, params: Parameters<PackKeyArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "build_starpos_check_victory_conditions", Command::BuildStarposCheckVictoryConditions(params.0.pack_key))
+        send_and_respond!(self.session(params.0.session_id), "build_starpos_check_victory_conditions", Command::BuildStarposCheckVictoryConditions(params.0.pack_key))
     }
 
     #[tool(description = "Build starpos (pre-processing step) for the pack identified by `pack_key`.")]
     pub async fn build_starpos(&self, params: Parameters<BuildStarposArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "build_starpos", Command::BuildStarpos(params.0.pack_key, params.0.campaign_id, params.0.process_hlp_spd))
+        send_and_respond!(self.session(params.0.session_id), "build_starpos", Command::BuildStarpos(params.0.pack_key, params.0.campaign_id, params.0.process_hlp_spd))
     }
 
     #[tool(description = "Build starpos (post-processing step) for the pack identified by `pack_key`.")]
     pub async fn build_starpos_post(&self, params: Parameters<BuildStarposArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "build_starpos_post", Command::BuildStarposPost(params.0.pack_key, params.0.campaign_id, params.0.process_hlp_spd))
+        send_and_respond!(self.session(params.0.session_id), "build_starpos_post", Command::BuildStarposPost(params.0.pack_key, params.0.campaign_id, params.0.process_hlp_spd))
     }
 
     #[tool(description = "Clean up starpos temporary files for the pack identified by `pack_key`.")]
     pub async fn build_starpos_cleanup(&self, params: Parameters<BuildStarposArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "build_starpos_cleanup", Command::BuildStarposCleanup(params.0.pack_key, params.0.campaign_id, params.0.process_hlp_spd))
+        send_and_respond!(self.session(params.0.session_id), "build_starpos_cleanup", Command::BuildStarposCleanup(params.0.pack_key, params.0.campaign_id, params.0.process_hlp_spd))
     }
 
     #[tool(description = "Update animation IDs with an offset in the pack identified by `pack_key`.")]
     pub async fn update_anim_ids(&self, params: Parameters<UpdateAnimIdsArgs>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "update_anim_ids", Command::UpdateAnimIds(params.0.pack_key, params.0.starting_id, params.0.offset))
+        send_and_respond!(self.session(params.0.session_id), "update_anim_ids", Command::UpdateAnimIds(params.0.pack_key, params.0.starting_id, params.0.offset))
     }
 
     #[tool(description = "Get animation paths by skeleton name.")]
     pub async fn get_anim_paths_by_skeleton_name(&self, params: Parameters<StringArg>) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "get_anim_paths_by_skeleton_name", Command::GetAnimPathsBySkeletonName(params.0.value))
+        send_and_respond!(self.session(params.0.session_id), "get_anim_paths_by_skeleton_name", Command::GetAnimPathsBySkeletonName(params.0.value))
     }
 
     #[tool(description = "Export a RigidModel to glTF format. The `rigid_model` is a RigidModel JSON object (as returned by decoding a .rigid_model_v2 file with `decode_packed_file`). The `output_path` is the destination file path on disk.")]
     pub async fn export_rigid_to_gltf(&self, params: Parameters<ExportRigidToGltfArgs>) -> Result<CallToolResult, McpError> {
         let rigid = parse_json!(&params.0.rigid_model);
-        send_and_respond!(self, "export_rigid_to_gltf", Command::ExportRigidToGltf(rigid, params.0.output_path))
+        send_and_respond!(self.session(params.0.session_id), "export_rigid_to_gltf", Command::ExportRigidToGltf(rigid, params.0.output_path))
     }
 
     #[tool(description = "Change the format of a ca_vp8 video file in the pack identified by `pack_key`. Valid formats: \"CaVp8\" (CA custom VP8) or \"Ivf\" (standard VP8 IVF).")]
     pub async fn set_video_format(&self, params: Parameters<SetVideoFormatArgs>) -> Result<CallToolResult, McpError> {
         let format = parse_json!(&params.0.format);
-        send_and_respond!(self, "set_video_format", Command::SetVideoFormat(params.0.pack_key, params.0.path, format))
+        send_and_respond!(self.session(params.0.session_id), "set_video_format", Command::SetVideoFormat(params.0.pack_key, params.0.path, format))
     }
 
     //-----------------------------------------------------------------------//
@@ -2220,8 +2522,8 @@ The report lists each test with its errors (including errors of the pack's scrip
     //-----------------------------------------------------------------------//
 
     #[tool(description = "List all currently open packs with their keys and metadata. Use this to get valid pack_key values for other tools.")]
-    pub async fn list_open_packs(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "list_open_packs", Command::ListOpenPacks)
+    pub async fn list_open_packs(&self, params: Parameters<SessionArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self.session(params.0.session_id), "list_open_packs", Command::ListOpenPacks)
     }
 
     //-----------------------------------------------------------------------//
@@ -2229,8 +2531,8 @@ The report lists each test with its errors (including errors of the pack's scrip
     //-----------------------------------------------------------------------//
 
     #[tool(description = "Close all currently open packs without saving. Any unsaved changes will be lost.")]
-    pub async fn close_all_packs(&self) -> Result<CallToolResult, McpError> {
-        send_and_respond!(self, "close_all_packs", Command::CloseAllPacks)
+    pub async fn close_all_packs(&self, params: Parameters<SessionArg>) -> Result<CallToolResult, McpError> {
+        send_and_respond!(self.session(params.0.session_id), "close_all_packs", Command::CloseAllPacks)
     }
 
 }
@@ -2250,6 +2552,8 @@ impl McpServer {
 You are an assistant helping the user inspect a Total War PackFile using the RPFM MCP server.
 
 Follow these steps in order:
+
+First, call `create_session` and pass the returned `session_id` to every tool that takes one.
 
 1. **Open the pack** – Call `open_packfiles` with the filesystem path(s) the user provides.
    The response contains one or more pack keys; remember them for subsequent calls.
@@ -2284,6 +2588,8 @@ You are an assistant helping the user edit a DB table inside a Total War PackFil
 
 Workflow:
 
+First, call `create_session` and pass the returned `session_id` to every tool that takes one.
+
 1. **Open the pack** – `open_packfiles` → note the `pack_key`.
 2. **Set the game** – `set_game_selected` with `rebuild_dependencies: true`.
 3. **Decode the table** – `decode_packed_file` with the DB path
@@ -2316,6 +2622,8 @@ Tips:
 You are an assistant helping the user create a new Total War mod from scratch.
 
 Workflow:
+
+First, call `create_session` and pass the returned `session_id` to every tool that takes one.
 
 1. **Set the game** – `set_game_selected` with the target game key and
    `rebuild_dependencies: true`.
@@ -2387,6 +2695,8 @@ Related tools:
 You are an assistant helping the user work with dependency data (vanilla game files).
 
 Workflow:
+
+First, call `create_session` and pass the returned `session_id` to every tool that takes one.
 
 1. **Set the game** – `set_game_selected` with `rebuild_dependencies: true`.
 
@@ -2618,6 +2928,11 @@ You are an assistant helping the user troubleshoot common RPFM and PackFile issu
 - Check if the pack depends on other mods via `get_dependency_pack_files_list`.
 - Some references are Assembly Kit only; re-run with `check_ak_only_refs: true`.
 - Use `add_line_to_pack_ignored_diagnostics` for intentional deviations.
+
+### 7. Session not found
+**Symptom**: A tool returns \"Session N not found\", or packs and the game selected seem to have reset.
+**Solution**:
+- The session was closed after 5 minutes without commands. Call `create_session` and repeat the setup.
 
 ### Diagnostic Tools
 - `diagnostics_check` – Full pack validation.

@@ -50,7 +50,7 @@ All on `127.0.0.1:45127`:
 |-------------|--------|-----------------------------------------------------------------------------------------------|
 | `/ws`       | GET    | WebSocket. Carries the `rpfm_ipc` command/response protocol. Accepts `?session_id=…` for reconnection. |
 | `/sessions` | GET    | JSON `Vec<SessionInfo>` of every live session. Used by the session picker in the UI.          |
-| `/mcp`      | *      | MCP `StreamableHttpService`. Each client gets its own dedicated session and `McpServer`.      |
+| `/mcp`      | *      | MCP `StreamableHttpService`. Clients create sessions with the `create_session` tool.          |
 
 ### `/sessions` response
 
