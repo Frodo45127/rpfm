@@ -82,6 +82,7 @@ pub mod comms;
 pub mod server_mcp;
 pub mod server_websocket;
 pub mod session;
+#[cfg(test)] mod session_test;
 pub mod settings;
 #[cfg(test)] mod settings_test;
 pub mod translation_hub;
@@ -195,13 +196,10 @@ async fn main() {
     let session_manager: Arc<SessionManager> = Arc::new(SessionManager::default());
     SessionManager::start_cleanup_task(session_manager.clone());
 
-    // Create an MCP service with its own session for MCP clients.
+    // Create an MCP service. Clients create sessions explicitly through the `create_session` tool.
     let sm = session_manager.clone();
     let http_service = StreamableHttpService::new(
-        move || {
-            let session = sm.create_mcp_session();
-            Ok(McpServer::new(session))
-        },
+        move || Ok(McpServer::new(sm.clone())),
         LocalSessionManager::default().into(),
         Default::default(),
     );

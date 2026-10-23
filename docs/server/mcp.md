@@ -10,9 +10,15 @@ The MCP endpoint uses **Streamable HTTP** transport:
 POST http://127.0.0.1:45127/mcp
 ```
 
-Each MCP connection gets its own RPFM session, just like WebSocket connections.
+The MCP transport keeps no per-client state, so sessions are explicit: call the
+`create_session` tool and pass the returned `session_id` to every tool that works
+on per-session state (packs, game selected, schemas, dependencies). Each session is
+isolated, just like a WebSocket connection's. Tools that only touch global state
+(settings, paths, updates) take no `session_id`.
+
 MCP sessions are reaped by the server after 5 minutes of command inactivity,
-because the MCP transport gives no reliable disconnect signal.
+because the MCP transport gives no reliable disconnect signal. A tool called with
+a reaped session returns an error telling the client to create a new one.
 
 ## How It Differs from WebSocket
 
@@ -21,7 +27,7 @@ because the MCP transport gives no reliable disconnect signal.
 | Protocol          | Custom JSON messages with `id`/`data` envelope | Standard MCP (JSON-RPC 2.0)                       |
 | Transport         | WebSocket                                      | Streamable HTTP                                   |
 | Interaction model | Send `Command`, receive `Response`             | Call named **tools**, receive JSON results         |
-| Session control   | Manual via `?session_id=` and `ClientDisconnecting` | Reaped by the server after 5 minutes of command inactivity |
+| Session control   | Manual via `?session_id=` and `ClientDisconnecting` | `create_session` / `close_session`, plus a `session_id` argument; reaped after 5 minutes of command inactivity |
 | Intended clients  | Custom scripts, GUIs                           | AI assistants and MCP-compatible tools             |
 
 Both interfaces expose the same underlying functionality — every MCP tool maps to an internal `Command` and returns its `Response` serialized as JSON.
@@ -48,7 +54,16 @@ Any MCP client that supports Streamable HTTP transport can connect. Point it to 
 
 ## Tool Reference
 
-The MCP interface exposes **155 tools** organized by category. Each tool accepts typed JSON arguments and returns the server's `Response` serialized as JSON text.
+The MCP interface exposes **157 tools** organized by category. Each tool accepts typed JSON arguments and returns the server's `Response` serialized as JSON text.
+
+Tools working on per-session state also take a `session_id` argument, omitted from the tables below. Settings, path and update tools don't.
+
+### Sessions
+
+| Tool | Description | Arguments |
+|------|-------------|-----------|
+| `create_session` | Create a new isolated session. Returns `{"SessionConnected": <session_id>}` | none |
+| `close_session` | Close a session, freeing its open packs and dependencies. Unsaved changes are lost | `session_id` |
 
 ### Generic
 
@@ -295,6 +310,7 @@ All MCP tool responses are JSON-serialized versions of the server's internal `Re
 
 A typical MCP session follows this pattern:
 
+0. **Create a session**: `create_session`, then pass its ID as `session_id` to the tools below
 1. **Set the game**: `set_game_selected` with the game key and `rebuild_dependencies: true`
 2. **Open a pack**: `open_packfiles` with the file path(s)
 3. **Browse files**: `open_pack_info` to get the pack's file tree
@@ -304,21 +320,26 @@ A typical MCP session follows this pattern:
 
 ### Example: Reading a DB Table
 
+Call `create_session` with no arguments. The response contains the session ID:
+```json
+{ "SessionConnected": 7 }
+```
+
 Call `set_game_selected`:
 ```json
-{ "game_name": "warhammer_3", "rebuild_dependencies": true }
+{ "session_id": 7, "game_name": "warhammer_3", "rebuild_dependencies": true }
 ```
 
 Call `open_packfiles`:
 ```json
-{ "paths": ["/path/to/my_mod.pack"] }
+{ "session_id": 7, "paths": ["/path/to/my_mod.pack"] }
 ```
 
 The response contains the `pack_key` — use it in subsequent calls:
 
 Call `decode_packed_file`:
 ```json
-{ "pack_key": "the_pack_key", "path": "db/units_tables/data", "source": "PackFile" }
+{ "session_id": 7, "pack_key": "the_pack_key", "path": "db/units_tables/data", "source": "PackFile" }
 ```
 
 The response will be a `DBRFileInfo` containing the decoded table data and file metadata.
@@ -333,6 +354,7 @@ Some tools accept complex types (like `ContainerPath`, `Definition`, `GlobalSear
 
 ```json
 {
+  "session_id": 7,
   "pack_key": "my_pack",
   "paths": "[{\"File\": \"db/units_tables/data\"}]"
 }

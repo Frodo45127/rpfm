@@ -44,7 +44,7 @@ The server exposes three HTTP endpoints on `127.0.0.1:45127`:
 |-------------|--------|-----------------------------------------------------------------------------------|
 | `/ws`       | GET    | WebSocket upgrade. Carries the JSON command/response protocol.                    |
 | `/sessions` | GET    | REST: list every active session. Used by the UI session picker.                   |
-| `/mcp`      | *      | MCP `StreamableHttpService`. Each client gets its own session and `McpServer`.   |
+| `/mcp`      | *      | MCP `StreamableHttpService`. Clients create sessions with the `create_session` tool. |
 
 ## Two ways in
 
@@ -53,7 +53,7 @@ You'll typically pick one of two integration paths:
 - **WebSocket** — for full programmatic access. You write client code that sends `Command` messages and matches `Response` messages by ID. See [WebSocket protocol](./ws-protocol.md).
 - **MCP** — for AI agents and other clients that already speak MCP. The server exposes 150+ tools, plus prompts and resources. See [MCP interface](./mcp.md).
 
-Under the hood both pathways use the same `Session` abstraction, but each connection gets its own isolated session with its own open Packs and dependency cache. WebSocket clients can reattach to an existing session by passing their previous `session_id` back on the handshake; MCP clients always start a fresh session per connection. Two clients running side by side don't share state — they share the server process.
+Under the hood both pathways use the same `Session` abstraction, but each connection gets its own isolated session with its own open Packs and dependency cache. WebSocket clients can reattach to an existing session by passing their previous `session_id` back on the handshake; MCP clients create a session with the `create_session` tool and pass its `session_id` to every tool that needs one. Two clients running side by side don't share state — they share the server process.
 
 ## Spawning the server
 
