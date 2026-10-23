@@ -1,6 +1,6 @@
 # Schema explorer (proposal)
 
-> **Status:** the frontend is implemented in `rpfm_server/assets/schema_explorer/` and works from a schema file. The server endpoints and Part 2 aren't implemented.
+> **Status:** implemented. `rpfm_server` serves the page at `/schema-explorer/` (`rpfm_server/src/schema_explorer.rs`), the page reads the schema over `/ws` instead of the HTTP JSON API sketched below, and RPFM opens it from **Tools > Schema Explorer**. `/ws` and the explorer routes have the Host/Origin checks from the security section. Part 2 isn't implemented.
 
 A browser-based, interactive graph of a game's DB schema, served by `rpfm_server`. Every table is a node and every reference (`Field::is_reference`) is an edge. Users can search for a table, expand the tables around it, follow references in both directions and read field definitions.
 

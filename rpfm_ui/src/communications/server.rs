@@ -45,7 +45,7 @@ enum ServerProbe {
 }
 
 /// Builds the `host:port` address the server listens on from [`SERVER_HOST`] and [`SERVER_PORT`].
-fn server_address() -> String {
+pub(crate) fn server_address() -> String {
     format!("{SERVER_HOST}:{SERVER_PORT}")
 }
 

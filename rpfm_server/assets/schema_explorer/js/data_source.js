@@ -1,107 +1,36 @@
-// Where the explorer gets its schema data from.
+// Where the explorer gets its schema from.
 //
-// - `ApiSource` reads the planned `rpfm_server` endpoints (`api/games`, `api/{game}/graph`,
-//   `api/{game}/tables/{table}`, see docs/server/schema_explorer.md), relative to the page.
-// - `FileSource` builds the same data in the browser from a schema file the user loads.
+// - `WsSource` fetches the selected game's schema from `rpfm_server` over its `/ws` WebSocket, when
+//   the page is served by the server (`http://127.0.0.1:45127/schema-explorer/#game=<game>`).
+// - `FileSource` reads a schema file the user picks or drops, when the page is opened from disk.
 //
-// Both expose the same async methods, so the UI doesn't care which one it uses.
+// Both give a `SchemaSource`, so the UI doesn't care where the schema came from.
 
 (function (root, factory) {
-    root.RpfmDataSource = factory(root.RpfmSchemaModel);
+    const schemaModel = root.RpfmSchemaModel || (typeof require === "function" ? require("./schema_model.js") : null);
+    const api = factory(schemaModel);
+    if (typeof module === "object" && module.exports) {
+        module.exports = api;
+    } else {
+        root.RpfmDataSource = api;
+    }
 })(typeof self !== "undefined" ? self : this, (schemaModel) => {
     "use strict";
 
-    const API_PROBE_TIMEOUT_MS = 1500;
-
-    // Resolve `api/` next to the page, whether it's served as `/schema-explorer`, `/schema-explorer/` or `.../index.html`.
-    function apiBaseUrl() {
-        const url = new URL(window.location.href);
-        url.hash = "";
-        url.search = "";
-        if (url.pathname.endsWith(".html")) {
-            url.pathname = url.pathname.slice(0, url.pathname.lastIndexOf("/") + 1);
-        } else if (!url.pathname.endsWith("/")) {
-            url.pathname += "/";
-        }
-        return new URL("api/", url);
-    }
-
-    async function fetchJson(url, timeoutMs) {
-        const controller = new AbortController();
-        const timer = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : null;
-        try {
-            const response = await fetch(url, { signal: controller.signal, headers: { Accept: "application/json" } });
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status} for ${url.pathname}`);
-            }
-            return await response.json();
-        } finally {
-            if (timer) {
-                clearTimeout(timer);
-            }
-        }
-    }
-
-    class ApiSource {
-        constructor(baseUrl, games) {
-            this.baseUrl = baseUrl;
-            this.gameList = games;
-            this.kind = "api";
-        }
+    /**
+     * A schema in memory, with the graph and table details the explorer shows.
+     */
+    class SchemaSource {
 
         /**
-         * Check whether the page is served by an `rpfm_server` with the explorer API.
-         *
-         * @returns {Promise<ApiSource|null>} The source, or null if there's no API (e.g. opened from disk).
+         * @param {{kind: string, key: string, label: string, schema: Object}} options `kind` is `ws` or `file`, `key`
+         *   identifies the schema (game key or file name, used for the saved layout), `label` is shown to the user.
          */
-        static async detect() {
-            if (window.location.protocol !== "http:" && window.location.protocol !== "https:") {
-                return null;
-            }
-            try {
-                const baseUrl = apiBaseUrl();
-                const games = await fetchJson(new URL("games", baseUrl), API_PROBE_TIMEOUT_MS);
-                return Array.isArray(games) ? new ApiSource(baseUrl, games) : null;
-            } catch (error) {
-                console.info("Schema explorer API not available, using file mode:", error.message);
-                return null;
-            }
-        }
-
-        async games() {
-            return this.gameList;
-        }
-
-        async graph(game) {
-            return fetchJson(new URL(`${encodeURIComponent(game)}/graph`, this.baseUrl));
-        }
-
-        async tableDetails(game, table) {
-            return fetchJson(new URL(`${encodeURIComponent(game)}/tables/${encodeURIComponent(table)}`, this.baseUrl));
-        }
-    }
-
-    class FileSource {
-        constructor(fileName, schema) {
-            this.fileName = fileName;
+        constructor({ kind, key, label, schema }) {
+            this.kind = kind;
+            this.key = key;
+            this.label = label;
             this.model = new schemaModel.SchemaModel(schema);
-            this.kind = "file";
-        }
-
-        /**
-         * Build a source from the text of a schema file.
-         *
-         * @param {string} fileName The file name, shown as the "game".
-         * @param {string} text The file contents (RON or JSON).
-         * @returns {FileSource} The source.
-         * @throws {Error} If the file isn't a schema.
-         */
-        static fromText(fileName, text) {
-            return new FileSource(fileName, schemaModel.parseSchemaText(text));
-        }
-
-        async games() {
-            return [{ key: this.fileName, display_name: this.fileName, schema_available: true }];
         }
 
         async graph() {
@@ -117,5 +46,134 @@
         }
     }
 
-    return { ApiSource, FileSource };
+    const FileSource = {
+
+        /**
+         * Build a source from the text of a schema file.
+         *
+         * @param {string} fileName The file name, shown to the user.
+         * @param {string} text The file contents (RON or JSON).
+         * @returns {SchemaSource} The source.
+         * @throws {Error} If the file isn't a schema.
+         */
+        fromText(fileName, text) {
+            return new SchemaSource({ kind: "file", key: fileName, label: fileName, schema: schemaModel.parseSchemaText(text) });
+        },
+    };
+
+    /**
+     * Fetch a game's schema from `rpfm_server` over its WebSocket, in a session of its own.
+     *
+     * Waits for the server's `SessionConnected` message, selects the game (without loading its dependencies),
+     * asks for the schema and closes the socket. It never sends `ClientDisconnecting`, which would end the
+     * session at once (and the server, if it was the last one): a plain close leaves it to expire on its own.
+     *
+     * @param {string} url The server's WebSocket URL.
+     * @param {string|null} game The game key, or null to use the server's default game setting.
+     * @param {(url: string) => WebSocket} [createSocket] Opens the socket. Replaceable for tests.
+     * @returns {Promise<{game: string, schema: Object}>} The game key and its schema.
+     */
+    function fetchSchemaOverWebSocket(url, game, createSocket = (socketUrl) => new WebSocket(socketUrl)) {
+        return new Promise((resolve, reject) => {
+            const socket = createSocket(url);
+            const pending = new Map();
+            let nextId = 1;
+            let started = false;
+            let settled = false;
+
+            const finish = (error, value) => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                socket.close();
+                if (error) {
+                    reject(error);
+                } else {
+                    resolve(value);
+                }
+            };
+
+            // Requests are matched to replies by id. Replies carrying `Error` reject.
+            const send = (data) => new Promise((onReply, onError) => {
+                const id = nextId++;
+                pending.set(id, { onReply, onError });
+                socket.send(JSON.stringify({ id, data }));
+            });
+
+            const run = async () => {
+                try {
+                    let key = game;
+                    if (!key) {
+                        key = (await send({ SettingsGetString: "default_game" })).String;
+                    }
+                    if (!key) {
+                        throw new Error("RPFM has no game selected.");
+                    }
+                    await send({ SetGameSelected: [key, false] });
+                    const reply = await send("Schema");
+                    finish(null, { game: key, schema: schemaModel.normalizeSchema(reply) });
+                } catch (error) {
+                    finish(error);
+                }
+            };
+
+            socket.onmessage = (event) => {
+                let message;
+                try {
+                    message = JSON.parse(event.data);
+                } catch (error) {
+                    return;
+                }
+
+                // Id 0 carries messages the server sends on its own: the session id first, then things like settings changes.
+                if (message.id === 0) {
+                    if (!started && message.data?.SessionConnected !== undefined) {
+                        started = true;
+                        run();
+                    }
+                    return;
+                }
+                const waiter = pending.get(message.id);
+                if (!waiter) {
+                    return;
+                }
+                pending.delete(message.id);
+                if (message.data && typeof message.data === "object" && "Error" in message.data) {
+                    waiter.onError(new Error(message.data.Error));
+                } else {
+                    waiter.onReply(message.data);
+                }
+            };
+            socket.onerror = () => finish(new Error("Couldn't connect to rpfm_server."));
+            socket.onclose = () => finish(new Error("rpfm_server closed the connection before sending the schema."));
+        });
+    }
+
+    const WsSource = {
+
+        /**
+         * Check whether the page is served by `rpfm_server` (rather than opened from disk).
+         *
+         * @returns {boolean} Whether the schema can be fetched from the server.
+         */
+        isAvailable() {
+            return window.location.protocol === "http:" || window.location.protocol === "https:";
+        },
+
+        /**
+         * Fetch a game's schema from the server that served the page.
+         *
+         * @param {string|null} game The game key, or null for the server's default game.
+         * @returns {Promise<SchemaSource>} The source.
+         * @throws {Error} If the server can't be reached or has no schema for the game.
+         */
+        async load(game) {
+            const scheme = window.location.protocol === "https:" ? "wss" : "ws";
+            const { game: key, schema } = await fetchSchemaOverWebSocket(`${scheme}://${window.location.host}/ws`, game);
+            return new SchemaSource({ kind: "ws", key, label: key, schema });
+        },
+    };
+
+    return { SchemaSource, FileSource, WsSource, fetchSchemaOverWebSocket };
 });

@@ -9,11 +9,10 @@
 (() => {
     "use strict";
 
-    const { ApiSource, FileSource } = window.RpfmDataSource;
+    const { WsSource, FileSource } = window.RpfmDataSource;
     const { GraphIndex, pairKey } = window.RpfmGraphIndex;
     const { layoutFor, saveMovedStars } = window.RpfmLayout;
 
-    const SETTINGS_KEY = "rpfm-schema-explorer-settings";
     const SPREAD_PREFIX = "rpfm-schema-explorer-spread:";
     const SEARCH_LIMIT = 30;
     const CLUSTER_ID = "__tables_without_references__";
@@ -48,7 +47,6 @@
     };
 
     const elements = {
-        gameSelect: document.getElementById("game-select"),
         fileInput: document.getElementById("file-input"),
         fileLabel: document.getElementById("file-label"),
         search: document.getElementById("search"),
@@ -87,7 +85,6 @@
         spread: 1,
         spreadCentre: { x: 0, y: 0 },
         clusterCentre: null,
-        lastGame: loadLastGame(),
         summary: "",
         openSections: { fields: true, localised: true, referencedBy: true },
         view: "galaxy",
@@ -114,18 +111,10 @@
     });
 
     //-------------------------------------------------------------------//
-    // Remembered game (API mode)
+    // Remembered spread
     //-------------------------------------------------------------------//
 
     // localStorage can be missing or throw (private windows, file:// in some browsers), so this is best-effort.
-    function loadLastGame() {
-        try {
-            return JSON.parse(window.localStorage.getItem(SETTINGS_KEY) || "{}").game || null;
-        } catch (error) {
-            return null;
-        }
-    }
-
     function loadSpread(sourceKey) {
         try {
             const spread = Number.parseFloat(window.localStorage.getItem(SPREAD_PREFIX + sourceKey));
@@ -140,14 +129,6 @@
             window.localStorage.setItem(SPREAD_PREFIX + sourceKey, String(spread));
         } catch (error) {
             console.debug("Couldn't save the spread:", error.message);
-        }
-    }
-
-    function saveLastGame(game) {
-        try {
-            window.localStorage.setItem(SETTINGS_KEY, JSON.stringify({ game }));
-        } catch (error) {
-            console.debug("Couldn't save the selected game:", error.message);
         }
     }
 
@@ -271,34 +252,19 @@
     async function useSource(source) {
         state.source = source;
         state.detailsCache.clear();
-        const games = await source.games();
+        elements.fileLabel.textContent = source.kind === "ws" ? `RPFM: ${source.label}` : source.label;
+        elements.fileLabel.title = source.kind === "ws" ? "Schema loaded from RPFM. Click to open a schema file instead." : "Open another schema file";
+        await loadGame(source.key);
+    }
 
-        if (source.kind === "api") {
-            elements.gameSelect.replaceChildren(...games.map((game) => {
-                const option = document.createElement("option");
-                option.value = game.key;
-                option.textContent = game.schema_available ? game.display_name : `${game.display_name} (no schema)`;
-                option.disabled = !game.schema_available;
-                return option;
-            }));
-            elements.gameSelect.hidden = false;
-        } else {
-            elements.gameSelect.hidden = true;
-            elements.fileLabel.textContent = source.fileName;
-            elements.fileLabel.title = "Open another schema file";
+    // Fetch the game's schema from the rpfm_server that served this page.
+    async function loadFromServer(game) {
+        setStatus(`Loading the ${game || "default game's"} schema from RPFM...`);
+        try {
+            await useSource(await WsSource.load(game));
+        } catch (error) {
+            setStatus(`Couldn't load the schema from RPFM: ${error.message} You can open a schema file instead.`, true);
         }
-
-        const hashGame = readHash().game;
-        const available = games.filter((game) => game.schema_available);
-        const preferred = available.find((game) => game.key === hashGame)
-            || available.find((game) => game.key === state.lastGame)
-            || available[0];
-        if (!preferred) {
-            setStatus("No game has a schema available.", true);
-            return;
-        }
-        elements.gameSelect.value = preferred.key;
-        await loadGame(preferred.key);
     }
 
     async function loadGame(game) {
@@ -308,14 +274,10 @@
         try {
             const graph = await state.source.graph(game);
             state.game = game;
-            state.sourceKey = state.source.kind === "api" ? `api:${game}` : `file:${game}`;
+            state.sourceKey = `${state.source.kind}:${game}`;
             state.graph = graph;
             state.index = new GraphIndex(graph);
             state.detailsCache.clear();
-            if (state.source.kind === "api") {
-                state.lastGame = game;
-                saveLastGame(game);
-            }
             layout = await layoutFor(state.sourceKey, graph, ({ iterations, movement }) => {
                 setStatus(`Laying out the schema until it settles: ${iterations} iterations, movement ${movement.toFixed(4)}...`);
             });
@@ -1471,7 +1433,7 @@
 
     function writeHash() {
         const params = new URLSearchParams();
-        if (state.source?.kind === "api" && state.game) {
+        if (state.source?.kind === "ws" && state.game) {
             params.set("game", state.game);
         }
         if (state.selected) {
@@ -1485,9 +1447,8 @@
 
     window.addEventListener("hashchange", () => {
         const { game, table } = readHash();
-        if (game && state.source?.kind === "api" && game !== state.game) {
-            elements.gameSelect.value = game;
-            loadGame(game);
+        if (game && state.source?.kind === "ws" && game !== state.game) {
+            loadFromServer(game);
         } else if (table && state.index?.nodes.has(table) && table !== state.selected) {
             openTable(table, { zoom: true });
         }
@@ -1497,7 +1458,6 @@
     // Controls, file picking and drag and drop
     //-------------------------------------------------------------------//
 
-    elements.gameSelect.addEventListener("change", () => loadGame(elements.gameSelect.value));
     elements.fileInput.addEventListener("change", () => {
         const file = elements.fileInput.files?.[0];
         if (file) {
@@ -1535,11 +1495,9 @@
     // Startup
     //-------------------------------------------------------------------//
 
-    ApiSource.detect().then((source) => {
-        if (source) {
-            useSource(source).catch((error) => setStatus(`Couldn't load games: ${error.message}`, true));
-        } else {
-            setStatus("Open or drop a schema file to start.");
-        }
-    });
+    if (WsSource.isAvailable()) {
+        loadFromServer(readHash().game);
+    } else {
+        setStatus("Open or drop a schema file to start.");
+    }
 })();

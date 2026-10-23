@@ -2249,3 +2249,4 @@ feedback_dialog_explanation = <p>Tell the author what's working, what's broken, 
 feedback_dialog_placeholder = Type your feedback here...
 feedback_empty = Feedback cannot be empty.
 feedback_sent = Thanks! Your feedback has been sent.
+tools_schema_explorer = Schema Explorer

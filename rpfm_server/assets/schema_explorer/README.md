@@ -1,10 +1,12 @@
 # Schema explorer (frontend)
 
-Browser page that shows an RPFM DB schema as an interactive graph: one node per table, one edge per reference. It only reads schema information (definitions, fields, references, patches), never table data. The design and the planned server side are in [`docs/server/schema_explorer.md`](../../../docs/server/schema_explorer.md).
-
-`rpfm_server` doesn't serve this page yet. Until it does, open it straight from disk and load a schema file.
+Browser page that shows an RPFM DB schema as an interactive graph: one node per table, one edge per reference. It only reads schema information (definitions, fields, references, patches), never table data. The design is in [`docs/server/schema_explorer.md`](../../../docs/server/schema_explorer.md).
 
 ## Try it
+
+**From RPFM:** **Tools > Schema Explorer** opens your browser at `http://127.0.0.1:45127/schema-explorer/#game=<selected game>`. `rpfm_server` serves the page (its files are embedded in the server binary, see `rpfm_server/src/schema_explorer.rs`) and the page fetches the game's schema over the server's `/ws` WebSocket.
+
+**From disk** (no RPFM needed):
 
 1. Open `index.html` in a browser, e.g. `xdg-open rpfm_server/assets/schema_explorer/index.html`, or double-click it. No build step or local server is needed.
 2. Click **Open schema file**, or drop a file on the page:
@@ -47,17 +49,15 @@ The first time a schema is loaded, the layout runs until it settles (on Warhamme
 
 ## Data sources
 
-`js/data_source.js` picks one of two sources:
+`js/data_source.js` picks one of two sources. Either way `js/schema_model.js` builds the graph and table details in the browser.
 
-- **API mode:** when the page is served over HTTP and `api/games` answers. It reads the endpoints proposed in the design doc (`api/games`, `api/{game}/graph`, `api/{game}/tables/{table}`).
-- **File mode:** otherwise. `js/schema_model.js` builds the same JSON in the browser.
+- **From RPFM** (`WsSource`, when the page is served over HTTP): opens `ws://<host>/ws`, waits for the server's `SessionConnected`, then sends `{"SetGameSelected": [<game from #game=>, false]}` (no dependencies are loaded) and `"Schema"`, and closes the socket. It runs in a session of its own, which the server reaps after a few minutes. It never sends `ClientDisconnecting`, which would end the session at once (and the server, if it was the last one). Without `#game=`, it uses the `default_game` setting.
+- **From a file** (`FileSource`, when opened from disk): parses a `.ron` or `.json` schema.
 
-Both produce the same shapes, so the server only has to return what `SchemaModel.graph()` and `SchemaModel.tableDetails()` return today.
+Either way:
 
-Differences in file mode:
-
-- Only the patches inside the schema file are applied. Your local schema patches (RPFM's `table_patches` folder) aren't loaded.
-- Fields are listed as stored in the schema. The server could return `Definition::fields_processed()` instead, which merges colour columns and expands bitwise fields.
+- Only the patches inside the schema itself are applied. Your local schema patches (RPFM's `table_patches` folder) aren't included, as the server doesn't send them with the schema.
+- Fields are listed as stored in the schema (colour columns not merged, bitwise fields not expanded).
 
 ## Files
 
@@ -68,7 +68,7 @@ Differences in file mode:
 | `js/schema_model.js` | Graph and table details from a schema, with `rpfm_lib`'s patch rules. |
 | `js/graph_index.js` | Neighbourhoods, shortest paths, table pairs and search over the graph. |
 | `js/layout.js` | ForceAtlas2 layout run to convergence, incremental updates for schema changes, pinned (dragged) stars, star overlap removal, isolated-table cluster, saved layouts. |
-| `js/data_source.js` | API mode and file mode. |
+| `js/data_source.js` | Schema from RPFM over `/ws`, or from a file. |
 | `js/explorer.js` | UI: Cytoscape.js star map, highlighting, details panel, search, URL fragment. |
 | `vendor/` | Pinned Cytoscape.js and graphology (with ForceAtlas2) builds, see `vendor/README.md`. |
 | `tests/` | Unit tests for the parser, model, graph queries and layout. |

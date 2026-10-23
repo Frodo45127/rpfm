@@ -21,14 +21,15 @@
 //! ## Architecture
 //!
 //! The server is built on [`axum`] (HTTP + WebSocket) and [`tokio`]. It binds
-//! to `127.0.0.1:45127` by default and exposes three endpoints:
+//! to `127.0.0.1:45127` by default and exposes these endpoints:
 //!
-//! | Endpoint    | Method | Purpose                                                                          |
-//! |-------------|--------|----------------------------------------------------------------------------------|
-//! | `/ws`       | GET    | WebSocket upgrade. Carries the [`rpfm_ipc`] command/response protocol.           |
-//! | `/version`  | GET    | REST: report the server build version + pid.    |
-//! | `/sessions` | GET    | REST: list every active session (used by the UI session picker).                 |
-//! | `/mcp`      | *      | MCP `StreamableHttpService` exposing the same surface to AI / MCP clients.       |
+//! | Endpoint             | Method | Purpose                                                                          |
+//! |----------------------|--------|----------------------------------------------------------------------------------|
+//! | `/ws`                | GET    | WebSocket upgrade. Carries the [`rpfm_ipc`] command/response protocol. Requires a local `Host`, and rejects other websites' `Origin`. |
+//! | `/version`           | GET    | REST: report the server build version + pid.                                     |
+//! | `/sessions`          | GET    | REST: list every active session (used by the UI session picker).                 |
+//! | `/mcp`               | *      | MCP `StreamableHttpService` exposing the same surface to AI / MCP clients.       |
+//! | `/schema-explorer/`  | GET    | Browser page exploring the schema as a graph (see [`schema_explorer`]).          |
 //!
 //! Every client connection is wrapped in a [`session::Session`] managed by a
 //! [`session::SessionManager`]. Each session owns a dedicated background
@@ -43,6 +44,7 @@
 //!   to the background thread.
 //! - [`server_websocket`] — `/ws` upgrade handler and message multiplexer.
 //! - [`server_mcp`] — `/mcp` endpoint: tools, prompts, resources for MCP clients.
+//! - [`schema_explorer`] — `/schema-explorer` page, and the Host/Origin checks for it and `/ws`.
 //! - [`session`] — `SessionManager`, `Session`, lifecycle and timeout handling.
 //! - [`settings`] — JSON-backed settings store with batch-write optimisation.
 //! - [`updater`] — self-update checks against GitHub releases.
@@ -56,7 +58,7 @@
 // Under windows, hide the server window by default.
 #![windows_subsystem = "windows"]
 
-use axum::{extract::State, routing::get, Json, Router};
+use axum::{extract::State, middleware, routing::get, Json, Router};
 use rmcp::transport::streamable_http_server::{session::local::LocalSessionManager, StreamableHttpService};
 use tokio::net::TcpListener;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Layer};
@@ -79,6 +81,8 @@ use crate::server_websocket::ws_handler;
 pub mod background_thread;
 pub mod ceo_builder;
 pub mod comms;
+pub mod schema_explorer;
+#[cfg(test)] mod schema_explorer_test;
 pub mod server_mcp;
 #[cfg(test)] mod server_mcp_test;
 pub mod server_websocket;
@@ -207,10 +211,11 @@ async fn main() {
 
     // Setup the endpoints for the server.
     let app = Router::new()
-        .route("/ws", get(ws_handler))
+        .route("/ws", get(ws_handler).route_layer(middleware::from_fn(schema_explorer::require_local_client)))
         .route("/version", get(version_handler))
         .route("/sessions", get(sessions_handler))
         .nest_service("/mcp", http_service)
+        .merge(schema_explorer::router())
         .with_state(session_manager);
 
     let addr = SocketAddr::from((DEFAULT_ADDRESS, DEFAULT_PORT));

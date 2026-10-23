@@ -299,6 +299,7 @@ pub struct AppUI {
     tools_unit_editor: QPtr<QAction>,
     tools_translator: QPtr<QAction>,
     tools_ceo_builder: QPtr<QAction>,
+    tools_schema_explorer: QPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
     // `About` menu.
@@ -659,6 +660,7 @@ impl AppUI {
         let tools_unit_editor = menu_bar_tools.add_action_q_string(&qtr("tools_unit_editor"));
         let tools_translator = menu_bar_tools.add_action_q_string(&qtr("tools_translator"));
         let tools_ceo_builder = menu_bar_tools.add_action_q_string(&qtr("tools_ceo_builder"));
+        let tools_schema_explorer = menu_bar_tools.add_action_q_string(&qtr("tools_schema_explorer"));
         if !settings_bool(ENABLE_UNIT_EDITOR) {
             tools_unit_editor.set_enabled(false);
         }
@@ -829,6 +831,7 @@ impl AppUI {
             tools_unit_editor,
             tools_translator,
             tools_ceo_builder,
+            tools_schema_explorer,
 
             //-------------------------------------------------------------------------------//
             // "About" menu.
