@@ -3,7 +3,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { fetchSchemaOverWebSocket, FileSource } = require("../js/data_source.js");
+const { fetchSchemaOverWebSocket } = require("../js/data_source.js");
 
 const SCHEMA = {
     version: 5,
@@ -102,12 +102,4 @@ test("reports a connection that fails or closes early", async () => {
     };
 
     await assert.rejects(fetchSchemaOverWebSocket("ws://127.0.0.1:45127/ws", "warhammer_3", failing), /Couldn't connect/);
-});
-
-test("file sources still read schema files", () => {
-    const source = FileSource.fromText("schema_test.json", JSON.stringify(SCHEMA));
-
-    assert.equal(source.kind, "file");
-    assert.equal(source.key, "schema_test.json");
-    assert.ok(source.model.graph().nodes.some((node) => node.id === "battles"));
 });

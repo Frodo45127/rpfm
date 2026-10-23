@@ -3,7 +3,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { SchemaModel, parseSchemaText, normalizeSchema, patchedField, tableId } = require("../js/schema_model.js");
+const { SchemaModel, normalizeSchema, patchedField, tableId } = require("../js/schema_model.js");
 
 function field(name, extra = {}) {
     return {
@@ -136,15 +136,13 @@ test("patchedField parses patch values the way rpfm_lib's Field accessors do", (
     assert.deepEqual(b.is_reference, ["kept", "column"]);
 });
 
-test("schemas load from RON, plain JSON, a Schema wrapper and a saved MCP reply", () => {
+test("schemas load from plain JSON, a Schema wrapper and a saved MCP reply", () => {
     const schema = sampleSchema();
     const json = JSON.stringify(schema);
     const mcpReply = JSON.stringify({ jsonrpc: "2.0", id: 4, result: { content: [{ type: "text", text: JSON.stringify({ Schema: schema }) }] } });
-    const ron = `(version: 5, definitions: {"x_tables": [(version: 1, fields: [], localised_fields: [], localised_key_order: [])]}, patches: {})`;
 
-    assert.deepEqual(parseSchemaText(json).definitions, schema.definitions);
-    assert.deepEqual(parseSchemaText(JSON.stringify({ Schema: schema })).definitions, schema.definitions);
-    assert.deepEqual(parseSchemaText(mcpReply).definitions, schema.definitions);
-    assert.deepEqual(Object.keys(parseSchemaText(ron).definitions), ["x_tables"]);
+    assert.deepEqual(normalizeSchema(JSON.parse(json)).definitions, schema.definitions);
+    assert.deepEqual(normalizeSchema({ Schema: schema }).definitions, schema.definitions);
+    assert.deepEqual(normalizeSchema(JSON.parse(mcpReply)).definitions, schema.definitions);
     assert.throws(() => normalizeSchema({ hello: "world" }), /doesn't look like an RPFM schema/);
 });

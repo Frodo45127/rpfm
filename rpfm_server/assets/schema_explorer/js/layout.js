@@ -448,7 +448,7 @@
      *
      * If a saved layout exists for an older version of the schema, the new layout continues from it.
      *
-     * @param {string} sourceKey What the schema is, e.g. `api:warhammer_3` or `file:schema_wh3.ron`.
+     * @param {string} sourceKey What the schema is, e.g. `ws:warhammer_3`.
      * @param {{nodes: Object[], edges: Object[]}} graph The schema graph.
      * @param {(progress: {iterations: number, movement: number}) => void} [onProgress] Called while computing.
      * @returns {Promise<Object>} The layout, plus `status`: `cached`, `updated` (continued from an older layout) or `new`.

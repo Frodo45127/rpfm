@@ -46,7 +46,6 @@ pub(crate) static ALLOWED_HOSTS: LazyLock<Vec<String>> = LazyLock::new(|| allowe
 const ASSETS: &[(&str, &str, &[u8])] = &[
     ("index.html", "text/html; charset=utf-8", include_bytes!("../assets/schema_explorer/index.html")),
     ("css/explorer.css", "text/css; charset=utf-8", include_bytes!("../assets/schema_explorer/css/explorer.css")),
-    ("js/ron.js", "text/javascript; charset=utf-8", include_bytes!("../assets/schema_explorer/js/ron.js")),
     ("js/schema_model.js", "text/javascript; charset=utf-8", include_bytes!("../assets/schema_explorer/js/schema_model.js")),
     ("js/graph_index.js", "text/javascript; charset=utf-8", include_bytes!("../assets/schema_explorer/js/graph_index.js")),
     ("js/layout.js", "text/javascript; charset=utf-8", include_bytes!("../assets/schema_explorer/js/layout.js")),

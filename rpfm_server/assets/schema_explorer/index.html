@@ -16,22 +16,20 @@
                 <button type="button" id="context-explore" role="menuitem">Explore</button>
             </div>
             <div id="empty-state" class="empty-state">
-                <h2>Load a schema to start</h2>
-                <p>Drop an RPFM schema file here, or use <strong>Open schema file</strong>.</p>
-                <p class="muted">Accepted: <code>schema_*.ron</code> from RPFM's <code>schemas</code> folder, or a schema saved as JSON (including the MCP <code>get_schema</code> reply).</p>
+                <h2>Schema Explorer</h2>
+                <p>The schema comes from RPFM. Open the explorer from <strong>Tools &gt; Schema Explorer</strong>.</p>
             </div>
             <div class="overlay-top">
                 <div class="overlay-row">
                     <h1 id="title" class="title bubble" title="Switch between Galaxy (the whole schema) and Explorer">Galaxy</h1>
-                    <label id="file-label" class="button bubble" for="file-input" title="Open a schema file">Open schema file</label>
-                    <input type="file" id="file-input" accept=".ron,.json" hidden>
+                    <span id="schema-label" class="schema-label bubble" title="Schema loaded from RPFM" hidden></span>
                     <div class="search">
                         <input id="search" class="bubble" type="search" placeholder="Search tables (e.g. battles)" autocomplete="off" spellcheck="false" aria-label="Search tables" disabled>
                         <ul id="search-results" class="search-results bubble" role="listbox" hidden></ul>
                     </div>
                     <label id="spread-control" class="spread bubble" title="Spread the stars apart or pull them together (doesn't change the saved layout)" hidden>
                         Spread
-                        <input id="spread" type="range" min="0.3" max="3" step="0.05" value="1">
+                        <input id="spread" type="range" min="-1" max="1" step="0.01" value="0" aria-label="Spread (0.1x to 10x)">
                         <output id="spread-value" for="spread">1.00&times;</output>
                     </label>
                 </div>
@@ -69,12 +67,9 @@
         </section>
     </main>
 
-    <div id="drop-overlay" class="drop-overlay" hidden>Drop the schema file to load it</div>
-
     <script src="vendor/cytoscape.min.js"></script>
     <script src="vendor/graphology.umd.min.js"></script>
     <script src="vendor/graphology-library.min.js"></script>
-    <script src="js/ron.js"></script>
     <script src="js/schema_model.js"></script>
     <script src="js/graph_index.js"></script>
     <script src="js/layout.js"></script>

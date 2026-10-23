@@ -9,11 +9,13 @@
 (() => {
     "use strict";
 
-    const { WsSource, FileSource } = window.RpfmDataSource;
+    const { WsSource } = window.RpfmDataSource;
     const { GraphIndex, pairKey } = window.RpfmGraphIndex;
     const { layoutFor, saveMovedStars } = window.RpfmLayout;
 
     const SPREAD_PREFIX = "rpfm-schema-explorer-spread:";
+    const MIN_SPREAD = 0.1;
+    const MAX_SPREAD = 10;
     const SEARCH_LIMIT = 30;
     const CLUSTER_ID = "__tables_without_references__";
     const HUB_THRESHOLD = 40;
@@ -47,8 +49,7 @@
     };
 
     const elements = {
-        fileInput: document.getElementById("file-input"),
-        fileLabel: document.getElementById("file-label"),
+        schemaLabel: document.getElementById("schema-label"),
         search: document.getElementById("search"),
         searchResults: document.getElementById("search-results"),
         graph: document.getElementById("graph"),
@@ -59,7 +60,6 @@
         emptyState: document.getElementById("empty-state"),
         status: document.getElementById("graph-status"),
         details: document.getElementById("details"),
-        dropOverlay: document.getElementById("drop-overlay"),
         pathBox: document.getElementById("path-box"),
         pathFrom: document.getElementById("path-from"),
         pathFromSuggestions: document.getElementById("path-from-suggestions"),
@@ -118,7 +118,7 @@
     function loadSpread(sourceKey) {
         try {
             const spread = Number.parseFloat(window.localStorage.getItem(SPREAD_PREFIX + sourceKey));
-            return Number.isFinite(spread) && spread > 0 ? spread : 1;
+            return Number.isFinite(spread) ? Math.min(Math.max(spread, MIN_SPREAD), MAX_SPREAD) : 1;
         } catch (error) {
             return 1;
         }
@@ -252,8 +252,8 @@
     async function useSource(source) {
         state.source = source;
         state.detailsCache.clear();
-        elements.fileLabel.textContent = source.kind === "ws" ? `RPFM: ${source.label}` : source.label;
-        elements.fileLabel.title = source.kind === "ws" ? "Schema loaded from RPFM. Click to open a schema file instead." : "Open another schema file";
+        elements.schemaLabel.textContent = `RPFM: ${source.label}`;
+        elements.schemaLabel.hidden = false;
         await loadGame(source.key);
     }
 
@@ -263,7 +263,7 @@
         try {
             await useSource(await WsSource.load(game));
         } catch (error) {
-            setStatus(`Couldn't load the schema from RPFM: ${error.message} You can open a schema file instead.`, true);
+            setStatus(`Couldn't load the schema from RPFM: ${error.message}`, true);
         }
     }
 
@@ -274,7 +274,7 @@
         try {
             const graph = await state.source.graph(game);
             state.game = game;
-            state.sourceKey = `${state.source.kind}:${game}`;
+            state.sourceKey = `ws:${game}`;
             state.graph = graph;
             state.index = new GraphIndex(graph);
             state.detailsCache.clear();
@@ -314,21 +314,6 @@
         const hashTable = readHash().table;
         if (hashTable && state.index.nodes.has(hashTable)) {
             selectTable(hashTable, { zoom: true });
-        }
-    }
-
-    async function loadFile(file) {
-        setStatus(`Reading ${file.name}...`);
-        try {
-            const text = await file.text();
-            setStatus(`Parsing ${file.name}...`);
-
-            // Yield once so the status paints before the (synchronous) parse of a multi-MB file.
-            await new Promise((resolve) => setTimeout(resolve, 0));
-            const source = FileSource.fromText(file.name, text);
-            await useSource(source);
-        } catch (error) {
-            setStatus(`Couldn't load ${file.name}: ${error.message}`, true);
         }
     }
 
@@ -632,8 +617,9 @@
         return { x: centre.x + (position.x - centre.x) / state.spread, y: centre.y + (position.y - centre.y) / state.spread };
     }
 
+    // The slider holds log10 of the spread, so 0.1x-1x gets as much travel as 1x-10x.
     function showSpread() {
-        elements.spread.value = String(state.spread);
+        elements.spread.value = String(Math.log10(state.spread));
         elements.spreadValue.textContent = `${state.spread.toFixed(2)}\u00d7`;
     }
 
@@ -662,7 +648,7 @@
     let pendingSpread = null;
     elements.spread.addEventListener("input", () => {
         const scheduled = pendingSpread !== null;
-        pendingSpread = Number.parseFloat(elements.spread.value);
+        pendingSpread = 10 ** Number.parseFloat(elements.spread.value);
         if (!scheduled) {
             requestAnimationFrame(() => {
                 applySpread(pendingSpread);
@@ -1433,7 +1419,7 @@
 
     function writeHash() {
         const params = new URLSearchParams();
-        if (state.source?.kind === "ws" && state.game) {
+        if (state.game) {
             params.set("game", state.game);
         }
         if (state.selected) {
@@ -1447,47 +1433,10 @@
 
     window.addEventListener("hashchange", () => {
         const { game, table } = readHash();
-        if (game && state.source?.kind === "ws" && game !== state.game) {
+        if (game && state.source && game !== state.game) {
             loadFromServer(game);
         } else if (table && state.index?.nodes.has(table) && table !== state.selected) {
             openTable(table, { zoom: true });
-        }
-    });
-
-    //-------------------------------------------------------------------//
-    // Controls, file picking and drag and drop
-    //-------------------------------------------------------------------//
-
-    elements.fileInput.addEventListener("change", () => {
-        const file = elements.fileInput.files?.[0];
-        if (file) {
-            loadFile(file);
-        }
-        elements.fileInput.value = "";
-    });
-
-    // Counts nested dragenter/dragleave pairs so the overlay doesn't flicker over child elements.
-    let dragDepth = 0;
-    window.addEventListener("dragenter", (event) => {
-        if (event.dataTransfer?.types.includes("Files")) {
-            dragDepth++;
-            elements.dropOverlay.hidden = false;
-        }
-    });
-    window.addEventListener("dragleave", () => {
-        dragDepth = Math.max(dragDepth - 1, 0);
-        if (dragDepth === 0) {
-            elements.dropOverlay.hidden = true;
-        }
-    });
-    window.addEventListener("dragover", (event) => event.preventDefault());
-    window.addEventListener("drop", (event) => {
-        event.preventDefault();
-        dragDepth = 0;
-        elements.dropOverlay.hidden = true;
-        const file = event.dataTransfer?.files?.[0];
-        if (file) {
-            loadFile(file);
         }
     });
 
@@ -1498,6 +1447,6 @@
     if (WsSource.isAvailable()) {
         loadFromServer(readHash().game);
     } else {
-        setStatus("Open or drop a schema file to start.");
+        setStatus("Open the explorer from RPFM: Tools > Schema Explorer.", true);
     }
 })();

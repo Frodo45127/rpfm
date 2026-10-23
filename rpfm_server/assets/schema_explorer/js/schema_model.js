@@ -1,22 +1,18 @@
 // Builds the explorer's graph and table details from an RPFM schema.
 //
-// The output matches the JSON the planned `rpfm_server` endpoints will return
-// (see docs/server/schema_explorer.md), so the page renders the same data whether
-// it loaded a schema file or talks to the server.
-//
 // Patches follow the `Field` accessors in `rpfm_lib::schema`: a patch value replaces
 // the field's own value for `is_key`, `is_reference`, `lookup`, `description`,
 // `default_value`, `is_filename` and `filename_relative_path`. Other patch keys are
 // kept as `patch_notes`.
 
 (function (root, factory) {
-    const api = factory(root.RpfmRon || (typeof require === "function" ? require("./ron.js") : null));
+    const api = factory();
     if (typeof module === "object" && module.exports) {
         module.exports = api;
     } else {
         root.RpfmSchemaModel = api;
     }
-})(typeof self !== "undefined" ? self : this, (ron) => {
+})(typeof self !== "undefined" ? self : this, () => {
     "use strict";
 
     const TABLES_SUFFIX = "_tables";
@@ -38,21 +34,6 @@
      */
     function tableId(tableName) {
         return tableName.endsWith(TABLES_SUFFIX) ? tableName.slice(0, -TABLES_SUFFIX.length) : tableName;
-    }
-
-    /**
-     * Parse the text of a schema file, as RON (`schema_*.ron`) or JSON.
-     *
-     * JSON can be a plain schema, a `{"Schema": ...}` response, or a saved MCP `get_schema` reply.
-     *
-     * @param {string} text The file contents.
-     * @returns {{version: number, definitions: Object, patches: Object}} The schema.
-     * @throws {Error} If the text isn't a schema.
-     */
-    function parseSchemaText(text) {
-        const trimmed = text.trimStart();
-        const value = trimmed.startsWith("{") || trimmed.startsWith("[") ? JSON.parse(trimmed) : ron.parse(trimmed);
-        return normalizeSchema(value);
     }
 
     /**
@@ -327,5 +308,5 @@
         }
     }
 
-    return { SchemaModel, parseSchemaText, normalizeSchema, patchedField, tableId };
+    return { SchemaModel, normalizeSchema, patchedField, tableId };
 });

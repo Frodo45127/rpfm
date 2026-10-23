@@ -109,16 +109,16 @@ All routes sit under `/schema-explorer` and accept only `GET` (and `HEAD`). Resp
 
 - **Libraries:** [Cytoscape.js](https://js.cytoscape.org/) draws the graph. [graphology](https://graphology.github.io/)'s ForceAtlas2 lays out the **whole** schema, run until it converges, and the layout is saved in the browser per schema source. Dragged stars are saved and pinned. When the schema changes, the saved layout is the starting point: new tables start next to their neighbours and ForceAtlas2 continues from there. The page opens on the full star map, and selecting a table only recolours stars, so the map never moves. Both libraries are single files with no build step.
 - **Vendoring:** check pinned, minified copies into `rpfm_server/assets/schema_explorer/` and embed them with `include_bytes!`/`include_str!`. No CDN: the page must work offline and must not load third-party code.
-- **Code:** implemented in `rpfm_server/assets/schema_explorer/` (see its `README.md`). It uses plain scripts with no bundler or npm build step, not ES modules, because browsers refuse modules on `file://` pages:
+- **Code:** implemented in `rpfm_server/assets/schema_explorer/` (see its `README.md`). It uses plain scripts with no bundler or npm build step:
   - `index.html`, `css/explorer.css`: the page shell and styles.
   - `js/explorer.js`: the UI.
   - `js/graph_index.js`: neighbourhood, path, table-pair and search queries.
   - `js/layout.js`: the ForceAtlas2 layout run to convergence, incremental updates, pinned stars, star overlap removal, the cluster of tables without references, and saved layouts.
-  - `js/data_source.js`: API mode or file mode.
-  - `js/schema_model.js` and `js/ron.js`: build this API's JSON in the browser from a schema file, so the page works before the server side exists.
+  - `js/data_source.js`: fetches the schema from RPFM over `/ws`.
+  - `js/schema_model.js`: builds the graph and table details in the browser from that schema.
   - `vendor/`: the vendored libraries.
   - `tests/`: Node unit tests.
-- **File mode:** until the endpoints exist, the page loads a `schema_*.ron` or JSON schema the user picks. Once the server serves the page, it switches to the API automatically.
+- **No file mode:** the page only loads schemas from RPFM. It can't open schema files from disk.
 - **Interactions:**
   - Game picker. Remember the last game in `localStorage`.
   - Table search with fuzzy matching on table name.

@@ -138,7 +138,6 @@ code {
 }
 
 button,
-.button,
 select,
 input {
     font: inherit;
@@ -149,13 +148,11 @@ input {
     padding: 3px 8px;
 }
 
-button,
-.button {
+button {
     cursor: pointer;
 }
 
-button:hover:not(:disabled),
-.button:hover {
+button:hover:not(:disabled) {
     border-color: var(--accent);
 }
 
@@ -176,7 +173,6 @@ input:disabled {
 }
 
 button.bubble:hover:not(:disabled),
-.button.bubble:hover,
 select.bubble:hover {
     background: var(--bubble-bg-hover);
     border-color: var(--selected);
@@ -195,6 +191,16 @@ input.bubble::placeholder {
 select.bubble option {
     color: var(--bubble-text);
     background: #2a1a55;
+}
+
+/* Game badge */
+
+.schema-label {
+    white-space: nowrap;
+}
+
+.schema-label[hidden] {
+    display: none;
 }
 
 /* Spread slider */
@@ -671,26 +677,6 @@ select.version-badge option {
 .path-steps {
     margin: 8px 0 0;
     padding-left: 18px;
-}
-
-/* Drag and drop */
-
-.drop-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 20;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgb(47 111 214 / 18%);
-    border: 3px dashed var(--accent);
-    font-size: 20px;
-    font-weight: 600;
-    pointer-events: none;
-}
-
-.drop-overlay[hidden] {
-    display: none;
 }
 
 @media (max-width: 800px) {

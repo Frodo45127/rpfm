@@ -1,11 +1,8 @@
 // Where the explorer gets its schema from.
 //
-// - `WsSource` fetches the selected game's schema from `rpfm_server` over its `/ws` WebSocket, when
-//   the page is served by the server (`http://127.0.0.1:45127/schema-explorer/#game=<game>`). It
-//   connects back to whatever host served the page, so it follows the server's address.
-// - `FileSource` reads a schema file the user picks or drops, when the page is opened from disk.
-//
-// Both give a `SchemaSource`, so the UI doesn't care where the schema came from.
+// `WsSource` fetches the selected game's schema from `rpfm_server` over its `/ws` WebSocket. The page is
+// served by the server (`http://127.0.0.1:45127/schema-explorer/#game=<game>`) and connects back to
+// whatever host served it, so it follows the server's address.
 
 (function (root, factory) {
     const schemaModel = root.RpfmSchemaModel || (typeof require === "function" ? require("./schema_model.js") : null);
@@ -24,11 +21,10 @@
     class SchemaSource {
 
         /**
-         * @param {{kind: string, key: string, label: string, schema: Object}} options `kind` is `ws` or `file`, `key`
-         *   identifies the schema (game key or file name, used for the saved layout), `label` is shown to the user.
+         * @param {{key: string, label: string, schema: Object}} options `key` is the game key (used for the saved
+         *   layout), `label` is shown to the user.
          */
-        constructor({ kind, key, label, schema }) {
-            this.kind = kind;
+        constructor({ key, label, schema }) {
             this.key = key;
             this.label = label;
             this.model = new schemaModel.SchemaModel(schema);
@@ -46,21 +42,6 @@
             return details;
         }
     }
-
-    const FileSource = {
-
-        /**
-         * Build a source from the text of a schema file.
-         *
-         * @param {string} fileName The file name, shown to the user.
-         * @param {string} text The file contents (RON or JSON).
-         * @returns {SchemaSource} The source.
-         * @throws {Error} If the file isn't a schema.
-         */
-        fromText(fileName, text) {
-            return new SchemaSource({ kind: "file", key: fileName, label: fileName, schema: schemaModel.parseSchemaText(text) });
-        },
-    };
 
     /**
      * Fetch a game's schema from `rpfm_server` over its WebSocket, in a session of its own.
@@ -172,9 +153,9 @@
         async load(game) {
             const scheme = window.location.protocol === "https:" ? "wss" : "ws";
             const { game: key, schema } = await fetchSchemaOverWebSocket(`${scheme}://${window.location.host}/ws`, game);
-            return new SchemaSource({ kind: "ws", key, label: key, schema });
+            return new SchemaSource({ key, label: key, schema });
         },
     };
 
-    return { SchemaSource, FileSource, WsSource, fetchSchemaOverWebSocket };
+    return { SchemaSource, WsSource, fetchSchemaOverWebSocket };
 });
