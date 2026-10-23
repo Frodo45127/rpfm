@@ -26,7 +26,6 @@
                         <input id="search" class="bubble" type="search" placeholder="Search tables (e.g. battles)" autocomplete="off" spellcheck="false" aria-label="Search tables" disabled>
                         <ul id="search-results" class="search-results bubble" role="listbox" hidden></ul>
                     </div>
-                    <button type="button" id="overview" class="bubble" disabled title="Clear the selection and show the whole schema">Overview</button>
                 </div>
                 <div id="graph-status" class="graph-status bubble" role="status"></div>
             </div>
@@ -41,9 +40,8 @@
                 <span><i class="swatch swatch-missing"></i>Not in schema</span>
                 <span class="legend-note">A &rarr; B: A references B</span>
             </div>
+            <aside id="details" class="details" aria-label="Table details" hidden></aside>
         </section>
-
-        <aside id="details" class="details" aria-label="Table details" hidden></aside>
     </main>
 
     <div id="drop-overlay" class="drop-overlay" hidden>Drop the schema file to load it</div>

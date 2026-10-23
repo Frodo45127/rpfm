@@ -21,6 +21,7 @@
     const EDGE_CURVATURE = 0.12;
     const MAX_EDGE_CURVE = 90;
     const CLUSTER_MARGIN = 30;
+    const PANEL_GAP = 24;
 
     // Graph colours are fixed (the graph always sits on the space background), unlike the page theme.
     const COLOURS = {
@@ -48,7 +49,6 @@
         fileLabel: document.getElementById("file-label"),
         search: document.getElementById("search"),
         searchResults: document.getElementById("search-results"),
-        overview: document.getElementById("overview"),
         graph: document.getElementById("graph"),
         emptyState: document.getElementById("empty-state"),
         status: document.getElementById("graph-status"),
@@ -69,6 +69,8 @@
         isolated: new Set(),
         clusterCentre: null,
         lastGame: loadLastGame(),
+        summary: "",
+        openSections: { fields: true, referencedBy: true },
         searchMatches: [],
         searchActive: -1,
     };
@@ -277,7 +279,6 @@
 
         elements.emptyState.hidden = true;
         elements.search.disabled = false;
-        elements.overview.disabled = false;
         elements.tableNames.replaceChildren(...[...state.index.nodes.keys()].map((id) => {
             const option = document.createElement("option");
             option.value = id;
@@ -292,7 +293,8 @@
             updated: `layout updated for schema changes in ${layout.iterations} iterations`,
             new: `new layout, settled in ${layout.iterations} iterations`,
         }[layout.status];
-        setStatus(`${tableCount} tables, ${state.graph.edges.length} references, ${layout.isolated.length} without references (${layoutNote}). Search or click a star.`);
+        state.summary = `${tableCount} tables, ${state.graph.edges.length} references, ${layout.isolated.length} without references (${layoutNote}). Search or click a star.`;
+        setStatus(state.summary);
 
         const hashTable = readHash().table;
         if (hashTable && state.index.nodes.has(hashTable)) {
@@ -420,15 +422,14 @@
         cy.batch(() => cy.elements().removeClass("dim in out both path selected labelled"));
     }
 
-    function showOverview() {
+    function clearSelection() {
         state.selected = null;
         state.path = null;
         clearHighlight();
         cy.$(":selected").unselect();
         hideDetails();
-        fitTo(cy.nodes(), { maxZoom: Infinity, animate: true });
         writeHash();
-        setStatus("Showing the whole schema.");
+        setStatus(state.summary);
     }
 
     // Fit the view to some nodes from their positions alone. Cytoscape's own fit measures every label,
@@ -439,14 +440,16 @@
         }
         const extent = nodes.boundingBox({ includeLabels: false, includeOverlays: false, includeUnderlays: false });
         const padding = 50;
+        const covered = elements.details.hidden ? 0 : elements.details.offsetWidth + PANEL_GAP;
+        const width = Math.max(cy.width() - covered, 2 * padding + 1);
         const fitZoom = Math.min(
             maxZoom,
             cy.maxZoom(),
-            (cy.width() - 2 * padding) / Math.max(extent.w, 1),
+            (width - 2 * padding) / Math.max(extent.w, 1),
             (cy.height() - 2 * padding) / Math.max(extent.h, 1),
         );
         const zoom = Math.max(fitZoom, cy.minZoom());
-        const pan = { x: cy.width() / 2 - zoom * (extent.x1 + extent.w / 2), y: cy.height() / 2 - zoom * (extent.y1 + extent.h / 2) };
+        const pan = { x: width / 2 - zoom * (extent.x1 + extent.w / 2), y: cy.height() / 2 - zoom * (extent.y1 + extent.h / 2) };
         cy.stop();
         if (animate) {
             cy.animate({ zoom, pan }, { duration: 450 });
@@ -604,7 +607,7 @@
         if (event.target.id() !== CLUSTER_ID) {
             selectTable(event.target.id());
         } else if (state.selected) {
-            showOverview();
+            clearSelection();
         }
     });
     cy.on("dbltap", "node", (event) => {
@@ -614,7 +617,7 @@
     });
     cy.on("tap", (event) => {
         if (event.target === cy && state.selected) {
-            showOverview();
+            clearSelection();
         }
     });
     cy.on("tap", "edge", (event) => {
@@ -628,9 +631,13 @@
     cy.on("mouseover", "node", (event) => {
         if (event.target.id() !== CLUSTER_ID) {
             previewNeighbours(event.target.id());
+            elements.graph.title = tableSummary(event.target.id());
         }
     });
-    cy.on("mouseout", "node", clearPreview);
+    cy.on("mouseout", "node", () => {
+        clearPreview();
+        elements.graph.title = "";
+    });
 
     //-------------------------------------------------------------------//
     // Details panel (only shown while a table is selected)
@@ -655,27 +662,36 @@
         return node;
     }
 
+    // The schema has no table-level comments, so table tooltips summarise the table instead.
+    function tableSummary(id) {
+        const node = state.index.nodes.get(id);
+        if (!node) {
+            return id;
+        }
+        const linked = `${state.index.degree(id)} linked tables`;
+        if (node.missing) {
+            return `${node.table}\nNot in the schema, referenced by other tables\n${linked}`;
+        }
+        const keys = node.keys.length > 0 ? `key: ${node.keys.join(", ")}` : "no key columns";
+        return `${node.table}\n${node.fields} fields, ${keys}\nversions ${node.versions.join(", ")}, ${linked}`;
+    }
+
     function tableLink(id, text = id) {
-        const button = element("button", { text, className: "link", title: "Select this table" });
+        const button = element("button", { text, className: "link", title: tableSummary(id) });
         button.type = "button";
         button.addEventListener("click", () => selectTable(id, { zoom: true }));
         return button;
     }
 
     function actionButton(text, onClick, title) {
-        const button = element("button", { text, title });
+        const button = element("button", { text, title, className: "bubble" });
         button.type = "button";
         button.addEventListener("click", onClick);
         return button;
     }
 
-    // The graph area changes size with the panel, so Cytoscape has to be told.
     function setDetailsVisible(visible) {
-        if (elements.details.hidden === !visible) {
-            return;
-        }
         elements.details.hidden = !visible;
-        cy.resize();
     }
 
     function hideDetails() {
@@ -709,8 +725,8 @@
         const newest = details.definitions[0];
 
         const header = element("div", { className: "details-header" }, [
-            element("h2", { text: details.table }),
-            actionButton("Close", showOverview, "Deselect and go back to the whole schema"),
+            element("h2", { text: details.table, title: tableSummary(id) }),
+            actionButton("Close", clearSelection, "Deselect this table"),
         ]);
 
         const badges = element("div", { className: "badges" }, [
@@ -743,14 +759,21 @@
         elements.details.replaceChildren(...sections);
     }
 
-    function definitionSection(details) {
-        const container = element("div");
-        const heading = element("h3", { text: "Fields" });
-        const body = element("div");
-        container.append(heading);
+    // A section that can be folded away. Whether it's open is remembered for the next table.
+    function collapsibleSection(key, title, children) {
+        const section = element("details", { className: "section" }, [element("summary", { text: title }), element("div", { className: "section-body" }, children)]);
+        section.open = state.openSections[key];
+        section.addEventListener("toggle", () => {
+            state.openSections[key] = section.open;
+        });
+        return section;
+    }
 
+    function definitionSection(details) {
+        const body = element("div");
+        const children = [];
         if (details.definitions.length > 1) {
-            const select = element("select", { title: "Definition version" });
+            const select = element("select", { title: "Definition version", className: "bubble version-picker" });
             for (const definition of details.definitions) {
                 const option = element("option", { text: `Version ${definition.version}` });
                 option.value = String(definition.version);
@@ -760,12 +783,12 @@
                 const definition = details.definitions.find((d) => String(d.version) === select.value);
                 body.replaceChildren(fieldsTable(definition));
             });
-            heading.append(" ", select);
+            children.push(select);
         }
 
         body.append(fieldsTable(details.definitions[0]));
-        container.append(body);
-        return container;
+        children.push(body);
+        return collapsibleSection("fields", `Fields (${details.definitions[0].fields.length})`, children);
     }
 
     function fieldsTable(definition) {
@@ -787,7 +810,10 @@
     }
 
     function fieldRow(field) {
-        const name = element("td", { text: field.name, className: field.is_key ? "key" : "", title: field.is_key ? "Key column" : "" });
+        const { explanation, ...otherNotes } = field.patch_notes || {};
+        const comment = [field.description, explanation].filter(Boolean).join("\n");
+        const name = element("td", { className: field.is_key ? "key" : "" });
+        name.append(element("span", { text: field.name, className: comment ? "has-comment" : "" }));
         if (field.is_key) {
             name.append(element("span", { className: "note", text: "key" }));
         }
@@ -802,9 +828,6 @@
         }
 
         const noteLines = [];
-        if (field.description) {
-            noteLines.push(field.description);
-        }
         if (field.default_value !== null && field.default_value !== "") {
             noteLines.push(`default: ${field.default_value}`);
         }
@@ -821,37 +844,38 @@
         if (field.is_part_of_colour !== null) {
             noteLines.push(`colour part ${field.is_part_of_colour}`);
         }
-        for (const [key, value] of Object.entries(field.patch_notes || {})) {
+        for (const [key, value] of Object.entries(otherNotes)) {
             noteLines.push(`${key}: ${value}`);
         }
         for (const line of noteLines) {
             details.append(element("span", { className: "note", text: line }));
         }
 
-        return element("tr", {}, [name, element("td", { text: field.field_type_name || String(field.field_type) }), details]);
+        const row = element("tr", {}, [name, element("td", { text: field.field_type_name || String(field.field_type) }), details]);
+        row.title = comment;
+        return row;
     }
 
     function referencedBySection(details) {
-        const container = element("div", {}, [element("h3", { text: "Referenced by" })]);
         const columns = Object.entries(details.referenced_by || {});
+        const tableCount = new Set(columns.flatMap(([, tables]) => Object.keys(tables))).size;
+        const children = [];
         if (columns.length === 0) {
-            container.append(element("p", { className: "muted", text: "No table references this one." }));
-            return container;
+            children.push(element("p", { className: "muted", text: "No table references this one." }));
         }
-
         for (const [column, tables] of columns) {
-            container.append(element("p", { text: `${column} (${Object.keys(tables).length} tables)` }));
+            children.push(element("p", { text: `${column} (${Object.keys(tables).length} tables)` }));
             const items = Object.entries(tables).map(([table, sourceColumns]) => {
                 const id = table.replace(/_tables$/, "");
                 return element("li", {}, [tableLink(id), element("span", { className: "muted", text: ` .${sourceColumns.join(", .")}` })]);
             });
-            container.append(element("ul", { className: "reference-list" }, items));
+            children.push(element("ul", { className: "reference-list" }, items));
         }
-        return container;
+        return collapsibleSection("referencedBy", `Referenced by (${tableCount})`, children);
     }
 
     function pathSection(fromId) {
-        const input = element("input", { title: "Target table" });
+        const input = element("input", { title: "Target table", className: "bubble" });
         input.setAttribute("list", "table-names");
         input.placeholder = "Path to table...";
         const result = element("div");
@@ -1014,7 +1038,6 @@
     // Controls, file picking and drag and drop
     //-------------------------------------------------------------------//
 
-    elements.overview.addEventListener("click", showOverview);
     elements.gameSelect.addEventListener("change", () => loadGame(elements.gameSelect.value));
     elements.fileInput.addEventListener("change", () => {
         const file = elements.fileInput.files?.[0];
