@@ -105,6 +105,36 @@ code {
     font-size: 15px;
     font-weight: 600;
     line-height: 1.4;
+    cursor: pointer;
+    user-select: none;
+}
+
+.title:hover {
+    background: var(--bubble-bg-hover);
+    border-color: var(--selected);
+}
+
+/* Right-click menu on a table. */
+.context-menu {
+    position: absolute;
+    z-index: 20;
+    padding: 4px;
+    border-radius: 12px;
+}
+
+.context-menu button {
+    display: block;
+    width: 100%;
+    padding: 4px 14px;
+    border: none;
+    border-radius: 8px;
+    color: var(--bubble-text);
+    background: transparent;
+    text-align: left;
+}
+
+.context-menu button:hover {
+    background: var(--bubble-bg-hover);
 }
 
 button,

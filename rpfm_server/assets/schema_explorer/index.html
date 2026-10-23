@@ -11,6 +11,10 @@
     <main class="layout">
         <section class="graph-pane" aria-label="Table graph">
             <div id="graph" class="graph"></div>
+            <div id="explore-graph" class="graph" hidden></div>
+            <div id="context-menu" class="context-menu bubble" role="menu" hidden>
+                <button type="button" id="context-explore" role="menuitem">Explore</button>
+            </div>
             <div id="empty-state" class="empty-state">
                 <h2>Load a schema to start</h2>
                 <p>Drop an RPFM schema file here, or use <strong>Open schema file</strong>.</p>
@@ -18,7 +22,7 @@
             </div>
             <div class="overlay-top">
                 <div class="overlay-row">
-                    <h1 class="title bubble">Schema Explorer</h1>
+                    <h1 id="title" class="title bubble" title="Switch between the whole schema and the explore view">Schema Explorer</h1>
                     <select id="game-select" class="bubble" aria-label="Game" hidden></select>
                     <label id="file-label" class="button bubble" for="file-input" title="Open a schema file">Open schema file</label>
                     <input type="file" id="file-input" accept=".ron,.json" hidden>

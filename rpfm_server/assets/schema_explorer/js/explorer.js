@@ -23,6 +23,9 @@
     const MAX_EDGE_CURVE = 90;
     const CLUSTER_MARGIN = 30;
     const PANEL_GAP = 24;
+    const EXPLORE_COLUMN_GAP = 320;
+    const EXPLORE_ROW_GAP = 36;
+    const EXPLORE_HIGHLIGHT_CLASSES = "in out both selected";
 
     // Graph colours are fixed (the graph always sits on the space background), unlike the page theme.
     const COLOURS = {
@@ -51,6 +54,10 @@
         search: document.getElementById("search"),
         searchResults: document.getElementById("search-results"),
         graph: document.getElementById("graph"),
+        exploreGraph: document.getElementById("explore-graph"),
+        contextMenu: document.getElementById("context-menu"),
+        contextExplore: document.getElementById("context-explore"),
+        title: document.getElementById("title"),
         emptyState: document.getElementById("empty-state"),
         status: document.getElementById("graph-status"),
         details: document.getElementById("details"),
@@ -83,12 +90,25 @@
         lastGame: loadLastGame(),
         summary: "",
         openSections: { fields: true, localised: true, referencedBy: true },
+        view: "galaxy",
+        exploration: null,
+        menuTarget: null,
+        pairsByKey: new Map(),
     };
 
     const cy = window.cytoscape({
         container: elements.graph,
         style: graphStyle(),
         minZoom: 0.02,
+        maxZoom: 5,
+        boxSelectionEnabled: false,
+    });
+
+    // The explore view has its own graph, so it never disturbs the whole-schema layout.
+    const exploreCy = window.cytoscape({
+        container: elements.exploreGraph,
+        style: graphStyle(),
+        minZoom: 0.05,
         maxZoom: 5,
         boxSelectionEnabled: false,
     });
@@ -307,6 +327,12 @@
         elements.emptyState.hidden = true;
         elements.search.disabled = false;
         elements.pathBox.hidden = false;
+        state.exploration = null;
+        exploreCy.elements().remove();
+        state.view = "galaxy";
+        elements.exploreGraph.hidden = true;
+        elements.graph.hidden = false;
+        cy.resize();
 
         state.spread = loadSpread(state.sourceKey);
         showSpread();
@@ -379,6 +405,41 @@
         cy.getElementById(CLUSTER_ID).position(centre).data("diameter", radius * 2);
     }
 
+    // One edge per pair of tables: pointing the way the references go, or both ways when they go both ways.
+    function pairEdgeItem(pair, positions) {
+        const hasForward = pair.forward.length > 0;
+        const hasBackward = pair.backward.length > 0;
+        const [source, target] = hasForward ? [pair.a, pair.b] : [pair.b, pair.a];
+        const classes = [];
+        if (pair.a === pair.b) {
+            classes.push("loop");
+        } else if (hasForward && hasBackward) {
+            classes.push("bidirectional");
+        }
+        return {
+            group: "edges",
+            data: {
+                id: pair.key,
+                source,
+                target,
+                label: pairLabel(pair),
+                curve: pair.a === pair.b ? 0 : edgeCurve(positions[source], positions[target]),
+            },
+            classes: classes.join(" "),
+        };
+    }
+
+    function starItem(id, position, extraClasses = []) {
+        const classes = [...extraClasses];
+        if (state.index.nodes.get(id)?.missing) {
+            classes.push("missing");
+        }
+        if (state.index.degree(id) > HUB_THRESHOLD) {
+            classes.push("hub");
+        }
+        return { group: "nodes", data: { id, degree: state.index.degree(id) }, position: { ...position }, classes: classes.join(" ") };
+    }
+
     function renderOverview(layout) {
         const isolated = new Set(layout.isolated);
         state.isolated = isolated;
@@ -400,43 +461,12 @@
         }
 
         for (const node of state.graph.nodes) {
-            const classes = [];
-            if (node.missing) {
-                classes.push("missing");
-            }
-            if (state.index.degree(node.id) > HUB_THRESHOLD) {
-                classes.push("hub");
-            }
-            items.push({
-                group: "nodes",
-                data: { id: node.id, degree: state.index.degree(node.id) },
-                position: positions[node.id],
-                classes: classes.join(" "),
-            });
+            items.push(starItem(node.id, positions[node.id]));
         }
 
-        // One edge per pair of tables: pointing the way the references go, or both ways when they go both ways.
-        for (const pair of state.index.linkedPairs()) {
-            const hasForward = pair.forward.length > 0;
-            const hasBackward = pair.backward.length > 0;
-            const [source, target] = hasForward ? [pair.a, pair.b] : [pair.b, pair.a];
-            const classes = [];
-            if (pair.a === pair.b) {
-                classes.push("loop");
-            } else if (hasForward && hasBackward) {
-                classes.push("bidirectional");
-            }
-            items.push({
-                group: "edges",
-                data: {
-                    id: pair.key,
-                    source,
-                    target,
-                    label: pairLabel(pair),
-                    curve: pair.a === pair.b ? 0 : edgeCurve(positions[source], positions[target]),
-                },
-                classes: classes.join(" "),
-            });
+        state.pairsByKey = new Map(state.index.linkedPairs().map((pair) => [pair.key, pair]));
+        for (const pair of state.pairsByKey.values()) {
+            items.push(pairEdgeItem(pair, positions));
         }
 
         state.selected = null;
@@ -458,10 +488,11 @@
         state.path = null;
         resetPathResult();
         clearHighlight();
+        exploreCy.batch(() => exploreCy.elements().removeClass(EXPLORE_HIGHLIGHT_CLASSES));
         cy.$(":selected").unselect();
         hideDetails();
         writeHash();
-        setStatus(state.summary);
+        setStatus(state.view === "explore" ? exploreStatus() : state.summary);
     }
 
     // Fit the view to some nodes from their positions alone. Cytoscape's own fit measures every label,
@@ -470,23 +501,24 @@
         if (nodes.length === 0) {
             return;
         }
+        const view = nodes.cy();
         const extent = nodes.boundingBox({ includeLabels: false, includeOverlays: false, includeUnderlays: false });
         const padding = 50;
         const covered = elements.details.hidden ? 0 : elements.details.offsetWidth + PANEL_GAP;
-        const width = Math.max(cy.width() - covered, 2 * padding + 1);
+        const width = Math.max(view.width() - covered, 2 * padding + 1);
         const fitZoom = Math.min(
             maxZoom,
-            cy.maxZoom(),
+            view.maxZoom(),
             (width - 2 * padding) / Math.max(extent.w, 1),
-            (cy.height() - 2 * padding) / Math.max(extent.h, 1),
+            (view.height() - 2 * padding) / Math.max(extent.h, 1),
         );
-        const zoom = Math.max(fitZoom, cy.minZoom());
-        const pan = { x: width / 2 - zoom * (extent.x1 + extent.w / 2), y: cy.height() / 2 - zoom * (extent.y1 + extent.h / 2) };
-        cy.stop();
+        const zoom = Math.max(fitZoom, view.minZoom());
+        const pan = { x: width / 2 - zoom * (extent.x1 + extent.w / 2), y: view.height() / 2 - zoom * (extent.y1 + extent.h / 2) };
+        view.stop();
         if (animate) {
-            cy.animate({ zoom, pan }, { duration: 450 });
+            view.animate({ zoom, pan }, { duration: 450 });
         } else {
-            cy.viewport({ zoom, pan });
+            view.viewport({ zoom, pan });
         }
     }
 
@@ -521,14 +553,14 @@
     }
 
     // Give a table, its neighbours and the edges between them their highlight classes, e.g. `selected`, `in`, `out`, `both`.
-    function colourNeighbours(id, prefix) {
+    function colourNeighbours(view, id, prefix) {
         const kinds = state.index.neighbours(id, "both").filter((neighbour) => neighbour !== id).map((neighbour) => [neighbour, relation(id, neighbour)]);
-        cy.getElementById(id).addClass(`${prefix}selected`);
+        view.getElementById(id).addClass(`${prefix}selected`);
         for (const [neighbour, kind] of kinds) {
-            cy.getElementById(neighbour).addClass(`${prefix}${kind}`);
-            cy.getElementById(pairKey(id, neighbour)).addClass(`${prefix}${kind}`);
+            view.getElementById(neighbour).addClass(`${prefix}${kind}`);
+            view.getElementById(pairKey(id, neighbour)).addClass(`${prefix}${kind}`);
         }
-        cy.getElementById(pairKey(id, id)).addClass(`${prefix}out`);
+        view.getElementById(pairKey(id, id)).addClass(`${prefix}out`);
         return kinds;
     }
 
@@ -537,7 +569,7 @@
         let kinds = [];
         cy.batch(() => {
             clearHighlight();
-            kinds = colourNeighbours(id, "");
+            kinds = colourNeighbours(cy, id, "");
             const lit = cy.collection([id, ...kinds.map(([neighbour]) => neighbour)].map((litId) => cy.getElementById(litId)));
             const kept = lit.union(cy.getElementById(id).connectedEdges()).union(cy.getElementById(CLUSTER_ID));
             cy.elements().difference(kept).addClass("dim");
@@ -551,14 +583,14 @@
 
     const PREVIEW_CLASSES = "hover-selected hover-in hover-out hover-both";
 
-    function clearPreview() {
-        cy.batch(() => cy.$(".hover-selected, .hover-in, .hover-out, .hover-both").removeClass(PREVIEW_CLASSES));
+    function clearPreview(view) {
+        view.batch(() => view.$(".hover-selected, .hover-in, .hover-out, .hover-both").removeClass(PREVIEW_CLASSES));
     }
 
-    function previewNeighbours(id) {
-        cy.batch(() => {
-            cy.$(".hover-selected, .hover-in, .hover-out, .hover-both").removeClass(PREVIEW_CLASSES);
-            colourNeighbours(id, "hover-");
+    function previewNeighbours(view, id) {
+        view.batch(() => {
+            view.$(".hover-selected, .hover-in, .hover-out, .hover-both").removeClass(PREVIEW_CLASSES);
+            colourNeighbours(view, id, "hover-");
         });
     }
 
@@ -719,14 +751,290 @@
     cy.on("resize", updateMinZoom);
     cy.on("mouseover", "node", (event) => {
         if (event.target.id() !== CLUSTER_ID) {
-            previewNeighbours(event.target.id());
+            previewNeighbours(cy, event.target.id());
             elements.graph.title = tableSummary(event.target.id());
         }
     });
     cy.on("mouseout", "node", () => {
-        clearPreview();
+        clearPreview(cy);
         elements.graph.title = "";
     });
+    cy.on("tap", hideContextMenu);
+    cy.on("viewport", hideContextMenu);
+    cy.on("cxttap", "node", (event) => {
+        const id = event.target.id();
+        if (id === CLUSTER_ID) {
+            return;
+        }
+        if (state.selected !== id) {
+            selectTable(id);
+        }
+        showContextMenu(event, id);
+    });
+
+    //-------------------------------------------------------------------//
+    // Explore view: a table in the middle, the tables referencing it in the column to the left and the
+    // tables it references in the column to the right. Exploring a shown table adds its own neighbours
+    // the same way, one column further out.
+    //-------------------------------------------------------------------//
+
+    function newExploration(centre) {
+        return { centre, columns: new Map(), column: new Map(), positions: {}, edges: new Set() };
+    }
+
+    function respaceColumn(exploration, columnIndex) {
+        const ids = exploration.columns.get(columnIndex);
+        ids.forEach((id, index) => {
+            exploration.positions[id] = { x: columnIndex * EXPLORE_COLUMN_GAP, y: (index - (ids.length - 1) / 2) * EXPLORE_ROW_GAP };
+        });
+    }
+
+    // Insert tables into a column next to the table that brought them in, then space the column evenly.
+    function placeInColumn(exploration, ids, columnIndex, parentY) {
+        if (ids.length === 0) {
+            return;
+        }
+        if (!exploration.columns.has(columnIndex)) {
+            exploration.columns.set(columnIndex, []);
+        }
+        const column = exploration.columns.get(columnIndex);
+        const at = column.filter((id) => exploration.positions[id].y < parentY).length;
+        column.splice(at, 0, ...ids);
+        for (const id of ids) {
+            exploration.column.set(id, columnIndex);
+        }
+        respaceColumn(exploration, columnIndex);
+    }
+
+    /**
+     * Add a shown table's neighbours to the exploration: tables it references to its right, tables referencing it to its left.
+     *
+     * Tables already shown keep their place; only the edge to them is added. New tables linked to the centre table get that edge too.
+     *
+     * @param {Object} exploration The exploration to grow.
+     * @param {string} id The table to explore.
+     * @returns {string[]} The tables added.
+     */
+    function expandExploration(exploration, id) {
+        const columnIndex = exploration.column.get(id);
+        const parentY = exploration.positions[id].y;
+        const right = [];
+        const left = [];
+        for (const neighbour of state.index.neighbours(id, "both")) {
+            if (neighbour === id) {
+                continue;
+            }
+            exploration.edges.add(pairKey(id, neighbour));
+            if (!exploration.column.has(neighbour)) {
+                (relation(id, neighbour) === "in" ? left : right).push(neighbour);
+            }
+        }
+        right.sort();
+        left.sort();
+        placeInColumn(exploration, right, columnIndex + 1, parentY);
+        placeInColumn(exploration, left, columnIndex - 1, parentY);
+
+        const added = [...right, ...left];
+        for (const neighbour of added) {
+            if (state.index.edgesBetween(neighbour, exploration.centre).length > 0) {
+                exploration.edges.add(pairKey(neighbour, exploration.centre));
+            }
+        }
+        return added;
+    }
+
+    // Add the exploration's new tables (starting from the explored one, so they fan out of it) and edges, and move everything into its column.
+    function renderExploration(fromId) {
+        const exploration = state.exploration;
+        const origin = exploreCy.getElementById(fromId);
+        const start = origin.nonempty() ? { ...origin.position() } : exploration.positions[fromId];
+        exploreCy.batch(() => {
+            for (const id of exploration.column.keys()) {
+                if (exploreCy.getElementById(id).empty()) {
+                    exploreCy.add(starItem(id, start, ["labelled"]));
+                }
+            }
+            for (const key of exploration.edges) {
+                if (exploreCy.getElementById(key).empty() && state.pairsByKey.has(key)) {
+                    exploreCy.add(pairEdgeItem(state.pairsByKey.get(key), exploration.positions));
+                }
+            }
+            for (const edge of exploreCy.edges()) {
+                edge.data("curve", edgeCurve(exploration.positions[edge.source().id()], exploration.positions[edge.target().id()]));
+            }
+        });
+        for (const node of exploreCy.nodes()) {
+            node.animate({ position: exploration.positions[node.id()] }, { duration: 350 });
+        }
+        setTimeout(() => fitTo(exploreCy.nodes(), { maxZoom: MAX_FOCUS_ZOOM, animate: true }), 380);
+    }
+
+    function exploreStatus() {
+        const exploration = state.exploration;
+        return `Exploring ${exploration.centre}: ${exploration.column.size} tables. Right-click a table to explore it; click the title to switch views.`;
+    }
+
+    function startExploration(id) {
+        state.exploration = newExploration(id);
+        placeInColumn(state.exploration, [id], 0, 0);
+        expandExploration(state.exploration, id);
+        exploreCy.elements().remove();
+        showExploreView();
+        renderExploration(id);
+        selectInExplore(id);
+    }
+
+    function exploreFurther(id) {
+        const added = expandExploration(state.exploration, id);
+        renderExploration(id);
+        selectInExplore(id);
+        if (added.length === 0) {
+            setStatus(`${id} has no tables to add that aren't shown already. ${exploreStatus()}`);
+        }
+    }
+
+    function selectInExplore(id) {
+        state.selected = id;
+        state.path = null;
+        exploreCy.batch(() => {
+            exploreCy.elements().removeClass(EXPLORE_HIGHLIGHT_CLASSES);
+            colourNeighbours(exploreCy, id, "");
+        });
+        showDetails(id);
+        writeHash();
+        setStatus(exploreStatus());
+    }
+
+    function showExploreView() {
+        state.view = "explore";
+        hideContextMenu();
+        elements.graph.hidden = true;
+        elements.exploreGraph.hidden = false;
+        elements.spreadControl.hidden = true;
+        exploreCy.resize();
+    }
+
+    function showGalaxyView() {
+        if (state.view === "galaxy") {
+            return;
+        }
+        state.view = "galaxy";
+        hideContextMenu();
+        elements.exploreGraph.hidden = true;
+        elements.graph.hidden = false;
+        elements.spreadControl.hidden = false;
+        cy.resize();
+        if (state.selected) {
+            selectTable(state.selected);
+        } else {
+            setStatus(state.summary);
+        }
+    }
+
+    // The title switches between the whole schema and the last exploration.
+    function toggleView() {
+        if (!state.index) {
+            return;
+        }
+        if (state.view === "explore") {
+            showGalaxyView();
+        } else if (state.exploration) {
+            showExploreView();
+            if (state.selected && exploreCy.getElementById(state.selected).nonempty()) {
+                selectInExplore(state.selected);
+            } else {
+                clearSelection();
+            }
+        } else {
+            setStatus("Right-click a table and pick Explore to open the explore view.");
+        }
+    }
+
+    /**
+     * Select a table in the current view, falling back to the whole schema when the explore view doesn't show it.
+     *
+     * @param {string} id The table id.
+     * @param {{zoom?: boolean}} [options] `zoom` zooms to the table and its neighbours.
+     */
+    function openTable(id, options = {}) {
+        const node = exploreCy.getElementById(id);
+        if (state.view === "explore" && node.nonempty()) {
+            selectInExplore(id);
+            if (options.zoom) {
+                zoomTo(node.closedNeighborhood("node"));
+            }
+            return;
+        }
+        showGalaxyView();
+        selectTable(id, options);
+    }
+
+    exploreCy.on("tap", "node", (event) => selectInExplore(event.target.id()));
+    exploreCy.on("dbltap", "node", (event) => openTable(event.target.id(), { zoom: true }));
+    exploreCy.on("tap", (event) => {
+        hideContextMenu();
+        if (event.target === exploreCy && state.selected) {
+            clearSelection();
+        }
+    });
+    exploreCy.on("tap", "edge", (event) => {
+        setStatus(event.target.data("label").replace(/\n/g, "; "));
+    });
+    exploreCy.on("viewport", hideContextMenu);
+    exploreCy.on("cxttap", "node", (event) => {
+        if (state.selected !== event.target.id()) {
+            selectInExplore(event.target.id());
+        }
+        showContextMenu(event, event.target.id());
+    });
+    exploreCy.on("mouseover", "node", (event) => {
+        previewNeighbours(exploreCy, event.target.id());
+        elements.exploreGraph.title = tableSummary(event.target.id());
+    });
+    exploreCy.on("mouseout", "node", () => {
+        clearPreview(exploreCy);
+        elements.exploreGraph.title = "";
+    });
+
+    //-------------------------------------------------------------------//
+    // Right-click menu
+    //-------------------------------------------------------------------//
+
+    function showContextMenu(event, id) {
+        const pane = elements.graph.parentElement.getBoundingClientRect();
+        state.menuTarget = id;
+        elements.contextMenu.style.left = `${event.originalEvent.clientX - pane.left}px`;
+        elements.contextMenu.style.top = `${event.originalEvent.clientY - pane.top}px`;
+        elements.contextMenu.hidden = false;
+    }
+
+    function hideContextMenu() {
+        elements.contextMenu.hidden = true;
+    }
+
+    elements.contextExplore.addEventListener("click", () => {
+        const id = state.menuTarget;
+        hideContextMenu();
+        if (state.view === "explore") {
+            exploreFurther(id);
+        } else {
+            startExploration(id);
+        }
+    });
+    for (const container of [elements.graph, elements.exploreGraph]) {
+        container.addEventListener("contextmenu", (event) => event.preventDefault());
+    }
+    document.addEventListener("mousedown", (event) => {
+        if (!elements.contextMenu.hidden && !elements.contextMenu.contains(event.target)) {
+            hideContextMenu();
+        }
+    });
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+            hideContextMenu();
+        }
+    });
+    elements.title.addEventListener("click", toggleView);
 
     //-------------------------------------------------------------------//
     // Details panel (only shown while a table is selected)
@@ -768,7 +1076,7 @@
     function tableLink(id, text = id) {
         const button = element("button", { text, className: "link", title: tableSummary(id) });
         button.type = "button";
-        button.addEventListener("click", () => selectTable(id, { zoom: true }));
+        button.addEventListener("click", () => openTable(id, { zoom: true }));
         return button;
     }
 
@@ -830,7 +1138,7 @@
         ]);
 
         const actions = element("div", { className: "actions" }, [
-            actionButton("Zoom to", () => selectTable(id, { zoom: true }), "Zoom to this table and its neighbours"),
+            actionButton("Zoom to", () => openTable(id, { zoom: true }), "Zoom to this table and its neighbours"),
             actionButton("Copy name", () => copyText(details.table), "Copy the full table name"),
         ]);
 
@@ -1001,6 +1309,7 @@
             return;
         }
 
+        showGalaxyView();
         state.selected = path[0];
         state.path = path;
         highlightPath(path);
@@ -1014,7 +1323,7 @@
     function clearPath() {
         resetPathResult();
         if (state.selected) {
-            selectTable(state.selected);
+            openTable(state.selected);
         } else {
             clearSelection();
         }
@@ -1132,7 +1441,7 @@
 
     attachTableSuggestions(elements.search, elements.searchResults, {
         onMatches: highlightSearchMatches,
-        onChoose: (node) => selectTable(node.id, { zoom: true }),
+        onChoose: (node) => openTable(node.id, { zoom: true }),
         onEscape: clearSearch,
     });
     attachTableSuggestions(elements.pathFrom, elements.pathFromSuggestions, {
@@ -1175,7 +1484,7 @@
             elements.gameSelect.value = game;
             loadGame(game);
         } else if (table && state.index?.nodes.has(table) && table !== state.selected) {
-            selectTable(table, { zoom: true });
+            openTable(table, { zoom: true });
         }
     });
 
