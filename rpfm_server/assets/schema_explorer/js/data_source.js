@@ -1,7 +1,8 @@
 // Where the explorer gets its schema from.
 //
 // - `WsSource` fetches the selected game's schema from `rpfm_server` over its `/ws` WebSocket, when
-//   the page is served by the server (`http://127.0.0.1:45127/schema-explorer/#game=<game>`).
+//   the page is served by the server (`http://127.0.0.1:45127/schema-explorer/#game=<game>`). It
+//   connects back to whatever host served the page, so it follows the server's address.
 // - `FileSource` reads a schema file the user picks or drops, when the page is opened from disk.
 //
 // Both give a `SchemaSource`, so the UI doesn't care where the schema came from.

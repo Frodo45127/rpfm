@@ -21,11 +21,12 @@
 //! ## Architecture
 //!
 //! The server is built on [`axum`] (HTTP + WebSocket) and [`tokio`]. It binds
-//! to `127.0.0.1:45127` by default and exposes these endpoints:
+//! to [`server_address`] (`127.0.0.1:45127`, or `RPFM_SERVER_IP` in debug builds)
+//! and exposes these endpoints:
 //!
 //! | Endpoint             | Method | Purpose                                                                          |
 //! |----------------------|--------|----------------------------------------------------------------------------------|
-//! | `/ws`                | GET    | WebSocket upgrade. Carries the [`rpfm_ipc`] command/response protocol. Requires a local `Host`, and rejects other websites' `Origin`. |
+//! | `/ws`                | GET    | WebSocket upgrade. Carries the [`rpfm_ipc`] command/response protocol. Requires a `Host` naming the server, and rejects other websites' `Origin`. |
 //! | `/version`           | GET    | REST: report the server build version + pid.                                     |
 //! | `/sessions`          | GET    | REST: list every active session (used by the UI session picker).                 |
 //! | `/mcp`               | *      | MCP `StreamableHttpService` exposing the same surface to AI / MCP clients.       |
@@ -59,14 +60,14 @@
 #![windows_subsystem = "windows"]
 
 use axum::{extract::State, middleware, routing::get, Json, Router};
-use rmcp::transport::streamable_http_server::{session::local::LocalSessionManager, StreamableHttpService};
+use rmcp::transport::streamable_http_server::{session::local::LocalSessionManager, StreamableHttpServerConfig, StreamableHttpService};
 use tokio::net::TcpListener;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Layer};
 
-use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use rpfm_ipc::address::server_address;
 use rpfm_ipc::helpers::SessionInfo;
 use rpfm_ipc::messages::{Command, Response};
 use rpfm_ipc::settings_keys::{ANONYMOUS_TELEMETRY_ID, ENABLE_CRASH_REPORTS, ENABLE_USAGE_TELEMETRY};
@@ -121,12 +122,6 @@ pub const GITHUB_OAUTH_CLIENT_ID: &str = match option_env!("RPFM_SERVER_GITHUB_O
     None => "",
 };
 
-/// Default IP address the HTTP server binds to (`127.0.0.1` / loopback).
-const DEFAULT_ADDRESS: [u8; 4] = [127, 0, 0, 1];
-
-/// Default TCP port the HTTP server listens on.
-const DEFAULT_PORT: u16 = 45127;
-
 /// Organisation domain used to derive the OS-specific config directory
 /// (mirrors `QCoreApplication::organizationDomain` on the UI side).
 const ORG_DOMAIN: &str = "com";
@@ -146,7 +141,7 @@ const APP_NAME: &str = "rpfm";
 /// Initialises the Sentry/telemetry guard, primes the telemetry toggles from
 /// persisted settings, builds the [`session::SessionManager`], wires the
 /// `axum` router (`/ws`, `/sessions`, `/mcp`) and starts the listener on
-/// [`DEFAULT_ADDRESS`]:[`DEFAULT_PORT`].
+/// [`server_address`].
 ///
 /// Returns when the listener stops accepting (typically after every session
 /// has been cleaned up — the cleanup task in [`session::SessionManager`]
@@ -206,7 +201,7 @@ async fn main() {
     let http_service = StreamableHttpService::new(
         move || Ok(McpServer::new(sm.clone())),
         LocalSessionManager::default().into(),
-        Default::default(),
+        StreamableHttpServerConfig::default().with_allowed_hosts(schema_explorer::ALLOWED_HOSTS.iter().cloned()),
     );
 
     // Setup the endpoints for the server.
@@ -218,7 +213,7 @@ async fn main() {
         .merge(schema_explorer::router())
         .with_state(session_manager);
 
-    let addr = SocketAddr::from((DEFAULT_ADDRESS, DEFAULT_PORT));
+    let addr = server_address();
     match TcpListener::bind(addr).await {
         Ok(listener) => {
             info!("Listening on {}", addr);

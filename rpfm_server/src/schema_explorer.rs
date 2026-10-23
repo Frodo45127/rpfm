@@ -14,10 +14,12 @@
 //! The page's files are embedded in the binary, so the server never reads paths from disk for it.
 //! The page talks to the server over `/ws` like any other client, in a session of its own.
 //!
-//! Any website open in the user's browser can send requests to `127.0.0.1`, so:
-//! - every route here requires a local `Host` header (blocks DNS rebinding);
+//! Any website open in the user's browser can send requests to the server's address, so:
+//! - every route here requires a `Host` header naming the server (blocks DNS rebinding);
 //! - `/ws` also rejects handshakes whose `Origin` isn't this server's own page (blocks other sites
 //!   from driving the server). Non-browser clients, like RPFM itself, send no `Origin` and pass.
+//!
+//! The accepted hosts follow [`server_address`]: its `ip:port`, plus `localhost:port` when the IP is loopback.
 
 use axum::body::Body;
 use axum::extract::{Path, Request};
@@ -27,16 +29,18 @@ use axum::response::{IntoResponse, Redirect, Response};
 use axum::routing::get;
 use axum::Router;
 
-use std::sync::Arc;
+use rpfm_ipc::address::server_address;
+
+use std::net::SocketAddr;
+use std::sync::{Arc, LazyLock};
 
 use crate::session::SessionManager;
-use crate::DEFAULT_PORT;
 
 /// Path the explorer is served under.
 pub const SCHEMA_EXPLORER_PATH: &str = "/schema-explorer";
 
-/// Host names the server answers to (with [`DEFAULT_PORT`]).
-const LOCAL_HOSTS: [&str; 3] = ["127.0.0.1", "localhost", "[::1]"];
+/// `host:port` values the server answers to, built from [`server_address`].
+pub(crate) static ALLOWED_HOSTS: LazyLock<Vec<String>> = LazyLock::new(|| allowed_hosts(server_address()));
 
 /// The explorer's files: path under [`SCHEMA_EXPLORER_PATH`], content type, and contents.
 const ASSETS: &[(&str, &str, &[u8])] = &[
@@ -87,12 +91,16 @@ pub(crate) fn asset(path: &str) -> Option<(&'static str, &'static [u8])> {
 
 /// Get the Content Security Policy sent with the explorer: only the page's own files and its own server's `/ws`.
 ///
+/// # Arguments
+///
+/// * `hosts` - The `host:port` values the server answers to.
+///
 /// # Returns
 ///
 /// The policy.
-pub(crate) fn content_security_policy() -> String {
-    let websockets = LOCAL_HOSTS.iter()
-        .map(|host| format!("ws://{host}:{DEFAULT_PORT}"))
+pub(crate) fn content_security_policy(hosts: &[String]) -> String {
+    let websockets = hosts.iter()
+        .map(|host| format!("ws://{host}"))
         .collect::<Vec<_>>()
         .join(" ");
     format!("default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' {websockets}; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
@@ -106,7 +114,7 @@ fn asset_response(path: &str) -> Response {
     Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, content_type)
-        .header(header::CONTENT_SECURITY_POLICY, content_security_policy())
+        .header(header::CONTENT_SECURITY_POLICY, content_security_policy(&ALLOWED_HOSTS))
         .header(header::X_CONTENT_TYPE_OPTIONS, "nosniff")
         .header(header::REFERRER_POLICY, "no-referrer")
         .header(header::CACHE_CONTROL, "no-cache")
@@ -118,19 +126,37 @@ fn asset_response(path: &str) -> Response {
 //                             Request checks
 //-------------------------------------------------------------------------------//
 
-/// Check whether a request's `Host` header names this server on a local address.
+/// Get the `host:port` values a server listening on an address answers to.
+///
+/// # Arguments
+///
+/// * `address` - The address the server listens on.
+///
+/// # Returns
+///
+/// The address itself, plus `localhost` on the same port if the address is loopback.
+pub(crate) fn allowed_hosts(address: SocketAddr) -> Vec<String> {
+    let mut hosts = vec![address.to_string()];
+    if address.ip().is_loopback() {
+        hosts.push(format!("localhost:{}", address.port()));
+    }
+    hosts
+}
+
+/// Check whether a request's `Host` header names this server.
 ///
 /// # Arguments
 ///
 /// * `headers` - The request headers.
+/// * `hosts` - The `host:port` values the server answers to.
 ///
 /// # Returns
 ///
-/// `true` if the `Host` is `127.0.0.1`, `localhost` or `[::1]` on the server's port.
-pub(crate) fn is_allowed_host(headers: &HeaderMap) -> bool {
+/// `true` if the `Host` is one of `hosts`.
+pub(crate) fn is_allowed_host(headers: &HeaderMap, hosts: &[String]) -> bool {
     headers.get(header::HOST)
         .and_then(|host| host.to_str().ok())
-        .is_some_and(|host| LOCAL_HOSTS.iter().any(|local| host == format!("{local}:{DEFAULT_PORT}")))
+        .is_some_and(|host| hosts.iter().any(|allowed| host == allowed))
 }
 
 /// Check whether a request's `Origin` is acceptable: none (not a browser), or this server's own page.
@@ -138,19 +164,20 @@ pub(crate) fn is_allowed_host(headers: &HeaderMap) -> bool {
 /// # Arguments
 ///
 /// * `headers` - The request headers.
+/// * `hosts` - The `host:port` values the server answers to.
 ///
 /// # Returns
 ///
-/// `true` if there's no `Origin`, or it's this server on a local address.
-pub(crate) fn is_allowed_origin(headers: &HeaderMap) -> bool {
+/// `true` if there's no `Origin`, or it's `http://` plus one of `hosts`.
+pub(crate) fn is_allowed_origin(headers: &HeaderMap, hosts: &[String]) -> bool {
     match headers.get(header::ORIGIN) {
         None => true,
         Some(origin) => origin.to_str()
-            .is_ok_and(|origin| LOCAL_HOSTS.iter().any(|local| origin == format!("http://{local}:{DEFAULT_PORT}"))),
+            .is_ok_and(|origin| hosts.iter().any(|allowed| origin == format!("http://{allowed}"))),
     }
 }
 
-/// Middleware rejecting requests whose `Host` isn't this server on a local address.
+/// Middleware rejecting requests whose `Host` isn't this server.
 ///
 /// # Arguments
 ///
@@ -161,13 +188,13 @@ pub(crate) fn is_allowed_origin(headers: &HeaderMap) -> bool {
 ///
 /// The handler's response, or `403 Forbidden`.
 pub(crate) async fn require_local_host(request: Request, next: Next) -> Response {
-    if !is_allowed_host(request.headers()) {
+    if !is_allowed_host(request.headers(), &ALLOWED_HOSTS) {
         return (StatusCode::FORBIDDEN, "Forbidden: unexpected Host").into_response();
     }
     next.run(request).await
 }
 
-/// Middleware for `/ws`: rejects requests with a non-local `Host`, or from another website's page.
+/// Middleware for `/ws`: rejects requests whose `Host` isn't this server, or from another website's page.
 ///
 /// # Arguments
 ///
@@ -178,10 +205,10 @@ pub(crate) async fn require_local_host(request: Request, next: Next) -> Response
 ///
 /// The handler's response, or `403 Forbidden`.
 pub(crate) async fn require_local_client(request: Request, next: Next) -> Response {
-    if !is_allowed_host(request.headers()) {
+    if !is_allowed_host(request.headers(), &ALLOWED_HOSTS) {
         return (StatusCode::FORBIDDEN, "Forbidden: unexpected Host").into_response();
     }
-    if !is_allowed_origin(request.headers()) {
+    if !is_allowed_origin(request.headers(), &ALLOWED_HOSTS) {
         return (StatusCode::FORBIDDEN, "Forbidden: unexpected Origin").into_response();
     }
     next.run(request).await

@@ -12,7 +12,13 @@
 
 use axum::http::{header, HeaderMap, HeaderValue};
 
-use super::schema_explorer::{asset, content_security_policy, is_allowed_host, is_allowed_origin};
+use std::net::SocketAddr;
+
+use super::schema_explorer::{allowed_hosts, asset, content_security_policy, is_allowed_host, is_allowed_origin};
+
+fn default_hosts() -> Vec<String> {
+    allowed_hosts(SocketAddr::from(([127, 0, 0, 1], 45127)))
+}
 
 fn headers(name: header::HeaderName, value: &'static str) -> HeaderMap {
     let mut headers = HeaderMap::new();
@@ -57,36 +63,49 @@ fn unknown_paths_are_not_served() {
     assert!(asset("").is_none());
 }
 
-/// Only local hosts on the server's port are accepted.
+/// A loopback server answers to its IP and `localhost`; any other server only to its IP.
+#[test]
+fn allowed_hosts_follow_the_server_address() {
+    assert_eq!(default_hosts(), vec!["127.0.0.1:45127", "localhost:45127"]);
+    assert_eq!(allowed_hosts(SocketAddr::from(([0, 0, 0, 0, 0, 0, 0, 1], 45127))), vec!["[::1]:45127", "localhost:45127"]);
+    assert_eq!(allowed_hosts(SocketAddr::from(([192, 168, 1, 20], 45127))), vec!["192.168.1.20:45127"]);
+}
+
+/// Only the server's own hosts on its port are accepted.
 #[test]
 fn host_check() {
-    assert!(is_allowed_host(&headers(header::HOST, "127.0.0.1:45127")));
-    assert!(is_allowed_host(&headers(header::HOST, "localhost:45127")));
-    assert!(is_allowed_host(&headers(header::HOST, "[::1]:45127")));
+    let hosts = default_hosts();
+    assert!(is_allowed_host(&headers(header::HOST, "127.0.0.1:45127"), &hosts));
+    assert!(is_allowed_host(&headers(header::HOST, "localhost:45127"), &hosts));
 
-    assert!(!is_allowed_host(&headers(header::HOST, "evil.example:45127")));
-    assert!(!is_allowed_host(&headers(header::HOST, "127.0.0.1:8080")));
-    assert!(!is_allowed_host(&headers(header::HOST, "127.0.0.1")));
-    assert!(!is_allowed_host(&HeaderMap::new()));
+    assert!(!is_allowed_host(&headers(header::HOST, "evil.example:45127"), &hosts));
+    assert!(!is_allowed_host(&headers(header::HOST, "127.0.0.1:8080"), &hosts));
+    assert!(!is_allowed_host(&headers(header::HOST, "127.0.0.1"), &hosts));
+    assert!(!is_allowed_host(&HeaderMap::new(), &hosts));
+
+    let lan_hosts = allowed_hosts(SocketAddr::from(([192, 168, 1, 20], 45127)));
+    assert!(is_allowed_host(&headers(header::HOST, "192.168.1.20:45127"), &lan_hosts));
+    assert!(!is_allowed_host(&headers(header::HOST, "localhost:45127"), &lan_hosts));
 }
 
 /// Non-browser clients (no Origin) and the server's own page are accepted; other websites aren't.
 #[test]
 fn origin_check() {
-    assert!(is_allowed_origin(&HeaderMap::new()));
-    assert!(is_allowed_origin(&headers(header::ORIGIN, "http://127.0.0.1:45127")));
-    assert!(is_allowed_origin(&headers(header::ORIGIN, "http://localhost:45127")));
+    let hosts = default_hosts();
+    assert!(is_allowed_origin(&HeaderMap::new(), &hosts));
+    assert!(is_allowed_origin(&headers(header::ORIGIN, "http://127.0.0.1:45127"), &hosts));
+    assert!(is_allowed_origin(&headers(header::ORIGIN, "http://localhost:45127"), &hosts));
 
-    assert!(!is_allowed_origin(&headers(header::ORIGIN, "https://evil.example")));
-    assert!(!is_allowed_origin(&headers(header::ORIGIN, "null")));
-    assert!(!is_allowed_origin(&headers(header::ORIGIN, "http://127.0.0.1:8080")));
-    assert!(!is_allowed_origin(&headers(header::ORIGIN, "http://127.0.0.1:45127.evil.example")));
+    assert!(!is_allowed_origin(&headers(header::ORIGIN, "https://evil.example"), &hosts));
+    assert!(!is_allowed_origin(&headers(header::ORIGIN, "null"), &hosts));
+    assert!(!is_allowed_origin(&headers(header::ORIGIN, "http://127.0.0.1:8080"), &hosts));
+    assert!(!is_allowed_origin(&headers(header::ORIGIN, "http://127.0.0.1:45127.evil.example"), &hosts));
 }
 
 /// The page may only load its own files and talk to its own server's WebSocket.
 #[test]
 fn content_security_policy_allows_only_the_local_server() {
-    let policy = content_security_policy();
+    let policy = content_security_policy(&default_hosts());
 
     assert!(policy.contains("default-src 'none'"));
     assert!(policy.contains("script-src 'self'"));

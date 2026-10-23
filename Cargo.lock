@@ -4779,6 +4779,7 @@ name = "rpfm_ipc"
 version = "5.2.0"
 dependencies = [
  "getset",
+ "log",
  "rayon",
  "rpfm_extensions",
  "rpfm_lib",

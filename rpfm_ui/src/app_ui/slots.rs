@@ -48,6 +48,7 @@ use std::rc::Rc;
 use std::sync::atomic::Ordering;
 use std::time::Instant;
 
+use rpfm_ipc::address::server_address;
 use rpfm_ipc::settings_keys::*;
 use rpfm_ipc::helpers::{ContainerInfo, DataSource};
 
@@ -62,7 +63,6 @@ use rpfm_ui_common::utils::{create_grid_layout, ref_from_atomic};
 use crate::app_ui::{AppUI, Pane};
 use crate::CENTRAL_COMMAND;
 use crate::communications::{RECONNECT_COMPLETE, THREADS_COMMUNICATION_ERROR, Command, Response, send_ipc_command, send_ipc_command_result, send_ipc_command_result_async, send_ipc_command_async};
-use crate::communications::server::server_address;
 use crate::dependencies_ui::DependenciesUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::DISCORD_URL;

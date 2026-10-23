@@ -20,15 +20,10 @@ use std::net::TcpStream;
 use std::process::Command as SystemCommand;
 use std::time::Duration;
 
+use rpfm_ipc::address::{server_address, SERVER_PORT};
 use rpfm_telemetry::*;
 
 use crate::VERSION;
-
-/// Loopback host the server binds to. Both the UI and the server hardcode this.
-const SERVER_HOST: &str = "127.0.0.1";
-
-/// TCP port the server listens on. Both the UI and the server hardcode this.
-const SERVER_PORT: u16 = 45127;
 
 /// Result of probing whatever server may already be listening on the server address.
 enum ServerProbe {
@@ -42,11 +37,6 @@ enum ServerProbe {
     /// A server of a different (outdated) version is holding the port. `pid` is its
     /// process id when it could report one; `None` for servers predating `/version`.
     Outdated { pid: Option<u32> },
-}
-
-/// Builds the `host:port` address the server listens on from [`SERVER_HOST`] and [`SERVER_PORT`].
-pub(crate) fn server_address() -> String {
-    format!("{SERVER_HOST}:{SERVER_PORT}")
 }
 
 /// This function is used to spawn the rpfm_server process if it's not already running.
@@ -95,13 +85,8 @@ pub fn spawn_server() {
 /// Probes the server that may be listening on the server address and classifies it
 /// against our own version through its `/version` endpoint.
 fn probe_server() -> ServerProbe {
-    let addr = match server_address().parse() {
-        Ok(addr) => addr,
-        Err(_) => return ServerProbe::NotRunning,
-    };
-
     // Connection refused is immediate on loopback, so this is cheap when nothing is up.
-    let mut stream = match TcpStream::connect_timeout(&addr, Duration::from_millis(250)) {
+    let mut stream = match TcpStream::connect_timeout(&server_address(), Duration::from_millis(250)) {
         Ok(stream) => stream,
         Err(_) => return ServerProbe::NotRunning,
     };
@@ -126,7 +111,7 @@ fn http_get_version(stream: &mut TcpStream) -> Option<(String, Option<u32>)> {
 
     // `Connection: close` makes the server drop the socket after the response, so the
     // read loop below terminates cleanly on EOF instead of blocking for keep-alive.
-    let request = "GET /version HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\nAccept: application/json\r\n\r\n";
+    let request = format!("GET /version HTTP/1.1\r\nHost: {}\r\nConnection: close\r\nAccept: application/json\r\n\r\n", server_address());
     stream.write_all(request.as_bytes()).ok()?;
 
     let mut response = Vec::new();

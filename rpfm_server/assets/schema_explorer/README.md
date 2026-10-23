@@ -6,6 +6,8 @@ Browser page that shows an RPFM DB schema as an interactive graph: one node per 
 
 **From RPFM:** **Tools > Schema Explorer** opens your browser at `http://127.0.0.1:45127/schema-explorer/#game=<selected game>`. `rpfm_server` serves the page (its files are embedded in the server binary, see `rpfm_server/src/schema_explorer.rs`) and the page fetches the game's schema over the server's `/ws` WebSocket.
 
+In debug builds, the `RPFM_SERVER_IP` environment variable replaces `127.0.0.1` for both RPFM and the server (RPFM starts the server, which inherits it), and the page follows. The server only accepts requests whose `Host` (and, on `/ws`, `Origin`) names its own address, plus `localhost` when that address is loopback. Release builds ignore the variable.
+
 **From disk** (no RPFM needed):
 
 1. Open `index.html` in a browser, e.g. `xdg-open rpfm_server/assets/schema_explorer/index.html`, or double-click it. No build step or local server is needed.
