@@ -104,7 +104,7 @@
         boxSelectionEnabled: false,
     });
 
-    // The explore view has its own graph, so it never disturbs the whole-schema layout.
+    // Explorer has its own graph, so it never disturbs the Galaxy layout.
     const exploreCy = window.cytoscape({
         container: elements.exploreGraph,
         style: graphStyle(),
@@ -330,6 +330,7 @@
         state.exploration = null;
         exploreCy.elements().remove();
         state.view = "galaxy";
+        elements.title.textContent = "Galaxy";
         elements.exploreGraph.hidden = true;
         elements.graph.hidden = false;
         cy.resize();
@@ -873,7 +874,7 @@
 
     function exploreStatus() {
         const exploration = state.exploration;
-        return `Exploring ${exploration.centre}: ${exploration.column.size} tables. Right-click a table to explore it; click the title to switch views.`;
+        return `Explorer: ${exploration.column.size} tables around ${exploration.centre}. Right-click a table to explore it; click Explorer to go back to Galaxy.`;
     }
 
     function startExploration(id) {
@@ -909,6 +910,7 @@
 
     function showExploreView() {
         state.view = "explore";
+        elements.title.textContent = "Explorer";
         hideContextMenu();
         elements.graph.hidden = true;
         elements.exploreGraph.hidden = false;
@@ -921,6 +923,7 @@
             return;
         }
         state.view = "galaxy";
+        elements.title.textContent = "Galaxy";
         hideContextMenu();
         elements.exploreGraph.hidden = true;
         elements.graph.hidden = false;
@@ -933,7 +936,7 @@
         }
     }
 
-    // The title switches between the whole schema and the last exploration.
+    // The title shows the current view's name and switches between Galaxy and the last exploration in Explorer.
     function toggleView() {
         if (!state.index) {
             return;
@@ -948,12 +951,12 @@
                 clearSelection();
             }
         } else {
-            setStatus("Right-click a table and pick Explore to open the explore view.");
+            setStatus("Right-click a table and pick Explore to open it in Explorer.");
         }
     }
 
     /**
-     * Select a table in the current view, falling back to the whole schema when the explore view doesn't show it.
+     * Select a table in the current view, falling back to Galaxy when Explorer doesn't show it.
      *
      * @param {string} id The table id.
      * @param {{zoom?: boolean}} [options] `zoom` zooms to the table and its neighbours.
