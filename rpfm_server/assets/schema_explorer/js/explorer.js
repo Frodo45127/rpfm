@@ -45,7 +45,7 @@
     const elements = {
         gameSelect: document.getElementById("game-select"),
         fileInput: document.getElementById("file-input"),
-        sourceLabel: document.getElementById("source-label"),
+        fileLabel: document.getElementById("file-label"),
         search: document.getElementById("search"),
         searchResults: document.getElementById("search-results"),
         overview: document.getElementById("overview"),
@@ -233,10 +233,10 @@
                 return option;
             }));
             elements.gameSelect.hidden = false;
-            elements.sourceLabel.textContent = "Connected to rpfm_server";
         } else {
             elements.gameSelect.hidden = true;
-            elements.sourceLabel.textContent = `Loaded: ${source.fileName}`;
+            elements.fileLabel.textContent = source.fileName;
+            elements.fileLabel.title = "Open another schema file";
         }
 
         const hashGame = readHash().game;
@@ -285,6 +285,7 @@
         }));
 
         renderOverview(layout);
+        highlightSearchMatches(state.index.search(elements.search.value, SEARCH_LIMIT));
         const tableCount = state.graph.nodes.filter((node) => !node.missing).length;
         const layoutNote = {
             cached: "saved layout",
@@ -911,9 +912,15 @@
         });
     }
 
-    function endSearch() {
+    // Blue search highlights stay until the search box is emptied (or cleared with Escape).
+    function clearSearch() {
+        elements.search.value = "";
         elements.searchResults.hidden = true;
         highlightSearchMatches([]);
+    }
+
+    function hideSearchResults() {
+        elements.searchResults.hidden = true;
     }
 
     function updateSearch() {
@@ -944,14 +951,13 @@
         if (!node) {
             return;
         }
-        elements.search.value = node.id;
-        endSearch();
+        hideSearchResults();
         selectTable(node.id, { zoom: true });
     }
 
     elements.search.addEventListener("input", updateSearch);
     elements.search.addEventListener("focus", updateSearch);
-    elements.search.addEventListener("blur", endSearch);
+    elements.search.addEventListener("blur", hideSearchResults);
     elements.search.addEventListener("keydown", (event) => {
         if (event.key === "ArrowDown" || event.key === "ArrowUp") {
             event.preventDefault();
@@ -966,7 +972,8 @@
             event.preventDefault();
             chooseSearchResult(Math.max(state.searchActive, 0));
         } else if (event.key === "Escape") {
-            endSearch();
+            event.preventDefault();
+            clearSearch();
         }
     });
 

@@ -33,7 +33,8 @@ The first time a schema is loaded, the layout runs until it settles (on Warhamme
   Each of the selected table's arrows takes a darker shade of its neighbour's colour. Hovering a star previews the same colouring at half opacity, on top of any selection.
 
   Double-click a star, or pick a search result, to also zoom to it. Click empty space, **Close** in the panel, or **Overview** to go back to the whole map. The panel is only shown while a table is selected.
-- **Search:** ranks exact names, then prefixes, word prefixes, substrings and loose matches. Arrow keys and Enter pick a result. While you type, the listed results light up blue on the map; the current selection is left as it is.
+- **Search:** ranks exact names, then prefixes, word prefixes, substrings and loose matches. Arrow keys and Enter pick a result. The listed results light up blue on the map and stay lit until the search box is emptied (Escape clears it); the current selection is left as it is.
+- **Controls:** the title, the schema button (it shows the loaded schema's name; click it to open another), the search bar and Overview float over the top of the map.
 - **Details panel** (while a table is selected):
   - Every definition version, with keys, types, references (click to select the target), lookups, defaults, descriptions and patch notes.
   - Localised fields.
