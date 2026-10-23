@@ -12,19 +12,19 @@
         <h1 class="title">Schema Explorer</h1>
 
         <div class="toolbar-group">
-            <select id="game-select" aria-label="Game" hidden></select>
-            <label class="button" for="file-input">Open schema file</label>
+            <select id="game-select" class="bubble" aria-label="Game" hidden></select>
+            <label class="button bubble" for="file-input">Open schema file</label>
             <input type="file" id="file-input" accept=".ron,.json" hidden>
             <span id="source-label" class="muted"></span>
         </div>
 
         <div class="search">
-            <input id="search" type="search" placeholder="Search tables (e.g. battles)" autocomplete="off" spellcheck="false" aria-label="Search tables" disabled>
-            <ul id="search-results" class="search-results" role="listbox" hidden></ul>
+            <input id="search" class="bubble" type="search" placeholder="Search tables (e.g. battles)" autocomplete="off" spellcheck="false" aria-label="Search tables" disabled>
+            <ul id="search-results" class="search-results bubble" role="listbox" hidden></ul>
         </div>
 
         <div class="toolbar-group">
-            <button type="button" id="overview" disabled title="Clear the selection and show the whole schema">Overview</button>
+            <button type="button" id="overview" class="bubble" disabled title="Clear the selection and show the whole schema">Overview</button>
         </div>
     </header>
 
@@ -36,14 +36,15 @@
                 <p>Drop an RPFM schema file here, or use <strong>Open schema file</strong>.</p>
                 <p class="muted">Accepted: <code>schema_*.ron</code> from RPFM's <code>schemas</code> folder, or a schema saved as JSON (including the MCP <code>get_schema</code> reply).</p>
             </div>
-            <div id="graph-status" class="graph-status" role="status"></div>
-            <div class="legend" aria-label="Legend">
+            <div id="graph-status" class="graph-status bubble" role="status"></div>
+            <div class="legend bubble" aria-label="Legend">
                 <span><i class="swatch swatch-table"></i>Table</span>
                 <span><i class="swatch swatch-selected"></i>Selected</span>
                 <span><i class="swatch swatch-in"></i>In: references it</span>
                 <span><i class="swatch swatch-out"></i>Out: referenced by it</span>
                 <span><i class="swatch swatch-both"></i>Both ways</span>
                 <span><i class="swatch swatch-path"></i>Path</span>
+                <span><i class="swatch swatch-search"></i>Search match</span>
                 <span><i class="swatch swatch-missing"></i>Not in schema</span>
                 <span class="legend-note">A &rarr; B: A references B</span>
             </div>

@@ -38,6 +38,7 @@
         outgoingDark: "#a8860f",
         bothDark: "#a85d17",
         path: "#4dffb8",
+        search: "#4da3ff",
         cluster: "#6b7bb5",
     };
 
@@ -122,7 +123,7 @@
             { selector: `node.${prefix}in`, style: { "background-color": COLOURS.incoming } },
             { selector: `node.${prefix}out`, style: { "background-color": COLOURS.outgoing } },
             { selector: `node.${prefix}both`, style: { "background-color": COLOURS.both } },
-            { selector: nodes, style: { "opacity": opacity, "underlay-opacity": 0, "min-zoomed-font-size": 0, "text-opacity": 1 } },
+            { selector: nodes, style: { "opacity": opacity, "underlay-opacity": 0, "label": "data(id)", "text-opacity": 1 } },
             { selector: `edge.${prefix}in`, style: { ...edgeColour(COLOURS.incomingDark), "opacity": opacity, "width": 2, "arrow-scale": 1 } },
             { selector: `edge.${prefix}out`, style: { ...edgeColour(COLOURS.outgoingDark), "opacity": opacity, "width": 2, "arrow-scale": 1 } },
             { selector: `edge.${prefix}both`, style: { ...edgeColour(COLOURS.bothDark), "opacity": opacity, "width": 2, "arrow-scale": 1 } },
@@ -142,15 +143,12 @@
                     "underlay-shape": "ellipse",
                     "overlay-opacity": 0,
                     "z-index": 10,
-                    "label": "data(id)",
                     "color": COLOURS.label,
                     "font-size": 9,
-                    "min-zoomed-font-size": 14,
                     "text-valign": "bottom",
                     "text-margin-y": 2,
                     "text-outline-color": COLOURS.labelOutline,
                     "text-outline-width": 2,
-                    "text-opacity": 0.85,
                 },
             },
             { selector: "node[degree]", style: { "width": "mapData(degree, 0, 120, 7, 34)", "height": "mapData(degree, 0, 120, 7, 34)" } },
@@ -209,7 +207,10 @@
             ...highlightRules("", 1),
             { selector: "node.path", style: { "background-color": COLOURS.path, "opacity": 1, "underlay-opacity": 0 } },
             { selector: "edge.path", style: { ...edgeColour(COLOURS.path), "opacity": 1, "width": 2.5, "arrow-scale": 1 } },
-            { selector: "node.labelled", style: { "min-zoomed-font-size": 0, "text-opacity": 1 } },
+            { selector: "node.labelled", style: { "label": "data(id)", "text-opacity": 1 } },
+
+            // Search results show in blue over everything else while the search box is in use, without touching the selection.
+            { selector: "node.search-match", style: { "background-color": COLOURS.search, "opacity": 1, "underlay-opacity": 0, "label": "data(id)", "text-opacity": 1 } },
             { selector: "edge:selected", style: { "label": "data(label)", "opacity": 1 } },
         ];
     }
@@ -901,10 +902,25 @@
     // Search
     //-------------------------------------------------------------------//
 
+    function highlightSearchMatches(nodes) {
+        cy.batch(() => {
+            cy.$(".search-match").removeClass("search-match");
+            for (const node of nodes) {
+                cy.getElementById(node.id).addClass("search-match");
+            }
+        });
+    }
+
+    function endSearch() {
+        elements.searchResults.hidden = true;
+        highlightSearchMatches([]);
+    }
+
     function updateSearch() {
         state.searchMatches = state.index ? state.index.search(elements.search.value, SEARCH_LIMIT) : [];
         state.searchActive = state.searchMatches.length > 0 ? 0 : -1;
         renderSearchResults();
+        highlightSearchMatches(state.searchMatches);
     }
 
     function renderSearchResults() {
@@ -929,15 +945,13 @@
             return;
         }
         elements.search.value = node.id;
-        elements.searchResults.hidden = true;
+        endSearch();
         selectTable(node.id, { zoom: true });
     }
 
     elements.search.addEventListener("input", updateSearch);
     elements.search.addEventListener("focus", updateSearch);
-    elements.search.addEventListener("blur", () => {
-        elements.searchResults.hidden = true;
-    });
+    elements.search.addEventListener("blur", endSearch);
     elements.search.addEventListener("keydown", (event) => {
         if (event.key === "ArrowDown" || event.key === "ArrowUp") {
             event.preventDefault();
@@ -952,7 +966,7 @@
             event.preventDefault();
             chooseSearchResult(Math.max(state.searchActive, 0));
         } else if (event.key === "Escape") {
-            elements.searchResults.hidden = true;
+            endSearch();
         }
     });
 

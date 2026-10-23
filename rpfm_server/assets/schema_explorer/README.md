@@ -16,7 +16,7 @@ The first time a schema is loaded, the layout runs until it settles (on Warhamme
 
 ## Using it
 
-- **Star map:** every table is a white star, sized by how many tables it's linked to.
+- **Star map:** every table is a white star, sized by how many tables it's linked to. Names only show on highlighted stars (selected, hovered, on a path or matching the search).
   - The positions come from a ForceAtlas2 layout of the whole schema (`js/layout.js`), run until the stars stop moving, then saved in the browser (one layout per game or schema file name).
   - Tables with no references at all sit on a spiral inside the "Tables without references" circle on the right. New ones continue the spiral outward.
   - Tables that are referenced but have no definition are grey stars.
@@ -33,7 +33,7 @@ The first time a schema is loaded, the layout runs until it settles (on Warhamme
   Each of the selected table's arrows takes a darker shade of its neighbour's colour. Hovering a star previews the same colouring at half opacity, on top of any selection.
 
   Double-click a star, or pick a search result, to also zoom to it. Click empty space, **Close** in the panel, or **Overview** to go back to the whole map. The panel is only shown while a table is selected.
-- **Search:** ranks exact names, then prefixes, word prefixes, substrings and loose matches. Arrow keys and Enter pick a result.
+- **Search:** ranks exact names, then prefixes, word prefixes, substrings and loose matches. Arrow keys and Enter pick a result. While you type, the listed results light up blue on the map; the current selection is left as it is.
 - **Details panel** (while a table is selected):
   - Every definition version, with keys, types, references (click to select the target), lookups, defaults, descriptions and patch notes.
   - Localised fields.

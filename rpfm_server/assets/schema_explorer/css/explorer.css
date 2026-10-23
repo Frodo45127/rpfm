@@ -21,6 +21,12 @@
     --both: #ff9f43;
     --path: #4dffb8;
     --missing: #7d8597;
+    --search: #4da3ff;
+    --bubble-bg: rgb(46 28 92 / 82%);
+    --bubble-bg-hover: rgb(70 44 136 / 90%);
+    --bubble-border: rgb(150 116 255 / 55%);
+    --bubble-text: #ece6ff;
+    --bubble-muted: #b5a8e0;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -127,12 +133,36 @@ input:disabled {
     cursor: default;
 }
 
-input[type="number"] {
-    width: 5em;
+/* Purple, rounded "bubble" look shared by the toolbar controls and the overlays on the graph. */
+.bubble {
+    color: var(--bubble-text);
+    background: var(--bubble-bg);
+    border: 1px solid var(--bubble-border);
+    border-radius: 999px;
+    padding: 4px 12px;
+    box-shadow: 0 2px 10px rgb(70 30 160 / 25%);
 }
 
-input[type="checkbox"] {
-    padding: 0;
+button.bubble:hover:not(:disabled),
+.button.bubble:hover,
+select.bubble:hover {
+    background: var(--bubble-bg-hover);
+    border-color: var(--selected);
+}
+
+.bubble:focus-visible {
+    outline: none;
+    border-color: var(--selected);
+    box-shadow: 0 0 0 3px rgb(180 108 255 / 35%);
+}
+
+input.bubble::placeholder {
+    color: var(--bubble-muted);
+}
+
+select.bubble option {
+    color: var(--bubble-text);
+    background: #2a1a55;
 }
 
 /* Search */
@@ -155,13 +185,14 @@ input[type="checkbox"] {
     right: 0;
     max-height: 60vh;
     overflow-y: auto;
-    margin: 2px 0 0;
-    padding: 0;
+    margin: 4px 0 0;
+    padding: 4px 0;
     list-style: none;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    box-shadow: 0 4px 16px rgb(0 0 0 / 20%);
+}
+
+.search-results.bubble {
+    border-radius: 14px;
+    padding: 4px 0;
 }
 
 .search-results li {
@@ -174,8 +205,7 @@ input[type="checkbox"] {
 
 .search-results li[aria-selected="true"],
 .search-results li:hover {
-    background: var(--accent);
-    color: var(--accent-text);
+    background: var(--bubble-bg-hover);
 }
 
 .search-results .hint {
@@ -244,10 +274,6 @@ input[type="checkbox"] {
     top: 8px;
     left: 8px;
     max-width: calc(100% - 16px);
-    padding: 4px 8px;
-    border-radius: 4px;
-    background: var(--space-panel);
-    border: 1px solid var(--space-border);
     pointer-events: none;
 }
 
@@ -267,15 +293,15 @@ input[type="checkbox"] {
     display: flex;
     flex-wrap: wrap;
     gap: 4px 12px;
-    padding: 4px 8px;
-    border-radius: 4px;
-    background: var(--space-panel);
-    border: 1px solid var(--space-border);
     font-size: 12px;
 }
 
+.legend.bubble {
+    border-radius: 14px;
+}
+
 .legend-note {
-    color: var(--space-muted);
+    color: var(--bubble-muted);
 }
 
 .legend span {
@@ -314,6 +340,10 @@ input[type="checkbox"] {
 
 .swatch-path {
     background: var(--path);
+}
+
+.swatch-search {
+    background: var(--search);
 }
 
 .swatch-missing {
