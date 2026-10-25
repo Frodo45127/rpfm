@@ -82,7 +82,7 @@ impl PackFileExtraViewSlots {
                     // Ask the Background Thread to move the files, and send him the path.
                     app_ui.toggle_main_window(false);
                     let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                    let source = FileSource::Pack(pack_file_view.pack_file_path.read().unwrap().to_string_lossy().to_string());
+                    let source = FileSource::Pack(pack_file_view.pack_key.clone());
                     match copy_files(source, &item_types, &pack_key) {
                         Ok((paths_ok, not_added_error)) => {
 

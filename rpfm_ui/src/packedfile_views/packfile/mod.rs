@@ -14,7 +14,7 @@ Module with all the code for managing the temporal PackFile TreeView used when a
 This is here because we're going to treat it as another FileView, though it isn't.
 But this allow us to integrate it into the main FileView system, so it's ok.
 
-The source Pack is opened on the backend as a temporary pack (its key is its path on disk) and shown
+The source Pack is opened on the backend as a temporary pack and shown
 as a read-only tree. Importing a file copies it into the currently-selected open Pack. The temporary
 source Pack is closed when this view's tab is closed (see `AppUI::purge_them` extra-packfile handling).
 !*/
@@ -36,7 +36,7 @@ use qt_core::QRegularExpression;
 
 use std::path::PathBuf;
 use std::rc::Rc;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 use anyhow::Result;
 use getset::Getters;
@@ -71,7 +71,7 @@ const VIEW_RELEASE: &str = "ui/filterable_tree_widget.ui";
 #[derive(Getters)]
 #[getset(get = "pub")]
 pub struct PackFileExtraView {
-    pack_file_path: Arc<RwLock<PathBuf>>,
+    pack_key: String,
     tree_view: QPtr<QTreeView>,
     tree_model_filter: QBox<qt_core::QSortFilterProxyModel>,
 
@@ -99,7 +99,7 @@ impl PackFileExtraView {
         pack_file_path: PathBuf,
     ) -> Result<()> {
 
-        // Load the extra PackFile to memory via the unified packs map. Its key is its path on disk.
+        // Load the extra PackFile to memory via the unified packs map.
         let pack_key = call_api(&OpenPack { paths: vec![pack_file_path.clone()], lazy_loading: None })?.key;
 
         // Load the UI Template.
@@ -136,7 +136,7 @@ impl PackFileExtraView {
 
         // Build the slots and set up the shortcuts/connections/tip.
         let view = Arc::new(PackFileExtraView{
-            pack_file_path: Arc::new(RwLock::new(pack_file_path)),
+            pack_key,
             tree_view,
             tree_model_filter,
 

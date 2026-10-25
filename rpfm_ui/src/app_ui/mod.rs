@@ -116,7 +116,7 @@ use crate::GAME_SELECTED;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::NEW_FILE_VIEW_CREATED;
 use crate::pack_tree::{BuildData, new_pack_file_tooltip, PackTree, TreeViewOperation};
-use crate::packedfile_views::{anim_fragment_battle::*, animpack::*, anims_table::*, audio::FileAudioView, bmd::FileBMDView, decoder::*, dependencies_manager::*, esf::*, external::*, group_formations::*, image::*, matched_combat::*, FileView, packfile::PackFileExtraView, packfile_settings::*, portrait_settings::PortraitSettingsView, rigidmodel::*, SpecialView, table::*, text::*, unit_variant::*, video::*, vmd::*};
+use crate::packedfile_views::{anim_fragment_battle::*, animpack::*, anims_table::*, audio::FileAudioView, bmd::FileBMDView, decoder::*, dependencies_manager::*, esf::*, external::*, group_formations::*, image::*, matched_combat::*, FileView, packfile::PackFileExtraView, packfile_settings::*, portrait_settings::PortraitSettingsView, rigidmodel::*, SpecialView, table::*, text::*, unit_variant::*, video::*, View, ViewType, vmd::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::references_ui::ReferencesUI;
 use crate::STATUS_BAR;
@@ -129,9 +129,6 @@ use crate::ui::GameSelectedIcons;
 use crate::ui_state::OperationalMode;
 use crate::utils::*;
 use crate::welcome_page_ui::WelcomePageUI;
-
-#[cfg(feature = "support_model_renderer")]
-use crate::packedfile_views::{View, ViewType};
 
 #[cfg(feature = "support_uic")]
 use crate::packedfile_views::uic::*;
@@ -1339,6 +1336,7 @@ impl AppUI {
             }
         }
 
+        let mut last_pack_key = String::new();
         if additive {
             for pack_file_path in pack_file_paths {
                 let pack_key = match call_api_async(&OpenPack { paths: vec![pack_file_path.clone()], lazy_loading: None }) {
@@ -1353,6 +1351,7 @@ impl AppUI {
                 build_data.is_mymod = !game_folder.is_empty();
                 build_data.pack_key = Some(pack_key.clone());
                 pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::AddPack(build_data), DataSource::PackFile, &pack_key);
+                last_pack_key = pack_key;
             }
         } else {
             let pack_key = match call_api_async(&OpenPack { paths: pack_file_paths.to_vec(), lazy_loading: None }) {
@@ -1367,6 +1366,7 @@ impl AppUI {
             build_data.is_mymod = !game_folder.is_empty();
             build_data.pack_key = Some(pack_key.clone());
             pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Build(build_data), DataSource::PackFile, &pack_key);
+            last_pack_key = pack_key;
         }
 
         Self::enable_packfile_actions(app_ui, true);
@@ -1378,11 +1378,10 @@ impl AppUI {
         // Operational mode logic: mark the pack as MyMod on the server when opened from the MyMod menu.
         if !game_folder.is_empty() && pack_file_paths.len() == 1 {
             let path = &pack_file_paths[0];
-            let pack_key = path.to_string_lossy().to_string();
             let mod_name = path.file_name().unwrap().to_string_lossy().to_string();
             let game_folder_name = path.parent().and_then(|p| p.file_name()).map(|f| f.to_string_lossy().to_string()).unwrap_or_default();
 
-            let request = UpdatePack { pack: pack_key, operational_mode: Some(OperationalMode::MyMod(game_folder_name, mod_name)), ..Default::default() };
+            let request = UpdatePack { pack: last_pack_key, operational_mode: Some(OperationalMode::MyMod(game_folder_name, mod_name)), ..Default::default() };
             if let Err(error) = call_api(&request) {
                 show_dialog(&app_ui.main_window, error, false);
             }
@@ -4006,11 +4005,10 @@ impl AppUI {
                     if path.starts_with(RESERVED_NAME_EXTRA_PACKFILE) {
                         purge_on_delete.push(path.to_owned());
 
-                        // The temporary source Pack is keyed by its on-disk path, which is exactly what
-                        // follows the reserved prefix in this view's path. Close it so we don't leak it.
-                        let path_split = path.split('/').collect::<Vec<_>>();
-                        let pack_key = path_split[1..].join("/");
-                        let _ = call_api(&ClosePack { pack: pack_key });
+                        // Close the temporary source Pack so we don't leak it.
+                        if let ViewType::Internal(View::PackFile(view)) = file_view.view_type() {
+                            let _ = call_api(&ClosePack { pack: view.pack_key().to_owned() });
+                        }
                     }
                     else if path.ends_with(DECODER_EXTENSION) {
                         purge_on_delete.push(path.to_owned());
