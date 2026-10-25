@@ -18,7 +18,7 @@
 //! All values are little endian:
 //!
 //! ```text
-//! [u32]      signature (0x075BCD15)
+//! [u32]      signature (0x075BCD15, or 0xF8C5DEAD in Rome 2)
 //! [u32]      version
 //! [u32]      define count
 //! [...]      defines: name and value, each a u32 size and that many bytes, NUL included
@@ -28,7 +28,7 @@
 //! [...]      DXBC shader blob, up to the end of the file
 //! ```
 //!
-//! Only version 4 is known, used by Attila's DX11 shaders.
+//! Only version 4 is known, used by Rome 2's and Attila's DX11 shaders. The two games differ only in the signature.
 //!
 //! # Usage
 //!
@@ -50,8 +50,11 @@ use crate::files::{DecodeableExtraData, Decodeable, EncodeableExtraData, Encodea
 /// File extension of compiled shader containers.
 pub const EXTENSION: &str = ".fxc";
 
-/// Signature at the start of every fxc file.
+/// Signature at the start of the fxc files of Attila and later games.
 pub const SIGNATURE: u32 = 0x075B_CD15;
+
+/// Signature at the start of the fxc files of Rome 2.
+pub const SIGNATURE_ROME_2: u32 = 0xF8C5_DEAD;
 
 mod v4;
 
@@ -65,6 +68,9 @@ mod v4;
 #[derive(Default, PartialEq, Clone, Debug, Getters, MutGetters, Setters, Serialize, Deserialize)]
 #[getset(get = "pub", get_mut = "pub", set = "pub")]
 pub struct Fxc {
+
+    /// Signature of the file: [`SIGNATURE`] or [`SIGNATURE_ROME_2`]. `0` writes [`SIGNATURE`].
+    signature: u32,
 
     /// Version of the container format.
     version: u32,
@@ -114,11 +120,12 @@ impl Decodeable for Fxc {
 
     fn decode<R: ReadBytes>(data: &mut R, extra_data: &Option<DecodeableExtraData>) -> Result<Self> {
         let signature = data.read_u32()?;
-        if signature != SIGNATURE {
+        if signature != SIGNATURE && signature != SIGNATURE_ROME_2 {
             return Err(RLibError::DecodingFxcUnsupportedSignature(signature));
         }
 
         let mut fxc = Self {
+            signature,
             version: data.read_u32()?,
             ..Default::default()
         };
@@ -135,7 +142,7 @@ impl Decodeable for Fxc {
 impl Encodeable for Fxc {
 
     fn encode<W: WriteBytes>(&mut self, buffer: &mut W, extra_data: &Option<EncodeableExtraData>) -> Result<()> {
-        buffer.write_u32(SIGNATURE)?;
+        buffer.write_u32(if self.signature == 0 { SIGNATURE } else { self.signature })?;
         buffer.write_u32(self.version)?;
 
         match self.version {

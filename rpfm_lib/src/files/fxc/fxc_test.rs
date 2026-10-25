@@ -43,3 +43,16 @@ fn test_decode_fxc_truncated_shader() {
 
     assert!(Fxc::decode(&mut Cursor::new(&bytes), &None).is_err());
 }
+
+#[test]
+fn test_encode_fxc_v4_rome_2() {
+    let before = std::fs::read("../test_files/test_decode_rom2.fxc").unwrap();
+    let mut data = Fxc::decode(&mut Cursor::new(&before), &None).unwrap();
+
+    assert_eq!(*data.signature(), super::SIGNATURE_ROME_2);
+    assert!(data.shader().starts_with(b"DXBC"));
+
+    let mut after = vec![];
+    data.encode(&mut after, &None).unwrap();
+    assert_eq!(before, after);
+}

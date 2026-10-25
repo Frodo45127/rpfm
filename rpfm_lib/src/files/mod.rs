@@ -2470,6 +2470,18 @@ impl RFile {
         Ok(())
     }
 
+    /// This function returns the size in bytes of the RFile's data as stored (compressed or encrypted if it is), if it's known
+    /// without loading it: the stored size for data still on disk, the length for cached data, and `None` for decoded data.
+    ///
+    /// Patch packs use empty files to remove files of the packs below them, which this finds without reading them.
+    pub fn stored_size(&self) -> Option<u64> {
+        match &self.data {
+            RFileInnerData::OnDisk(data) => Some(data.size),
+            RFileInnerData::Cached(data) => Some(data.len() as u64),
+            RFileInnerData::Decoded(_) => None,
+        }
+    }
+
     /// This function returns a copy of the `Last modified date` of this RFile, if any.
     pub fn timestamp(&self) -> Option<u64> {
         self.timestamp
