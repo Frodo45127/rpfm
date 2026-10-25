@@ -642,6 +642,10 @@ impl GlobalSearchUI {
         self.load_unknown_matches_to_ui(global_search.matches().unknown(), FileType::Unknown, first_ids("Unknown"));
         self.load_schema_matches_to_ui(global_search.matches().schema());
 
+        // The models were filled with their signals blocked, so force the filters to re-query them from scratch.
+        self.matches_table_and_text_tree_view.model().static_downcast::<QSortFilterProxyModel>().invalidate();
+        self.matches_schema_tree_view.model().static_downcast::<QSortFilterProxyModel>().invalidate();
+
         // Render the file results as a grouped flat list: expand every file so its matches
         // are visible without manual clicking, and span each file row into a banner header.
         // The expansion is skipped when the user opts to keep results collapsed by default.
@@ -1321,15 +1325,11 @@ impl GlobalSearchUI {
                 })
                 .collect::<Vec<_>>();
 
-            for (index, row) in rows.iter().enumerate() {
-
-                // Unlock the model before the last insertion.
-                if index == rows.len() - 1 {
-                    model.block_signals(false);
-                }
-
+            for row in rows.iter() {
                 model.append_row_q_list_of_q_standard_item(ref_from_atomic(row));
             }
+
+            model.block_signals(false);
         }
     }
 
@@ -1409,15 +1409,11 @@ impl GlobalSearchUI {
                 })
                 .collect::<Vec<_>>();
 
-            for (index, row) in rows.iter().enumerate() {
-
-                // Unlock the model before the last insertion.
-                if index == rows.len() - 1 {
-                    model.block_signals(false);
-                }
-
+            for row in rows.iter() {
                 model.append_row_q_list_of_q_standard_item(ref_from_atomic(row));
             }
+
+            model.block_signals(false);
         }
     }
 
@@ -1548,15 +1544,11 @@ impl GlobalSearchUI {
                 })
                 .collect::<Vec<_>>();
 
-            for (index, row) in rows.iter().enumerate() {
-
-                // Unlock the model before the last insertion.
-                if index == rows.len() - 1 {
-                    model.block_signals(false);
-                }
-
+            for row in rows.iter() {
                 model.append_row_q_list_of_q_standard_item(ref_from_atomic(row));
             }
+
+            model.block_signals(false);
         }
     }
 
@@ -1691,15 +1683,11 @@ impl GlobalSearchUI {
                 })
                 .collect::<Vec<_>>();
 
-            for (index, row) in rows.iter().enumerate() {
-
-                // Unlock the model before the last insertion.
-                if index == rows.len() - 1 {
-                    model.block_signals(false);
-                }
-
+            for row in rows.iter() {
                 model.append_row_q_list_of_q_standard_item(ref_from_atomic(row));
             }
+
+            model.block_signals(false);
         }
     }
 
@@ -1781,15 +1769,11 @@ impl GlobalSearchUI {
                 })
                 .collect::<Vec<_>>();
 
-            for (index, row) in rows.iter().enumerate() {
-
-                // Unlock the model before the last insertion.
-                if index == rows.len() - 1 {
-                    model.block_signals(false);
-                }
-
+            for row in rows.iter() {
                 model.append_row_q_list_of_q_standard_item(ref_from_atomic(row));
             }
+
+            model.block_signals(false);
         }
     }
 
@@ -1868,15 +1852,11 @@ impl GlobalSearchUI {
                 })
                 .collect::<Vec<_>>();
 
-            for (index, row) in rows.iter().enumerate() {
-
-                // Unlock the model before the last insertion.
-                if index == rows.len() - 1 {
-                    model.block_signals(false);
-                }
-
+            for row in rows.iter() {
                 model.append_row_q_list_of_q_standard_item(ref_from_atomic(row));
             }
+
+            model.block_signals(false);
         }
     }
 
@@ -1992,15 +1972,11 @@ impl GlobalSearchUI {
                 })
                 .collect::<Vec<_>>();
 
-            for (index, row) in rows.iter().enumerate() {
-
-                // Unlock the model before the last insertion.
-                if index == rows.len() - 1 {
-                    model.block_signals(false);
-                }
-
+            for row in rows.iter() {
                 model.append_row_q_list_of_q_standard_item(ref_from_atomic(row));
             }
+
+            model.block_signals(false);
         }
     }
 
@@ -2076,15 +2052,11 @@ impl GlobalSearchUI {
                 })
                 .collect::<Vec<_>>();
 
-            for (index, row) in rows.iter().enumerate() {
-
-                // Unlock the model before the last insertion.
-                if index == rows.len() - 1 {
-                    model.block_signals(false);
-                }
-
+            for row in rows.iter() {
                 model.append_row_q_list_of_q_standard_item(ref_from_atomic(row));
             }
+
+            model.block_signals(false);
         }
     }
 
@@ -2117,15 +2089,11 @@ impl GlobalSearchUI {
                 })
                 .collect::<Vec<_>>();
 
-            for (index, row) in rows.iter().enumerate() {
-
-                // Unlock the model before the last insertion.
-                if index == rows.len() - 1 {
-                    model.block_signals(false);
-                }
-
+            for row in rows.iter() {
                 model.append_row_q_list_of_q_standard_item(ref_from_atomic(row));
             }
+
+            model.block_signals(false);
         }
     }
 
