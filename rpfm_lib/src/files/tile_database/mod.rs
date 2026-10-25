@@ -53,15 +53,15 @@ pub const SIGNATURE: &[u8; 8] = &[0x46, 0x41, 0x53, 0x54, 0x42, 0x49, 0x4E, 0x30
 #[cfg(test)] mod tile_database_test;
 
 mod assembly_kit;
-mod climate;
-mod conversion_params;
-mod render_params;
-mod texture;
-mod tile_set;
-mod tile;
-mod tile_link;
-mod tile_link_target;
-mod tile_variation;
+pub mod climate;
+pub mod conversion_params;
+pub mod render_params;
+pub mod texture;
+pub mod tile_set;
+pub mod tile;
+pub mod tile_link;
+pub mod tile_link_target;
+pub mod tile_variation;
 
 mod v1;
 
