@@ -6,6 +6,44 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [5.3.0]
+### Added
+- Implemented native startpos generation in RPFM (only for Attila for now) bypassing the game.
+    - Builds the whole startpos without needing BOB.
+    - Validates the startpos tables before building, and warns about the data the game drops from them.
+- Implemented support for extracting the tables (and victory objectives) of a Pack's startpos back into the Pack.
+- Implemented support for automatically separating the startpos tables per-campaign to avoid issues when using them.
+- Implemented support for campaign map trade routes (`.ptd`) files (lib only).
+- Implemented support for more of Attila's file formats (library only for now): fxc shader containers, asset variation databases, FASTBIN0 tile lists, and building tile databases from their Assembly Kit sources.
+- Added the version 2 of the server API, over JSON-RPC 2.0, with generated docs and JSON schemas for every method.
+- MCP tools running as jobs now report their progress, return tasks to clients that support them, and can be cancelled.
+
+### Changed
+- Moved the UI and the MCP server to the version 2 server API, and removed the old Command/Response protocol.
+- Settings are now owned by the UI, which configures its server session with them.
+- Autosaving is now done by the server, so it never makes the UI wait.
+- Diagnostics checks now run in the background, without blocking other requests.
+- Generating the dependencies cache now shows a progress dialog instead of disabling the main window.
+- All MCP clients now share one session, which is kept while it has open packs or unfinished jobs.
+- The server now rejects WebSocket and MCP requests coming from browser pages of other origins.
+- Removing the last local schema patch of a table now removes its empty entry from the patches file.
+- Decoded much more of Attila's RigidModels (versions 1, 3 and 5, and most of the missing materials and vertex types), BMDs (versions 3 to 6) and tree/grass lists.
+
+### Fixed
+- Fixed autosaves and normal saves fighting each other and failing with "File changed" errors.
+- Fixed parent mods and loose files not being loaded when the dependencies cache is missing or unreadable.
+- Fixed diagnostics only ignoring the globally disabled diagnostics, and not the ones disabled in the Pack's settings.
+- Fixed saved Packs getting owner-only permissions.
+- Fixed saving a Pack through a symlink replacing the symlink.
+- Fixed a failed Save As changing the path of the Pack.
+- Fixed the first note of a path not being editable.
+- Fixed ESF 24-bit integers being read and written as little-endian.
+- Fixed ESF Utf16Array nodes being saved with the wrong size type.
+- Fixed empty optimized ESF arrays being saved without a type byte.
+- Fixed ESF files being saved with different padding and string table order than the games' ones.
+- Fixed ESF files with trailing padding after their string tables failing to open (by [@IMRZ](https://github.com/IMRZ)).
+- Fixed rpfm_lib not compiling without default features.
+
 ## [5.2.0]
 ### Changed
 - Implemented initial support for Shogun 2: Complete Edition.
@@ -2040,7 +2078,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v5.2.0...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v5.3.0...HEAD
+[5.3.0]: https://github.com/Frodo45127/rpfm/compare/v5.2.0...v5.3.0
 [5.2.0]: https://github.com/Frodo45127/rpfm/compare/v5.1.1...v5.2.0
 [5.1.1]: https://github.com/Frodo45127/rpfm/compare/v5.1.0...v5.1.1
 [5.1.0]: https://github.com/Frodo45127/rpfm/compare/v5.0.6...v5.1.0
