@@ -39,7 +39,7 @@ use rpfm_ipc::settings_keys::{AUTOSAVE_AMOUNT, DISABLE_UUID_REGENERATION_ON_DB_T
 
 use rpfm_telemetry::warn;
 
-use super::{SaveOptions, SessionState, decode_tables, encode_extra_data, loaded_schema, pack, pack_mut, pack_summary};
+use super::{SaveOptions, SessionState, decode_tables, encode_extra_data, loaded_schema, pack, pack_mut, pack_summary, readable_pack};
 
 /// Stem used to seed names for newly created Packs (`new_pack.pack`, `new_pack_2.pack`, …).
 const DEFAULT_PACK_STEM: &str = "new_pack";
@@ -94,6 +94,7 @@ impl SessionState {
     ///
     /// * `paths` - Paths of the packs to open. If there are more than one, the merged pack has no path, and is named after the first one.
     /// * `lazy_loading` - If file data should be read from disk only when needed.
+    /// * `temporary` - If the pack is only opened to copy files from it, so it's kept out of the open packs.
     ///
     /// # Returns
     ///
@@ -102,7 +103,7 @@ impl SessionState {
     /// # Errors
     ///
     /// Fails if any of the packs is already open, or if any of them can't be read.
-    pub fn open_packs(&mut self, paths: &[PathBuf], lazy_loading: bool) -> Result<(String, ContainerInfo)> {
+    pub fn open_packs(&mut self, paths: &[PathBuf], lazy_loading: bool, temporary: bool) -> Result<(String, ContainerInfo)> {
         if let Some(path) = paths.iter().find(|path| {
             let normalized = path.to_string_lossy().replace('\\', "/");
             self.packs.values().any(|pack| pack.disk_file_path() == normalized.as_str())
@@ -119,7 +120,14 @@ impl SessionState {
         }
 
         let info = ContainerInfo::from(&pack);
-        let key = self.insert_pack(pack);
+        let key = if temporary {
+            let key = Uuid::new_v4().to_string();
+            self.temporary_packs.insert(key.clone(), pack);
+            key
+        } else {
+            self.insert_pack(pack)
+        };
+
         Ok((key, info))
     }
 
@@ -152,6 +160,10 @@ impl SessionState {
 
     /// Closes a pack without saving it.
     pub fn close_pack(&mut self, pack_key: &str) -> Result<()> {
+        if self.temporary_packs.remove(pack_key).is_some() {
+            return Ok(());
+        }
+
         self.packs.remove(pack_key).ok_or_else(|| ApiError::PackNotFound(pack_key.to_owned()))?;
         self.pack_modes.remove(pack_key);
         self.changed_packs.remove(pack_key);
@@ -166,6 +178,7 @@ impl SessionState {
         }
 
         self.packs.clear();
+        self.temporary_packs.clear();
         self.pack_modes.clear();
         self.changed_packs.clear();
     }
@@ -268,12 +281,12 @@ impl SessionState {
 
     /// Returns the short description of an open pack.
     pub fn pack_summary(&self, pack_key: &str) -> Result<PackSummary> {
-        Ok(pack_summary(pack_key, pack(&self.packs, pack_key)?))
+        Ok(pack_summary(pack_key, readable_pack(&self.packs, &self.temporary_packs, pack_key)?))
     }
 
     /// Returns the info of files of a pack: the ones at the requested paths, or all of them.
     pub fn files_info(&self, request: &GetFilesInfo) -> Result<FilesInfo> {
-        let pack = pack(&self.packs, &request.pack)?;
+        let pack = readable_pack(&self.packs, &self.temporary_packs, &request.pack)?;
         let files = match request.paths {
             Some(ref paths) => paths.iter().filter_map(|path| pack.files().get(path)).map(From::from).collect(),
             None => pack.files().par_iter().map(|(_, file)| From::from(file)).collect(),
@@ -284,7 +297,7 @@ impl SessionState {
 
     /// Returns the details of an open pack.
     pub fn pack_details(&self, pack_key: &str) -> Result<PackDetails> {
-        let pack = pack(&self.packs, pack_key)?;
+        let pack = readable_pack(&self.packs, &self.temporary_packs, pack_key)?;
         let bitmask = pack.bitmask();
 
         Ok(PackDetails {

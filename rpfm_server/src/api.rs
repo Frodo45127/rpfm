@@ -197,7 +197,7 @@ pub fn dispatch(state: &mut SessionState, request: RpcRequest, settings: &Settin
         }),
         OpenPack::METHOD => call(params, |request: OpenPack| {
             let lazy_loading = request.lazy_loading.unwrap_or_else(|| settings.bool(USE_LAZY_LOADING));
-            let (key, _) = state.open_packs(&request.paths, lazy_loading)?;
+            let (key, _) = state.open_packs(&request.paths, lazy_loading, request.temporary)?;
             state.pack_summary(&key)
         }),
         OpenVanillaPacks::METHOD => call(params, |_: OpenVanillaPacks| {

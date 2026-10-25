@@ -89,7 +89,7 @@ fn open_lazy_pack(state: &mut SessionState) -> (TempDir, String) {
     pack.insert(RFile::new_from_vec(b"out(\"autosave\")", FileType::Text, 0, "script/campaign/mod/autosave.lua")).unwrap();
     pack.save(Some(&pack_path), &state.game, &None).unwrap();
 
-    let (pack_key, _) = state.open_packs(&[pack_path], true).unwrap();
+    let (pack_key, _) = state.open_packs(&[pack_path], true, false).unwrap();
     (folder, pack_key)
 }
 
@@ -157,4 +157,24 @@ async fn autosave_and_save_both_work_when_they_overlap() {
     state.save_pack(&pack_key, None, SaveOptions::default()).unwrap();
 
     assert_eq!(autosave_count(&autosave_path), 1);
+}
+
+#[tokio::test]
+async fn temporary_packs_are_kept_out_of_the_open_packs() {
+    let mut state = SessionState::new(Session::new(1, true));
+    let folder = tempfile::tempdir().unwrap();
+    let pack_path = folder.path().join("temporary_test.pack");
+    let mut pack = Pack::new_with_name_and_version("temporary_test.pack", PFHVersion::PFH5);
+    pack.insert(RFile::new_from_vec(b"out(\"temporary\")", FileType::Text, 0, "script/temporary.lua")).unwrap();
+    pack.save(Some(&pack_path), &state.game, &None).unwrap();
+
+    let (pack_key, _) = state.open_packs(&[pack_path], false, true).unwrap();
+
+    assert!(state.session_status().packs.is_empty());
+    assert!(state.session.pack_names().is_empty());
+    assert_eq!(state.pack_details(&pack_key).unwrap().summary.name, "temporary_test.pack");
+    assert_eq!(state.files_info(&GetFilesInfo { pack: pack_key.clone(), paths: None }).unwrap().files.len(), 1);
+
+    state.close_pack(&pack_key).unwrap();
+    assert!(state.pack_details(&pack_key).is_err());
 }

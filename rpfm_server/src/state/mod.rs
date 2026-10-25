@@ -85,6 +85,8 @@ pub struct SessionState {
     /// Each pack's `disk_file_path` is either its absolute path on disk, or only its file name if it's not saved there.
     packs: BTreeMap<String, Pack>,
 
+    /// Packs opened only to copy files from them, by key. They're kept apart from `packs` so nothing working on all open packs uses them.
+    temporary_packs: BTreeMap<String, Pack>,
 
     /// Operational mode (Normal or MyMod) of each open pack, keyed by the same pack key as `packs`.
     pack_modes: BTreeMap<String, OperationalMode>,
@@ -181,6 +183,7 @@ impl SessionState {
             schema: None,
             first_game_change_done: false,
             packs: BTreeMap::new(),
+            temporary_packs: BTreeMap::new(),
             pack_modes: BTreeMap::new(),
             dependencies: Dependencies::default(),
             dependencies_error: None,
@@ -228,6 +231,11 @@ fn pack_summary(key: &str, pack: &Pack) -> PackSummary {
 /// Returns the open pack with the provided key.
 fn pack<'a>(packs: &'a BTreeMap<String, Pack>, pack_key: &str) -> Result<&'a Pack> {
     packs.get(pack_key).ok_or_else(|| ApiError::PackNotFound(pack_key.to_owned()).into())
+}
+
+/// Returns the open or temporary pack with the provided key.
+fn readable_pack<'a>(packs: &'a BTreeMap<String, Pack>, temporary_packs: &'a BTreeMap<String, Pack>, pack_key: &str) -> Result<&'a Pack> {
+    packs.get(pack_key).or_else(|| temporary_packs.get(pack_key)).ok_or_else(|| ApiError::PackNotFound(pack_key.to_owned()).into())
 }
 
 /// Returns the open pack with the provided key, mutably.

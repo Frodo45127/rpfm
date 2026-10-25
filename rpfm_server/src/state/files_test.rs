@@ -71,7 +71,7 @@ fn open_unreadable_pack(state: &mut SessionState) -> (TempDir, String, String) {
     source.insert(RFile::new_from_vec(b"out(\"source\")", FileType::Text, 0, IMPORTED_FILE_PATH)).unwrap();
     source.save(Some(&source_path), &state.game, &None).unwrap();
 
-    let (source_key, _) = state.open_packs(&[source_path.clone()], true).unwrap();
+    let (source_key, _) = state.open_packs(&[source_path.clone()], true, false).unwrap();
     let target_key = state.new_pack(Some("target_test.pack"), &Settings::default()).unwrap();
 
     let source_file = File::options().write(true).open(&source_path).unwrap();
@@ -106,4 +106,23 @@ async fn cut_files_that_cannot_be_read_are_reported_and_kept() {
     assert_eq!(result.not_pasted, vec![IMPORTED_FILE_PATH.to_owned()]);
     assert!(result.error.is_some());
     assert!(state.packs[&source_key].has_file(IMPORTED_FILE_PATH));
+}
+
+#[tokio::test]
+async fn files_can_be_copied_from_temporary_packs() {
+    let mut state = SessionState::new(Session::new(1, true));
+    let folder = tempfile::tempdir().unwrap();
+    let source_path = folder.path().join("source_test.pack");
+    let mut source = Pack::new_with_name_and_version("source_test.pack", PFHVersion::PFH5);
+    source.insert(RFile::new_from_vec(b"out(\"source\")", FileType::Text, 0, IMPORTED_FILE_PATH)).unwrap();
+    source.save(Some(&source_path), &state.game, &None).unwrap();
+
+    let (source_key, _) = state.open_packs(&[source_path], false, true).unwrap();
+    let target_key = state.new_pack(Some("target_test.pack"), &Settings::default()).unwrap();
+
+    let request = CopyFiles { source: FileSource::Pack(source_key), paths: vec![IMPORTED_FILE_PATH.to_owned()], pack: target_key.clone() };
+    let result = state.copy_files_to_pack(&request).unwrap();
+
+    assert_eq!(result.added, vec![IMPORTED_FILE_PATH.to_owned()]);
+    assert!(state.packs[&target_key].has_file(IMPORTED_FILE_PATH));
 }

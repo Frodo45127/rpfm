@@ -63,6 +63,7 @@ Opens one or more packs from disk, merged into a single one.
 |------|------|----------|-------------|
 | `paths` | array of `string` | yes | Paths of the packs on disk. If there are more than one, the merged pack has no path, and is named after the first one. |
 | `lazy_loading` | `boolean` or `null` | no | If file data is read from disk only when needed. Defaults to the server's setting. |
+| `temporary` | `boolean` | no, default `false` | If the pack is only opened to copy files from it. A temporary pack is not listed in the session's open packs nor used by anything working on all of them, and only works with `pack.info`, `files.info`, `pack.close` and as the source of `files.copy`. |
 
 **Result** (`PackSummary`)
 

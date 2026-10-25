@@ -42,7 +42,7 @@ use rpfm_lib::compression::CompressionFormat;
 use rpfm_lib::games::{GameInfo, VanillaDBTableNameLogic};
 use rpfm_lib::schema::Schema;
 
-use super::{ExtractOptions, PasteEntry, SessionState, decode_tables, encode_extra_data, loaded_schema, pack, pack_mut};
+use super::{ExtractOptions, PasteEntry, SessionState, decode_tables, encode_extra_data, loaded_schema, pack, pack_mut, readable_pack};
 
 /// File types the server never tries to decode.
 const UNDECODEABLE_FILE_TYPES: [FileType; 9] = [
@@ -249,14 +249,14 @@ impl SessionState {
     /// # Arguments
     ///
     /// * `target_key` - Key of the pack to copy the files to.
-    /// * `source_key` - Key of the pack to copy the files from.
+    /// * `source_key` - Key of the open or temporary pack to copy the files from.
     /// * `paths` - Paths of the files and folders to copy.
     ///
     /// # Returns
     ///
     /// The paths added to the target pack, the paths of the files that couldn't be read, and the last error reading them.
     pub fn add_files_from_pack(&mut self, target_key: &str, source_key: &str, paths: &[ContainerPath]) -> Result<(Vec<ContainerPath>, Vec<String>, Option<String>)> {
-        let (files, not_loaded, error) = loaded_files_by_paths(pack(&self.packs, source_key).map_err(|_| anyhow!("Source pack not found: {}", source_key))?, paths);
+        let (files, not_loaded, error) = loaded_files_by_paths(readable_pack(&self.packs, &self.temporary_packs, source_key).map_err(|_| anyhow!("Source pack not found: {}", source_key))?, paths);
         let target_pack = pack_mut(&mut self.packs, target_key).map_err(|_| anyhow!("Target pack not found: {}", target_key))?;
 
         let added_paths = insert_files(target_pack, files);
@@ -946,7 +946,7 @@ impl SessionState {
     pub fn copy_files_to_pack(&mut self, request: &CopyFiles) -> Result<FilesAdded> {
         match request.source {
             FileSource::Pack(ref source_key) => {
-                let source = pack(&self.packs, source_key)?;
+                let source = readable_pack(&self.packs, &self.temporary_packs, source_key)?;
                 let (paths, not_found) = split_found(&request.paths, |path| container_path(|path| source.has_file(path), path), |path| !source.files_by_path(path, false).is_empty());
 
                 let (added, mut not_added, error) = self.add_files_from_pack(&request.pack, source_key, &paths)?;

@@ -141,6 +141,11 @@ pub struct OpenPack {
     /// If file data is read from disk only when needed. Defaults to the server's setting.
     #[serde(default)]
     pub lazy_loading: Option<bool>,
+
+    /// If the pack is only opened to copy files from it. A temporary pack is not listed in the session's open packs nor used by anything working on all of them,
+    /// and only works with `pack.info`, `files.info`, `pack.close` and as the source of `files.copy`.
+    #[serde(default)]
+    pub temporary: bool,
 }
 
 /// `pack.open_vanilla`: opens all the vanilla packs of the selected game, merged into a single one.

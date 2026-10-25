@@ -100,7 +100,7 @@ impl PackFileExtraView {
     ) -> Result<()> {
 
         // Load the extra PackFile to memory via the unified packs map.
-        let pack_key = call_api(&OpenPack { paths: vec![pack_file_path.clone()], lazy_loading: None })?.key;
+        let pack_key = call_api(&OpenPack { paths: vec![pack_file_path.clone()], lazy_loading: None, temporary: true })?.key;
 
         // Load the UI Template.
         let template_path = if cfg!(debug_assertions) { VIEW_DEBUG } else { VIEW_RELEASE };

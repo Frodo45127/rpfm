@@ -1339,7 +1339,7 @@ impl AppUI {
         let mut last_pack_key = String::new();
         if additive {
             for pack_file_path in pack_file_paths {
-                let pack_key = match call_api_async(&OpenPack { paths: vec![pack_file_path.clone()], lazy_loading: None }) {
+                let pack_key = match call_api_async(&OpenPack { paths: vec![pack_file_path.clone()], lazy_loading: None, temporary: false }) {
                     Ok(pack) => pack.key,
                     Err(error) => {
                         app_ui.toggle_main_window(true);
@@ -1354,7 +1354,7 @@ impl AppUI {
                 last_pack_key = pack_key;
             }
         } else {
-            let pack_key = match call_api_async(&OpenPack { paths: pack_file_paths.to_vec(), lazy_loading: None }) {
+            let pack_key = match call_api_async(&OpenPack { paths: pack_file_paths.to_vec(), lazy_loading: None, temporary: false }) {
                 Ok(pack) => pack.key,
                 Err(error) => {
                     app_ui.toggle_main_window(true);
