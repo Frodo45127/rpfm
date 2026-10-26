@@ -161,3 +161,26 @@ fn decode_with_tail(bytes: &[u8], tail: &[u8]) -> Result<ESF> {
 
     ESF::decode(&mut Cursor::new(data), &None)
 }
+
+#[test]
+fn test_esf_strings_in_index_order() {
+    // Enough strings for the games' hash map to put them in another order than their indices.
+    let mut esf = ESF::default();
+    esf.set_signature(ESFSignature::CAAB);
+    let names = (0..12).map(|i| NodeType::Ascii(format!("building_{i}"))).collect::<Vec<_>>();
+    esf.set_root_node(record("ROOT", 1, vec![names]));
+
+    let hashed = encode(&esf);
+    assert!(!ESF::decode(&mut Cursor::new(&hashed), &None).unwrap().strings_in_index_order());
+
+    esf.set_strings_in_index_order(true);
+    let indexed = encode(&esf);
+    assert_ne!(hashed, indexed);
+
+    // Decoding a file written so says so, and writes it back the same.
+    let mut back = ESF::decode(&mut Cursor::new(&indexed), &None).unwrap();
+    assert!(back.strings_in_index_order());
+    let mut again = vec![];
+    back.encode(&mut again, &None).unwrap();
+    assert_eq!(again, indexed);
+}

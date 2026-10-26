@@ -107,20 +107,29 @@ impl ESF {
         // Get the UTF-16 Strings for all the subnodes.
         let strings_count_utf16 = data.read_u32()?;
         let mut strings_utf16 = BTreeMap::new();
+        let mut order_utf16 = vec![];
         for _ in 0..strings_count_utf16 {
             let name = data.read_sized_string_u16()?;
             let index = data.read_u32()?;
+            order_utf16.push(index);
             strings_utf16.insert(index, name);
         }
 
         // Get the UTF-8 Strings for all the subnodes.
         let strings_count_utf8 = data.read_u32()?;
         let mut strings_utf8 = BTreeMap::new();
+        let mut order_utf8 = vec![];
         for _ in 0..strings_count_utf8 {
             let name = data.read_sized_string_u8()?;
             let index = data.read_u32()?;
+            order_utf8.push(index);
             strings_utf8.insert(index, name);
         }
+
+        // Tables in index order that the games' hash map would have put in another order: written by another program (Rome 2's tools).
+        let index_order = |order: &[u32], hashes: Vec<u32>| order.len() > 1 && order.iter().enumerate().all(|(i, v)| *v as usize == i) && hash_map_order(&hashes) != (0..hashes.len()).collect::<Vec<_>>();
+        self.strings_in_index_order = index_order(&order_utf8, strings_utf8.values().map(|s| string_hash_u8(s)).collect())
+            || index_order(&order_utf16, strings_utf16.values().map(|s| string_hash_u16(s)).collect());
 
         // If we're not at the end of the file, something failed.
         let data_len = data.len()?;
@@ -310,7 +319,8 @@ impl ESF {
         // Then UTF-16 Strings, in the order of the games' string hash maps.
         strings_data.write_u32(strings_utf16.len() as u32)?;
         let hashes = strings_utf16.iter().map(|string| string_hash_u16(string)).collect::<Vec<_>>();
-        for index in hash_map_order(&hashes) {
+        let order = if self.strings_in_index_order { (0..hashes.len()).collect() } else { hash_map_order(&hashes) };
+        for index in order {
             strings_data.write_sized_string_u16(&strings_utf16[index])?;
             strings_data.write_u32(index as u32)?;
         }
@@ -318,7 +328,8 @@ impl ESF {
         // Then UTF-8 Strings, in the same kind of order.
         strings_data.write_u32(strings_utf8.len() as u32)?;
         let hashes = strings_utf8.iter().map(|string| string_hash_u8(string)).collect::<Vec<_>>();
-        for index in hash_map_order(&hashes) {
+        let order = if self.strings_in_index_order { (0..hashes.len()).collect() } else { hash_map_order(&hashes) };
+        for index in order {
             strings_data.write_sized_string_u8(&strings_utf8[index])?;
             strings_data.write_u32(index as u32)?;
         }

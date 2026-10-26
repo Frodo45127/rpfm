@@ -306,7 +306,8 @@ impl ESF {
         // Then UTF-16 Strings, in the order of the games' string hash maps.
         strings_data.write_u32(strings_utf16.len() as u32)?;
         let hashes = strings_utf16.iter().map(|string| string_hash_u16(string)).collect::<Vec<_>>();
-        for index in hash_map_order(&hashes) {
+        let order = if self.strings_in_index_order { (0..hashes.len()).collect() } else { hash_map_order(&hashes) };
+        for index in order {
             strings_data.write_sized_string_u16_u32(&strings_utf16[index])?;
             strings_data.write_u32(index as u32)?;
         }
@@ -314,7 +315,8 @@ impl ESF {
         // Then UTF-8 Strings, in the same kind of order.
         strings_data.write_u32(strings_utf8.len() as u32)?;
         let hashes = strings_utf8.iter().map(|string| string_hash_u8(string)).collect::<Vec<_>>();
-        for index in hash_map_order(&hashes) {
+        let order = if self.strings_in_index_order { (0..hashes.len()).collect() } else { hash_map_order(&hashes) };
+        for index in order {
             strings_data.write_sized_string_u8_u32(&strings_utf8[index])?;
             strings_data.write_u32(index as u32)?;
         }

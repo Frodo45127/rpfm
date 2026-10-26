@@ -324,6 +324,11 @@ pub struct ESF {
     /// Root node of the node tree containing all ESF data.
     /// This is always a record node in valid ESF files.
     root_node: NodeType,
+
+    /// If the string tables are written in index order (Rome 2's tools) instead of the order of the games' string hash maps.
+    /// Decoding sets it for a file written so.
+    #[serde(default)]
+    strings_in_index_order: bool,
 }
 
 /// Identifies the format version of an ESF file.
@@ -631,6 +636,7 @@ impl ESF {
             unknown_1: self.unknown_1,
             creation_date: self.creation_date,
             root_node: NodeType::Invalid,
+            strings_in_index_order: self.strings_in_index_order,
         }
     }
 }
