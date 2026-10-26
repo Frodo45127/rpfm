@@ -81,13 +81,51 @@ fn test_matches_asset_variation_db() {
     query.insert("map".to_owned(), "an_unlisted_map".to_owned());
     query.insert("precipitation".to_owned(), "snow".to_owned());
 
-    // The game adds no bit for a map it doesn't list, so it matches every map. Tools ask for the default map instead.
+    // A value in no list makes the game's first query match nothing, so it asks again with the default map.
     let matches = db.matches("environment", &query);
-    let listed = db.matches_listed_map("environment", &query);
-    assert!(!matches.used_default_map);
-    assert!(listed.used_default_map);
-    assert!(listed.variations.len() <= matches.variations.len());
-    assert!(listed.variations.iter().all(|variation| variation.flags() == &0 || variation.flags() & db.bit("precipitation", "snow") != 0));
+    assert!(db.query_mask(&query).is_none());
+    assert!(matches.used_default_map);
+    assert!(!matches.variations.is_empty());
+    assert!(matches.variations.iter().all(|variation| variation.flags() == &0 || variation.flags() & db.bit("precipitation", "snow") != 0));
+
+    query.insert("map".to_owned(), "default_map".to_owned());
+    assert_eq!(db.matches("environment", &query).variations, matches.variations);
+
+    // An unknown value of any other category is not rescued by the default map.
+    query.insert("precipitation".to_owned(), "an_unlisted_weather".to_owned());
+    assert!(db.matches("environment", &query).variations.is_empty());
+
+    // The game finds a value by name, whatever category the query puts it under.
+    assert_eq!(db.value_bit("snow"), Some(db.bit("precipitation", "snow")));
+    let mut moved = VariationQuery::new();
+    moved.insert("season".to_owned(), "snow".to_owned());
+    assert_eq!(db.query_mask(&moved), Some(db.bit("precipitation", "snow")));
+}
+
+#[test]
+fn test_edit_categories_asset_variation_db() {
+    let original = load();
+    let mut db = original.clone();
+
+    // A value in two categories: the game only ever uses the first.
+    assert!(db.add_value("season", "snow").is_err());
+    assert!(db.rename_value("season", "sp", "snow").is_err());
+
+    // A clone allows exactly what its source allows.
+    db.clone_value("climate", "ROME_Med", "TEST_Climate").unwrap();
+    for variation in db.entries()[0].variations().iter().filter(|variation| variation.flags() != &0) {
+        assert_eq!(variation.flags() & db.bit("climate", "ROME_Med") != 0, variation.flags() & db.bit("climate", "TEST_Climate") != 0);
+    }
+
+    db.remove_value("climate", "TEST_Climate").unwrap();
+    assert_eq!(db, original);
+
+    db.add_category("test_category").unwrap();
+    db.add_value("test_category", "test_value").unwrap();
+    db.rename_category("test_category", "renamed").unwrap();
+    assert!(db.add_category("renamed").is_err());
+    db.remove_category("renamed").unwrap();
+    assert_eq!(db, original);
 }
 
 #[test]
