@@ -6,6 +6,11 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 If you're looking for the changes included in the latest beta (against the latest stable version), check the unreleased section.
 
+## [5.3.3]
+### Fixed
+- Fixed weird errors when trying to open assembly kit files.
+- Fixed operations failing to expand the treeview to assembly kit files.
+
 ## [5.3.2]
 ### Fixed
 - Fixed global search panel not displaying results until it's interacted with.
@@ -2087,7 +2092,8 @@ If you're looking for the changes included in the latest beta (against the lates
 ## [2.1.4] - 2020-08-15
 - For this update and older ones, check the release page.
 
-[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v5.3.2...HEAD
+[Unreleased]: https://github.com/Frodo45127/rpfm/compare/v5.3.3...HEAD
+[5.3.3]: https://github.com/Frodo45127/rpfm/compare/v5.3.2...v5.3.3
 [5.3.2]: https://github.com/Frodo45127/rpfm/compare/v5.3.1...v5.3.2
 [5.3.1]: https://github.com/Frodo45127/rpfm/compare/v5.3.0...v5.3.1
 [5.3.0]: https://github.com/Frodo45127/rpfm/compare/v5.2.0...v5.3.0
