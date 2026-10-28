@@ -35,9 +35,11 @@
 //! As the game does it:
 //!
 //! - Every value has a bit, counting through the values of all categories in order: `1 << (index & 31)`.
-//! - A query ORs the bit of the value chosen for each category. A value missing from the lists adds no bit.
+//! - A query ORs the bit of the value chosen for each category. The game finds a value by its name alone, searching
+//!   the values of all categories in order, so the first category that has the name gives the bit.
+//! - A query with a value missing from every list matches nothing.
 //! - A variation matches when its flags are 0, or when they have every bit of the query.
-//! - If nothing matches the battle's map, the game queries again with the map `default_map`, and picks one of the matches at random.
+//! - If nothing matches, the game queries again with the map `default_map`, and picks one of the matches at random.
 
 use getset::*;
 use serde_derive::{Serialize, Deserialize};
@@ -133,7 +135,7 @@ pub struct VariationMatches<'a> {
     pub used_default_map: bool,
 }
 
-/// A query: the value chosen for each category. Categories left out add no bit.
+/// A query: the value chosen for each category. Categories left out, or with an empty value, add no bit.
 pub type VariationQuery = BTreeMap<String, String>;
 
 //---------------------------------------------------------------------------//
@@ -181,9 +183,19 @@ impl AssetVariationDb {
         }
     }
 
-    /// Bits of a query.
-    pub fn query_mask(&self, query: &VariationQuery) -> u32 {
-        query.iter().fold(0, |mask, (category, value)| mask | self.bit(category, value))
+    /// Bit the game gives a value: that of the first value with this name in any category, or None if no category has it.
+    pub fn value_bit(&self, value: &str) -> Option<u32> {
+        self.categories.iter()
+            .flat_map(|category| &category.values)
+            .position(|known| known == value)
+            .map(|index| 1 << (index % FLAG_BITS))
+    }
+
+    /// Bits of a query, or None if one of its values is in no category, which makes the game match nothing.
+    pub fn query_mask(&self, query: &VariationQuery) -> Option<u32> {
+        query.values()
+            .filter(|value| !value.is_empty())
+            .try_fold(0, |mask, value| self.value_bit(value).map(|bit| mask | bit))
     }
 
     /// Returns the variations of a key that match a query, as the game finds them.
@@ -200,11 +212,11 @@ impl AssetVariationDb {
         let mut matches = VariationMatches::default();
         let Some(entry) = self.entry(key) else { return matches };
 
-        let find = |query: &VariationQuery| {
-            let mask = self.query_mask(query);
-            entry.variations.iter()
+        let find = |query: &VariationQuery| match self.query_mask(query) {
+            Some(mask) => entry.variations.iter()
                 .filter(|variation| variation.flags == 0 || variation.flags & mask == mask)
-                .collect::<Vec<_>>()
+                .collect::<Vec<_>>(),
+            None => vec![],
         };
 
         matches.variations = find(query);
@@ -216,37 +228,6 @@ impl AssetVariationDb {
         }
 
         matches
-    }
-
-    /// Returns the variations of a key that match a query, treating a map the database doesn't list as unmatched.
-    ///
-    /// The game adds no bit for a map it doesn't list, so its first query matches every map. Tools that pick from
-    /// a list of maps want the `default_map` query instead, which this does.
-    ///
-    /// # Arguments
-    ///
-    /// * `key` - Key of the entry, like `environment`.
-    /// * `query` - Value chosen for each category.
-    ///
-    /// # Returns
-    ///
-    /// The matches.
-    pub fn matches_listed_map(&self, key: &str, query: &VariationQuery) -> VariationMatches<'_> {
-        let unlisted_map = match (self.category(MAP_CATEGORY), query.get(MAP_CATEGORY)) {
-            (Some(category), Some(map)) => !map.is_empty() && !category.values.contains(map),
-            _ => false,
-        };
-
-        if unlisted_map {
-            let mut query = query.clone();
-            query.insert(MAP_CATEGORY.to_owned(), DEFAULT_MAP.to_owned());
-
-            let mut matches = self.matches(key, &query);
-            matches.used_default_map = true;
-            matches
-        } else {
-            self.matches(key, query)
-        }
     }
 
     /// Returns, per category, the values allowed by some flags. Flags 0 allow every value.
@@ -303,6 +284,13 @@ impl AssetVariationDb {
                 if category.values[value_index + 1..].contains(value) {
                     problems.push(format!("value '{value}' appears twice in '{}'", category.name));
                 }
+
+                if let Some(first) = self.categories[..index].iter().find(|other| other.values.contains(value)) {
+                    problems.push(format!(
+                        "value '{value}' is in '{}' and '{}': the game finds a value by its name in all categories, so the one in '{}' is never used",
+                        first.name, category.name, category.name
+                    ));
+                }
             }
         }
 
@@ -334,7 +322,7 @@ impl AssetVariationDb {
     /// # Errors
     ///
     /// Returns [`RLibError::AssetVariationDbEditRefused`] if the category doesn't exist, the value is empty or already
-    /// exists, or every bit of the flags is in use.
+    /// exists in any category (the game finds values by name alone), or every bit of the flags is in use.
     pub fn add_value(&mut self, category: &str, value: &str) -> Result<()> {
         let Some(category_index) = self.categories.iter().position(|known| known.name == category) else {
             return Err(refused(format!("no category '{category}'")));
@@ -345,8 +333,8 @@ impl AssetVariationDb {
             return Err(refused("the value is empty".to_owned()));
         }
 
-        if values.iter().any(|known| known == value) {
-            return Err(refused(format!("'{value}' already exists in '{category}'")));
+        if let Some(owner) = self.category_of(value) {
+            return Err(refused(format!("'{value}' already exists in '{owner}'")));
         }
 
         if self.value_count() >= FLAG_BITS {
@@ -415,25 +403,131 @@ impl AssetVariationDb {
     /// # Errors
     ///
     /// Returns [`RLibError::AssetVariationDbEditRefused`] if the category or the value don't exist, or the new name is
-    /// empty or already exists.
+    /// empty or already exists in any category.
     pub fn rename_value(&mut self, category: &str, from: &str, to: &str) -> Result<()> {
-        let Some(category) = self.categories.iter_mut().find(|known| known.name == category) else {
-            return Err(refused(format!("no category '{category}'")));
-        };
-
         if to.is_empty() {
             return Err(refused("the new name is empty".to_owned()));
         }
 
-        if from != to && category.values.iter().any(|known| known == to) {
-            return Err(refused(format!("'{to}' already exists in '{}'", category.name)));
+        if let Some(owner) = self.category_of(to).filter(|_| from != to) {
+            return Err(refused(format!("'{to}' already exists in '{owner}'")));
         }
+
+        let Some(category) = self.categories.iter_mut().find(|known| known.name == category) else {
+            return Err(refused(format!("no category '{category}'")));
+        };
 
         let Some(value) = category.values.iter_mut().find(|known| *known == from) else {
             return Err(refused(format!("no value '{from}' in '{}'", category.name)));
         };
 
         *value = to.to_owned();
+        Ok(())
+    }
+
+    /// Name of the first category that has a value, if any.
+    pub fn category_of(&self, value: &str) -> Option<&str> {
+        self.categories.iter().find(|category| category.values.iter().any(|known| known == value)).map(|category| category.name.as_str())
+    }
+
+    /// Adds a value to a category that every variation allows exactly when it allows another value of the same category,
+    /// like a new climate with the weather of an existing one.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RLibError::AssetVariationDbEditRefused`] if `from` isn't a value of the category, or for the reasons of
+    /// [`AssetVariationDb::add_value`].
+    pub fn clone_value(&mut self, category: &str, from: &str, value: &str) -> Result<()> {
+        if self.category(category).is_none_or(|known| !known.values.iter().any(|known| known == from)) {
+            return Err(refused(format!("no value '{from}' in '{category}'")));
+        }
+
+        self.add_value(category, value)?;
+        let from_bit = self.bit(category, from);
+        let new_bit = self.bit(category, value);
+        for variation in self.entries.iter_mut().flat_map(|entry| &mut entry.variations).filter(|variation| variation.flags != 0) {
+            if variation.flags & from_bit != 0 {
+                variation.flags |= new_bit;
+            } else {
+                variation.flags &= !new_bit;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Adds an empty category after the others. It takes no bit until it has values.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RLibError::AssetVariationDbEditRefused`] if the name is empty or already used.
+    pub fn add_category(&mut self, name: &str) -> Result<()> {
+        if name.is_empty() {
+            return Err(refused("the category name is empty".to_owned()));
+        }
+
+        if self.category(name).is_some() {
+            return Err(refused(format!("category '{name}' already exists")));
+        }
+
+        let mut category = VariationCategory::default();
+        category.name = name.to_owned();
+        self.categories.push(category);
+        Ok(())
+    }
+
+    /// Removes a category with its values, moving the bits of the flags of every variation so they keep allowing the
+    /// same values of the other categories.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RLibError::AssetVariationDbEditRefused`] if the category doesn't exist, or if a variation only
+    /// restricts this category, as its flags would become 0, which allows everything.
+    pub fn remove_category(&mut self, name: &str) -> Result<()> {
+        let Some(category_index) = self.categories.iter().position(|known| known.name == name) else {
+            return Err(refused(format!("no category '{name}'")));
+        };
+
+        let first = self.first_bit(name).unwrap_or_default();
+        let count = self.categories[category_index].values.len();
+        let moved = (0..self.value_count()).map(|bit| match bit {
+            bit if bit < first => Some(bit),
+            bit if bit < first + count => None,
+            bit => Some(bit - count),
+        }).collect::<Vec<_>>();
+
+        let variations = self.entries.iter().flat_map(|entry| &entry.variations);
+        if let Some(variation) = variations.clone().find(|variation| variation.flags != 0 && move_bits(variation.flags, &moved) == 0) {
+            return Err(refused(format!("{} only has bits in '{name}', removing it would turn it into an unconstrained variation (flags 0)", variation.filename)));
+        }
+
+        for variation in self.entries.iter_mut().flat_map(|entry| &mut entry.variations) {
+            variation.flags = move_bits(variation.flags, &moved);
+        }
+
+        self.categories.remove(category_index);
+        Ok(())
+    }
+
+    /// Renames a category. The flags don't change.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RLibError::AssetVariationDbEditRefused`] if the category doesn't exist, or the new name is empty or already used.
+    pub fn rename_category(&mut self, from: &str, to: &str) -> Result<()> {
+        if to.is_empty() {
+            return Err(refused("the new name is empty".to_owned()));
+        }
+
+        if from != to && self.category(to).is_some() {
+            return Err(refused(format!("category '{to}' already exists")));
+        }
+
+        let Some(category) = self.categories.iter_mut().find(|known| known.name == from) else {
+            return Err(refused(format!("no category '{from}'")));
+        };
+
+        category.name = to.to_owned();
         Ok(())
     }
 }
