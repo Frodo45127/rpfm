@@ -86,10 +86,10 @@ use std::collections::BTreeMap;
 
 use rpfm_lib::error::{Result, RLibError};
 use rpfm_lib::files::{Container, ContainerPath, DecodeableExtraData, FileType, pack::Pack, RFile, RFileDecoded};
-use rpfm_lib::games::{GameInfo, VanillaDBTableNameLogic};
+use rpfm_lib::games::GameInfo;
 use rpfm_lib::schema::Schema;
 
-use crate::dependencies::Dependencies;
+use crate::dependencies::{ASSEMBLY_KIT_TABLE_FILE_NAME, Dependencies};
 
 //use self::anim::AnimMatches;
 use self::anim_fragment_battle::AnimFragmentBattleMatches;
@@ -505,12 +505,7 @@ impl GlobalSearch {
                         temp_matches.db = dependencies.asskit_only_db_tables()
                             .par_iter()
                             .filter_map(|(table_name, table)| {
-                                let file_name = match game_info.vanilla_db_table_name_logic() {
-                                    VanillaDBTableNameLogic::FolderName => table_name.to_owned(),
-                                    VanillaDBTableNameLogic::DefaultName(ref default_name) => default_name.to_owned()
-                                };
-
-                                let path = format!("db/{table_name}/{file_name}");
+                                let path = format!("db/{table_name}/{ASSEMBLY_KIT_TABLE_FILE_NAME}");
                                 let mut result = table.search(&path, &self.pattern, self.case_sensitive, &matching_mode);
                                 result.set_source(source.clone());
                                 if !result.matches().is_empty() {

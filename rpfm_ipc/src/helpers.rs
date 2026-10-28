@@ -59,13 +59,13 @@ use serde_derive::{Serialize, Deserialize};
 
 use std::fmt::{self, Display};
 
-use rpfm_extensions::dependencies::Dependencies;
+use rpfm_extensions::dependencies::{ASSEMBLY_KIT_TABLE_FILE_NAME, Dependencies};
 
 use crate::api::files::{EntryCopy, FileSource, NewFileKind};
 use crate::api::packs::PackDetails;
 
 use rpfm_lib::compression::CompressionFormat;
-use rpfm_lib::games::{*, pfh_file_type::PFHFileType, pfh_version::PFHVersion};
+use rpfm_lib::games::{pfh_file_type::PFHFileType, pfh_version::PFHVersion};
 use rpfm_lib::files::{animpack::*, Container, ContainerPath, db::*, FileType, pack::*, RFile, text::TextFormat, video::*};
 
 //-------------------------------------------------------------------------------//
@@ -382,15 +382,10 @@ impl From<&Video> for VideoInfo {
 }
 
 impl DependenciesInfo {
-    pub fn new(dependencies: &Dependencies, table_name_logic: &VanillaDBTableNameLogic) -> Self {
-        let asskit_tables = dependencies.asskit_only_db_tables().values().map(|table| {
-            let table_name = match table_name_logic {
-                VanillaDBTableNameLogic::DefaultName(ref name) => name,
-                VanillaDBTableNameLogic::FolderName => table.table_name(),
-            };
-
-            RFileInfo::from_db(table, table_name)
-        }).collect::<Vec<RFileInfo>>();
+    pub fn new(dependencies: &Dependencies) -> Self {
+        let asskit_tables = dependencies.asskit_only_db_tables().values()
+            .map(|table| RFileInfo::from_db(table, ASSEMBLY_KIT_TABLE_FILE_NAME))
+            .collect::<Vec<RFileInfo>>();
 
         let vanilla_packed_files = dependencies.vanilla_loose_files()
             .par_iter()

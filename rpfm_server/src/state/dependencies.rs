@@ -68,7 +68,7 @@ impl SessionState {
             // Failed loads keep what could be loaded, and their error is reported by the session status.
             let _ = self.load_dependencies(cache_path, false, settings);
 
-            Some(DependenciesInfo::new(&self.dependencies, self.game.vanilla_db_table_name_logic()))
+            Some(DependenciesInfo::new(&self.dependencies))
         } else {
             None
         };
@@ -124,7 +124,7 @@ impl SessionState {
         cache.save(&cache_path)?;
 
         let _ = self.load_dependencies(Some(&cache_path), true, settings);
-        Ok(DependenciesInfo::new(&self.dependencies, self.game.vanilla_db_table_name_logic()))
+        Ok(DependenciesInfo::new(&self.dependencies))
     }
 
     /// Rebuilds the dependencies of the selected game.
@@ -144,7 +144,7 @@ impl SessionState {
         let cache_path = if only_parent_packs { None } else { Some(&*cache_path) };
         let _ = self.load_dependencies(cache_path, true, settings);
 
-        Ok(DependenciesInfo::new(&self.dependencies, self.game.vanilla_db_table_name_logic()))
+        Ok(DependenciesInfo::new(&self.dependencies))
     }
 
     /// Rebuilds the dependencies after the schema changed, if the vanilla data is loaded.
@@ -191,6 +191,6 @@ impl SessionState {
 
     /// Returns the files of the dependencies of the selected game.
     pub fn dependencies_info(&self) -> DependenciesInfo {
-        DependenciesInfo::new(&self.dependencies, self.game.vanilla_db_table_name_logic())
+        DependenciesInfo::new(&self.dependencies)
     }
 }

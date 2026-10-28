@@ -26,8 +26,7 @@ use super::tools::FilesChanged;
 
 use super::{default_true, Done, Request};
 
-/// File name of the Assembly Kit tables, in paths like `db/<table_name>/ak_data`.
-pub const ASSEMBLY_KIT_TABLE_FILE_NAME: &str = "ak_data";
+pub use rpfm_extensions::dependencies::ASSEMBLY_KIT_TABLE_FILE_NAME;
 
 /// Default amount of files returned by [`ListFiles`].
 pub const DEFAULT_FILES_LIMIT: usize = 500;

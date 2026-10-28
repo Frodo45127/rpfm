@@ -129,6 +129,9 @@ use crate::VERSION;
 /// vanilla content as it's more compatible with other mods.
 pub const KEY_DELETES_TABLE_NAME: &str = "twad_key_deletes_tables";
 
+/// File name of the Assembly Kit tables, in paths like `db/<table_name>/ak_data`.
+pub const ASSEMBLY_KIT_TABLE_FILE_NAME: &str = "ak_data";
+
 /// Filename for the user script file used in startpos generation.
 pub const USER_SCRIPT_FILE_NAME: &str = "user.script.txt";
 

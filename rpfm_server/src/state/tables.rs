@@ -257,11 +257,9 @@ impl SessionState {
     ///
     /// # Errors
     ///
-    /// Fails if there is no schema, or it has no definition of the table with the requested version.
+    /// Fails if there is no schema, or neither it nor the Assembly Kit tables have a definition of the table with the requested version.
     pub fn table_reference_data(&mut self, request: &GetTableReferenceData) -> Result<TableReferenceData> {
-        let definition = loaded_schema(&self.schema)?.definition_by_name_and_version(&request.table_name, request.version)
-            .cloned()
-            .ok_or_else(|| ApiError::DefinitionNotFound(request.table_name.clone()))?;
+        let definition = self.definition_by_name_and_version(&request.table_name, request.version)?.clone();
 
         Ok(TableReferenceData { columns: self.reference_data(&request.table_name, &definition, request.regenerate) })
     }
@@ -451,9 +449,7 @@ impl SessionState {
             None => self.table_definition(&GetTableDefinition { table_name: request.table_name.clone(), version: None })?.version,
         };
 
-        let definition = schema.definition_by_name_and_version(&request.table_name, version)
-            .ok_or_else(|| ApiError::DefinitionNotFound(request.table_name.clone()))?;
-
+        let definition = self.definition_by_name_and_version(&request.table_name, version)?;
         let reference_map = schema.referencing_columns_for_table(&request.table_name, definition)
             .remove(&request.column)
             .unwrap_or_default();
@@ -812,10 +808,7 @@ impl SessionState {
             None => self.table_definition(&GetTableDefinition { table_name: request.table_name.clone(), version: None })?.version,
         };
 
-        let definition = loaded_schema(&self.schema)?.definition_by_name_and_version(&request.table_name, version)
-            .ok_or_else(|| ApiError::DefinitionNotFound(request.table_name.clone()))?
-            .clone();
-
+        let definition = self.definition_by_name_and_version(&request.table_name, version)?.clone();
         let field = definition.fields_processed().iter()
             .find(|field| field.name() == request.column)
             .cloned()

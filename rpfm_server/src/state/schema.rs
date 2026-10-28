@@ -155,18 +155,41 @@ impl SessionState {
             .collect())
     }
 
-    /// Returns the columns of a table as defined in the schema.
+    /// Returns the definition of a table with a specific version.
+    ///
+    /// # Arguments
+    ///
+    /// * `table_name` - Name of the table, like `units_tables`.
+    /// * `version` - Version of the definition.
+    ///
+    /// # Returns
+    ///
+    /// The definition from the schema or, if the schema doesn't have it, the one of the Assembly Kit table with that name and version.
+    ///
+    /// # Errors
+    ///
+    /// Fails if there is no schema, or neither it nor the Assembly Kit tables have the definition.
+    pub fn definition_by_name_and_version(&self, table_name: &str, version: i32) -> Result<&Definition> {
+        loaded_schema(&self.schema)?.definition_by_name_and_version(table_name, version)
+            .or_else(|| self.dependencies.asskit_only_db_tables().get(table_name)
+                .map(|table| table.definition())
+                .filter(|definition| *definition.version() == version))
+            .ok_or_else(|| ApiError::DefinitionNotFound(table_name.to_owned()).into())
+    }
+
+    /// Returns the columns of a table as defined in the schema, or in the Assembly Kit for its tables.
     ///
     /// If the request has no version, the version of the table in the game files is used, or the newest one if there is none.
     pub fn table_definition(&self, request: &GetTableDefinition) -> Result<TableDefinition> {
         let schema = loaded_schema(&self.schema)?;
         let table_name = &request.table_name;
         let definition = match request.version {
-            Some(version) => schema.definition_by_name_and_version(table_name, version),
+            Some(version) => self.definition_by_name_and_version(table_name, version)?,
             None => self.dependencies.db_version(table_name)
                 .and_then(|version| schema.definition_by_name_and_version(table_name, version))
-                .or_else(|| schema.definitions_by_table_name(table_name).and_then(|definitions| definitions.first())),
-        }.ok_or_else(|| ApiError::DefinitionNotFound(table_name.to_owned()))?;
+                .or_else(|| schema.definitions_by_table_name(table_name).and_then(|definitions| definitions.first()))
+                .ok_or_else(|| ApiError::DefinitionNotFound(table_name.to_owned()))?,
+        };
 
         Ok(TableDefinition {
             table_name: table_name.to_owned(),
@@ -273,9 +296,7 @@ impl SessionState {
             None => self.table_definition(&GetTableDefinition { table_name: table_name.to_owned(), version: None })?.version,
         };
 
-        let definition = loaded_schema(&self.schema)?.definition_by_name_and_version(table_name, version)
-            .ok_or_else(|| ApiError::DefinitionNotFound(table_name.to_owned()))?;
-
+        let definition = self.definition_by_name_and_version(table_name, version)?;
         let columns = self.referencing_columns(table_name, definition)?.into_iter()
             .map(|(column, tables)| (column, tables.into_iter().collect()))
             .collect();
