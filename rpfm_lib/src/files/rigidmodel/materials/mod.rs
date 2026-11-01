@@ -502,6 +502,9 @@ pub enum TextureType {
     LegacyMaterialMap = 4,
     /// Baked ambient occlusion.
     AmbientOcclusion = 5,
+    /// Tessellation displacement map (red channel: the offset along the normal), bound as `t_tesselation_displacement_map` by the
+    /// Rome II / Attila / Thrones of Britannia engine when tessellation is enabled.
+    Displacement = 6,
     /// Tiling dirt texture (UV set 2).
     TilingDirtUV2 = 7,
     /// Dirt alpha mask.
@@ -777,6 +780,7 @@ impl TryFrom<i32> for TextureType {
             _ if value == Self::Mask as i32 => Ok(Self::Mask),
             _ if value == Self::LegacyMaterialMap as i32 => Ok(Self::LegacyMaterialMap),
             _ if value == Self::AmbientOcclusion as i32 => Ok(Self::AmbientOcclusion),
+            _ if value == Self::Displacement as i32 => Ok(Self::Displacement),
             _ if value == Self::TilingDirtUV2 as i32 => Ok(Self::TilingDirtUV2),
             _ if value == Self::DirtAlphaMask as i32 => Ok(Self::DirtAlphaMask),
             _ if value == Self::SkinMask as i32 => Ok(Self::SkinMask),

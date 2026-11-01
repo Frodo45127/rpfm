@@ -1092,6 +1092,7 @@ fn texture_type_strings() -> HashMap<i32, TableReferences> {
     refs_hashmap.insert(i32::try_from(TextureType::Normal).unwrap().to_string(), "NORMAL".to_string());
     refs_hashmap.insert(i32::try_from(TextureType::Mask).unwrap().to_string(), "MASK".to_string());
     refs_hashmap.insert(i32::try_from(TextureType::AmbientOcclusion).unwrap().to_string(), "AMBIENT_OCCLUSION".to_string());
+    refs_hashmap.insert(i32::try_from(TextureType::Displacement).unwrap().to_string(), "DISPLACEMENT".to_string());
     refs_hashmap.insert(i32::try_from(TextureType::TilingDirtUV2).unwrap().to_string(), "TILING_DIRT_UV2".to_string());
     refs_hashmap.insert(i32::try_from(TextureType::DirtAlphaMask).unwrap().to_string(), "DIRT_ALPHA_MASK".to_string());
     refs_hashmap.insert(i32::try_from(TextureType::SkinMask).unwrap().to_string(), "SKIN_MASK".to_string());
