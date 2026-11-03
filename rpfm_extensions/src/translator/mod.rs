@@ -394,11 +394,11 @@ impl PackTranslation {
                         if let Some(vanilla_data) = base_local_fixes.get(tr_key).filter(|v| !v.trim().is_empty()) {
                             tr.dst = vanilla_data.to_owned();
                             tr.retr = false;
-                            tr.aut = true;
+                            tr.aut = false;
                         } else if let Some(vanilla_data) = base_local_tr.get(tr_key).filter(|v| !v.trim().is_empty()) {
                             tr.dst = vanilla_data.to_owned();
                             tr.retr = false;
-                            tr.aut = true;
+                            tr.aut = false;
                         }
                     }
                 }
