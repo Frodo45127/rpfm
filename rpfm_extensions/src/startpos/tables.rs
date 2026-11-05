@@ -105,6 +105,19 @@ impl StartposTables {
         Ok(())
     }
 
+    /// Adds a column to a table that lacks it, with the same value in every row. Does nothing if the table has the
+    /// column or doesn't exist.
+    pub fn add_missing_column(&mut self, name: &str, column: &str, value: DecodedData) {
+        let Some(table) = self.tables.get_mut(name) else { return };
+        if table.columns.contains_key(column) {
+            return;
+        }
+        table.columns.insert(column.to_owned(), table.columns.len());
+        for row in &mut table.rows {
+            row.push(value.clone());
+        }
+    }
+
     /// Returns a table by name.
     ///
     /// # Errors

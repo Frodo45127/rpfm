@@ -97,12 +97,56 @@ const LOOKUP_IMAGE_SUFFIX: &str = "_lookup.tga";
 /// TGA image type of colour-mapped images.
 const TGA_COLOUR_MAPPED: u8 = 1;
 
+/// Columns the build reads that some games' tables don't have (Rome 2's, mostly), with the value they read as: the
+/// empty or zero one, meaning the game doesn't have the feature (hordes, fertility, culture filters...).
+const OPTIONAL_COLUMNS: [(&str, &str, OptionalValue); 31] = [
+    ("agent_culture_details", "season", OptionalValue::Text),
+    ("agents", "religion", OptionalValue::Text),
+    ("building_chain_availabilities", "campaign", OptionalValue::Text),
+    ("building_chain_availabilities", "faction", OptionalValue::Text),
+    ("building_chain_availabilities", "sub_culture", OptionalValue::Text),
+    ("campaign_character_art_sets", "culture", OptionalValue::Text),
+    ("campaign_character_art_sets", "subculture", OptionalValue::Text),
+    ("character_skill_node_sets", "agent_key", OptionalValue::Text),
+    ("character_skill_node_sets", "subculture", OptionalValue::Text),
+    ("character_skill_nodes", "points_on_creation", OptionalValue::Integer),
+    ("character_skill_nodes", "subculture", OptionalValue::Text),
+    ("commander_unit_permissions", "culture_key", OptionalValue::Text),
+    ("commander_unit_permissions", "subculture_key", OptionalValue::Text),
+    ("factions", "can_be_horde", OptionalValue::Boolean),
+    ("main_units", "tier", OptionalValue::Integer),
+    ("military_force_legacy_emblems", "campaign", OptionalValue::Text),
+    ("military_force_legacy_emblems", "faction_key", OptionalValue::Text),
+    ("military_force_legacy_emblems", "subculture_key", OptionalValue::Text),
+    ("ministerial_positions", "maximum_concurrent_ministers", OptionalValue::Integer),
+    ("ministerial_positions", "order", OptionalValue::Integer),
+    ("start_pos_characters", "death_type", OptionalValue::Text),
+    ("start_pos_characters", "portrait_id", OptionalValue::Text),
+    ("start_pos_characters", "turns_died_before_start", OptionalValue::Text),
+    ("start_pos_factions", "cai_personality_group", OptionalValue::Text),
+    ("start_pos_regions", "base_fertility", OptionalValue::Integer),
+    ("start_pos_regions", "initial_public_order", OptionalValue::Integer),
+    ("start_pos_settlements", "building2", OptionalValue::Text),
+    ("start_pos_settlements", "building3", OptionalValue::Text),
+    ("start_pos_settlements", "building4", OptionalValue::Text),
+    ("start_pos_settlements", "building5", OptionalValue::Text),
+    ("technology_node_sets", "culture", OptionalValue::Text),
+];
+
 /// Size of a TGA header.
 const TGA_HEADER_SIZE: usize = 18;
 
 //---------------------------------------------------------------------------//
 //                              Types
 //---------------------------------------------------------------------------//
+
+/// The value an optional column reads as in games without it.
+#[derive(Clone, Copy)]
+enum OptionalValue {
+    Text,
+    Integer,
+    Boolean,
+}
 
 /// What a campaign's startpos is built from.
 pub struct StartposSources {
@@ -212,7 +256,8 @@ impl StartposSources {
 /// tables it references, for validation, and the ones the extraction of tables from a startpos reads.
 ///
 /// Each table merges the game's fragments and then the pack's, in load order: a row replaces an earlier row with the
-/// same key. Tables neither has come from the game's Assembly Kit; the ones its schema doesn't define are empty.
+/// same key. Tables neither has come from the game's Assembly Kit; the ones its schema doesn't define are empty, and
+/// the [`OPTIONAL_COLUMNS`] a game lacks get their default.
 ///
 /// # Arguments
 ///
@@ -257,6 +302,15 @@ pub fn load_tables(dependencies: &Dependencies, pack: &Pack, schema: &Schema) ->
             tables.add_rows::<&str>(table, &[], &[])?;
         }
         add_merged(&mut tables, table, &fragments)?;
+    }
+
+    for (table, column, value) in OPTIONAL_COLUMNS {
+        let value = match value {
+            OptionalValue::Text => DecodedData::StringU8(String::new()),
+            OptionalValue::Integer => DecodedData::I32(0),
+            OptionalValue::Boolean => DecodedData::Boolean(false),
+        };
+        tables.add_missing_column(table, column, value);
     }
     Ok(tables)
 }
