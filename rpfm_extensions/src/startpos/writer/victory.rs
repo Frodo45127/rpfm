@@ -176,8 +176,11 @@ fn write_objective_values(layout: &StartposLayout, path: &str, objective: &Missi
                 .set_strings("^+2", categories.clone())?
                 .set_record("CAMPAIGN_LOCALISATION", Some(localisation.build()?))?;
         },
-        MissionObjective::OwnNUnits { total, naval } => {
-            group.set_u32("^+1", *total)?.set_bool("^+2", *naval)?;
+        MissionObjective::OwnNUnits { total, naval, units } => {
+            group.set_u32("^+1", *total)?.set_bool("^+2", *naval)?.set_strings("^+5", units.clone())?;
+        },
+        MissionObjective::SubjugateFactions { total, faction } => {
+            group.set_u32("^+1", *total)?.set_str("^+2", faction.as_deref().unwrap_or_default())?;
         },
         MissionObjective::AtLeastXReligionInAllProvinces { total, religion } => {
             group.set_f32("^+1", *total)?.set_str("^+2", religion)?;
@@ -212,7 +215,6 @@ fn write_objective_values(layout: &StartposLayout, path: &str, objective: &Missi
         MissionObjective::ConfederateFactions { total } |
         MissionObjective::EarnXAmountFromRaiding { total } |
         MissionObjective::OwnNProvincesWithCulturalDominance { total } |
-        MissionObjective::SubjugateFactions { total } |
         MissionObjective::MaintainNClientStates { total } |
         MissionObjective::LootOrSackNDifferentSettlementsIncluding { total, .. } |
         MissionObjective::RazeOrSackNDifferentSettlementsIncluding { total, .. } => {

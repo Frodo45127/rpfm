@@ -108,8 +108,8 @@ pub enum MissionObjective {
     /// Earn an amount of money from raiding.
     EarnXAmountFromRaiding { total: u32 },
 
-    /// Own a number of units (`OWN_N_UNITS`), or of naval units (`OWN_N_NAVAL_UNITS`).
-    OwnNUnits { total: u32, naval: bool },
+    /// Own a number of units (`OWN_N_UNITS`), or of naval units (`OWN_N_NAVAL_UNITS`), optionally of some kinds (`unit`).
+    OwnNUnits { total: u32, naval: bool, units: Vec<String> },
 
     /// Own a number of provinces where the faction's culture dominates.
     OwnNProvincesWithCulturalDominance { total: u32 },
@@ -117,8 +117,8 @@ pub enum MissionObjective {
     /// Construct a number of buildings among some (`building_level`), for a faction.
     ConstructNBuildingsIncluding { total: u32, buildings: Vec<String>, faction: String },
 
-    /// Subjugate a number of factions.
-    SubjugateFactions { total: u32 },
+    /// Subjugate a number of factions, optionally including one (`faction`).
+    SubjugateFactions { total: u32, faction: Option<String> },
 
     /// Keep a number of client states.
     MaintainNClientStates { total: u32 },
@@ -304,12 +304,18 @@ impl MissionObjective {
             },
             Self::EarnXAmountFromBuildingWealth { total } |
             Self::EarnXAmountFromRaiding { total } |
-            Self::OwnNUnits { total, .. } |
             Self::OwnNProvincesWithCulturalDominance { total } |
-            Self::SubjugateFactions { total } |
             Self::MaintainNClientStates { total } |
             Self::MaintainNAlliances { total } |
             Self::ConfederateFactions { total } => add("total", &[total.to_string()]),
+            Self::OwnNUnits { total, units, .. } => {
+                add("total", &[total.to_string()]);
+                add("unit", units);
+            },
+            Self::SubjugateFactions { total, faction } => {
+                add("total", &[total.to_string()]);
+                add("faction", faction.as_slice());
+            },
             Self::ConstructNBuildingsIncluding { total, buildings, faction } => {
                 add("total", &[total.to_string()]);
                 add("building_level", buildings);
@@ -395,15 +401,15 @@ impl MissionObjective {
             },
             "EARN_X_AMOUNT_FROM_BUILDING_WEALTH" => Self::EarnXAmountFromBuildingWealth { total: total()? },
             "EARN_X_AMOUNT_FROM_RAIDING" => Self::EarnXAmountFromRaiding { total: total()? },
-            "OWN_N_UNITS" => Self::OwnNUnits { total: total()?, naval: false },
-            "OWN_N_NAVAL_UNITS" => Self::OwnNUnits { total: total()?, naval: true },
+            "OWN_N_UNITS" => Self::OwnNUnits { total: total()?, naval: false, units: item.child_values("unit") },
+            "OWN_N_NAVAL_UNITS" => Self::OwnNUnits { total: total()?, naval: true, units: item.child_values("unit") },
             "OWN_N_PROVINCES_WITH_CULTURAL_DOMINANCE" => Self::OwnNProvincesWithCulturalDominance { total: total()? },
             "CONSTRUCT_N_BUILDINGS_INCLUDING" => Self::ConstructNBuildingsIncluding {
                 total: total()?,
                 buildings: item.child_values("building_level"),
                 faction: item.child_value("faction")?,
             },
-            "SUBJUGATE_FACTIONS" => Self::SubjugateFactions { total: total()? },
+            "SUBJUGATE_FACTIONS" => Self::SubjugateFactions { total: total()?, faction: item.child_values("faction").into_iter().next() },
             "MAINTAIN_N_CLIENT_STATES" => Self::MaintainNClientStates { total: total()? },
             "LOOT_OR_SACK_N_DIFFERENT_SETTLEMENTS_INCLUDING" => Self::LootOrSackNDifferentSettlementsIncluding { total: total()?, regions: item.child_values("region") },
             "RAZE_OR_SACK_N_DIFFERENT_SETTLEMENTS_INCLUDING" => Self::RazeOrSackNDifferentSettlementsIncluding { total: total()?, regions: item.child_values("region") },

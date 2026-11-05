@@ -71,7 +71,7 @@ fn test_parse_victory_objectives() {
     assert_eq!(mission.victory_type(), "att_vc_1_short");
     assert_eq!(mission.objectives(), &vec![
         MissionObjective::ReachSpecifiedDate { year: 1177, week: 0 },
-        MissionObjective::OwnNUnits { total: 20, naval: true },
+        MissionObjective::OwnNUnits { total: 20, naval: true, units: vec![] },
         MissionObjective::ConstructNBuildingsIncluding { total: 2, buildings: vec!["bld_a".to_owned(), "bld_b".to_owned()], faction: "att_fact_a".to_owned() },
     ]);
 }
@@ -102,6 +102,9 @@ fn test_parse_objectives_of_other_campaigns() {
         ("type SCRIPTED; script_key key_a; override_text text_a;", MissionObjective::Scripted { script_key: "key_a".to_owned(), text: Some("text_a".to_owned()) }),
         ("type CONTROL_N_PORTS_INCLUDING; total 15;", MissionObjective::ControlNPortsIncluding { total: 15, regions: vec![] }),
         ("type OWN_A_PORT_ADJOINING_SEA_REGIONS_INCLUDING; region sea_a; region sea_b;", MissionObjective::OwnAPortAdjoiningSeaRegionsIncluding { regions: vec!["sea_a".to_owned(), "sea_b".to_owned()] }),
+        ("type SUBJUGATE_FACTIONS; total 1; faction fact_a;", MissionObjective::SubjugateFactions { total: 1, faction: Some("fact_a".to_owned()) }),
+        ("type SUBJUGATE_FACTIONS; total 2;", MissionObjective::SubjugateFactions { total: 2, faction: None }),
+        ("type OWN_N_UNITS; total 40; unit unit_a; unit unit_b;", MissionObjective::OwnNUnits { total: 40, naval: false, units: vec!["unit_a".to_owned(), "unit_b".to_owned()] }),
         ("type CONTROL_N_REGIONS_INCLUDING; total 45; region reg_a;", MissionObjective::ControlNRegionsIncluding { total: 45, regions: vec!["reg_a".to_owned()] }),
     ];
 

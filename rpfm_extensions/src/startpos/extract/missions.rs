@@ -118,7 +118,11 @@ fn fixed_objective(source: &Source, name: &str, path: &str, values: &GroupView) 
             };
             MissionObjective::ResearchNTechsOfTypeX { total, categories: strings(), text }
         },
-        "OWN_N_UNITS" => MissionObjective::OwnNUnits { total, naval: values.bool("^+2").unwrap_or_default() },
+        "OWN_N_UNITS" => MissionObjective::OwnNUnits {
+            total,
+            naval: values.bool("^+2").unwrap_or_default(),
+            units: values.strs("^+5").map(<[String]>::to_vec).unwrap_or_default(),
+        },
         "AT_LEAST_X_RELIGION_IN_ALL_PROVINCES" => MissionObjective::AtLeastXReligionInAllProvinces {
             total: values.f32("^+1").unwrap_or_default(),
             religion: values.str("^+2").unwrap_or_default().to_owned(),
@@ -138,7 +142,7 @@ fn fixed_objective(source: &Source, name: &str, path: &str, values: &GroupView) 
         "EARN_X_AMOUNT_FROM_BUILDING_WEALTH" => MissionObjective::EarnXAmountFromBuildingWealth { total },
         "EARN_X_AMOUNT_FROM_RAIDING" => MissionObjective::EarnXAmountFromRaiding { total },
         "OWN_N_PROVINCES_WITH_CULTURAL_DOMINANCE" => MissionObjective::OwnNProvincesWithCulturalDominance { total },
-        "SUBJUGATE_FACTIONS" => MissionObjective::SubjugateFactions { total },
+        "SUBJUGATE_FACTIONS" => MissionObjective::SubjugateFactions { total, faction: values.str("^+2").filter(|faction| !faction.is_empty()).map(str::to_owned) },
         "MAINTAIN_N_CLIENT_STATES" => MissionObjective::MaintainNClientStates { total },
         "MAINTAIN_N_ALLIANCES" => MissionObjective::MaintainNAlliances { total },
         "CONFEDERATE_FACTIONS" => MissionObjective::ConfederateFactions { total },
