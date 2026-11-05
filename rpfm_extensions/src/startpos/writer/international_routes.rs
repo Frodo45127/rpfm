@@ -14,9 +14,10 @@
 //! the other's. The game starts the agreements faction by faction in startpos order: each takes the pairs where it's
 //! a row's `faction1` and that aren't started yet, in its relationships' order (a hash set of the other factions
 //! hashed by id, `FUN_106e5000`), and numbers its own route first. Routes are numbered from 1 in that order (Thrones:
-//! 965 of 1184 ids; one pair differs in which routes exist, which shifts the rest). A route is a path of regions with
+//! 1184 of 1184 ids, 1073 paths: the others tie on steps). A route is a path of regions with
 //! the fewest steps over the map's region and port routes, through regions of the two factions only, with at most one
-//! sea step.
+//! sea step. Region routes over a water crossing (a spline with the second flag) are sea steps, open only between two
+//! port settlements (Thrones: Anglesey's is used, the Humber's isn't).
 //!
 //! Verified on Attila's main campaign: every route exists with the game's owner, destination and shape. 37 of 42 paths
 //! match (the rest have as many steps: the game's tie-break isn't known). Routes with a sea step don't reproduce the
@@ -82,12 +83,20 @@ struct TradeGraph {
 
 impl TradeGraph {
 
-    /// Builds the graph of a trade network.
-    fn new(network: &TradeNetwork) -> Self {
+    /// Builds the graph of a trade network, given which of its regions have a port.
+    fn new(network: &TradeNetwork, has_port: impl Fn(usize) -> bool) -> Self {
         let mut neighbours = vec![vec![]; network.regions().len()];
-        for (routes, sea) in [(network.region_routes(), false), (network.port_routes(), true)] {
+        for (routes, by_port) in [(network.region_routes(), false), (network.port_routes(), true)] {
             for route in routes {
                 let (from, to) = (*route.from() as usize, *route.to() as usize);
+
+                // Region routes over a water crossing (a spline with the second flag) count as a sea step, and need a
+                // port at both ends.
+                let crossing = route.edges().iter().any(|edge| network.splines().get(edge.spline()).is_some_and(|spline| spline.flags()[1]));
+                if !by_port && crossing && !(has_port(from) && has_port(to)) {
+                    continue;
+                }
+                let sea = by_port || crossing;
                 for (a, b) in [(from, to), (to, from)] {
                     if let Some(list) = neighbours.get_mut(a) {
                         if !list.contains(&(b, sea)) {
@@ -215,7 +224,9 @@ fn plan_routes(tables: &StartposTables, index: &CampaignIndex, plan: &WorldPlan,
         }
     }
 
-    let graph = TradeGraph::new(network);
+    let graph = TradeGraph::new(network, |region| network.regions().get(region)
+        .and_then(|key| index.settlement_of(key))
+        .is_some_and(|settlement| !settlement.port_building().is_empty()));
     let network_index = network.regions().iter().enumerate().map(|(position, key)| (key.as_str(), position)).collect::<HashMap<_, _>>();
     let capital = |faction: &str| index.capital_of(faction).and_then(|region| network_index.get(region.key().as_str()).copied());
     let owner = |position: usize| network.regions().get(position).and_then(|key| index.region(key)).and_then(|region| region.owner().as_deref());
