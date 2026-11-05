@@ -245,7 +245,10 @@ impl ProvinceWriter<'_, '_> {
     fn write_sea_region(&mut self, sea: &SeaRegion, id: u32, next_manager: &mut u32) -> Result<RecordNode> {
         let layout = self.inputs.layout;
         let mut managers = child(layout, SEA_REGION_PATH, "FACTION_SEA_REGION_MANAGER_BLOCK")?;
-        for (faction, regions) in sea.ports() {
+        // The game takes a sea's factions in the order of their first port's region id.
+        let mut ports = sea.ports().iter().collect::<Vec<_>>();
+        ports.sort_by_key(|(_, regions)| regions.iter().filter_map(|region| self.plan.region_id(region)).min());
+        for (faction, regions) in ports {
             let mut region_ids = regions.iter().map(|region| self.plan.region_id(region).unwrap_or_default()).collect::<Vec<_>>();
             region_ids.sort_unstable();
 
