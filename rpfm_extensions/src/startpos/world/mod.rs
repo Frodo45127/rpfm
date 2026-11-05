@@ -57,6 +57,7 @@ pub mod legacy;
 pub mod pools;
 pub mod provinces;
 pub mod rebels;
+pub mod unit_bonuses;
 pub mod writer;
 
 #[cfg(test)] pub(crate) mod world_test;

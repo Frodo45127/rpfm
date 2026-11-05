@@ -23,6 +23,7 @@ use crate::startpos::world::calendar::Calendar;
 use crate::startpos::world::FactionEntry;
 use crate::startpos::world::factions::faction_summary;
 use crate::startpos::world::legacy::{legacies, legacy_skill_set, ForceKind, Legacy, LegacyForce};
+use crate::startpos::world::unit_bonuses::StatBonusRules;
 
 /// Path of a faction.
 const FACTION_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/WORLD/FACTION_ARRAY/FACTION";
@@ -93,6 +94,9 @@ pub struct ArmyWriter<'a, 'b> {
 
     /// Province of every region, by region key.
     provinces: HashMap<String, String>,
+
+    /// Stat bonuses of units from buildings.
+    stat_bonuses: StatBonusRules,
 }
 
 /// The horde details of a horde army: ids of its recruitment manager and slots, its buildings and development.
@@ -158,6 +162,7 @@ impl<'a, 'b> ArmyWriter<'a, 'b> {
             provinces,
             characters,
             stats: unit_stats(inputs)?,
+            stat_bonuses: StatBonusRules::new(inputs.tables)?,
             start_year: start_year(inputs)?,
             inputs,
             forces,
@@ -399,7 +404,42 @@ impl<'a, 'b> ArmyWriter<'a, 'b> {
             .set_u32("CAMPAIGN_LOCALISATION+1", stats.action_points)?
             .set_f32("CAMPAIGN_LOCALISATION+2", multiplier)?
             .set_u32("CAMPAIGN_LOCALISATION+3", id.saturating_sub(1))?;
+        if let Some(bonuses) = self.write_stat_bonuses(force, unit)? {
+            record.group()?.set_record("UNIT_STATISTICS_BONUSES", Some(bonuses))?;
+        }
         record.build()
+    }
+
+    /// Writes the stat bonuses of a garrison unit from its faction's buildings in the province (see
+    /// [`StatBonusRules`]), or `None` if it has none.
+    fn write_stat_bonuses(&self, force: &PlannedForce, unit: &PlannedUnit) -> Result<Option<RecordNode>> {
+        let Some(region) = force.region() else { return Ok(None) };
+        let province = self.provinces.get(region);
+        let index = self.inputs.index;
+        let owned = index.regions_of(force.faction().key()).filter(|other| province.is_some() && self.provinces.get(other.key()) == province);
+        let buildings = owned.filter_map(|other| index.settlement_of(other.key()).map(|settlement| (settlement, other.key() == region)))
+            .flat_map(|(settlement, own_region)| settlement.all_buildings().filter(|building| !building.is_empty()).map(move |building| (building, own_region)))
+            .collect::<Vec<_>>();
+        let bonuses = self.stat_bonuses.bonuses(unit.unit(), buildings);
+        if bonuses.is_empty() {
+            return Ok(None);
+        }
+
+        let layout = self.inputs.layout;
+        let path = format!("{UNIT_PATH}/UNIT_STATISTICS_BONUSES");
+        let block_path = format!("{path}/STATS_BLOCK");
+        let mut block = child(layout, &path, "STATS_BLOCK")?;
+        for (stat, value) in bonuses {
+            let mut bonus = child(layout, &block_path, "UNIT_STATISTICS_BONUS")?;
+            bonus.group()?
+                .set_i32("^+1", i32::try_from(stat).unwrap_or_default())?
+                .set_i32("^+2", 0)?
+                .set_i32("^+3", i32::try_from(value).unwrap_or_default())?;
+            block.push_group()?.set_record("UNIT_STATISTICS_BONUS", Some(bonus.build()?))?;
+        }
+        let mut record = layout.builder(&path)?;
+        record.group()?.set_record("STATS_BLOCK", Some(block.build()?))?;
+        record.build().map(Some)
     }
 }
 
