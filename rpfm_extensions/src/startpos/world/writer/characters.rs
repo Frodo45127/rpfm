@@ -325,8 +325,11 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
         let mut birth = child(layout, path, "DATE")?;
         birth.group()?.set_u32("^+1", info.birth_year)?;
 
+        // Family tree members never list their traits, though Thrones' tables give some.
+        let trait_path = format!("{path}/TRAITS/TRAIT");
         let mut traits = child(layout, &format!("{path}/TRAITS"), "TRAIT")?;
-        let character_traits = subject.entry.and_then(|entry| self.traits.get(entry.id())).map(Vec::as_slice).unwrap_or_default();
+        let listed = layout.record(&trait_path).is_some_and(|record| record.has_slot("^+1"));
+        let character_traits = subject.entry.filter(|_| listed).and_then(|entry| self.traits.get(entry.id())).map(Vec::as_slice).unwrap_or_default();
         for (key, points) in character_traits {
             traits.push_group()?
                 .set_str("^+1", key)?
@@ -393,11 +396,18 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
             .set_str("GENERAL_BODYGUARD_DETAILS+8", subject.origin.key())?;
 
         if let (Some(row), Some(entry)) = (row, subject.entry) {
-            let ambition = if subject.death.is_some() { 0 } else { u32::try_from(row.int("ambition")?).unwrap_or_default() };
-            record.group()?
-                .set_u32("CAMPAIGN_EFFECT_BUNDLES+3", ambition)?
-                .set_str("CAMPAIGN_EFFECT_BUNDLES+4", political_party(entry, info.is_male, entry.widowed(), &row.str("political_party")?, self.parties.get(faction.key()).map(Vec::as_slice).unwrap_or_default()))?
-                .set_bool("GENERAL_BODYGUARD_DETAILS+2", row.bool("immortal")?)?
+            let row_party = row.str("political_party")?;
+            let party = political_party(entry, info.is_male, entry.widowed(), &row_party, self.parties.get(faction.key()).map(Vec::as_slice).unwrap_or_default());
+            let group = record.group()?;
+
+            // Thrones has no ambition, so its party comes right after the effect bundles' id.
+            if layout.record(path).is_some_and(|details| details.has_slot("CAMPAIGN_EFFECT_BUNDLES+5")) {
+                let ambition = if subject.death.is_some() { 0 } else { u32::try_from(row.int("ambition")?).unwrap_or_default() };
+                group.set_u32("CAMPAIGN_EFFECT_BUNDLES+3", ambition)?.set_str("CAMPAIGN_EFFECT_BUNDLES+4", party)?;
+            } else {
+                group.set_str("CAMPAIGN_EFFECT_BUNDLES+3", party)?;
+            }
+            group.set_bool("GENERAL_BODYGUARD_DETAILS+2", row.bool("immortal")?)?
                 .set_i32("GENERAL_BODYGUARD_DETAILS+4", i32::try_from(loyalty(entry)).unwrap_or_default())?;
         }
         record.build()

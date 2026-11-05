@@ -16,10 +16,11 @@
 use std::collections::HashMap;
 
 use rpfm_lib::error::Result;
-use rpfm_lib::files::esf::RecordNode;
+use rpfm_lib::files::esf::{NodeType, RecordNode};
 
 use super::sight::{write_line_of_sight, SightPlan};
 use super::{child, horde_details, next_id, WorldInputs, WorldPlan, REBEL_FACTION_ID, WORLD_PATH};
+use crate::startpos::layout::child_path;
 use crate::startpos::tables::{Row, StartposTables};
 use crate::startpos::vision::Vision;
 use crate::startpos::world::pools::{province_mercenary_pool, MercenaryUnit};
@@ -327,15 +328,28 @@ pub(crate) fn campaign_provinces(tables: &StartposTables, plan: &WorldPlan) -> R
 pub(super) fn write_mercenary_pool(inputs: &WorldInputs, parent: &str, units: &[MercenaryUnit]) -> Result<RecordNode> {
     let path = format!("{parent}/MERCENARY_POOL");
     let mut array = child(inputs.layout, &path, "MERCENARY_POOL_UNIT_ARRAY")?;
+
+    // Thrones keeps the chance as a whole percent, twice.
+    let unit_layout = inputs.layout.record(&child_path(&path, "MERCENARY_POOL_UNIT_ARRAY"));
+    let whole_chance = unit_layout.and_then(|layout| layout.leaf_default("^+3")).is_some_and(|default| matches!(default, NodeType::I32(_)));
+    let second_chance = unit_layout.is_some_and(|layout| layout.has_slot("^+12"));
     for (index, unit) in units.iter().enumerate() {
-        array.push_group()?
-            .set_str("^+1", unit.unit())?
+        let group = array.push_group()?;
+        group.set_str("^+1", unit.unit())?
             .set_u32("^+2", unit.initial_count())?
-            .set_f32("^+3", unit.replenish_chance())?
             .set_u32("^+4", unit.max_count())?
             .set_u32("^+5", unit.max_replenish_per_turn())?
             .set_u32("^+6", unit.max_count())?
             .set_u32("^+8", u32::try_from(index).unwrap_or(u32::MAX))?;
+        if whole_chance {
+            let chance = unit.replenish_chance().round() as i32;
+            group.set_i32("^+3", chance)?;
+            if second_chance {
+                group.set_i32("^+12", chance)?;
+            }
+        } else {
+            group.set_f32("^+3", unit.replenish_chance())?;
+        }
     }
 
     let mut record = inputs.layout.builder(&path)?;

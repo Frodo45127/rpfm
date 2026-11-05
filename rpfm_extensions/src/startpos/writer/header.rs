@@ -73,12 +73,14 @@ pub fn write_save_game_header(inputs: &StartposInputs, plan: &WorldPlan, forces:
     let mut maps = layout.builder(&child_path(&path, "MAPS"))?;
     maps.push_group()?.set_str("^+1", inputs.map)?;
 
+    // Thrones adds the leader's name and four numbers after the portrait.
+    let shift = if layout.record(&path).is_some_and(|header| header.has_slot("^+11")) { 5 } else { 0 };
     record.group()?
         .set_str("^+1", faction.key())?
         .set_str("^+2", &portrait(inputs, faction)?)?
-        .set_u32("^+4", calendar.start_year())?
-        .set_str("^+5", inputs.season_name)?
-        .set_str("^+6", &flags_path(inputs, faction)?)?
+        .set_u32(&format!("^+{}", 4 + shift), calendar.start_year())?
+        .set_str(&format!("^+{}", 5 + shift), inputs.season_name)?
+        .set_str(&format!("^+{}", 6 + shift), &flags_path(inputs, faction)?)?
         .set_record("DATE", Some(write_date(layout, &path, calendar)?))?
         .set_record("MAPS", Some(maps.build()?))?
         .set_strings("MAPS+1", regions)?

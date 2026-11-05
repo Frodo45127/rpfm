@@ -220,8 +220,10 @@ fn write_fillers(layout: &StartposLayout, shroud_path: &str, sight: &SightPlan, 
     let los_path = child_path(&block_path, "FILLERS_QUADTREE_DATA_LOS_BLOCK");
     let (tile_width, tile_height) = sight.filler_tile_size;
 
+    // Games that never list fillers (Thrones) have no layout for their tiles: the block stays empty.
+    let listed = layout.record(&los_path).is_some();
     let mut tiles = BTreeMap::<(Reverse<u32>, u32), Vec<&Filler>>::new();
-    for filler in sight.fillers.iter().filter(|filler| !vision.contains(filler.vision_cell)) {
+    for filler in sight.fillers.iter().filter(|filler| listed && !vision.contains(filler.vision_cell)) {
         let (x, y) = sight.scale.world_position(filler.cell);
         tiles.entry((Reverse((y / tile_height) as u32), (x / tile_width) as u32)).or_default().push(filler);
     }

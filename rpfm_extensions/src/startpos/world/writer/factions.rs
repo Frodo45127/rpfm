@@ -13,7 +13,7 @@
 use std::collections::HashMap;
 
 use rpfm_lib::error::Result;
-use rpfm_lib::files::esf::RecordNode;
+use rpfm_lib::files::esf::{NodeType, RecordNode};
 
 use super::armies::ArmyWriter;
 use super::characters::CharacterWriter;
@@ -140,6 +140,11 @@ pub fn write_faction_array(inputs: &WorldInputs, plan: &WorldPlan, context: &Fac
 ///
 /// Returns an error if a table or column is missing.
 pub fn plan_levy_pools(inputs: &WorldInputs, plan: &WorldPlan, province_ids: &HashMap<String, u32>, first_pool: u32) -> Result<Vec<PlannedLevyPool>> {
+
+    // Games without levies (Thrones) never write a pool.
+    if inputs.layout.record(&format!("{FACTION_PATH}/LEVY_MERCENARY_MANAGER/LEVY_POOLS_BLOCK/LEVY_MERCENARY_POOL")).is_none() {
+        return Ok(vec![]);
+    }
     let mut pools = levy_pools(inputs.tables, inputs.index)?.into_iter()
         .map(|pool| PlannedLevyPool {
             id: 0,
@@ -193,8 +198,9 @@ pub fn write_faction(inputs: &WorldInputs, plan: &WorldPlan, context: &FactionCo
     let honour = row.int("honour")?;
     let memory = if honour >= EMPTY_MEMORY_HONOUR { vec![0; DEFAULT_MEMORY.len()] } else { DEFAULT_MEMORY.to_vec() };
 
+    // Thrones flags factions that can be hordes, but has no horde manager.
     let mut horde = None;
-    if let Some(is_horde) = summary.horde() {
+    if let Some(is_horde) = summary.horde().filter(|_| layout.record(&child_path(FACTION_PATH, "FACTION_HORDE_MANAGER")).is_some()) {
         let mut manager = child(layout, FACTION_PATH, "FACTION_HORDE_MANAGER")?;
         manager.group()?.set_i32("^+1", i32::from(is_horde))?;
         horde = Some(manager.build()?);
@@ -203,10 +209,14 @@ pub fn write_faction(inputs: &WorldInputs, plan: &WorldPlan, context: &FactionCo
     let mission_manager = faction.playable().then(|| layout.default_record(&format!("{FACTION_PATH}/CAMPAIGN_MISSION_MANAGER"))).transpose()?;
     let shroud = if faction.playable() { Some(write_shroud(layout, FACTION_PATH, context.sight, &faction_vision(inputs, context, faction)?)?) } else { None };
 
+    // Thrones lists the faction's effect bundles before its key, and has one more leaf after its action log.
+    let faction_layout = layout.record(FACTION_PATH);
+    let key_field = if faction_layout.is_some_and(|record| record.has_slot("^+2")) { "^+2" } else { "CAMPAIGN_EFFECT_BUNDLES+1" };
+    let log_shift = usize::from(faction_layout.is_some_and(|record| record.has_slot("FACTION_ACTION_LOG_BLOCK+13")));
     let mut record = layout.builder(FACTION_PATH)?;
     record.group()?
         .set_u32("^+1", plan.faction_id(key).unwrap_or_default())?
-        .set_str("^+2", key)?
+        .set_str(key_field, key)?
         .set_record("CAMPAIGN_PLAYER_SETUP", Some(setup.build()?))?
         .set_record("FACTION_ECONOMICS", Some(economics.build()?))?
         .set_record("GOVERNMENT", Some(government.build()?))?
@@ -240,8 +250,8 @@ pub fn write_faction(inputs: &WorldInputs, plan: &WorldPlan, context: &FactionCo
         .set_record("CAMPAIGN_MISSION_MANAGER", mission_manager)?
         .set_record("CAMPAIGN_SHROUD", shroud)?
         .set_u32s("FACTION_FLAG_AND_COLOURS@2+19", vec![0; EVENT_COUNTERS])?
-        .set_u32("FACTION_ACTION_LOG_BLOCK+11", context.characters.progenitor_family_id(faction))?
-        .set_bool("FACTION_ACTION_LOG_BLOCK+12", *faction.culture() != NOMADIC_CULTURE)?;
+        .set_u32(&format!("FACTION_ACTION_LOG_BLOCK+{}", 11 + log_shift), context.characters.progenitor_family_id(faction))?
+        .set_bool(&format!("FACTION_ACTION_LOG_BLOCK+{}", 12 + log_shift), *faction.culture() != NOMADIC_CULTURE)?;
 
     record.build()
 }
@@ -375,11 +385,17 @@ fn write_politics(inputs: &WorldInputs, faction: &FactionEntry) -> Result<Record
     let parties_path = format!("{path}/POLITICAL_PARTIES");
     let parties = political_parties(inputs.tables, faction.key())?;
     let mut array = child(inputs.layout, &path, "POLITICAL_PARTIES")?;
+
+    // Thrones' parties have no power.
+    let party_path = child_path(&parties_path, "CAMPAIGN_POLITICAL_PARTY");
+    let has_power = inputs.layout.record(&party_path).and_then(|layout| layout.leaf_default("^+2")).is_some_and(|default| matches!(default, NodeType::U32(_)));
     for party in &parties {
         let mut record = child(inputs.layout, &parties_path, "CAMPAIGN_POLITICAL_PARTY")?;
-        record.group()?
-            .set_str("^+1", party.key())?
-            .set_u32("^+2", party.power())?;
+        let group = record.group()?;
+        group.set_str("^+1", party.key())?;
+        if has_power {
+            group.set_u32("^+2", party.power())?;
+        }
         array.push_group()?
             .set_str("^+1", party.key())?
             .set_record("CAMPAIGN_POLITICAL_PARTY", Some(record.build()?))?;

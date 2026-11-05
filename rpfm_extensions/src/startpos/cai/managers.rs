@@ -598,7 +598,13 @@ impl ManagerContext<'_> {
 
     /// Writes the diplomacy manager: an entry per faction at war with the manager's one.
     fn write_diplomacy_manager(&self, variant: &str, wars: &[u32]) -> Result<RecordNode> {
-        let mut manager = self.inputs.layout.builder(&child_path(variant, "CAI_DIPLOMACY_MANAGER"))?;
+        let path = child_path(variant, "CAI_DIPLOMACY_MANAGER");
+
+        // Games whose campaigns start without wars (Thrones) know only the empty manager.
+        if wars.is_empty() && self.inputs.layout.record(&path).is_some_and(|record| !record.free_form()) {
+            return self.inputs.layout.default_record(&path);
+        }
+        let mut manager = self.inputs.layout.builder(&path)?;
         let group = manager.group()?;
         group.push_child(i32_node(if wars.is_empty() { NO_WARS_VALUE } else { 0 }))?
             .push_child(u32_node(wars.len() as u32))?
