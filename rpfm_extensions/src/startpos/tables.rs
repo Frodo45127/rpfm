@@ -23,6 +23,9 @@ use rpfm_lib::files::table::DecodedData;
 
 #[cfg(test)] #[path = "tables_test.rs"] pub(crate) mod tables_test;
 
+/// Buckets of a new chained hash set of the game (see [`hash_set_order`]).
+const HASH_SET_FIRST_BUCKETS: usize = 4;
+
 //---------------------------------------------------------------------------//
 //                              Types
 //---------------------------------------------------------------------------//
@@ -150,7 +153,17 @@ impl Table {
     ///
     /// Returns an error if the table has no such column.
     pub fn rows_in_key_order(&self, column: &str) -> Result<Vec<Row<'_>>> {
-        let keys = self.rows().map(|row| row.str(column)).collect::<Result<Vec<_>>>()?;
+        self.rows_in_key_order_by(|row| Ok(row.str(column)?.into_owned()))
+    }
+
+    /// Returns the rows of the table in the order of the game's key lookup table, given each row's key (tables with
+    /// several key columns join their values, as in `province` + `region`). See [`Self::rows_in_key_order`].
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the key of a row can't be built.
+    pub fn rows_in_key_order_by(&self, key: impl Fn(&Row<'_>) -> Result<String>) -> Result<Vec<Row<'_>>> {
+        let keys = self.rows().map(|row| key(&row)).collect::<Result<Vec<_>>>()?;
         let mut slots: Vec<Option<usize>> = vec![None; keys.len().max(1)];
         for (row, key) in keys.iter().enumerate() {
             let mut slot = key_hash(key.as_bytes()) as usize % slots.len();
@@ -192,6 +205,34 @@ impl Table {
 pub fn key_hash(key: &[u8]) -> u32 {
     key.iter().rev().zip([0, 8, 16, 24].into_iter().cycle())
         .fold(0xf73a_51c9, |hash, (&byte, shift)| hash ^ ((byte as i8 as i32 as u32) << shift))
+}
+
+/// Returns keys in the order the game's chained hash sets iterate them, given their insertion order.
+///
+/// The set starts with [`HASH_SET_FIRST_BUCKETS`] buckets and grows to twice plus one when it holds more keys than
+/// buckets; keys go to the end of the chain of bucket [`key_hash`] modulo the bucket count, and growing moves them
+/// bucket by bucket. Repeated keys are kept once.
+pub fn hash_set_order<'k>(keys: impl IntoIterator<Item = &'k str>) -> Vec<&'k str> {
+    let mut buckets: Vec<Vec<&str>> = vec![vec![]; HASH_SET_FIRST_BUCKETS];
+    let mut count = 0;
+    for key in keys {
+        let bucket = key_hash(key.as_bytes()) as usize % buckets.len();
+        if buckets[bucket].contains(&key) {
+            continue;
+        }
+        count += 1;
+        if count > buckets.len() {
+            let mut grown = vec![vec![]; buckets.len() * 2 + 1];
+            for moved in buckets.into_iter().flatten() {
+                let bucket = key_hash(moved.as_bytes()) as usize % grown.len();
+                grown[bucket].push(moved);
+            }
+            buckets = grown;
+        }
+        let bucket = key_hash(key.as_bytes()) as usize % buckets.len();
+        buckets[bucket].push(key);
+    }
+    buckets.into_iter().flatten().collect()
 }
 
 impl<'a> Row<'a> {

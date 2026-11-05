@@ -89,3 +89,13 @@ fn test_rows_in_key_order_follow_the_slots() {
 
     assert_eq!(keys, ["1009", "1000", "989", "999"]);
 }
+
+#[test]
+fn test_hash_set_order_follows_buckets_then_insertion() {
+
+    // e and a share bucket 0 of 4, so they keep their insertion order.
+    assert_eq!(hash_set_order(["e", "b", "a"]), ["e", "a", "b"]);
+
+    // The fifth key grows the set to 9 buckets; repeated keys are kept once.
+    assert_eq!(hash_set_order(["a", "b", "c", "d", "e", "b"]), ["a", "c", "b", "e", "d"]);
+}
