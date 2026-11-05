@@ -212,7 +212,7 @@ impl StartposSources {
 /// tables it references, for validation, and the ones the extraction of tables from a startpos reads.
 ///
 /// Each table merges the game's fragments and then the pack's, in load order: a row replaces an earlier row with the
-/// same key. Tables neither has come from the game's Assembly Kit.
+/// same key. Tables neither has come from the game's Assembly Kit; the ones its schema doesn't define are empty.
 ///
 /// # Arguments
 ///
@@ -251,6 +251,11 @@ pub fn load_tables(dependencies: &Dependencies, pack: &Pack, schema: &Schema) ->
             fragments.extend(dependencies.asskit_only_db_tables().get(&format!("{table}_tables")).cloned());
         }
         fragments.extend(pack_fragments);
+
+        // Tables the game doesn't have (Rome 2 has no hordes) are empty, so builds skip what they'd add.
+        if fragments.is_empty() && schema.definitions().get(&format!("{table}_tables")).is_none() {
+            tables.add_rows::<&str>(table, &[], &[])?;
+        }
         add_merged(&mut tables, table, &fragments)?;
     }
     Ok(tables)
