@@ -10,7 +10,7 @@
 
 //! Garrisons of the settlements (`REGION/SETTLEMENT/GARRISON_RESIDENCE` #8 army, #9 navy).
 //!
-//! Each owned settlement gets a garrison army and, if any ship comes out, a garrison navy, each led by a
+//! Each owned settlement gets a garrison army if any land unit comes out and a garrison navy if any ship does, each led by a
 //! generated `colonel`. Their units come from the armed citizenry of the settlement's buildings. Verified on
 //! Attila's main campaign: 173 of 175 settlements match. The other two (Ascaucalis and Eildon) differ by one unit
 //! for reasons not found in the tables.

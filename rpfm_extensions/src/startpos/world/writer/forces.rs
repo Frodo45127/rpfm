@@ -199,7 +199,11 @@ impl<'a> ForcePlan<'a> {
         for faction in plan.factions() {
             for region in plan.regions().iter().filter(|region| region.owner().as_deref() == Some(faction.key().as_str())) {
                 let Some(garrison) = garrisons.get(region.key()) else { continue };
-                force_plan.push_garrison(faction, ForceKind::GarrisonArmy, region.key(), garrison.army().to_vec());
+
+                // Settlements without armed citizenry (Thrones' minor ones) have no garrison army.
+                if !garrison.army().is_empty() {
+                    force_plan.push_garrison(faction, ForceKind::GarrisonArmy, region.key(), garrison.army().to_vec());
+                }
                 if !garrison.navy().is_empty() {
                     force_plan.push_garrison(faction, ForceKind::GarrisonNavy, region.key(), garrison.navy().to_vec());
                 }
