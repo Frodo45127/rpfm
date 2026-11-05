@@ -480,8 +480,11 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
     fn write_bodyguard(&self, details_path: &str, default: Option<&Bodyguard>) -> Result<RecordNode> {
         let path = format!("{details_path}/GENERAL_BODYGUARD_DETAILS");
         let mut record = self.inputs.layout.builder(&path)?;
+        // Characters without a bodyguard (in a force, or colonels) keep only an empty unit key.
         let Some(default) = default else {
-            record.group()?.set_str("^+1", "")?;
+            record.group()?.set_str("^+1", "")?
+                .unset("^+2")?.unset("^+3")?.unset("^+4")?.unset("^+5")?.unset("^+6")?
+                .set_record("UNIT_STATISTICS_BONUSES", None)?;
             return record.build();
         };
 
