@@ -52,6 +52,11 @@ impl PostPlan {
     /// Returns an error if a table or column is missing.
     pub fn new(inputs: &WorldInputs, plan: &WorldPlan) -> Result<Self> {
         let mut groups = HashMap::new();
+
+        // Games without government posts (Rome 2) have no plan.
+        if inputs.layout.record(&format!("{}/FACTION_ARRAY/FACTION/GOVERNMENT/CHARACTER_POSTS", super::WORLD_PATH)).is_none() {
+            return Ok(Self { groups });
+        }
         let mut next_post = 1;
         for faction in plan.factions() {
             let mut faction_groups = vec![];
