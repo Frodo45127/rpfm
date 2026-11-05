@@ -131,7 +131,7 @@ fn fixed_objective(source: &Source, name: &str, path: &str, values: &GroupView) 
                 Some(record) => source.layout.read_single(&child_path(path, "CAMPAIGN_LOCALISATION"), record)?.str("^+1").filter(|text| !text.is_empty()).map(str::to_owned),
                 None => None,
             };
-            MissionObjective::Scripted { script_key: values.str("^+1").unwrap_or_default().to_owned(), text }
+            MissionObjective::Scripted { script_key: values.str("CAMPAIGN_LOCALISATION+1").unwrap_or_default().to_owned(), text }
         },
         "CONTROL_N_PORTS_INCLUDING" => MissionObjective::ControlNPortsIncluding { total, regions: strings() },
         "OWN_A_PORT_ADJOINING_SEA_REGIONS_INCLUDING" => MissionObjective::OwnAPortAdjoiningSeaRegionsIncluding { regions: values.strs("^+1").map(<[String]>::to_vec).unwrap_or_default() },
