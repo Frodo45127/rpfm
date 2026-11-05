@@ -10,15 +10,17 @@
 
 //! Writer of the international trade routes (`CAMPAIGN_TRADE_MANAGER/INTERNATIONAL_TRADE_ROUTES`).
 //!
-//! Each `start_pos_diplomacy` row with a trade agreement (the first one of each pair of factions) gives two routes, from
-//! each faction's capital to the other's:
-//! first `faction1`'s, then `faction2`'s. Rows are taken by `faction1` in world order, then by `faction2` in world
-//! order, and routes are numbered from 1 in that order. A route is a path of regions with the fewest steps over the
-//! map's region and port routes, through regions of the two factions only, with at most one sea step.
+//! Each pair of factions with a `start_pos_diplomacy` trade agreement gives two routes, from each faction's capital to
+//! the other's. The game starts the agreements faction by faction in startpos order: each takes the pairs where it's
+//! a row's `faction1` and that aren't started yet, in its relationships' order (a hash set of the other factions
+//! hashed by id, `FUN_106e5000`), and numbers its own route first. Routes are numbered from 1 in that order (Thrones:
+//! 965 of 1184 ids; one pair differs in which routes exist, which shifts the rest). A route is a path of regions with
+//! the fewest steps over the map's region and port routes, through regions of the two factions only, with at most one
+//! sea step.
 //!
 //! Verified on Attila's main campaign: every route exists with the game's owner, destination and shape. 37 of 42 paths
-//! match (the rest have as many steps: the game's tie-break isn't known), and 34 of 42 ids (the game takes a faction's
-//! agreements in its relationships' hash order). Routes with a sea step don't reproduce the float two of them have.
+//! match (the rest have as many steps: the game's tie-break isn't known). Routes with a sea step don't reproduce the
+//! float two of them have.
 
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 
@@ -28,12 +30,15 @@ use rpfm_lib::files::esf::{NodeType, RecordNode};
 use super::{bool_node, f32_node, u32_node, u32s_node};
 use super::trade::faction_map_order;
 use crate::startpos::layout::{child_path, StartposLayout};
-use crate::startpos::tables::StartposTables;
+use crate::startpos::tables::{hash_set_order_by, StartposTables};
 use crate::startpos::trade::TradeNetwork;
 use crate::startpos::world::CampaignIndex;
 use crate::startpos::world::writer::WorldPlan;
 
 #[cfg(test)] #[path = "international_routes_test.rs"] mod international_routes_test;
+
+/// Value the game xors a faction's id with to hash it (`FUN_106e5000`).
+const FACTION_HASH_KEY: u32 = 0x4a54_5eed;
 
 /// Path of the per-faction route lists.
 const ROUTES_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/CAMPAIGN_TRADE_MANAGER/INTERNATIONAL_TRADE_ROUTES";
@@ -182,24 +187,33 @@ pub fn trading_factions(tables: &StartposTables, index: &CampaignIndex, plan: &W
 
 /// Works out the routes of the trade agreements, in id order.
 fn plan_routes(tables: &StartposTables, index: &CampaignIndex, plan: &WorldPlan, network: &TradeNetwork) -> Result<Vec<Route>> {
-    let mut agreements = vec![];
-
-    // Thrones lists some pairs twice, once each way: they make one agreement.
-    let mut pairs = HashSet::new();
+    // Each row with a trade agreement lets its `faction1` start the agreement (Thrones lists some pairs both ways).
+    let position = |key: &str| plan.factions().iter().position(|faction| faction.key() == key);
+    let mut sides = HashSet::new();
     for row in tables.table("start_pos_diplomacy")?.rows() {
         if !row.bool("grants_trade_agreement")? {
             continue;
         }
         let (Some(first), Some(second)) = (index.faction_by_id(&row.str("faction1")?), index.faction_by_id(&row.str("faction2")?)) else { continue };
-        if !pairs.insert(BTreeSet::from([first.key().to_owned(), second.key().to_owned()])) {
-            continue;
-        }
-        let position = |key: &str| plan.factions().iter().position(|faction| faction.key() == key);
-        if let (Some(first_position), Some(second_position)) = (position(first.key()), position(second.key())) {
-            agreements.push(((first_position, second_position), first.key().to_owned(), second.key().to_owned()));
+        if let (Some(first), Some(second)) = (position(first.key()), position(second.key())) {
+            sides.insert((first, second));
         }
     }
-    agreements.sort_by_key(|(positions, _, _)| *positions);
+
+    // Each faction, in startpos order, starts the agreements it can that aren't started yet, in the order of its
+    // relationships: a hash set of the other factions, hashed by id (`FUN_106e5000`).
+    let ids = plan.factions().iter().map(|faction| plan.faction_id(faction.key()).unwrap_or_default()).collect::<Vec<_>>();
+    let mut started = HashSet::new();
+    let mut agreements = vec![];
+    for (first, id) in ids.iter().enumerate() {
+        let others = ids.iter().filter(|other| *other != id).copied();
+        for partner in hash_set_order_by(others, |id| id ^ FACTION_HASH_KEY) {
+            let Some(second) = ids.iter().position(|other| *other == partner) else { continue };
+            if sides.contains(&(first, second)) && started.insert(BTreeSet::from([first, second])) {
+                agreements.push((plan.factions()[first].key().to_owned(), plan.factions()[second].key().to_owned()));
+            }
+        }
+    }
 
     let graph = TradeGraph::new(network);
     let network_index = network.regions().iter().enumerate().map(|(position, key)| (key.as_str(), position)).collect::<HashMap<_, _>>();
@@ -207,7 +221,7 @@ fn plan_routes(tables: &StartposTables, index: &CampaignIndex, plan: &WorldPlan,
     let owner = |position: usize| network.regions().get(position).and_then(|key| index.region(key)).and_then(|region| region.owner().as_deref());
 
     let mut routes = vec![];
-    for (_, first, second) in agreements {
+    for (first, second) in agreements {
         for (from, to) in [(&first, &second), (&second, &first)] {
             let (Some(start), Some(end)) = (capital(from), capital(to)) else { continue };
             let Some((path, steps)) = graph.path(start, end, |region| owner(region).is_some_and(|owner| owner == from || owner == to)) else { continue };
