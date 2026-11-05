@@ -77,7 +77,7 @@ fn compare_sections(layout: &StartposLayout, ours: &RecordNode, theirs: &RecordN
 pub(crate) fn write_test_startpos() -> (ESF, StartposLayout) {
     let tables = test_data_tables();
     let (index, layout, settlements, region_map, legacy_overrides) = world_test_data();
-    let world = WorldInputs { tables, index: &index, layout: &layout, settlements: &settlements, region_map: &region_map, legacy_overrides: &legacy_overrides, trading: None };
+    let world = WorldInputs { tables, index: &index, layout: &layout, settlements: &settlements, region_map: &region_map, legacy_overrides: &legacy_overrides, trading: None, game: rpfm_lib::games::supported_games::KEY_ATTILA };
     let trade_routes = TradeRoutes::decode(&mut BufReader::new(File::open(test_data_path("trade_routes.ptd")).unwrap()), &None).unwrap();
     let trade_network = TradeNetwork::from_trade_routes(&trade_routes, &region_map.scale());
     let victory_text = std::fs::read(test_data_path("victory_objectives.txt")).unwrap();

@@ -37,7 +37,7 @@ fn filler_cells(fillers: &RecordNode) -> Vec<Vec<(u16, u16)>> {
 #[ignore = "needs the game data, see startpos_test.rs"]
 fn test_shroud_fillers_match_the_game_startpos() {
     let (index, layout, settlements, region_map, legacy_overrides) = world_test_data();
-    let inputs = WorldInputs { tables: test_data_tables(), index: &index, layout: &layout, settlements: &settlements, region_map: &region_map, legacy_overrides: &legacy_overrides, trading: None };
+    let inputs = WorldInputs { tables: test_data_tables(), index: &index, layout: &layout, settlements: &settlements, region_map: &region_map, legacy_overrides: &legacy_overrides, trading: None, game: rpfm_lib::games::supported_games::KEY_ATTILA };
     let plan = game_plan(&index);
     let sight = SightPlan::new(&inputs, &plan);
 
@@ -77,7 +77,7 @@ fn filler_sights(fillers: &RecordNode) -> HashMap<(u16, u16), RecordNode> {
 #[ignore = "needs the game data, see startpos_test.rs"]
 fn test_shroud_filler_vision_matches_the_game_startpos() {
     let (index, layout, settlements, region_map, legacy_overrides) = world_test_data();
-    let inputs = WorldInputs { tables: test_data_tables(), index: &index, layout: &layout, settlements: &settlements, region_map: &region_map, legacy_overrides: &legacy_overrides, trading: None };
+    let inputs = WorldInputs { tables: test_data_tables(), index: &index, layout: &layout, settlements: &settlements, region_map: &region_map, legacy_overrides: &legacy_overrides, trading: None, game: rpfm_lib::games::supported_games::KEY_ATTILA };
     let plan = game_plan(&index);
     let sight = SightPlan::new(&inputs, &plan);
 

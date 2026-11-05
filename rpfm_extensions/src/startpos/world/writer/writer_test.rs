@@ -90,7 +90,7 @@ pub(crate) fn plan_from_startpos<'a>(index: &'a CampaignIndex, startpos: &ESF, t
 fn test_world_matches_the_game_startpos() {
     let tables = test_data_tables();
     let (index, layout, settlements, region_map, legacy_overrides) = world_test_data();
-    let inputs = WorldInputs { tables, index: &index, layout: &layout, settlements: &settlements, region_map: &region_map, legacy_overrides: &legacy_overrides, trading: None };
+    let inputs = WorldInputs { tables, index: &index, layout: &layout, settlements: &settlements, region_map: &region_map, legacy_overrides: &legacy_overrides, trading: None, game: rpfm_lib::games::supported_games::KEY_ATTILA };
     let plan = game_plan(&index);
     let game_world = world(test_startpos());
 

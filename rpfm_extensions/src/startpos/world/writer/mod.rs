@@ -99,6 +99,9 @@ pub struct WorldInputs<'a> {
     /// (owner, partner) of the trade routes of the starting agreements, or `None` to trade on every agreement. The
     /// game drops the agreements whose capitals have no route between them.
     pub trading: Option<&'a HashSet<(String, String)>>,
+
+    /// Key of the game, for the values only some games store (see the writers that read it).
+    pub game: &'a str,
 }
 
 /// Order and runtime ids of the objects of the world.
