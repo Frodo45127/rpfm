@@ -13,6 +13,18 @@
 //! Character ids go first to the living table characters (faction by faction, the leader first), then to one colonel
 //! per garrison force. Force ids go first to the generals' forces (in their commanders' order), then to the garrison
 //! forces (faction by faction, region by region, the army before the navy).
+//!
+//! # Unit order (not reproduced)
+//!
+//! Unit ids follow the order the game creates a force's units in, and it creates them grouped by unit key in a hash
+//! order (Thrones' Alfred: thegns, spearmen, scouts, then two archers; his table rows give thegns, spearmen, two
+//! archers, then scouts). This plan groups them in the order each key first appears instead, so unit ids and the
+//! unit order of the AI's lists can differ from the game's.
+//!
+//! The game then lists a force's units, after the commander's own, in a stable order of the `ui_unit_groupings.order`
+//! of their `main_units.ui_unit_group_land` (verified on Thrones, 125 of 125 forces, and Attila's main campaign,
+//! 341 of 342: the other is a navy). This plan keeps creation order: sorting by that rule while the ids still differ
+//! from the game's matches fewer fields.
 
 use std::collections::HashMap;
 
