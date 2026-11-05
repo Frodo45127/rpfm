@@ -10,7 +10,8 @@
 
 //! Writer of the international trade routes (`CAMPAIGN_TRADE_MANAGER/INTERNATIONAL_TRADE_ROUTES`).
 //!
-//! Each `start_pos_diplomacy` row with a trade agreement gives two routes, from each faction's capital to the other's:
+//! Each `start_pos_diplomacy` row with a trade agreement (the first one of each pair of factions) gives two routes, from
+//! each faction's capital to the other's:
 //! first `faction1`'s, then `faction2`'s. Rows are taken by `faction1` in world order, then by `faction2` in world
 //! order, and routes are numbered from 1 in that order. A route is a path of regions with the fewest steps over the
 //! map's region and port routes, through regions of the two factions only, with at most one sea step.
@@ -19,7 +20,7 @@
 //! match (the rest have as many steps: the game's tie-break isn't known), and 34 of 42 ids (the game takes a faction's
 //! agreements in its relationships' hash order). Routes with a sea step don't reproduce the float two of them have.
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 
 use rpfm_lib::error::Result;
 use rpfm_lib::files::esf::{NodeType, RecordNode};
@@ -169,11 +170,17 @@ pub fn write_international_routes(layout: &StartposLayout, tables: &StartposTabl
 /// Works out the routes of the trade agreements, in id order.
 fn plan_routes(tables: &StartposTables, index: &CampaignIndex, plan: &WorldPlan, network: &TradeNetwork) -> Result<Vec<Route>> {
     let mut agreements = vec![];
+
+    // Thrones lists some pairs twice, once each way: they make one agreement.
+    let mut pairs = HashSet::new();
     for row in tables.table("start_pos_diplomacy")?.rows() {
         if !row.bool("grants_trade_agreement")? {
             continue;
         }
         let (Some(first), Some(second)) = (index.faction_by_id(&row.str("faction1")?), index.faction_by_id(&row.str("faction2")?)) else { continue };
+        if !pairs.insert(BTreeSet::from([first.key().to_owned(), second.key().to_owned()])) {
+            continue;
+        }
         let position = |key: &str| plan.factions().iter().position(|faction| faction.key() == key);
         if let (Some(first_position), Some(second_position)) = (position(first.key()), position(second.key())) {
             agreements.push(((first_position, second_position), first.key().to_owned(), second.key().to_owned()));
