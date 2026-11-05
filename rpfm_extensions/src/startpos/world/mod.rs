@@ -66,8 +66,9 @@ const SPOUSE_RELATIONSHIP: &str = "spouse";
 /// `names.type`.
 pub const NAME_COLUMNS: [&str; 4] = ["Name", "Surname", "clan_name", "other_name"];
 
-/// Building instance (`building_levels.building_instance_key`) of the primary buildings of major settlements.
-const MAJOR_SETTLEMENT_INSTANCE: &str = "att_city_major";
+/// Building instances (`building_levels.building_instance_key`) of the primary buildings of major settlements, in
+/// Attila and Thrones.
+const MAJOR_SETTLEMENT_INSTANCES: [&str; 2] = ["att_city_major", "vik_settlement"];
 
 //---------------------------------------------------------------------------//
 //                              Types
@@ -307,7 +308,7 @@ impl CampaignIndex {
         let region_of_id = regions.iter().map(|region| (region.id.to_owned(), region.key.to_owned())).collect::<HashMap<_, _>>();
 
         let major_buildings = tables.table("building_levels")?.rows()
-            .filter(|row| row.str("building_instance_key").is_ok_and(|instance| instance == MAJOR_SETTLEMENT_INSTANCE))
+            .filter(|row| row.str("building_instance_key").is_ok_and(|instance| MAJOR_SETTLEMENT_INSTANCES.contains(&instance.as_ref())))
             .map(|row| row.str("level_name").map(|level| level.into_owned()))
             .collect::<Result<HashSet<_>>>()?;
 
@@ -444,7 +445,7 @@ impl CampaignIndex {
 
 impl SettlementEntry {
 
-    /// Returns if the settlement is a major one (its primary building is a [`MAJOR_SETTLEMENT_INSTANCE`]). Major
+    /// Returns if the settlement is a major one (its primary building is one of the [`MAJOR_SETTLEMENT_INSTANCES`]). Major
     /// settlements have walls and are the main region of their province.
     pub fn is_major(&self) -> bool {
         self.major
