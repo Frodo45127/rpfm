@@ -30,7 +30,7 @@ use super::sight::{write_line_of_sight, SightPlan};
 use super::{child, WorldInputs, WorldPlan};
 use crate::startpos::layout::{child_path, StartposLayout};
 use crate::startpos::coords::HexCell;
-use crate::startpos::tables::Row;
+use crate::startpos::tables::{Row, StartposTables};
 use crate::startpos::vision::Vision;
 use crate::startpos::world::agents::{agent_abilities, agent_attributes, experience_rank, skill_set, starting_skills, ABILITIES, ATTRIBUTES};
 use crate::startpos::world::bodyguards::{bodyguard, Bodyguard};
@@ -67,6 +67,9 @@ pub(crate) const NAME_KEY_PREFIX: &str = "names_name_";
 /// Suffix the startpos adds to the art set of a character (`CHARACTER_DETAILS` #34).
 const ART_SET_SUFFIX: &str = "0";
 
+/// Skills Thrones' layout has room for in a character's skill list (the most its startpos has).
+const MAX_LISTED_SKILLS: usize = 2;
+
 /// Value of `LINE_OF_SIGHT+18` (`CHARACTER` #28) for faction leaders (meaning unknown).
 const LEADER_VALUE: u32 = 4;
 
@@ -94,6 +97,10 @@ pub struct CharacterWriter<'a, 'b> {
 
     /// Traits of each character (trait key and points of its level), by `start_pos_characters` id.
     traits: HashMap<String, Vec<(String, i64)>>,
+
+    /// Skills of each character (`start_pos_character_skills`: skill key and level), by `start_pos_characters` id,
+    /// sorted by key: the game keeps them in an ordered map.
+    skills: HashMap<String, Vec<(String, u32)>>,
 
     /// Move points and line of sight of each agent type.
     agents: HashMap<String, (u32, f32)>,
@@ -202,6 +209,8 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
             }
         }
 
+        let skills = character_skills(tables)?;
+
         let mut agents = HashMap::new();
         for row in tables.table("agents")?.rows() {
             agents.insert(row.str("key")?.into_owned(), (u32::try_from(row.int("move_points")?).unwrap_or_default(), row.number("line_of_sight")? as f32));
@@ -246,6 +255,7 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
             sight,
             rows,
             traits,
+            skills,
             agents,
             art_sets,
             bodyguards,
@@ -406,6 +416,20 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
             .set_u32("GENERAL_BODYGUARD_DETAILS+1", subject.family_id)?
             .set_str("GENERAL_BODYGUARD_DETAILS+6", &format!("{art_set}{ART_SET_SUFFIX}"))?
             .set_str("GENERAL_BODYGUARD_DETAILS+8", subject.origin.key())?;
+
+        // Thrones lists the living characters' skills (followers, backgrounds) as a count and key-level pairs; the
+        // dead of the family tree list none.
+        if let (Some(entry), None) = (subject.entry, subject.death) {
+            let skills = self.skills.get(entry.id().as_str()).map(Vec::as_slice).unwrap_or_default();
+            group.set_u32("GENERAL_BODYGUARD_DETAILS+11", u32::try_from(skills.len()).unwrap_or_default())?;
+            for slot in 0..MAX_LISTED_SKILLS {
+                let (key, level) = (format!("GENERAL_BODYGUARD_DETAILS+{}", 12 + 2 * slot), format!("GENERAL_BODYGUARD_DETAILS+{}", 13 + 2 * slot));
+                match skills.get(slot) {
+                    Some((skill, skill_level)) => { group.set_str(&key, skill)?.set_u32(&level, *skill_level)?; },
+                    None => { group.unset(&key)?.unset(&level)?; },
+                }
+            }
+        }
 
         if let (Some(row), Some(entry)) = (row, subject.entry) {
             let row_party = row.str("political_party")?;
@@ -631,4 +655,23 @@ fn pick_art_set<'s>(art_sets: &'s [ArtSet], faction: &FactionEntry, agent: &str,
             || (art_set.faction.is_empty() && art_set.subculture.is_empty() && art_set.culture == *faction.culture()))
         .collect::<Vec<_>>();
     candidates.get(seed as usize % candidates.len().max(1)).map(|art_set| art_set.id.as_str()).unwrap_or_default()
+}
+
+/// Returns the skills of each character (`start_pos_character_skills`: skill key and level), by `start_pos_characters`
+/// id, sorted by key: the game keeps them in an ordered map. Verified on Thrones: 141 of 148 living characters with
+/// skills; the other 7 list none, for reasons not found.
+///
+/// # Errors
+///
+/// Returns an error if the table or a column is missing.
+fn character_skills(tables: &StartposTables) -> Result<HashMap<String, Vec<(String, u32)>>> {
+    let mut skills = HashMap::<String, Vec<(String, u32)>>::new();
+    for row in tables.table("start_pos_character_skills")?.rows() {
+        let level = u32::try_from(row.int("level")?).unwrap_or_default();
+        skills.entry(row.str("id")?.into_owned()).or_default().push((row.str("skill")?.into_owned(), level));
+    }
+    for list in skills.values_mut() {
+        list.sort();
+    }
+    Ok(skills)
 }

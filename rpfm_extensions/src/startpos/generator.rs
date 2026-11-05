@@ -64,7 +64,7 @@ pub const STARTPOS_TABLES: &[&str] = &[
     "main_units", "mercenary_pool_to_groups_junctions", "mercenary_unit_groups", "military_force_legacy_emblems",
     "military_force_legacy_names", "ministerial_positions", "ministerial_positions_culture_details", "names", "naval_units",
     "political_parties", "province_to_mercenary_set_junctions", "region_to_province_junctions", "regions", "religions", "resources",
-    "start_pos_calendars", "start_pos_character_estates", "start_pos_character_to_settlements", "start_pos_character_traits", "start_pos_characters",
+    "start_pos_calendars", "start_pos_character_estates", "start_pos_character_skills", "start_pos_character_to_settlements", "start_pos_character_traits", "start_pos_characters",
     "start_pos_diplomacy", "start_pos_family_relationships", "start_pos_factions", "start_pos_horde_details", "start_pos_land_units",
     "start_pos_naval_units", "start_pos_past_events", "start_pos_region_religions", "start_pos_region_slot_templates",
     "start_pos_regions", "start_pos_settlements", "start_pos_technologies", "start_pos_victory_conditions",

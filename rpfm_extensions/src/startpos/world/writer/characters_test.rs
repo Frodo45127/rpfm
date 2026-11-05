@@ -9,7 +9,7 @@
 //---------------------------------------------------------------------------//
 
 use super::*;
-use crate::startpos::world::world_test::fixture_index;
+use crate::startpos::world::world_test::{add_table, fixture_index};
 use crate::startpos::world::writer::forces::forces_test::force_tables;
 
 #[test]
@@ -52,4 +52,19 @@ fn test_art_sets_of_portraits_then_the_faction_without_custom_ones() {
     assert_eq!(pick_art_set(&art_sets, faction, GENERAL_AGENT, true, "", 0), "generic_1");
     assert_eq!(pick_art_set(&art_sets, faction, GENERAL_AGENT, true, "", 1), "generic_2");
     assert_eq!(pick_art_set(&art_sets, faction, GENERAL_AGENT, true, "other_campaign_set", 1), "generic_2");
+}
+
+#[test]
+fn test_character_skills_are_sorted_by_key() {
+    let mut tables = force_tables();
+    add_table(&mut tables, "start_pos_character_skills", &["id", "level", "skill"], &[
+        &["30", "1", "skill_b"],
+        &["30", "2", "skill_a"],
+        &["31", "1", "skill_c"],
+    ]);
+
+    let skills = character_skills(&tables).unwrap();
+
+    assert_eq!(skills["30"], vec![("skill_a".to_owned(), 2), ("skill_b".to_owned(), 1)]);
+    assert_eq!(skills["31"], vec![("skill_c".to_owned(), 1)]);
 }
