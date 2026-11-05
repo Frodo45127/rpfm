@@ -185,6 +185,18 @@ pub enum MissionObjective {
 
     /// Make an alliance with a faction.
     MakeAlliance { faction: String },
+
+    /// Construct one of some buildings (`building_level`), for a faction (Rome 2).
+    ConstructBuilding { buildings: Vec<String>, faction: String },
+
+    /// Win a multiplayer versus campaign (Rome 2).
+    MpCompetitive,
+
+    /// Own a source of every resource but some (`exclude_resource`) (Rome 2).
+    OwnAtLeastOneSourceOfEachResource { excluded: Vec<String> },
+
+    /// Own a number of regions among some (`region`) (Rome 2).
+    OwnNRegionsIncluding { total: u32, regions: Vec<String> },
 }
 
 //---------------------------------------------------------------------------//
@@ -381,6 +393,16 @@ impl MissionObjective {
             Self::HaveAtLeastXMoney { total } |
             Self::MaintainTradeWithNFactions { total } => add("total", &[total.to_string()]),
             Self::MakeAlliance { faction } => add("faction", std::slice::from_ref(faction)),
+            Self::ConstructBuilding { buildings, faction } => {
+                add("building_level", buildings);
+                add("faction", std::slice::from_ref(faction));
+            },
+            Self::MpCompetitive => {},
+            Self::OwnAtLeastOneSourceOfEachResource { excluded } => add("exclude_resource", excluded),
+            Self::OwnNRegionsIncluding { total, regions } => {
+                add("total", &[total.to_string()]);
+                add("region", regions);
+            },
         }
         statements
     }
@@ -421,6 +443,10 @@ impl MissionObjective {
             Self::HaveAtLeastXMoney { .. } => "HAVE_AT_LEAST_X_MONEY",
             Self::MaintainTradeWithNFactions { .. } => "MAINTAIN_TRADE_WITH_N_FACTIONS",
             Self::MakeAlliance { .. } => "MAKE_ALLIANCE",
+            Self::ConstructBuilding { .. } => "CONSTRUCT_BUILDING",
+            Self::MpCompetitive => "MP_COMPETITIVE",
+            Self::OwnAtLeastOneSourceOfEachResource { .. } => "OWN_AT_LEAST_ONE_SOURCE_OF_EACH_RESOURCE",
+            Self::OwnNRegionsIncluding { .. } => "OWN_N_REGIONS_INCLUDING",
         }
     }
 
@@ -484,6 +510,10 @@ impl MissionObjective {
             "HAVE_AT_LEAST_X_MONEY" => Self::HaveAtLeastXMoney { total: total()? },
             "MAINTAIN_TRADE_WITH_N_FACTIONS" => Self::MaintainTradeWithNFactions { total: total()? },
             "MAKE_ALLIANCE" => Self::MakeAlliance { faction: item.child_value("faction")? },
+            "CONSTRUCT_BUILDING" => Self::ConstructBuilding { buildings: item.child_values("building_level"), faction: item.child_value("faction")? },
+            "MP_COMPETITIVE" => Self::MpCompetitive,
+            "OWN_AT_LEAST_ONE_SOURCE_OF_EACH_RESOURCE" => Self::OwnAtLeastOneSourceOfEachResource { excluded: item.child_values("exclude_resource") },
+            "OWN_N_REGIONS_INCLUDING" => Self::OwnNRegionsIncluding { total: total()?, regions: item.child_values("region") },
             other => return Err(script_error(format!("unsupported objective type {other}"))),
         })
     }

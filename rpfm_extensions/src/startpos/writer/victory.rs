@@ -258,9 +258,17 @@ fn write_objective_values(layout: &StartposLayout, path: &str, objective: &Missi
         MissionObjective::ControlNPortsIncluding { total, regions } => {
             group.set_u32("^+1", *total)?.set_strings("^+2", regions.clone())?;
         },
-        MissionObjective::OwnAPortAdjoiningSeaRegionsIncluding { regions } => {
+        MissionObjective::OwnAPortAdjoiningSeaRegionsIncluding { regions } |
+        MissionObjective::OwnAtLeastOneSourceOfEachResource { excluded: regions } => {
             group.set_strings("^+1", regions.clone())?;
         },
+        MissionObjective::ConstructBuilding { buildings, faction } => {
+            group.set_str("^+3", faction)?.set_strings("^+5", buildings.clone())?;
+        },
+        MissionObjective::OwnNRegionsIncluding { total, regions } => {
+            group.set_u32("^+1", *total)?.set_strings("^+2", regions.clone())?;
+        },
+        MissionObjective::MpCompetitive => {},
 
         // The game drops the settlements listed by loot and raze objectives: only their total is kept.
         MissionObjective::EarnXAmountFromBuildingWealth { total } |
@@ -330,22 +338,30 @@ pub(crate) fn objective_id(objective: &MissionObjective, game: &str) -> Option<u
         MissionObjective::HoldEntiretyOfNProvincesIncluding { .. } => 38,
         MissionObjective::HaveAtLeastXMoney { .. } => 46,
         MissionObjective::ConstructNOfABuilding { .. } => 75,
+        MissionObjective::ConstructBuilding { .. } |
+        MissionObjective::MpCompetitive |
+        MissionObjective::OwnAtLeastOneSourceOfEachResource { .. } |
+        MissionObjective::OwnNRegionsIncluding { .. } => return None,
     })
 }
 
 /// Returns the type id of an objective in Rome 2, if its startposes show it.
 fn rome_2_objective_id(objective: &MissionObjective) -> Option<u32> {
     Some(match objective {
+        MissionObjective::ConstructBuilding { .. } => 1,
         MissionObjective::ControlNRegionsIncluding { .. } => 23,
         MissionObjective::ControlNProvincesIncluding { .. } => 24,
         MissionObjective::OwnNUnits { .. } => 25,
         MissionObjective::ResearchNTechsOfTypeX { .. } => 26,
         MissionObjective::OwnNProvincesWithCulturalDominance { .. } => 27,
         MissionObjective::MaintainTradeWithNFactions { .. } => 28,
+        MissionObjective::OwnAtLeastOneSourceOfEachResource { .. } => 29,
         MissionObjective::IncomeAtLeastX { .. } => 30,
+        MissionObjective::OwnNRegionsIncluding { .. } => 33,
         MissionObjective::ControlNPortsIncluding { .. } => 39,
         MissionObjective::HaveAtLeastXMoney { .. } => 40,
         MissionObjective::RazeOrSackNDifferentSettlementsIncluding { .. } => 48,
+        MissionObjective::MpCompetitive => 52,
         _ => return None,
     })
 }

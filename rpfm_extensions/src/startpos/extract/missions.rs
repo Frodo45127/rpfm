@@ -148,6 +148,13 @@ fn fixed_objective(source: &Source, name: &str, path: &str, values: &GroupView) 
         "MAINTAIN_N_CLIENT_STATES" => MissionObjective::MaintainNClientStates { total },
         "MAINTAIN_N_ALLIANCES" => MissionObjective::MaintainNAlliances { total },
         "CONFEDERATE_FACTIONS" => MissionObjective::ConfederateFactions { total },
+        "CONSTRUCT_BUILDING" => MissionObjective::ConstructBuilding {
+            buildings: values.strs("^+5").map(<[String]>::to_vec).unwrap_or_default(),
+            faction: values.str("^+3").unwrap_or_default().to_owned(),
+        },
+        "MP_COMPETITIVE" => MissionObjective::MpCompetitive,
+        "OWN_AT_LEAST_ONE_SOURCE_OF_EACH_RESOURCE" => MissionObjective::OwnAtLeastOneSourceOfEachResource { excluded: values.strs("^+1").map(<[String]>::to_vec).unwrap_or_default() },
+        "OWN_N_REGIONS_INCLUDING" => MissionObjective::OwnNRegionsIncluding { total, regions: strings() },
 
         // The game doesn't keep the settlements these objectives list.
         "LOOT_OR_SACK_N_DIFFERENT_SETTLEMENTS_INCLUDING" => MissionObjective::LootOrSackNDifferentSettlementsIncluding { total, regions: vec![] },

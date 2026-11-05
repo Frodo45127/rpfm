@@ -111,6 +111,10 @@ fn test_parse_objectives_of_other_campaigns() {
         ("type HAVE_AT_LEAST_X_MONEY; total 1000000;", MissionObjective::HaveAtLeastXMoney { total: 1000000 }),
         ("type MAINTAIN_TRADE_WITH_N_FACTIONS; total 5;", MissionObjective::MaintainTradeWithNFactions { total: 5 }),
         ("type MAKE_ALLIANCE; faction fact_a;", MissionObjective::MakeAlliance { faction: "fact_a".to_owned() }),
+        ("type CONSTRUCT_BUILDING; building_level bld_a; faction fact_a;", MissionObjective::ConstructBuilding { buildings: vec!["bld_a".to_owned()], faction: "fact_a".to_owned() }),
+        ("type MP_COMPETITIVE;", MissionObjective::MpCompetitive),
+        ("type OWN_AT_LEAST_ONE_SOURCE_OF_EACH_RESOURCE; exclude_resource res_a; exclude_resource res_b;", MissionObjective::OwnAtLeastOneSourceOfEachResource { excluded: vec!["res_a".to_owned(), "res_b".to_owned()] }),
+        ("type OWN_N_REGIONS_INCLUDING; total 50;", MissionObjective::OwnNRegionsIncluding { total: 50, regions: vec![] }),
         ("type CONTROL_N_REGIONS_INCLUDING; total 45; region reg_a;", MissionObjective::ControlNRegionsIncluding { total: 45, regions: vec!["reg_a".to_owned()] }),
     ];
 
