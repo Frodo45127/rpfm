@@ -34,6 +34,9 @@ use crate::startpos::world::factions::{faction_flags, faction_summary, FactionFl
 /// Path of a faction.
 const FACTION_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/WORLD/FACTION_ARRAY/FACTION";
 
+/// Fields a faction's key can be in: after its id (Attila), or after its effect bundles (Thrones).
+pub(crate) const FACTION_KEY_FIELDS: [&str; 2] = ["^+2", "CAMPAIGN_EFFECT_BUNDLES+1"];
+
 /// Localisation key prefix of the faction names.
 const SCREEN_NAME_PREFIX: &str = "factions_screen_name_";
 
@@ -211,7 +214,7 @@ pub fn write_faction(inputs: &WorldInputs, plan: &WorldPlan, context: &FactionCo
 
     // Thrones lists the faction's effect bundles before its key, and has one more leaf after its action log.
     let faction_layout = layout.record(FACTION_PATH);
-    let key_field = if faction_layout.is_some_and(|record| record.has_slot("^+2")) { "^+2" } else { "CAMPAIGN_EFFECT_BUNDLES+1" };
+    let key_field = FACTION_KEY_FIELDS.into_iter().find(|field| faction_layout.is_some_and(|record| record.has_slot(field))).unwrap_or(FACTION_KEY_FIELDS[0]);
     let log_shift = usize::from(faction_layout.is_some_and(|record| record.has_slot("FACTION_ACTION_LOG_BLOCK+13")));
     let mut record = layout.builder(FACTION_PATH)?;
     record.group()?

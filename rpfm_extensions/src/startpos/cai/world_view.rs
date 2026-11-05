@@ -17,6 +17,7 @@ use rpfm_lib::error::{RLibError, Result};
 use rpfm_lib::files::esf::RecordNode;
 
 use crate::startpos::layout::{child_path, GroupView, StartposLayout};
+use crate::startpos::world::writer::factions::FACTION_KEY_FIELDS;
 
 #[cfg(test)] #[path = "world_view_test.rs"] mod world_view_test;
 
@@ -371,7 +372,7 @@ impl<'l> Reader<'l> {
 
         Ok(FactionView {
             id: faction.u32("^+1").unwrap_or_default(),
-            key: faction.str("^+2").unwrap_or_default().to_owned(),
+            key: FACTION_KEY_FIELDS.iter().find_map(|field| faction.str(field)).unwrap_or_default().to_owned(),
             characters,
             forces,
             posts,

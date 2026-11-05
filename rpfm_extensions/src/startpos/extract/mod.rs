@@ -43,6 +43,7 @@ use super::cai::CAI_WORLD_PATH;
 use super::layout::{child_path, GroupView, StartposLayout};
 use super::missions::{write_victory_objectives, VictoryObjectives};
 use super::tables::StartposTables;
+use super::world::writer::factions::FACTION_KEY_FIELDS;
 use super::world::writer::WORLD_PATH;
 
 pub mod compare;
@@ -317,7 +318,7 @@ impl<'a> Source<'a> {
 
         let factions = layout.read_items(&child_path(WORLD_PATH, "FACTION_ARRAY"), &world, "FACTION_ARRAY", "FACTION")?.into_iter()
             .map(|(_, group)| {
-                let key = group.str("^+2").unwrap_or_default().to_owned();
+                let key = FACTION_KEY_FIELDS.iter().find_map(|field| group.str(field)).unwrap_or_default().to_owned();
                 let info = infos.remove(&key);
                 let table_id = info.as_ref()
                     .and_then(|info| info.str("^+5"))
