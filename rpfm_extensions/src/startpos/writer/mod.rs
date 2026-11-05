@@ -126,6 +126,7 @@ pub fn write_startpos<'a>(inputs: &StartposInputs<'a>, plan: &WorldPlan<'a>) -> 
     let calendar = Calendar::new(world.tables, inputs.campaign)?;
     let trading = international_routes::trading_factions(world.tables, world.index, plan, inputs.trade_network)?;
     let world_record = write_world_with_plan(&WorldInputs { trading: Some(&trading), ..*world }, plan)?;
+    let estates = header::estates_by_owner(&world_record);
     let trade_manager = trade::write_trade_manager(layout, world.tables, world.index, plan, inputs.trade_network)?;
     let cai_inputs = CaiInputs {
         tables: world.tables,
@@ -169,7 +170,7 @@ pub fn write_startpos<'a>(inputs: &StartposInputs<'a>, plan: &WorldPlan<'a>) -> 
     let forces = ForcePlan::new(world.tables, world.index, plan)?;
     let mut root = layout.builder(ROOT_PATH)?;
     root.group()?
-        .set_record("SAVE_GAME_HEADER", Some(header::write_save_game_header(inputs, plan, &forces, &calendar)?))?
+        .set_record("SAVE_GAME_HEADER", Some(header::write_save_game_header(inputs, plan, &forces, &calendar, &estates)?))?
         .set_record("CAMPAIGN_PREOPEN_MAP_INFO", Some(preopen::write_preopen_map_info(inputs, plan, &forces, &calendar)?))?
         .set_record("CAMPAIGN_ENV", Some(env.build()?))?;
 

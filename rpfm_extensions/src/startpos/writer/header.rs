@@ -32,6 +32,9 @@ use crate::startpos::world::FactionEntry;
 
 #[cfg(test)] #[path = "header_test.rs"] mod header_test;
 
+/// Record of an estate: its id, its owner's runtime id and its type.
+const ESTATE_RECORD: &str = "ESTATE";
+
 /// Folder of the portraits the load screen shows, by culture.
 const PORTRAITS_FOLDER: &str = "UI/Portraits/Portholes";
 
@@ -54,11 +57,12 @@ const REGION_COLOUR_GROUP: u8 = 1;
 /// * `plan` - Order and runtime ids of the world's objects.
 /// * `forces` - Characters and forces of the world.
 /// * `calendar` - Calendar of the campaign.
+/// * `estates` - Number of estates of each character, by runtime id (see [`estates_by_owner`]).
 ///
 /// # Errors
 ///
 /// Returns an error if a table, column or layout is missing.
-pub fn write_save_game_header(inputs: &StartposInputs, plan: &WorldPlan, forces: &ForcePlan, calendar: &Calendar) -> Result<RecordNode> {
+pub fn write_save_game_header(inputs: &StartposInputs, plan: &WorldPlan, forces: &ForcePlan, calendar: &Calendar, estates: &HashMap<u32, u32>) -> Result<RecordNode> {
     let world = inputs.world;
     let layout = world.layout;
     let path = child_path(ROOT_PATH, "SAVE_GAME_HEADER");
@@ -75,15 +79,17 @@ pub fn write_save_game_header(inputs: &StartposInputs, plan: &WorldPlan, forces:
     let mut maps = layout.builder(&child_path(&path, "MAPS"))?;
     maps.push_group()?.set_str("^+1", inputs.map)?;
 
-    // Thrones adds the leader's full name, age and three numbers (kept from the layout) and the faction's screen name.
-    // The numbers are a field of the leader, his political gravitas (from effects) and a field of his details.
+    // Thrones adds the leader's full name, age, `CAMPAIGN_EFFECT_BUNDLES+2` (0 as written: kept from the layout), base
+    // political gravitas (kept from the layout: its source isn't known) and estates, and the faction's screen name.
     let shift = if layout.record(&path).is_some_and(|header| header.has_slot("^+11")) { 5 } else { 0 };
     let group = record.group()?;
     if shift > 0 {
         let leader = faction_leader(world.index, faction.key());
+        let leader_id = leader.and_then(|leader| forces.characters().iter().find(|character| character.entry().is_some_and(|entry| entry.id() == leader.id()))).map(|character| character.id());
         let name = leader.map(|leader| full_name(inputs.texts, leader.names())).unwrap_or_default();
         group.set_str("^+3", &name)?
             .set_u32("^+4", leader.and_then(|leader| u32::try_from(leader.age()).ok()).unwrap_or_default())?
+            .set_u32("^+7", leader_id.and_then(|id| estates.get(&id)).copied().unwrap_or_default())?
             .set_str("MAPS+4", inputs.texts.get(&format!("{FACTION_SCREEN_NAME_PREFIX}{}", faction.key())).map(String::as_str).unwrap_or_default())?;
     }
     group
@@ -197,4 +203,27 @@ pub(crate) fn full_name(texts: &HashMap<String, String>, names: &[String]) -> St
         .map(String::as_str)
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+/// Returns how many estates (`ESTATE` records, anywhere in a record) each character owns, by runtime id.
+pub(crate) fn estates_by_owner(record: &RecordNode) -> HashMap<u32, u32> {
+    let mut counts = HashMap::new();
+    count_estates(record, &mut counts);
+    counts
+}
+
+/// Adds the estates under a record to their owners' counts.
+fn count_estates(record: &RecordNode, counts: &mut HashMap<u32, u32>) {
+    for group in record.children() {
+        if record.name() == ESTATE_RECORD {
+            if let Some(NodeType::U32(owner)) = group.get(1) {
+                *counts.entry(*owner.value()).or_default() += 1;
+            }
+        }
+        for node in group {
+            if let NodeType::Record(child) = node {
+                count_estates(child, counts);
+            }
+        }
+    }
 }
