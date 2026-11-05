@@ -20,9 +20,9 @@ fn test_family_ids_leave_room_for_the_dead() {
     let forces = ForcePlan::new(&tables, &index, &plan).unwrap();
 
     // `fact_a`: its leader and another living character, then its dead character takes the next id; then `fact_b`;
-    // then the colonels of the four garrison forces.
+    // then the colonels of the three garrison forces (`reg_b1` has no land unit to garrison).
     let (ids, by_entry) = family_ids(&index, &plan, &forces);
-    assert_eq!(ids, vec![1, 2, 4, 5, 6, 7, 8]);
+    assert_eq!(ids, vec![1, 2, 4, 5, 6, 7]);
     assert_eq!(by_entry.get("32"), Some(&3));
 }
 

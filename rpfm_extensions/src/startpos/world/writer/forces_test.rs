@@ -53,7 +53,6 @@ fn test_plan_numbers_generals_then_garrisons() {
         (4, None, Some(2)),
         (5, None, Some(3)),
         (6, None, Some(4)),
-        (7, None, Some(5)),
     ]);
     assert_eq!(forces, vec![
         (1, ForceKind::Army, None, 0),
@@ -61,7 +60,6 @@ fn test_plan_numbers_generals_then_garrisons() {
         (3, ForceKind::GarrisonArmy, Some("reg_a1"), 3),
         (4, ForceKind::GarrisonNavy, Some("reg_a1"), 4),
         (5, ForceKind::GarrisonArmy, Some("reg_a2"), 5),
-        (6, ForceKind::GarrisonArmy, Some("reg_b1"), 6),
     ]);
     assert_eq!(force_plan.garrison_of("reg_a1", ForceKind::GarrisonNavy).map(|force| force.id()), Some(4));
 }
