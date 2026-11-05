@@ -185,7 +185,7 @@ pub fn write_faction(inputs: &WorldInputs, plan: &WorldPlan, context: &FactionCo
     let mut economics = child(layout, FACTION_PATH, "FACTION_ECONOMICS")?;
     economics.group()?.set_i32("history+1", i32::try_from(row.int("treasury")?).unwrap_or(i32::MAX))?;
 
-    let posts = write_character_posts(inputs, context.posts, key, context.characters.leader_id(faction))?;
+    let posts = write_character_posts(inputs, context.posts, key, |id| context.characters.runtime_id(id))?;
     let mut government = child(layout, FACTION_PATH, "GOVERNMENT")?;
     government.group()?
         .set_str("^+2", &row.str("government_type")?)?

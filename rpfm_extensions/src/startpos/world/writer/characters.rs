@@ -280,12 +280,12 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
     /// Writes a character: its position, ids, details and the post it holds.
     fn write_character(&self, position: usize, character: &PlannedCharacter) -> Result<RecordNode> {
         let layout = self.inputs.layout;
-        let faction = character.faction();
         let info = self.info(character)?;
         let (move_points, line_of_sight) = self.agents.get(&info.agent).copied().unwrap_or_default();
         let (world, cell) = self.position(character)?;
         let force = character.force().map(|force| &self.forces.forces()[force]);
-        let is_leader = character.entry().is_some_and(|entry| faction_leader(self.inputs.index, faction.key()) == Some(entry));
+        let is_leader = character.entry().is_some_and(|entry| faction_leader(self.inputs.index, character.faction().key()) == Some(entry));
+        let post = character.entry().and_then(|entry| self.posts.post_of(entry.id()));
 
         let mut coordinates = Coordinates2DNode::default();
         coordinates.set_x(world.0);
@@ -308,7 +308,7 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
             .set_str("CHARACTER_DETAILS+1", &info.agent)?
             .set_u32("CHARACTER_DETAILS+2", force.map(|force| force.id()).unwrap_or_default())?
             .set_u32("CHARACTER_DETAILS+3", force.and_then(|force| force.commander_unit_id()).unwrap_or_default())?
-            .set_u32("CHARACTER_DETAILS+6", if is_leader { self.posts.leader_post(faction.key()).unwrap_or_default() } else { 0 })?
+            .set_u32("CHARACTER_DETAILS+6", post.unwrap_or_default())?
             .set_f32("LINE_OF_SIGHT+4", line_of_sight)?
             .set_str("LINE_OF_SIGHT+16", override_unit)?
             .set_u32("LINE_OF_SIGHT+18", if is_leader { LEADER_VALUE } else { 0 })?
@@ -511,6 +511,11 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
     /// Returns the planned characters of a faction.
     pub fn characters_of<'s>(&'s self, faction: &FactionEntry) -> impl Iterator<Item = &'s PlannedCharacter<'a>> + 's {
         self.forces.characters_of(faction.key())
+    }
+
+    /// Returns the runtime id of a character of the world, by its `start_pos_characters` id.
+    pub fn runtime_id(&self, character: &str) -> Option<u32> {
+        self.forces.characters().iter().find(|planned| planned.entry().is_some_and(|entry| *entry.id() == character)).map(|planned| planned.id())
     }
 
     /// Returns the runtime id of a faction's leader, if it has one.

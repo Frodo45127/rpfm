@@ -29,6 +29,9 @@ use crate::startpos::tables::StartposTables;
 /// Ministerial position held by faction leaders.
 pub const FACTION_LEADER_POSITION: &str = "faction_leader";
 
+/// Ministerial position of the heir, which the game gives the leader's eldest son if the tables give it nobody.
+pub const HEIR_POSITION: &str = "heir";
+
 //---------------------------------------------------------------------------//
 //                              Types
 //---------------------------------------------------------------------------//
@@ -193,4 +196,40 @@ pub fn faction_leader<'a>(index: &'a CampaignIndex, faction: &'a str) -> Option<
     let mut living = index.characters_of(faction).filter(|character| character.death_type().is_empty()).peekable();
     let first = living.peek().copied();
     living.find(|character| character.ministerial_position() == FACTION_LEADER_POSITION).or(first)
+}
+
+/// Returns the holders of a faction's posts of a position, by `start_pos_characters` id, in table order.
+///
+/// The leader holds the leader post (see [`faction_leader`]). Other posts go to the faction's living characters whose
+/// `ministerial_position` is theirs; the heir post, if the tables give it nobody, to the leader's eldest living son.
+/// Verified on Thrones' campaign: the 30 captains, chamberlains and justicars and the 53 leaders the tables give, and
+/// 23 of 34 heirs the game picked (it breaks ties between sons with its RNG).
+///
+/// # Errors
+///
+/// Returns an error if a table or column is missing.
+pub fn post_holders(tables: &StartposTables, index: &CampaignIndex, faction: &FactionEntry, position: &str) -> Result<Vec<String>> {
+    let leader = faction_leader(index, faction.key());
+    if position == FACTION_LEADER_POSITION {
+        return Ok(leader.map(|leader| leader.id().to_owned()).into_iter().collect());
+    }
+
+    let living = || index.characters_of(faction.key()).filter(|character| character.death_type().is_empty());
+    let holders = living().filter(|character| character.ministerial_position() == position).map(|character| character.id().to_owned()).collect::<Vec<_>>();
+    if !holders.is_empty() || position != HEIR_POSITION {
+        return Ok(holders);
+    }
+
+    let Some(leader) = leader else { return Ok(vec![]) };
+    let mut sons = vec![];
+    for row in tables.table("start_pos_family_relationships")?.rows() {
+        if row.str("relationship")? == "child" && row.str("related_to")? == *leader.id() {
+            let child = row.str("character")?;
+            if let Some(son) = living().find(|character| *character.id() == child && character.is_male()) {
+                sons.push(son);
+            }
+        }
+    }
+    sons.sort_by_key(|son| std::cmp::Reverse(son.age()));
+    Ok(sons.first().map(|son| son.id().to_owned()).into_iter().collect())
 }

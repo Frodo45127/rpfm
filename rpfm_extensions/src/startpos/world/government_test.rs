@@ -177,3 +177,26 @@ fn startpos_name_ids(character: &RecordNode) -> BTreeSet<String> {
 fn table_name(tables: &StartposTables, id: &str) -> String {
     tables.table("start_pos_characters").unwrap().rows().find(|row| row.str("ID").unwrap() == id).unwrap().str("Name").unwrap().into_owned()
 }
+
+#[test]
+fn test_post_holders_from_the_tables_then_the_eldest_son() {
+    let mut tables = government_tables();
+    add_table(&mut tables, "start_pos_characters", &["ID", "faction", "Name", "Surname", "clan_name", "other_name", "Type", "Age", "startx", "starty", "ministerial_position", "loyalty", "death_type", "progenitor", "override_general_unit"], &[
+        &["35", "1", "105", "", "", "", "general", "18", "0.0", "0.0", "captain", "5", "", "false", ""],
+        &["36", "1", "106", "", "", "", "general", "45", "0.0", "0.0", "", "5", "", "false", ""],
+    ]);
+    add_table(&mut tables, "start_pos_family_relationships", &["character", "related_to", "relationship"], &[
+        &["35", "31", "child"],
+        &["36", "31", "child"],
+        &["32", "31", "child"],
+    ]);
+    let index = fixture_index(&tables);
+    let faction = index.faction("fact_a").unwrap();
+    let holders = |position| post_holders(&tables, &index, faction, position).unwrap();
+
+    // The leader, the table's captain, and the eldest living son as heir.
+    assert_eq!(holders(FACTION_LEADER_POSITION), vec!["31".to_owned()]);
+    assert_eq!(holders("captain"), vec!["35".to_owned()]);
+    assert_eq!(holders(HEIR_POSITION), vec!["36".to_owned()]);
+    assert!(holders("judge").is_empty());
+}

@@ -207,6 +207,10 @@ pub struct CharacterEntry {
     #[getset(get_copy = "pub")]
     age: i64,
 
+    /// The character is a man.
+    #[getset(get_copy = "pub")]
+    is_male: bool,
+
     /// Names, in [`NAME_COLUMNS`] order. Names whose `names.type` isn't their column's kind are empty: the game drops
     /// them.
     #[getset(get = "pub")]
@@ -360,7 +364,8 @@ impl CampaignIndex {
         let mut women = HashSet::new();
         for row in tables.table("start_pos_characters")?.rows() {
             let Some(faction) = faction_of_id.get(row.str("faction")?.as_ref()) else { continue };
-            if row.bool("is_male").is_ok_and(|is_male| !is_male) {
+            let is_male = !row.bool("is_male").is_ok_and(|is_male| !is_male);
+            if !is_male {
                 women.insert(row.str("ID")?.into_owned());
             }
             characters.push(CharacterEntry {
@@ -368,6 +373,7 @@ impl CampaignIndex {
                 faction: faction.to_owned(),
                 agent: row.str("Type")?.into_owned(),
                 age: row.int("Age")?,
+                is_male,
                 names: character_names(&row, name_kinds.as_ref())?,
                 start_x: cell_coordinate(&row, "startx")?,
                 start_y: cell_coordinate(&row, "starty")?,
