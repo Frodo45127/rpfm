@@ -613,7 +613,7 @@ impl SessionState {
         }
 
         let layout = self.startpos_layout(&tables, &request.campaign, settings)?;
-        let sources = StartposSources::from_tables(tables, &self.dependencies, pack_to_build, &request.campaign)?;
+        let sources = StartposSources::from_tables(&self.game, tables, &self.dependencies, pack_to_build, &request.campaign)?;
         let startpos = generate_startpos(&sources, &layout)?;
 
         let path = format!("campaigns/{}/startpos.esf", request.campaign);

@@ -107,6 +107,9 @@ const TGA_HEADER_SIZE: usize = 18;
 /// What a campaign's startpos is built from.
 pub struct StartposSources {
 
+    /// Key of the game.
+    game: String,
+
     /// Campaign key.
     campaign: String,
 
@@ -161,6 +164,7 @@ impl StartposSources {
     ///
     /// # Arguments
     ///
+    /// * `game` - The game.
     /// * `tables` - The tables of the build.
     /// * `dependencies` - The game's files.
     /// * `pack` - Pack with the campaign's startpos tables.
@@ -169,7 +173,7 @@ impl StartposSources {
     /// # Errors
     ///
     /// Returns an error if a file is missing or can't be decoded.
-    pub fn from_tables(tables: StartposTables, dependencies: &Dependencies, pack: &Pack, campaign: &str) -> Result<Self> {
+    pub fn from_tables(game: &GameInfo, tables: StartposTables, dependencies: &Dependencies, pack: &Pack, campaign: &str) -> Result<Self> {
         let map = tables.table("campaigns")?.rows()
             .find_map(|row| (row.str("campaign_name").ok()? == campaign).then(|| row.str("map_name").ok()).flatten())
             .ok_or_else(|| RLibError::StartposInvalidValue("campaigns".to_owned(), "campaign_name".to_owned(), campaign.to_owned()))?
@@ -187,6 +191,7 @@ impl StartposSources {
         let season = Calendar::new(&tables, campaign)?.start_season().to_owned();
 
         Ok(Self {
+            game: game.key().to_owned(),
             campaign: campaign.to_owned(),
             season_name: loc_text(dependencies, pack, &format!("{SEASON_NAME_PREFIX}{season}")).unwrap_or_default(),
             region_palette,
@@ -316,6 +321,7 @@ pub(crate) fn generate_startpos_with_plan(sources: &StartposSources, layout: &St
         world: &world,
         trade_network: &trade_network,
         victory_objectives: &sources.victory_objectives,
+        game: &sources.game,
         map_data: &sources.map_data,
         hlp_data: &sources.hlp_data,
         dynamic_resources: &sources.dynamic_resources,

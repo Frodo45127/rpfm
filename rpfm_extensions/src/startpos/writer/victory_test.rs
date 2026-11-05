@@ -63,7 +63,7 @@ fn startpos_objectives(startpos: &ESF) -> Vec<RecordNode> {
 fn assert_objectives_match(layout: &StartposLayout) {
     let theirs = startpos_objectives(&tdd_esf("startpos.esf"));
 
-    let options = write_victory_mission_options(layout, &tdd_objectives()).unwrap();
+    let options = write_victory_mission_options(layout, rpfm_lib::games::supported_games::KEY_ATTILA, &tdd_objectives()).unwrap();
     let mut ours = vec![];
     records_named(&options, "CAMPAIGN_MISSION_OBJECTIVE", &mut ours);
 

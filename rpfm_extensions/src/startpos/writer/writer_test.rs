@@ -92,6 +92,7 @@ pub(crate) fn write_test_startpos() -> (ESF, StartposLayout) {
         map_data: &map_data,
         hlp_data: &hlp_data,
         dynamic_resources: &dynamic_resources,
+        game: rpfm_lib::games::supported_games::KEY_ATTILA,
         campaign: TEST_CAMPAIGN,
         map: TEST_MAP,
         season_name: TEST_SEASON_NAME,

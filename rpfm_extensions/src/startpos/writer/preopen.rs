@@ -68,7 +68,7 @@ pub fn write_preopen_map_info(inputs: &StartposInputs, plan: &WorldPlan, forces:
         .set_record("DATE", Some(write_date(layout, PREOPEN_PATH, calendar)?))?
         .set_str("DATE+1", inputs.campaign)?
         .set_str("DATE+2", inputs.map)?
-        .set_record("VICTORY_MISSION_OPTIONS", Some(write_victory_mission_options(layout, inputs.victory_objectives)?))?
+        .set_record("VICTORY_MISSION_OPTIONS", Some(write_victory_mission_options(layout, inputs.game, inputs.victory_objectives)?))?
         .set_record("FACTION_INFOS", Some(write_faction_infos(inputs.world, plan, forces)?))?
         .set_record("REGION_OWNERSHIPS_BY_THEATRE", Some(write_region_ownerships(layout, plan, inputs.map)?))?;
     record.build()

@@ -13,11 +13,12 @@
 //!
 //! Each objective is a `CAMPAIGN_MISSION_OBJECTIVE` with its type id and a record of the type's values (none for
 //! types without values). The ids come from the game's objective type enum, matched against Attila's startposes and
-//! its name table. Vanilla startposes have no layout for the types only mods use (The Dawnless Days' ones): their
+//! its name table; Thrones and TDD share them, while Rome 2 numbers the types its own way (from its startposes). Vanilla startposes have no layout for the types only mods use (The Dawnless Days' ones): their
 //! records are built from the shapes the game writes for them.
 
 use rpfm_lib::error::{RLibError, Result};
 use rpfm_lib::files::esf::{NodeType, RecordNode, RecordNodeFlags};
+use rpfm_lib::games::supported_games::KEY_ROME_2;
 
 use super::{bool_node, f32_node, u32_node};
 use crate::startpos::layout::{child_path, StartposLayout};
@@ -56,12 +57,13 @@ pub(crate) const IMPL_PREFIX: &str = "CAMPAIGN_MISSION_OBJECTIVE_IMPL_";
 /// # Arguments
 ///
 /// * `layout` - Record layouts of the game.
+/// * `game` - Key of the game, for its objective type ids.
 /// * `objectives` - Victory objectives of the campaign, as `victory_objectives.txt` lists them.
 ///
 /// # Errors
 ///
-/// Returns an error if the layout lacks a record, like the one of an objective type Attila doesn't use.
-pub fn write_victory_mission_options(layout: &StartposLayout, objectives: &[VictoryObjectives]) -> Result<RecordNode> {
+/// Returns an error if the layout lacks a record, or the game has no known id for an objective type.
+pub fn write_victory_mission_options(layout: &StartposLayout, game: &str, objectives: &[VictoryObjectives]) -> Result<RecordNode> {
     let mut factions = Vec::<&str>::new();
     for objective in objectives {
         if !factions.contains(&objective.faction().as_str()) {
@@ -77,7 +79,7 @@ pub fn write_victory_mission_options(layout: &StartposLayout, objectives: &[Vict
         for faction_objectives in objectives.iter().filter(|objective| objective.faction() == faction) {
             let mut missions = layout.builder(&missions_path)?;
             for mission in faction_objectives.missions() {
-                missions.push_group()?.set_record("CAMPAIGN_MISSION_DEFINITION", Some(write_mission(layout, mission)?))?;
+                missions.push_group()?.set_record("CAMPAIGN_MISSION_DEFINITION", Some(write_mission(layout, game, mission)?))?;
             }
             types.push_group()?
                 .set_u32("^+1", faction_objectives.campaign_type().id())?
@@ -92,7 +94,7 @@ pub fn write_victory_mission_options(layout: &StartposLayout, objectives: &[Vict
 
 /// Writes a victory mission (`CAMPAIGN_MISSION_DEFINITION`): its key, issuer, texts and objectives. The payload of
 /// victory missions (winning the game) is the layout's.
-fn write_mission(layout: &StartposLayout, mission: &VictoryMission) -> Result<RecordNode> {
+fn write_mission(layout: &StartposLayout, game: &str, mission: &VictoryMission) -> Result<RecordNode> {
     let localisation = |key: String| -> Result<RecordNode> {
         let mut record = layout.builder(&child_path(DEFINITION_PATH, "CAMPAIGN_LOCALISATION"))?;
         record.group()?.set_str("^+1", &key)?;
@@ -101,7 +103,7 @@ fn write_mission(layout: &StartposLayout, mission: &VictoryMission) -> Result<Re
 
     let mut objectives = layout.builder(&child_path(OBJECTIVES_AND_PAYLOAD_PATH, "OBJECTIVES"))?;
     for objective in mission.objectives() {
-        objectives.push_group()?.set_record("CAMPAIGN_MISSION_OBJECTIVE", Some(write_objective(layout, objective)?))?;
+        objectives.push_group()?.set_record("CAMPAIGN_MISSION_OBJECTIVE", Some(write_objective(layout, game, objective)?))?;
     }
     let mut objectives_and_payload = layout.builder(OBJECTIVES_AND_PAYLOAD_PATH)?;
     objectives_and_payload.group()?.set_record("OBJECTIVES", Some(objectives.build()?))?;
@@ -119,8 +121,9 @@ fn write_mission(layout: &StartposLayout, mission: &VictoryMission) -> Result<Re
 }
 
 /// Writes an objective (`CAMPAIGN_MISSION_OBJECTIVE`): its type id and the record with its values.
-fn write_objective(layout: &StartposLayout, objective: &MissionObjective) -> Result<RecordNode> {
-    let (id, name) = (objective_id(objective), objective_record_name(objective));
+fn write_objective(layout: &StartposLayout, game: &str, objective: &MissionObjective) -> Result<RecordNode> {
+    let id = objective_id(objective, game).ok_or_else(|| RLibError::StartposLayoutError(format!("no known {game} id for objective type {}", objective.type_key())))?;
+    let name = objective_record_name(objective);
     let impl_key = format!("{IMPL_PREFIX}{name}");
     let impl_path = child_path(OBJECTIVE_PATH, &impl_key);
 
@@ -289,9 +292,12 @@ fn write_objective_values(layout: &StartposLayout, path: &str, objective: &Missi
     record.build()
 }
 
-/// Returns the type id of an objective.
-pub(crate) fn objective_id(objective: &MissionObjective) -> u32 {
-    match objective {
+/// Returns the type id of an objective in a game, if known.
+pub(crate) fn objective_id(objective: &MissionObjective, game: &str) -> Option<u32> {
+    if game == KEY_ROME_2 {
+        return rome_2_objective_id(objective);
+    }
+    Some(match objective {
         MissionObjective::ConstructNBuildingsIncluding { .. } => 4,
         MissionObjective::ControlNRegionsIncluding { .. } => 29,
         MissionObjective::ControlNProvincesIncluding { .. } => 30,
@@ -324,7 +330,24 @@ pub(crate) fn objective_id(objective: &MissionObjective) -> u32 {
         MissionObjective::HoldEntiretyOfNProvincesIncluding { .. } => 38,
         MissionObjective::HaveAtLeastXMoney { .. } => 46,
         MissionObjective::ConstructNOfABuilding { .. } => 75,
-    }
+    })
+}
+
+/// Returns the type id of an objective in Rome 2, if its startposes show it.
+fn rome_2_objective_id(objective: &MissionObjective) -> Option<u32> {
+    Some(match objective {
+        MissionObjective::ControlNRegionsIncluding { .. } => 23,
+        MissionObjective::ControlNProvincesIncluding { .. } => 24,
+        MissionObjective::OwnNUnits { .. } => 25,
+        MissionObjective::ResearchNTechsOfTypeX { .. } => 26,
+        MissionObjective::OwnNProvincesWithCulturalDominance { .. } => 27,
+        MissionObjective::MaintainTradeWithNFactions { .. } => 28,
+        MissionObjective::IncomeAtLeastX { .. } => 30,
+        MissionObjective::ControlNPortsIncluding { .. } => 39,
+        MissionObjective::HaveAtLeastXMoney { .. } => 40,
+        MissionObjective::RazeOrSackNDifferentSettlementsIncluding { .. } => 48,
+        _ => return None,
+    })
 }
 
 /// Returns the name of the record with an objective's values: its type key, except for naval unit objectives, which

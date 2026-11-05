@@ -117,7 +117,7 @@ fn test_startpos_generates_from_a_pack() {
 
     let dependencies = Dependencies::default();
     let tables = load_tables(&dependencies, &pack, &schema).unwrap();
-    let sources = StartposSources::from_tables(tables, &dependencies, &pack, TEST_CAMPAIGN).unwrap();
+    let sources = StartposSources::from_tables(game, tables, &dependencies, &pack, TEST_CAMPAIGN).unwrap();
     let startpos = generate_startpos(&sources, &StartposLayout::from_esf(test_startpos()).unwrap()).unwrap();
 
     assert_eq!(startpos.signature(), test_startpos().signature());
@@ -206,7 +206,7 @@ fn test_new_campaigns_match_the_game_startposes() {
         let theirs = ESF::decode(&mut BufReader::new(File::open(game_startpos_path(campaign)).unwrap()), &None).unwrap();
 
         let pack = victory_objectives_pack(campaign);
-        let sources = StartposSources::from_tables(tables.clone(), &dependencies, &pack, campaign).unwrap();
+        let sources = StartposSources::from_tables(game, tables.clone(), &dependencies, &pack, campaign).unwrap();
         let ours = generate_startpos_with_plan(&sources, &layout, |index| plan_from_startpos(index, &theirs, &tables)).unwrap();
 
         let report = compare_startposes(&StartposLayout::from_esf(&theirs).unwrap(), &ours, &theirs);
@@ -303,7 +303,7 @@ fn other_game_reports(variable: &str, game_key: &str, cache: &str, campaigns: &[
             pack.insert(file).unwrap();
         }
 
-        let sources = StartposSources::from_tables(tables.clone(), &dependencies, &pack, campaign).unwrap();
+        let sources = StartposSources::from_tables(game, tables.clone(), &dependencies, &pack, campaign).unwrap();
         let ours = generate_startpos_with_plan(&sources, &layout, |index| plan_from_startpos(index, &theirs, &tables)).unwrap();
         let report = compare_startposes(&StartposLayout::from_esf(&theirs).unwrap(), &ours, &theirs);
         let (matches, total) = report.totals();

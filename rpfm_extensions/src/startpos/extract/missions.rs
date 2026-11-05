@@ -13,6 +13,7 @@
 
 use rpfm_lib::error::Result;
 use rpfm_lib::files::esf::{NodeType, RecordNode};
+use rpfm_lib::games::supported_games::KEY_ATTILA;
 
 use super::{extraction_error, Source};
 use crate::startpos::esf_nav::{as_str, as_u32};
@@ -74,7 +75,7 @@ fn mission(source: &Source, definition: &GroupView) -> Result<VictoryMission> {
 fn read_objective(source: &Source, objective: &GroupView) -> Result<MissionObjective> {
     let id = objective.u32("^+1").unwrap_or_default();
     let Some(impl_key) = objective.ids().find(|key| key.starts_with(IMPL_PREFIX)) else {
-        return if id == objective_id(&MissionObjective::StayHorde) {
+        return if Some(id) == objective_id(&MissionObjective::StayHorde, KEY_ATTILA) {
             Ok(MissionObjective::StayHorde)
         } else {
             Err(extraction_error(&format!("victory objective {id} has no values")))

@@ -74,6 +74,9 @@ pub struct StartposInputs<'a> {
     /// Decoded `dynamic_resources.esf` of the campaign map.
     pub dynamic_resources: &'a ESF,
 
+    /// Key of the game, which numbers some records its own way (see [`victory`]).
+    pub game: &'a str,
+
     /// Campaign key.
     pub campaign: &'a str,
 
