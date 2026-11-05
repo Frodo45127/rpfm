@@ -59,7 +59,7 @@ pub const STARTPOS_TABLES: &[&str] = &[
     "armed_citizenry_units_to_unit_groups_junctions", "battlefield_engines", "building_chain_availabilities",
     "building_chain_availability_sets", "building_chains", "building_effects_junction", "building_level_armed_citizenry_junctions",
     "building_levels", "campaign_character_art_sets", "campaign_character_art_sets_group_junctions", "campaigns",
-    "character_skill_node_sets", "character_skill_nodes", "character_trait_levels", "commander_unit_permissions", "commodities",
+    "character_experience_skill_tiers", "character_skill_node_sets", "character_skill_nodes", "character_trait_levels", "commander_unit_permissions", "commodities",
     "cultures_subcultures", "effect_bonus_value_estate_junctions", "faction_political_parties_junctions", "faction_to_mercenary_set_junctions", "factions", "land_units",
     "main_units", "mercenary_pool_to_groups_junctions", "mercenary_unit_groups", "military_force_legacy_emblems",
     "military_force_legacy_names", "ministerial_positions", "ministerial_positions_culture_details", "names", "naval_units",
@@ -103,9 +103,9 @@ const LOOKUP_IMAGE_SUFFIX: &str = "_lookup.tga";
 /// TGA image type of colour-mapped images.
 const TGA_COLOUR_MAPPED: u8 = 1;
 
-/// Columns the build reads that some games' tables don't have (Rome 2's, mostly), with the value they read as: the
+/// Columns the build reads that some games' tables don't have (Rome 2's, mostly; Attila has no `xp`), with the value they read as: the
 /// empty or zero one, meaning the game doesn't have the feature (hordes, fertility, culture filters...).
-const OPTIONAL_COLUMNS: [(&str, &str, OptionalValue); 31] = [
+const OPTIONAL_COLUMNS: [(&str, &str, OptionalValue); 32] = [
     ("agent_culture_details", "season", OptionalValue::Text),
     ("agents", "religion", OptionalValue::Text),
     ("building_chain_availabilities", "campaign", OptionalValue::Text),
@@ -129,6 +129,7 @@ const OPTIONAL_COLUMNS: [(&str, &str, OptionalValue); 31] = [
     ("start_pos_characters", "death_type", OptionalValue::Text),
     ("start_pos_characters", "portrait_id", OptionalValue::Text),
     ("start_pos_characters", "turns_died_before_start", OptionalValue::Text),
+    ("start_pos_characters", "xp", OptionalValue::Integer),
     ("start_pos_factions", "cai_personality_group", OptionalValue::Text),
     ("start_pos_regions", "base_fertility", OptionalValue::Integer),
     ("start_pos_regions", "initial_public_order", OptionalValue::Integer),

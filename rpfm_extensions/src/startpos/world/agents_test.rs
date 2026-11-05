@@ -82,6 +82,22 @@ fn test_skill_sets_of_the_faction_then_the_subculture_then_everyone() {
 }
 
 #[test]
+fn test_experience_ranks_count_the_reached_tiers() {
+    let mut tables = agent_tables();
+    add_table(&mut tables, "character_experience_skill_tiers", &["agent_key", "experience_threshold", "for_army", "for_navy", "optional_campaign_key", "skill_points"], &[
+        &["general", "10", "false", "false", "", "1"],
+        &["general", "30", "false", "false", "", "2"],
+        &["general", "5", "true", "false", "", "4"],
+        &["spy", "1", "false", "false", "", "1"],
+    ]);
+    let index = fixture_index(&tables);
+
+    assert_eq!(experience_rank(&tables, &index, "general", 22).unwrap(), (1, 1));
+    assert_eq!(experience_rank(&tables, &index, "general", 30).unwrap(), (2, 3));
+    assert_eq!(experience_rank(&tables, &index, "general", 0).unwrap(), (0, 0));
+}
+
+#[test]
 fn test_recruitment_pools_skip_uncapped_agents() {
     let tables = agent_tables();
     let index = fixture_index(&tables);

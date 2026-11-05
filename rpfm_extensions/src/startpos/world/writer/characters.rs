@@ -32,7 +32,7 @@ use crate::startpos::layout::{child_path, StartposLayout};
 use crate::startpos::coords::HexCell;
 use crate::startpos::tables::Row;
 use crate::startpos::vision::Vision;
-use crate::startpos::world::agents::{agent_abilities, agent_attributes, skill_set, starting_skills, ABILITIES, ATTRIBUTES};
+use crate::startpos::world::agents::{agent_abilities, agent_attributes, experience_rank, skill_set, starting_skills, ABILITIES, ATTRIBUTES};
 use crate::startpos::world::bodyguards::{bodyguard, Bodyguard};
 use crate::startpos::world::characters::{birth_year, loyalty, placement, political_party, Placement};
 use crate::startpos::world::government::{faction_leader, political_parties, PoliticalParty};
@@ -361,9 +361,14 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
                 .set_f32("^+3", skill.indent)?
                 .set_u32("^+4", skill.points)?;
         }
+        let experience = row.map(|row| row.int("xp")).transpose()?.unwrap_or_default();
+        let (rank, skill_points) = experience_rank(self.inputs.tables, self.inputs.index, &info.agent, experience)?;
         let mut skills = child(layout, path, "CAMPAIGN_SKILLS")?;
         skills.group()?
             .set_str("^+2", &set_key)?
+            .set_u32("^+5", rank)?
+            .set_u32("^+6", skill_points)?
+            .set_u32("^+7", u32::try_from(experience).unwrap_or_default())?
             .set_bool("^+4", info.is_male)?
             .set_record("CAMPAIGN_SKILLS_BLOCK", Some(skills_block.build()?))?;
 

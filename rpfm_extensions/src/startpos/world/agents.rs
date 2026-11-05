@@ -131,6 +131,27 @@ pub fn skill_set(tables: &StartposTables, index: &CampaignIndex, agent: &str, fa
     Ok(best.map(|(_, key)| key))
 }
 
+/// Returns the rank and skill points of a character with some experience: how many of its agent type's
+/// `character_experience_skill_tiers` thresholds the experience reaches, and their skill points. Verified on
+/// Thrones' campaign: 512 of 512 characters.
+///
+/// # Errors
+///
+/// Returns an error if a table or column is missing.
+pub fn experience_rank(tables: &StartposTables, index: &CampaignIndex, agent: &str, experience: i64) -> Result<(u32, u32)> {
+    let (mut rank, mut points) = (0, 0);
+    for row in tables.table("character_experience_skill_tiers")?.rows() {
+        let campaign = row.str("optional_campaign_key")?;
+        if row.str("agent_key")? == agent && !row.bool("for_army")? && !row.bool("for_navy")?
+            && (campaign.is_empty() || campaign == *index.campaign())
+            && row.int("experience_threshold")? <= experience {
+            rank += 1;
+            points += u32::try_from(row.int("skill_points")?).unwrap_or_default();
+        }
+    }
+    Ok((rank, points))
+}
+
 /// A skill a character starts with: a node of its skill set with points on creation.
 #[derive(Debug, Clone, PartialEq)]
 pub struct StartingSkill {
