@@ -191,8 +191,19 @@ fn write_objective_values(layout: &StartposLayout, path: &str, objective: &Missi
         MissionObjective::EliminateCharacterInBattle { faction } => {
             group.set_str("^+2", faction)?;
         },
-        MissionObjective::AttainFameLevel { level } => {
-            group.set_u32("^+1", *level)?;
+        MissionObjective::AttainFameLevel { level, status } => {
+            group.set_u32("^+1", *level)?.set_str("^+2", status.as_deref().unwrap_or_default())?;
+        },
+        MissionObjective::Scripted { script_key, text } => {
+            let mut localisation = layout.builder(&child_path(path, "CAMPAIGN_LOCALISATION"))?;
+            localisation.group()?.set_str("^+1", text.as_deref().unwrap_or_default())?;
+            group.set_record("CAMPAIGN_LOCALISATION", Some(localisation.build()?))?.set_str("^+1", script_key)?;
+        },
+        MissionObjective::ControlNPortsIncluding { total, regions } => {
+            group.set_u32("^+1", *total)?.set_strings("^+2", regions.clone())?;
+        },
+        MissionObjective::OwnAPortAdjoiningSeaRegionsIncluding { regions } => {
+            group.set_strings("^+1", regions.clone())?;
         },
 
         // The game drops the settlements listed by loot and raze objectives: only their total is kept.
@@ -244,6 +255,9 @@ pub(crate) fn objective_id(objective: &MissionObjective) -> u32 {
         MissionObjective::AtLeastXPublicOrderInProvinces { .. } => 76,
         MissionObjective::ReclaimNDifferentSettlementsIncluding { .. } => 86,
         MissionObjective::AttainFameLevel { .. } => 89,
+        MissionObjective::ControlNPortsIncluding { .. } => 45,
+        MissionObjective::OwnAPortAdjoiningSeaRegionsIncluding { .. } => 48,
+        MissionObjective::Scripted { .. } => 90,
     }
 }
 

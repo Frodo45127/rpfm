@@ -156,8 +156,17 @@ pub enum MissionObjective {
     /// Confederate a number of factions.
     ConfederateFactions { total: u32 },
 
-    /// Reach a fame level (`fame_level`).
-    AttainFameLevel { level: u32 },
+    /// Reach a fame level (`fame_level`), with an optional text for its completion (`custom_completion_status`).
+    AttainFameLevel { level: u32, status: Option<String> },
+
+    /// Complete a script's objective (`script_key`), with an optional text (`override_text`).
+    Scripted { script_key: String, text: Option<String> },
+
+    /// Control a number of ports, including some regions' (`region`).
+    ControlNPortsIncluding { total: u32, regions: Vec<String> },
+
+    /// Own a port next to one of some sea regions (`region`).
+    OwnAPortAdjoiningSeaRegionsIncluding { regions: Vec<String> },
 }
 
 //---------------------------------------------------------------------------//
@@ -318,7 +327,19 @@ impl MissionObjective {
             Self::StayHorde => {},
             Self::IncomeAtLeastX { income } => add("income", &[income.to_string()]),
             Self::EliminateCharacterInBattle { faction } => add("faction", std::slice::from_ref(faction)),
-            Self::AttainFameLevel { level } => add("fame_level", &[level.to_string()]),
+            Self::AttainFameLevel { level, status } => {
+                add("fame_level", &[level.to_string()]);
+                add("custom_completion_status", status.as_slice());
+            },
+            Self::Scripted { script_key, text } => {
+                add("script_key", std::slice::from_ref(script_key));
+                add("override_text", text.as_slice());
+            },
+            Self::ControlNPortsIncluding { total, regions } => {
+                add("total", &[total.to_string()]);
+                add("region", regions);
+            },
+            Self::OwnAPortAdjoiningSeaRegionsIncluding { regions } => add("region", regions),
         }
         statements
     }
@@ -350,6 +371,9 @@ impl MissionObjective {
             Self::EliminateCharacterInBattle { .. } => "ELIMINATE_CHARACTER_IN_BATTLE",
             Self::ConfederateFactions { .. } => "CONFEDERATE_FACTIONS",
             Self::AttainFameLevel { .. } => "ATTAIN_FAME_LEVEL",
+            Self::Scripted { .. } => "SCRIPTED",
+            Self::ControlNPortsIncluding { .. } => "CONTROL_N_PORTS_INCLUDING",
+            Self::OwnAPortAdjoiningSeaRegionsIncluding { .. } => "OWN_A_PORT_ADJOINING_SEA_REGIONS_INCLUDING",
         }
     }
 
@@ -392,7 +416,13 @@ impl MissionObjective {
             "INCOME_AT_LEAST_X" => Self::IncomeAtLeastX { income: item.child_number("income")? },
             "ELIMINATE_CHARACTER_IN_BATTLE" => Self::EliminateCharacterInBattle { faction: item.child_value("faction")? },
             "CONFEDERATE_FACTIONS" => Self::ConfederateFactions { total: total()? },
-            "ATTAIN_FAME_LEVEL" => Self::AttainFameLevel { level: item.child_number("fame_level")? },
+            "ATTAIN_FAME_LEVEL" => Self::AttainFameLevel {
+                level: item.child_number("fame_level")?,
+                status: item.child_values("custom_completion_status").into_iter().next(),
+            },
+            "SCRIPTED" => Self::Scripted { script_key: item.child_value("script_key")?, text: item.child_values("override_text").into_iter().next() },
+            "CONTROL_N_PORTS_INCLUDING" => Self::ControlNPortsIncluding { total: total()?, regions: item.child_values("region") },
+            "OWN_A_PORT_ADJOINING_SEA_REGIONS_INCLUDING" => Self::OwnAPortAdjoiningSeaRegionsIncluding { regions: item.child_values("region") },
             other => return Err(script_error(format!("unsupported objective type {other}"))),
         })
     }

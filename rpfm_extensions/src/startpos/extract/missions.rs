@@ -125,7 +125,16 @@ fn fixed_objective(source: &Source, name: &str, path: &str, values: &GroupView) 
         },
         "INCOME_AT_LEAST_X" => MissionObjective::IncomeAtLeastX { income: total },
         "ELIMINATE_CHARACTER_IN_BATTLE" => MissionObjective::EliminateCharacterInBattle { faction: values.str("^+2").unwrap_or_default().to_owned() },
-        "ATTAIN_FAME_LEVEL" => MissionObjective::AttainFameLevel { level: total },
+        "ATTAIN_FAME_LEVEL" => MissionObjective::AttainFameLevel { level: total, status: values.str("^+2").filter(|text| !text.is_empty()).map(str::to_owned) },
+        "SCRIPTED" => {
+            let text = match values.record("CAMPAIGN_LOCALISATION") {
+                Some(record) => source.layout.read_single(&child_path(path, "CAMPAIGN_LOCALISATION"), record)?.str("^+1").filter(|text| !text.is_empty()).map(str::to_owned),
+                None => None,
+            };
+            MissionObjective::Scripted { script_key: values.str("^+1").unwrap_or_default().to_owned(), text }
+        },
+        "CONTROL_N_PORTS_INCLUDING" => MissionObjective::ControlNPortsIncluding { total, regions: strings() },
+        "OWN_A_PORT_ADJOINING_SEA_REGIONS_INCLUDING" => MissionObjective::OwnAPortAdjoiningSeaRegionsIncluding { regions: values.strs("^+1").map(<[String]>::to_vec).unwrap_or_default() },
         "EARN_X_AMOUNT_FROM_BUILDING_WEALTH" => MissionObjective::EarnXAmountFromBuildingWealth { total },
         "EARN_X_AMOUNT_FROM_RAIDING" => MissionObjective::EarnXAmountFromRaiding { total },
         "OWN_N_PROVINCES_WITH_CULTURAL_DOMINANCE" => MissionObjective::OwnNProvincesWithCulturalDominance { total },

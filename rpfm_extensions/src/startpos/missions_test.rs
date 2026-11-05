@@ -97,7 +97,11 @@ fn test_parse_objectives_of_other_campaigns() {
         ("type INCOME_AT_LEAST_X; income 10000;", MissionObjective::IncomeAtLeastX { income: 10000 }),
         ("type ELIMINATE_CHARACTER_IN_BATTLE; faction fact_a;", MissionObjective::EliminateCharacterInBattle { faction: "fact_a".to_owned() }),
         ("type CONFEDERATE_FACTIONS; total 1;", MissionObjective::ConfederateFactions { total: 1 }),
-        ("type ATTAIN_FAME_LEVEL; fame_level 5;", MissionObjective::AttainFameLevel { level: 5 }),
+        ("type ATTAIN_FAME_LEVEL; fame_level 5;", MissionObjective::AttainFameLevel { level: 5, status: None }),
+        ("type ATTAIN_FAME_LEVEL; fame_level 532; custom_completion_status text_a;", MissionObjective::AttainFameLevel { level: 532, status: Some("text_a".to_owned()) }),
+        ("type SCRIPTED; script_key key_a; override_text text_a;", MissionObjective::Scripted { script_key: "key_a".to_owned(), text: Some("text_a".to_owned()) }),
+        ("type CONTROL_N_PORTS_INCLUDING; total 15;", MissionObjective::ControlNPortsIncluding { total: 15, regions: vec![] }),
+        ("type OWN_A_PORT_ADJOINING_SEA_REGIONS_INCLUDING; region sea_a; region sea_b;", MissionObjective::OwnAPortAdjoiningSeaRegionsIncluding { regions: vec!["sea_a".to_owned(), "sea_b".to_owned()] }),
         ("type CONTROL_N_REGIONS_INCLUDING; total 45; region reg_a;", MissionObjective::ControlNRegionsIncluding { total: 45, regions: vec!["reg_a".to_owned()] }),
     ];
 
