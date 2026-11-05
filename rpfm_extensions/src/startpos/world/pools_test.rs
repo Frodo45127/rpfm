@@ -64,6 +64,16 @@ fn test_faction_and_province_pools() {
 }
 
 #[test]
+fn test_units_get_the_creation_index_of_their_key_order() {
+    let tables = pool_tables();
+
+    let pool = faction_mercenary_pool(&tables, "fact_a").unwrap();
+
+    // Key order is 3, 1, 2, so horse (key 3) is created before archers (key 1).
+    assert_eq!(pool.iter().map(|unit| (unit.unit().as_str(), unit.creation_index())).collect::<Vec<_>>(), vec![("archers", 1), ("horse", 0)]);
+}
+
+#[test]
 fn test_levies_of_subject_provinces() {
     let tables = pool_tables();
     let index = fixture_index(&tables);

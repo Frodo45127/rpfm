@@ -12,7 +12,8 @@
 //! (`FACTION/LEVY_MERCENARY_MANAGER`).
 //!
 //! Verified on Attila's main campaign: 118 of 118 faction pools, 62 of 62 province pools and 3 of 3 levy managers
-//! match. The game stores the units of a pool in hash order; these functions return them in table order.
+//! match. The game lists the units of a pool in an order not reproduced yet; these functions return them in table
+//! order, with the game's creation index.
 
 use getset::{CopyGetters, Getters};
 
@@ -55,6 +56,11 @@ pub struct MercenaryUnit {
     /// Maximum units replenished per turn.
     #[getset(get_copy = "pub")]
     max_replenish_per_turn: u32,
+
+    /// Position of the unit in the order the game creates the pool's units: the key order of its
+    /// `mercenary_pool_to_groups_junctions` row (see [`crate::startpos::tables::Table::rows_in_key_order`]).
+    #[getset(get_copy = "pub")]
+    creation_index: u32,
 }
 
 /// A levy pool: an empty mercenary pool an overlord gets for each province where a subject owns regions.
@@ -124,7 +130,11 @@ fn mercenary_pool(tables: &StartposTables, junctions: &str, owner_column: &str, 
     }
 
     let pool_rows = tables.table("mercenary_pool_to_groups_junctions")?;
+    let key_rank = pool_rows.rows_in_key_order("key")?.iter().enumerate()
+        .map(|(rank, row)| Ok((row.str("key")?.into_owned(), rank)))
+        .collect::<Result<HashMap<_, _>>>()?;
     let mut units = vec![];
+    let mut ranks = vec![];
     for set_row in tables.table(junctions)?.rows() {
         if set_row.str(owner_column)? != owner {
             continue;
@@ -135,16 +145,24 @@ fn mercenary_pool(tables: &StartposTables, junctions: &str, owner_column: &str, 
                 continue;
             }
             let Some(group) = groups.get(row.str("group")?.as_ref()) else { continue };
+            ranks.push(key_rank.get(row.str("key")?.as_ref()).copied().unwrap_or_default());
             units.push(MercenaryUnit {
                 unit: group.str("unit_record")?.into_owned(),
                 initial_count: count(row.int("initial_unit_count")?),
                 replenish_chance: group.f32("chance_to_replenish")?,
                 max_count: count(group.int("max_count")?),
                 max_replenish_per_turn: count(group.int("max_replenish_per_turn")?),
+                creation_index: 0,
             });
         }
     }
 
+    // The creation index is the unit's place among the pool's units in key order.
+    let mut by_rank = (0..units.len()).collect::<Vec<_>>();
+    by_rank.sort_by_key(|&unit| ranks[unit]);
+    for (index, unit) in by_rank.into_iter().enumerate() {
+        units[unit].creation_index = u32::try_from(index).unwrap_or(u32::MAX);
+    }
     Ok(units)
 }
 

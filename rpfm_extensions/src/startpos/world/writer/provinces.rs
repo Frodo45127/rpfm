@@ -333,14 +333,14 @@ pub(super) fn write_mercenary_pool(inputs: &WorldInputs, parent: &str, units: &[
     let unit_layout = inputs.layout.record(&child_path(&path, "MERCENARY_POOL_UNIT_ARRAY"));
     let whole_chance = unit_layout.and_then(|layout| layout.leaf_default("^+3")).is_some_and(|default| matches!(default, NodeType::I32(_)));
     let second_chance = unit_layout.is_some_and(|layout| layout.has_slot("^+12"));
-    for (index, unit) in units.iter().enumerate() {
+    for unit in units {
         let group = array.push_group()?;
         group.set_str("^+1", unit.unit())?
             .set_u32("^+2", unit.initial_count())?
             .set_u32("^+4", unit.max_count())?
             .set_u32("^+5", unit.max_replenish_per_turn())?
             .set_u32("^+6", unit.max_count())?
-            .set_u32("^+8", u32::try_from(index).unwrap_or(u32::MAX))?;
+            .set_u32("^+8", unit.creation_index())?;
         if whole_chance {
             let chance = unit.replenish_chance().round() as i32;
             group.set_i32("^+3", chance)?;
