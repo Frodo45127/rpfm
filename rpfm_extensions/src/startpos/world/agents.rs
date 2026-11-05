@@ -91,7 +91,8 @@ pub fn agent_attributes(tables: &StartposTables, agent: &str) -> Result<[i64; AT
     Ok(attributes)
 }
 
-/// Returns the skill set of a character (`character_skill_node_sets` row for its agent type and subculture).
+/// Returns the skill set of a character: the `character_skill_node_sets` row for its agent type and faction, else its
+/// subculture, else every faction.
 ///
 /// # Arguments
 ///
@@ -108,17 +109,26 @@ pub fn agent_attributes(tables: &StartposTables, agent: &str) -> Result<[i64; AT
 ///
 /// Returns an error if a table or column is missing.
 pub fn skill_set(tables: &StartposTables, index: &CampaignIndex, agent: &str, faction: &FactionEntry) -> Result<Option<String>> {
+
+    // Best match: 0 for the faction's own set, 1 for its subculture's, 2 for a set of every faction.
+    let mut best: Option<(u8, String)> = None;
     for row in tables.table("character_skill_node_sets")?.rows() {
         let campaign = row.str("campaign_key")?;
-        let row_faction = row.str("faction_key")?;
-        if row.str("agent_key")? == agent
-            && row.str("subculture")? == *faction.subculture()
-            && (row_faction.is_empty() || row_faction == *faction.key())
-            && (campaign.is_empty() || campaign == *index.campaign()) {
-            return Ok(Some(row.str("key")?.into_owned()));
+        let (row_faction, row_subculture) = (row.str("faction_key")?, row.str("subculture")?);
+        if row.str("agent_key")? != agent || !(campaign.is_empty() || campaign == *index.campaign()) {
+            continue;
+        }
+        let rank = match (row_faction.is_empty(), row_subculture.is_empty()) {
+            (false, _) if row_faction == *faction.key() && (row_subculture.is_empty() || row_subculture == *faction.subculture()) => 0,
+            (true, false) if row_subculture == *faction.subculture() => 1,
+            (true, true) => 2,
+            _ => continue,
+        };
+        if best.as_ref().is_none_or(|(best_rank, _)| rank < *best_rank) {
+            best = Some((rank, row.str("key")?.into_owned()));
         }
     }
-    Ok(None)
+    Ok(best.map(|(_, key)| key))
 }
 
 /// A skill a character starts with: a node of its skill set with points on creation.

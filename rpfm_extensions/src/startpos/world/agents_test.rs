@@ -68,6 +68,20 @@ fn test_skill_set_of_agent_and_subculture() {
 }
 
 #[test]
+fn test_skill_sets_of_the_faction_then_the_subculture_then_everyone() {
+    let mut tables = agent_tables();
+    add_table(&mut tables, "character_skill_node_sets", &["agent_key", "campaign_key", "faction_key", "key", "subculture"], &[
+        &["general", "", "", "skills_everyone", ""],
+        &["general", "", "fact_b", "skills_own_fact_b", ""],
+    ]);
+    let index = fixture_index(&tables);
+
+    assert_eq!(skill_set(&tables, &index, "general", index.faction("fact_b").unwrap()).unwrap().as_deref(), Some("skills_own_fact_b"));
+    assert_eq!(skill_set(&tables, &index, "general", index.faction("fact_a").unwrap()).unwrap().as_deref(), Some("skills_general_a"));
+    assert_eq!(skill_set(&tables, &index, "spy", index.faction("fact_a").unwrap()).unwrap(), None);
+}
+
+#[test]
 fn test_recruitment_pools_skip_uncapped_agents() {
     let tables = agent_tables();
     let index = fixture_index(&tables);
