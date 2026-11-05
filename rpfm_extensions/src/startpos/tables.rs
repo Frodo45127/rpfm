@@ -140,6 +140,28 @@ impl Table {
         self.rows.iter().map(|data| Row { table: self, data })
     }
 
+    /// Returns the rows of the table in the order of the game's key lookup table, given the key column.
+    ///
+    /// The game indexes each table by key in an open addressing table with one slot per row (13 if empty): a
+    /// row goes to the slot [`key_hash`] modulo the row count gives, or the next free one. Code iterating that
+    /// index visits the rows in slot order.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the table has no such column.
+    pub fn rows_in_key_order(&self, column: &str) -> Result<Vec<Row<'_>>> {
+        let keys = self.rows().map(|row| row.str(column)).collect::<Result<Vec<_>>>()?;
+        let mut slots: Vec<Option<usize>> = vec![None; keys.len().max(1)];
+        for (row, key) in keys.iter().enumerate() {
+            let mut slot = key_hash(key.as_bytes()) as usize % slots.len();
+            while slots[slot].is_some() {
+                slot = (slot + 1) % slots.len();
+            }
+            slots[slot] = Some(row);
+        }
+        Ok(slots.into_iter().flatten().map(|row| Row { table: self, data: &self.rows[row] }).collect())
+    }
+
     /// Returns the number of rows.
     pub fn len(&self) -> usize {
         self.rows.len()
@@ -163,6 +185,13 @@ impl Table {
     pub fn column(&self, column: &str) -> Result<usize> {
         self.columns.get(column).copied().ok_or_else(|| RLibError::StartposMissingColumn(self.name.to_owned(), column.to_owned()))
     }
+}
+
+/// Returns the hash the game gives a table key (`FUN_100e9730` in Thrones): the bytes from last to first, each
+/// sign-extended and xored in at a shift that cycles through 0, 8, 16 and 24 bits.
+pub fn key_hash(key: &[u8]) -> u32 {
+    key.iter().rev().zip([0, 8, 16, 24].into_iter().cycle())
+        .fold(0xf73a_51c9, |hash, (&byte, shift)| hash ^ ((byte as i8 as i32 as u32) << shift))
 }
 
 impl<'a> Row<'a> {

@@ -68,3 +68,24 @@ fn test_hex_colours() {
     assert!(row.colour("short").is_err());
     assert!(row.colour("bad").is_err());
 }
+
+#[test]
+fn test_key_hash_matches_the_game() {
+    assert_eq!(key_hash(b""), 0xf73a_51c9);
+    assert_eq!(key_hash(b"989"), 0xf703_69f0);
+
+    // Bytes above 0x7f are sign-extended.
+    assert_eq!(key_hash(&[0xe9]), 0x08c5_ae20);
+}
+
+#[test]
+fn test_rows_in_key_order_follow_the_slots() {
+    let mut tables = StartposTables::new();
+    let rows = ["1000", "1009", "989", "999"].iter().map(|key| vec![text(key)]).collect::<Vec<_>>();
+    tables.add_rows("posts", &["key"], &rows).unwrap();
+
+    let table = tables.table("posts").unwrap();
+    let keys = table.rows_in_key_order("key").unwrap().iter().map(|row| row.str("key").unwrap().into_owned()).collect::<Vec<_>>();
+
+    assert_eq!(keys, ["1009", "1000", "989", "999"]);
+}
