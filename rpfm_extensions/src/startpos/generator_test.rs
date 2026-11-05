@@ -15,7 +15,7 @@ use std::path::Path;
 
 use rpfm_lib::files::esf::NodeType;
 use rpfm_lib::files::table::DecodedData;
-use rpfm_lib::games::supported_games::SupportedGames;
+use rpfm_lib::games::supported_games::{SupportedGames, KEY_THRONES_OF_BRITANNIA};
 use rpfm_lib::schema::{Definition, Field, FieldType};
 
 use super::*;
@@ -255,5 +255,66 @@ fn test_script_variables_match_the_game_startposes() {
         let ours = script_variables(&dependencies, pack, campaign).unwrap();
 
         assert_eq!(ours, startpos_script_variables(&theirs), "{campaign}");
+    }
+}
+
+/// Returns a file of another game's startpos test data folder, given by an environment variable.
+fn other_game_data_path(variable: &str, file_name: &str) -> std::path::PathBuf {
+    let folder = std::env::var(variable).unwrap_or_else(|_| panic!("set {variable} to run this test"));
+    std::path::PathBuf::from(folder).join(file_name)
+}
+
+/// Generates each campaign of another game and returns, per campaign, how many fields match its game-built startpos.
+///
+/// The test data folder has the game's dependencies cache (`<cache>.pak1` to `.pak3`, built if outdated), its schema
+/// as `schema.ron`, the game's folder as `game` and its Assembly Kit as `kit`. A campaign takes its layout from the game's other
+/// campaigns, or from its own startpos if the game has no other.
+fn other_game_reports(variable: &str, game_key: &str, cache: &str, campaigns: &[&str]) -> Vec<(String, usize, usize, String)> {
+    let games = SupportedGames::default();
+    let game = games.game(game_key).unwrap();
+    let path = |name: &str| other_game_data_path(variable, name);
+    let schema = Schema::load(&path("schema.ron"), None).unwrap();
+    // An outdated cache is built again from the game and its Assembly Kit, into the test data folder.
+    let mut dependencies = Dependencies::load(&path(cache), &Some(schema.clone())).unwrap_or_else(|_| {
+        let kit = Some(path("kit").join("raw_data").join("db"));
+        let mut built = Dependencies::generate_dependencies_cache(&Some(schema.clone()), game, &path("game"), &kit, false).unwrap();
+        built.save(&path(cache)).unwrap();
+        built
+    });
+    dependencies.rebuild(&Some(schema.clone()), &[], None, game, &path("game"), Path::new("")).unwrap();
+    let tables = load_tables(&dependencies, &Pack::default(), &schema).unwrap();
+
+    let startpos_path = |campaign: &str| path("game").join("data").join("campaigns").join(campaign).join("startpos.esf");
+    let decode = |campaign: &str| ESF::decode(&mut BufReader::new(File::open(startpos_path(campaign))?), &None);
+    let shapes = StartposLayout::from_esfs(campaigns.iter().map(|campaign| decode(campaign))).unwrap();
+    campaigns.iter().map(|campaign| {
+        let others = campaigns.iter().filter(|other| *other != campaign).collect::<Vec<_>>();
+        let layout = match others.is_empty() {
+            true => shapes.clone(),
+            false => StartposLayout::from_esfs(others.iter().map(|other| decode(other))).unwrap().with_fallback(&shapes),
+        };
+        let theirs = decode(campaign).unwrap();
+
+        let victory = path("kit").join("raw_data/EmpireDesignData/campaigns").join(campaign).join("victory_objectives.txt");
+        let mut pack = Pack::default();
+        if let Ok(bytes) = std::fs::read(victory) {
+            let mut file = RFile::new_from_vec(&bytes, FileType::Text, 0, VICTORY_OBJECTIVES_FILE_NAME);
+            file.guess_file_type().unwrap();
+            pack.insert(file).unwrap();
+        }
+
+        let sources = StartposSources::from_tables(tables.clone(), &dependencies, &pack, campaign).unwrap();
+        let ours = generate_startpos_with_plan(&sources, &layout, |index| plan_from_startpos(index, &theirs, &tables)).unwrap();
+        let report = compare_startposes(&StartposLayout::from_esf(&theirs).unwrap(), &ours, &theirs);
+        let (matches, total) = report.totals();
+        (campaign.to_string(), matches, total, report.worst(40))
+    }).collect()
+}
+
+#[test]
+#[ignore = "needs the game data, see other_game_reports"]
+fn test_thrones_campaigns_match_the_game_startposes() {
+    for (campaign, matches, total, worst) in other_game_reports("RPFM_STARTPOS_TEST_DATA_TOB", KEY_THRONES_OF_BRITANNIA, "tob.pak", &["vik_attila"]) {
+        println!("{campaign}: {matches}/{total} ({:.4}) fields match. Worst:\n{worst}", matches as f64 / total as f64);
     }
 }

@@ -12,7 +12,7 @@
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 
-use rpfm_lib::files::esf::ESF;
+use rpfm_lib::files::esf::{NodeType, ESF};
 
 use super::*;
 use crate::startpos::esf_nav::child_record;
@@ -40,11 +40,19 @@ pub(crate) fn game_plan(index: &CampaignIndex) -> WorldPlan<'_> {
     plan_from_startpos(index, test_startpos(), test_data_tables())
 }
 
+/// Returns a faction's key: its first string field (Thrones puts its effect bundles before it).
+fn faction_key(faction: &RecordNode) -> &str {
+    faction.children()[0].iter().find_map(|node| match node {
+        NodeType::Ascii(value) | NodeType::Utf16(value) => Some(value.as_str()),
+        _ => None,
+    }).unwrap_or_default()
+}
+
 /// Plans the world with the orders of factions, regions and characters of a game-built startpos (characters linked
 /// to their table rows by name).
 pub(crate) fn plan_from_startpos<'a>(index: &'a CampaignIndex, startpos: &ESF, tables: &StartposTables) -> WorldPlan<'a> {
     let game_world = world(startpos);
-    let factions = world_factions(game_world).iter().filter_map(|faction| index.faction(field_str(faction, 1))).collect();
+    let factions = world_factions(game_world).iter().filter_map(|faction| index.faction(faction_key(faction))).collect();
     let regions = world_regions(game_world).iter().filter_map(|region| index.region(field_str(region, 1))).collect();
     let mut plan = WorldPlan::with_orders(factions, regions);
 
@@ -52,9 +60,9 @@ pub(crate) fn plan_from_startpos<'a>(index: &'a CampaignIndex, startpos: &ESF, t
         .map(|row| (row.str("ID").unwrap().into_owned(), ["Name", "Surname", "clan_name", "other_name"].iter().map(|column| row.str(column).unwrap().into_owned()).filter(|id| !id.is_empty()).collect::<BTreeSet<_>>()))
         .collect::<HashMap<_, _>>();
     // Characters married into another faction are listed there, but were created, and numbered, in their own.
-    let mut orders = world_factions(game_world).iter().map(|faction| (field_str(faction, 1), vec![])).collect::<HashMap<&str, Vec<(u32, &CharacterEntry)>>>();
+    let mut orders = world_factions(game_world).iter().map(|faction| (faction_key(faction), vec![])).collect::<HashMap<&str, Vec<(u32, &CharacterEntry)>>>();
     for faction in world_factions(game_world) {
-        let key = field_str(faction, 1);
+        let key = faction_key(faction);
         let origins = std::iter::once(key).chain(index.characters().iter()
             .filter(|entry| entry.husband_faction().as_deref() == Some(key))
             .map(|entry| entry.faction().as_str()));
