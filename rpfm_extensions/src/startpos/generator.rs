@@ -88,6 +88,12 @@ const STARTPOS_BUILD_EVENTS: [&str; 2] = ["NewSession", "WorldCreated"];
 /// Localisation key prefix of the season names.
 const SEASON_NAME_PREFIX: &str = "seasons_onscreen_";
 
+/// Localisation key prefix of the factions' screen names.
+pub(crate) const FACTION_SCREEN_NAME_PREFIX: &str = "factions_screen_name_";
+
+/// Localisation key prefix of the characters' names.
+pub(crate) const CHARACTER_NAME_PREFIX: &str = "names_name_";
+
 /// Suffix of the campaign map keys, which the region lookup image's name lacks.
 const MAP_KEY_SUFFIX: &str = "_map";
 
@@ -162,6 +168,9 @@ pub struct StartposSources {
 
     /// Localised name of the season the campaign starts in, empty if it has none.
     season_name: String,
+
+    /// Localised screen names of the campaign's factions and names of its characters, by localisation key.
+    texts: HashMap<String, String>,
 
     /// RGB colours of the campaign map's region lookup image, by palette index. Empty without the image.
     region_palette: Vec<[u8; 3]>,
@@ -238,6 +247,7 @@ impl StartposSources {
             game: game.key().to_owned(),
             campaign: campaign.to_owned(),
             season_name: loc_text(dependencies, pack, &format!("{SEASON_NAME_PREFIX}{season}")).unwrap_or_default(),
+            texts: header_texts(&tables, dependencies, pack)?,
             region_palette,
             map_data: esf("map_data.esf")?,
             hlp_data: esf("hlp_data.esf")?,
@@ -388,6 +398,7 @@ pub(crate) fn generate_startpos_with_plan(sources: &StartposSources, layout: &St
         campaign: &sources.campaign,
         map: &sources.map,
         season_name: &sources.season_name,
+        texts: &sources.texts,
         region_palette: &sources.region_palette,
         script_variables: sources.script_variables.as_deref(),
     };
@@ -571,6 +582,24 @@ fn script_variables(dependencies: &Dependencies, pack: &Pack, campaign: &str) ->
             None
         },
     }
+}
+
+/// Returns the localised texts the save game header can show: every faction's screen name and every character's
+/// first name, by localisation key, from the pack if it has them, else from the game.
+fn header_texts(tables: &StartposTables, dependencies: &Dependencies, pack: &Pack) -> Result<HashMap<String, String>> {
+    let mut keys = vec![];
+    for row in tables.table("start_pos_factions")?.rows() {
+        keys.push(format!("{FACTION_SCREEN_NAME_PREFIX}{}", row.str("faction")?));
+    }
+    for row in tables.table("start_pos_characters")?.rows() {
+        keys.push(format!("{CHARACTER_NAME_PREFIX}{}", row.str("Name")?));
+    }
+
+    // Texts are looked up once each: the localisation scan is slow.
+    let pack_texts = pack.files_by_type(&[FileType::Loc]).into_iter().flat_map(loc_texts).collect::<HashMap<_, _>>();
+    Ok(keys.into_iter()
+        .filter_map(|key| pack_texts.get(&key).or_else(|| dependencies.localisation_data().get(&key)).cloned().map(|text| (key, text)))
+        .collect())
 }
 
 /// Returns the text of a localisation key, from the pack if it has it, else from the game.

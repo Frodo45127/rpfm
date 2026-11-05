@@ -96,6 +96,7 @@ pub(crate) fn write_test_startpos() -> (ESF, StartposLayout) {
         campaign: TEST_CAMPAIGN,
         map: TEST_MAP,
         season_name: TEST_SEASON_NAME,
+        texts: &std::collections::HashMap::new(),
         region_palette: &region_palette,
         script_variables: None,
     };

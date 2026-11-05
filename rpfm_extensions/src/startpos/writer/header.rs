@@ -22,6 +22,7 @@ use rpfm_lib::schema::MERGE_COLOUR_NO_NAME;
 
 use super::preopen::army_positions;
 use super::{StartposInputs, ENV_PATH, MODEL_PATH, ROOT_PATH};
+use crate::startpos::generator::{CHARACTER_NAME_PREFIX, FACTION_SCREEN_NAME_PREFIX};
 use crate::startpos::layout::{child_path, StartposLayout};
 use crate::startpos::world::calendar::Calendar;
 use crate::startpos::world::government::faction_leader;
@@ -73,9 +74,18 @@ pub fn write_save_game_header(inputs: &StartposInputs, plan: &WorldPlan, forces:
     let mut maps = layout.builder(&child_path(&path, "MAPS"))?;
     maps.push_group()?.set_str("^+1", inputs.map)?;
 
-    // Thrones adds the leader's name and four numbers after the portrait.
+    // Thrones adds the leader's first name, age and three numbers of unknown meaning (kept from the layout), and the
+    // faction's screen name.
     let shift = if layout.record(&path).is_some_and(|header| header.has_slot("^+11")) { 5 } else { 0 };
-    record.group()?
+    let group = record.group()?;
+    if shift > 0 {
+        let leader = faction_leader(world.index, faction.key());
+        let name = leader.and_then(|leader| leader.names().first()).and_then(|name| inputs.texts.get(&format!("{CHARACTER_NAME_PREFIX}{name}")));
+        group.set_str("^+3", name.map(String::as_str).unwrap_or_default())?
+            .set_u32("^+4", leader.and_then(|leader| u32::try_from(leader.age()).ok()).unwrap_or_default())?
+            .set_str("MAPS+4", inputs.texts.get(&format!("{FACTION_SCREEN_NAME_PREFIX}{}", faction.key())).map(String::as_str).unwrap_or_default())?;
+    }
+    group
         .set_str("^+1", faction.key())?
         .set_str("^+2", &portrait(inputs, faction)?)?
         .set_u32(&format!("^+{}", 4 + shift), calendar.start_year())?

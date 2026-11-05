@@ -12,6 +12,8 @@
 //!
 //! Records without a generator yet keep the values of their layouts.
 
+use std::collections::HashMap;
+
 use rpfm_lib::error::Result;
 use rpfm_lib::files::esf::{BoolNode, Coordinates2DNode, ESF, F32Node, I32Node, NodeType, U32Node, VecU32Node};
 
@@ -85,6 +87,9 @@ pub struct StartposInputs<'a> {
 
     /// Localised name of the season the campaign starts in.
     pub season_name: &'a str,
+
+    /// Localised screen names of the factions and names of the characters, by localisation key.
+    pub texts: &'a HashMap<String, String>,
 
     /// RGB colours of the campaign map's region lookup image, by palette index.
     pub region_palette: &'a [[u8; 3]],
