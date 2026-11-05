@@ -43,7 +43,7 @@ use super::settlements::SettlementLayout;
 use super::tables::StartposTables;
 use super::trade::TradeNetwork;
 use super::validation::referenced_tables;
-use super::world::CampaignIndex;
+use super::world::{CampaignIndex, NAME_COLUMNS};
 use super::world::calendar::Calendar;
 use super::world::writer::{WorldInputs, WorldPlan};
 use super::writer::{write_startpos, StartposInputs};
@@ -585,14 +585,16 @@ fn script_variables(dependencies: &Dependencies, pack: &Pack, campaign: &str) ->
 }
 
 /// Returns the localised texts the save game header can show: every faction's screen name and every character's
-/// first name, by localisation key, from the pack if it has them, else from the game.
+/// names, by localisation key, from the pack if it has them, else from the game.
 fn header_texts(tables: &StartposTables, dependencies: &Dependencies, pack: &Pack) -> Result<HashMap<String, String>> {
     let mut keys = vec![];
     for row in tables.table("start_pos_factions")?.rows() {
         keys.push(format!("{FACTION_SCREEN_NAME_PREFIX}{}", row.str("faction")?));
     }
     for row in tables.table("start_pos_characters")?.rows() {
-        keys.push(format!("{CHARACTER_NAME_PREFIX}{}", row.str("Name")?));
+        for column in NAME_COLUMNS {
+            keys.push(format!("{CHARACTER_NAME_PREFIX}{}", row.str(column)?));
+        }
     }
 
     // Texts are looked up once each: the localisation scan is slow.

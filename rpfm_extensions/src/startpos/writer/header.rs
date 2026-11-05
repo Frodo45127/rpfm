@@ -30,6 +30,7 @@ use crate::startpos::world::writer::forces::ForcePlan;
 use crate::startpos::world::writer::WorldPlan;
 use crate::startpos::world::FactionEntry;
 
+#[cfg(test)] #[path = "header_test.rs"] mod header_test;
 
 /// Folder of the portraits the load screen shows, by culture.
 const PORTRAITS_FOLDER: &str = "UI/Portraits/Portholes";
@@ -74,14 +75,14 @@ pub fn write_save_game_header(inputs: &StartposInputs, plan: &WorldPlan, forces:
     let mut maps = layout.builder(&child_path(&path, "MAPS"))?;
     maps.push_group()?.set_str("^+1", inputs.map)?;
 
-    // Thrones adds the leader's first name, age and three numbers of unknown meaning (kept from the layout), and the
-    // faction's screen name.
+    // Thrones adds the leader's full name, age and three numbers (kept from the layout) and the faction's screen name.
+    // The numbers are a field of the leader, his political gravitas (from effects) and a field of his details.
     let shift = if layout.record(&path).is_some_and(|header| header.has_slot("^+11")) { 5 } else { 0 };
     let group = record.group()?;
     if shift > 0 {
         let leader = faction_leader(world.index, faction.key());
-        let name = leader.and_then(|leader| leader.names().first()).and_then(|name| inputs.texts.get(&format!("{CHARACTER_NAME_PREFIX}{name}")));
-        group.set_str("^+3", name.map(String::as_str).unwrap_or_default())?
+        let name = leader.map(|leader| full_name(inputs.texts, leader.names())).unwrap_or_default();
+        group.set_str("^+3", &name)?
             .set_u32("^+4", leader.and_then(|leader| u32::try_from(leader.age()).ok()).unwrap_or_default())?
             .set_str("MAPS+4", inputs.texts.get(&format!("{FACTION_SCREEN_NAME_PREFIX}{}", faction.key())).map(String::as_str).unwrap_or_default())?;
     }
@@ -185,4 +186,15 @@ fn flags_path(inputs: &StartposInputs, faction: &FactionEntry) -> Result<String>
         }
     }
     Ok(String::new())
+}
+
+/// Returns a character's full name as the game shows it: its localised names that aren't empty, in names order,
+/// separated by spaces.
+pub(crate) fn full_name(texts: &HashMap<String, String>, names: &[String]) -> String {
+    names.iter()
+        .filter_map(|name| texts.get(&format!("{CHARACTER_NAME_PREFIX}{name}")))
+        .filter(|text| !text.is_empty())
+        .map(String::as_str)
+        .collect::<Vec<_>>()
+        .join(" ")
 }
