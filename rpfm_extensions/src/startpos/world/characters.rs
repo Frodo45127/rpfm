@@ -26,8 +26,11 @@ use crate::startpos::tables::StartposTables;
 
 #[cfg(test)] #[path = "characters_test.rs"] mod characters_test;
 
-/// Range the startpos clamps the table loyalty to.
-pub const LOYALTY_RANGE: RangeInclusive<i64> = 3..=10;
+/// Campaign variable of the lowest loyalty the startpos keeps (Attila 3, Thrones 2).
+const LOW_LOYALTY_VARIABLE: &str = "loyalty_risk_low";
+
+/// Campaign variable of the highest loyalty.
+const MAXIMUM_LOYALTY_VARIABLE: &str = "maximum_loyalty";
 
 //---------------------------------------------------------------------------//
 //                              Types
@@ -59,9 +62,27 @@ pub fn birth_year(start_year: i64, character: &CharacterEntry) -> i64 {
     start_year - character.age()
 }
 
-/// Returns the loyalty the startpos stores: the table value clamped to [`LOYALTY_RANGE`].
-pub fn loyalty(character: &CharacterEntry) -> i64 {
-    character.loyalty().clamp(*LOYALTY_RANGE.start(), *LOYALTY_RANGE.end())
+/// Returns the loyalty the startpos stores: the table value clamped to a range (see [`loyalty_range`]).
+pub fn loyalty(character: &CharacterEntry, range: &RangeInclusive<i64>) -> i64 {
+    character.loyalty().clamp(*range.start(), *range.end())
+}
+
+/// Returns the range the startpos clamps the table loyalty to: from the `loyalty_risk_low` campaign variable to the
+/// `maximum_loyalty` one (Attila 3 to 10, Thrones 2 to 10). Verified on Thrones: 359 of its 363 living characters.
+///
+/// # Errors
+///
+/// Returns an error if the table or a column is missing.
+pub fn loyalty_range(tables: &StartposTables) -> Result<RangeInclusive<i64>> {
+    let (mut low, mut high) = (0, 0);
+    for row in tables.table("campaign_variables")?.rows() {
+        match row.str("variable_key")?.as_ref() {
+            LOW_LOYALTY_VARIABLE => low = row.number("value")? as i64,
+            MAXIMUM_LOYALTY_VARIABLE => high = row.number("value")? as i64,
+            _ => {},
+        }
+    }
+    Ok(low..=high.max(low))
 }
 
 /// Returns the political party of a character: its table party, except for the dead and the widowed, which the game

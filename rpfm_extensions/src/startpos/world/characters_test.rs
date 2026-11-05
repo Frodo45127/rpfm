@@ -28,9 +28,9 @@ fn test_birth_year_and_loyalty() {
     let characters = index.characters();
 
     assert_eq!(birth_year(1147, &characters[0]), 1107);
-    assert_eq!(loyalty(&characters[0]), 3);
-    assert_eq!(loyalty(&characters[1]), 10);
-    assert_eq!(loyalty(&characters[2]), 5);
+    assert_eq!(loyalty(&characters[0], &(3..=10)), 3);
+    assert_eq!(loyalty(&characters[1], &(3..=10)), 10);
+    assert_eq!(loyalty(&characters[2], &(3..=10)), 5);
 }
 
 #[test]
@@ -126,7 +126,7 @@ fn test_characters_real_data() {
         let (x, y) = position(character);
         let position_ok = expected_position.is_some_and(|(ex, ey)| (ex - x).abs() < 1e-3 && (ey - y).abs() < 1e-3);
 
-        matches += usize::from(i64::from(birth) == birth_year(TEST_START_YEAR, entry) && stored_loyalty == loyalty(entry) && position_ok);
+        matches += usize::from(i64::from(birth) == birth_year(TEST_START_YEAR, entry) && stored_loyalty == loyalty(entry, &loyalty_range(tables).unwrap()) && position_ok);
     }
 
     // Two Sassanid generals are moved by the game to free spots around an occupied Ctesiphon, if they're linked.

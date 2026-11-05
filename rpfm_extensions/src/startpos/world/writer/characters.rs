@@ -20,6 +20,7 @@
 
 use std::collections::HashMap;
 use std::f32::consts::PI;
+use std::ops::RangeInclusive;
 
 use rpfm_lib::error::Result;
 use rpfm_lib::files::esf::{Coordinates2DNode, NodeType, RecordNode};
@@ -34,7 +35,7 @@ use crate::startpos::tables::{Row, StartposTables};
 use crate::startpos::vision::Vision;
 use crate::startpos::world::agents::{agent_abilities, agent_attributes, experience_rank, skill_set, starting_skills, ABILITIES, ATTRIBUTES};
 use crate::startpos::world::bodyguards::{bodyguard, Bodyguard};
-use crate::startpos::world::characters::{birth_year, loyalty, placement, political_party, Placement};
+use crate::startpos::world::characters::{birth_year, loyalty, loyalty_range, placement, political_party, Placement};
 use crate::startpos::world::government::{faction_leader, political_parties, PoliticalParty};
 use crate::startpos::world::{CampaignIndex, CharacterEntry, FactionEntry, NAME_COLUMNS};
 
@@ -102,6 +103,9 @@ pub struct CharacterWriter<'a, 'b> {
 
     /// Rounds a character holds an office before losing it hurts his loyalty (see [`OFFICE_ROUNDS_VARIABLE`]).
     office_rounds: u32,
+
+    /// Range the table loyalty is clamped to (see [`loyalty_range`]).
+    loyalty_range: RangeInclusive<i64>,
 
     /// Skills of each character (`start_pos_character_skills`: skill key and level), by `start_pos_characters` id,
     /// sorted by key: the game keeps them in an ordered map.
@@ -268,6 +272,7 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
             traits,
             skills,
             office_rounds,
+            loyalty_range: loyalty_range(tables)?,
             agents,
             art_sets,
             bodyguards,
@@ -455,7 +460,7 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
                 group.set_str("CAMPAIGN_EFFECT_BUNDLES+3", party)?;
             }
             group.set_bool("GENERAL_BODYGUARD_DETAILS+2", row.bool("immortal")?)?
-                .set_i32("GENERAL_BODYGUARD_DETAILS+4", i32::try_from(loyalty(entry)).unwrap_or_default())?;
+                .set_i32("GENERAL_BODYGUARD_DETAILS+4", i32::try_from(loyalty(entry, &self.loyalty_range)).unwrap_or_default())?;
         }
         record.build()
     }
