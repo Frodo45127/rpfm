@@ -80,7 +80,7 @@ fn test_plan_numbers_units_by_force() {
     // command their first unit.
     assert_eq!(units(0), vec![("band", true, 2), ("levy", false, 1)]);
     assert_eq!(units(1), vec![("boat", false, 3), ("boat", false, 4)]);
-    assert_eq!(units(2), vec![("levy", true, 5), ("band", false, 6), ("levy", false, 7)]);
+    assert_eq!(units(2), vec![("band", true, 5), ("levy", false, 6), ("levy", false, 7)]);
     assert_eq!(force_plan.forces()[0].commander_unit_id(), Some(2));
     assert_eq!(force_plan.forces()[1].commander_unit_id(), None);
 }

@@ -51,8 +51,9 @@ pub struct Garrison {
 /// Unit data needed to build garrisons.
 struct UnitRules {
 
-    /// Armed citizenry groups of each building level, with repeats, in table order.
-    building_groups: HashMap<String, Vec<String>>,
+    /// Building level and armed citizenry group of each `building_level_armed_citizenry_junctions` row, in the
+    /// table's key order (see [`crate::startpos::tables::Table::rows_in_key_order`]).
+    building_groups: Vec<(String, String)>,
 
     /// Members of each armed citizenry group, sorted by priority and then row id.
     group_members: HashMap<String, Vec<String>>,
@@ -76,9 +77,10 @@ struct UnitRules {
 
 /// Builds the garrisons of every settlement owned by a faction (rebel-owned settlements get none).
 ///
-/// For each building of the settlement (primary, port, then the others), every armed citizenry group of its level
-/// gives one unit: the group's own unit if the owner's military group allows it, otherwise the first allowed member
-/// of the group. Groups that aren't units, groups without allowed members and units that can't move are skipped.
+/// Every `building_level_armed_citizenry_junctions` row, in the table's key order, gives one unit per building of its
+/// level in the settlement: the group's own unit if the owner's military group allows it, otherwise the first allowed
+/// member of the group. Groups that aren't units, groups without allowed members and units that can't move are
+/// skipped. The game creates a garrison's units grouped by key in an order not reproduced yet.
 ///
 /// # Arguments
 ///
@@ -106,8 +108,9 @@ pub fn garrisons(tables: &StartposTables, index: &CampaignIndex) -> Result<Vec<G
             ..Default::default()
         };
 
-        for building in settlement.all_buildings() {
-            for group in rules.building_groups.get(building).into_iter().flatten() {
+        let buildings = settlement.all_buildings().collect::<Vec<_>>();
+        for (level, group) in &rules.building_groups {
+            for _ in buildings.iter().filter(|building| **building == level) {
                 if let Some(unit) = rules.unit_for_group(group, allowed) {
                     if rules.naval.contains(unit) {
                         garrison.navy.push(unit.to_owned());
@@ -128,9 +131,9 @@ impl UnitRules {
 
     /// Collects the unit data from the tables.
     fn new(tables: &StartposTables) -> Result<Self> {
-        let mut building_groups = HashMap::<String, Vec<String>>::new();
-        for row in tables.table("building_level_armed_citizenry_junctions")?.rows() {
-            building_groups.entry(row.str("building_level")?.into_owned()).or_default().push(row.str("unit_group")?.into_owned());
+        let mut building_groups = vec![];
+        for row in tables.table("building_level_armed_citizenry_junctions")?.rows_in_key_order("id")? {
+            building_groups.push((row.str("building_level")?.into_owned(), row.str("unit_group")?.into_owned()));
         }
 
         let mut members = HashMap::<String, Vec<(i64, i64, String)>>::new();

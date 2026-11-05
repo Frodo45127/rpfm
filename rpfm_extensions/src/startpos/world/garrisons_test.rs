@@ -67,7 +67,8 @@ fn test_garrison_rule() {
     let capital = garrisons.iter().find(|garrison| garrison.region() == "reg_a1").unwrap();
 
     assert_eq!(capital.faction(), "fact_a");
-    assert_eq!(capital.army(), &vec!["levy".to_owned(), "band".to_owned(), "levy".to_owned()]);
+    // Junction rows go in key order: 3, 2, 5, 4, 1, 6.
+    assert_eq!(capital.army(), &vec!["band".to_owned(), "levy".to_owned(), "levy".to_owned()]);
     assert_eq!(capital.navy(), &vec!["boat".to_owned()]);
 }
 
