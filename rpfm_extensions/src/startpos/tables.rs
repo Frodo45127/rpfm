@@ -210,27 +210,34 @@ pub fn key_hash(key: &[u8]) -> u32 {
 /// Returns keys in the order the game's chained hash sets iterate them, given their insertion order.
 ///
 /// The set starts with [`HASH_SET_FIRST_BUCKETS`] buckets and grows to twice plus one when it holds more keys than
-/// buckets; keys go to the end of the chain of bucket [`key_hash`] modulo the bucket count, and growing moves them
-/// bucket by bucket. Repeated keys are kept once.
+/// buckets (its maximum load is 1); keys go to the end of the chain of bucket [`key_hash`] modulo the bucket count,
+/// and growing moves them bucket by bucket. Repeated keys are kept once. Verified in Thrones' DLL (constructor
+/// `FUN_10b46290`, inserts like `FUN_10b65220`).
 pub fn hash_set_order<'k>(keys: impl IntoIterator<Item = &'k str>) -> Vec<&'k str> {
-    let mut buckets: Vec<Vec<&str>> = vec![vec![]; HASH_SET_FIRST_BUCKETS];
+    hash_set_order_by(keys, |key| key_hash(key.as_bytes()))
+}
+
+/// Returns items in the order the game's chained hash sets iterate them, given their insertion order and their hash.
+/// See [`hash_set_order`].
+pub fn hash_set_order_by<T: PartialEq + Copy>(items: impl IntoIterator<Item = T>, hash: impl Fn(&T) -> u32) -> Vec<T> {
+    let mut buckets: Vec<Vec<T>> = vec![vec![]; HASH_SET_FIRST_BUCKETS];
     let mut count = 0;
-    for key in keys {
-        let bucket = key_hash(key.as_bytes()) as usize % buckets.len();
-        if buckets[bucket].contains(&key) {
+    for item in items {
+        let bucket = hash(&item) as usize % buckets.len();
+        if buckets[bucket].contains(&item) {
             continue;
         }
         count += 1;
         if count > buckets.len() {
             let mut grown = vec![vec![]; buckets.len() * 2 + 1];
             for moved in buckets.into_iter().flatten() {
-                let bucket = key_hash(moved.as_bytes()) as usize % grown.len();
+                let bucket = hash(&moved) as usize % grown.len();
                 grown[bucket].push(moved);
             }
             buckets = grown;
         }
-        let bucket = key_hash(key.as_bytes()) as usize % buckets.len();
-        buckets[bucket].push(key);
+        let bucket = hash(&item) as usize % buckets.len();
+        buckets[bucket].push(item);
     }
     buckets.into_iter().flatten().collect()
 }

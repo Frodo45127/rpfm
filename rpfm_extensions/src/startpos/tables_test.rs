@@ -99,3 +99,10 @@ fn test_hash_set_order_follows_buckets_then_insertion() {
     // The fifth key grows the set to 9 buckets; repeated keys are kept once.
     assert_eq!(hash_set_order(["a", "b", "c", "d", "e", "b"]), ["a", "c", "b", "e", "d"]);
 }
+
+#[test]
+fn test_hash_set_order_by_takes_any_hash() {
+
+    // Faction ids hashed like the game's faction sets: 32 goes to bucket 1, the others to bucket 2 in insertion order.
+    assert_eq!(hash_set_order_by([7, 31, 39, 32], |id| id ^ 0x4a54_5eed), [32, 7, 31, 39]);
+}
