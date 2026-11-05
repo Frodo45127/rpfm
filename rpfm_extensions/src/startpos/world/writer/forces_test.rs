@@ -129,3 +129,28 @@ fn test_plan_matches_the_game_startpos() {
     // The two known garrison exceptions (see garrisons_test.rs).
     assert_eq!(mismatches, vec!["att_fact_votadini".to_owned(), "att_fact_burgundii".to_owned()]);
 }
+
+#[test]
+fn test_armies_list_units_by_their_group_order() {
+    let tables = force_tables();
+    let index = fixture_index(&tables);
+    let faction = index.faction("fact_a").unwrap();
+    let mut force_plan = ForcePlan { list_rank: HashMap::from([("levy".to_owned(), 2), ("archer".to_owned(), 1)]), ..ForcePlan::default() };
+
+    let unit = |unit: &str, commands: bool| PlannedUnit { unit: unit.to_owned(), soldiers: FULL_UNIT, commands };
+    let army = force_plan.push_force(faction, ForceKind::Army, None, vec![unit("band", true), unit("levy", false), unit("archer", false)], 0);
+    let force = &force_plan.forces()[army];
+    let listed = force.units().iter().zip(force.unit_ids()).map(|(unit, id)| (unit.unit().as_str(), id)).collect::<Vec<_>>();
+
+    // The bodyguard stays first with the last id; the others keep their creation ids.
+    assert_eq!(listed, vec![("band", 3), ("archer", 2), ("levy", 1)]);
+}
+
+#[test]
+fn test_list_ranks_follow_the_unit_groupings() {
+    let mut tables = StartposTables::new();
+    add_table(&mut tables, "ui_unit_groupings", &["key", "order"], &[&["infantry", "1"], &["missile", "2"]]);
+    add_table(&mut tables, "main_units", &["unit", "ui_unit_group_land"], &[&["levy", "infantry"], &["archer", "missile"], &["boat", ""]]);
+
+    assert_eq!(list_ranks(&tables), HashMap::from([("levy".to_owned(), 1), ("archer".to_owned(), 2)]));
+}

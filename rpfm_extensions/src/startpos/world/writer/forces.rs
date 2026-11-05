@@ -21,9 +21,9 @@
 //! Garrisons follow `building_level_armed_citizenry_junctions` key order, while the game groups their units by key in
 //! an order not reproduced yet.
 //!
-//! The game then lists a force's units, after the commander's own, in a stable order of the `ui_unit_groupings.order`
+//! The game then lists an army's units, after the commander's own, in a stable order of the `ui_unit_groupings.order`
 //! of their `main_units.ui_unit_group_land` (verified on Thrones, 125 of 125 forces, and Attila's main campaign,
-//! 341 of 342: the other is a navy). This plan keeps creation order.
+//! 341 of 342: the other is a navy). This plan sorts generals' armies that way.
 
 use std::collections::HashMap;
 
@@ -62,6 +62,11 @@ pub struct ForcePlan<'a> {
 
     /// Forces, in id order.
     forces: Vec<PlannedForce<'a>>,
+
+    /// Place of each land unit in the game's listing order (`ui_unit_groupings.order` of its
+    /// `main_units.ui_unit_group_land`), by unit key.
+    #[getset(skip)]
+    list_rank: HashMap<String, i64>,
 }
 
 /// A character of the world.
@@ -120,6 +125,9 @@ pub struct PlannedForce<'a> {
     #[getset(get = "pub")]
     units: Vec<PlannedUnit>,
 
+    /// Runtime ids of the units, in startpos order.
+    unit_ids: Vec<u32>,
+
     /// Runtime id of the force's first unit.
     #[getset(get_copy = "pub")]
     first_unit_id: u32,
@@ -177,7 +185,7 @@ impl<'a> ForcePlan<'a> {
             naval_units.entry(row.str("admiral")?.into_owned()).or_default().push(PlannedUnit::new(row.str("unit_type")?.into_owned(), FULL_UNIT));
         }
 
-        let mut force_plan = Self::default();
+        let mut force_plan = Self { list_rank: list_ranks(tables), ..Self::default() };
         for faction in plan.factions() {
             let bodyguards = [bodyguard(tables, faction, false)?, bodyguard(tables, faction, true)?];
             for character in characters_in_startpos_order(index, plan, faction) {
@@ -252,7 +260,20 @@ impl<'a> ForcePlan<'a> {
     fn push_force(&mut self, faction: &'a FactionEntry, kind: ForceKind, region: Option<String>, units: Vec<PlannedUnit>, commander: usize) -> usize {
         let id = u32::try_from(self.forces.len() + 1).unwrap_or(u32::MAX);
         let first_unit_id = self.forces.last().map(|force| force.first_unit_id + u32::try_from(force.units.len()).unwrap_or(u32::MAX)).unwrap_or(1);
-        self.forces.push(PlannedForce { id, faction, kind, region, stationed_in: None, units, first_unit_id, commander, moved: false });
+        let mut force = PlannedForce { id, faction, kind, region, stationed_in: None, units, unit_ids: vec![], first_unit_id, commander, moved: false };
+        force.unit_ids = force.creation_ids();
+
+        // Armies list their units after the commander's own in a stable order of their listing rank.
+        if kind == ForceKind::Army && !self.list_rank.is_empty() {
+            let skip = usize::from(force.units.first().is_some_and(|unit| unit.commands));
+            let mut listed = force.units.drain(skip..).zip(force.unit_ids.drain(skip..)).collect::<Vec<_>>();
+            listed.sort_by_key(|(unit, _)| self.list_rank.get(&unit.unit).copied().unwrap_or(i64::MAX));
+            for (unit, id) in listed {
+                force.units.push(unit);
+                force.unit_ids.push(id);
+            }
+        }
+        self.forces.push(force);
         self.forces.len() - 1
     }
 
@@ -298,9 +319,14 @@ impl<'a> ForcePlan<'a> {
 
 impl PlannedForce<'_> {
 
-    /// Returns the runtime ids of the force's units, in startpos order. A general's own unit is created after the
-    /// others, so it takes the last id although it comes first.
+    /// Returns the runtime ids of the force's units, in startpos order.
     pub fn unit_ids(&self) -> Vec<u32> {
+        self.unit_ids.clone()
+    }
+
+    /// Returns the runtime ids of the force's units in creation order. A general's own unit is created after the
+    /// others, so it takes the last id although it comes first.
+    fn creation_ids(&self) -> Vec<u32> {
         let count = u32::try_from(self.units.len()).unwrap_or(u32::MAX);
         let general = matches!(self.kind, ForceKind::Army | ForceKind::Navy) && self.units.first().is_some_and(|unit| unit.commands);
         (0..count).map(|index| match (general, index) {
@@ -322,6 +348,25 @@ impl PlannedUnit {
     fn new(unit: String, soldiers: u32) -> Self {
         Self { unit, soldiers, commands: false }
     }
+}
+
+/// Returns the place of each land unit in the game's listing order, by unit key: the `ui_unit_groupings.order` of its
+/// `main_units.ui_unit_group_land`. Empty if the game lacks the columns.
+fn list_ranks(tables: &StartposTables) -> HashMap<String, i64> {
+    let ranks = || -> Result<HashMap<String, i64>> {
+        let mut group_order = HashMap::new();
+        for row in tables.table("ui_unit_groupings")?.rows() {
+            group_order.insert(row.str("key")?.into_owned(), row.int("order")?);
+        }
+        let mut ranks = HashMap::new();
+        for row in tables.table("main_units")?.rows() {
+            if let Some(order) = group_order.get(row.str("ui_unit_group_land")?.as_ref()) {
+                ranks.insert(row.str("unit")?.into_owned(), *order);
+            }
+        }
+        Ok(ranks)
+    };
+    ranks().unwrap_or_default()
 }
 
 /// Returns the rows of a startpos unit table in the order the game creates their units: the table's key order (see
