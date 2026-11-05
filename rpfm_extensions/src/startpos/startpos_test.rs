@@ -158,6 +158,10 @@ pub(crate) fn force_units(world: &RecordNode) -> HashMap<u32, Vec<String>> {
 #[derive(Debug, Default)]
 pub(crate) struct Report {
     fields: BTreeMap<String, (usize, usize)>,
+
+    /// Leaves out the localised texts (UTF-16 leaves), for game-built startposes in another language than the
+    /// localisation the test reads.
+    pub(crate) ignore_localised: bool,
 }
 
 impl Report {
@@ -277,6 +281,7 @@ pub(crate) fn compare(layout: &StartposLayout, ours: &RecordNode, theirs: &Recor
                         report.count(format!("{path}:{id}<missing>"), false);
                     }
                 },
+                (_, Some(NodeType::Utf16(_))) if report.ignore_localised => {},
                 (ours, Some(theirs)) => report.count(format!("{path}:{id}"), ours.is_some_and(|ours| same_leaf(ours, theirs))),
                 (Some(_), None) => report.count(format!("{path}:{id}<extra>"), false),
                 (None, None) => {},

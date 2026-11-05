@@ -166,10 +166,11 @@ fn victory_objectives_pack(campaign: &str) -> Pack {
 
 /// Compares the records of a startpos with a game-built one: the campaign model's sections, the preopen map info and
 /// the save game header.
-fn compare_startposes(layout: &StartposLayout, ours: &ESF, theirs: &ESF) -> Report {
+fn compare_startposes(layout: &StartposLayout, ours: &ESF, theirs: &ESF, ignore_localised: bool) -> Report {
     let (NodeType::Record(ours), NodeType::Record(theirs)) = (ours.root_node(), theirs.root_node()) else { panic!("a startpos root isn't a record") };
     let model = |root| child_record(child_record(root, "CAMPAIGN_ENV").unwrap(), "CAMPAIGN_MODEL").unwrap();
     let mut report = Report::default();
+    report.ignore_localised = ignore_localised;
     for section in model(theirs).children().iter().flatten().filter_map(as_record) {
         let path = format!("CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/{}", section.name());
         match child_record(model(ours), section.name()) {
@@ -209,7 +210,7 @@ fn test_new_campaigns_match_the_game_startposes() {
         let sources = StartposSources::from_tables(game, tables.clone(), &dependencies, &pack, campaign).unwrap();
         let ours = generate_startpos_with_plan(&sources, &layout, |index| plan_from_startpos(index, &theirs, &tables)).unwrap();
 
-        let report = compare_startposes(&StartposLayout::from_esf(&theirs).unwrap(), &ours, &theirs);
+        let report = compare_startposes(&StartposLayout::from_esf(&theirs).unwrap(), &ours, &theirs, false);
         let (matches, total) = report.totals();
         let ratio = matches as f64 / total as f64;
         println!("{campaign}: {matches}/{total} ({ratio:.4}) fields match. Worst:\n{}", report.worst(40));
@@ -268,7 +269,8 @@ fn other_game_data_path(variable: &str, file_name: &str) -> std::path::PathBuf {
 ///
 /// The test data folder has the game's dependencies cache (`<cache>.pak1` to `.pak3`, built if outdated), its schema
 /// as `schema.ron`, the game's folder as `game` and its Assembly Kit as `kit`. A campaign takes its layout from the game's other
-/// campaigns, or from its own startpos if the game has no other.
+/// campaigns, or from its own startpos if the game has no other. Localised texts aren't compared: the localisation
+/// installed may be in another language than the one the game built its startposes in.
 fn other_game_reports(variable: &str, game_key: &str, cache: &str, campaigns: &[&str]) -> Vec<(String, usize, usize, String)> {
     let games = SupportedGames::default();
     let game = games.game(game_key).unwrap();
@@ -305,7 +307,7 @@ fn other_game_reports(variable: &str, game_key: &str, cache: &str, campaigns: &[
 
         let sources = StartposSources::from_tables(game, tables.clone(), &dependencies, &pack, campaign).unwrap();
         let ours = generate_startpos_with_plan(&sources, &layout, |index| plan_from_startpos(index, &theirs, &tables)).unwrap();
-        let report = compare_startposes(&StartposLayout::from_esf(&theirs).unwrap(), &ours, &theirs);
+        let report = compare_startposes(&StartposLayout::from_esf(&theirs).unwrap(), &ours, &theirs, true);
         let (matches, total) = report.totals();
         (campaign.to_string(), matches, total, report.worst(40))
     }).collect()
