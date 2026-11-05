@@ -38,10 +38,11 @@ fn test_province_managers() {
     let managers = province_managers(&tables, &index).unwrap();
     let summary = managers.iter().map(|manager| (manager.province().as_str(), manager.faction().as_deref(), manager.regions().to_vec(), manager.main_region().as_str())).collect::<Vec<_>>();
 
+    // Rows follow the key order of province + region: prov_breg_b1, prov_areg_a2, prov_breg_r, prov_areg_a1.
     assert_eq!(summary, vec![
+        ("prov_b", Some("fact_b"), vec!["reg_b1".to_owned()], "reg_b1"),
         ("prov_a", Some("fact_a"), vec!["reg_a2".to_owned(), "reg_a1".to_owned()], "reg_a1"),
         ("prov_b", None, vec!["reg_r".to_owned()], "reg_r"),
-        ("prov_b", Some("fact_b"), vec!["reg_b1".to_owned()], "reg_b1"),
     ]);
 }
 

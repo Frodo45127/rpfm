@@ -21,10 +21,10 @@ use rpfm_lib::files::esf::{NodeType, RecordNode};
 use super::sight::{write_line_of_sight, SightPlan};
 use super::{child, horde_details, next_id, WorldInputs, WorldPlan, REBEL_FACTION_ID, WORLD_PATH};
 use crate::startpos::layout::child_path;
-use crate::startpos::tables::{Row, StartposTables};
+use crate::startpos::tables::{hash_set_order, Row, StartposTables};
 use crate::startpos::vision::Vision;
 use crate::startpos::world::pools::{province_mercenary_pool, MercenaryUnit};
-use crate::startpos::world::provinces::{province_managers, sea_regions, ProvinceManager, SeaRegion};
+use crate::startpos::world::provinces::{junction_rows, province_managers, sea_regions, ProvinceManager, SeaRegion};
 
 /// Path of a province.
 const PROVINCE_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/WORLD/PROVINCE_MANAGER/PROVINCE_ARRAY/PROVINCE";
@@ -132,7 +132,7 @@ pub fn write_province_and_sea_managers(inputs: &WorldInputs, plan: &WorldPlan, s
 
 impl ProvinceWriter<'_, '_> {
 
-    /// Writes the provinces, in `region_to_province_junctions` order (the game uses a hash order).
+    /// Writes the provinces, in the game's order (see [`campaign_provinces`]).
     fn write_province_manager(&mut self) -> Result<RecordNode> {
         let inputs = self.inputs;
         let managers = province_managers(inputs.tables, inputs.index)?;
@@ -298,7 +298,10 @@ impl ProvinceWriter<'_, '_> {
     }
 }
 
-/// Returns the provinces of a campaign with their regions, in `region_to_province_junctions` order.
+/// Returns the provinces of a campaign with their regions, in the game's order.
+///
+/// The game walks `region_to_province_junctions` in key order (see [`junction_rows`]), adding each province
+/// to a hash set the first time it shows up, and lists the provinces in the set's order ([`hash_set_order`]).
 ///
 /// # Arguments
 ///
@@ -310,7 +313,7 @@ impl ProvinceWriter<'_, '_> {
 /// Returns an error if the table or a column is missing.
 pub(crate) fn campaign_provinces(tables: &StartposTables, plan: &WorldPlan) -> Result<Vec<(String, Vec<String>)>> {
     let mut provinces = Vec::<(String, Vec<String>)>::new();
-    for row in tables.table("region_to_province_junctions")?.rows() {
+    for row in junction_rows(tables)? {
         let region = row.str("region")?;
         if plan.region_id(&region).is_none() {
             continue;
@@ -321,6 +324,12 @@ pub(crate) fn campaign_provinces(tables: &StartposTables, plan: &WorldPlan) -> R
             None => provinces.push((province.into_owned(), vec![region.into_owned()])),
         }
     }
+
+    let order = hash_set_order(provinces.iter().map(|(province, _)| province.as_str())).into_iter()
+        .enumerate()
+        .map(|(index, province)| (province.to_owned(), index))
+        .collect::<HashMap<_, _>>();
+    provinces.sort_by_key(|(province, _)| order.get(province).copied());
     Ok(provinces)
 }
 
