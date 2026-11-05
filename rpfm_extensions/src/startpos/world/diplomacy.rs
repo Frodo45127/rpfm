@@ -112,11 +112,12 @@ impl Diplomacy {
     /// * `tables` - Tables with `start_pos_diplomacy` and `start_pos_past_events`.
     /// * `index` - The campaign's startpos rows.
     /// * `map` - Region of each cell of the campaign map, to find the factions with neighbouring regions.
+    /// * `trading` - (faction, partner) of the trade routes, or `None` to trade on every agreement.
     ///
     /// # Errors
     ///
     /// Returns an error if a table or column is missing.
-    pub fn new(tables: &StartposTables, index: &CampaignIndex, map: &RegionMap) -> Result<Self> {
+    pub fn new(tables: &StartposTables, index: &CampaignIndex, map: &RegionMap, trading: Option<&HashSet<(String, String)>>) -> Result<Self> {
         let mut rows = vec![];
         for row in tables.table("start_pos_diplomacy")?.rows() {
             let (Some(first), Some(second)) = (index.faction_by_id(&row.str("faction1")?), index.faction_by_id(&row.str("faction2")?)) else { continue };
@@ -136,7 +137,7 @@ impl Diplomacy {
             for (faction, other, stance) in [(first, second, first_stance), (second, first, second_stance)] {
                 let relationship = diplomacy.entry(faction, other);
                 relationship.stance = stance.to_owned();
-                relationship.trade = *trade;
+                relationship.trade = *trade && trading.is_none_or(|trading| trading.contains(&(faction.to_owned(), other.to_owned())));
                 relationship.non_aggression = *non_aggression && !of_vassal;
                 relationship.military_access = *military_access && !of_vassal;
                 relationship.known = true;

@@ -95,6 +95,10 @@ pub struct WorldInputs<'a> {
     /// `start_pos_characters` ids of the characters with a `legacy_override` text (a localised column, so it comes
     /// from the campaign's localisation).
     pub legacy_overrides: &'a HashSet<String>,
+
+    /// (owner, partner) of the trade routes of the starting agreements, or `None` to trade on every agreement. The
+    /// game drops the agreements whose capitals have no route between them.
+    pub trading: Option<&'a HashSet<(String, String)>>,
 }
 
 /// Order and runtime ids of the objects of the world.
@@ -155,7 +159,7 @@ pub fn write_world_with_plan<'a>(inputs: &WorldInputs<'a>, plan: &WorldPlan<'a>)
     let provinces = provinces::write_province_and_sea_managers(inputs, plan, &sight)?;
     let armies = ArmyWriter::new(inputs, &forces, &characters, &residences, provinces.next_recruitment)?;
     let levy_pools = factions::plan_levy_pools(inputs, plan, &provinces.province_ids, provinces.next_pool)?;
-    let diplomacy = Diplomacy::new(inputs.tables, inputs.index, inputs.region_map)?;
+    let diplomacy = Diplomacy::new(inputs.tables, inputs.index, inputs.region_map, inputs.trading)?;
     let context = FactionContext { armies: &armies, characters: &characters, posts: &posts, levy_pools: &levy_pools, diplomacy: &diplomacy, sight: &sight };
 
     let mut world = inputs.layout.builder(WORLD_PATH)?;

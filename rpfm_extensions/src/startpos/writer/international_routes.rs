@@ -55,6 +55,9 @@ struct Route {
     /// Owner faction key.
     owner: String,
 
+    /// Key of the faction the route goes to.
+    partner: String,
+
     /// Region ids of the path, from the owner's capital to the partner's.
     path: Vec<u32>,
 
@@ -167,6 +170,16 @@ pub fn write_international_routes(layout: &StartposLayout, tables: &StartposTabl
     entries.build()
 }
 
+/// Returns the factions trading by the starting agreements: the (owner, partner) pair of each route. Agreements
+/// whose capitals have no route between them don't trade.
+///
+/// # Errors
+///
+/// Returns an error if a table or column is missing.
+pub fn trading_factions(tables: &StartposTables, index: &CampaignIndex, plan: &WorldPlan, network: &TradeNetwork) -> Result<HashSet<(String, String)>> {
+    Ok(plan_routes(tables, index, plan, network)?.into_iter().map(|route| (route.owner, route.partner)).collect())
+}
+
 /// Works out the routes of the trade agreements, in id order.
 fn plan_routes(tables: &StartposTables, index: &CampaignIndex, plan: &WorldPlan, network: &TradeNetwork) -> Result<Vec<Route>> {
     let mut agreements = vec![];
@@ -199,7 +212,7 @@ fn plan_routes(tables: &StartposTables, index: &CampaignIndex, plan: &WorldPlan,
             let (Some(start), Some(end)) = (capital(from), capital(to)) else { continue };
             let Some((path, steps)) = graph.path(start, end, |region| owner(region).is_some_and(|owner| owner == from || owner == to)) else { continue };
             let path = path.iter().map(|&region| plan.region_id(&network.regions()[region]).unwrap_or_default()).collect();
-            routes.push(Route { id: routes.len() as u32 + 1, owner: from.to_owned(), path, sea_step: steps.iter().position(|sea| *sea) });
+            routes.push(Route { id: routes.len() as u32 + 1, owner: from.to_owned(), partner: to.to_owned(), path, sea_step: steps.iter().position(|sea| *sea) });
         }
     }
     Ok(routes)

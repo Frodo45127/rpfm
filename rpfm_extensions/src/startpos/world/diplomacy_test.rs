@@ -31,7 +31,7 @@ fn test_rows_give_both_sides_their_stance() {
     let index = fixture_index(&tables);
     let map = RegionMap::from_cells(vec![], 0, 0, vec![]);
 
-    let diplomacy = Diplomacy::new(&tables, &index, &map).unwrap();
+    let diplomacy = Diplomacy::new(&tables, &index, &map, None).unwrap();
     let vassal = diplomacy.relationship("fact_b", "fact_a");
     let master = diplomacy.relationship("fact_a", "fact_b");
 
@@ -41,12 +41,25 @@ fn test_rows_give_both_sides_their_stance() {
 }
 
 #[test]
+fn test_agreements_without_a_route_dont_trade() {
+    let tables = diplomacy_tables();
+    let index = fixture_index(&tables);
+    let map = RegionMap::from_cells(vec![], 0, 0, vec![]);
+    let trading = HashSet::from([("fact_a".to_owned(), "fact_b".to_owned())]);
+
+    let diplomacy = Diplomacy::new(&tables, &index, &map, Some(&trading)).unwrap();
+
+    assert!(diplomacy.relationship("fact_a", "fact_b").trade());
+    assert!(!diplomacy.relationship("fact_b", "fact_a").trade());
+}
+
+#[test]
 fn test_vassals_join_their_masters_wars() {
     let tables = diplomacy_tables();
     let index = fixture_index(&tables);
     let map = RegionMap::from_cells(vec![], 0, 0, vec![]);
 
-    let diplomacy = Diplomacy::new(&tables, &index, &map).unwrap();
+    let diplomacy = Diplomacy::new(&tables, &index, &map, None).unwrap();
 
     assert_eq!(diplomacy.relationship("fact_b", "fact_c").stance(), "war");
     assert_eq!(diplomacy.relationship("fact_c", "fact_b").stance(), "war");
@@ -65,7 +78,7 @@ fn test_neighbours_know_each_other() {
     cells[14] = 2;
     let map = RegionMap::from_cells(keys, 3, 1, cells);
 
-    let diplomacy = Diplomacy::new(&tables, &index, &map).unwrap();
+    let diplomacy = Diplomacy::new(&tables, &index, &map, None).unwrap();
 
     assert!(diplomacy.relationship("fact_a", "fact_b").known());
     assert_eq!(diplomacy.relationship("fact_a", "fact_c"), Relationship { stance: "war".to_owned(), known: true, ..Default::default() });
@@ -81,7 +94,7 @@ fn test_past_events_make_factions_known() {
     let index = fixture_index(&tables);
     let map = RegionMap::from_cells(vec![], 0, 0, vec![]);
 
-    let diplomacy = Diplomacy::new(&tables, &index, &map).unwrap();
+    let diplomacy = Diplomacy::new(&tables, &index, &map, None).unwrap();
 
     assert_eq!(diplomacy.relationship("fact_a", "fact_b"), Relationship { known: true, ..Default::default() });
     assert!(diplomacy.relationship("fact_b", "fact_a").known());
@@ -96,7 +109,7 @@ fn test_vassals_lose_their_pacts_but_keep_their_trade() {
     let index = fixture_index(&tables);
     let map = RegionMap::from_cells(vec![], 0, 0, vec![]);
 
-    let diplomacy = Diplomacy::new(&tables, &index, &map).unwrap();
+    let diplomacy = Diplomacy::new(&tables, &index, &map, None).unwrap();
 
     let relationship = diplomacy.relationship("fact_b", "fact_c");
     assert_eq!(relationship.stance(), "neutral");

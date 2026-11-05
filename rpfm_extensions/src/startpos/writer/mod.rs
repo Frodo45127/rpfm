@@ -112,7 +112,8 @@ pub fn write_startpos<'a>(inputs: &StartposInputs<'a>, plan: &WorldPlan<'a>) -> 
     let layout = world.layout;
 
     let calendar = Calendar::new(world.tables, inputs.campaign)?;
-    let world_record = write_world_with_plan(world, plan)?;
+    let trading = international_routes::trading_factions(world.tables, world.index, plan, inputs.trade_network)?;
+    let world_record = write_world_with_plan(&WorldInputs { trading: Some(&trading), ..*world }, plan)?;
     let trade_manager = trade::write_trade_manager(layout, world.tables, world.index, plan, inputs.trade_network)?;
     let cai_inputs = CaiInputs {
         tables: world.tables,

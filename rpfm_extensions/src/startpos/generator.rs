@@ -373,6 +373,7 @@ pub(crate) fn generate_startpos_with_plan(sources: &StartposSources, layout: &St
         settlements: &settlements,
         region_map: &region_map,
         legacy_overrides: &sources.legacy_overrides,
+        trading: None,
     };
 
     let trade_network = TradeNetwork::from_trade_routes(&sources.trade_routes, &region_map.scale());
