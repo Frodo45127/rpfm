@@ -73,9 +73,9 @@ pub struct PoliticalParty {
 
 /// Returns the post groups of a faction's government.
 ///
-/// The groups are the `ministerial_positions_culture_details` rows for the faction's culture (without subculture
-/// and faction), its subculture (without faction) and the faction itself: the campaign's rows if it has any for the
-/// faction, else the rows without campaign.
+/// The groups are the `ministerial_positions_culture_details` rows for every faction (without culture, subculture
+/// and faction), the faction's culture (without subculture and faction), its subculture (without faction) and the
+/// faction itself: the campaign's rows if it has any for the faction, else the rows without campaign.
 ///
 /// # Arguments
 ///
@@ -107,9 +107,11 @@ pub fn government_posts(tables: &StartposTables, index: &CampaignIndex, faction:
 
         let row_faction = row.str("faction_key")?;
         let row_subculture = row.str("subculture_key")?;
+        // Rows without culture, subculture nor faction (Thrones' generic posts) are for everyone.
+        let row_culture = row.str("culture_key")?;
         let matches = row_faction == *faction.key()
             || (row_faction.is_empty() && row_subculture == *faction.subculture())
-            || (row_faction.is_empty() && row_subculture.is_empty() && row.str("culture_key")? == *faction.culture());
+            || (row_faction.is_empty() && row_subculture.is_empty() && (row_culture.is_empty() || row_culture == *faction.culture()));
         if !matches {
             continue;
         }

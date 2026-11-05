@@ -69,6 +69,22 @@ fn test_posts_of_culture_subculture_and_faction() {
 }
 
 #[test]
+fn test_posts_for_every_faction() {
+    let mut tables = government_tables();
+    add_table(&mut tables, "ministerial_positions", &["minister_key", "maximum_concurrent_ministers"], &[&["heir", "1"]]);
+    add_table(&mut tables, "ministerial_positions_culture_details", &["culture_key", "faction_key", "subculture_key", "ministerial_position_key", "unique_id", "campaign"], &[
+        &["", "", "", "heir", "105", ""],
+    ]);
+    let index = fixture_index(&tables);
+
+    let posts = government_posts(&tables, &index, index.faction("fact_b").unwrap()).unwrap().iter()
+        .map(|group| (group.position().to_owned(), group.unique_id()))
+        .collect::<Vec<_>>();
+
+    assert_eq!(posts, vec![("general".to_owned(), 104), ("heir".to_owned(), 105)]);
+}
+
+#[test]
 fn test_party_power_split() {
     let tables = government_tables();
 
