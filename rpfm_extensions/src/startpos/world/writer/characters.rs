@@ -12,6 +12,11 @@
 //!
 //! The game draws some values from its RNG (art sets, birth seasons, colonels' ages and names): this writer picks
 //! valid ones deterministically.
+//!
+//! `CHARACTER_DETAILS:CAMPAIGN_EFFECT_BUNDLES+2` is written 0. The game sets it to a random 1 to 3 from its RNG, when it's
+//! still 0, in a character's post-load initialisation (Thrones' `empire.retail.dll`, FUN_107d00d0, next to the
+//! political party it may pick): most of its startpos characters have 0 (369 of 387 in Thrones, 578 of 599 in
+//! Attila's main campaign), so it's left for the game to draw. It's also the leader's number in Thrones' header (`^+5`).
 
 use std::collections::HashMap;
 use std::f32::consts::PI;
