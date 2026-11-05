@@ -22,7 +22,9 @@ use super::{child, horde_details, next_id, HORDE_BUILDING_COLUMNS, WorldInputs, 
 use crate::startpos::coords::{EdgePiece, HexCell};
 use crate::startpos::settlements::{SettlementLayout, SlotLayout};
 use crate::startpos::tables::Row;
-use crate::startpos::world::RegionEntry;
+use crate::startpos::world::{CharacterEntry, RegionEntry};
+use crate::startpos::world::estates::EstateRules;
+use crate::startpos::world::government::faction_leader;
 use crate::startpos::world::legacy::ForceKind;
 use crate::startpos::world::rebels::rebel_setup;
 
@@ -94,6 +96,12 @@ struct RegionWriter<'a, 'b> {
 
     /// Next building id (horde and region buildings share the counter).
     next_building: u32,
+
+    /// Id of the next estate.
+    next_estate: u32,
+
+    /// Estates written so far in each region, by estate type.
+    region_estates: HashMap<(String, String), u32>,
 }
 
 /// Table rows the region writer looks up, indexed once.
@@ -119,6 +127,9 @@ struct RegionRows<'a> {
 
     /// Religion percentages, by region row id and religion key.
     religion_shares: HashMap<(String, String), f32>,
+
+    /// Estates the buildings give, and the owners the table gives them.
+    estates: EstateRules,
 }
 
 /// The kind of a region slot, with its building.
@@ -151,6 +162,8 @@ pub fn write_region_manager<'a>(inputs: &WorldInputs<'a>, plan: &WorldPlan<'a>, 
         next_slot: 1,
         next_residence: 1,
         next_building: horde_building_count(inputs)? + 1,
+        next_estate: 1,
+        region_estates: HashMap::new(),
     };
 
     let mut regions = child(inputs.layout, &format!("{WORLD_PATH}/REGION_MANAGER"), "REGIONS_ARRAY")?;
@@ -205,7 +218,7 @@ impl<'a> RegionRows<'a> {
             religion_shares.insert((row.str("region")?.into_owned(), row.str("religion")?.into_owned()), row.f32("percentage")?);
         }
 
-        Ok(Self { regions, settlement_keys, governments, templates, building_levels, religions, religion_shares })
+        Ok(Self { regions, settlement_keys, governments, templates, building_levels, religions, religion_shares, estates: EstateRules::new(tables)? })
     }
 }
 
@@ -345,12 +358,14 @@ impl RegionWriter<'_, '_> {
         residence.group()?.set_u32("^+1", next_id(&mut self.next_residence))?;
 
         let building = content.building.map(|building| self.write_building(region, building, content.slot_type == "primary")).transpose()?;
+        let estates = self.write_estates(region, content.building.unwrap_or_default())?;
         let mut manager = child(layout, SLOT_PATH, "REGION_BUILDING_MANAGER")?;
         manager.group()?
             .set_bool("^+2", building.is_some())?
             .set_bool("^+5", building.is_some())?
             .set_bool("^+6", region.owner().is_none())?
-            .set_record("BUILDING_BASE", building)?;
+            .set_record("BUILDING_BASE", building)?
+            .set_record("ESTATES", Some(estates))?;
 
         let mut record = layout.builder(SLOT_PATH)?;
         record.group()?
@@ -363,15 +378,52 @@ impl RegionWriter<'_, '_> {
         record.build()
     }
 
+    /// Writes the estates a slot's building gives (see [`EstateRules`]), numbered in writing order.
+    fn write_estates(&mut self, region: &RegionEntry, building: &str) -> Result<RecordNode> {
+        let path = format!("{SLOT_PATH}/REGION_BUILDING_MANAGER");
+        let mut estates = child(self.inputs.layout, &path, "ESTATES")?;
+        let owner_faction = self.building_owner(region);
+        for estate in self.rows.estates.estates_of(building) {
+            let number = self.region_estates.entry((region.key().to_owned(), estate.to_owned())).or_default();
+            *number += 1;
+            let owner = match self.rows.estates.table_owner(region.key(), estate, *number) {
+                Some(id) => self.character_id(|entry| *entry.id() == id),
+                None => faction_leader(self.inputs.index, &owner_faction).and_then(|leader| self.character_id(|entry| entry.id() == leader.id())),
+            };
+
+            let mut record = child(self.inputs.layout, &format!("{path}/ESTATES"), "ESTATE")?;
+            record.push_group()?
+                .set_u32("^+1", next_id(&mut self.next_estate))?
+                .set_u32("^+2", owner.unwrap_or_default())?
+                .set_str("^+3", estate)?;
+            estates.push_group()?
+                .set_str("^+1", estate)?
+                .set_record("ESTATE", Some(record.build()?))?;
+        }
+        estates.build()
+    }
+
+    /// Returns the runtime id of the first planned character whose table row matches.
+    fn character_id(&self, matches: impl Fn(&CharacterEntry) -> bool) -> Option<u32> {
+        self.forces.characters().iter().find(|character| character.entry().is_some_and(&matches)).map(|character| character.id())
+    }
+
+    /// Returns the faction that owns a region's buildings: its owner, or the first faction of the world for regions
+    /// without one.
+    fn building_owner(&self, region: &RegionEntry) -> String {
+        region.owner().as_deref()
+            .or_else(|| self.plan.factions().first().map(|faction| faction.key().as_str()))
+            .unwrap_or_default()
+            .to_owned()
+    }
+
     /// Writes a building of a region slot (`BUILDING_BASE`).
     ///
     /// Buildings of unowned regions belong to the first faction of the world. The two floats of the record (meaning
     /// unknown) are the level's `create_time`, raised to its `level` plus 3, plus 1 in the primary slot.
     fn write_building(&mut self, region: &RegionEntry, building: &str, in_primary_slot: bool) -> Result<RecordNode> {
-        let owner = region.owner().as_deref()
-            .or_else(|| self.plan.factions().first().map(|faction| faction.key().as_str()))
-            .unwrap_or_default();
-        let government = self.rows.governments.get(owner).map(String::as_str).unwrap_or_default();
+        let owner = self.building_owner(region);
+        let government = self.rows.governments.get(&owner).map(String::as_str).unwrap_or_default();
         let (create_time, level) = self.rows.building_levels.get(building).copied()
             .ok_or_else(|| RLibError::StartposInvalidValue("building_levels".to_owned(), "level_name".to_owned(), building.to_owned()))?;
         let value = create_time.max(level + BUILDING_BASE_VALUE_OFFSET + i64::from(in_primary_slot)) as f32;
@@ -382,7 +434,7 @@ impl RegionWriter<'_, '_> {
             .set_str("^+2", building)?
             .set_f32("^+3", value)?
             .set_f32("^+4", value)?
-            .set_str("^+5", owner)?
+            .set_str("^+5", &owner)?
             .set_str("^+6", government)?;
         record.build()
     }

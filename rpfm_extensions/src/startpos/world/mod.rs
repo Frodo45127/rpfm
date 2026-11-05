@@ -24,6 +24,7 @@
 //! - [`calendar`]: the campaign's start date and turns per year.
 //! - [`characters`]: per-character values (birth year, loyalty, faction leader, map position).
 //! - [`diplomacy`]: diplomatic relationships between factions.
+//! - [`estates`]: the estates of the region slots (Thrones of Britannia).
 //! - [`factions`]: per-faction values (capital, subjects, victory regions, flags and colours...).
 //! - [`garrisons`]: the garrison army and navy of each settlement.
 //! - [`government`]: government posts and political parties.
@@ -48,6 +49,7 @@ pub mod bodyguards;
 pub mod calendar;
 pub mod characters;
 pub mod diplomacy;
+pub mod estates;
 pub mod factions;
 pub mod garrisons;
 pub mod government;
