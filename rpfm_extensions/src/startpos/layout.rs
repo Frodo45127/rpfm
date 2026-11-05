@@ -457,6 +457,19 @@ impl RecordLayout {
         &self.slots
     }
 
+    /// Returns if a group of the record has a slot with this id (leaf name or child record key).
+    pub fn has_slot(&self, id: &str) -> bool {
+        self.slots.iter().any(|slot| slot.id() == id)
+    }
+
+    /// Returns the default value of a leaf, if the record has it. Its encoding tells the leaf's type.
+    pub fn leaf_default(&self, name: &str) -> Option<&NodeType> {
+        self.slots.iter().find_map(|slot| match slot {
+            Slot::Leaf { name: leaf, default, .. } if leaf == name => Some(default),
+            _ => None,
+        })
+    }
+
     /// Matches the children of a group of a record at this path with the layout's slots.
     ///
     /// # Arguments
@@ -734,12 +747,15 @@ impl GroupBuilder<'_> {
         self.set(name, node)
     }
 
-    /// Leaves an optional leaf out of the record.
+    /// Leaves an optional leaf out of the record. Leaves the game never writes are already out.
     ///
     /// # Errors
     ///
-    /// Returns an error if the field doesn't exist or isn't optional.
+    /// Returns an error if the field isn't optional.
     pub fn unset(&mut self, name: &str) -> Result<&mut Self> {
+        if !self.record.has_slot(name) {
+            return Ok(self);
+        }
         let position = self.record.leaf_position(&self.path, name)?;
         if !matches!(self.record.slots[position], Slot::Leaf { optional: true, .. }) {
             return Err(RLibError::StartposLayoutError(format!("{}:{name} is always present", self.path)));
@@ -753,12 +769,16 @@ impl GroupBuilder<'_> {
     /// # Arguments
     ///
     /// * `key` - Child key (record name plus occurrence suffix).
-    /// * `record` - The new record, or `None` to leave an optional record out.
+    /// * `record` - The new record, or `None` to leave an optional record out (or one the game doesn't have).
     ///
     /// # Errors
     ///
-    /// Returns an error if the group has no such child record, or `None` is given for a record that's always present.
+    /// Returns an error if the group has no such child record for a record given, or `None` is given for a record
+    /// that's always present.
     pub fn set_record(&mut self, key: &str, record: Option<RecordNode>) -> Result<&mut Self> {
+        if record.is_none() && !self.record.has_slot(key) {
+            return Ok(self);
+        }
         let position = self.record.record_position(&self.path, key)?;
         if record.is_none() && matches!(self.record.slots[position], Slot::Record { optional: false, .. }) {
             return Err(RLibError::StartposLayoutError(format!("{}/{key} is always present", self.path)));
