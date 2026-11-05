@@ -23,6 +23,8 @@ use super::{bool_node, f32_node, u32_node};
 use crate::startpos::layout::{child_path, StartposLayout};
 use crate::startpos::missions::{MissionObjective, VictoryMission, VictoryObjectives};
 
+#[cfg(test)] #[path = "victory_test.rs"] pub(crate) mod victory_test;
+
 /// Path of the victory missions of each faction.
 pub(crate) const OPTIONS_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_PREOPEN_MAP_INFO/VICTORY_MISSION_OPTIONS";
 

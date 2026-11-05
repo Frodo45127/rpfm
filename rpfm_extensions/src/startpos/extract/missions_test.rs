@@ -54,3 +54,15 @@ fn test_victory_objectives_extract_from_the_game_startpos() {
 
     assert_eq!(extracted_objectives(test_startpos(), &layout), kept_objectives());
 }
+
+#[test]
+#[ignore = "needs TDD's data, see writer/victory_test.rs"]
+fn test_tdd_victory_objectives_extract_from_its_startpos() {
+    use crate::startpos::writer::victory::victory_test::{tdd_esf, tdd_objectives};
+    let startpos = tdd_esf("startpos.esf");
+    let layout = StartposLayout::from_esf(&startpos).unwrap();
+
+    let extracted = extract(&Source::read(&startpos, &layout).unwrap()).unwrap();
+
+    assert_eq!(extracted, tdd_objectives());
+}

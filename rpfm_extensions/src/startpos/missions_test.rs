@@ -127,3 +127,13 @@ fn test_written_victory_objectives_parse_back() {
 
     assert_eq!(parse_victory_objectives(&script).unwrap(), objectives);
 }
+
+#[test]
+#[ignore = "needs TDD's data, see writer/victory_test.rs"]
+fn test_tdd_victory_objectives_parse_back() {
+    let objectives = crate::startpos::writer::victory::victory_test::tdd_objectives();
+
+    let script = write_victory_objectives(&objectives);
+
+    assert_eq!(parse_victory_objectives(&script).unwrap(), objectives);
+}
