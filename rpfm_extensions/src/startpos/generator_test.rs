@@ -25,6 +25,7 @@ use crate::startpos::extract::compare::compare_tables;
 use crate::startpos::extract::extract_test::assert_matches;
 use crate::startpos::startpos_test::{compare, test_data_path, test_startpos, Report, TEST_CAMPAIGN};
 use crate::startpos::world::writer::writer_test::plan_from_startpos;
+use crate::startpos::writer::AI_HISTORY;
 use crate::startpos::tables::tables_test::text;
 use crate::startpos::world::legacy::legacy_test::overrides_from_pack;
 
@@ -171,7 +172,8 @@ fn compare_startposes(layout: &StartposLayout, ours: &ESF, theirs: &ESF, ignore_
     let model = |root| child_record(child_record(root, "CAMPAIGN_ENV").unwrap(), "CAMPAIGN_MODEL").unwrap();
     let mut report = Report::default();
     report.ignore_localised = ignore_localised;
-    for section in model(theirs).children().iter().flatten().filter_map(as_record) {
+    // Only CA's internal builds write the AI's history: the writer leaves it out (see writer::AI_HISTORY).
+    for section in model(theirs).children().iter().flatten().filter_map(as_record).filter(|section| section.name() != AI_HISTORY) {
         let path = format!("CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/{}", section.name());
         match child_record(model(ours), section.name()) {
             Some(our_section) => compare(layout, our_section, section, &path, &mut report),

@@ -132,3 +132,18 @@ fn test_startpos_matches_the_game_startpos() {
 fn find_record<'a>(root: &'a RecordNode, path: &str) -> Option<&'a RecordNode> {
     path.split('/').try_fold(root, |record, name| record.children().iter().flatten().filter_map(as_record).find(|child| child.name() == name))
 }
+
+#[test]
+fn test_child_records_are_removed_from_every_group() {
+    let child = |name: &str| {
+        let mut record = RecordNode::default();
+        record.set_name(name.to_owned());
+        NodeType::Record(Box::new(record))
+    };
+    let mut model = RecordNode::default();
+    model.set_children(vec![vec![child("WORLD"), child(AI_HISTORY), u32_node(1)], vec![child(AI_HISTORY)]]);
+
+    remove_child_record(&mut model, AI_HISTORY);
+
+    assert_eq!(model.children(), &vec![vec![child("WORLD"), u32_node(1)], vec![]]);
+}

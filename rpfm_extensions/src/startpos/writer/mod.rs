@@ -11,11 +11,15 @@
 //! Writer of whole startposes (`CAMPAIGN_STARTPOS`): the world, and the records around it.
 //!
 //! Records without a generator yet keep the values of their layouts.
+//!
+//! The AI's history (`CAMPAIGN_MODEL/CAI_HISTORY`) is left out. CA's startposes (Attila, Thrones, Rome 2) have one,
+//! a log of the AI's first decisions, but no retail game writes or reads it: their `empire.retail.dll` don't even
+//! have its record names, and startposes built with the retail game, like The Dawnless Days', don't have it.
 
 use std::collections::HashMap;
 
 use rpfm_lib::error::Result;
-use rpfm_lib::files::esf::{BoolNode, Coordinates2DNode, ESF, F32Node, I32Node, NodeType, U32Node, VecU32Node};
+use rpfm_lib::files::esf::{BoolNode, Coordinates2DNode, ESF, F32Node, I32Node, NodeType, RecordNode, U32Node, VecU32Node};
 
 use super::cai::world::{CaiContext, CaiInputs};
 use super::cai::world_view::international_routes;
@@ -49,6 +53,9 @@ pub const ENV_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_ENV";
 
 /// Path of the campaign model.
 pub const MODEL_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL";
+
+/// The AI's history, which only CA's internal builds write (see the module docs).
+pub(crate) const AI_HISTORY: &str = "CAI_HISTORY";
 
 //---------------------------------------------------------------------------//
 //                              Types
@@ -151,11 +158,13 @@ pub fn write_startpos<'a>(inputs: &StartposInputs<'a>, plan: &WorldPlan<'a>) -> 
         .set_record("DYNAMIC_RESOURCES_MANAGER", Some(dynamic_resources::write_dynamic_resources_manager(&dynamic_resources_inputs)?))?
         .set_record("EPISODIC_RESTRICTIONS", Some(script_variables::write_episodic_restrictions(layout, inputs.script_variables)?))?;
 
+    let mut model = model.build()?;
+    remove_child_record(&mut model, AI_HISTORY);
     let mut env = layout.builder(ENV_PATH)?;
     env.group()?
         .set_record("CAMPAIGN_SETUP", Some(preopen::write_campaign_setup(layout, plan, inputs.campaign)?))?
         .set_record("CAMPAIGN_SETUP_LOCAL", Some(header::write_setup_local(layout, plan)?))?
-        .set_record("CAMPAIGN_MODEL", Some(model.build()?))?;
+        .set_record("CAMPAIGN_MODEL", Some(model))?;
 
     let forces = ForcePlan::new(world.tables, world.index, plan)?;
     let mut root = layout.builder(ROOT_PATH)?;
@@ -167,6 +176,13 @@ pub fn write_startpos<'a>(inputs: &StartposInputs<'a>, plan: &WorldPlan<'a>) -> 
     let mut startpos = ESF::default();
     startpos.set_root_node(NodeType::Record(Box::new(root.build()?)));
     Ok(startpos)
+}
+
+/// Removes the child records with a name from every group of a record.
+fn remove_child_record(record: &mut RecordNode, name: &str) {
+    for group in record.children_mut() {
+        group.retain(|node| !matches!(node, NodeType::Record(child) if child.name() == name));
+    }
 }
 
 /// Returns a boolean leaf, with the compact encoding the game uses for them.
