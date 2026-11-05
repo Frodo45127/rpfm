@@ -10,8 +10,8 @@
 
 //! Plan and writer of the government posts of the factions (`FACTION/GOVERNMENT/CHARACTER_POSTS`).
 //!
-//! Post ids are one counter over the factions, in startpos order. The game lists each faction's post groups in a
-//! hash order; this plan uses table order.
+//! Post ids are one counter over the factions, in startpos order, and each faction's groups follow the game's key
+//! order of `ministerial_positions_culture_details`.
 
 use std::collections::HashMap;
 

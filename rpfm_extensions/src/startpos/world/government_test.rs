@@ -81,7 +81,8 @@ fn test_posts_for_every_faction() {
         .map(|group| (group.position().to_owned(), group.unique_id()))
         .collect::<Vec<_>>();
 
-    assert_eq!(posts, vec![("general".to_owned(), 104), ("heir".to_owned(), 105)]);
+    // Groups follow the table's key order, which puts 105 before 104.
+    assert_eq!(posts, vec![("heir".to_owned(), 105), ("general".to_owned(), 104)]);
 }
 
 #[test]

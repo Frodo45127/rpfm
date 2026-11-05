@@ -88,7 +88,8 @@ pub struct PoliticalParty {
 ///
 /// # Returns
 ///
-/// The post groups, in table order.
+/// The post groups, in the order the game lists them: the table's key order (see
+/// [`crate::startpos::tables::Table::rows_in_key_order`]).
 ///
 /// # Errors
 ///
@@ -102,7 +103,7 @@ pub fn government_posts(tables: &StartposTables, index: &CampaignIndex, faction:
     // Rows of the campaign replace the ones without campaign, if the campaign has any for the faction.
     let mut generic = vec![];
     let mut own = vec![];
-    for row in tables.table("ministerial_positions_culture_details")?.rows() {
+    for row in tables.table("ministerial_positions_culture_details")?.rows_in_key_order("unique_id")? {
         let campaign = row.str("campaign")?;
         if !campaign.is_empty() && campaign != *index.campaign() {
             continue;
