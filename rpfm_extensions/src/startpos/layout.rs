@@ -26,6 +26,8 @@
 //! records don't move the names and optional leaves count even when missing, so names are stable across instances. A record repeated in the same group gets its
 //! occurrence appended from the second one on (`FACTION_FLAG_AND_COLOURS@2`).
 //!
+//! Builders skip the fields and child records a game's layout doesn't have, so writers can set every game's fields.
+//!
 //! # Paths
 //!
 //! A record's path is the names of the records leading to it from the root, separated by `/`
@@ -334,13 +336,17 @@ impl StartposLayout {
     ///
     /// # Returns
     ///
-    /// A builder with every slot at its default: one group for normal records, none for arrays.
+    /// A builder with every slot at its default: one group for normal records, none for arrays. Paths the layout
+    /// doesn't have build an empty record.
     ///
     /// # Errors
     ///
-    /// Returns an error if the layout has no such path.
+    /// Returns an error if the layout lacks one of the record's always present child records.
     pub fn builder(&self, path: &str) -> Result<RecordBuilder<'_>> {
-        let record = self.records.get(path).ok_or_else(|| missing(path))?;
+
+        // A record the game doesn't have builds empty: no slot of its layout can take it.
+        static ABSENT: std::sync::OnceLock<RecordLayout> = std::sync::OnceLock::new();
+        let record = self.records.get(path).unwrap_or_else(|| ABSENT.get_or_init(RecordLayout::default));
         let mut builder = RecordBuilder { layout: self, path: path.to_owned(), record, groups: vec![] };
         if !record.array {
             builder.push_group()?;
@@ -600,8 +606,11 @@ impl GroupBuilder<'_> {
     ///
     /// # Errors
     ///
-    /// Returns an error if the field doesn't exist or the value has another type.
+    /// Returns an error if the value has another type.
     pub fn set(&mut self, name: &str, value: NodeType) -> Result<&mut Self> {
+        if !self.record.has_slot(name) {
+            return Ok(self);
+        }
         let position = self.record.leaf_position(&self.path, name)?;
         let Some(Slot::Leaf { default, .. }) = self.record.slots.get(position) else { unreachable!("leaf_position returns leaf slots") };
         if discriminant(default) != discriminant(&value) {
@@ -618,8 +627,11 @@ impl GroupBuilder<'_> {
     ///
     /// # Errors
     ///
-    /// Returns an error if the field doesn't exist or isn't an unsigned integer.
+    /// Returns an error if the field isn't an unsigned integer.
     pub fn set_u32(&mut self, name: &str, value: u32) -> Result<&mut Self> {
+        if !self.record.has_slot(name) {
+            return Ok(self);
+        }
         let mut node = self.default_of(name)?;
         match &mut node {
             NodeType::U32(node) => { node.set_value(value).set_optimized(value <= MAX_COMPACT_U32); },
@@ -634,8 +646,11 @@ impl GroupBuilder<'_> {
     ///
     /// # Errors
     ///
-    /// Returns an error if the field doesn't exist or isn't a signed integer.
+    /// Returns an error if the field isn't a signed integer.
     pub fn set_i32(&mut self, name: &str, value: i32) -> Result<&mut Self> {
+        if !self.record.has_slot(name) {
+            return Ok(self);
+        }
         let mut node = self.default_of(name)?;
         match &mut node {
             NodeType::I32(node) => { node.set_value(value).set_optimized(COMPACT_I32.contains(&value)); },
@@ -650,8 +665,11 @@ impl GroupBuilder<'_> {
     ///
     /// # Errors
     ///
-    /// Returns an error if the field doesn't exist or isn't a float.
+    /// Returns an error if the field isn't a float.
     pub fn set_f32(&mut self, name: &str, value: f32) -> Result<&mut Self> {
+        if !self.record.has_slot(name) {
+            return Ok(self);
+        }
         let mut node = self.default_of(name)?;
         match &mut node {
             NodeType::F32(node) => { node.set_value(value).set_optimized(value == 0.0); },
@@ -664,8 +682,11 @@ impl GroupBuilder<'_> {
     ///
     /// # Errors
     ///
-    /// Returns an error if the field doesn't exist or isn't a boolean.
+    /// Returns an error if the field isn't a boolean.
     pub fn set_bool(&mut self, name: &str, value: bool) -> Result<&mut Self> {
+        if !self.record.has_slot(name) {
+            return Ok(self);
+        }
         let mut node = self.default_of(name)?;
         match &mut node {
             NodeType::Bool(node) => { node.set_value(value); },
@@ -678,8 +699,11 @@ impl GroupBuilder<'_> {
     ///
     /// # Errors
     ///
-    /// Returns an error if the field doesn't exist or isn't a string.
+    /// Returns an error if the field isn't a string.
     pub fn set_str(&mut self, name: &str, value: &str) -> Result<&mut Self> {
+        if !self.record.has_slot(name) {
+            return Ok(self);
+        }
         let mut node = self.default_of(name)?;
         match &mut node {
             NodeType::Ascii(node) | NodeType::Utf16(node) => { *node = value.to_owned(); },
@@ -705,8 +729,11 @@ impl GroupBuilder<'_> {
     ///
     /// # Errors
     ///
-    /// Returns an error if the field doesn't exist or isn't a string array.
+    /// Returns an error if the field isn't a string array.
     pub fn set_strings(&mut self, name: &str, values: Vec<String>) -> Result<&mut Self> {
+        if !self.record.has_slot(name) {
+            return Ok(self);
+        }
         let mut node = self.default_of(name)?;
         match &mut node {
             NodeType::AsciiArray(node) | NodeType::Utf16Array(node) => { *node = values; },
@@ -719,8 +746,11 @@ impl GroupBuilder<'_> {
     ///
     /// # Errors
     ///
-    /// Returns an error if the field doesn't exist or isn't a byte array.
+    /// Returns an error if the field isn't a byte array.
     pub fn set_bytes(&mut self, name: &str, values: Vec<u8>) -> Result<&mut Self> {
+        if !self.record.has_slot(name) {
+            return Ok(self);
+        }
         let mut node = self.default_of(name)?;
         match &mut node {
             NodeType::U8Array(node) | NodeType::I8Array(node) => { *node = values; },
@@ -734,8 +764,11 @@ impl GroupBuilder<'_> {
     ///
     /// # Errors
     ///
-    /// Returns an error if the field doesn't exist or isn't an unsigned array.
+    /// Returns an error if the field isn't an unsigned array.
     pub fn set_u32s(&mut self, name: &str, values: Vec<u32>) -> Result<&mut Self> {
+        if !self.record.has_slot(name) {
+            return Ok(self);
+        }
         let mut node = self.default_of(name)?;
         match &mut node {
             NodeType::U32Array(node) => {
@@ -769,14 +802,13 @@ impl GroupBuilder<'_> {
     /// # Arguments
     ///
     /// * `key` - Child key (record name plus occurrence suffix).
-    /// * `record` - The new record, or `None` to leave an optional record out (or one the game doesn't have).
+    /// * `record` - The new record, or `None` to leave an optional record out. Records the game doesn't have are skipped.
     ///
     /// # Errors
     ///
-    /// Returns an error if the group has no such child record for a record given, or `None` is given for a record
-    /// that's always present.
+    /// Returns an error if `None` is given for a record that's always present.
     pub fn set_record(&mut self, key: &str, record: Option<RecordNode>) -> Result<&mut Self> {
-        if record.is_none() && !self.record.has_slot(key) {
+        if !self.record.has_slot(key) {
             return Ok(self);
         }
         let position = self.record.record_position(&self.path, key)?;
