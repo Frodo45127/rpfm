@@ -26,6 +26,8 @@ use crate::startpos::world::RegionEntry;
 use crate::startpos::world::legacy::ForceKind;
 use crate::startpos::world::rebels::rebel_setup;
 
+#[cfg(test)] #[path = "regions_test.rs"] mod regions_test;
+
 /// Path of a region.
 const REGION_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/WORLD/REGION_MANAGER/REGIONS_ARRAY/REGION";
 
@@ -246,21 +248,15 @@ impl RegionWriter<'_, '_> {
         record.build()
     }
 
-    /// Writes the population of a region: its religion shares, in `religions` order.
-    ///
-    /// Shares are normalised, so percentages that don't add up to 100 still give a total of 1. The game computes them
-    /// in single precision as `(percentage * 0.01) / (total * 0.01)`, which isn't always the same float as
-    /// `percentage / total`.
+    /// Writes the population of a region: its religion shares (see [`religion_shares`]), in `religions` order.
     fn write_population(&self, region: &RegionEntry) -> Result<RecordNode> {
         let percentages = self.rows.religions.iter()
             .map(|religion| self.rows.religion_shares.get(&(region.id().to_owned(), religion.to_owned())).copied().unwrap_or_default())
             .collect::<Vec<_>>();
-        let total = percentages.iter().sum::<f32>() * 0.01;
 
         let path = format!("{REGION_PATH}/POPULATION/REGION_FACTORS");
         let mut breakdown = child(self.inputs.layout, &path, "RELIGION_BREAKDOWN")?;
-        for (religion, percentage) in self.rows.religions.iter().zip(percentages) {
-            let share = if total > 0.0 { percentage * 0.01 / total } else { 0.0 };
+        for (religion, share) in self.rows.religions.iter().zip(religion_shares(&percentages)) {
             breakdown.push_group()?
                 .set_str("^+1", religion)?
                 .set_f32("^+2", share)?;
@@ -580,4 +576,15 @@ fn horde_building_count(inputs: &WorldInputs) -> Result<u32> {
         }
     }
     Ok(count)
+}
+
+/// Returns the religion shares of a region from the percentages of its religions.
+///
+/// Shares are normalised, so percentages that don't add up to 100 still give a total of 1. The game computes them
+/// in single precision as `(percentage * 0.01) / (total * 0.01)`, which isn't always the same float as
+/// `percentage / total`. Regions without percentages have every religion in the same share (verified on Thrones).
+fn religion_shares(percentages: &[f32]) -> Vec<f32> {
+    let total = percentages.iter().sum::<f32>() * 0.01;
+    let even = 1.0 / percentages.len().max(1) as f32;
+    percentages.iter().map(|percentage| if total > 0.0 { percentage * 0.01 / total } else { even }).collect()
 }
