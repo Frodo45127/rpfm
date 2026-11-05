@@ -197,7 +197,7 @@ fn write_objective_values(layout: &StartposLayout, path: &str, objective: &Missi
         MissionObjective::Scripted { script_key, text } => {
             let mut localisation = layout.builder(&child_path(path, "CAMPAIGN_LOCALISATION"))?;
             localisation.group()?.set_str("^+1", text.as_deref().unwrap_or_default())?;
-            group.set_record("CAMPAIGN_LOCALISATION", Some(localisation.build()?))?.set_str("^+1", script_key)?;
+            group.set_record("CAMPAIGN_LOCALISATION", Some(localisation.build()?))?.set_str("CAMPAIGN_LOCALISATION+1", script_key)?;
         },
         MissionObjective::ControlNPortsIncluding { total, regions } => {
             group.set_u32("^+1", *total)?.set_strings("^+2", regions.clone())?;
