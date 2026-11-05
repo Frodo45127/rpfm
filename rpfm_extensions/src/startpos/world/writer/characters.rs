@@ -126,6 +126,7 @@ struct ArtSet {
     faction: String,
     subculture: String,
     culture: String,
+    is_custom: bool,
 }
 
 /// Who a `CHARACTER_DETAILS` record describes: a character of the world, or a dead one of the family tree.
@@ -222,6 +223,7 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
                     faction: row.str("faction")?.into_owned(),
                     subculture: row.str("subculture")?.into_owned(),
                     culture: row.str("culture")?.into_owned(),
+                    is_custom: row.bool("is_custom")?,
                 });
             }
         }
@@ -507,17 +509,10 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
         })
     }
 
-    /// Returns the art set of a character: one of the campaign's art sets for its agent type and gender, of its
-    /// faction, subculture (sets without faction) or culture (sets without faction and subculture). The game draws
-    /// one at random; this takes them in turns by `seed` (the character's runtime id, or family id for the dead).
+    /// Returns the art set of a character (see [`pick_art_set`]).
     fn art_set(&self, faction: &FactionEntry, info: &CharacterInfo, seed: u32) -> &str {
-        let candidates = self.art_sets.iter()
-            .filter(|art_set| art_set.agent == art_set_agent(&info.agent) && art_set.is_male == info.is_male)
-            .filter(|art_set| art_set.faction == *faction.key()
-                || (art_set.faction.is_empty() && art_set.subculture == *faction.subculture())
-                || (art_set.faction.is_empty() && art_set.subculture.is_empty() && art_set.culture == *faction.culture()))
-            .collect::<Vec<_>>();
-        candidates.get(seed as usize % candidates.len().max(1)).map(|art_set| art_set.id.as_str()).unwrap_or_default()
+        let portrait = info.row.and_then(|row| row.str("portrait_id").ok()).unwrap_or_default();
+        pick_art_set(&self.art_sets, faction, &info.agent, info.is_male, &portrait, seed)
     }
 
     /// Returns the world position and cell of a character.
@@ -618,4 +613,22 @@ pub(crate) fn write_character_name(layout: &StartposLayout, parent: &str, charac
     let mut record = child(layout, parent, "CHARACTER_NAME")?;
     record.group()?.set_record("NAMES_BLOCK", Some(blocks.build()?))?;
     record.build()
+}
+
+/// Returns the art set of a character: the campaign's art set its `portrait_id` names, if any, else one of the
+/// campaign's art sets that aren't custom for its agent type and gender, of its faction, subculture (sets without
+/// faction) or culture (sets without faction and subculture). The game draws one at random; this takes them in turns
+/// by `seed` (the character's runtime id, or family id for the dead). Verified on Thrones (9 of 9 portrait ids) and
+/// Attila's main campaign (19 of 21: the other two name another campaign's art sets).
+fn pick_art_set<'s>(art_sets: &'s [ArtSet], faction: &FactionEntry, agent: &str, is_male: bool, portrait: &str, seed: u32) -> &'s str {
+    if let Some(art_set) = art_sets.iter().find(|art_set| !portrait.is_empty() && art_set.id == portrait) {
+        return &art_set.id;
+    }
+    let candidates = art_sets.iter()
+        .filter(|art_set| !art_set.is_custom && art_set.agent == art_set_agent(agent) && art_set.is_male == is_male)
+        .filter(|art_set| art_set.faction == *faction.key()
+            || (art_set.faction.is_empty() && art_set.subculture == *faction.subculture())
+            || (art_set.faction.is_empty() && art_set.subculture.is_empty() && art_set.culture == *faction.culture()))
+        .collect::<Vec<_>>();
+    candidates.get(seed as usize % candidates.len().max(1)).map(|art_set| art_set.id.as_str()).unwrap_or_default()
 }

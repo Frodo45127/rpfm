@@ -31,3 +31,25 @@ fn test_colonels_use_general_art_sets() {
     assert_eq!(art_set_agent(COLONEL_AGENT), GENERAL_AGENT);
     assert_eq!(art_set_agent("spy"), "spy");
 }
+
+#[test]
+fn test_art_sets_of_portraits_then_the_faction_without_custom_ones() {
+    let tables = force_tables();
+    let index = fixture_index(&tables);
+    let faction = index.faction("fact_a").unwrap();
+    let art_set = |id: &str, faction: &str, is_custom: bool| ArtSet {
+        id: id.to_owned(),
+        agent: GENERAL_AGENT.to_owned(),
+        is_male: true,
+        faction: faction.to_owned(),
+        subculture: String::new(),
+        culture: String::new(),
+        is_custom,
+    };
+    let art_sets = [art_set("hero", "fact_a", true), art_set("generic_1", "fact_a", false), art_set("generic_2", "fact_a", false)];
+
+    assert_eq!(pick_art_set(&art_sets, faction, GENERAL_AGENT, true, "hero", 0), "hero");
+    assert_eq!(pick_art_set(&art_sets, faction, GENERAL_AGENT, true, "", 0), "generic_1");
+    assert_eq!(pick_art_set(&art_sets, faction, GENERAL_AGENT, true, "", 1), "generic_2");
+    assert_eq!(pick_art_set(&art_sets, faction, GENERAL_AGENT, true, "other_campaign_set", 1), "generic_2");
+}
