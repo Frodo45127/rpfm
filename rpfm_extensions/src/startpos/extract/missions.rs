@@ -83,9 +83,10 @@ fn read_objective(source: &Source, objective: &GroupView) -> Result<MissionObjec
     let name = impl_key.trim_start_matches(IMPL_PREFIX);
     let record = objective.record(impl_key).ok_or_else(|| extraction_error(&format!("{impl_key} isn't a record")))?;
 
-    // Objectives with lists have no fixed layout: their values are read in order.
+    // Objectives with lists, and the ones vanilla layouts lack, are read in order.
     match name {
-        "CONSTRUCT_N_BUILDINGS_INCLUDING" | "RECLAIM_N_DIFFERENT_SETTLEMENTS_INCLUDING" | "AT_LEAST_X_PUBLIC_ORDER_IN_PROVINCES" | "ENSURE_FACTIONS_HAVE_NO_MILITARY_PRESENCE" => {
+        "CONSTRUCT_N_BUILDINGS_INCLUDING" | "RECLAIM_N_DIFFERENT_SETTLEMENTS_INCLUDING" | "AT_LEAST_X_PUBLIC_ORDER_IN_PROVINCES" | "ENSURE_FACTIONS_HAVE_NO_MILITARY_PRESENCE" |
+        "HOLD_ENTIRETY_OF_N_PROVINCES_INCLUDING" | "CONSTRUCT_N_BUILDINGS_FROM" | "CONSTRUCT_N_OF_A_BUILDING" | "HAVE_AT_LEAST_X_MONEY" | "MAINTAIN_TRADE_WITH_N_FACTIONS" | "DIPLOMACY" => {
             list_objective(name, record).ok_or_else(|| extraction_error(&format!("{impl_key} doesn't have the expected values")))
         },
         _ => {
@@ -170,6 +171,34 @@ fn list_objective(name: &str, record: &RecordNode) -> Option<MissionObjective> {
             values.next()?;
             MissionObjective::ConstructNBuildingsIncluding { total, buildings, faction: as_str(values.next()?)?.to_owned() }
         },
+        "HOLD_ENTIRETY_OF_N_PROVINCES_INCLUDING" => {
+            let total = as_u32(values.next()?)?;
+            match values.next()? {
+                NodeType::AsciiArray(provinces) => MissionObjective::HoldEntiretyOfNProvincesIncluding { total, provinces: provinces.clone() },
+                _ => return None,
+            }
+        },
+        "CONSTRUCT_N_BUILDINGS_FROM" => {
+            let count = as_u32(values.next()?)?;
+            let buildings = (0..count).map(|_| {
+                let building = values.next().and_then(as_str).map(str::to_owned);
+                values.next();
+                building
+            }).collect::<Option<Vec<_>>>()?;
+            let total = as_u32(values.next()?)?;
+            values.next()?;
+            MissionObjective::ConstructNBuildingsFrom { total, buildings, faction: as_str(values.next()?)?.to_owned() }
+        },
+        "CONSTRUCT_N_OF_A_BUILDING" => {
+            values.next()?;
+            let building = as_str(values.next()?)?.to_owned();
+            values.next()?;
+            let total = as_u32(values.next()?)?;
+            MissionObjective::ConstructNOfABuilding { total, building, faction: as_str(values.next()?)?.to_owned() }
+        },
+        "HAVE_AT_LEAST_X_MONEY" => MissionObjective::HaveAtLeastXMoney { total: as_u32(values.next()?)? },
+        "MAINTAIN_TRADE_WITH_N_FACTIONS" => MissionObjective::MaintainTradeWithNFactions { total: as_u32(values.next()?)? },
+        "DIPLOMACY" => MissionObjective::MakeAlliance { faction: as_str(values.next()?)?.to_owned() },
         "RECLAIM_N_DIFFERENT_SETTLEMENTS_INCLUDING" => {
             let total = as_u32(values.next()?)?;
             MissionObjective::ReclaimNDifferentSettlementsIncluding { total, regions: keys(&mut values)? }

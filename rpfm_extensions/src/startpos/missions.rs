@@ -167,6 +167,24 @@ pub enum MissionObjective {
 
     /// Own a port next to one of some sea regions (`region`).
     OwnAPortAdjoiningSeaRegionsIncluding { regions: Vec<String> },
+
+    /// Hold every region of a number of provinces among some (`province`).
+    HoldEntiretyOfNProvincesIncluding { total: u32, provinces: Vec<String> },
+
+    /// Construct a number of buildings from some (`building_level`), for a faction.
+    ConstructNBuildingsFrom { total: u32, buildings: Vec<String>, faction: String },
+
+    /// Construct a number of one building (`building_level`), for a faction.
+    ConstructNOfABuilding { total: u32, building: String, faction: String },
+
+    /// Have an amount of money.
+    HaveAtLeastXMoney { total: u32 },
+
+    /// Trade with a number of factions.
+    MaintainTradeWithNFactions { total: u32 },
+
+    /// Make an alliance with a faction.
+    MakeAlliance { faction: String },
 }
 
 //---------------------------------------------------------------------------//
@@ -346,6 +364,23 @@ impl MissionObjective {
                 add("region", regions);
             },
             Self::OwnAPortAdjoiningSeaRegionsIncluding { regions } => add("region", regions),
+            Self::HoldEntiretyOfNProvincesIncluding { total, provinces } => {
+                add("total", &[total.to_string()]);
+                add("province", provinces);
+            },
+            Self::ConstructNBuildingsFrom { total, buildings, faction } => {
+                add("total", &[total.to_string()]);
+                add("building_level", buildings);
+                add("faction", std::slice::from_ref(faction));
+            },
+            Self::ConstructNOfABuilding { total, building, faction } => {
+                add("total", &[total.to_string()]);
+                add("building_level", std::slice::from_ref(building));
+                add("faction", std::slice::from_ref(faction));
+            },
+            Self::HaveAtLeastXMoney { total } |
+            Self::MaintainTradeWithNFactions { total } => add("total", &[total.to_string()]),
+            Self::MakeAlliance { faction } => add("faction", std::slice::from_ref(faction)),
         }
         statements
     }
@@ -380,6 +415,12 @@ impl MissionObjective {
             Self::Scripted { .. } => "SCRIPTED",
             Self::ControlNPortsIncluding { .. } => "CONTROL_N_PORTS_INCLUDING",
             Self::OwnAPortAdjoiningSeaRegionsIncluding { .. } => "OWN_A_PORT_ADJOINING_SEA_REGIONS_INCLUDING",
+            Self::HoldEntiretyOfNProvincesIncluding { .. } => "HOLD_ENTIRETY_OF_N_PROVINCES_INCLUDING",
+            Self::ConstructNBuildingsFrom { .. } => "CONSTRUCT_N_BUILDINGS_FROM",
+            Self::ConstructNOfABuilding { .. } => "CONSTRUCT_N_OF_A_BUILDING",
+            Self::HaveAtLeastXMoney { .. } => "HAVE_AT_LEAST_X_MONEY",
+            Self::MaintainTradeWithNFactions { .. } => "MAINTAIN_TRADE_WITH_N_FACTIONS",
+            Self::MakeAlliance { .. } => "MAKE_ALLIANCE",
         }
     }
 
@@ -429,6 +470,20 @@ impl MissionObjective {
             "SCRIPTED" => Self::Scripted { script_key: item.child_value("script_key")?, text: item.child_values("override_text").into_iter().next() },
             "CONTROL_N_PORTS_INCLUDING" => Self::ControlNPortsIncluding { total: total()?, regions: item.child_values("region") },
             "OWN_A_PORT_ADJOINING_SEA_REGIONS_INCLUDING" => Self::OwnAPortAdjoiningSeaRegionsIncluding { regions: item.child_values("region") },
+            "HOLD_ENTIRETY_OF_N_PROVINCES_INCLUDING" => Self::HoldEntiretyOfNProvincesIncluding { total: total()?, provinces: item.child_values("province") },
+            "CONSTRUCT_N_BUILDINGS_FROM" => Self::ConstructNBuildingsFrom {
+                total: total()?,
+                buildings: item.child_values("building_level"),
+                faction: item.child_value("faction")?,
+            },
+            "CONSTRUCT_N_OF_A_BUILDING" => Self::ConstructNOfABuilding {
+                total: total()?,
+                building: item.child_value("building_level")?,
+                faction: item.child_value("faction")?,
+            },
+            "HAVE_AT_LEAST_X_MONEY" => Self::HaveAtLeastXMoney { total: total()? },
+            "MAINTAIN_TRADE_WITH_N_FACTIONS" => Self::MaintainTradeWithNFactions { total: total()? },
+            "MAKE_ALLIANCE" => Self::MakeAlliance { faction: item.child_value("faction")? },
             other => return Err(script_error(format!("unsupported objective type {other}"))),
         })
     }

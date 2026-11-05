@@ -105,6 +105,12 @@ fn test_parse_objectives_of_other_campaigns() {
         ("type SUBJUGATE_FACTIONS; total 1; faction fact_a;", MissionObjective::SubjugateFactions { total: 1, faction: Some("fact_a".to_owned()) }),
         ("type SUBJUGATE_FACTIONS; total 2;", MissionObjective::SubjugateFactions { total: 2, faction: None }),
         ("type OWN_N_UNITS; total 40; unit unit_a; unit unit_b;", MissionObjective::OwnNUnits { total: 40, naval: false, units: vec!["unit_a".to_owned(), "unit_b".to_owned()] }),
+        ("type HOLD_ENTIRETY_OF_N_PROVINCES_INCLUDING; total 6; province prov_a; province prov_b;", MissionObjective::HoldEntiretyOfNProvincesIncluding { total: 6, provinces: vec!["prov_a".to_owned(), "prov_b".to_owned()] }),
+        ("type CONSTRUCT_N_BUILDINGS_FROM; total 1; building_level bld_a; building_level bld_b; faction fact_a;", MissionObjective::ConstructNBuildingsFrom { total: 1, buildings: vec!["bld_a".to_owned(), "bld_b".to_owned()], faction: "fact_a".to_owned() }),
+        ("type CONSTRUCT_N_OF_A_BUILDING; total 6; building_level bld_a; faction fact_a;", MissionObjective::ConstructNOfABuilding { total: 6, building: "bld_a".to_owned(), faction: "fact_a".to_owned() }),
+        ("type HAVE_AT_LEAST_X_MONEY; total 1000000;", MissionObjective::HaveAtLeastXMoney { total: 1000000 }),
+        ("type MAINTAIN_TRADE_WITH_N_FACTIONS; total 5;", MissionObjective::MaintainTradeWithNFactions { total: 5 }),
+        ("type MAKE_ALLIANCE; faction fact_a;", MissionObjective::MakeAlliance { faction: "fact_a".to_owned() }),
         ("type CONTROL_N_REGIONS_INCLUDING; total 45; region reg_a;", MissionObjective::ControlNRegionsIncluding { total: 45, regions: vec!["reg_a".to_owned()] }),
     ];
 

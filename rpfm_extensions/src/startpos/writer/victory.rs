@@ -12,11 +12,12 @@
 //! `victory_objectives.txt`.
 //!
 //! Each objective is a `CAMPAIGN_MISSION_OBJECTIVE` with its type id and a record of the type's values (none for
-//! types without values). The ids come from the game's objective type enum, matched against Attila's startposes:
-//! only the types the victory missions of its campaigns use are known.
+//! types without values). The ids come from the game's objective type enum, matched against Attila's startposes and
+//! its name table. Vanilla startposes have no layout for the types only mods use (The Dawnless Days' ones): their
+//! records are built from the shapes the game writes for them.
 
 use rpfm_lib::error::{RLibError, Result};
-use rpfm_lib::files::esf::{NodeType, RecordNode};
+use rpfm_lib::files::esf::{NodeType, RecordNode, RecordNodeFlags};
 
 use super::{bool_node, f32_node, u32_node};
 use crate::startpos::layout::{child_path, StartposLayout};
@@ -123,6 +124,8 @@ fn write_objective(layout: &StartposLayout, objective: &MissionObjective) -> Res
 
     let values = match objective {
         MissionObjective::StayHorde => None,
+        MissionObjective::AttainFameLevel { .. } if layout.record(&impl_path).is_some() => Some(write_objective_values(layout, &impl_path, objective)?),
+        _ if builtin_record(objective).is_some() => builtin_record(objective),
         MissionObjective::ConstructNBuildingsIncluding { total, buildings, faction } => {
             let mut children = vec![u32_node(u32::try_from(buildings.len()).unwrap_or(u32::MAX))];
             for building in buildings {
@@ -140,12 +143,53 @@ fn write_objective(layout: &StartposLayout, objective: &MissionObjective) -> Res
         _ => Some(write_objective_values(layout, &impl_path, objective)?),
     };
 
+    // Records the layout has no slot for go right after the type id, where the game puts every one.
     let mut record = layout.builder(OBJECTIVE_PATH)?;
     let group = record.group()?.set_u32("^+1", id)?;
-    if let Some(values) = values {
-        group.set_record(&impl_key, Some(values))?;
+    let has_slot = layout.record(OBJECTIVE_PATH).is_some_and(|objective| objective.has_slot(&impl_key));
+    match values {
+        Some(values) if has_slot => { group.set_record(&impl_key, Some(values))?; },
+        Some(values) => {
+            let mut built = record.build()?;
+            let mut children = built.children().clone();
+            if let Some(first) = children.first_mut() {
+                first.insert(1.min(first.len()), NodeType::Record(Box::new(values)));
+            }
+            built.set_children(children);
+            return Ok(built);
+        },
+        None => {},
     }
     record.build()
+}
+
+/// Builds the values record of the objective types vanilla Attila layouts don't have, in the version and shape TDD's
+/// game-built startpos has them. `None` for the other types.
+fn builtin_record(objective: &MissionObjective) -> Option<RecordNode> {
+    let ascii = |value: &str| NodeType::Ascii(value.to_owned());
+    let (version, children) = match objective {
+        MissionObjective::HoldEntiretyOfNProvincesIncluding { total, provinces } => (1, vec![u32_node(*total), NodeType::AsciiArray(provinces.clone())]),
+        MissionObjective::ConstructNBuildingsFrom { total, buildings, faction } => {
+            let mut children = vec![u32_node(u32::try_from(buildings.len()).unwrap_or(u32::MAX))];
+            for building in buildings {
+                children.extend([ascii(building), bool_node(false)]);
+            }
+            children.extend([u32_node(*total), u32_node(0), ascii(faction)]);
+            (3, children)
+        },
+        MissionObjective::ConstructNOfABuilding { total, building, faction } => (2, vec![u32_node(1), ascii(building), u32_node(0), u32_node(*total), ascii(faction)]),
+        MissionObjective::HaveAtLeastXMoney { total } => (0, vec![u32_node(*total)]),
+        MissionObjective::MaintainTradeWithNFactions { total } => (1, vec![u32_node(*total)]),
+        MissionObjective::MakeAlliance { faction } => (3, vec![ascii(faction)]),
+        MissionObjective::AttainFameLevel { level, .. } => (1, vec![u32_node(*level)]),
+        _ => return None,
+    };
+    let mut record = RecordNode::default();
+    record.set_name(format!("{IMPL_PREFIX}{}", objective_record_name(objective)));
+    record.set_version(version);
+    record.set_record_flags(RecordNodeFlags::IS_RECORD_NODE);
+    record.set_children(vec![children]);
+    Some(record)
 }
 
 /// Returns the leaves of an objective with a list of keys: its leading values, an empty list of resolved entries, and
@@ -194,8 +238,12 @@ fn write_objective_values(layout: &StartposLayout, path: &str, objective: &Missi
         MissionObjective::EliminateCharacterInBattle { faction } => {
             group.set_str("^+2", faction)?;
         },
+        // Attila's fame objectives have no completion status.
         MissionObjective::AttainFameLevel { level, status } => {
-            group.set_u32("^+1", *level)?.set_str("^+2", status.as_deref().unwrap_or_default())?;
+            group.set_u32("^+1", *level)?;
+            if layout.record(path).is_some_and(|values| values.has_slot("^+2")) {
+                group.set_str("^+2", status.as_deref().unwrap_or_default())?;
+            }
         },
         MissionObjective::Scripted { script_key, text } => {
             let mut localisation = layout.builder(&child_path(path, "CAMPAIGN_LOCALISATION"))?;
@@ -219,6 +267,14 @@ fn write_objective_values(layout: &StartposLayout, path: &str, objective: &Missi
         MissionObjective::LootOrSackNDifferentSettlementsIncluding { total, .. } |
         MissionObjective::RazeOrSackNDifferentSettlementsIncluding { total, .. } => {
             group.set_u32("^+1", *total)?;
+        },
+        MissionObjective::HoldEntiretyOfNProvincesIncluding { .. } |
+        MissionObjective::ConstructNBuildingsFrom { .. } |
+        MissionObjective::ConstructNOfABuilding { .. } |
+        MissionObjective::HaveAtLeastXMoney { .. } |
+        MissionObjective::MaintainTradeWithNFactions { .. } |
+        MissionObjective::MakeAlliance { .. } => {
+            return Err(RLibError::StartposLayoutError(format!("{path}: built without a layout")));
         },
         MissionObjective::ConstructNBuildingsIncluding { .. } |
         MissionObjective::ReclaimNDifferentSettlementsIncluding { .. } |
@@ -260,14 +316,21 @@ pub(crate) fn objective_id(objective: &MissionObjective) -> u32 {
         MissionObjective::ControlNPortsIncluding { .. } => 45,
         MissionObjective::OwnAPortAdjoiningSeaRegionsIncluding { .. } => 48,
         MissionObjective::Scripted { .. } => 90,
+        MissionObjective::ConstructNBuildingsFrom { .. } => 3,
+        MissionObjective::MakeAlliance { .. } => 9,
+        MissionObjective::MaintainTradeWithNFactions { .. } => 34,
+        MissionObjective::HoldEntiretyOfNProvincesIncluding { .. } => 38,
+        MissionObjective::HaveAtLeastXMoney { .. } => 46,
+        MissionObjective::ConstructNOfABuilding { .. } => 75,
     }
 }
 
 /// Returns the name of the record with an objective's values: its type key, except for naval unit objectives, which
-/// are unit objectives with their naval flag set.
+/// are unit objectives with their naval flag set, and alliances, kept in a diplomacy record.
 pub(crate) fn objective_record_name(objective: &MissionObjective) -> &'static str {
     match objective {
         MissionObjective::OwnNUnits { .. } => "OWN_N_UNITS",
+        MissionObjective::MakeAlliance { .. } => "DIPLOMACY",
         _ => objective.type_key(),
     }
 }
