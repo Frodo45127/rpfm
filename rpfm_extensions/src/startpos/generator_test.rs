@@ -15,7 +15,7 @@ use std::path::Path;
 
 use rpfm_lib::files::esf::NodeType;
 use rpfm_lib::files::table::DecodedData;
-use rpfm_lib::games::supported_games::{SupportedGames, KEY_THRONES_OF_BRITANNIA};
+use rpfm_lib::games::supported_games::{SupportedGames, KEY_ROME_2, KEY_THRONES_OF_BRITANNIA};
 use rpfm_lib::schema::{Definition, Field, FieldType};
 
 use super::*;
@@ -315,6 +315,15 @@ fn other_game_reports(variable: &str, game_key: &str, cache: &str, campaigns: &[
 #[ignore = "needs the game data, see other_game_reports"]
 fn test_thrones_campaigns_match_the_game_startposes() {
     for (campaign, matches, total, worst) in other_game_reports("RPFM_STARTPOS_TEST_DATA_TOB", KEY_THRONES_OF_BRITANNIA, "tob.pak", &["vik_attila"]) {
+        println!("{campaign}: {matches}/{total} ({:.4}) fields match. Worst:\n{worst}", matches as f64 / total as f64);
+    }
+}
+
+#[test]
+#[ignore = "needs the game data, see other_game_reports"]
+fn test_rome_2_campaigns_match_the_game_startposes() {
+    let campaigns = ["main_rome", "main_emperor", "main_gaul", "main_greek", "main_punic"];
+    for (campaign, matches, total, worst) in other_game_reports("RPFM_STARTPOS_TEST_DATA_ROM2", KEY_ROME_2, "rom2.pak", &campaigns) {
         println!("{campaign}: {matches}/{total} ({:.4}) fields match. Worst:\n{worst}", matches as f64 / total as f64);
     }
 }
