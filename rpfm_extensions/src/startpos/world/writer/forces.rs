@@ -14,17 +14,16 @@
 //! per garrison force. Force ids go first to the generals' forces (in their commanders' order), then to the garrison
 //! forces (faction by faction, region by region, the army before the navy).
 //!
-//! # Unit order (not reproduced)
+//! # Unit order
 //!
-//! Unit ids follow the order the game creates a force's units in, and it creates them grouped by unit key in a hash
-//! order (Thrones' Alfred: thegns, spearmen, scouts, then two archers; his table rows give thegns, spearmen, two
-//! archers, then scouts). This plan groups them in the order each key first appears instead, so unit ids and the
-//! unit order of the AI's lists can differ from the game's.
+//! Unit ids follow the order the game creates a force's units in: a general's in the key order of their
+//! `start_pos_land_units` / `start_pos_naval_units` rows (verified on Thrones, 62 of 62 forces), the bodyguard last.
+//! Garrisons follow `building_level_armed_citizenry_junctions` key order, while the game groups their units by key in
+//! an order not reproduced yet.
 //!
 //! The game then lists a force's units, after the commander's own, in a stable order of the `ui_unit_groupings.order`
 //! of their `main_units.ui_unit_group_land` (verified on Thrones, 125 of 125 forces, and Attila's main campaign,
-//! 341 of 342: the other is a navy). This plan keeps creation order: sorting by that rule while the ids still differ
-//! from the game's matches fewer fields.
+//! 341 of 342: the other is a navy). This plan keeps creation order.
 
 use std::collections::HashMap;
 
@@ -33,7 +32,7 @@ use getset::{CopyGetters, Getters};
 use rpfm_lib::error::Result;
 
 use super::WorldPlan;
-use crate::startpos::tables::StartposTables;
+use crate::startpos::tables::{Row, StartposTables};
 use crate::startpos::world::{CampaignIndex, CharacterEntry, FactionEntry};
 use crate::startpos::world::bodyguards::bodyguard;
 use crate::startpos::world::characters::{placement, Placement};
@@ -169,12 +168,12 @@ impl<'a> ForcePlan<'a> {
     /// Returns an error if a table or column is missing.
     pub fn new(tables: &StartposTables, index: &'a CampaignIndex, plan: &WorldPlan<'a>) -> Result<Self> {
         let mut land_units = HashMap::<String, Vec<PlannedUnit>>::new();
-        for row in tables.table("start_pos_land_units")?.rows() {
+        for row in unit_rows(tables, "start_pos_land_units")? {
             let soldiers = u32::try_from(row.int("soldiers")?).unwrap_or(FULL_UNIT);
             land_units.entry(row.str("general")?.into_owned()).or_default().push(PlannedUnit::new(row.str("unit_type")?.into_owned(), soldiers));
         }
         let mut naval_units = HashMap::<String, Vec<PlannedUnit>>::new();
-        for row in tables.table("start_pos_naval_units")?.rows() {
+        for row in unit_rows(tables, "start_pos_naval_units")? {
             naval_units.entry(row.str("admiral")?.into_owned()).or_default().push(PlannedUnit::new(row.str("unit_type")?.into_owned(), FULL_UNIT));
         }
 
@@ -195,7 +194,7 @@ impl<'a> ForcePlan<'a> {
                 let force = kind.map(|kind| {
                     let own_unit = override_unit.cloned().or_else(|| bodyguards[usize::from(kind == ForceKind::Navy)].as_ref().map(|bodyguard| bodyguard.unit().to_owned()));
                     let mut all_units = own_unit.map(|unit| PlannedUnit { unit, soldiers: FULL_UNIT, commands: true }).into_iter().collect::<Vec<_>>();
-                    all_units.extend(grouped(units));
+                    all_units.extend(units.iter().cloned());
                     force_plan.push_force(faction, kind, None, all_units, commander)
                 });
                 if let (Some(force), Placement::Settlement(region)) = (force, placement) {
@@ -325,16 +324,12 @@ impl PlannedUnit {
     }
 }
 
-/// Returns units with the same key next to each other, in the order each key first appears (the game uses a hash
-/// order).
-fn grouped(units: &[PlannedUnit]) -> Vec<PlannedUnit> {
-    let mut keys = Vec::<&str>::new();
-    for unit in units {
-        if !keys.contains(&unit.unit.as_str()) {
-            keys.push(&unit.unit);
-        }
-    }
-    keys.iter().flat_map(|key| units.iter().filter(move |unit| unit.unit == *key).cloned()).collect()
+/// Returns the rows of a startpos unit table in the order the game creates their units: the table's key order (see
+/// [`crate::startpos::tables::Table::rows_in_key_order`]) of its id column (`id`, or `ID` in some games).
+fn unit_rows<'t>(tables: &'t StartposTables, name: &str) -> Result<Vec<Row<'t>>> {
+    let table = tables.table(name)?;
+    let column = if table.column("id").is_ok() { "id" } else { "ID" };
+    table.rows_in_key_order(column)
 }
 
 /// Returns the living characters of a faction in startpos order: the plan's order if it has one for the faction,
