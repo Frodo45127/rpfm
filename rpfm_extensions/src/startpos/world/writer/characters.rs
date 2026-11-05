@@ -70,8 +70,10 @@ const ART_SET_SUFFIX: &str = "0";
 /// Skills Thrones' layout has room for in a character's skill list (the most its startpos has).
 const MAX_LISTED_SKILLS: usize = 2;
 
-/// Value of `LINE_OF_SIGHT+18` (`CHARACTER` #28) for faction leaders (meaning unknown).
-const LEADER_VALUE: u32 = 4;
+/// Campaign variable of the rounds a character holds an office before losing it hurts his loyalty. Taking a post sets
+/// `LINE_OF_SIGHT+18` to the turn plus it (Thrones' `empire.retail.dll`, FUN_1079bbf0): its value for post holders
+/// at the start (Attila 4, Thrones 1).
+const OFFICE_ROUNDS_VARIABLE: &str = "rounds_to_hold_office_before_loss_hits_loyalty";
 
 //---------------------------------------------------------------------------//
 //                              Types
@@ -97,6 +99,9 @@ pub struct CharacterWriter<'a, 'b> {
 
     /// Traits of each character (trait key and points of its level), by `start_pos_characters` id.
     traits: HashMap<String, Vec<(String, i64)>>,
+
+    /// Rounds a character holds an office before losing it hurts his loyalty (see [`OFFICE_ROUNDS_VARIABLE`]).
+    office_rounds: u32,
 
     /// Skills of each character (`start_pos_character_skills`: skill key and level), by `start_pos_characters` id,
     /// sorted by key: the game keeps them in an ordered map.
@@ -210,6 +215,12 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
         }
 
         let skills = character_skills(tables)?;
+        let mut office_rounds = 0;
+        for row in tables.table("campaign_variables")?.rows() {
+            if row.str("variable_key")? == OFFICE_ROUNDS_VARIABLE {
+                office_rounds = row.number("value")?.max(0.0) as u32;
+            }
+        }
 
         let mut agents = HashMap::new();
         for row in tables.table("agents")?.rows() {
@@ -256,6 +267,7 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
             rows,
             traits,
             skills,
+            office_rounds,
             agents,
             art_sets,
             bodyguards,
@@ -284,7 +296,6 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
         let (move_points, line_of_sight) = self.agents.get(&info.agent).copied().unwrap_or_default();
         let (world, cell) = self.position(character)?;
         let force = character.force().map(|force| &self.forces.forces()[force]);
-        let is_leader = character.entry().is_some_and(|entry| faction_leader(self.inputs.index, character.faction().key()) == Some(entry));
         let post = character.entry().and_then(|entry| self.posts.post_of(entry.id()));
 
         let mut coordinates = Coordinates2DNode::default();
@@ -311,8 +322,8 @@ impl<'a, 'b> CharacterWriter<'a, 'b> {
             .set_u32("CHARACTER_DETAILS+6", post.unwrap_or_default())?
             .set_f32("LINE_OF_SIGHT+4", line_of_sight)?
             .set_str("LINE_OF_SIGHT+16", override_unit)?
-            .set_u32("LINE_OF_SIGHT+18", if is_leader { LEADER_VALUE } else { 0 })?
-            .set_bool("LINE_OF_SIGHT+19", is_leader)?
+            .set_u32("LINE_OF_SIGHT+18", if post.is_some() { self.office_rounds } else { 0 })?
+            .set_bool("LINE_OF_SIGHT+19", post.is_some())?
             .set_record("LINE_OF_SIGHT", Some(write_line_of_sight(layout, CHARACTER_PATH, self.sight.grid(), self.vision(character)?.as_ref())?))?;
         record.build()
     }
