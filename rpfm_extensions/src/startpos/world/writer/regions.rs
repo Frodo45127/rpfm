@@ -14,6 +14,7 @@ use std::collections::{HashMap, HashSet};
 
 use rpfm_lib::error::{RLibError, Result};
 use rpfm_lib::files::esf::RecordNode;
+use rpfm_lib::games::supported_games::KEY_THRONES_OF_BRITANNIA;
 
 use super::factions::write_flag;
 use super::forces::{ForcePlan, PlannedForce};
@@ -21,7 +22,7 @@ use super::sight::{write_line_of_sight, SightPlan};
 use super::{child, horde_details, next_id, HORDE_BUILDING_COLUMNS, WorldInputs, WorldPlan, REBEL_FACTION_ID, WORLD_PATH};
 use crate::startpos::coords::{EdgePiece, HexCell};
 use crate::startpos::settlements::{SettlementLayout, SlotLayout};
-use crate::startpos::tables::Row;
+use crate::startpos::tables::{Row, StartposTables};
 use crate::startpos::world::{CharacterEntry, RegionEntry};
 use crate::startpos::world::estates::EstateRules;
 use crate::startpos::world::government::faction_leader;
@@ -29,6 +30,16 @@ use crate::startpos::world::legacy::ForceKind;
 use crate::startpos::world::rebels::rebel_setup;
 
 #[cfg(test)] #[path = "regions_test.rs"] mod regions_test;
+
+/// Games whose startposes store their regions' base GDP (`SETTLEMENT+2`): Attila's are 0 there, though its
+/// buildings have GDP effects too.
+const GDP_GAMES: [&str; 1] = [KEY_THRONES_OF_BRITANNIA];
+
+/// Prefix of the bonus values of a building's base GDP.
+const GDP_BONUS_PREFIX: &str = "gdp_";
+
+/// Prefix of the bonus values that modify GDP by a percentage.
+const GDP_MODIFIER_PREFIX: &str = "gdp_mod";
 
 /// Path of a region.
 const REGION_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/WORLD/REGION_MANAGER/REGIONS_ARRAY/REGION";
@@ -102,6 +113,9 @@ struct RegionWriter<'a, 'b> {
 
     /// Estates written so far in each region, by estate type.
     region_estates: HashMap<(String, String), u32>,
+
+    /// Base GDP of the buildings written so far in the current region.
+    region_gdp: i64,
 }
 
 /// Table rows the region writer looks up, indexed once.
@@ -130,6 +144,9 @@ struct RegionRows<'a> {
 
     /// Estates the buildings give, and the owners the table gives them.
     estates: EstateRules,
+
+    /// Base GDP each building level gives (see [`building_gdp`]).
+    building_gdp: HashMap<String, i64>,
 }
 
 /// The kind of a region slot, with its building.
@@ -164,6 +181,7 @@ pub fn write_region_manager<'a>(inputs: &WorldInputs<'a>, plan: &WorldPlan<'a>, 
         next_building: horde_building_count(inputs)? + 1,
         next_estate: 1,
         region_estates: HashMap::new(),
+        region_gdp: 0,
     };
 
     let mut regions = child(inputs.layout, &format!("{WORLD_PATH}/REGION_MANAGER"), "REGIONS_ARRAY")?;
@@ -218,7 +236,7 @@ impl<'a> RegionRows<'a> {
             religion_shares.insert((row.str("region")?.into_owned(), row.str("religion")?.into_owned()), row.f32("percentage")?);
         }
 
-        Ok(Self { regions, settlement_keys, governments, templates, building_levels, religions, religion_shares, estates: EstateRules::new(tables)? })
+        Ok(Self { regions, settlement_keys, governments, templates, building_levels, religions, religion_shares, estates: EstateRules::new(tables)?, building_gdp: building_gdp(tables)? })
     }
 }
 
@@ -237,6 +255,7 @@ impl RegionWriter<'_, '_> {
         let mut localisation = child(layout, REGION_PATH, "CAMPAIGN_LOCALISATION")?;
         localisation.group()?.set_str("^+1", &format!("{REGION_NAME_PREFIX}{key}"))?;
 
+        self.region_gdp = 0;
         let slots = self.write_slot_manager(region, map_layout)?;
         let settlement = self.write_settlement(region, map_layout)?;
 
@@ -247,6 +266,7 @@ impl RegionWriter<'_, '_> {
             .set_record("POPULATION", Some(self.write_population(region)?))?
             .set_record("REGION_SLOT_MANAGER", Some(slots))?
             .set_record("SETTLEMENT", Some(settlement))?
+            .set_u32("SETTLEMENT+2", if GDP_GAMES.contains(&self.inputs.game) { u32::try_from(self.region_gdp).unwrap_or_default() } else { 0 })?
             .set_u32("SETTLEMENT+3", wealth)?
             .set_u32("SETTLEMENT+4", wealth)?
             .set_u32("SETTLEMENT+5", wealth)?
@@ -359,6 +379,7 @@ impl RegionWriter<'_, '_> {
 
         let building = content.building.map(|building| self.write_building(region, building, content.slot_type == "primary")).transpose()?;
         let estates = self.write_estates(region, content.building.unwrap_or_default())?;
+        self.region_gdp += content.building.and_then(|building| self.rows.building_gdp.get(building)).copied().unwrap_or_default();
         let mut manager = child(layout, SLOT_PATH, "REGION_BUILDING_MANAGER")?;
         manager.group()?
             .set_bool("^+2", building.is_some())?
@@ -639,4 +660,28 @@ fn religion_shares(percentages: &[f32]) -> Vec<f32> {
     let total = percentages.iter().sum::<f32>() * 0.01;
     let even = 1.0 / percentages.len().max(1) as f32;
     percentages.iter().map(|percentage| if total > 0.0 { percentage * 0.01 / total } else { even }).collect()
+}
+
+/// Returns the base GDP each building level gives: the values of its `building_effects_junction` effects whose
+/// `effect_bonus_value_basic_junction` bonus value is a base GDP one (`gdp_*`, not the `gdp_mod_*` modifiers). A region
+/// stores the sum of its buildings' (`SETTLEMENT+2`). Verified on Thrones: 228 of 229 regions.
+///
+/// # Errors
+///
+/// Returns an error if a table or column is missing.
+fn building_gdp(tables: &StartposTables) -> Result<HashMap<String, i64>> {
+    let mut effects = HashSet::new();
+    for row in tables.table("effect_bonus_value_basic_junction")?.rows() {
+        let bonus = row.str("bonus_value_id")?;
+        if bonus.starts_with(GDP_BONUS_PREFIX) && !bonus.starts_with(GDP_MODIFIER_PREFIX) {
+            effects.insert(row.str("effect")?.into_owned());
+        }
+    }
+    let mut gdp = HashMap::new();
+    for row in tables.table("building_effects_junction")?.rows() {
+        if effects.contains(row.str("effect")?.as_ref()) {
+            *gdp.entry(row.str("building")?.into_owned()).or_default() += row.number("value")? as i64;
+        }
+    }
+    Ok(gdp)
 }
