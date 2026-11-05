@@ -21,7 +21,7 @@ use rpfm_lib::files::esf::{NodeType, RecordNode};
 use super::sight::{write_line_of_sight, SightPlan};
 use super::{child, horde_details, next_id, WorldInputs, WorldPlan, REBEL_FACTION_ID, WORLD_PATH};
 use crate::startpos::layout::child_path;
-use crate::startpos::tables::{hash_set_order, Row, StartposTables};
+use crate::startpos::tables::{hash_set_order, hash_set_order_by, Row, StartposTables};
 use crate::startpos::vision::Vision;
 use crate::startpos::world::pools::{province_mercenary_pool, MercenaryUnit};
 use crate::startpos::world::provinces::{junction_rows, province_managers, sea_regions, ProvinceManager, SeaRegion};
@@ -37,6 +37,9 @@ const SEA_REGION_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/WOR
 
 /// Path of a faction's manager of a sea region.
 const SEA_MANAGER_PATH: &str = "CAMPAIGN_STARTPOS/CAMPAIGN_ENV/CAMPAIGN_MODEL/WORLD/SEA_REGION_MANAGER/SEA_REGIONS_BLOCK/SEA_REGION/FACTION_SEA_REGION_MANAGER_BLOCK/FACTION_SEA_REGION_MANAGER";
+
+/// Value the game xors a faction's id with to hash it (`FUN_106e5000`).
+const FACTION_HASH_KEY: u32 = 0x4a54_5eed;
 
 /// Limit of a province's public order, both ways (`province_public_order_*_threshold` campaign variables).
 const MAX_PUBLIC_ORDER: i64 = 100;
@@ -145,7 +148,11 @@ impl ProvinceWriter<'_, '_> {
             let province_id = u32::try_from(index + 1).unwrap_or(u32::MAX);
             self.province_ids.insert(province.to_owned(), province_id);
             let mut manager_array = child(inputs.layout, PROVINCE_PATH, "FACTION_PROVINCE_MANAGER_ARRAY")?;
-            for manager in managers.iter().filter(|manager| manager.province() == province) {
+            // The game keeps a province's managers in a hash set of their factions (`FUN_10b98da0`), hashed by id.
+            let province_managers = managers.iter().filter(|manager| manager.province() == province).collect::<Vec<_>>();
+            let factions = hash_set_order_by(province_managers.iter().map(|manager| self.faction_id(manager.faction().as_deref())), |id| id ^ FACTION_HASH_KEY);
+            let ordered = factions.iter().filter_map(|id| province_managers.iter().find(|manager| self.faction_id(manager.faction().as_deref()) == *id).copied()).collect::<Vec<_>>();
+            for manager in ordered {
                 let record = self.write_province_faction_manager(manager, next_id(&mut next_manager))?;
                 manager_array.push_group()?.set_record("FACTION_PROVINCE_MANAGER", Some(record))?;
             }
