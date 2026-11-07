@@ -19,7 +19,7 @@ use std::fs::File;
 use crate::binary::ReadBytes;
 use crate::files::*;
 
-use super::Cs2Parsed;
+use super::{Cs2Parsed, Vfx};
 
 #[test]
 fn test_encode_cs2_parsed() {
@@ -455,3 +455,19 @@ fn test_assladers_begone() {
     }
 }
 */
+
+#[test]
+fn test_vfx_emitters_round_trip() {
+    let mut reader = BufReader::new(File::open("../test_files/test_decode_v11.cs2.parsed").unwrap());
+    let mut data = Cs2Parsed::decode(&mut reader, &Some(DecodeableExtraData::default())).unwrap();
+    assert_eq!(data.version, 11);
+
+    let emitter = Vfx { key: "piece01_destruct01_emitter_action_vfx_torch_fire_small_01".to_owned(), ..Default::default() };
+    data.pieces[0].destructs[0].vfx_emitters.push(emitter);
+
+    let mut bytes = vec![];
+    data.encode(&mut bytes, &None).unwrap();
+
+    let decoded = Cs2Parsed::decode(&mut Cursor::new(bytes), &Some(DecodeableExtraData::default())).unwrap();
+    assert_eq!(decoded, data);
+}

@@ -214,7 +214,8 @@ pub struct Piece {
 /// * `arrow_emitters` - Projectile emitters for arrows (legacy)
 /// * `docking_points` - Number of docking points
 /// * `soft_collisions` - Soft collision data
-/// * `uk_7` - Unknown field
+/// * `uk_7` - Unknown field (v18 and later)
+/// * `vfx_emitters` - VFX the destruct always plays (v13 and before)
 /// * `file_refs` - Attached model references (e.g., torches)
 /// * `ef_lines` - Entity Formation lines for unit positioning
 /// * `docking_lines` - Lines where siege equipment can attach
@@ -285,8 +286,13 @@ pub struct Destruct {
     /// Soft collision data.
     soft_collisions: Vec<SoftCollisions>,
 
-    /// Unknown field.
+    /// Unknown field (v18 and later; not checked whether it is the count of `vfx_emitters` there too).
     uk_7: i32,
+
+    /// VFX the destruct always plays (v13 and before). In Attila, the name of the effect is the key without its first three and its last
+    /// `_` tokens: `piece01_destruct01_emitter_action_vfx_torch_fire_small_01` plays `action_vfx_torch_fire_small`. No file shipped with
+    /// the game has any, but they play in game.
+    vfx_emitters: Vec<Vfx>,
 
     /// Attached model references (e.g., torches).
     file_refs: Vec<FileRef>,

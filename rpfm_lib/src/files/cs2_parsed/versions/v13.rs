@@ -124,7 +124,12 @@ impl Cs2Parsed {
                     });
                 }
 
-                destruct.uk_7 = data.read_i32()?;
+                for _ in 0..data.read_u32()? {
+                    destruct.vfx_emitters.push(Vfx {
+                        key: data.read_sized_string_u16()?,
+                        matrix_1: Transform4x4::decode(data, &None)?,
+                    });
+                }
 
                 // Destructible pillars.
                 for _ in 0..data.read_u32()? {
@@ -284,7 +289,11 @@ impl Cs2Parsed {
                     soft_collision.point_1.encode(buffer, &None)?;
                 }
 
-                buffer.write_i32(destruct.uk_7)?;
+                buffer.write_u32(destruct.vfx_emitters.len() as u32)?;
+                for vfx in &mut destruct.vfx_emitters {
+                    buffer.write_sized_string_u16(&vfx.key)?;
+                    vfx.matrix_1.encode(buffer, &None)?;
+                }
 
                 buffer.write_u32(destruct.file_refs.len() as u32)?;
                 for file_ref in &mut destruct.file_refs {
