@@ -649,7 +649,22 @@ fn map(entries: &[(&str, &str)]) -> HashMap<String, String> {
     entries.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()
 }
 
-/// A line reuses the translation of an identical vanilla value.
+/// A line whose source became empty drops its stale translation instead of copying the
+/// translation of an unrelated vanilla line that also has an empty source.
+#[test]
+fn auto_translate_empty_source_clears_stale_translation() {
+    let base_english = map(&[("vanilla_key", "")]);
+    let base_local_tr = map(&[("vanilla_key", "Unrelated vanilla text")]);
+    let mut tr = pending_line("", "Old translation");
+
+    tr.auto_translate("mod_key", &HashMap::new(), &base_english, &HashMap::new(), &base_local_tr);
+
+    assert_eq!(tr.dst, "");
+    assert!(!tr.retr);
+    assert!(!tr.aut);
+}
+
+/// A non-empty source still reuses the translation of an identical vanilla value.
 #[test]
 fn auto_translate_reuses_identical_vanilla_value() {
     let base_english = map(&[("vanilla_key", "Hello")]);
@@ -663,7 +678,7 @@ fn auto_translate_reuses_identical_vanilla_value() {
     assert!(tr.aut);
 }
 
-/// A line reuses the translation of an identical, already translated line of the pack.
+/// A non-empty source still reuses the translation of an identical, already translated line of the pack.
 #[test]
 fn auto_translate_reuses_identical_pack_line() {
     let mut pack_translations = HashMap::new();

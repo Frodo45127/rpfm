@@ -275,6 +275,8 @@ impl Translation {
 
     /// This function fills the translation of a line from vanilla or from other lines of the same pack, if possible.
     ///
+    /// Lines with an empty source always end up with an empty translation, as there is nothing to translate.
+    ///
     /// # Arguments
     ///
     /// * `tr_key` - Loc key of this line.
@@ -299,9 +301,9 @@ impl Translation {
             self.retr = true;
         }
 
-        // Empty source/empty translation: trivially "translate" by copying. Not flagged
+        // Empty source: trivially "translate" by copying, dropping any stale translation. Not flagged
         // as auto because it requires no manual review.
-        else if self.src.trim().is_empty() && self.dst.trim().is_empty() {
+        else if self.src.trim().is_empty() {
             self.dst = self.src.to_owned();
             self.retr = false;
             self.aut = false;
