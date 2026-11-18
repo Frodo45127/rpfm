@@ -271,6 +271,81 @@ struct TranslationV0Wire<'a> {
 //                             Implementations
 //-------------------------------------------------------------------------------//
 
+impl Translation {
+
+    /// This function fills the translation of a line from vanilla or from other lines of the same pack, if possible.
+    ///
+    /// # Arguments
+    ///
+    /// * `tr_key` - Loc key of this line.
+    /// * `pack_translations` - Snapshot of every line of the pack, used to reuse translations of identical sources.
+    /// * `base_english` - Vanilla loc in the source language.
+    /// * `base_local_fixes` - Fixes for the vanilla translation, which take priority over it.
+    /// * `base_local_tr` - Vanilla loc in the target language, patched with the parent packs' translations.
+    fn auto_translate(
+        &mut self,
+        tr_key: &str,
+        pack_translations: &HashMap<String, Translation>,
+        base_english: &HashMap<String, String>,
+        base_local_fixes: &HashMap<String, String>,
+        base_local_tr: &HashMap<String, String>
+    ) {
+        if self.rem {
+            return;
+        }
+
+        // Fix incorrectly translated lines.
+        if !self.src.trim().is_empty() && self.dst.trim().is_empty() && !self.retr {
+            self.retr = true;
+        }
+
+        // Empty source/empty translation: trivially "translate" by copying. Not flagged
+        // as auto because it requires no manual review.
+        else if self.src.trim().is_empty() && self.dst.trim().is_empty() {
+            self.dst = self.src.to_owned();
+            self.retr = false;
+            self.aut = false;
+        }
+
+        // If the value is unchanged from english, just copy the vanilla translation. This is a patch for
+        // packs not using the optimizer, because the optimizer removes these entries.
+        else if let Some(vanilla_data) = base_english.get(tr_key) {
+            if self.src == *vanilla_data {
+                if let Some(vanilla_data) = base_local_fixes.get(tr_key).filter(|v| !v.trim().is_empty()) {
+                    self.dst = vanilla_data.to_owned();
+                    self.retr = false;
+                    self.aut = false;
+                } else if let Some(vanilla_data) = base_local_tr.get(tr_key).filter(|v| !v.trim().is_empty()) {
+                    self.dst = vanilla_data.to_owned();
+                    self.retr = false;
+                    self.aut = false;
+                }
+            }
+        }
+
+        // Reuse the translation of an identical english value with a different key. This has no context and
+        // may give wrong translations, so it's only done for lines not yet translated.
+        else if self.dst.trim().is_empty() || self.retr {
+            if let Some((key, _)) = base_english.iter().find(|(_, value)| **value == self.src) {
+                if let Some(value_tr) = base_local_fixes.get(key).filter(|v| !v.trim().is_empty()) {
+                    self.dst = value_tr.to_owned();
+                    self.retr = false;
+                    self.aut = true;
+                } else if let Some(value_tr) = base_local_tr.get(key).filter(|v| !v.trim().is_empty()) {
+                    self.dst = value_tr.to_owned();
+                    self.retr = false;
+                    self.aut = true;
+                }
+            } else if let Some((_, value_tr)) = pack_translations.iter()
+                .find(|(_, other)| other.src == self.src && !other.retr && self.retr && !other.dst.trim().is_empty()) {
+                self.dst = value_tr.dst.to_owned();
+                self.retr = false;
+                self.aut = true;
+            }
+        }
+    }
+}
+
 impl PackTranslation {
 
     #[allow(clippy::too_many_arguments)]
@@ -371,60 +446,7 @@ impl PackTranslation {
 
         let tr_copy = translations.translations().clone();
         translations.translations_mut().par_iter_mut().for_each(|(tr_key, tr)| {
-            if !tr.rem {
-
-                // Fix incorrectly translated lines.
-                if !tr.src().trim().is_empty() && tr.dst().trim().is_empty() && !tr.retr() {
-                    tr.retr = true;
-                }
-
-                // Empty source/empty translation: trivially "translate" by copying. Not flagged
-                // as auto because it requires no manual review.
-                else if tr.src().trim().is_empty() && tr.dst().trim().is_empty() {
-                    tr.dst = tr.src.to_owned();
-                    tr.retr = false;
-                    tr.aut = false;
-                }
-
-                // If the value is unchanged from english, just copy the vanilla translation.
-                //
-                // NOTE: This is really a patch for packs not using optimizing pass, because the optimizer actually removes these entries.
-                else if let Some(vanilla_data) = base_english.get(tr_key) {
-                    if tr.src() == vanilla_data {
-                        if let Some(vanilla_data) = base_local_fixes.get(tr_key).filter(|v| !v.trim().is_empty()) {
-                            tr.dst = vanilla_data.to_owned();
-                            tr.retr = false;
-                            tr.aut = false;
-                        } else if let Some(vanilla_data) = base_local_tr.get(tr_key).filter(|v| !v.trim().is_empty()) {
-                            tr.dst = vanilla_data.to_owned();
-                            tr.retr = false;
-                            tr.aut = false;
-                        }
-                    }
-                }
-
-                // If the value is equal to another value in the english translation (but with a different key), we may be able to reuse it.
-                //
-                // Note that this is prone to give wrong translations as it doesn't have any context, so we only do it for lines that are not yet translated.
-                else if tr.dst().trim().is_empty() || *tr.retr() {
-                    if let Some((key, _)) = base_english.iter().find(|(_, value)| *value == tr.src()) {
-                        if let Some(value_tr) = base_local_fixes.get(key).filter(|v| !v.trim().is_empty()) {
-                            tr.dst = value_tr.to_owned();
-                            tr.retr = false;
-                            tr.aut = true;
-                        } else if let Some(value_tr) = base_local_tr.get(key).filter(|v| !v.trim().is_empty()) {
-                            tr.dst = value_tr.to_owned();
-                            tr.retr = false;
-                            tr.aut = true;
-                        }
-                    } else if let Some((_, value_tr)) = tr_copy.iter()
-                        .find(|(_, tr_copy)| *tr_copy.src() == *tr.src() && !*tr_copy.retr() && *tr.retr() && !tr_copy.dst().trim().is_empty()) {
-                        tr.dst = value_tr.dst().to_owned();
-                        tr.retr = false;
-                        tr.aut = true;
-                    }
-                }
-            }
+            tr.auto_translate(tr_key, &tr_copy, base_english, base_local_fixes, &base_local_tr);
         });
 
         Ok(translations)

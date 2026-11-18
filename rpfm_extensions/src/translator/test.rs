@@ -23,9 +23,12 @@
 //! characters change shape after the first load. Every other test in this
 //! file uses plain ASCII so the substitutions are no-ops.
 //!
+//! The per-line auto-translation step of [`PackTranslation::new`] is covered
+//! through `Translation::auto_translate`, which only needs lookup maps.
+//!
 //! What we don't cover here:
 //!
-//! - [`PackTranslation::new`], which depends on `Pack` and `Dependencies`
+//! - The rest of [`PackTranslation::new`], which depends on `Pack` and `Dependencies`
 //!   instances we'd need to mock heavily for an integration-level test.
 
 use std::collections::BTreeMap;
@@ -634,4 +637,42 @@ fn hub_submission_texts() {
     let mut anonymous = sample_v1();
     anonymous.authors.clear();
     assert!(anonymous.hub_submission(GAME).body().contains("- Authors: Not specified"));
+}
+
+/// Build a line pending retranslation, as [`PackTranslation::new`] leaves it before the auto-translation pass.
+fn pending_line(src: &str, dst: &str) -> Translation {
+    Translation { src: src.to_owned(), dst: dst.to_owned(), retr: true, rem: false, aut: false }
+}
+
+/// Build a lookup map from `(key, value)` pairs.
+fn map(entries: &[(&str, &str)]) -> HashMap<String, String> {
+    entries.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()
+}
+
+/// A line reuses the translation of an identical vanilla value.
+#[test]
+fn auto_translate_reuses_identical_vanilla_value() {
+    let base_english = map(&[("vanilla_key", "Hello")]);
+    let base_local_tr = map(&[("vanilla_key", "Hola")]);
+    let mut tr = pending_line("Hello", "");
+
+    tr.auto_translate("mod_key", &HashMap::new(), &base_english, &HashMap::new(), &base_local_tr);
+
+    assert_eq!(tr.dst, "Hola");
+    assert!(!tr.retr);
+    assert!(tr.aut);
+}
+
+/// A line reuses the translation of an identical, already translated line of the pack.
+#[test]
+fn auto_translate_reuses_identical_pack_line() {
+    let mut pack_translations = HashMap::new();
+    pack_translations.insert("other_key".to_owned(), Translation { src: "Hello".to_owned(), dst: "Hola".to_owned(), retr: false, rem: false, aut: false });
+    let mut tr = pending_line("Hello", "");
+
+    tr.auto_translate("mod_key", &pack_translations, &HashMap::new(), &HashMap::new(), &HashMap::new());
+
+    assert_eq!(tr.dst, "Hola");
+    assert!(!tr.retr);
+    assert!(tr.aut);
 }
