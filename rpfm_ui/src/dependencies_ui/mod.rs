@@ -243,7 +243,7 @@ impl DependenciesUI {
                     // Try to reload all open files which data we altered, and close those that failed.
                     let failed_paths = paths.iter().filter_map(|path| {
                         if let ContainerPath::File(ref path) = path {
-                            if let Some(file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.path_read() == *path && x.data_source() == DataSource::PackFile) {
+                            if let Some(file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| x.is_view_of(path, DataSource::PackFile, &pack_key)) {
                                 if file_view.reload(path, pack_file_contents_ui).is_err() {
                                     Some(path.to_owned())
                                 } else { None }
@@ -252,7 +252,7 @@ impl DependenciesUI {
                     }).collect::<Vec<String>>();
 
                     for path in &failed_paths {
-                        let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, DataSource::PackFile, false);
+                        let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, DataSource::PackFile, &pack_key, false);
                     }
                 }
 

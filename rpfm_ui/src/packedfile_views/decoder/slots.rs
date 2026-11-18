@@ -27,7 +27,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use rpfm_lib::error::RLibError;
-use rpfm_lib::files::{ContainerPath, Decodeable, DecodeableExtraData, db::DB};
+use rpfm_lib::files::{Decodeable, DecodeableExtraData, db::DB};
 use rpfm_ipc::api::schema::SetDefinition;
 
 use rpfm_lib::schema::{Definition, FieldType, Schema};
@@ -594,20 +594,19 @@ impl PackedFileDecoderViewSlots {
                 let definition = serde_json::to_value(view.definition_from_view());
 
                 // Save and close all PackedFiles that use our definition.
-                let mut packed_files_to_save = vec![];
                 let table_path = view.packed_file_path().replace(DECODER_EXTENSION, "");
-                for open_path in UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).map(|x| x.path_read()) {
-                    if *open_path == table_path {
-                        packed_files_to_save.push(ContainerPath::File(open_path.to_owned()));
-                    }
-                }
+                let pack_keys_to_save = UI_STATE.get_open_packedfiles().iter()
+                    .filter(|x| x.data_source() == DataSource::PackFile && *x.path_read() == table_path)
+                    .map(|x| x.pack_key_copy())
+                    .collect::<Vec<_>>();
 
-                for path in &packed_files_to_save {
+                for pack_key in &pack_keys_to_save {
                     if let Err(error) = AppUI::purge_that_one_specifically(
                         &app_ui,
                         &pack_file_contents_ui,
-                        path.path_raw(),
+                        &table_path,
                         DataSource::PackFile,
+                        pack_key,
                         true,
                     ) {
                         show_dialog(&view.table_view, error, false);

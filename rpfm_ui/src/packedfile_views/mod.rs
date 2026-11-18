@@ -241,6 +241,13 @@ impl FileView {
         self.pack_key.read().unwrap().to_owned()
     }
 
+    /// This function checks if this `FileView` shows the file at `path` of `data_source`.
+    ///
+    /// The pack key is only checked for files of packs, as the same path can be open in more than one pack.
+    pub fn is_view_of(&self, path: &str, data_source: DataSource, pack_key: &str) -> bool {
+        *self.path_read() == path && self.data_source() == data_source && (data_source != DataSource::PackFile || *self.pack_key.read().unwrap() == pack_key)
+    }
+
     /// This function allows you to set a `FileView` as a preview or normal view.
     pub fn set_path(&self, path: &str) {
         *self.path.write().unwrap() = path.to_owned();

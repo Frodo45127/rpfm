@@ -56,6 +56,7 @@ pub struct PackedFileVideoView {
     convert_to_ivf_button: QBox<QPushButton>,
     current_format: Arc<Mutex<SupportedFormats>>,
     path: Arc<RwLock<String>>,
+    pack_key: String,
 }
 
 //-------------------------------------------------------------------------------//
@@ -144,7 +145,8 @@ impl PackedFileVideoView {
             convert_to_camv_button,
             convert_to_ivf_button,
             current_format: Arc::new(Mutex::new(*data.format())),
-            path: file_view.path_raw()
+            path: file_view.path_raw(),
+            pack_key: file_view.pack_key_copy(),
         });
 
         let packed_file_ca_vp8_view_slots = PackedFileVideoViewSlots::new(

@@ -51,8 +51,8 @@ pub unsafe fn show_file_palette(
     let palette_ptr: QPtr<qt_widgets::QWidget> = QPtr::from_raw(palette.as_mut_raw_ptr());
     command_palette_clear_safe(&palette_ptr);
 
-    // Collect all files from all open editable packs.
-    let mut file_paths: Vec<String> = Vec::new();
+    // Collect all files from all open editable packs, with the key and name of their pack.
+    let mut files: Vec<(String, String, String)> = Vec::new();
     let model = pack_file_contents_ui.packfile_contents_tree_model();
 
     for root_row in 0..model.row_count_0a() {
@@ -64,25 +64,30 @@ pub unsafe fn show_file_palette(
             continue;
         }
 
+        let mut file_paths = vec![];
         collect_files_recursive(root_item, &mut file_paths);
+
+        let pack_key = root_item.data_1a(rpfm_ui_common::ITEM_PACK_KEY).to_string().to_std_string();
+        let pack_name = root_item.text().to_std_string();
+        files.extend(file_paths.into_iter().map(|path| (pack_key.to_owned(), pack_name.to_owned(), path)));
     }
 
-    for path in &file_paths {
+    for (_, pack_name, path) in &files {
         let display = QString::from_std_str(path);
-        let empty = QString::new();
+        let detail = QString::from_std_str(pack_name);
         let icon = TREEVIEW_ICONS.icon(IconType::File(path.clone()));
-        command_palette_add_item_with_icon_safe(&palette_ptr, &display, &empty, &icon);
+        command_palette_add_item_with_icon_safe(&palette_ptr, &display, &detail, &icon);
     }
 
     command_palette_show_safe(&palette_ptr);
 
     let selected = command_palette_selected_index_safe(&palette_ptr);
     if selected >= 0 {
-        if let Some(file_path) = file_paths.get(selected as usize) {
+        if let Some((pack_key, _, file_path)) = files.get(selected as usize) {
 
-            // Expand the tree to the file and select it.
+            // Expand the tree to the file and select it, so the file is opened from its own pack.
             let tree_view = pack_file_contents_ui.packfile_contents_tree_view();
-            let tree_index = tree_view.expand_treeview_to_item(file_path, DataSource::PackFile, "");
+            let tree_index = tree_view.expand_treeview_to_item(file_path, DataSource::PackFile, pack_key);
             if let Some(ref tree_index) = tree_index {
                 if tree_index.is_valid() {
                     tree_view.scroll_to_1a(tree_index.as_ref().unwrap());

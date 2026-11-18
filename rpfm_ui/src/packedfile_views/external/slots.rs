@@ -51,7 +51,8 @@ impl PackedFileExternalViewSlots {
         view: &Arc<PackedFileExternalView>,
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        packed_file_path: &Rc<RefCell<String>>
+        packed_file_path: &Rc<RefCell<String>>,
+        pack_key: String,
     )  -> Self {
 
         // Slot to close the open view.
@@ -60,7 +61,7 @@ impl PackedFileExternalViewSlots {
             pack_file_contents_ui,
             packed_file_path => move || {
                 rpfm_telemetry::track_action("External File: Stop Watching");
-                if let Err(error) = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &packed_file_path.borrow(), DataSource::PackFile, true) {
+                if let Err(error) = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &packed_file_path.borrow(), DataSource::PackFile, &pack_key, true) {
                     show_dialog(app_ui.main_window(), error, false);
                 }
             }

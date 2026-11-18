@@ -1620,9 +1620,9 @@ impl TableView {
             // Before finishing, reload all edited views.
             let mut open_packedfiles = UI_STATE.set_open_packedfiles();
             edited_paths.iter().for_each(|path| {
-                if let Some(file_view) = open_packedfiles.iter_mut().find(|x| *x.path_read() == path.path_raw() && x.data_source() == DataSource::PackFile) {
+                if let Some(file_view) = open_packedfiles.iter_mut().find(|x| x.is_view_of(path.path_raw(), DataSource::PackFile, &pack_key)) {
                     if file_view.reload(path.path_raw(), pack_file_contents_ui).is_err() {
-                        let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path.path_raw(), DataSource::PackFile, false);
+                        let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path.path_raw(), DataSource::PackFile, &pack_key, false);
                     }
                 }
             });
@@ -3455,9 +3455,9 @@ impl TableView {
             // Before finishing, reload all edited views.
             let mut open_packedfiles = UI_STATE.set_open_packedfiles();
             edited_paths.iter().for_each(|path| {
-                if let Some(file_view) = open_packedfiles.iter_mut().find(|x| *x.path_read() == path.path_raw() && x.data_source() == DataSource::PackFile) {
+                if let Some(file_view) = open_packedfiles.iter_mut().find(|x| x.is_view_of(path.path_raw(), DataSource::PackFile, &pack_key)) {
                     if file_view.reload(path.path_raw(), pack_file_contents_ui).is_err() {
-                        let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path.path_raw(), DataSource::PackFile, false);
+                        let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path.path_raw(), DataSource::PackFile, &pack_key, false);
                     }
                 }
             });
@@ -3821,10 +3821,10 @@ impl TableView {
                 match found.map(|found| row_location(found.location)) {
 
                     // We receive a path/column/row, so we know what to open/select.
-                    Ok((data_source, path, column, row)) => {
+                    Ok((data_source, found_pack_key, path, column, row)) => {
                         match data_source {
                             DataSource::PackFile => {
-                                let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&path, data_source, "");
+                                let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&path, data_source, &found_pack_key);
                                 if let Some(ref tree_index) = tree_index {
                                     if tree_index.is_valid() {
                                         let _blocker = QSignalBlocker::from_q_object(pack_file_contents_ui.packfile_contents_tree_view().static_upcast::<QObject>());
@@ -3850,14 +3850,14 @@ impl TableView {
 
                         // Set the current file as non-preview, so it doesn't close when opening the source one.
                         if let Some(packed_file_path) = self.get_packed_file_path() {
-                            if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.path_read() == *packed_file_path && x.data_source() == self.get_data_source()) {
+                            if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| x.is_view_of(&packed_file_path, self.get_data_source(), &self.pack_key.read().unwrap())) {
                                 file_view.set_is_preview(false);
                             }
                         }
 
                         // Open the table and select the cell.
                         AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path.to_owned()), true, false, data_source, app_ui.active_pane().get());
-                        if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.path_read() == path && x.data_source() == data_source) {
+                        if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| x.is_view_of(&path, data_source, &found_pack_key)) {
                             if let ViewType::Internal(View::Table(view)) = file_view.view_type() {
                                 let table_view = view.get_ref_table();
                                 let table_view = table_view.table_view_ptr();
@@ -3940,7 +3940,7 @@ impl TableView {
 
                     // Set the current file as non-preview, so it doesn't close when opening the source one.
                     if let Some(packed_file_path) = self.get_packed_file_path() {
-                        if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.path_read() == *packed_file_path && x.data_source() == self.get_data_source()) {
+                        if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| x.is_view_of(&packed_file_path, self.get_data_source(), &self.pack_key.read().unwrap())) {
                             file_view.set_is_preview(false);
                         }
                     }
@@ -4065,10 +4065,10 @@ impl TableView {
                 match found.map(|found| row_location(found.location)) {
 
                     // We receive a path/column/row, so we know what to open/select.
-                    Ok((data_source, path, column, row)) => {
+                    Ok((data_source, found_pack_key, path, column, row)) => {
                         match data_source {
                             DataSource::PackFile => {
-                                let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&path, data_source, "");
+                                let tree_index = pack_file_contents_ui.packfile_contents_tree_view().expand_treeview_to_item(&path, data_source, &found_pack_key);
                                 if let Some(ref tree_index) = tree_index {
                                     if tree_index.is_valid() {
                                         let _blocker = QSignalBlocker::from_q_object(pack_file_contents_ui.packfile_contents_tree_view().static_upcast::<QObject>());
@@ -4094,14 +4094,14 @@ impl TableView {
 
                         // Set the current file as non-preview, so it doesn't close when opening the source one.
                         if let Some(packed_file_path) = self.get_packed_file_path() {
-                            if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.path_read() == *packed_file_path && x.data_source() == self.get_data_source()) {
+                            if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| x.is_view_of(&packed_file_path, self.get_data_source(), &self.pack_key.read().unwrap())) {
                                 file_view.set_is_preview(false);
                             }
                         }
 
                         // Open the table and select the cell.
                         AppUI::open_packedfile(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, dependencies_ui, references_ui, Some(path.to_owned()), true, false, data_source, app_ui.active_pane().get());
-                        if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.path_read() == path && x.data_source() == data_source) {
+                        if let Some(file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| x.is_view_of(&path, data_source, &found_pack_key)) {
                             if let ViewType::Internal(View::Table(view)) = file_view.view_type() {
                                 let table_view = view.get_ref_table();
                                 let table_view = table_view.table_view_ptr();
@@ -4207,7 +4207,14 @@ impl Default for FilterChipState {
     }
 }
 
-/// Returns the data source, path, column and row of a row location.
-fn row_location(location: RowLocation) -> (DataSource, String, usize, usize) {
-    (DataSource::from(&location.source), location.path, location.column_index, location.row_index)
+/// Returns the data source, pack key, path, column and row of a row location.
+///
+/// The pack key is empty if the row is not in an open pack.
+fn row_location(location: RowLocation) -> (DataSource, String, String, usize, usize) {
+    let pack_key = match location.source {
+        FileSource::Pack(ref pack_key) => pack_key.to_owned(),
+        FileSource::GameFiles | FileSource::ParentFiles | FileSource::AssemblyKit => String::new(),
+    };
+
+    (DataSource::from(&location.source), pack_key, location.path, location.column_index, location.row_index)
 }

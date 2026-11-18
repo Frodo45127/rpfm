@@ -578,12 +578,12 @@ impl PackFileContentsUI {
                     // Try to reload all open files which data we altered, and close those that failed.
                     let failed_paths = UI_STATE.set_open_packedfiles()
                         .iter_mut()
-                        .filter(|view| view.data_source() == DataSource::PackFile && (paths.iter().any(|path| path.path_raw() == *view.path_read() || *view.path_read() == RESERVED_NAME_NOTES)))
+                        .filter(|view| view.data_source() == DataSource::PackFile && view.pack_key_copy() == pack_key && (paths.iter().any(|path| path.path_raw() == *view.path_read() || *view.path_read() == RESERVED_NAME_NOTES)))
                         .filter_map(|view| if view.reload(&view.path_copy(), pack_file_contents_ui).is_err() { Some(view.path_copy()) } else { None })
                         .collect::<Vec<_>>();
 
                     for path in &failed_paths {
-                        let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, DataSource::PackFile, false);
+                        let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, DataSource::PackFile, &pack_key, false);
                     }
                 }
 
@@ -827,12 +827,12 @@ impl PackFileContentsUI {
                     // Reload the views of any modified file still open, closing those that fail to reload.
                     let failed_paths = UI_STATE.set_open_packedfiles()
                         .iter_mut()
-                        .filter(|view| view.data_source() == DataSource::PackFile && paths.iter().any(|path| path.path_raw() == *view.path_read()))
+                        .filter(|view| view.data_source() == DataSource::PackFile && view.pack_key_copy() == pack_key && paths.iter().any(|path| path.path_raw() == *view.path_read()))
                         .filter_map(|view| if view.reload(&view.path_copy(), pack_file_contents_ui).is_err() { Some(view.path_copy()) } else { None })
                         .collect::<Vec<_>>();
 
                     for path in &failed_paths {
-                        let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, DataSource::PackFile, false);
+                        let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, DataSource::PackFile, &pack_key, false);
                     }
                 }
 

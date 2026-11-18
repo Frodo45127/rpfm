@@ -253,7 +253,7 @@ impl PackFileContentsSlots {
                         let mut path_changes = vec![];
 
                         // TODO: Filter out reserved files with some generic logic.
-                        for path in UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).map(|x| x.path_read()) {
+                        for path in UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile && x.pack_key_copy() == pack_key).map(|x| x.path_read()) {
                             if !path.is_empty() {
                                 for (old_path, new_path) in &renamed_items {
 
@@ -268,7 +268,7 @@ impl PackFileContentsSlots {
                         {
                             let mut open_packedfiles = UI_STATE.set_open_packedfiles();
                             for (path_before, path_after) in &path_changes {
-                                let position = open_packedfiles.iter().position(|x| *x.path_read() == *path_before && x.data_source() == DataSource::PackFile).unwrap();
+                                let position = open_packedfiles.iter().position(|x| x.is_view_of(path_before, DataSource::PackFile, &pack_key)).unwrap();
                                 let data = open_packedfiles.remove(position);
                                 let widget = data.main_widget();
                                 if let Some(pane) = app_ui.pane_of(widget) {
@@ -1139,9 +1139,9 @@ impl PackFileContentsSlots {
                         for path in &paths_ok {
                             if let ContainerPath::File(path) = path {
                                 let mut open_packedfiles = UI_STATE.set_open_packedfiles();
-                                if let Some(file_view) = open_packedfiles.iter_mut().find(|x| *x.path_read() == *path && x.data_source() == DataSource::PackFile) {
+                                if let Some(file_view) = open_packedfiles.iter_mut().find(|x| x.is_view_of(path, DataSource::PackFile, &target_key)) {
                                     if file_view.reload(path, &pack_file_contents_ui).is_err() {
-                                        let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, false);
+                                        let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, &target_key, false);
                                     }
                                 }
                             }
@@ -1245,12 +1245,12 @@ impl PackFileContentsSlots {
                     // Remove all the deleted PackedFiles from the cache.
                     for item in &items {
                         match item {
-                            ContainerPath::File(path) => { let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, false); },
+                            ContainerPath::File(path) => { let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, &pack_key, false); },
                             ContainerPath::Folder(path) => {
                                 let mut paths_to_remove = vec![];
                                 {
                                     let open_packedfiles = UI_STATE.set_open_packedfiles();
-                                    for packed_file_path in open_packedfiles.iter().filter(|x| x.data_source() == DataSource::PackFile).map(|x| x.path_read()) {
+                                    for packed_file_path in open_packedfiles.iter().filter(|x| x.data_source() == DataSource::PackFile && x.pack_key_copy() == pack_key).map(|x| x.path_read()) {
                                         if !packed_file_path.is_empty() && packed_file_path.starts_with(path) {
                                             paths_to_remove.push(packed_file_path.to_owned());
                                         }
@@ -1258,7 +1258,7 @@ impl PackFileContentsSlots {
                                 }
 
                                 for path in paths_to_remove {
-                                    let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path, DataSource::PackFile, false);
+                                    let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path, DataSource::PackFile, &pack_key, false);
                                 }
 
                             }
@@ -1333,7 +1333,7 @@ impl PackFileContentsSlots {
                                     let mut path_changes = vec![];
 
                                     // TODO: Filter out reserved files with some generic logic.
-                                    for path in UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).map(|x| x.path_read()) {
+                                    for path in UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile && x.pack_key_copy() == pack_key).map(|x| x.path_read()) {
                                         if !path.is_empty() {
                                             for (old_path, new_path) in &renamed_items {
 
@@ -1348,7 +1348,7 @@ impl PackFileContentsSlots {
                                     {
                                         let mut open_packedfiles = UI_STATE.set_open_packedfiles();
                                         for (path_before, path_after) in &path_changes {
-                                            let position = open_packedfiles.iter().position(|x| *x.path_read() == *path_before && x.data_source() == DataSource::PackFile).unwrap();
+                                            let position = open_packedfiles.iter().position(|x| x.is_view_of(path_before, DataSource::PackFile, &pack_key)).unwrap();
                                             let data = open_packedfiles.remove(position);
                                             let widget = data.main_widget();
                                             if let Some(pane) = app_ui.pane_of(widget) {
@@ -1484,7 +1484,7 @@ impl PackFileContentsSlots {
                             // Remove all the deleted PackedFiles from the cache, but only for views from the source pack.
                             for item in deleted_paths {
                                 match item {
-                                    ContainerPath::File(path) => { let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, false); },
+                                    ContainerPath::File(path) => { let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, source_pack_key, false); },
                                     ContainerPath::Folder(path) => {
                                         let mut paths_to_remove = vec![];
                                         {
@@ -1497,7 +1497,7 @@ impl PackFileContentsSlots {
                                             }
                                         }
                                         for path in paths_to_remove {
-                                            let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path, DataSource::PackFile, false);
+                                            let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path, DataSource::PackFile, source_pack_key, false);
                                         }
                                     }
                                 }
@@ -1760,10 +1760,11 @@ impl PackFileContentsSlots {
                     }
 
                     // Close the open and selected files.
+                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
                     let mut paths_to_close = vec![];
                     {
                         let open_packedfiles = UI_STATE.set_open_packedfiles();
-                        for path in open_packedfiles.iter().filter(|x| x.data_source() == DataSource::PackFile).map(|x| x.path_read())  {
+                        for path in open_packedfiles.iter().filter(|x| x.data_source() == DataSource::PackFile && x.pack_key_copy() == pack_key).map(|x| x.path_read())  {
                             if (selected_paths.contains(&path) && delete_source_files) || path.ends_with(&name) {
                                 paths_to_close.push(ContainerPath::File(path.to_owned()));
                             }
@@ -1771,7 +1772,7 @@ impl PackFileContentsSlots {
                     }
 
                     for path in &paths_to_close {
-                        if let Err(error) = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path.path_raw(), DataSource::PackFile, true) {
+                        if let Err(error) = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path.path_raw(), DataSource::PackFile, &pack_key, true) {
                             return show_dialog(app_ui.main_window(), error, false);
                         }
                     }
@@ -1781,7 +1782,6 @@ impl PackFileContentsSlots {
                     path_to_add.push_str(&name);
 
                     let selected_paths_cont = selected_paths.iter().map(|x| ContainerPath::File(x.to_owned())).collect::<Vec<_>>();
-                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
 
                     let mut request = MergeTables {
                         pack: pack_key.clone(),
@@ -1801,7 +1801,7 @@ impl PackFileContentsSlots {
 
                                 // If we want to delete the sources, do it now. Oh, and close them manually first, or the autocleanup will try to save them and fail miserably.
                                 if delete_source_files {
-                                    selected_paths.iter().for_each(|x| { let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, x, DataSource::PackFile, false); });
+                                    selected_paths.iter().for_each(|x| { let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, x, DataSource::PackFile, &pack_key, false); });
                                     let paths_to_delete = selected_paths_cont.iter().filter(|path| path.path_raw() != path_to_add).cloned().collect::<Vec<_>>();
                                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(paths_to_delete, true), DataSource::PackFile, &pack_key);
                                 }
@@ -1843,17 +1843,14 @@ impl PackFileContentsSlots {
                 ContainerPath::File(path) => {
 
                     // First, if the PackedFile is open, save it.
-                    let close_path = UI_STATE.get_open_packedfiles().iter().filter(|x| x.data_source() == DataSource::PackFile).any(|file_view| {
-                        file_view.path_copy() == *path
-                    });
-
+                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                    let close_path = UI_STATE.get_open_packedfiles().iter().any(|file_view| file_view.is_view_of(path, DataSource::PackFile, &pack_key));
                     if close_path {
-                        if let Err(error) = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, true) {
+                        if let Err(error) = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, &pack_key, true) {
                             return show_dialog(app_ui.main_window(), error, false);
                         }
                     }
 
-                    let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
                     match call_api(&UpgradeTable { pack: pack_key.clone(), path: path.to_owned() }) {
                         Ok(TableUpgraded { old_version, new_version, deleted_columns: fields_deleted, added_columns: fields_added }) => {
                             let mut message = tre("update_table_success", &[&old_version.to_string(), &new_version.to_string()]);
@@ -2243,18 +2240,18 @@ impl PackFileContentsSlots {
 
                             let failed_paths = UI_STATE.set_open_packedfiles()
                                 .iter_mut()
-                                .filter(|view| view.data_source() == DataSource::PackFile && (paths_to_add.iter().any(|path| path.path_raw() == *view.path_read() || *view.path_read() == RESERVED_NAME_NOTES)))
+                                .filter(|view| view.data_source() == DataSource::PackFile && view.pack_key_copy() == pack_key && (paths_to_add.iter().any(|path| path.path_raw() == *view.path_read() || *view.path_read() == RESERVED_NAME_NOTES)))
                                 .filter_map(|view| if view.reload(&view.path_copy(), &pack_file_contents_ui).is_err() { Some(view.path_copy()) } else { None })
                                 .collect::<Vec<_>>();
 
                             for path in &failed_paths {
-                                let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, false);
+                                let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, DataSource::PackFile, &pack_key, false);
                             }
 
                             pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::Delete(paths_to_delete.to_vec(), settings_bool(DELETE_EMPTY_FOLDERS_ON_DELETE)), DataSource::PackFile, &pack_key);
 
                             for path in &paths_to_delete {
-                                let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path.path_raw(), DataSource::PackFile, false);
+                                let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path.path_raw(), DataSource::PackFile, &pack_key, false);
                             }
                         }
                         Err(error) => show_dialog(app_ui.main_window(), error, false),

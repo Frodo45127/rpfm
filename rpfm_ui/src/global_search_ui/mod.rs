@@ -844,8 +844,10 @@ impl GlobalSearchUI {
             Err(error) => show_dialog(&self.dock_widget, error, false),
         }
 
+        // The edited paths don't say in which pack they were edited, so reload their views in every searched pack.
+        let pack_keys = global_search_pack_keys(&UI_STATE.get_global_search());
         for path in &replaced.edited {
-            if let Some(file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| &*x.path_read() == path && x.data_source() == DataSource::PackFile) {
+            for file_view in UI_STATE.set_open_packedfiles().iter_mut().filter(|x| pack_keys.iter().any(|pack_key| x.is_view_of(path, DataSource::PackFile, pack_key))) {
                 if let Err(error) = file_view.reload(path, pack_file_contents_ui) {
                     show_dialog(app_ui.main_window(), error, false);
                 }
@@ -853,7 +855,6 @@ impl GlobalSearchUI {
         }
 
         // Update the tooltips of the edited files in every open pack.
-        let pack_keys = global_search_pack_keys(&UI_STATE.get_global_search());
         for pack_key in &pack_keys {
             let edited_info = files_info(pack_key, Some(replaced.edited.clone()));
             pack_file_contents_ui.packfile_contents_tree_view().update_treeview(true, TreeViewOperation::UpdateTooltip(edited_info), DataSource::PackFile, pack_key);

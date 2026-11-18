@@ -1214,12 +1214,15 @@ impl AppUI {
     }
 
     /// This function deletes all the widgets corresponding to the specified PackedFile, if exists.
+    ///
+    /// `pack_key` is only used for files of packs, to pick the view of the right pack.
     #[must_use = "If one of those mysterious save errors happen here and we don't use the result, we may be losing the new changes to a file."]
     pub unsafe fn purge_that_one_specifically(
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         path: &str,
         data_source: DataSource,
+        pack_key: &str,
         save_before_deleting: bool
     ) -> Result<()> {
 
@@ -1230,7 +1233,7 @@ impl AppUI {
         let mut did_it_worked = Ok(());
 
         // Black magic to remove widgets.
-        let position = UI_STATE.get_open_packedfiles().iter().position(|x| *x.path_read() == path && x.data_source() == data_source);
+        let position = UI_STATE.get_open_packedfiles().iter().position(|x| x.is_view_of(path, data_source, pack_key));
         if let Some(position) = position {
             if let Some(file_view) = UI_STATE.get_open_packedfiles().get(position) {
 
@@ -2073,11 +2076,7 @@ impl AppUI {
                 // the same path across multiple open packs. Pack key only matters for PackFile views;
                 // for dependency views it's just whatever pack was selected when the tab was created.
                 let target_pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
-                let is_same_file = |fv: &FileView| -> bool {
-                    *fv.path_read() == *path
-                        && fv.data_source() == data_source
-                        && (data_source != DataSource::PackFile || fv.pack_key_copy() == target_pack_key)
-                };
+                let is_same_file = |fv: &FileView| -> bool { fv.is_view_of(path, data_source, &target_pack_key) };
 
                 let target_tab_widget = app_ui.tab_widget(target_pane);
 
@@ -2150,7 +2149,7 @@ impl AppUI {
 
                 // If we have a PackedFile open, but we want to open it as a external file, close it here.
                 if is_external && UI_STATE.get_open_packedfiles().iter().any(is_same_file) {
-                    if let Err(error) = Self::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, data_source, true) {
+                    if let Err(error) = Self::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, data_source, &target_pack_key, true) {
                         show_dialog(&app_ui.main_window, error, false);
                     }
                 }
@@ -4003,7 +4002,7 @@ impl AppUI {
                 let path = file_view.path_read();
                 if !path.is_empty() {
                     if path.starts_with(RESERVED_NAME_EXTRA_PACKFILE) {
-                        purge_on_delete.push(path.to_owned());
+                        purge_on_delete.push((path.to_owned(), file_view.pack_key_copy()));
 
                         // Close the temporary source Pack so we don't leak it.
                         if let ViewType::Internal(View::PackFile(view)) = file_view.view_type() {
@@ -4011,7 +4010,7 @@ impl AppUI {
                         }
                     }
                     else if path.ends_with(DECODER_EXTENSION) {
-                        purge_on_delete.push(path.to_owned());
+                        purge_on_delete.push((path.to_owned(), file_view.pack_key_copy()));
                     }
                 }
             }
@@ -4021,10 +4020,10 @@ impl AppUI {
         indexes_secondary.iter().for_each(|x| app_ui.tab_bar_packed_file_2.remove_tab(*x));
 
         // This is for cleaning up open PackFiles.
-        purge_on_delete.iter().for_each(|x| { let _ = Self::purge_that_one_specifically(app_ui, pack_file_contents_ui, x, DataSource::ExternalFile, false); });
+        purge_on_delete.iter().for_each(|(path, pack_key)| { let _ = Self::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, DataSource::ExternalFile, pack_key, false); });
 
         // And this is for cleaning decoders.
-        purge_on_delete.iter().for_each(|x| { let _ = Self::purge_that_one_specifically(app_ui, pack_file_contents_ui, x, DataSource::PackFile, false); });
+        purge_on_delete.iter().for_each(|(path, pack_key)| { let _ = Self::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, DataSource::PackFile, pack_key, false); });
 
         // Update the background icon.
         GameSelectedIcons::set_game_selected_icon(app_ui);

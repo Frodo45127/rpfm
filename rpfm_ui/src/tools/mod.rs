@@ -261,7 +261,7 @@ impl Tool {
         UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
 
         // Reload the paths edited by the tool whose views are open.
-        self.reload_used_paths(app_ui, pack_file_contents_ui);
+        self.reload_used_paths(app_ui, pack_file_contents_ui, &pack_key);
         Ok(())
     }
 
@@ -275,19 +275,19 @@ impl Tool {
     /// This function takes care of reloading open files we have edited with the tool.
     ///
     /// If a view fails to reload, it just closes it. No view should ever fail, but... we're not in a sunshine and rainbow's world.
-    pub unsafe fn reload_used_paths(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
+    pub unsafe fn reload_used_paths(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>, pack_key: &str) {
         let mut paths_to_purge = vec![];
         for path_type in &self.used_paths {
             match path_type {
                 ContainerPath::File(ref path) => {
-                    if let Some(file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.path_read() == *path && x.data_source() == DataSource::PackFile) {
+                    if let Some(file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| x.is_view_of(path, DataSource::PackFile, pack_key)) {
                         if file_view.reload(path, pack_file_contents_ui).is_err() {
                             paths_to_purge.push(path.to_owned());
                         }
                     }
                 },
                 ContainerPath::Folder(ref path) => {
-                    for file_view in UI_STATE.set_open_packedfiles().iter_mut().filter(|x| x.path_read().starts_with(path) && x.path_read().len() > path.len() && x.data_source() == DataSource::PackFile) {
+                    for file_view in UI_STATE.set_open_packedfiles().iter_mut().filter(|x| x.path_read().starts_with(path) && x.path_read().len() > path.len() && x.data_source() == DataSource::PackFile && x.pack_key_copy() == pack_key) {
                         if file_view.reload(&file_view.path_copy(), pack_file_contents_ui).is_err() {
                             paths_to_purge.push(path.to_owned());
                         }
@@ -297,7 +297,7 @@ impl Tool {
         }
 
         for path in &paths_to_purge {
-            let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, DataSource::PackFile, false);
+            let _ = AppUI::purge_that_one_specifically(app_ui, pack_file_contents_ui, path, DataSource::PackFile, pack_key, false);
         }
     }
 

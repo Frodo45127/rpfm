@@ -1733,17 +1733,9 @@ impl AppUISlots {
                         if let Some((_, path)) = data_source_and_path {
                             dependencies_ui.import_dependencies(paths_by_source, &app_ui, &pack_file_contents_ui);
 
-                            // Make sure this uses the correct source.
-                            let path_to_purge = UI_STATE.get_open_packedfiles().iter().find_map(|file_view| {
-                                if *file_view.path_read() == path && file_view.data_source() == DataSource::PackFile {
-                                    Some(file_view.path_read().to_owned())
-                                } else { None }
-                            });
-
-                            // If we're overwriting a PackedFile already on our PackFile, remove it.
-                            if let Some(path_to_purge) = path_to_purge {
-                                let _  = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path_to_purge, DataSource::PackFile, false);
-                            }
+                            // If we're overwriting a PackedFile already on the Pack we imported into, remove it.
+                            let pack_key = pack_file_contents_ui.pack_key_from_selection_or_first().unwrap_or_default();
+                            let _  = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &path, DataSource::PackFile, &pack_key, false);
                         }
                     }
                     app_ui.update_views_names();
